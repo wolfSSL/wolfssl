@@ -144,11 +144,14 @@ check_function_exists("memset" HAVE_MEMSET)
 check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
-check_function_exists("getpid" HAVE_GETPID)
 check_function_exists("accept4" HAVE_ACCEPT4)
 
 include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
+check_symbol_exists(getpid "unistd.h" HAVE_GETPID)   # pid_t comes with it
+if(HAVE_GETPID)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_GETPID")   # as options.h says
+endif()
 
 include(CheckTypeSize)
 
@@ -3823,6 +3826,23 @@ if(WOLFSSL_RNG_BANK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
 endif()
 
+# RNG lock (share one WC_RNG between threads)
+add_option("WOLFSSL_RNG_AUTOLOCK"
+    "Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)"
+    "yes" "yes;no")
+# the header leaves the lock out where threads or the RNG are absent
+if(NOT WOLFSSL_RNG_AUTOLOCK)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_AUTO_LOCK")
+endif()
+
+# Whether each instance gets that lock without the caller asking for it
+add_option("WOLFSSL_RNG_AUTOLOCK_DEFAULT"
+    "Give each WC_RNG the lock unless the caller says otherwise (default: enabled)"
+    "yes" "yes;no")
+if(NOT WOLFSSL_RNG_AUTOLOCK_DEFAULT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTO_LOCK_DEFAULT_OFF")
+endif()
+
 # Valgrind (for unit tests)
 add_option("WOLFSSL_VALGRIND"
     "Enable valgrind for unit tests (default: disabled)"
@@ -4051,6 +4071,80 @@ if(NOT WOLFSSL_STATICMEMORY STREQUAL "no")
     endif()
 endif()
 
+# RNG fork handlers (a forked child keeps using its WC_RNG); a build that
+# cannot carry them drops them.  After the static memory option: it reads it.
+add_option("WOLFSSL_RNG_AUTOFORK"
+    "Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)"
+    "yes" "yes;no")
+if(WOLFSSL_RNG_AUTOFORK)
+    set(RNG_AUTOFORK_NEEDS "")
+    if(WOLFSSL_USER_SETTINGS)
+        set(RNG_AUTOFORK_NEEDS "user_settings.h to define them")
+    elseif(WOLFSSL_SINGLE_THREADED OR WOLFSSL_LINUX_KM)
+        set(RNG_AUTOFORK_NEEDS "threads and no kernel module")
+    elseif(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_AUTOLOCK OR NOT WOLFSSL_HASH_DRBG OR
+           WOLFSSL_RNG_BANK OR WOLFSSL_STATICMEMORY)
+        set(RNG_AUTOFORK_NEEDS "the RNG, its lock and the Hash DRBG, and no RNG bank or static memory")
+    elseif(NOT HAVE_GETPID)
+        # the header gate wants it too: it is what makes the child throw away
+        # the pooled and banked bytes it inherited
+        set(RNG_AUTOFORK_NEEDS "getpid")
+    elseif(NOT WOLFSSL_MEMTEST STREQUAL "no" OR
+           NOT WOLFSSL_TRACKMEMORY STREQUAL "no")
+        set(RNG_AUTOFORK_NEEDS "a build without memory tracking")
+    else()
+        # real link tests: a toolchain whose try-compile only builds a static
+        # library reports every function as found
+        set(RNG_AUTOFORK_SAVED_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
+        set(RNG_AUTOFORK_SAVED_TARGET "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+        check_function_exists("pthread_atfork" WOLFSSL_HAVE_PTHREAD_ATFORK)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+        check_c_source_compiles("
+            #if defined(__linux__) || defined(__ANDROID__) || \
+                defined(__CYGWIN__) || defined(__MSYS__)
+            #define _GNU_SOURCE 1   /* as wc_port.c does */
+            #endif
+            #include <stddef.h>
+            #include <stdint.h>
+            #include <dlfcn.h>
+            #include <semaphore.h>
+            #include <pthread.h>
+            #ifdef __APPLE__
+            #error macOS has only named semaphores, which a forked child shares
+            #endif
+            int main(void) {
+                Dl_info info;
+                const char* name;
+                sem_t s;
+                int old;
+                if (sem_init(&s, 0, 1) == 0)
+                    (void)sem_post(&s);
+                (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+                if (dladdr((void*)(uintptr_t)main, &info) != 0) {
+                    name = info.dli_fname;
+                    if (name != NULL && name[0] != 0)
+                        (void)dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY);
+                }
+                return 0;
+            }" WOLFSSL_HAVE_DLADDR_PIN)
+        set(CMAKE_REQUIRED_LIBRARIES "${RNG_AUTOFORK_SAVED_LIBS}")
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE "${RNG_AUTOFORK_SAVED_TARGET}")
+        if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
+            set(RNG_AUTOFORK_NEEDS "pthread_atfork")
+        elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
+            set(RNG_AUTOFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
+        endif()
+    endif()
+    if(RNG_AUTOFORK_NEEDS)
+        message(STATUS "RNG fork handlers off: they need ${RNG_AUTOFORK_NEEDS}")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTOFORK")
+        list(APPEND WOLFSSL_LINK_LIBS ${CMAKE_DL_LIBS})
+    endif()
+endif()
+
 # SHA-256 (enabled by default)
 add_option("WOLFSSL_SHA256" "Enable SHA-256 (default: enabled)" "yes" "yes;no")
 if(NOT WOLFSSL_SHA256)
@@ -4214,6 +4308,7 @@ generate_build_flags()
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
     set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    set(HAVE_GETPID OFF)   # user_settings.h decides; keeps options.h in step
 endif()
 
 if(WOLFSSL_USER_SETTINGS_ASM)

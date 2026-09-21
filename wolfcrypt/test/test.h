@@ -24,6 +24,10 @@
 #define WOLFCRYPT_TEST_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#ifndef WC_NO_RNG
+    /* for WC_RNG_HAVE_AUTO_LOCK and WC_RNG_LOCK_ATFORK; above extern "C" */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -38,6 +42,29 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+/* Needs the lock, threads it can start, and a heap for the compare buffer.
+ * WC_RNG_AUTO_LOCK_DEFAULT: the shared instance comes from wc_rng_new_ex(),
+ * which takes no flags, so a default-off build cannot give it a lock. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && WC_RNG_AUTO_LOCK_DEFAULT && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
+    (defined(WOLFSSL_PTHREADS) || \
+     (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
+    #define WC_TEST_RNG_AUTOLOCK
+#endif
+/* A lock the test can hold, plus the POSIX parts the timing tests use. */
+#if defined(WC_TEST_RNG_AUTOLOCK) && !defined(__STRICT_ANSI__) && \
+    (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
+    #define WC_TEST_RNG_HOLD
+#endif
+/* The fork test needs a real process model on top of the handlers. */
+#if defined(WC_TEST_RNG_HOLD) && defined(WC_RNG_LOCK_ATFORK)
+    #define WC_TEST_RNG_AUTOFORK
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -256,6 +283,10 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
+#ifdef WC_TEST_RNG_AUTOLOCK
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif

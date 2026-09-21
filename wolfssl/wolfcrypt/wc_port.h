@@ -1121,7 +1121,36 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
     WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
     WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
-#endif
+
+#endif /* !WC_MUTEX_OPS_INLINE */
+
+/* A lock that survives fork().  It is held with a POSIX unnamed semaphore
+ * because sem_post() is the only unlock a fork child may legally call
+ * (signal-safety(7); fork(2) limits the child to async-signal-safe calls).
+ * The object is opaque: callers hold only a pointer. */
+typedef struct wc_ForkLock wc_ForkLock;
+/* What the prepare handler did with a lock, so parent and child finish
+ * exactly that. */
+enum {
+    WC_FORK_LOCK_UNTAKEN = 0,   /* prepare left it alone */
+    WC_FORK_LOCK_TAKEN   = 1,   /* prepare took it, so give it back */
+    WC_FORK_LOCK_OWNED   = 2    /* the forking thread was already holding it */
+};
+WOLFSSL_LOCAL int  wc_ForkLockInit(void);          /* from wolfCrypt_Init */
+WOLFSSL_LOCAL int  wc_ForkLock_New(wc_ForkLock** lock, void* heap);
+WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock);
+/* Exit() is for a caller whose Enter() returned 0, once.  Calling it after a
+ * failed Enter() posts a lock this caller never took, so two threads could
+ * then hold it at the same time. */
+WOLFSSL_API   int  wc_ForkLock_Enter(wc_ForkLock* lock);
+WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
+/* For tests: force the lock to fail closed. */
+WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
+WOLFSSL_LOCAL void wc_PinImage(void* fn);          /* keeps fn's image mapped */
+/* Cancellation off while a lock is held: a reseed reads a device, which is a
+ * cancellation point.  Both are no-ops where the platform has no cancel. */
+WOLFSSL_LOCAL int  wc_CancelDisable(void);         /* returns the old state */
+WOLFSSL_LOCAL void wc_CancelRestore(int state);
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     /* Election state for wc_local_InitMutexOnce(). Define objects with

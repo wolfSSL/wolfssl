@@ -34,6 +34,51 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+/* One lock per WC_RNG so threads can share it.  WC_RNG_NO_AUTO_LOCK opts out;
+ * kernel modules have their own lock-free design and CMSIS-RTOS v1 has only
+ * a ten-mutex pool.  Bank builds keep it: they still hand out plain instances. */
+/* WC_RNG_WANT_AUTO_LOCK forces the lock on where policy would skip it.  The
+ * tests below it are hard prerequisites and nothing can override those. */
+#if (defined(WC_RNG_WANT_AUTO_LOCK) || \
+     (!defined(WOLFSSL_CMSIS_RTOS) && \
+      !defined(WOLFSSL_KERNEL_MODE) && \
+      !defined(WOLFSSL_KERNEL_MODE_DEFAULTS))) && \
+    !defined(SINGLE_THREADED) && \
+    !defined(WC_RNG_NO_AUTO_LOCK) && !defined(WC_NO_RNG) && \
+    !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define WC_RNG_HAVE_AUTO_LOCK
+#else
+    #undef WC_RNG_HAVE_AUTO_LOCK
+#endif
+
+/* Whether an instance gets the lock when the caller names neither
+ * WC_RNG_INIT_FLAG_USE_AUTO_LOCK nor WC_RNG_INIT_FLAG_NO_AUTO_LOCK. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WC_RNG_AUTO_LOCK_DEFAULT_OFF)
+    #define WC_RNG_AUTO_LOCK_DEFAULT 0
+#else
+    #define WC_RNG_AUTO_LOCK_DEFAULT 1
+#endif
+
+/* pthread_atfork handlers so a forked child can keep using its WC_RNG.
+ * configure and CMake define WC_RNG_AUTOFORK where the dlclose pin, unnamed
+ * semaphores and thread cancellation exist; builds whose locks the handlers
+ * cannot cover are left out.  getpid() is required alongside them: it is
+ * what makes the child throw away the pooled and banked bytes it inherited,
+ * which the handlers themselves do not touch. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
+    defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
+    defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
+    !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
+    #define WC_RNG_LOCK_ATFORK
+#else
+    #undef WC_RNG_LOCK_ATFORK
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -157,6 +202,7 @@
         #define WC_RESEED_INTERVAL 1000000
     #endif
 #endif
+
 
 
 /* avoid redefinition of structs */
@@ -512,9 +558,14 @@ struct WC_RNG {
 #endif
 #ifdef WC_RNG_HAVE_LOCK
     WC_RNG_lock_t lock;
-    #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+#endif
+    /* Both lock facilities use this one mutex, so it is declared once here.
+     * The fork handler build holds a wc_ForkLock instead and needs no mutex. */
+#if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX) || \
+    (defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WC_RNG_LOCK_ATFORK))
     wolfSSL_Mutex mutex;
-    #endif
+#endif
+#ifdef WC_RNG_HAVE_LOCK
     #ifdef WC_RNG_DEBUG_STATS
         wc_rng_debug_counter_t _stats_locks_taken;
         wc_rng_debug_counter_t _stats_locks_released;
@@ -608,6 +659,15 @@ struct WC_RNG {
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
+#endif
+#ifdef WC_RNG_LOCK_ATFORK
+    /* NULL until wc_InitRng succeeds.  Initialize only a new or freed WC_RNG:
+     * wc_InitRng over a live one leaks this and grows the fork registry that
+     * every fork() walks. */
+    struct wc_ForkLock* autoLock;   /* defined in wc_port.c */
+#elif defined(WC_RNG_HAVE_AUTO_LOCK)
+    byte autoLockInited;      /* nonzero once lock exists */
+    int autoLockCancel;       /* the holder's cancel state, back on exit */
 #endif
 };
 
@@ -731,6 +791,9 @@ WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz,
                                            void* heap);
 WOLFSSL_API int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
                               void* heap, int devId);
+/* wc_rng_new*, wc_InitRng*, wc_InitRng_BankRef, wc_FreeRng and wc_rng_free
+ * do not take the instance lock: no other thread may use the instance across
+ * them. */
 WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 
@@ -749,6 +812,10 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
  * (promotion).  For externally-refreshed long-lived RNGs, e.g. the kernel
  * module's registered RBGC leaves. */
 #define WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
+/* Force the per-call lock on or off for this one instance, whatever the
+ * build default is.  Asking for one the build has not got is an error. */
+#define WC_RNG_INIT_FLAG_USE_AUTO_LOCK   (1U << 4)
+#define WC_RNG_INIT_FLAG_NO_AUTO_LOCK    (1U << 5)
 
 WOLFSSL_API int  wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId,
                                 word32 flags);
