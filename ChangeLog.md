@@ -57,6 +57,13 @@
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
 * SHA-3 crypto callbacks are now told the variant of each call instead of one cached on the context, which gave the wrong digest length when ML-KEM reused one object for SHA3-512 and SHA3-256. by @Frauschi (PR 11544)
 
+## Bug Fixes
+
+* **Fix (`XASM_VOLATILE()` on IAR and KEIL in C99 mode)**: the `WOLF_C99` arm
+  was checked first and handed both compilers `__asm__`, which their assembler
+  dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
+  the spelling IAR keeps available under `--strict`.
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
