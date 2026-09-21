@@ -138,6 +138,18 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 
 #endif /* !WC_TEST_RET_HAVE_CUSTOM_MACROS */
 
+#ifndef WOLFSSL_NO_CONST_CMP
+    /* wc_ConstantCompare() lives in memory.c, which is not built under
+     * NO_WOLFSSL_MEMORY or, with autotools, WOLFSSL_LEANPSK. */
+    #if !defined(NO_WOLFSSL_MEMORY) && !defined(WOLFSSL_LEANPSK)
+        #define WC_TEST_HAVE_WC_CONSTANTCOMPARE
+    #endif
+    /* Test only when ConstantCompare() or wc_ConstantCompare() is linkable. */
+    #if !defined(NO_INLINE) || defined(WC_TEST_HAVE_WC_CONSTANTCOMPARE)
+        #define WC_TEST_CONSTANTCOMPARE
+    #endif
+#endif
+
 #ifdef WC_TEST_EXPORT_SUBTESTS
 
 #if defined(NO_FILESYSTEM) || defined(WC_NO_RNG)
@@ -158,6 +170,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  flags_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
+#ifdef WC_TEST_CONSTANTCOMPARE
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  constantcompare_test(void);
+#endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
