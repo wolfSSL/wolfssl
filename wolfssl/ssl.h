@@ -3851,6 +3851,12 @@ WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 #if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
 WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_X509_CRL_new(void);
 #ifdef WOLFSSL_CERT_GEN
+/* revoked->serialNumber->data must be the bare serial value octets, with no
+ * DER tag or length, and ->length their count. That is what
+ * wolfSSL_X509_CRL_get_REVOKED() gives. An ASN1_INTEGER built with the
+ * ASN1_INTEGER API holds a DER INTEGER instead and is not accepted here: pass
+ * wolfSSL_ASN1_INTEGER_get0_data() and wolfSSL_ASN1_INTEGER_get_length() of
+ * it. */
 WOLFSSL_API int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
                                              WOLFSSL_X509_REVOKED* revoked);
 WOLFSSL_API int wolfSSL_X509_CRL_add_revoked_cert(WOLFSSL_X509_CRL* crl,

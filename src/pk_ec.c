@@ -1859,10 +1859,13 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* Convert Jacobian ordinates to affine.
  *
+ * Note the return convention: zero is success, the opposite of most functions
+ * here. Both callers treat a non-zero return as an error.
+ *
  * @param [in]      group  EC group.
- * @param [in]      point  EC point to get coordinates from.
- * @return  1 on success.
- * @return  0 on error.
+ * @param [in, out] point  EC point to convert.
+ * @return  0 on success.
+ * @return  1 on error.
  */
 int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WOLFSSL_EC_POINT *point)
@@ -1881,8 +1884,16 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     mp_digit mp = 0;
     WC_DECLARE_VAR(modulus, mp_int, 1, 0);
 
+    /* Curve parameters are only available for curves in ecc_sets. */
+    if ((group->curve_idx < 0) || (!wc_ecc_is_valid_idx(group->curve_idx))) {
+        WOLFSSL_MSG("ec_point_convert_to_affine curve index error");
+        err = 1;
+    }
+
     /* Allocate memory for curve's prime modulus. */
-    WC_ALLOC_VAR_EX(modulus, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, err=1);
+    if (!err) {
+        WC_ALLOC_VAR_EX(modulus, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, err=1);
+    }
     /* Initialize the MP integer. */
     if ((!err) && (mp_init(modulus) != MP_OKAY)) {
         WOLFSSL_MSG("mp_init failed");
@@ -2250,6 +2261,12 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP* group, WOLFSSL_EC_POINT* r,
         WOLFSSL_MSG("wolfSSL_EC_POINT_add error");
         ret = 0;
     }
+    /* Curve parameters are only available for curves in ecc_sets. */
+    if ((ret == 1) && ((group->curve_idx < 0) ||
+            (!wc_ecc_is_valid_idx(group->curve_idx)))) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_add Bad group idx");
+        ret = 0;
+    }
 
     /* Ensure the internal objects of the EC points are setup. */
     if ((ret == 1) && ((ec_point_setup(r) != 1) || (ec_point_setup(p1) != 1) ||
@@ -2515,6 +2532,12 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         WOLFSSL_MSG("wolfSSL_EC_POINT_mul NULL error");
         ret = 0;
     }
+    /* Curve parameters are only available for curves in ecc_sets. */
+    if ((ret == 1) && ((group->curve_idx < 0) ||
+            (!wc_ecc_is_valid_idx(group->curve_idx)))) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_mul Bad group idx");
+        ret = 0;
+    }
 
     /* Ensure the internal representation of the EC point q is setup. */
     if ((ret == 1) && (q != NULL) && (ec_point_setup(q) != 1)) {
@@ -2638,6 +2661,12 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group,
     if ((group == NULL) || (point == NULL) || (point->internal == NULL)) {
         ret = 0;
     }
+    /* Curve parameters are only available for curves in ecc_sets. */
+    if ((ret == 1) && ((group->curve_idx < 0) ||
+            (!wc_ecc_is_valid_idx(group->curve_idx)))) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_invert Bad group idx");
+        ret = 0;
+    }
 
     /* Ensure internal representation of point is setup. */
     if ((ret == 1) && (ec_point_setup(point) != 1)) {
@@ -2718,6 +2747,11 @@ static int ec_point_cmp_jacobian(const WOLFSSL_EC_GROUP* group,
     /* Check that the big numbers were allocated. */
     if ((at == NULL) || (bt == NULL) || (az == NULL) || (bz == NULL) ||
             (mod == NULL)) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    /* Curve parameters are only available for curves in ecc_sets. */
+    if ((ret == 0) && ((group->curve_idx < 0) ||
+            (!wc_ecc_is_valid_idx(group->curve_idx)))) {
         ret = WOLFSSL_FATAL_ERROR;
     }
     /* Get the modulus for the curve. */

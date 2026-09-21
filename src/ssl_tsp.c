@@ -202,17 +202,19 @@ struct WOLFSSL_TS_VERIFY_CTX {
 static int ts_asn1_integer_get(const WOLFSSL_ASN1_INTEGER* a,
     const unsigned char** data, word32* len)
 {
-    word32 idx = 1;
+    word32 idx = 0;
     int length = 0;
 
-    if ((a == NULL) || (a->length < 3) || (a->data[0] != ASN_INTEGER))
+    if (a == NULL)
         return 0;
     /* The number is an unsigned big-endian value. The data holds the
      * magnitude; the sign is carried separately - reject a negative value
      * rather than use its magnitude as if positive. */
     if (a->negative || (a->type == WOLFSSL_V_ASN1_NEG_INTEGER))
         return 0;
-    if (GetLength(a->data, &idx, &length, (word32)a->length) < 0)
+    /* Take the value octets whichever layout the object records, instead of
+     * requiring a DER one. */
+    if ((wolfssl_asn1_integer_value(a, &idx, &length) != 1) || (length <= 0))
         return 0;
 
     *data = a->data + idx;

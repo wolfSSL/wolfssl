@@ -472,6 +472,7 @@ int test_wolfSSL_TS_REQ(void)
         nbuf[1] = (unsigned char)(MAX_TS_NONCE_SZ + 1); /* > max, no pad */
         XMEMSET(nbuf + 2, 0x55, MAX_TS_NONCE_SZ + 1);
         bigNonce.data = nbuf;
+        bigNonce.dataMax = (unsigned int)sizeof(nbuf);
         bigNonce.length = 2 + MAX_TS_NONCE_SZ + 1;
         ExpectIntEQ(TS_REQ_set_nonce(req, &bigNonce), 0);
     }

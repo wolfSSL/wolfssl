@@ -30869,23 +30869,32 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
     static const int numSerials =
         (int)(sizeof(serialsToRevokeBytes) /
               sizeof(serialsToRevokeBytes[0]));
+    /* dataIsRaw = 0: bare value octets, which is what
+     * wolfSSL_X509_CRL_add_revoked() reads. Every member is named, including
+     * the ones whose value is the default, because a designated initializer
+     * that omits one is an error under -Werror=missing-field-initializers in
+     * C++ builds - the C front end does not warn there, so a missing member
+     * only shows up in the C++ CI job. */
     WOLFSSL_ASN1_INTEGER serialsToRevoke[3] = {
         { .intData = {0}, .negative = 0,
           .data = serialsToRevokeBytes[0],
           .dataMax = sizeof(serialsToRevokeBytes[0]),
           .isDynamic = 0,
+          .dataIsRaw = 0,
           .length = sizeof(serialsToRevokeBytes[0]),
           .type = 0 },
         { .intData = {0}, .negative = 0,
           .data = serialsToRevokeBytes[1],
           .dataMax = sizeof(serialsToRevokeBytes[1]),
           .isDynamic = 0,
+          .dataIsRaw = 0,
           .length = sizeof(serialsToRevokeBytes[1]),
           .type = 0 },
         { .intData = {0}, .negative = 0,
           .data = serialsToRevokeBytes[2],
           .dataMax = sizeof(serialsToRevokeBytes[2]),
           .isDynamic = 0,
+          .dataIsRaw = 0,
           .length = sizeof(serialsToRevokeBytes[2]),
           .type = 0 }
     };
@@ -31174,6 +31183,8 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     ExpectNotNull(revoked.serialNumber);
     revoked.reason = CRL_REASON_NONE;
     if (revoked.serialNumber != NULL) {
+        /* The bare value octets, with dataIsRaw left clear: the layout this
+         * API accepted before the flag existed. It must still work. */
         revoked.serialNumber->data = serial;
         revoked.serialNumber->length = (int)sizeof(serial);
     }

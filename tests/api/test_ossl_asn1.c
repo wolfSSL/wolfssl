@@ -134,6 +134,9 @@ int test_wolfSSL_ASN1_INTEGER(void)
     ExpectNotNull(a = d2i_ASN1_INTEGER(NULL, &p, sizeof(longDer)));
     ExpectPtrNE(p, longDer);
     ExpectNotNull(dup = wolfSSL_ASN1_INTEGER_dup(a));
+    /* The copy of a heap-backed value must hold the value, not be empty. */
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get_length(dup), 32);
+    ExpectIntEQ(ASN1_INTEGER_cmp(a, dup), 0);
     ASN1_INTEGER_free(dup);
     ASN1_INTEGER_free(a);
 #endif
@@ -169,6 +172,83 @@ int test_wolfSSL_ASN1_INTEGER_cmp(void)
     ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
     ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
 
+    /* The same number in the two layouts compares equal. A DER value carries
+     * a 0x00 pad when its top bit is set, so 128 is 00 80 as a DER value but
+     * 80 as bare value octets - as a CRL revoked serial holds it. */
+    ExpectIntEQ(ASN1_INTEGER_set(a, 128), 1);
+    if (b != NULL) {
+        b->data[0] = 0x80;
+        b->length = 1;
+        b->dataIsRaw = 1;
+        b->negative = 0;
+    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+    /* Ordering still holds across the layouts: 127 < 128. */
+    ExpectIntEQ(ASN1_INTEGER_set(a, 127), 1);
+    ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+    /* Zero is 00 as a DER value and empty as a bare one. */
+    ExpectIntEQ(ASN1_INTEGER_set(a, 0), 1);
+    if (b != NULL) {
+        b->length = 0;
+    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+
+    /* A basic constraints pathLenConstraint, as X509_get_ext() and
+     * X509_get_ext_d2i() build it: the path length goes in ->length with
+     * ->data left zeroed, so the object holds no value in either layout.
+     * Comparing one with itself must still say equal, and ->length must still
+     * order them. */
+    if ((a != NULL) && (b != NULL)) {
+        XMEMSET(a->data, 0, (size_t)a->dataMax);
+        XMEMSET(b->data, 0, (size_t)b->dataMax);
+        a->dataIsRaw = 0;
+        b->dataIsRaw = 0;
+        a->negative = 0;
+        b->negative = 0;
+        a->length = 3;
+        b->length = 3;
+    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, a), 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    if (b != NULL) {
+        b->length = 5;
+    }
+    ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+
+    /* It must also order correctly against an object that does hold an
+     * encoded value, by value and not by storage length: 1, 3 and 127 all
+     * encode in three octets of DER, so a comparison of lengths would call a
+     * path length of 3 equal to each of them. a->length is 3 here. */
+    if (b != NULL) {
+        ExpectIntEQ(ASN1_INTEGER_set(b, 1), 1);
+    }
+    ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+    if (b != NULL) {
+        ExpectIntEQ(ASN1_INTEGER_set(b, 127), 1);
+    }
+    ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+    if (b != NULL) {
+        ExpectIntEQ(ASN1_INTEGER_set(b, 3), 1);
+    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+
+    /* A value too wide to decode into a word is greater than any path length
+     * whatever its own byte count. */
+    if ((b != NULL) && (b->dataMax >= 8)) {
+        XMEMSET(b->data, 0xff, 8);
+        b->dataIsRaw = 1;
+        b->negative = 0;
+        b->length = 8;
+        ExpectIntLT(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+        ExpectIntGT(wolfSSL_ASN1_INTEGER_cmp(b, a), 0);
+    }
+
     ASN1_INTEGER_free(b);
     ASN1_INTEGER_free(a);
 #endif
@@ -193,14 +273,13 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
 
     /* at the moment hard setting since no set function */
     if (ai != NULL) {
-        ai->data[0] = 0xff; /* No DER encoding. */
+        ai->data[0] = 0xff; /* The value, not a DER encoding. */
         ai->length = 1;
+        ai->dataIsRaw = 1;
     }
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+    /* An object that says its data is the value is read that way in every
+     * build. This used to depend on WOLFSSL_QT/WOLFSSL_HAPROXY. */
     ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#else
-    ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#endif
     BN_free(bn);
     bn = NULL;
 
@@ -209,13 +288,11 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
         ai->data[1] = 0x04; /* bad length of integer */
         ai->data[2] = 0x03;
         ai->length = 3;
+        ai->dataIsRaw = 0; /* claims a DER layout */
     }
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    /* Interpreted as a number 0x020403. */
-    ExpectNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#else
+    /* The object claims DER and the header does not span its length, so it is
+     * rejected rather than read as a value - in every build. */
     ExpectNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
-#endif
     BN_free(bn);
     bn = NULL;
 
@@ -287,11 +364,8 @@ int test_wolfSSL_ASN1_INTEGER_get_set(void)
     ExpectNotNull(a = ASN1_INTEGER_new());
     /* Invalid parameter testing. */
     ExpectIntEQ(ASN1_INTEGER_get(NULL), 0);
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    ExpectIntEQ(ASN1_INTEGER_get(a), 0);
-#else
+    /* No value octets: -1 in every build, as OpenSSL reports. */
     ExpectIntEQ(ASN1_INTEGER_get(a), -1);
-#endif
     ASN1_INTEGER_free(a);
     a = NULL;
 
@@ -651,6 +725,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 40;
+        a->length = 3;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -670,6 +745,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 128;
+        a->length = 3;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -690,6 +766,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 40;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -710,6 +787,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 128;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -730,6 +808,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 200;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -750,6 +829,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
     if (a != NULL) {
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 0;
+        a->length = 2;
         a->negative = 0;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -770,6 +850,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 0;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -791,6 +872,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x01;
         a->intData[3] = 0x00;
+        a->length = 4;
         a->negative = 0;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -813,6 +895,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x80;
         a->intData[3] = 0x00;
+        a->length = 4;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -835,6 +918,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x80;
         a->intData[3] = 0x01;
+        a->length = 4;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 3);
@@ -848,6 +932,85 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         ExpectIntEQ(tpp[0], 0xFF);
         ExpectIntEQ(tpp[1], 0x7F);
         ExpectIntEQ(tpp[2], 0xFF);
+    }
+    XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pp = NULL;
+
+    /* Value octets without a DER header, as X509_CRL_get_REVOKED() produces.
+     * The object has to say so - dataIsRaw is what stops the second byte being
+     * read as a DER length. */
+    if (a != NULL) {
+        a->dataIsRaw = 1;
+        a->intData[0] = 0x01;
+        a->intData[1] = 0x02;
+        a->intData[2] = 0x03;
+        a->length = 3;
+        a->negative = 0;
+    }
+    ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 3);
+    ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    tpp = pp;
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 3);
+        tpp -= 3;
+        ExpectIntEQ(tpp[0], 0x01);
+        ExpectIntEQ(tpp[1], 0x02);
+        ExpectIntEQ(tpp[2], 0x03);
+    }
+    XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pp = NULL;
+
+    /* Value octets that look like a DER header claiming more than a->length.
+     * Still the value, because the object says so. */
+    if (a != NULL) {
+        a->dataIsRaw = 1;
+        a->intData[0] = ASN_INTEGER;
+        a->intData[1] = 0x82;
+        a->intData[2] = 0x40;
+        a->intData[3] = 0x00;
+        a->length = 4;
+        a->negative = 0;
+    }
+    ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 4);
+    ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    tpp = pp;
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 4);
+        tpp -= 4;
+        ExpectIntEQ(tpp[0], ASN_INTEGER);
+        ExpectIntEQ(tpp[1], 0x82);
+        ExpectIntEQ(tpp[2], 0x40);
+        ExpectIntEQ(tpp[3], 0x00);
+    }
+    XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pp = NULL;
+
+    /* A length that does not lie inside the buffer holding the data. No
+     * producer in the tree creates this, but the object is caller visible, so
+     * the length must not be trusted to bound the read. */
+    if (a != NULL) {
+        a->dataIsRaw = 1;
+        a->length = (int)a->dataMax + 1;
+        a->negative = 0;
+    }
+    ExpectIntEQ(i2c_ASN1_INTEGER(a, NULL), 0);
+    /* A length of zero still encodes as the single byte that means zero. */
+    if (a != NULL) {
+        a->length = 0;
+    }
+    ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
+    ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    tpp = pp;
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0xff, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp -= 1;
+        ExpectIntEQ(tpp[0], 0x00);
     }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
