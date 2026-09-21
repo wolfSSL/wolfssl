@@ -43,6 +43,9 @@
   `"memory"` clobber.  Define `XASM_VOLATILE_NO_CLOBBER` if your toolchain
   rejects a clobber list.  A user-supplied `XFENCE()` is unaffected.  Note the
   clobber makes this extended asm, so a `%` in a template must be written `%%`.
+* **API (`aarch64_use_sb` renamed to `wc_aarch64_use_sb`)**: an implementation
+  detail of `XFENCE()` under `WOLFSSL_ARMASM_BARRIER_DETECT`.  Affects only code
+  that names the symbol directly.
 
 ## Post-Quantum Cryptography (PQC)
 
