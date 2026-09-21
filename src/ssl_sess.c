@@ -375,7 +375,7 @@ static int SessionSanityPointerSet(int row)
     }
 
     if (srow->totalCount < 0 || srow->totalCount > SESSIONS_PER_ROW) {
-        WOLFSSL_MSG_EX("session sanity: bad row cotal count: %d",
+        WOLFSSL_MSG_EX("session sanity: bad row total count: %d",
                        srow->totalCount);
         srow->totalCount = 0;
         ret = -1;
@@ -398,15 +398,17 @@ static int SessionSanityPointerSet(int row)
             s->ticketLen = SESSION_TICKET_LEN;
         }
         #endif /* HAVE_SESSION_TICKET */
-        #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
-            defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
-            (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
-             FIPS_VERSION_GE(5,3)))
-        s->ticketNonce.data = s->ticketNonce.dataStatic;
+        #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
+            !defined(NO_PSK))
         if (s->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
             s->ticketNonce.len = MAX_TICKET_NONCE_STATIC_SZ;
         }
-        #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET && etc. */
+        #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+            (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+             FIPS_VERSION_GE(5,3)))
+        s->ticketNonce.data = s->ticketNonce.dataStatic;
+        #endif /* WOLFSSL_TICKET_NONCE_MALLOC && ... */
+        #endif /* WOLFSSL_TLS13 && && etc. */
 
         #ifdef SESSION_CERTS
         if (s->chain.count < 0 || s->chain.count > MAX_CHAIN_DEPTH) {
@@ -423,17 +425,57 @@ static int SessionSanityPointerSet(int row)
                     s->chain.certs[k].length > MAX_X509_SIZE) {
                     WOLFSSL_MSG_EX("session sanity: cert[%d] bad length: %d",
                                    k, s->chain.certs[k].length);
+                    s->chain.certs[k].length = 0;
                     ret = -1;
                 }
             }
         }
+
+        #ifdef WOLFSSL_ALT_CERT_CHAINS
+        if (s->altChain.count < 0 || s->altChain.count > MAX_CHAIN_DEPTH) {
+            WOLFSSL_MSG_EX("session sanity: bad altChain count: %d",
+                           s->altChain.count);
+            s->altChain.count = 0;
+            ret = -1;
+        }
+
+        if (s->altChain.count) {
+            int k;
+            for (k = 0; k < s->altChain.count; ++k) {
+                if (s->altChain.certs[k].length < 0 ||
+                    s->altChain.certs[k].length > MAX_X509_SIZE) {
+                    WOLFSSL_MSG_EX("session sanity: altCert[%d] bad length: %d",
+                                   k, s->altChain.certs[k].length);
+                    s->altChain.certs[k].length = 0;
+                    ret = -1;
+                }
+            }
+        }
+        #endif /* WOLFSSL_ALT_CERT_CHAINS */
         #endif /* SESSION_CERTS */
+
+        if (s->sessionIDSz > ID_LEN) {
+            WOLFSSL_MSG_EX("session sanity: sessionIDSz: %d",
+                           s->sessionIDSz);
+            s->sessionIDSz = 0;
+            ret = -1;
+        }
+
+        #ifndef NO_CLIENT_CACHE
+        if (s->idLen > SERVER_ID_LEN) {
+            WOLFSSL_MSG_EX("session sanity: idLen: %d",
+                           s->idLen);
+            s->idLen = 0;
+            ret = -1;
+        }
+        #endif /* NO_CLIENT_CACHE */
 
         #ifdef WOLFSSL_SESSION_ID_CTX
         /* sessionCtx is deep copied, but can't exceed ID_LEN. */
         if (s->sessionCtxSz > ID_LEN) {
             WOLFSSL_MSG_EX("session sanity: sessionCtxSz: %d",
                            s->sessionCtxSz);
+            s->sessionCtxSz = 0;
             ret = -1;
         }
         #endif /* WOLFSSL_SESSION_ID_CTX */

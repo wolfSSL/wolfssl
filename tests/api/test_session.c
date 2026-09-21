@@ -2157,9 +2157,9 @@ static int test_mem_session_cache(void)
     /* get session cache size, compare to expected result */
     mem_sz = wolfSSL_get_session_cache_memsize();
     if (mem_sz != expected_mem_sz) {
-        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %d", mem_sz,
                        expected_mem_sz);
-        return -1;
+        goto cleanup;
     }
 
     #ifndef NO_CLIENT_CACHE
@@ -2512,9 +2512,9 @@ static int test_file_session_cache(void)
     /* get session cache size, compare to expected result */
     mem_sz = wolfSSL_get_session_cache_memsize();
     if (mem_sz != expected_mem_sz) {
-        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %d", mem_sz,
                        expected_mem_sz);
-        return -1;
+        goto file_cleanup;
     }
 
     #ifndef NO_CLIENT_CACHE
