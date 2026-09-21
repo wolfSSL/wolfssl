@@ -1318,8 +1318,8 @@ static int test_dtls_cid_wire(byte msgType, byte minor, int cidFirst,
         ExpectIntEQ(input[DTLS_RECORD_HEADER_SZ], msgType);
         outputSz = test_dtls_cid_rewrite_hello(input, inputSz, output,
                 (int)sizeof(output),
-                retry && round == 0 ? DTLSv1_3_MINOR : minor, cidFirst, cidSz,
-                retry && round == 0 ? DTLSv1_2_MINOR : legacyMinor);
+                retry && round == 0 ? (byte)DTLSv1_3_MINOR : minor, cidFirst, cidSz,
+                retry && round == 0 ? (byte)DTLSv1_2_MINOR : legacyMinor);
         ExpectIntGT(outputSz, 0);
         if (!EXPECT_SUCCESS())
             break;
@@ -8974,7 +8974,9 @@ int test_wolfSSL_set_secret(void)
  * and reordering rather than corruption. Same fixture as the TLS version:
  * test_memio, credentials from certs/, no socket and no second process.
  * ------------------------------------------------------------------------- */
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && defined(WOLFSSL_DTLS)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS) &&                               \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 /* Offsets into a DTLS record, by field rather than by guess. */
 #define DW_TYPE        0
@@ -9142,7 +9144,8 @@ int test_dtls12_wire_mangle(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_2_client_method,
                                      wolfDTLSv1_2_server_method), 0);
 #endif
@@ -9153,7 +9156,8 @@ int test_dtls13_wire_mangle(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA)
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_3_client_method,
                                      wolfDTLSv1_3_server_method), 0);
 #endif
@@ -9209,7 +9213,8 @@ int test_dtls13_wire_mangle(void)
  * the harness has no business asserting it either way. */
 #if defined(WOLFSSL_DTLS) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 #define DF_MAX_PKT 384
 #define DF_MAX_SZ  1600
@@ -10401,7 +10406,7 @@ int test_dtls12_packet_forgeries(void)
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
     && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(WOLFSSL_ASYNC_CRYPT)
+    && !defined(WOLFSSL_ASYNC_CRYPT) && !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(df_sweep(wolfDTLSv1_2_client_method,
                          wolfDTLSv1_2_server_method), 0);
 #endif
@@ -10414,7 +10419,7 @@ int test_dtls13_packet_forgeries(void)
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) \
     && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(WOLFSSL_ASYNC_CRYPT)
+    && !defined(WOLFSSL_ASYNC_CRYPT) && !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(df_sweep(wolfDTLSv1_3_client_method,
                          wolfDTLSv1_3_server_method), 0);
 #endif
