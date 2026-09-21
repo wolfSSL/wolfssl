@@ -12621,6 +12621,12 @@ void bench_mlkem(int type)
     }
 #endif
 
+    /* Zero the key objects so the wc_MlKemKey_Free calls below, and the one at
+     * the top of bench_mlkem_keygen's loop, are safe even if a benchmark helper
+     * returns before initializing its key. */
+    XMEMSET(key1, 0, sizeof(*key1));
+    XMEMSET(key2, 0, sizeof(*key2));
+
     bench_mlkem_keygen(type, name, keySize, key1);
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
