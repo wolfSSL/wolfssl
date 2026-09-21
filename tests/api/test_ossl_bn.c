@@ -532,6 +532,7 @@ int test_wolfSSL_BN_bits(void)
     ExpectIntEQ(BN_set_bit(a, 129), 1);
     ExpectIntEQ(BN_get_word(a), WOLFSSL_BN_MAX_VAL);
 
+#ifdef WOLFSSL_HAVE_MP_MOD_2D
     /* Invalid parameters. */
     ExpectIntEQ(BN_mask_bits(NULL, 1), 0);
     ExpectIntEQ(BN_mask_bits(&emptyBN, 1), 0);
@@ -551,6 +552,7 @@ int test_wolfSSL_BN_bits(void)
     ExpectIntEQ(BN_get_word(a), 0xf);
     ExpectIntEQ(BN_mask_bits(a, 0), 1);
     ExpectIntEQ(BN_is_zero(a), 1);
+#endif
 
     BN_free(a);
 #endif
