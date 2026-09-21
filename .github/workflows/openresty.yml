@@ -63,7 +63,7 @@ jobs:
           # and 170-ssl-session-reuse.t.
           - ref: 1.31.1.1
             sha256: 65b78baadd3f0984055de89bf13f4a1932e5bfe9c31932037a134ea2b1a0ce42
-            osp-repo: julek-dev/osp
+            osp-repo: julek-wolfssl/osp
             osp-ref: openresty-1.31.1.1
             ngx-lua-tests: >-
               139-ssl-cert-by.t 140-ssl-c-api.t 142-ssl-session-store.t
