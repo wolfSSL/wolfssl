@@ -1818,3 +1818,118 @@ int test_wolfSSL_client_cache_id_prefix(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_wolfSSL_client_cache_id_overwrite(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_SESSION_CACHE_REF) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CTX* ctx_c2 = NULL;
+    WOLFSSL_CTX* ctx_s2 = NULL;
+    WOLFSSL* ssl_c2 = NULL;
+    WOLFSSL* ssl_s2 = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sessA = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    byte idA[ID_LEN];
+    byte secretA[SECRET_LEN];
+    byte secretB[SECRET_LEN];
+
+    XMEMSET(idA, 0, sizeof(idA));
+    XMEMSET(secretA, 0, sizeof(secretA));
+    XMEMSET(secretB, 0, sizeof(secretB));
+
+    /* A second server, on its own certificate and its own context. It runs
+     * first so no unrelated cache write falls between the handle below being
+     * issued and the overwrite it has to survive. */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c2, &ctx_s2, &ssl_c2, &ssl_s2,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(ssl_c2->session->isSetup, 1);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(secretB, ssl_c2->session->masterSecret, SECRET_LEN);
+    }
+
+    /* TLS 1.2 so the session ID names the cache entry and the client has a
+     * complete session as soon as the handshake is done. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->isSetup, 1);
+    ExpectIntEQ(ssl_c->session->haveAltSessionID, 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(idA, ssl_c->session->sessionID, ID_LEN);
+        XMEMCPY(secretA, ssl_c->session->masterSecret, SECRET_LEN);
+    }
+    ExpectIntNE(XMEMCMP(secretA, secretB, SECRET_LEN), 0);
+
+    /* The handle the legacy resumption flow hands out. */
+    ExpectNotNull(sessA = wolfSSL_get_session(ssl_c));
+
+    /* Control: it resolves to the session it was issued for. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Control: re-adding the same session leaves the handle usable. */
+    ExpectIntEQ(AddSessionToCache(ctx_c, ssl_c->session, idA, ID_LEN, NULL,
+        WOLFSSL_CLIENT_END, 0, NULL), 0);
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* The second server names the session ID it saw on the first connection.
+     * A server picks its own session ID and sends it in clear, so this needs
+     * no special capability. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(ssl_c2->session->sessionID, idA, ID_LEN);
+        ssl_c2->session->sessionIDSz = ID_LEN;
+    }
+
+    /* Positive control: the handle still resolves here, so the assertion
+     * below cannot pass on an already-recycled slot. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectIntEQ(AddSessionToCache(ctx_c2, ssl_c2->session, idA, ID_LEN, NULL,
+        WOLFSSL_CLIENT_END, 0, NULL), 0);
+
+    /* The handle must not resume the second server's session: an abbreviated
+     * handshake carries no certificate, so nothing else identifies the peer. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    if (wolfSSL_set_session(ssl, sessA) == WOLFSSL_SUCCESS) {
+        ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_flush_sessions(ctx_c, (long)-1);
+
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c2);
+    wolfSSL_CTX_free(ctx_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

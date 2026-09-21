@@ -3042,6 +3042,228 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
+
+#define TEST_SCV_CERT_BUF_SZ (2 * FOURK_BUF)
+
+/* One small certificate verify scenario. */
+typedef struct test_scv_case {
+    int forged;    /* leaf is signed by a key the root does not hold */
+    int expired;   /* leaf's validity window lies wholly in the past */
+    int expectRet; /* expected handshake result */
+} test_scv_case;
+
+/* Stand in for a device with no real-time clock, the deployment the small
+ * certificate verify build targets: date errors are the only ones it waives. */
+static int test_scv_date_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    if (store->error == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+            store->error == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+        return 1;
+    }
+    return preverify;
+}
+
+/* Build a TLS leaf naming the 2048-bit test root as its issuer and carrying
+ * leafKey's public half. signKey decides whether it is genuine: the root's own
+ * key issues it, any other key forges it. Returns the DER length, or < 0. */
+static int test_scv_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
+    RsaKey* signKey, WC_RNG* rng, int expired)
+{
+    static const byte notBefore[] = { ASN_UTC_TIME, 13,
+        '1', '9', '0', '1', '0', '1', '0', '0', '0', '0', '0', '0', 'Z' };
+    static const byte notAfter[]  = { ASN_UTC_TIME, 13,
+        '2', '0', '0', '1', '0', '1', '0', '0', '0', '0', '0', '0', 'Z' };
+    Cert cert;
+    int  ret = 0;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 0;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, "SCV Leaf", CTC_NAME_SIZE - 1);
+    if (expired) {
+        XMEMCPY(cert.beforeDate, notBefore, sizeof(notBefore));
+        cert.beforeDateSz = (int)sizeof(notBefore);
+        XMEMCPY(cert.afterDate, notAfter, sizeof(notAfter));
+        cert.afterDateSz = (int)sizeof(notAfter);
+    }
+    if (wc_SetSubjectKeyIdFromPublicKey(&cert, leafKey, NULL) != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetKeyUsage(&cert,
+            "digitalSignature,keyEncipherment") != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        ret = -1;
+    if (ret == 0)
+        ret = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng);
+    if (ret >= 0)
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+            signKey, NULL, rng);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+    return ret;
+}
+
+/* Run a memio handshake in which the server presents the given leaf with the
+ * client test key, and the client verifies it against the 2048-bit test root
+ * with the date tolerant callback above. */
+static int test_scv_handshake(const byte* leafDer, int leafSz, int* hsRet)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        (byte*)leafDer, leafSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_scv_date_cb);
+
+    if (EXPECT_SUCCESS()) {
+        if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) == 0)
+            *hsRet = 0;
+        else
+            *hsRet = wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR);
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+
+/* Build the leaf for one scenario, confirm what the library's own signature
+ * check makes of it, then run the handshake. */
+static int test_scv_case_run(byte* leafDer, RsaKey* leafKey, RsaKey* caKey,
+    RsaKey* attackerKey, WC_RNG* rng, const test_scv_case* tc)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    int leafSz = 0;
+    int hsRet = -1;
+
+    ExpectIntGT((leafSz = test_scv_gen_leaf(leafDer, TEST_SCV_CERT_BUF_SZ,
+        leafKey, tc->forged ? attackerKey : caKey, rng, tc->expired)), 0);
+
+    /* Ground truth from the same library: only the signature is looked at. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+        (long)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wc_CheckCertSignature(leafDer, (word32)leafSz, NULL, cm),
+        tc->forged ? WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) : 0);
+    wolfSSL_CertManagerFree(cm);
+
+    ExpectIntEQ(test_scv_handshake(leafDer, leafSz, &hsRet), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, tc->expectRet);
+
+    return EXPECT_RESULT();
+}
+#endif /* small certificate verify signature precedence dependencies */
+
+/* Test that under WOLFSSL_SMALL_CERT_VERIFY a peer certificate signature
+ * failure is reported ahead of the errors a full verify only reaches after the
+ * signature has been confirmed.
+ *
+ * That build checks the signature separately from the parse, so the two results
+ * have to be merged afterwards. Reporting the parse result when both failed
+ * hands the application a date error for a certificate the trusted CA never
+ * signed, and the callback a clockless device installs to waive date errors
+ * then completes the handshake against the attacker's key.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_small_cert_verify_sig_error(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
+    static const test_scv_case cases[] = {
+        /* forged, expired, expected handshake result. */
+
+        /* A leaf the root did issue verifies. */
+        { 0, 0, 0 },
+        /* An expired leaf the root did issue is what the callback exists for,
+         * so it must still be waived. */
+        { 0, 1, 0 },
+        /* A leaf the root never signed is refused, and the reason the
+         * application is given names the signature. */
+        { 1, 0, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) },
+        /* The same forgery, also outside its validity window. The date error
+         * must not stand in for the signature error, or the callback above
+         * waives a certificate the root never signed. */
+        { 1, 1, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) },
+    };
+    byte* leafDer = NULL;
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey attackerKey;
+    RsaKey leafKey;
+    int rngInit = 0;
+    int caInit = 0;
+    int attackerInit = 0;
+    int leafInit = 0;
+    word32 idx;
+    size_t i;
+
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_SCV_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    /* Any key the root does not hold serves as the attacker's. */
+    ExpectIntEQ(wc_InitRsaKey(&attackerKey, NULL), 0);
+    if (EXPECT_SUCCESS()) attackerInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &attackerKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(test_scv_case_run(leafDer, &leafKey, &caKey, &attackerKey,
+            &rng, &cases[i]), TEST_SUCCESS);
+    }
+
+    if (rngInit)      wc_FreeRng(&rng);
+    if (caInit)       wc_FreeRsaKey(&caKey);
+    if (attackerInit) wc_FreeRsaKey(&attackerKey);
+    if (leafInit)     wc_FreeRsaKey(&leafKey);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
  * mock has no other caller, so a wider condition here leaves it defined and
  * unused, which -Werror=unused-function rejects. Keep the two in step.

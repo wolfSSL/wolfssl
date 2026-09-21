@@ -38,6 +38,7 @@ int test_wolfSSL_ticket_keys(void);
 int test_wolfSSL_SESSION_get_ex_new_index(void);
 int test_wolfSSL_GetSessionAtIndex(void);
 int test_wolfSSL_client_cache_id_prefix(void);
+int test_wolfSSL_client_cache_id_overwrite(void);
 
 #define TEST_SESSION_DECLS                                                     \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session),                  \
@@ -53,6 +54,7 @@ int test_wolfSSL_client_cache_id_prefix(void);
     TEST_DECL_GROUP("session", test_wolfSSL_ticket_keys),                      \
     TEST_DECL_GROUP("session", test_wolfSSL_SESSION_get_ex_new_index),         \
     TEST_DECL_GROUP("session", test_wolfSSL_GetSessionAtIndex),                \
-    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_prefix)
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_prefix),           \
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_overwrite)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */
