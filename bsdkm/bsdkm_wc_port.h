@@ -207,9 +207,33 @@ extern struct malloc_type M_WOLFSSL[1];
     typedef volatile int          wolfSSL_Atomic_Int;
     typedef volatile unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x) (int)atomic_load_acq_int(&(x))
-    #define WOLFSSL_ATOMIC_LOAD_UINT(x) atomic_load_acq_int(&(x))
-    #define WOLFSSL_ATOMIC_STORE(x, v)  atomic_store_rel_int(&(x), (v))
+
+    /* _Generic selectors dispatch on (x) + 0 so that qualifier handling is
+     * identical across pre- and post-DR 481 compilers (C17 settled that
+     * lvalue conversion strips qualifiers from the controlling expression;
+     * earlier GCC/clang did not) -- the typedefs are volatile-qualified, so
+     * bare (x) would match no arm on one compiler generation or the other.
+     * LOAD's result cast uses the same expression to yield the unqualified
+     * promoted type.  The LOAD and STORE tables must stay member-congruent:
+     * extend both, in pairs, with each new width's own _acq/_rel primitive;
+     * no default arm -- an unlisted type is a deliberate compile error.
+     */
+    #define WOLFSSL_ATOMIC_LOAD(x) ((__typeof__((x) + 0))                \
+            _Generic((__typeof__((x) + 0))0,                             \
+            int:           atomic_load_acq_int((volatile u_int *)&(x)),  \
+            unsigned int:  atomic_load_acq_int((volatile u_int *)&(x)),  \
+            long:          atomic_load_acq_long((volatile u_long *)&(x)),\
+            unsigned long: atomic_load_acq_long((volatile u_long *)&(x))))
+    #define WOLFSSL_ATOMIC_STORE(x, v) _Generic((__typeof__((x) + 0))0,  \
+            int:           atomic_store_rel_int((volatile u_int *)&(x),  \
+                                                (u_int)(v)),             \
+            unsigned int:  atomic_store_rel_int((volatile u_int *)&(x),  \
+                                                (u_int)(v)),             \
+            long:          atomic_store_rel_long((volatile u_long *)&(x),\
+                                                 (u_long)(v)),           \
+            unsigned long: atomic_store_rel_long((volatile u_long *)&(x),\
+                                                 (u_long)(v))            \
+            )
     #define WOLFSSL_ATOMIC_OPS
 
     #if defined(HAVE_FIPS)
