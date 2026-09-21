@@ -16,6 +16,12 @@
   targets each `ForceZero()` costs two out-of-line calls.  A replacement
   `WC_BARRIER_DATA()` must still pass the pointer to code the optimizer cannot
   see into; a bare compiler barrier brings the dead store back.
+* **Behavioral change (`ConstantCompare()` rejects a negative length)**:
+  `ConstantCompare()` and `wc_ConstantCompare()` now return 1, not 0
+  ("equal"), for a negative `length`, so a caller whose length arithmetic
+  underflows no longer gets a false match.  `length == 0` still returns 0.
+  The sentinel is positive because callers fold the result into
+  constant-time masks that read a negative value as a match.
 
 ## Post-Quantum Cryptography (PQC)
 

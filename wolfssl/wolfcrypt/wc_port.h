@@ -2171,9 +2171,8 @@ WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
 #ifndef WOLFSSL_NO_CONST_CMP
-/* Compare length bytes of a and b in constant time.  Returns 0 when equal,
- * positive otherwise.  A length of 0 or less compares nothing and returns 0,
- * so callers must validate length before reading 0 as "equal".
+/* Compare length bytes of a and b in constant time.  Returns 0 if equal
+ * (including length 0), positive otherwise.  Negative length returns 1.
  * unsigned char: byte is not yet typedef'd when this header is included. */
 WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
     const unsigned char* b, int length);
