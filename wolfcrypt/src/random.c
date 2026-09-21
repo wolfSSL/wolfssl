@@ -2611,6 +2611,10 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #ifndef WC_RNG_SEED_RCT_CUTOFF
     #define WC_RNG_SEED_RCT_CUTOFF 31
 #endif
+/* The run starts at 1, so a cutoff below 2 fails every seed. */
+#if WC_RNG_SEED_RCT_CUTOFF < 2
+    #error WC_RNG_SEED_RCT_CUTOFF must be at least 2
+#endif
 
 /* SP800-90B 4.4.2 - Adaptive Proportion Test
  * Monitors if a particular sample value appears too frequently within a
@@ -2637,6 +2641,18 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
  * limit, so this bound belongs to the table build alone. */
 #if defined(WC_RNG_SEED_APT_CUTOFF_PER_WINDOW) && (WC_RNG_SEED_APT_WINDOW > 512)
     #error WC_RNG_SEED_APT_WINDOW must be 1 to 512 unless WC_RNG_SEED_APT_CUTOFF is set
+#endif
+/* A caller-supplied cutoff is compared against the window unchanged, so one
+ * above it can never be reached and leaves the seed on the RCT alone.  The
+ * window is min(seedSz, WC_RNG_SEED_APT_WINDOW), so this catches only the
+ * statically visible case; a cutoff above the seed size still goes unseen. */
+#ifndef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    #if WC_RNG_SEED_APT_CUTOFF < 2
+        #error WC_RNG_SEED_APT_CUTOFF must be at least 2
+    #endif
+    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_WINDOW
+        #error WC_RNG_SEED_APT_CUTOFF exceeds the window and can never fire
+    #endif
 #endif
 
 #ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
@@ -2764,10 +2780,13 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         }
     }
 
-    /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each
-     * non-overlapping window is the reference value, and a window fails when
-     * matches reach the cutoff for that window size.  Bias toward any other
-     * value is caught by the all-values test below. */
+    /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each window
+     * is the reference value, and a window fails when matches reach the cutoff
+     * for that window size.  Windows do not overlap except the last, which
+     * slides back to full length and so re-judges the bytes it covers; that
+     * only adds windows, so it can raise the false alarm rate but never mask a
+     * failure.  A frequent value that is not the reference is left to the
+     * all-values test below. */
     {
         word32 start;
         word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
@@ -2798,8 +2817,10 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     }
 
     /* Additional developer-defined test (SP800-90B 4.3 Req 1c): 4.4.2 watches
-     * only the window's first byte, this watches every value.  Its cutoff uses
-     * alpha/256 for the alphabet and always lands above half the window. */
+     * only the window's first byte, this watches whichever value is the
+     * window's majority, wherever it falls.  Its cutoff uses alpha/256 for the
+     * alphabet, so it catches a near-majority (334 of 512) and not bias in
+     * general, and it needs a 38 byte window before it can fire at all. */
     {
         word32 start;
         word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
