@@ -12787,7 +12787,419 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_AESGCM) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+/* Test that wolfSSL_send_cover_traffic_TLSv13() suspends and resumes
+ * correctly on a pending AEAD encrypt. */
+static int test_tls13_cryptocb_cover_traffic_pend(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    TestTls13PendCtx cliCtx;
+    TestTls13PendCtx srvCtx;
+    struct test_memio_ctx memio;
+    int ret = 0;
+    int rounds;
+
+    XMEMSET(&cliCtx, 0, sizeof(cliCtx));
+    XMEMSET(&srvCtx, 0, sizeof(srvCtx));
+    XMEMSET(&memio, 0, sizeof(memio));
+    cliCtx.target = TEST_TLS13_PEND_AESGCM;
+    srvCtx.target = TEST_TLS13_PEND_AESGCM;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_C,
+        TestTls13PendCb, &cliCtx), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_S,
+        TestTls13PendCb, &srvCtx), 0);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, TEST_TLS13_CB_PEND_DEVID_C),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, TEST_TLS13_CB_PEND_DEVID_S),
+        WOLFSSL_SUCCESS);
+    /* Pin the AEAD so the pend target is unambiguous. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ca-ecc-cert.pem", 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/server-ecc.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/ecc-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+
+    if (EXPECT_SUCCESS()) {
+        int groups[1];
+        groups[0] = WOLFSSL_ECC_SECP256R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 1), WOLFSSL_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+        wolfSSL_SSLSetIORecv(ssl_s, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+        wolfSSL_SetIOReadCtx(ssl_c, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_c, &memio);
+        wolfSSL_SetIOReadCtx(ssl_s, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_s, &memio);
+    }
+
+    /* Complete the handshake first: the AESGCM pend target also catches the
+     * handshake's own encrypted messages (EncryptedExtensions, Finished),
+     * but test_memio_do_handshake() already drains those, and requests are
+     * fingerprinted by content so they cannot collide with the cover
+     * traffic record built below. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 600, NULL), 0);
+    test_memio_clear_buffer(&memio, 0);
+
+    /* First call: the AEAD encrypt pends, so the request must stay armed
+     * rather than being cleared as "no record was built". */
+    ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 50);
+    ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret), WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sendCoverTraffic, 1);
+        ExpectIntEQ(ssl_c->options.coverTrafficPadSz, 50);
+    }
+    ExpectIntEQ(memio.s_len, 0);
+
+    /* An application write must not be allowed to resume a suspended cover
+     * traffic build, as it would silently send padding instead of data.
+     * wolfSSL_write_ex() shares the same wolfSSL_write_internal() guard. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 2), BAD_STATE_E);
+    ExpectIntEQ(memio.s_len, 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sendCoverTraffic, 1);
+    }
+    {
+        size_t wr = 999;
+        ExpectIntEQ(wolfSSL_write_ex(ssl_c, "hi", 2, &wr),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(wr, 0);
+        ExpectIntEQ(memio.s_len, 0);
+        if (ssl_c != NULL) {
+            ExpectIntEQ(ssl_c->options.sendCoverTraffic, 1);
+        }
+    }
+
+    /* Resume: a different padding size passed here is ignored -- the
+     * original armed request is what gets built. */
+    rounds = 0;
+    do {
+        ret = wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW);
+        ExpectIntGE(ret, 0);
+        ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 999);
+    } while (ret == WOLFSSL_FATAL_ERROR &&
+             wolfSSL_get_error(ssl_c, ret) ==
+                     WC_NO_ERR_TRACE(WC_PENDING_E) &&
+             ++rounds < 10);
+    ExpectIntEQ(ret, 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sendCoverTraffic, 0);
+    }
+
+    /* Exactly one padded record reached the peer, sized for the original
+     * 50-byte request -- not the 999 passed on resume, and not rejected by
+     * a stale re-validation of the unclamped stored size. */
+    ExpectIntGT(memio.s_len, 50);
+    ExpectIntLT(memio.s_len, 999);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_CB_PEND_DEVID_C);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_CB_PEND_DEVID_S);
+
+    return EXPECT_RESULT();
+}
+
+/* Test that wolfSSL_send_cover_traffic_TLSv13() disarms the request if an
+ * unrelated TLS 1.3 record build (like a handshake) is suspended instead of
+ * its own record build. */
+static int test_tls13_cryptocb_cover_traffic_unrelated_pend(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    TestTls13PendCtx cliCtx;
+    struct test_memio_ctx memio;
+    int ret;
+
+    XMEMSET(&cliCtx, 0, sizeof(cliCtx));
+    XMEMSET(&memio, 0, sizeof(memio));
+    cliCtx.target = TEST_TLS13_PEND_AESGCM;
+
+    /* Only the client pends: the server (no callback) sends its whole
+     * flight immediately, leaving it buffered for the client to process
+     * inside the cover traffic call below. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_C,
+        TestTls13PendCb, &cliCtx), 0);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, TEST_TLS13_CB_PEND_DEVID_C),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ca-ecc-cert.pem", 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/server-ecc.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/ecc-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+
+    if (EXPECT_SUCCESS()) {
+        int groups[1];
+        groups[0] = WOLFSSL_ECC_SECP256R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 1), WOLFSSL_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+        wolfSSL_SSLSetIORecv(ssl_s, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+        wolfSSL_SetIOReadCtx(ssl_c, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_c, &memio);
+        wolfSSL_SetIOReadCtx(ssl_s, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_s, &memio);
+    }
+
+    /* Client sends ClientHello and blocks on the reply; server processes
+     * it and sends its whole flight in one shot, unread by the client. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* SendData() drives the handshake first: the first AESGCM operation
+     * it hits -- decrypting the server's EncryptedExtensions -- pends.
+     * This call's own cover traffic build never starts. */
+    ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 64);
+    ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret), WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sendCoverTraffic, 0);
+    }
+
+    /* Drive the handshake to completion, draining every further pend the
+     * same way test_memio_do_handshake() does elsewhere. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 600, NULL), 0);
+
+    if (EXPECT_SUCCESS()) {
+        char msg[] = "hi";
+        char rbuf[16];
+        int emptySz;
+        int rounds2;
+
+        /* An ordinary write carries no leftover padding. Its own AEAD
+         * encrypt is a new request the callback hasn't seen, so it may
+         * pend too -- drive it with the same poll-and-retry helper used
+         * for the handshake. */
+        test_memio_clear_buffer(&memio, 0);
+        ExpectIntEQ(TestTls13PendWrite(ssl_c, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(TestTls13PendRead(ssl_s, rbuf, sizeof(rbuf)),
+            (int)sizeof(msg));
+
+        /* And a fresh, correctly armed request still works afterward,
+         * resuming through any pend of its own the same way. */
+        test_memio_clear_buffer(&memio, 0);
+        rounds2 = 0;
+        do {
+            ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 0);
+            if (ret == WOLFSSL_FATAL_ERROR && wolfSSL_get_error(ssl_c, ret) ==
+                    WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                ExpectIntGE(wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW),
+                    0);
+                continue;
+            }
+            break;
+        } while (++rounds2 < 10);
+        ExpectIntEQ(ret, 0);
+        emptySz = memio.s_len;
+        ExpectIntGT(emptySz, 0);
+
+        test_memio_clear_buffer(&memio, 0);
+        rounds2 = 0;
+        do {
+            ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 40);
+            if (ret == WOLFSSL_FATAL_ERROR && wolfSSL_get_error(ssl_c, ret) ==
+                    WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                ExpectIntGE(wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW),
+                    0);
+                continue;
+            }
+            break;
+        } while (++rounds2 < 10);
+        ExpectIntEQ(ret, 0);
+        ExpectIntEQ(memio.s_len, emptySz + 40);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_CB_PEND_DEVID_C);
+
+    return EXPECT_RESULT();
+}
+
+/* Test that shutdown, SendUserCanceled, and update_keys refuse to run
+ * while a cover traffic build is suspended on WC_PENDING_E. */
+static int test_tls13_cryptocb_cover_traffic_interleaved_send(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    TestTls13PendCtx cliCtx;
+    TestTls13PendCtx srvCtx;
+    struct test_memio_ctx memio;
+    int ret = 0;
+    int rounds;
+
+    XMEMSET(&cliCtx, 0, sizeof(cliCtx));
+    XMEMSET(&srvCtx, 0, sizeof(srvCtx));
+    XMEMSET(&memio, 0, sizeof(memio));
+    cliCtx.target = TEST_TLS13_PEND_AESGCM;
+    srvCtx.target = TEST_TLS13_PEND_AESGCM;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_C,
+        TestTls13PendCb, &cliCtx), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_S,
+        TestTls13PendCb, &srvCtx), 0);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, TEST_TLS13_CB_PEND_DEVID_C),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, TEST_TLS13_CB_PEND_DEVID_S),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+        "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ca-ecc-cert.pem", 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/server-ecc.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/ecc-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+
+    if (EXPECT_SUCCESS()) {
+        int groups[1];
+        groups[0] = WOLFSSL_ECC_SECP256R1;
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 1), WOLFSSL_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+        wolfSSL_SSLSetIORecv(ssl_s, test_memio_read_cb);
+        wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+        wolfSSL_SetIOReadCtx(ssl_c, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_c, &memio);
+        wolfSSL_SetIOReadCtx(ssl_s, &memio);
+        wolfSSL_SetIOWriteCtx(ssl_s, &memio);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 600, NULL), 0);
+    test_memio_clear_buffer(&memio, 0);
+
+    /* Suspend a cover traffic build on the AEAD encrypt. */
+    ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 50);
+    ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret), WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.coverTrafficPending, 1);
+
+    /* Each of these must refuse to run rather than build its own record
+     * over the suspended build's resume point, and must leave the resume
+     * point untouched. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(memio.s_len, 0);
+    ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(memio.s_len, 0);
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), BAD_STATE_E);
+    ExpectIntEQ(memio.s_len, 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.coverTrafficPending, 1);
+        ExpectIntEQ(ssl_c->options.buildMsgState, BUILD_MSG_ENCRYPT);
+        ExpectIntEQ(ssl_c->encrypt.state, CIPHER_STATE_DO);
+    }
+
+    /* The suspended build must still resume cleanly. */
+    rounds = 0;
+    do {
+        ExpectIntGE(wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW), 0);
+        ret = wolfSSL_send_cover_traffic_TLSv13(ssl_c, 999);
+    } while (ret == WOLFSSL_FATAL_ERROR &&
+             wolfSSL_get_error(ssl_c, ret) ==
+                     WC_NO_ERR_TRACE(WC_PENDING_E) &&
+             ++rounds < 10);
+    ExpectIntEQ(ret, 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.sendCoverTraffic, 0);
+    ExpectIntGT(memio.s_len, 50);
+    ExpectIntLT(memio.s_len, 999);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_CB_PEND_DEVID_C);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_CB_PEND_DEVID_S);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_AESGCM && !WOLF_CRYPTO_CB_ASYNC_POLL */
+
 #endif /* guards */
+
+/* wolfSSL_send_cover_traffic_TLSv13() suspending mid-build and resuming when
+ * a crypto callback pends the record's AEAD encrypt. */
+int test_tls13_cryptocb_cover_traffic(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_REINVOKE) && \
+    defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_AESGCM) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+    ExpectIntEQ(test_tls13_cryptocb_cover_traffic_pend(), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_cryptocb_cover_traffic_unrelated_pend(),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_cryptocb_cover_traffic_interleaved_send(),
+        TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* Drive TLS 1.3 handshakes and application data with the poll-and-retry
  * loop while a crypto callback pends each matching request. */

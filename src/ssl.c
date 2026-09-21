@@ -5752,6 +5752,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* Matches InitSSL_Tls13Options(); the server clears it again when the
          * next ClientHello carries an empty session id. */
         ssl->options.tls13MiddleBoxCompat = 1;
+        /* Don't let a request abandoned mid-pending survive object reuse. */
+        Tls13ClearCoverTraffic(ssl);
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
