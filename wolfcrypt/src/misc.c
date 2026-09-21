@@ -826,7 +826,8 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 
 
 #ifndef WOLFSSL_NO_CONST_CMP
-/* check all length bytes for equality, return 0 on success */
+/* Compare length bytes of a and b in constant time.
+ * Returns 0 if equal, positive if they differ, and 1 if length is negative. */
 WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
                                              int length)
 {
@@ -837,11 +838,23 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
     const volatile byte* va = (const volatile byte*)a;
     const volatile byte* vb = (const volatile byte*)b;
 
+    /* length is public, so branching is safe. Return positive: callers
+     * such as AES_GCM_decrypt_C() build masks that read negative as equal. */
+    if (length < 0) {
+        return 1;
+    }
+
     for (i = 0; i < length; i++) {
         compareSum |= va[i] ^ vb[i];
     }
 
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A byte wider than 8 bits can set the int's sign bit, which callers'
+     * masks would read as equal.  Normalize to 0/1 without a branch. */
+    return (int)(((word32)compareSum | ((word32)0 - (word32)compareSum)) >> 31);
+#else
     return compareSum;
+#endif
 }
 #endif
 
