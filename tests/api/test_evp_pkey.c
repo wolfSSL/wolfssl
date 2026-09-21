@@ -1017,6 +1017,17 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     EVP_PKEY_free(key);
     key = NULL;
 
+    /* An empty HMAC key is still a key. */
+    ExpectNotNull(key = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, NULL, 0));
+    ExpectNotNull(dup = EVP_PKEY_dup(key));
+    ExpectPtrNE(dup, key);
+    ExpectIntEQ(EVP_PKEY_id(dup), EVP_PKEY_HMAC);
+    ExpectIntEQ(dup->pkey_sz, 0);
+    EVP_PKEY_free(dup);
+    dup = NULL;
+    EVP_PKEY_free(key);
+    key = NULL;
+
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
     defined(WOLFSSL_KEY_TO_DER)
     /* EVP_PKEY_set1_RSA() re-encodes the RSA key, so the flag has to follow
