@@ -115,6 +115,15 @@
   PKCS#8), call `wc_MlDsaKey_MakePublicKey()` or import the public key before
   verifying or exporting.
 
+* **Behavioral change (`ConstantCompare()` rejects a negative length)**:
+  `ConstantCompare()` and `wc_ConstantCompare()` now return 1, not 0
+  ("equal"), for a negative `length`, so a caller whose length arithmetic
+  underflows no longer gets a false match.  Differences are normalized to 1,
+  so wide-byte targets (such as C28x) never return negative on a high-bit
+  difference.  `length == 0` still returns 0.  The sentinel is positive
+  because callers fold the result into constant-time masks that read a
+  negative value as a match.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
