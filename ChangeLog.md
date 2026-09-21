@@ -254,6 +254,14 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+* **API (new internal symbol `wc_BarrierDataSink()`)**: exists only on the
+  portable `WC_BARRIER_DATA()` arm - every compiler without `__GNUC__` (MSVC,
+  IAR, Keil armcc5, most embedded toolchains) and GCC or clang with
+  `WOLFSSL_NO_ASM`.  Test `WC_BARRIER_DATA_USES_SINK` to detect it.  On those
+  targets each `ForceZero()` costs two out-of-line calls.  A replacement
+  `WC_BARRIER_DATA()` must still pass the pointer to code the optimizer cannot
+  see into; a bare compiler barrier brings the dead store back.
+
 * **API (`aarch64_use_sb` renamed to `wc_aarch64_use_sb`)**: an implementation
   detail of `XFENCE()` under `WOLFSSL_ARMASM_BARRIER_DETECT`.  Affects only code
   that names the symbol directly.
@@ -433,6 +441,14 @@
   was checked first and handed both compilers `__asm__`, which their assembler
   dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
   the spelling IAR keeps available under `--strict`.
+
+* **Fix (`ForceZero()` could be optimized away)**: on the portable
+  `WC_BARRIER_DATA()` arm - no GNU inline asm, or `WOLFSSL_NO_ASM` - the buffer
+  address never escaped, so the compiler could drop the wipe as a dead store.
+  A fence does not prevent that, so builds with a working `XFENCE()` were
+  affected too; GCC and clang without `WOLFSSL_NO_ASM` were not.  That arm no
+  longer emits `XFENCE()` (two `__isb()` per `ForceZero()` on MSVC ARM64), so
+  callers needing cross-thread ordering must call it themselves.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

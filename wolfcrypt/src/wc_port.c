@@ -752,6 +752,32 @@ WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
 }
 #endif
 
+/* Only compiled when using the portable WC_BARRIER_DATA() arm. */
+#ifdef WC_BARRIER_DATA_USES_SINK
+
+/* No-op callee for the portable WC_BARRIER_DATA() fallback. */
+static void wc_BarrierDataSinkImpl(void* p)
+{
+    (void)p;
+}
+/* const -> read-only section; do NOT add volatile (breaks placement). */
+static void (* const wc_BarrierDataSinkPtr)(void*) =
+    wc_BarrierDataSinkImpl;
+
+/* WC_NO_INLINE: if LTO ever does see through the indirection below, the body
+ * becomes empty, and an empty body inlined into ForceZero() takes the escape
+ * of the buffer address with it. */
+WC_NO_INLINE
+void wc_BarrierDataSink(void* p)
+{
+    /* Volatile load defeats LTO devirtualization. */
+    void (*fn)(void*) =
+        *(void (* const volatile *)(void*))&wc_BarrierDataSinkPtr;
+    fn(p);
+}
+
+#endif /* WC_BARRIER_DATA_USES_SINK */
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */

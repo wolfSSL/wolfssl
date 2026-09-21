@@ -2012,9 +2012,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    #ifndef NO_STDDEF_H
-        #include <stddef.h> /* for size_t */
-    #endif /* NO_STDDEF_H */
+    /* size_t comes from the <stddef.h> at the top of this file. */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -2162,17 +2160,32 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         } while(0)
 #endif
 
-/* Compiler barrier that also treats the memory at ptr as read, so a wipe of
- * that memory cannot be dropped as a dead store. The GNU form emits no CPU
- * fence; cross-thread ordering is the caller's job. Without GNU asm (other
- * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+/* Compiler barrier that also treats the memory at p as read, so a wipe of
+ * that memory cannot be dropped as a dead store.  Emits no CPU fence;
+ * cross-thread ordering is the caller's job.
+ *
+ * Both arms work by making the *address* escape to code the optimizer cannot
+ * see through.  A bare "memory" clobber is not enough: for a stack local whose
+ * address never leaves the frame, the compiler knows no opaque code can reach
+ * it and drops the wipe anyway. */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
-    #define WC_BARRIER_DATA(ptr) \
-        __asm__ __volatile__("" : : "r"(ptr) : "memory")
+    /* p escapes as an asm input operand. */
+    #define WC_BARRIER_DATA(p) \
+        do { __asm__ __volatile__("" :: "r"((p)) : "memory"); } while (0)
 #else
-    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+    /* Portable C89 fallback: p escapes as an argument to an out-of-line call
+     * the optimizer must assume reads through it. */
+    #define WC_BARRIER_DATA_USES_SINK
+
+    /* Internal to WC_BARRIER_DATA(); call wc_ForceZero() instead.  p is
+     * never dereferenced and may be NULL.  Not const: GCC treats a const
+     * pointer argument as a read and warns when wiping an uninitialized
+     * buffer. */
+    WOLFSSL_API void wc_BarrierDataSink(void* p);
+
+    #define WC_BARRIER_DATA(p) do { wc_BarrierDataSink((p)); } while (0)
 #endif
 
 
