@@ -920,7 +920,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         {
             pr_err("error: allocating kpp algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM)
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
                 test_rc = MEMORY_E;
             else
                 test_rc = BAD_FUNC_ARG;

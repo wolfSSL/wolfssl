@@ -29125,7 +29125,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif
 
     ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
-#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
+#if !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && defined(WC_SVR_HAVE_FLAGS)
                            WC_RNG_BANK_FLAG_NO_VECTOR_OPS |
 #endif
                            WC_RNG_BANK_FLAG_QUIET |
@@ -29168,7 +29168,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     defined(WC_NO_INTERNAL_FUNCTION_POINTERS) && \
     defined(HAVE_FIPS) && \
     FIPS_VERSION3_LT(7,0,0) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && \
+    defined(WC_SVR_HAVE_FLAGS)
 
 #ifdef WOLFSSL_DRBG_SHA512
     if (rng_inst->rng.drbgType == WC_DRBG_SHA512) {

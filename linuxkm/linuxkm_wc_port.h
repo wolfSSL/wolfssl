@@ -204,6 +204,7 @@
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+    extern int wc_lkm_UnlockMutex(struct wolfSSL_Mutex* m);
 #endif
 
     #ifndef WC_LINUXKM_INTR_SIGNALS
@@ -237,6 +238,7 @@
         WC_SVR_FLAG_MAYBE_INHIBIT = 2,
         WC_SVR_FLAG_FUZZ = 4
     };
+    #define WC_SVR_HAVE_FLAGS
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
         defined(WOLFSSL_SP_X86_64_ASM)
@@ -1519,6 +1521,7 @@
         typeof(_cond_resched) *_cond_resched;
         #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        typeof(wc_lkm_UnlockMutex) *wc_lkm_UnlockMutex;
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
@@ -2146,20 +2149,33 @@
          */
         #include <linux/spinlock.h>
 
+        #if IS_ENABLED(CONFIG_PREEMPT_RT) && defined(WC_LINUXKM_SPIN_IN_ATOMIC)
+            #error WC_LINUXKM_SPIN_IN_ATOMIC is incompatible with CONFIG_PREEMPT_RT.
+        #endif
+
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
             unsigned long irq_flags;
+        #else
+            int preempt_reenabled;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             unsigned int magic;
         #endif
         } wolfSSL_Mutex;
 
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
+            #define WC_LINUXKM_MUTEX_STATE_FIELD .irq_flags
+        #else
+            #define WC_LINUXKM_MUTEX_STATE_FIELD .preempt_reenabled
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             #define WC_LINUXKM_SPINLOCK_MAGIC 1702166717U
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0,                            \
+               WC_LINUXKM_MUTEX_STATE_FIELD = 0,          \
                .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
             }
 
@@ -2167,7 +2183,7 @@
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0                             \
+               WC_LINUXKM_MUTEX_STATE_FIELD = 0           \
             }
 
         #endif
@@ -2180,7 +2196,11 @@
         # else
             spin_lock_init(&m->lock);
         #endif
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
             m->irq_flags = 0;
+        #else
+            m->preempt_reenabled = 0;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
         #endif
@@ -2212,6 +2232,11 @@
             return WC_PIE_INDIRECT_SYM(wc_lkm_LockMutex)(m);
         }
 
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex *m)
+        {
+            return WC_PIE_INDIRECT_SYM(wc_lkm_UnlockMutex)(m);
+        }
+
         #else /* !WC_CONTAINERIZE_THIS */
 
         static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
@@ -2219,18 +2244,12 @@
             return wc_lkm_LockMutex(m);
         }
 
-        #endif /* !WC_CONTAINERIZE_THIS */
-
-        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex *m)
         {
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
-                return -1;
-        #endif
-            spin_unlock_irqrestore(&m->lock, m->irq_flags);
-            return 0;
+            return wc_lkm_UnlockMutex(m);
         }
 
+        #endif /* !WC_CONTAINERIZE_THIS */
     #endif
 
     #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
