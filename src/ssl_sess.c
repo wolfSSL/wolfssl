@@ -52,6 +52,15 @@
         #error ClientCache is required when not using NO_SESSION_CACHE_REF
     #endif
 
+    #if !defined(NO_SESSION_CACHE_REF) && \
+        !defined(WOLFSSL_SESSION_CACHE_REF_WARNED)
+        #if !defined(_MSC_VER) && !defined(__TASKING__)
+            #warning WOLFSSL_SESSION_CACHE_REF selects the deprecated wolfSSL_get_session() session cache reference, use wolfSSL_get1_session() instead, or define WOLFSSL_SESSION_CACHE_REF_WARNED to silence this
+        #else
+            #pragma message("Warning: WOLFSSL_SESSION_CACHE_REF selects the deprecated wolfSSL_get_session() session cache reference, use wolfSSL_get1_session() instead, or define WOLFSSL_SESSION_CACHE_REF_WARNED to silence this")
+        #endif
+    #endif
+
     #ifndef NO_CLIENT_CACHE
         static WC_THREADSHARED ClientRow ClientCache[CLIENT_SESSION_ROWS];
                                                      /* Client Cache */
@@ -307,6 +316,8 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     cache_header.rows      = SESSION_ROWS;
     cache_header.columns   = SESSIONS_PER_ROW;
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
+    cache_header.clientRows    = CACHE_HEADER_CLIENT_ROWS;
+    cache_header.clientColumns = CACHE_HEADER_CLIENT_COLUMNS;
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
     #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -528,7 +539,9 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     if (cache_header.version   != WOLFSSL_CACHE_VERSION ||
         cache_header.rows      != SESSION_ROWS ||
         cache_header.columns   != SESSIONS_PER_ROW ||
-        cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION)) {
+        cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION) ||
+        cache_header.clientRows    != CACHE_HEADER_CLIENT_ROWS ||
+        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS) {
 
         WOLFSSL_MSG("Session cache header match failed");
         return CACHE_MATCH_ERROR;
@@ -616,6 +629,8 @@ int wolfSSL_save_session_cache(const char *fname)
     cache_header.rows      = SESSION_ROWS;
     cache_header.columns   = SESSIONS_PER_ROW;
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
+    cache_header.clientRows    = CACHE_HEADER_CLIENT_ROWS;
+    cache_header.clientColumns = CACHE_HEADER_CLIENT_COLUMNS;
 
     /* cache header */
     ret = (int)XFWRITE(&cache_header, sizeof cache_header, 1, file);
@@ -706,7 +721,9 @@ int wolfSSL_restore_session_cache(const char *fname)
     if (cache_header.version   != WOLFSSL_CACHE_VERSION ||
         cache_header.rows      != SESSION_ROWS ||
         cache_header.columns   != SESSIONS_PER_ROW ||
-        cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION)) {
+        cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION) ||
+        cache_header.clientRows    != CACHE_HEADER_CLIENT_ROWS ||
+        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS) {
 
         WOLFSSL_MSG_EX("Session cache header match failed: %s", fname);
         XFCLOSE(file);

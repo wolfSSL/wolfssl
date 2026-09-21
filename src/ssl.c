@@ -198,7 +198,11 @@ static struct SystemCryptoPolicy crypto_policy;
  * Session & Cache:
  * NO_SESSION_CACHE:           Disable server session cache            default: off
  * NO_SESSION_CACHE_REF:       wolfSSL_get_session returns ssl->session
- *                             reference instead of ClientCache ref    default: off
+ *                             reference instead of ClientCache ref    default: on
+ * WOLFSSL_SESSION_CACHE_REF:  Opt back into the deprecated
+ *                             ClientCache reference                   default: off
+ * CLIENT_SESSIONS_MULTIPLIER: ClientCache size relative to the
+ *                             session cache                           default: 1
  * SESSION_CACHE_DYNAMIC_MEM:  Dynamically allocate session cache      default: off
  * NO_CLIENT_CACHE:            Disable client-side session cache       default: off
  * SESSION_CERTS:              Store full cert chain in session         default: off
