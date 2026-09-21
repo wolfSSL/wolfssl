@@ -121,6 +121,9 @@
   arm (non-GCC compilers such as MSVC and IAR, or `WOLFSSL_NO_ASM`) calls it;
   `WC_BARRIER_DATA_USES_SINK` marks that arm.
 
+* **Behavioral change (`secure_zero_memory()` removed from `blake2-impl.h`)**:
+  BLAKE2 now wipes with `ForceZero()`; use `wc_ForceZero()` instead.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
