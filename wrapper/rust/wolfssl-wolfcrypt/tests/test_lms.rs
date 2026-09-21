@@ -318,11 +318,11 @@ fn test_export_pub_raw_import_verify() {
     let _ = store;
 }
 
-/// Verify that `export_pub_from()` copies the public key into a destination
-/// key and that signatures from the source verify against that destination.
+/// Verify that `export_pub()` returns a key that signatures from the source
+/// verify against.
 #[test]
 #[cfg(all(lms_make_key, random))]
-fn test_export_pub_from() {
+fn test_export_pub() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
     let mut store = Box::new(KeyStore { buf: [0u8; 16384] });
@@ -333,19 +333,115 @@ fn test_export_pub_from() {
     setup_callbacks(&mut sign_key, ctx);
     sign_key.make_key(&mut rng).expect("Error with make_key()");
 
-    let message = b"export_pub_from test message";
+    let message = b"export_pub test message";
     let sig_len = sign_key.get_sig_len().expect("Error with get_sig_len()");
     let mut sig = vec![0u8; sig_len];
     sign_key.sign(message, &mut sig).expect("Error with sign()");
 
-    // Copy the public portion into a fresh key.
-    let mut verify_key = Lms::new().expect("Error with Lms::new() for verify");
-    verify_key.set_parm(Lms::PARM_L1_H5_W8).expect("Error with set_parm() for verify key");
-    verify_key.export_pub_from(&sign_key)
-        .expect("Error with export_pub_from()");
+    // The exported key carries the parameter set, so its sizes match.
+    let mut verify_key = sign_key.export_pub().expect("Error with export_pub()");
+    assert_eq!(verify_key.get_parameters().expect("Error with get_parameters()"),
+        sign_key.get_parameters().expect("Error with get_parameters()"),
+        "export_pub() key must carry the source parameter set");
+    assert_eq!(verify_key.get_sig_len().expect("Error with get_sig_len()"), sig_len);
 
     verify_key.verify(&sig, message)
-        .expect("Signature must verify against export_pub_from() key");
+        .expect("Signature must verify against export_pub() key");
+
+    let _ = store;
+}
+
+/// Verify that `export_pub_ex()` accepts the optional heap and device ID
+/// parameters and returns a usable verify only key.
+#[test]
+#[cfg(all(lms_make_key, random))]
+fn test_export_pub_ex() {
+    common::setup();
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut store = Box::new(KeyStore { buf: [0u8; 16384] });
+    let ctx = store.as_mut() as *mut KeyStore as *mut core::ffi::c_void;
+
+    let mut sign_key = Lms::new().expect("Error with Lms::new()");
+    sign_key.set_parm(Lms::PARM_L1_H5_W8).expect("Error with set_parm()");
+    setup_callbacks(&mut sign_key, ctx);
+    sign_key.make_key(&mut rng).expect("Error with make_key()");
+
+    let message = b"export_pub_ex test message";
+    let sig_len = sign_key.get_sig_len().expect("Error with get_sig_len()");
+    let mut sig = vec![0u8; sig_len];
+    sign_key.sign(message, &mut sig).expect("Error with sign()");
+
+    let mut verify_key = sign_key.export_pub_ex(None, None)
+        .expect("Error with export_pub_ex()");
+    verify_key.verify(&sig, message)
+        .expect("Signature must verify against export_pub_ex() key");
+
+    let _ = store;
+}
+
+/// Verify that `export_pub()` leaves the source key able to keep signing, and
+/// that the exported key outlives it without sharing any of its key data.
+#[test]
+#[cfg(all(lms_make_key, random))]
+fn test_export_pub_keeps_src_usable() {
+    common::setup();
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut store = Box::new(KeyStore { buf: [0u8; 16384] });
+    let ctx = store.as_mut() as *mut KeyStore as *mut core::ffi::c_void;
+
+    let mut sign_key = Lms::new().expect("Error with Lms::new()");
+    sign_key.set_parm(Lms::PARM_L1_H5_W8).expect("Error with set_parm()");
+    setup_callbacks(&mut sign_key, ctx);
+    sign_key.make_key(&mut rng).expect("Error with make_key()");
+
+    let mut verify_key = sign_key.export_pub().expect("Error with export_pub()");
+
+    // The source still holds its private key and can sign after the export.
+    let message = b"source survives the export";
+    let sig_len = sign_key.get_sig_len().expect("Error with get_sig_len()");
+    let mut sig = vec![0u8; sig_len];
+    sign_key.sign(message, &mut sig).expect("Error with sign()");
+    verify_key.verify(&sig, message)
+        .expect("Signature must verify against export_pub() key");
+
+    // Drop the source: the exported key owns nothing the source freed.
+    drop(sign_key);
+    verify_key.verify(&sig, message)
+        .expect("export_pub() key must stay valid after the source is dropped");
+
+    let _ = store;
+}
+
+/// Verify that `export_pub()` fails when the source holds no public key, and
+/// that the failure leaves the source usable.
+#[test]
+#[cfg(all(lms_make_key, random))]
+fn test_export_pub_without_public_key() {
+    common::setup();
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut store = Box::new(KeyStore { buf: [0u8; 16384] });
+    let ctx = store.as_mut() as *mut KeyStore as *mut core::ffi::c_void;
+
+    // Parameters are set, but no key has been generated yet.
+    let mut sign_key = Lms::new().expect("Error with Lms::new()");
+    sign_key.set_parm(Lms::PARM_L1_H5_W8).expect("Error with set_parm()");
+    sign_key.export_pub()
+        .err()
+        .expect("export_pub() must fail without a public key");
+
+    // The failed export left the key intact, so it can still be generated
+    // and used.
+    setup_callbacks(&mut sign_key, ctx);
+    sign_key.make_key(&mut rng).expect("Error with make_key()");
+
+    let message = b"key survives a failed export";
+    let sig_len = sign_key.get_sig_len().expect("Error with get_sig_len()");
+    let mut sig = vec![0u8; sig_len];
+    sign_key.sign(message, &mut sig).expect("Error with sign()");
+
+    let mut verify_key = sign_key.export_pub().expect("Error with export_pub()");
+    verify_key.verify(&sig, message)
+        .expect("Signature must verify against export_pub() key");
 
     let _ = store;
 }
