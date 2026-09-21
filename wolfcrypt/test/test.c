@@ -819,6 +819,9 @@ typedef struct testVector {
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
+#ifndef WOLFSSL_NO_CONST_CMP
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  constantcompare_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
@@ -2601,6 +2604,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("MEMORY   test failed!\n", ret);
     else
         TEST_PASS("MEMORY   test passed!\n");
+
+#ifndef WOLFSSL_NO_CONST_CMP
+    if ( (ret = constantcompare_test()) != 0)
+        TEST_FAIL("constantcompare test failed!\n", ret);
+    else
+        TEST_PASS("constantcompare test passed!\n");
+#endif
 
     if ( (ret = octets_test()) != 0)
         TEST_FAIL("octets   test failed!\n", ret);
@@ -4609,6 +4619,87 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t octets_test(void)
 
     return 0;
 }
+
+#ifndef WOLFSSL_NO_CONST_CMP
+
+typedef int (*constantcompare_fn)(const byte* a, const byte* b, int length);
+
+/* Run the ConstantCompare() checks against cmp.
+ * Returns 0 on success, a test error code on failure. */
+static wc_test_ret_t constantcompare_sweep(constantcompare_fn cmp,
+    const char* name)
+{
+    byte a[9] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+    byte b[9];
+    int i;
+    int length = (int)sizeof(a) - 1; /* leave a[8]/b[8] out of range */
+
+    XMEMCPY(b, a, sizeof(a));
+    if (cmp(a, b, length) != 0) {
+        printf("%s failed: equal buffers compared unequal\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    if (cmp(a, b, 0) != 0) {
+        printf("%s failed: length 0 compared unequal\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* A difference at any index must return positive, not just nonzero. */
+    for (i = 0; i < length; i++) {
+        XMEMCPY(b, a, sizeof(a));
+        b[i] ^= 0x01;
+        if (cmp(a, b, length) <= 0) {
+            printf("%s failed: missed difference at index %d\n", name, i);
+            return WC_TEST_RET_ENC_I(i);
+        }
+    }
+
+    /* A difference past length must be ignored. */
+    XMEMCPY(b, a, sizeof(a));
+    b[length] ^= 0x01;
+    if (cmp(a, b, length) != 0) {
+        printf("%s failed: read past length\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Negative length must return positive, not 0. */
+    XMEMSET(b, (byte)~a[0], sizeof(b));
+    if (cmp(a, b, -1) <= 0) {
+        printf("%s failed: negative length did not return positive\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+
+/* Test ConstantCompare() and wc_ConstantCompare().
+ * Returns 0 on success, a test error code on failure. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t constantcompare_test(void)
+{
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("constantcompare_test");
+
+    /* Inline copy from misc.c.  Under NO_INLINE it is hidden in the library
+     * and cannot be linked; wc_ConstantCompare() covers the same code. */
+#ifndef NO_INLINE
+    ret = constantcompare_sweep(ConstantCompare, "ConstantCompare");
+    if (ret != 0)
+        return ret;
+#endif
+
+    /* Exported wrapper lives in memory.c, which leantls and --disable-memory
+     * leave out of the library. */
+#ifndef NO_WOLFSSL_MEMORY
+    ret = constantcompare_sweep(wc_ConstantCompare, "wc_ConstantCompare");
+    if (ret != 0)
+        return ret;
+#endif
+
+    return 0;
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
 
 #ifndef NO_CODING
 
