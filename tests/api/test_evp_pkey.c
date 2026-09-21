@@ -1687,6 +1687,399 @@ int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void)
     return EXPECT_RESULT();
 }
 
+/* The guards the two tests below share. The oversized parameters SEQUENCE the
+ * first one builds is only part of the PKCS#8 ASN.1 template when WC_RSA_PSS
+ * is defined, and that is what makes a header size this large reachable. */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_PKCS8) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(WC_RSA_PSS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED) && \
+    (defined(HAVE_ECC) || (!defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)))
+#define TEST_EVP_PKEY_OVERSIZED_PKCS8
+
+/* Number of bytes of tag and length that der_put_hdr() writes for len. */
+static word32 der_hdr_sz(word32 len)
+{
+    return (len < 0x80) ? 2 : ((len <= 0xFF) ? 3 : 4);
+}
+
+/* Write a DER tag and definite length. Returns the number of bytes written. */
+static word32 der_put_hdr(byte* out, byte tag, word32 len)
+{
+    word32 i = 0;
+
+    out[i++] = tag;
+    if (len < 0x80) {
+        out[i++] = (byte)len;
+    }
+    else if (len <= 0xFF) {
+        out[i++] = 0x81;
+        out[i++] = (byte)len;
+    }
+    else {
+        out[i++] = 0x82;
+        out[i++] = (byte)(len >> 8);
+        out[i++] = (byte)len;
+    }
+    return i;
+}
+
+/* Wrap a traditional private key in a PKCS#8 PrivateKeyInfo whose
+ * AlgorithmIdentifier ends in a padSz byte parameters SEQUENCE.
+ *
+ * alg/algSz is the encoded content of the AlgorithmIdentifier that precedes
+ * the parameters: the algorithm OID, the curve OID for ECC, the NULL for RSA.
+ * ToTraditionalInline_ex() skips the parameters without looking inside, so
+ * padSz is what the decoder records as pkcs8HeaderSz. The buffer is allocated
+ * with XMALLOC and its length returned through outSz.
+ */
+static byte* der_wrap_pkcs8_padded(const byte* alg, word32 algSz,
+    const byte* inner, word32 innerSz, word32 padSz, word32* outSz)
+{
+    byte*  out;
+    word32 paramSz  = der_hdr_sz(padSz) + padSz;
+    word32 algSeqSz = der_hdr_sz(algSz + paramSz) + algSz + paramSz;
+    word32 keySz    = der_hdr_sz(innerSz) + innerSz;
+    /* 3 bytes for the version INTEGER. */
+    word32 bodySz   = 3 + algSeqSz + keySz;
+    word32 i        = 0;
+
+    out = (byte*)XMALLOC(der_hdr_sz(bodySz) + bodySz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL) {
+        return NULL;
+    }
+
+    i += der_put_hdr(out + i, 0x30, bodySz);            /* PrivateKeyInfo */
+    out[i++] = 0x02; out[i++] = 0x01; out[i++] = 0x00;  /* version v1 */
+    i += der_put_hdr(out + i, 0x30, algSz + paramSz);   /* algorithm */
+    XMEMCPY(out + i, alg, algSz);
+    i += algSz;
+    i += der_put_hdr(out + i, 0x30, padSz);             /* parameters */
+    XMEMSET(out + i, 0, padSz);
+    i += padSz;
+    i += der_put_hdr(out + i, 0x04, innerSz);           /* privateKey */
+    XMEMCPY(out + i, inner, innerSz);
+    i += innerSz;
+
+    *outSz = i;
+    return out;
+}
+
+/* Decode der into an EVP_PKEY and hand the key object it yields to a second,
+ * empty EVP_PKEY. That second one, returned through fresh, is the object under
+ * test: taking the key over runs the producer that re-encodes it,
+ * ECC_populate_EVP_PKEY() or PopulateRSAEvpPkeyDer().
+ *
+ * srcHdrSz gets the header size the decoder recorded for der, so the caller
+ * can confirm a crafted wrapper really did inflate it. */
+static int evp_pkey_take_over_key(int keyType, const byte* der, long derSz,
+    WOLFSSL_EVP_PKEY** fresh, word16* srcHdrSz)
+{
+    EXPECT_DECLS;
+    const unsigned char* in = der;
+    WOLFSSL_EVP_PKEY* src = NULL;
+
+    *fresh = NULL;
+    *srcHdrSz = 0;
+    ExpectNotNull(src = wolfSSL_d2i_PrivateKey(keyType, NULL, &in, derSz));
+    if (src != NULL) {
+        *srcHdrSz = src->pkcs8HeaderSz;
+    }
+    ExpectNotNull(*fresh = wolfSSL_EVP_PKEY_new());
+#ifdef HAVE_ECC
+    if (keyType == EVP_PKEY_EC) {
+        WOLFSSL_EC_KEY* ec = NULL;
+
+        ExpectNotNull(ec = wolfSSL_EVP_PKEY_get1_EC_KEY(src));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(*fresh, ec),
+            WOLFSSL_SUCCESS);
+        wolfSSL_EC_KEY_free(ec);
+    }
+#endif
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+    if (keyType == EVP_PKEY_RSA) {
+        WOLFSSL_RSA* rsa = NULL;
+
+        ExpectNotNull(rsa = wolfSSL_EVP_PKEY_get1_RSA(src));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_set1_RSA(*fresh, rsa), WOLFSSL_SUCCESS);
+        wolfSSL_RSA_free(rsa);
+    }
+#endif
+    wolfSSL_EVP_PKEY_free(src);
+    return EXPECT_RESULT();
+}
+
+/* bad came from the crafted wrapper, ref from the well-formed one. Both hold
+ * the same key, so the producer has to have left them identical. */
+static int evp_pkey_match_reencoded(WOLFSSL_EVP_PKEY* bad,
+    WOLFSSL_EVP_PKEY* ref)
+{
+    EXPECT_DECLS;
+    unsigned char* badDer = NULL;
+    unsigned char* refDer = NULL;
+    int badSz = 0;
+    int refSz = 0;
+
+    /* The invariant the producers have to restore: the header size lies
+     * inside the encoding it describes. Asserted before anything exports the
+     * key, so a regression fails here instead of reading off the end of the
+     * buffer. */
+    ExpectIntGT(bad->pkey_sz, 0);
+    ExpectIntLT((int)bad->pkcs8HeaderSz, bad->pkey_sz);
+    /* Not just inside it: the crafted wrapper must leave exactly what the
+     * well-formed one does. */
+    ExpectIntEQ(bad->pkey_sz, ref->pkey_sz);
+    ExpectIntEQ((int)bad->pkcs8HeaderSz, (int)ref->pkcs8HeaderSz);
+
+    ExpectIntGT(refSz = wolfSSL_i2d_PrivateKey(ref, &refDer), 0);
+    ExpectIntGT(badSz = wolfSSL_i2d_PrivateKey(bad, &badDer), 0);
+    ExpectIntEQ(badSz, refSz);
+    ExpectNotNull(badDer);
+    ExpectNotNull(refDer);
+    ExpectBufEQ(badDer, refDer, (size_t)refSz);
+    XFREE(badDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(refDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    badDer = NULL;
+    refDer = NULL;
+
+/* pkcs8_encode()/pkcs8_encrypt() and the PKCS#8 PEM writer that reaches them
+ * are built only for OPENSSL_ALL. */
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
+    {
+        WOLFSSL_BIO* badBio = NULL;
+        WOLFSSL_BIO* refBio = NULL;
+        char* badPem = NULL;
+        char* refPem = NULL;
+
+        /* wolfSSL_PEM_write_bio_PKCS8PrivateKey() is the sink: pkcs8_encode()
+         * hands wc_CreatePKCS8Key() pkey.ptr + pkcs8HeaderSz and
+         * pkey_sz - pkcs8HeaderSz. */
+        ExpectNotNull(badBio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectNotNull(refBio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(refBio, ref, NULL,
+            NULL, 0, NULL, NULL), 0);
+        ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(badBio, bad, NULL,
+            NULL, 0, NULL, NULL), 0);
+        ExpectIntGT(refSz = wolfSSL_BIO_get_mem_data(refBio, &refPem), 0);
+        ExpectIntEQ(wolfSSL_BIO_get_mem_data(badBio, &badPem), refSz);
+        ExpectNotNull(refPem);
+        ExpectNotNull(badPem);
+        ExpectBufEQ(badPem, refPem, (size_t)refSz);
+        wolfSSL_BIO_free(badBio);
+        wolfSSL_BIO_free(refBio);
+    }
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    {
+        WOLFSSL_BIO* bio = NULL;
+        char pkcs8Pass[] = "wolfssl-pkcs8-password";
+
+        /* The encrypting twin reaches pkcs8_encrypt(), which slices the same
+         * buffer at the same offset. The output carries a random salt and IV,
+         * so only the call itself can be checked.
+         *
+         * PBES2 derives the key with PBKDF2, which uses the password as an
+         * HMAC key, and a FIPS build rejects an HMAC key shorter than
+         * HMAC_FIPS_MIN_KEY (14 bytes) with HMAC_MIN_KEYLEN_E. Keep the
+         * password above that or the call fails for the wrong reason. */
+        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, bad,
+            wolfSSL_EVP_aes_256_cbc(), pkcs8Pass, (int)XSTRLEN(pkcs8Pass),
+            NULL, NULL), 0);
+        wolfSSL_BIO_free(bio);
+    }
+#endif
+#endif /* OPENSSL_ALL && !NO_BIO */
+
+    return EXPECT_RESULT();
+}
+#endif /* TEST_EVP_PKEY_OVERSIZED_PKCS8 */
+
+/*
+ * A PKCS#8 AlgorithmIdentifier may carry a parameters SEQUENCE that
+ * ToTraditionalInline_ex() skips without inspecting, so the inner-key offset
+ * it reports - what wolfSSL_EC_KEY_LoadDer_ex() and wolfSSL_RSA_LoadDer_ex()
+ * store as pkcs8HeaderSz - is attacker controlled and effectively unbounded.
+ *
+ * ECC_populate_EVP_PKEY() and PopulateRSAEvpPkeyDer() build a FRESH PKCS#8
+ * blob for the EVP_PKEY, which never carries those parameters, but copied
+ * pkcs8HeaderSz straight off the EC_KEY/RSA object. The header then described
+ * a buffer that is gone: every export computes pkey.ptr + pkcs8HeaderSz and
+ * pkey_sz - pkcs8HeaderSz, so it read past the end of the new blob and handed
+ * wc_CreatePKCS8Key() a length of nearly 4 GiB.
+ */
+int test_wolfSSL_EVP_PKEY_set1_oversized_pkcs8_header(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_EVP_PKEY_OVERSIZED_PKCS8
+    /* Large enough that the header cannot fall inside the re-encoded blob for
+     * either algorithm, and larger than any of the keys involved. */
+    const word32 padSz = 2000;
+    byte*  inner = NULL;
+    size_t innerSz = 0;
+    byte*  wrapped = NULL;
+    word32 wrappedSz = 0;
+    byte*  p8 = NULL;
+    size_t p8Sz = 0;
+    word16 srcHdrSz = 0;
+    WOLFSSL_EVP_PKEY* bad = NULL;
+    WOLFSSL_EVP_PKEY* ref = NULL;
+
+#ifdef HAVE_ECC
+    {
+        static const byte ecAlg[] = {
+            /* id-ecPublicKey */
+            0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+            /* prime256v1 */
+            0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+        };
+
+        /* ecc-key.der and ecc-keyPkcs8.der hold the same key, one bare and
+         * one wrapped. */
+        ExpectIntEQ(load_file("./certs/ecc-key.der", &inner, &innerSz), 0);
+        ExpectNotNull(wrapped = der_wrap_pkcs8_padded(ecAlg, (word32)sizeof(
+            ecAlg), inner, (word32)innerSz, padSz, &wrappedSz));
+        ExpectIntEQ(load_file("./certs/ecc-keyPkcs8.der", &p8, &p8Sz), 0);
+        ExpectIntEQ(evp_pkey_take_over_key(EVP_PKEY_EC, p8, (long)p8Sz, &ref,
+            &srcHdrSz), TEST_SUCCESS);
+        ExpectIntEQ(evp_pkey_take_over_key(EVP_PKEY_EC, wrapped,
+            (long)wrappedSz, &bad, &srcHdrSz), TEST_SUCCESS);
+        /* The crafted wrapper is accepted and the decoder did record the
+         * inflated header, so the check below is not vacuous. */
+        ExpectIntGE((int)srcHdrSz, (int)padSz);
+        ExpectIntEQ(evp_pkey_match_reencoded(bad, ref), TEST_SUCCESS);
+
+        wolfSSL_EVP_PKEY_free(bad);
+        wolfSSL_EVP_PKEY_free(ref);
+        bad = NULL;
+        ref = NULL;
+        XFREE(wrapped, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(inner, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(p8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wrapped = NULL;
+        inner = NULL;
+        p8 = NULL;
+    }
+#endif /* HAVE_ECC */
+
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+    {
+        static const byte rsaAlg[] = {
+            /* rsaEncryption */
+            0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+            /* parameters NULL, required for rsaEncryption */
+            0x05, 0x00
+        };
+
+        /* As above: server-key.der and server-keyPkcs8.der are one key. */
+        ExpectIntEQ(load_file("./certs/server-key.der", &inner, &innerSz), 0);
+        ExpectNotNull(wrapped = der_wrap_pkcs8_padded(rsaAlg, (word32)sizeof(
+            rsaAlg), inner, (word32)innerSz, padSz, &wrappedSz));
+        ExpectIntEQ(load_file("./certs/server-keyPkcs8.der", &p8, &p8Sz), 0);
+        ExpectIntEQ(evp_pkey_take_over_key(EVP_PKEY_RSA, p8, (long)p8Sz, &ref,
+            &srcHdrSz), TEST_SUCCESS);
+        ExpectIntEQ(evp_pkey_take_over_key(EVP_PKEY_RSA, wrapped,
+            (long)wrappedSz, &bad, &srcHdrSz), TEST_SUCCESS);
+        /* As above: the header really is the crafted one. */
+        ExpectIntGE((int)srcHdrSz, (int)padSz);
+        ExpectIntEQ(evp_pkey_match_reencoded(bad, ref), TEST_SUCCESS);
+
+        wolfSSL_EVP_PKEY_free(bad);
+        wolfSSL_EVP_PKEY_free(ref);
+        XFREE(wrapped, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(inner, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(p8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
+#endif /* TEST_EVP_PKEY_OVERSIZED_PKCS8 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * pkcs8_encode() and pkcs8_encrypt() slice the cached DER at pkcs8HeaderSz and
+ * pass the remainder, pkey_sz - pkcs8HeaderSz, on as a word32. A header size
+ * that does not lie inside the encoding makes that subtraction underflow, so
+ * they reject it rather than trusting whoever populated the pkey - the same
+ * bound wolfssl_i_evp_pkey_get_der() already applies.
+ *
+ * The producers keep the two in step (see
+ * test_wolfSSL_EVP_PKEY_set1_oversized_pkcs8_header()), so the only way to
+ * reach the guard is to put the pkey in that state directly.
+ */
+int test_wolfSSL_EVP_PKEY_pkcs8_header_bounds(void)
+{
+    EXPECT_DECLS;
+/* pkcs8_encode(), pkcs8_encrypt(), wolfSSL_PEM_write_bio_PKCS8PrivateKey() and
+ * wolfSSL_i2d_PKCS8_PKEY() are all built only for OPENSSL_ALL. */
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS8) && defined(HAVE_ECC) && \
+    !defined(NO_BIO) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    const unsigned char* in;
+    byte*  buf = NULL;
+    size_t bufSz = 0;
+    word16 hdrSz = 0;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    char   pkcs8Pass[] = "wolfssl-pkcs8-password";
+#endif
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_BIO* bio = NULL;
+
+    ExpectIntEQ(load_file("./certs/ecc-keyPkcs8.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &in,
+        (long)bufSz));
+    ExpectIntGT(pkey->pkey_sz, 0);
+
+    /* Baseline: the key exports while the header is the decoded one. */
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    if (pkey != NULL) {
+        hdrSz = pkey->pkcs8HeaderSz;
+        /* The boundary: the header ends exactly where the encoding does, so
+         * there is no key left to wrap. Checked first because it is the one
+         * out-of-range value that stays inside the buffer - an unguarded
+         * build fails here rather than reading off the end of it. */
+        pkey->pkcs8HeaderSz = (word16)pkey->pkey_sz;
+    }
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    /* At least HMAC_FIPS_MIN_KEY (14) bytes, or a FIPS build rejects the
+     * PBKDF2 password before the header bound is ever reached. */
+    ExpectIntEQ(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey,
+        wolfSSL_EVP_aes_256_cbc(), pkcs8Pass, (int)XSTRLEN(pkcs8Pass), NULL,
+        NULL), 0);
+#endif
+    ExpectIntLT(wolfSSL_i2d_PKCS8_PKEY(pkey, NULL), 0);
+
+    /* Past the end, where pkey_sz - pkcs8HeaderSz underflows to nearly 4 GiB.
+     * The Expect macros stop evaluating after a failure, so these calls are
+     * only made once the boundary above has been rejected. */
+    if (pkey != NULL) {
+        pkey->pkcs8HeaderSz = (word16)(pkey->pkey_sz + 1);
+    }
+    ExpectIntEQ(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    ExpectIntLT(wolfSSL_i2d_PKCS8_PKEY(pkey, NULL), 0);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    /* Put it back so the key is freed in a consistent state. */
+    if (pkey != NULL) {
+        pkey->pkcs8HeaderSz = hdrSz;
+    }
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * wolfSSL_EVP_PKEY_get1_EC_KEY() hands the caller a reference of its own, so
  * releasing it has to leave the copy the EVP_PKEY holds intact and usable.

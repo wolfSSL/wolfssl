@@ -7418,7 +7418,12 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
             }
             else
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
-            {
+            if ((pkey->pkey.ptr == NULL) || (pkey->pkey_sz <= 0) ||
+                    (pkey->pkcs8HeaderSz >= pkey->pkey_sz)) {
+                /* The PKCS#8 header size must lie inside the DER encoding. */
+                ret = BAD_FUNC_ARG;
+            }
+            else {
                 /* Encrypt private into buffer. */
                 ret = TraditionalEnc(
                     (byte*)pkey->pkey.ptr + pkey->pkcs8HeaderSz,
@@ -7532,6 +7537,11 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         ret = NOT_COMPILED_IN;
     }
 
+    /* The PKCS#8 header size must lie inside the DER encoding. */
+    if ((ret >= 0) && ((pkey->pkey.ptr == NULL) || (pkey->pkey_sz <= 0) ||
+            (pkey->pkcs8HeaderSz >= pkey->pkey_sz))) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret >= 0) {
         /* Encode private key in PKCS#8 format. */
         ret = wc_CreatePKCS8Key(key, keySz, (byte*)pkey->pkey.ptr +
