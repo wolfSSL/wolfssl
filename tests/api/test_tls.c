@@ -885,6 +885,10 @@ int test_tls_get_negotiated_group(void)
             WOLFSSL_SUCCESS);
         ExpectNotNull(ssl_e = wolfSSL_new(ctx_e));
         ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_e), 0);
+        /* SSL_clear() keeps the configured preference. */
+        ExpectIntEQ(wolfSSL_clear(ssl_e), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl_e->ecdhCurveOID, ctx_e->ecdhCurveOID);
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_e), 0);
 
         wolfSSL_EC_KEY_free(ecKey);
         wolfSSL_free(ssl_e);

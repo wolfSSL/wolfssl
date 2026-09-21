@@ -4414,7 +4414,7 @@ struct WOLFSSL_CTX {
 #endif
     word32          timeout;            /* session timeout */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
-    defined(HAVE_ED448)
+    defined(HAVE_ED448) || defined(HAVE_CURVE448)
     word32          ecdhCurveOID;       /* curve Ecc_Sum */
 #endif
 #ifdef HAVE_ECC

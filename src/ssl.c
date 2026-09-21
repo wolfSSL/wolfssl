@@ -5798,8 +5798,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         defined(HAVE_CURVE448)
         /* The peer's ephemeral key is now kept past the handshake for
          * wolfSSL_get_peer_tmp_key(). A next handshake that negotiates no
-         * (EC)DH would otherwise report the previous connection's key. */
-        ssl->ecdhCurveOID = 0;
+         * (EC)DH would otherwise report the previous connection's key.
+         * Back to what SetSSL_CTX() starts from, so a curve set with
+         * wolfSSL_CTX_set_tmp_ecdh() survives. */
+        ssl->ecdhCurveOID = ssl->ctx->ecdhCurveOID;
         ssl->peerEccKeyPresent = 0;
     #endif
     #ifdef HAVE_CURVE25519
