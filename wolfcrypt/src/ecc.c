@@ -9878,9 +9878,13 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
         if (!mp_iszero((MP_INT_SIZE*)u1)) {
             /* compute u1*mG + u2*mQ = mG */
+         #ifdef WOLFSSL_CHECK_VER_FAULTS
             if (err == MP_OKAY)
+         #endif
+            {
                 err = wc_ecc_mulmod_ex(u1, mG, mG, curve->Af, curve->prime, 0,
                                                                      key->heap);
+            }
         #ifdef WOLFSSL_CHECK_VER_FAULTS
             if (err == MP_OKAY && wc_ecc_cmp_point(mG, mG1) == MP_EQ) {
                 err = BAD_STATE_E;
