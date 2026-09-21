@@ -12482,6 +12482,37 @@ then
     fi
 fi
 
+# Keep the deprecated wolfSSL_get_session() session cache reference. Must come
+# after every recipe that defines NO_SESSION_CACHE_REF on its own.
+AC_ARG_ENABLE([session-cache-ref],
+    [AS_HELP_STRING([--enable-session-cache-ref],[Enable deprecated wolfSSL_get_session() session cache references (default: disabled)])],
+    [ ENABLED_SESSION_CACHE_REF=$enableval ],
+    [ ENABLED_SESSION_CACHE_REF=no ]
+    )
+
+# An application may select the deprecated path with the header macro alone.
+# WOLFSSL_SESSION_CACHE_REF_WARNED is only the silencer, so drop it before the
+# scan or it reads as the opt-in.
+SESSION_CACHE_REF_SCAN=$(printf "%s" "$CFLAGS $CPPFLAGS $AM_CFLAGS" | \
+    sed 's/WOLFSSL_SESSION_CACHE_REF_WARNED//g')
+AS_CASE(["$SESSION_CACHE_REF_SCAN"],[*'WOLFSSL_SESSION_CACHE_REF'*],
+    [ENABLED_SESSION_CACHE_REF=yes])
+
+if test "x$ENABLED_SESSION_CACHE_REF" != "xyes"
+then
+    ENABLED_SESSION_CACHE_REF=no
+    AS_CASE(["$CFLAGS $CPPFLAGS $AM_CFLAGS"],[*'NO_SESSION_CACHE_REF'*],[],
+        [AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"])
+else
+    # settings.h derives the macro from TITAN_SESSION_CACHE, which never
+    # reaches the compile line, so scanning for it alone would miss that.
+    AS_CASE(["$CFLAGS $CPPFLAGS $AM_CFLAGS"],
+        [*'NO_SESSION_CACHE_REF'*|*'TITAN_SESSION_CACHE'*],
+        [ENABLED_SESSION_CACHE_REF=no
+         AC_MSG_WARN([--enable-session-cache-ref ignored: NO_SESSION_CACHE_REF is already set by another option])],
+        [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_CACHE_REF"])
+fi
+
 # Make function 'wolfSSL_X509_EXTENSION_get_data' return different type of
 # data for each type of extension, as it used to do in the past, instead of
 # always returning the full OCTET STRING of the extension. Use only if you
@@ -14465,6 +14496,7 @@ echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+echo "   * Session cache ref (deprec): $ENABLED_SESSION_CACHE_REF"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"

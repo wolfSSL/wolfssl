@@ -1823,6 +1823,75 @@ int test_wolfSSL_client_cache_id_prefix(void)
  * the handshake, then resume by that ID on the next connection.  It has to
  * work either way, since NO_SESSION_CACHE_REF governs only what
  * wolfSSL_get_session() returns. */
+/* A persisted image whose ClientCache geometry differs from this build's must
+ * be rejected, not copied in: the rows are a different stride. */
+int test_wolfSSL_session_cache_client_geometry(void)
+{
+    EXPECT_DECLS;
+#if defined(PERSIST_SESSION_CACHE) && \
+    !defined(SESSION_CACHE_DYNAMIC_MEM) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CLIENT_CACHE)
+    byte* mem = NULL;
+    int   sz = 0;
+    int   saved;
+
+    ExpectIntGT(sz = wolfSSL_get_session_cache_memsize(), 0);
+    ExpectNotNull(mem = (byte*)XMALLOC((size_t)sz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_memsave_session_cache(mem, sz), WOLFSSL_SUCCESS);
+
+    /* Control: the image this build wrote restores. */
+    ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz), WOLFSSL_SUCCESS);
+
+    /* cache_header_t is { version, rows, columns, sessionSz, clientRows,
+     * clientColumns }, so index 4 is the client row count. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&saved, mem + 4 * sizeof(int), sizeof(saved));
+        saved *= 8;
+        XMEMCPY(mem + 4 * sizeof(int), &saved, sizeof(saved));
+    }
+    ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz), CACHE_MATCH_ERROR);
+
+    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The default wolfSSL_get_session() return value is ssl->session itself, not a
+ * ClientCache handle, and it dies with the WOLFSSL that produced it. */
+int test_wolfSSL_get_session_default_ref(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get_session(ssl_c));
+#ifdef NO_SESSION_CACHE_REF
+    ExpectPtrEq(sess, ssl_c->session);
+#else
+    ExpectPtrNE(sess, ssl_c->session);
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_SetServerID_resume(void)
 {
     EXPECT_DECLS;

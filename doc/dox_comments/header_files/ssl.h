@@ -2845,19 +2845,26 @@ int        wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 /*!
     \ingroup IO
 
-    \brief When NO_SESSION_CACHE_REF is defined this function returns a pointer
-    to the current session (WOLFSSL_SESSION) used in ssl. This function returns
-    a non-persistent pointer to the WOLFSSL_SESSION object. The pointer returned
-    will be freed when wolfSSL_free is called. This call should only be used to
-    inspect or modify the current session. For session resumption it is
-    recommended to use wolfSSL_get1_session(). For backwards compatibility when
-    NO_SESSION_CACHE_REF is not defined this function returns a persistent
-    session object pointer that is stored in the local cache. The cache size is
-    finite and there is a risk that the session object will be overwritten by
-    another ssl connection by the time the application calls
-    wolfSSL_set_session() on it. It is recommended to define
-    NO_SESSION_CACHE_REF in your application and to use wolfSSL_get1_session()
-    for session resumption.
+    \brief Returns a pointer to the current session (WOLFSSL_SESSION) used in
+    ssl. This is a non-persistent pointer to the WOLFSSL_SESSION object, freed
+    when wolfSSL_free is called, so the call should only be used to inspect or
+    modify the current session. For session resumption use
+    wolfSSL_get1_session(), which returns a reference the caller owns and
+    releases with wolfSSL_SESSION_free().
+
+    This is the default behaviour: settings.h defines NO_SESSION_CACHE_REF
+    unless WOLFSSL_SESSION_CACHE_REF is defined, so every build selects it
+    without asking. The deprecated behaviour remains available by defining
+    WOLFSSL_SESSION_CACHE_REF, or through --enable-session-cache-ref and
+    -DWOLFSSL_SESSION_CACHE_REF=yes, and such a build warns at compile time;
+    define WOLFSSL_SESSION_CACHE_REF_WARNED to silence that warning.
+
+    Under WOLFSSL_SESSION_CACHE_REF this function instead returns a persistent
+    session object pointer stored in the local cache. The cache size is finite
+    and there is a risk that the session object will be overwritten by another
+    ssl connection by the time the application calls wolfSSL_set_session() on
+    it. Note the lifetime difference when migrating: the deprecated pointer
+    stayed valid after wolfSSL_free(), the default one does not.
 
     \return pointer If successful the call will return a pointer to the the
     current SSL session object.
