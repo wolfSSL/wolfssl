@@ -880,7 +880,7 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
     return ret;
 }
 
-#ifndef WOLFSSL_SP_MATH
+#ifdef WOLFSSL_HAVE_MP_MOD_2D
 /* Keep only the lowest n bits. bn = bn mod 2^n
  *
  * Return compliant with OpenSSL.

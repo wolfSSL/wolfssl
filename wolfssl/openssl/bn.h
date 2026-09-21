@@ -140,7 +140,15 @@ WOLFSSL_API int wolfSSL_BN_bn2binpad(const WOLFSSL_BIGNUM* bn, unsigned char* r,
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
                                               WOLFSSL_BIGNUM* ret);
 
-#ifndef WOLFSSL_SP_MATH
+/* mp_mod_2d() is not built in every SP math configuration - see sp_int.c. */
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    #define WOLFSSL_HAVE_MP_MOD_2D
+#elif (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_ECC)
+    #define WOLFSSL_HAVE_MP_MOD_2D
+#endif
+
+#ifdef WOLFSSL_HAVE_MP_MOD_2D
 WOLFSSL_API int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n);
 #endif
 
@@ -265,7 +273,7 @@ typedef WOLFSSL_BN_GENCB    BN_GENCB;
 #define BN_gcd       wolfSSL_BN_gcd
 #define BN_value_one wolfSSL_BN_value_one
 
-#ifndef WOLFSSL_SP_MATH
+#ifdef WOLFSSL_HAVE_MP_MOD_2D
 #define BN_mask_bits wolfSSL_mask_bits
 #endif
 
