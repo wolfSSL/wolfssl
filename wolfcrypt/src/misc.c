@@ -825,7 +825,8 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
      * opaque code. No CPU fence is needed for that. */
     WC_BARRIER_DATA(mem);
 }
-#endif
+
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 
 #ifndef WOLFSSL_NO_CONST_CMP
