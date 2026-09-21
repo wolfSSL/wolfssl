@@ -34,11 +34,18 @@ Each encapsulation key implements [`kem::Encapsulate`] (with
 [`kem::TryKeyInit`] and [`kem::KeyExport`] for key serialization).
 
 Each decapsulation key implements [`kem::Decapsulate`] and
-[`kem::Generate`] (for key generation from a [`rand_core::CryptoRng`]).
+[`kem::Generate`] (for key generation from a [`rand_core::CryptoRng`] or, in
+its fallible form, from a [`rand_core::TryCryptoRng`]).
 
 Key generation and encapsulation bridge a caller-supplied
 [`rand_core::CryptoRng`] to wolfCrypt's deterministic APIs by extracting the
 required random bytes from the RNG.
+
+Note that [`crate::random::RNG`] is a fallible RNG: it implements
+[`rand_core::TryCryptoRng`], not the infallible [`rand_core::CryptoRng`].
+Use it directly with the fallible `kem::Generate::try_generate_from_rng()`,
+or wrap it in `kem::common::rand_core::UnwrapErr` (as below) to panic on RNG
+failure and gain access to the infallible entry points.
 
 # Examples
 
@@ -47,10 +54,14 @@ required random bytes from the RNG.
 {
 use kem::{Kem, Encapsulate, Decapsulate};
 use kem::Generate;
+use kem::common::rand_core::UnwrapErr;
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::mlkem_kem::*;
 
-let mut rng = RNG::new().expect("RNG creation failed");
+// `UnwrapErr` adapts the fallible wolfSSL RNG to the infallible
+// `rand_core::CryptoRng` the infallible kem entry points require; it
+// panics if the RNG fails.
+let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
 let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
 let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);

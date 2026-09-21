@@ -80,6 +80,21 @@ default.
 The BLAKE2, CMAC, and HMAC trait modules additionally require the corresponding
 algorithm support to be enabled in the wolfSSL C library.
 
+`RNG` implements the fallible `rand_core::TryRng` and `rand_core::TryCryptoRng`
+traits: RNG errors are returned to the caller as a `random::RngError` carrying
+the wolfSSL error code.  For APIs requiring the infallible `rand_core::Rng` and
+`rand_core::CryptoRng` traits, wrap the RNG in `rand_core::UnwrapErr`, which
+panics on RNG failure:
+
+```rust
+use rand_core::{Rng, UnwrapErr};
+use wolfssl_wolfcrypt::random::RNG;
+
+let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+let mut buf = [0u8; 32];
+rng.fill_bytes(&mut buf);
+```
+
 Enable features in your `Cargo.toml`, for example:
 
 ```

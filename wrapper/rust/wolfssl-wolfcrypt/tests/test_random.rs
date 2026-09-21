@@ -101,8 +101,8 @@ fn test_rng_reseed() {
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_fill_bytes() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     let mut buf = [0u8; 32];
     rng.fill_bytes(&mut buf);
     assert_ne!(buf, [0u8; 32]);
@@ -121,8 +121,8 @@ fn test_rng_rand_core_try_fill_bytes() {
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_next_u32() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     // Generate several values and verify they aren't all zero
     let v: u64 = (0..4).map(|_| rng.next_u32() as u64).sum();
     assert_ne!(v, 0);
@@ -131,8 +131,8 @@ fn test_rng_rand_core_next_u32() {
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_next_u64() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     // Generate two values and verify they aren't all ones
     let v1 = rng.next_u64();
     let v2 = rng.next_u64();
@@ -141,9 +141,32 @@ fn test_rng_rand_core_next_u64() {
 
 #[test]
 #[cfg(feature = "rand_core")]
-fn test_rng_is_crypto_rng() {
-    use rand_core::CryptoRng;
-    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+fn test_rng_is_try_crypto_rng() {
+    use rand_core::TryCryptoRng;
+    fn requires_try_crypto_rng<R: TryCryptoRng>(_: &R) {}
     let rng = RNG::new().expect("Failed to create RNG");
+    requires_try_crypto_rng(&rng);
+}
+
+/// Wrapped in `UnwrapErr`, the RNG satisfies the infallible `CryptoRng`
+/// contract as well.
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_unwrap_err_is_crypto_rng() {
+    use rand_core::{CryptoRng, UnwrapErr};
+    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+    let rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     requires_crypto_rng(&rng);
+}
+
+/// `TryRng` must stay fallible: the associated error type has to be the
+/// wolfSSL error-code-carrying `RngError`, not `Infallible`.
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_try_rng_error_type() {
+    use rand_core::TryRng;
+    use wolfssl_wolfcrypt::random::RngError;
+    fn requires_rng_error<R: TryRng<Error = RngError>>(_: &R) {}
+    let rng = RNG::new().expect("Failed to create RNG");
+    requires_rng_error(&rng);
 }
