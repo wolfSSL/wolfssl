@@ -2941,6 +2941,19 @@ int wc_Sha512Drbg_IsDisabled(void)
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
+/* Same condition as both callers: DRBG_FAILURE is a Hash_DRBG internal and
+ * does not exist without it. */
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+static int ReseedSourceFailure(int ret)
+{
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+    return DRBG_FAILURE;
+}
+#endif
+
 /* Semantics of "flags":
  *
  * Security attributes are fixed at instantiation and caller-declared -- the
@@ -2959,15 +2972,6 @@ int wc_Sha512Drbg_IsDisabled(void)
  * _LOCK_INITIALLY (born held at both layers).  wc_FreeRng() releases (if the
  * latch is held) and frees the mutex.
  */
-static int ReseedSourceFailure(int ret)
-{
-    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
-        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
-        return ret;
-    }
-    return DRBG_FAILURE;
-}
-
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
