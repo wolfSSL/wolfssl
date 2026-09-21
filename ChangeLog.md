@@ -8,6 +8,13 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 
+## Bug Fixes
+
+* **Fix (`XASM_VOLATILE()` on IAR and KEIL in C99 mode)**: the `WOLF_C99` arm
+  was checked first and handed both compilers `__asm__`, which their assembler
+  dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
+  the spelling IAR keeps available under `--strict`.
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA

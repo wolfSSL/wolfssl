@@ -2055,13 +2055,16 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-#ifdef WOLF_C99
-    /* use alternate keyword for compatibility with -std=c99 */
-    #define XASM_VOLATILE(a) __asm__ volatile(a)
-#elif defined(__IAR_SYSTEMS_ICC__)
-    #define XASM_VOLATILE(a) asm volatile(a)
+/* IAR/KEIL are checked before WOLF_C99: both accept -std=c99, but neither
+ * spells inline asm __asm__.  Both get __asm; IAR also has asm(), but only
+ * __asm survives --strict. */
+#if defined(__IAR_SYSTEMS_ICC__)
+    #define XASM_VOLATILE(a) __asm volatile(a)
 #elif defined(__KEIL__)
     #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(WOLF_C99)
+    /* use alternate keyword for compatibility with -std=c99 */
+    #define XASM_VOLATILE(a) __asm__ volatile(a)
 #else
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
