@@ -300,7 +300,7 @@ static void wb_hash_drbg_generate_reseed(void)
 
     /* False side: reseedCtr below the interval -> generate proceeds. */
     drbg.reseedCtr = 1;
-    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0, NULL);
+    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash_DRBG_Generate (below interval) failed");
         wb_fail = 1;
@@ -308,7 +308,7 @@ static void wb_hash_drbg_generate_reseed(void)
 
     /* True side: reseedCtr at the interval -> early DRBG_NEED_RESEED. */
     drbg.reseedCtr = WC_RESEED_INTERVAL;
-    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0, NULL);
+    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_NEED_RESEED) {
         WB_NOTE("Hash_DRBG_Generate did not signal DRBG_NEED_RESEED");
         wb_fail = 1;
@@ -448,14 +448,14 @@ static void wb_hash512_drbg_generate_reseed(void)
     }
 
     drbg.reseedCtr = 1;                       /* false side */
-    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0, NULL);
+    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash512_DRBG_Generate (below interval) failed");
         wb_fail = 1;
     }
 
     drbg.reseedCtr = WC_RESEED_INTERVAL;      /* true side */
-    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0, NULL);
+    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_NEED_RESEED) {
         WB_NOTE("Hash512_DRBG_Generate did not signal DRBG_NEED_RESEED");
         wb_fail = 1;

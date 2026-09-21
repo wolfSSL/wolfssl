@@ -459,7 +459,7 @@ struct DRBG_internal {
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256 sha256;
-    byte seed_scratch[DRBG_SEED_LEN];
+    byte seed_scratch[DRBG_SEED_LEN * 2];
     byte digest_scratch[WC_SHA256_DIGEST_SIZE];
 #endif
 };
@@ -485,7 +485,7 @@ struct DRBG_SHA512_internal {
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha512 sha512;
-    byte seed_scratch[DRBG_SHA512_SEED_LEN];
+    byte seed_scratch[DRBG_SHA512_SEED_LEN * 2];
     byte digest_scratch[WC_SHA512_DIGEST_SIZE];
 #endif
 };
