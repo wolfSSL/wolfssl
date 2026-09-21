@@ -561,6 +561,7 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v5-ready - Alias for ready.
 #   v5-dev - Alias for dev.
 #   v6     - The SRTP-KDF-full-submission
+#   v6.1.0 - v6 with support for Linux kernel mode
 #
 # These options have been retired, but are listed here for historical reference:
 #   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8).
@@ -678,6 +679,16 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION=6
         HAVE_FIPS_VERSION_MAJOR=6
         HAVE_FIPS_VERSION_MINOR=0
+        HAVE_FIPS_VERSION_PATCH=0
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH_ALL="yes"
+        DEF_FAST_MATH="no"
+    ],
+    [v6.1.0],[
+        FIPS_VERSION="v6"
+        HAVE_FIPS_VERSION=6
+        HAVE_FIPS_VERSION_MAJOR=6
+        HAVE_FIPS_VERSION_MINOR=1
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
         DEF_SP_MATH_ALL="yes"

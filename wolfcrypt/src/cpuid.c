@@ -171,11 +171,7 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        #ifdef WOLFSSL_BSDKM
-        if (WOLFSSL_ATOMIC_LOAD_UINT(cpuid_flags) == WC_CPUID_INITIALIZER) {
-        #else
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-        #endif
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             int os_avx    = cpuid_os_state_enabled(WC_XCR0_AVX);

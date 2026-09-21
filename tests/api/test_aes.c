@@ -3448,9 +3448,11 @@ int test_wc_AesGcmEncryptDecrypt(void)
     ExpectIntEQ(wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), iv,
         sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) + 1, a, sizeof(a)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0) || FIPS_VERSION3_EQ(5,2,4)
     ExpectIntEQ(wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), iv,
         sizeof(iv)/sizeof(byte), resultT, WOLFSSL_MIN_AUTH_TAG_SZ - 1, a,
         sizeof(a)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
 #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST) || \
@@ -10391,14 +10393,18 @@ int test_wc_AesKeyExportArgMcdc(void)
         wc_AesFree(&aes);
         ExpectIntEQ(wc_AesInit_Id(NULL, id, -1, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
         ExpectIntEQ(wc_AesInit_Id(&aes, NULL, sizeof(id), NULL,
             INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_AesInit_Id(&aes, NULL, 0, NULL, INVALID_DEVID), 0);
+#endif
         ExpectIntEQ(wc_AesInit_Id(&aes, id, -1, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BUFFER_E));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
         /* a negative len is a length error whether or not id is NULL */
         ExpectIntEQ(wc_AesInit_Id(&aes, NULL, -1, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BUFFER_E));
+#endif
         ExpectIntEQ(wc_AesInit_Id(&aes, id, AES_MAX_ID_LEN + 1, NULL,
             INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
         wc_AesFree(&aes); /* paired with the NULL-id/zero-len init above */

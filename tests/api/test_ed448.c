@@ -97,7 +97,9 @@ int test_wc_ed448_make_public_stores_pub(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
-    defined(HAVE_ED448_KEY_EXPORT)
+    defined(HAVE_ED448_KEY_EXPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+
     ed448_key key;
     ed448_key privOnly;
     WC_RNG    rng;

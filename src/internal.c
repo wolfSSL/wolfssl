@@ -32124,6 +32124,11 @@ static int ParseCipherList(Suites* suites,
 
     if (next[0] == '\0' ||
         XSTRCMP(next, "ALL") == 0 ||
+#if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_ALL)
+        /* Without the keyword machinery below, honor the common "everything
+         * plus NULL ciphers" spelling here (explicit opt-in per RFC 9150). */
+        XSTRCMP(next, "ALL:eNULL") == 0 ||
+#endif
         XSTRCMP(next, "DEFAULT") == 0 ||
         XSTRCMP(next, "HIGH") == 0)
     {
@@ -32137,8 +32142,9 @@ static int ParseCipherList(Suites* suites,
 #else
                 0,
 #endif
-                haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 0, 0, 1,
-                1, 1, side
+                haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 0,
+                (XSTRCMP(next, "ALL:eNULL") == 0) ? SUITES_NULL_EXPLICIT : 0,
+                1, 1, 1, side
         );
         suites->setSuites = 1;
         return 1; /* wolfSSL default */

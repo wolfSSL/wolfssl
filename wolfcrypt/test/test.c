@@ -64659,7 +64659,9 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     int res = 0;
 #endif
 #endif
+#ifndef WC_NO_CONSTRUCTORS
     wc_MlDsaKey* tmpKey = NULL;
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
@@ -64733,6 +64735,7 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
 #endif
 #endif
 
+#ifndef WC_NO_CONSTRUCTORS
     tmpKey = wc_MlDsaKey_New(HEAP_HINT, devId);
     if (tmpKey == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -64740,6 +64743,7 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     ret = wc_MlDsaKey_Delete(tmpKey, &tmpKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
 out:
     wc_MlDsaKey_Free(key);
