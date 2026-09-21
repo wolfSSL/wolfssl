@@ -831,13 +831,20 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
                                              int length)
 {
     int i;
-    int compareSum = 0;
+    word32 compareSum = 0;
 
-    for (i = 0; i < length; i++) {
-        compareSum |= a[i] ^ b[i];
+    /* Negative length compares nothing: report unequal.  length is not
+     * secret, so branching is safe.  Must be positive: callers such as
+     * AES_GCM_decrypt_C() build masks that read a negative value as equal. */
+    if (length < 0) {
+        return 1;
     }
 
-    return compareSum;
+    for (i = 0; i < length; i++) {
+        compareSum |= (word32)(a[i] ^ b[i]);
+    }
+
+    return (int)(compareSum != 0);
 }
 #endif
 
