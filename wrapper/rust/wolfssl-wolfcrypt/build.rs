@@ -322,6 +322,48 @@ fn generate_bindings() -> Result<()> {
         })
 }
 
+/// Mappings between the standard wolfCrypt name and the FIPS name, for the
+/// functions whose FIPS name is not simply `<name>_fips`.
+///
+/// This is the single source of truth for those renames: it is used both when
+/// generating the FIPS aliases and when probing the bindings in `check_cfg()`,
+/// so that a cfg whose probe function is renamed by the FIPS module is still
+/// detected.
+const FIPS_RENAMES: &[(&str, &str)] = &[
+    /* _ex suffix changed to Ex before _fips */
+    ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
+    ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
+    ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
+    ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
+    ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
+    ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
+    ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
+    ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
+    ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
+    ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
+    ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
+
+    /* Name change */
+    ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
+];
+
+/// Returns the name the FIPS module exports `base_name` under, for the
+/// functions listed in `FIPS_RENAMES`, or `None` for every other function
+/// (whose FIPS name is `<base_name>_fips`).
+fn fips_rename(base_name: &str) -> Option<&'static str> {
+    FIPS_RENAMES.iter()
+                .find(|(std_name, _)| *std_name == base_name)
+                .map(|(_, fips_name)| *fips_name)
+}
+
+/// Returns the standard wolfCrypt name of the renamed FIPS symbol
+/// `fips_name`, or `None` if the FIPS module does not rename it.
+fn fips_rename_base(fips_name: &str) -> Option<&'static str> {
+    FIPS_RENAMES.iter()
+                .find(|(_, fips)| *fips == fips_name)
+                .map(|(std_name, _)| *std_name)
+}
+
 /// Generate FIPS symbol aliases.
 ///
 /// Since Rust can't use fips.h's #defines which map the "regular" wc function
@@ -346,32 +388,10 @@ fn generate_fips_aliases() -> Result<()> {
         let mut base_name = &cap[1];
         let fips_name = format!("{}_fips", base_name);
 
-        // Exception mappings: (standard_name, fips_name)
-        // For cases where FIPS name doesn't follow the simple <name>_fips pattern
-        let exceptions: &[(&str, &str)] = &[
-            // _ex suffix changed to Ex before _fips
-            ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
-            ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
-            ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
-            ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
-            ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
-            ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
-            ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
-            ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
-            ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
-            ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
-            ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
-
-            // Name change
-            ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
-        ];
-
-        // Handle exceptions
-        for (exc_base_name, exc_fips_name) in exceptions {
-            if fips_name == *exc_fips_name {
-                base_name = exc_base_name;
-                break;
-            }
+        // Handle the functions the FIPS module renames rather than simply
+        // suffixing with _fips.
+        if let Some(renamed_base_name) = fips_rename_base(&fips_name) {
+            base_name = renamed_base_name;
         }
 
         // Check if the non-_fips version exists in bindings
@@ -438,7 +458,14 @@ fn read_file(path: String) -> Result<String> {
 }
 
 fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
-    let pattern = format!(r"\b{}(_fips)?\b", function_name);
+    // A FIPS build of wolfSSL exports most functions as <name>_fips, but
+    // renames a few of them (see FIPS_RENAMES).  Accept the renamed symbol
+    // too: the generated aliases make it callable under its standard name, so
+    // missing it here would compile out wrapper code the library supports.
+    let mut pattern = format!(r"\b{}(_fips)?\b", regex::escape(function_name));
+    if let Some(fips_name) = fips_rename(function_name) {
+        pattern.push_str(&format!(r"|\b{}\b", regex::escape(fips_name)));
+    }
     let re = match Regex::new(&pattern) {
         Ok(r) => r,
         Err(e) => {
