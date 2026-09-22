@@ -86729,19 +86729,13 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
     else if (info->algo_type == WC_ALGO_TYPE_SEED) {
     #ifndef WC_NO_RNG
-        ALIGN32 static byte seed[sizeof(word32)] = { 0x00, 0x00, 0x00, 0x01 };
-        word32* seedWord32 = (word32*)seed;
-        word32 len;
+        /* wc_GenerateSeed is a local symbol so we need to fake the entropy.
+         * A byte-wise counter always passes the RCT/APT seed health tests. */
+        static byte seedCtr = 0;
+        word32 i;
 
-        /* wc_GenerateSeed is a local symbol so we need to fake the entropy. */
-        while (info->seed.sz > 0) {
-            len = (word32)sizeof(seed);
-            if (info->seed.sz < len)
-                len = info->seed.sz;
-            XMEMCPY(info->seed.seed, seed, len);
-            info->seed.seed += len;
-            info->seed.sz -= len;
-            (*seedWord32)++;
+        for (i = 0; i < info->seed.sz; i++) {
+            info->seed.seed[i] = seedCtr++;
         }
 
         ret = 0;
