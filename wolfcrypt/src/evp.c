@@ -10231,7 +10231,7 @@ int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
          * private/public state over the clear below. */
         isPriv = pkey->isPriv;
         clearEVPPkeyKeys(pkey); /* clear out any previous keys */
-        pkey->isPriv = isPriv;
+        pkey->isPriv = (isPriv != 0);
 
         pkey->type = WC_EVP_PKEY_EC;
         pkey->ecc = key;
