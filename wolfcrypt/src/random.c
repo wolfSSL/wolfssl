@@ -5106,7 +5106,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             os.fd = -1;
 #endif
 #ifdef WOLF_CRYPTO_CB
-            os.devId = INVALID_DEVID;
+            /* devId is config, not state: a callback-only seed source must
+             * serve the bank the same way it serves wc_InitRng(). */
+            os.devId = rng->seed.devId;
 #endif
 
 #ifdef WC_RNG_HAVE_RBGC
