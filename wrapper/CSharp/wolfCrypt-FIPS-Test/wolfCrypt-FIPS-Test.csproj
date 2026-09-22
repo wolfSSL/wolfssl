@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <AssemblyName>wolfCrypt-FIPS-Test</AssemblyName>
+    <RootNamespace>wolfSSL.CSharp.Fips.Test</RootNamespace>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../wolfCrypt-FIPS/wolfCrypt-FIPS.csproj" />
+  </ItemGroup>
+
+</Project>

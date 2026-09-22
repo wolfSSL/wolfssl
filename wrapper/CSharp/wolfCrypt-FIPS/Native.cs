@@ -1,0 +1,110 @@
+/* Native.cs
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+using System;
+using System.Runtime.InteropServices;
+
+namespace wolfSSL.CSharp.Fips
+{
+    /* Structure identifiers understood by the native size helper
+     * (native/fips_sizes.c). Values are ABI; append only. */
+    internal enum FipsStructType
+    {
+        Rng = 0, Aes = 1, Rsa = 2, Ecc = 3, Dh = 4,
+        Sha = 5, Sha224 = 6, Sha256 = 7, Sha384 = 8, Sha512 = 9,
+        Sha3 = 10, Hmac = 11, Cmac = 12
+    }
+
+    /* All native bindings for the FIPS wrapper.
+     *
+     * Every cryptographic binding in this file targets an in-boundary
+     * wolfCrypt FIPS v5.2.3 entry point by its exported _fips name. The
+     * plain wc_* names are never bound: a C# DllImport resolves names at
+     * runtime and does not see the fips.h #define redirection, so binding the
+     * plain name would call the implementation directly and bypass the FIPS
+     * service layer (status and CAST gating).
+     *
+     * tools/fips-bind-audit.sh checks that every EntryPoint in this file
+     * ends in _fips, except for the size helper. */
+    internal static class Native
+    {
+        internal const string WOLFSSL = "wolfssl";
+        internal const string SIZES = "wolfssl_csharp_fips";
+
+        /* ---- size helper (outside the module boundary) ---- */
+        [DllImport(SIZES, EntryPoint = "wc_csharp_fips_sizeof", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int SizeOf(int type);
+
+        /* ---- module status and self-test services (fips_test.h / fips.h) ---- */
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void FipsCallback(int ok, int err, IntPtr hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetCb_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_SetCb_fips(FipsCallback cb);
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetStatus_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_GetStatus_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetMode_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_GetMode_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetCoreHash_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr wolfCrypt_GetCoreHash_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetVersion_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr wolfCrypt_GetVersion_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_IntegrityTest_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_IntegrityTest_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RunCast_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RunCast_fips(int castId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_GetCastStatus_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_GetCastStatus_fips(int castId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RunAllCast_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RunAllCast_fips();
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetPrivateKeyReadEnable_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_SetPrivateKeyReadEnable_fips(int enable, int keyType);
+
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetPrivateKeyReadEnable_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_GetPrivateKeyReadEnable_fips(int keyType);
+
+        /* DRBG seed source registration (WC_RNG_SEED_CB builds). cb is a
+         * native function pointer of type wc_RngSeed_Cb:
+         * int (*)(OS_Seed* os, byte* seed, word32 sz). */
+        [DllImport(WOLFSSL, EntryPoint = "wc_SetSeed_Cb_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_SetSeed_Cb_fips(IntPtr cb);
+
+        /* Name of the library's OS entropy function (/dev/urandom on Linux).
+         * Looked up with NativeLibrary.GetExport and passed to
+         * wc_SetSeed_Cb_fips as a function pointer; it is never called from
+         * C#, so it is not declared as a DllImport. */
+        internal const string OS_SEED_EXPORT = "wc_GenerateSeed";
+
+        /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
+         * (operational-test builds). Used by the negative tests. */
+        [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wolfCrypt_SetStatus_fips(int status);
+    }
+}
