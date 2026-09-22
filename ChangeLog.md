@@ -1,6 +1,15 @@
 # wolfSSL Release (unreleased)
 
 ## Behavioral Changes
+* **Behavioral change (`NO_SESSION_CACHE_REF` no longer disables the client
+  cache)**: the macro suppressed the `AddSession()` write to the ClientCache as
+  well as the `wolfSSL_get_session()` return value, because one field served as
+  both the handle and the write trigger.  Nothing populated that cache while
+  `wolfSSL_GetSessionClient()` kept searching it, so
+  `wolfSSL_SetServerID(ssl, id, len, 0)` resumption silently never resumed in
+  any build defining the macro.  The write is now gated on `NO_CLIENT_CACHE`
+  alone, which is what declares the field; the cache is not resized.
+
 * **Behavioral change (`ForceZero()` issues no CPU fences)**: the wipe is
   kept alive by a compiler barrier that takes the buffer address, which also
   keeps it from being optimized away for buffers that never leave the inlined

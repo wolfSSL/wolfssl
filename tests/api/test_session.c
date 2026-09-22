@@ -1819,6 +1819,127 @@ int test_wolfSSL_client_cache_id_prefix(void)
     return EXPECT_RESULT();
 }
 
+/* The documented non-OpenSSL client resumption flow: record a serverID before
+ * the handshake, then resume by that ID on the next connection.  It has to
+ * work either way, since NO_SESSION_CACHE_REF governs only what
+ * wolfSSL_get_session() returns. */
+int test_wolfSSL_SetServerID_resume(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_c2 = NULL;
+    WOLFSSL* ssl_s2 = NULL;
+    WOLFSSL* ssl_c3 = NULL;
+    WOLFSSL* ssl_s3 = NULL;
+    WOLFSSL* ssl_c4 = NULL;
+    WOLFSSL* ssl_s4 = NULL;
+    WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    struct test_memio_ctx test_ctx3;
+    struct test_memio_ctx test_ctx4;
+    static const byte id[] = { 'a', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e' };
+    static const byte other[] = { 'b', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e' };
+    /* Longer than SERVER_ID_LEN, so SetServerID hashes it instead. */
+    static const byte longId[SERVER_ID_LEN + 8] = { 'l', 'o', 'n', 'g' };
+    byte secret[SECRET_LEN];
+    byte longSecret[SECRET_LEN];
+
+    XMEMSET(secret, 0, sizeof(secret));
+    XMEMSET(longSecret, 0, sizeof(longSecret));
+
+    /* TLS 1.2 so the client holds a complete session as soon as the handshake
+     * is done, with or without session tickets. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c, id, (int)sizeof(id), 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->isSetup, 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(secret, ssl_c->session->masterSecret, SECRET_LEN);
+    }
+
+    /* A second connection on the same contexts asks for that serverID.  The
+     * lookup reads the ClientCache, so the handshake above must have written
+     * it. */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c2, id, (int)sizeof(id), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_c2->session->isSetup, 1);
+    ExpectBufEQ(ssl_c2->session->masterSecret, secret, SECRET_LEN);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 1);
+
+    /* Negative control: an ID that was never cached finds nothing, so the
+     * assertions above cannot pass on an unconditional hit. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, other, (int)sizeof(other), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* newSession 1 must not resume even though this ID is cached now. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    ExpectIntEQ(ssl->session->idLen, (int)sizeof(id));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* An ID over SERVER_ID_LEN is stored and looked up through its hash, so
+     * it is held at the hashed length rather than the one passed in. */
+    XMEMSET(&test_ctx3, 0, sizeof(test_ctx3));
+    ExpectIntEQ(test_memio_setup(&test_ctx3, &ctx_c, &ctx_s, &ssl_c3, &ssl_s3,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c3, longId, (int)sizeof(longId), 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_c3->session->idLen, SERVER_ID_LEN);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(longSecret, ssl_c3->session->masterSecret, SECRET_LEN);
+    }
+    ExpectIntNE(XMEMCMP(longSecret, secret, SECRET_LEN), 0);
+
+    XMEMSET(&test_ctx4, 0, sizeof(test_ctx4));
+    ExpectIntEQ(test_memio_setup(&test_ctx4, &ctx_c, &ctx_s, &ssl_c4, &ssl_s4,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c4, longId, (int)sizeof(longId), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_c4->session->isSetup, 1);
+    ExpectBufEQ(ssl_c4->session->masterSecret, longSecret, SECRET_LEN);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c4, ssl_s4, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c4), 1);
+
+    wolfSSL_free(ssl_c4);
+    wolfSSL_free(ssl_s4);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s3);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    ForceZero(secret, sizeof(secret));
+    ForceZero(longSecret, sizeof(longSecret));
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_client_cache_id_overwrite(void)
 {
     EXPECT_DECLS;
