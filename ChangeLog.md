@@ -246,6 +246,25 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+* **Behavioral change (DTLS cookie mode is one policy, set by the
+  application)**: `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` are
+  new and switch server cookies on and off for DTLS 1.2, DTLS 1.3 and TLS 1.3
+  alike, which changes three existing entry points that now share that one
+  switch.  `wolfSSL_disable_hrr_cookie()` delegates to
+  `wolfSSL_disable_cookie()`, so on a `wolfDTLS_server_method()` object it now
+  also turns off the DTLS 1.2 HelloVerifyRequest exchange on the downgrade
+  path, where it used to leave that exchange alone;
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_disable_hrr_cookie()`,
+  `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` now return
+  `BAD_STATE_E` once the handshake has decided how to process the
+  ClientHello. `wolfDTLS_accept_stateless()` reports `BAD_STATE_E` when called on an object
+  whose cookies are disabled, which `wolfSSL_accept()` handles instead. Finally,
+  every cookie secret change is now all or nothing: the replacement is built
+  before the secret it replaces is freed, so when `wolfSSL_send_hrr_cookie()`,
+  `wolfSSL_enable_cookie()`, `wolfSSL_DTLS_SetCookieSecret()` or either
+  secondary-secret setter fails, the secrets and the cookie policy are left
+  exactly as they were found instead of the rotation half happening.
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.

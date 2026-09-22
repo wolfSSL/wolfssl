@@ -7947,10 +7947,14 @@ int test_dtls_no_cookie_ch_good(WOLFSSL* ssl, void* ctx)
     return 0;
 }
 
+/* Pause on the first notification only: the next accept call must ask
+ * again. */
 int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx)
 {
+    int* calls = (int*)ctx;
+
     (void)test_dtls_no_cookie_ch_good(ssl, ctx);
-    return WANT_WRITE;
+    return *calls == 1 ? WANT_WRITE : 0;
 }
 #endif
 
@@ -8012,27 +8016,12 @@ int test_dtls_cookie_policy(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
     int version, mode;
 
     ExpectIntEQ(wolfSSL_disable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_enable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    {
-        WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLS_method());
-        WOLFSSL* ssl = ctx == NULL ? NULL : wolfSSL_new(ctx);
-
-        ExpectNotNull(ctx);
-        ExpectNotNull(ssl);
-        if (ssl != NULL) {
-            ExpectIntEQ(wolfDTLS_accept_stateless(ssl), WOLFSSL_FATAL_ERROR);
-            ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
-                WC_NO_ERR_TRACE(SIDE_ERROR));
-            wolfSSL_free(ssl);
-        }
-        wolfSSL_CTX_free(ctx);
-    }
-#endif
     for (version = 0; version < 3 && EXPECT_SUCCESS(); version++) {
 #ifndef WOLFSSL_DTLS13
         if (version != 0)
@@ -8070,6 +8059,12 @@ int test_dtls_cookie_policy(void)
             ExpectIntEQ(wolfSSL_disable_cookie(ssl_c),
                 WC_NO_ERR_TRACE(SIDE_ERROR));
             ExpectIntEQ(wolfSSL_enable_cookie(ssl_c),
+                WC_NO_ERR_TRACE(SIDE_ERROR));
+            /* A client is the one side rejected outright. A general-purpose
+             * object is promoted by the wolfSSL_accept() this delegates to -
+             * see test_dtls_cookie_policy_neither_end(). */
+            ExpectIntEQ(wolfDTLS_accept_stateless(ssl_c), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
                 WC_NO_ERR_TRACE(SIDE_ERROR));
             ExpectIntEQ(ssl_s->options.sendCookie, 1);
             /* Secrets are HMAC keys: FIPS needs HMAC_FIPS_MIN_KEY bytes. */
@@ -8215,11 +8210,12 @@ int test_dtls_cookie_policy(void)
                     WOLFSSL_ERROR_WANT_WRITE);
                 ExpectIntEQ(calls, 1);
                 ExpectIntEQ(io.c_len, 0);
-                /* Resume after the callback without supplying new input. */
+                /* Resume after the pause without supplying new input: the
+                 * callback is asked again and accepts this time. */
                 ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
                 ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
                     WOLFSSL_ERROR_WANT_READ);
-                ExpectIntEQ(calls, 1);
+                ExpectIntEQ(calls, 2);
                 if (version != 1) {
                     ExpectIntGT(io.c_len, DTLS_RECORD_HEADER_SZ);
                     ExpectIntEQ((byte)io.c_buff[DTLS_RECORD_HEADER_SZ],
@@ -8227,17 +8223,364 @@ int test_dtls_cookie_policy(void)
                 }
             }
             ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
-            ExpectIntEQ(calls, 1); /* Includes a possible key-share CH2. */
+            /* One notification, plus the pause, for a possible key-share
+             * CH2. */
+            ExpectIntEQ(calls, enabled ? 1 : 2);
             ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
-            ExpectIntEQ(ssl_s->options.chGoodCbDone, !enabled);
+            /* The policy is fixed once the handshake has committed. */
+            ExpectIntEQ(wolfSSL_disable_cookie(ssl_s),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wolfSSL_enable_cookie(ssl_s),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(ssl_s->options.sendCookie, enabled);
             ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
-            ExpectIntEQ(ssl_s->options.chGoodCbDone, 0);
             wolfSSL_free(ssl_c);
             wolfSSL_free(ssl_s);
             wolfSSL_CTX_free(ctx_c);
             wolfSSL_CTX_free(ctx_s);
         }
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+
+#define TEST_DTLS_CH_STALLS   4
+#define TEST_DTLS_CH_REJECT_E (-12345)
+
+/* Pause until the callback has been asked TEST_DTLS_CH_STALLS times. */
+static int test_dtls_ch_stall_cb(WOLFSSL* ssl, void* ctx)
+{
+    int* calls = (int*)ctx;
+
+    (void)ssl;
+    (*calls)++;
+    return *calls < TEST_DTLS_CH_STALLS ? WANT_WRITE : 0;
+}
+
+/* Refuse the peer with an application-defined fatal error. */
+static int test_dtls_ch_reject_cb(WOLFSSL* ssl, void* ctx)
+{
+    int* calls = (int*)ctx;
+
+    (void)ssl;
+    (*calls)++;
+    return TEST_DTLS_CH_REJECT_E;
+}
+
+struct test_dtls_ch_flip_ctx {
+    int calls;
+    int disableRet;
+    int enableRet;
+};
+
+/* Change the cookie mode from inside the notification. */
+static int test_dtls_ch_flip_cb(WOLFSSL* ssl, void* ctx)
+{
+    struct test_dtls_ch_flip_ctx* flip = (struct test_dtls_ch_flip_ctx*)ctx;
+
+    flip->calls++;
+    flip->disableRet = wolfSSL_disable_cookie(ssl);
+    flip->enableRet = wolfSSL_enable_cookie(ssl);
+    return 0;
+}
+
+static int test_dtls_no_cookie_setup(struct test_memio_ctx* io,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s)
+{
+#ifndef WOLFSSL_NO_TLS12
+    method_provider cm = wolfDTLSv1_2_client_method;
+    method_provider sm = wolfDTLSv1_2_server_method;
+#else
+    method_provider cm = wolfDTLSv1_3_client_method;
+    method_provider sm = wolfDTLSv1_3_server_method;
+#endif
+
+    XMEMSET(io, 0, sizeof(*io));
+    return test_memio_setup(io, ctx_c, ctx_s, ssl_c, ssl_s, cm, sm);
+}
+#endif
+
+/* A no-cookie ClientHello good callback may pause more than once: every accept
+ * call asks it again and nothing is sent to the peer until it accepts. */
+int test_dtls_no_cookie_ch_stall(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    int calls = 0;
+    int i;
+
+    ExpectIntEQ(test_dtls_no_cookie_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s),
+        0);
+    ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, test_dtls_ch_stall_cb, &calls),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    for (i = 1; i < TEST_DTLS_CH_STALLS && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_WRITE);
+        /* Asked again, and still no reply for the peer. */
+        ExpectIntEQ(calls, i);
+        ExpectIntEQ(io.c_len, 0);
+    }
+    /* The last notification accepts and the handshake continues. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(calls, TEST_DTLS_CH_STALLS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A callback that refuses the peer stops the handshake for as long as it keeps
+ * refusing. The accept state machine holds at the ClientHello transition, so
+ * every later accept call asks again and no reply is ever produced. */
+int test_dtls_no_cookie_ch_reject(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    int calls = 0;
+    int i;
+
+    ExpectIntEQ(test_dtls_no_cookie_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s),
+        0);
+    ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, test_dtls_ch_reject_cb, &calls),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        TEST_DTLS_CH_REJECT_E);
+    ExpectIntEQ(calls, 1);
+    ExpectIntEQ(io.c_len, 0);
+
+    /* A retry must not walk past the rejection into the ServerHello. */
+    for (i = 2; i < 4 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            TEST_DTLS_CH_REJECT_E);
+        ExpectIntEQ(calls, i);
+        ExpectIntEQ(io.c_len, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The cookie mode is fixed once the handshake commits, so a callback cannot
+ * change it under itself and be notified twice for one ClientHello. */
+int test_dtls_cookie_flip_in_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    struct test_dtls_ch_flip_ctx flip;
+
+    XMEMSET(&flip, 0, sizeof(flip));
+    ExpectIntEQ(test_dtls_no_cookie_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s),
+        0);
+    /* Cookies stay enabled: the notification comes from the stateless path. */
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+    ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, test_dtls_ch_flip_cb, &flip),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(flip.calls, 1);
+    ExpectIntEQ(flip.disableRet, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(flip.enableRet, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_set_accept_state() must not undo wolfSSL_disable_cookie(). The
+ * cookie policy is armed once, when the object is created, and belongs to the
+ * application from then on: InitSSL_Side() fills in the server cookie material
+ * but leaves the policy alone. */
+int test_dtls_cookie_policy_set_side(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER) && \
+    (defined(NO_CERTS) || !defined(NO_RSA)) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || \
+     defined(WOLFSSL_WPAS_SMALL))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_server_method()));
+#ifndef NO_CERTS
+    /* A server WOLFSSL needs a key and certificate set on the context. */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
+    ExpectNotNull(ssl = ctx == NULL ? NULL : wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        /* Cookies are on by default for every DTLS object. */
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+        ExpectIntEQ(wolfSSL_disable_cookie(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+
+        /* The idiomatic ported-OpenSSL ordering: configure the object, then
+         * declare the side. This used to switch cookies back on silently. */
+        wolfSSL_set_accept_state(ssl);
+        ExpectIntEQ(ssl->options.side, WOLFSSL_SERVER_END);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+
+        /* A reused object keeps the policy, as it keeps disableEMS. */
+        ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+        wolfSSL_set_accept_state(ssl);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+
+        /* The application can still turn them back on, and that survives the
+         * same call. */
+        ExpectIntEQ(wolfSSL_enable_cookie(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+        wolfSSL_set_accept_state(ssl);
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A general-purpose object has not chosen a side yet. The cookie entry points
+ * that predate the policy pair accepted one, and must keep accepting it: the
+ * policy it is given survives the promotion to the server side. */
+int test_dtls_cookie_policy_neither_end(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_method()));
+    ExpectNotNull(ssl = ctx == NULL ? NULL : wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.side, WOLFSSL_NEITHER_END);
+        /* The default is armed for every DTLS object whatever the side, so
+         * wolfDTLS_accept_stateless() can report the policy rather than the
+         * side. */
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+
+        ExpectIntEQ(wolfSSL_disable_cookie(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+        /* Not SIDE_ERROR: the object gets past the side check and is turned
+         * away for the reason that matters, without being promoted. */
+        ExpectIntEQ(wolfDTLS_accept_stateless(ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(ssl->options.side, WOLFSSL_NEITHER_END);
+
+        ExpectIntEQ(wolfSSL_enable_cookie(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+        /* The two long-standing HRR entry points reject only a client. */
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl, NULL, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 1);
+        ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL)
+        /* And the policy is what the promotion finds. */
+        ExpectIntEQ(wolfSSL_disable_cookie(ssl), WOLFSSL_SUCCESS);
+        wolfSSL_set_accept_state(ssl);
+        ExpectIntEQ(ssl->options.side, WOLFSSL_SERVER_END);
+        ExpectIntEQ(ssl->options.sendCookie, 0);
+#endif
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The cookie policy is fixed once the handshake has decided how to process
+ * the ClientHello. wolfSSL_send_hrr_cookie() reports that, and leaves the
+ * installed secret alone, instead of replacing it with one this handshake
+ * will never use. */
+int test_dtls13_hrr_cookie_state_guard(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+    byte s2[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, s1, sizeof(s1)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, s2, sizeof(s2)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(ssl_s->buffers.tls13CookieSecret.length, sizeof(s1));
+    ExpectNotNull(ssl_s->buffers.tls13CookieSecret.buffer);
+    if (ssl_s != NULL && ssl_s->buffers.tls13CookieSecret.buffer != NULL) {
+        ExpectIntEQ(XMEMCMP(ssl_s->buffers.tls13CookieSecret.buffer, s1,
+            sizeof(s1)), 0);
+    }
+    /* The wrapper reports it too, and the policy is unchanged. */
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
@@ -10912,6 +11255,133 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
     wolfSSL_free(plain);
     wolfSSL_free(enabled);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A failure to generate a new secret leaves the object exactly as it was
+ * found: the secret the caller asked to replace is still installed and still
+ * usable, and the cookie policy is unchanged. ssl->rng is cleared to model
+ * a reused object whose handshake resources have not been recreated yet. */
+int test_dtls12_cookie_secret_generate_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
+    && !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WC_RNG* savedRng = NULL;
+    byte* oldSecret = NULL;
+    word32 oldSecretSz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+        NULL, wolfDTLSv1_2_server_method), 0);
+    /* The object is created with cookies enabled and a secret generated. */
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+    ExpectNotNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+
+    if (EXPECT_SUCCESS()) {
+        oldSecret = ssl_s->buffers.dtlsCookieSecret.buffer;
+        oldSecretSz = ssl_s->buffers.dtlsCookieSecret.length;
+        savedRng = ssl_s->rng;
+        ssl_s->rng = NULL;
+    }
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    /* The rotation did not happen, so the server keeps issuing cookies under
+     * the secret it already had rather than losing it. */
+    ExpectPtrEq(ssl_s->buffers.dtlsCookieSecret.buffer, oldSecret);
+    ExpectIntEQ(ssl_s->buffers.dtlsCookieSecret.length, oldSecretSz);
+    /* The policy is not a secret and is left alone. */
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    /* wolfSSL_enable_cookie() reports the same failure and leaves the policy
+     * off, rather than enabling cookies it cannot honour. */
+    ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl_s->options.sendCookie, 0);
+    ExpectIntEQ(wolfSSL_enable_cookie(ssl_s), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(ssl_s->options.sendCookie, 0);
+    ExpectNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+    ExpectNull(ssl_s->buffers.dtlsCookieSecretSecondary.buffer);
+
+    if (ssl_s != NULL)
+        ssl_s->rng = savedRng;
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* As test_dtls12_cookie_secret_generate_fail(), for the HelloRetryRequest
+ * secret of a DTLS 1.3 server. */
+int test_dtls13_hrr_cookie_secret_generate_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WC_RNG* savedRng = NULL;
+    byte* oldSecret = NULL;
+    word32 oldSecretSz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+        NULL, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+    ExpectNotNull(ssl_s->buffers.tls13CookieSecret.buffer);
+
+    if (EXPECT_SUCCESS()) {
+        oldSecret = ssl_s->buffers.tls13CookieSecret.buffer;
+        oldSecretSz = ssl_s->buffers.tls13CookieSecret.length;
+        savedRng = ssl_s->rng;
+        ssl_s->rng = NULL;
+    }
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectPtrEq(ssl_s->buffers.tls13CookieSecret.buffer, oldSecret);
+    ExpectIntEQ(ssl_s->buffers.tls13CookieSecret.length, oldSecretSz);
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    /* A caller-supplied secret needs no RNG and still works. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, (const byte*)"0123456789abcdef",
+        16), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_s->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(ssl_s->buffers.tls13CookieSecret.length, 16);
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    /* A DTLS 1.3 server also needs the DTLS 1.2 secret for the fallback
+     * HelloVerifyRequest. Drop just that one and break the RNG again: the
+     * generation of the missing secret is the step that fails, and it must
+     * not leave the caller-supplied HelloRetryRequest secret half installed.
+     */
+    if (EXPECT_SUCCESS()) {
+        ForceZero(ssl_s->buffers.dtlsCookieSecret.buffer,
+                  ssl_s->buffers.dtlsCookieSecret.length);
+        XFREE(ssl_s->buffers.dtlsCookieSecret.buffer, ssl_s->heap,
+              DYNAMIC_TYPE_COOKIE_PWD);
+        ssl_s->buffers.dtlsCookieSecret.buffer = NULL;
+        ssl_s->buffers.dtlsCookieSecret.length = 0;
+        oldSecret = ssl_s->buffers.tls13CookieSecret.buffer;
+        oldSecretSz = ssl_s->buffers.tls13CookieSecret.length;
+        ssl_s->rng = NULL;
+    }
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, (const byte*)"fedcba9876543210",
+        16), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectPtrEq(ssl_s->buffers.tls13CookieSecret.buffer, oldSecret);
+    ExpectIntEQ(ssl_s->buffers.tls13CookieSecret.length, oldSecretSz);
+    ExpectIntEQ(XMEMCMP(ssl_s->buffers.tls13CookieSecret.buffer,
+        "0123456789abcdef", 16), 0);
+    ExpectNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+    ExpectIntEQ(ssl_s->options.sendCookie, 1);
+
+    if (ssl_s != NULL)
+        ssl_s->rng = savedRng;
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

@@ -527,8 +527,12 @@ int test_dtls13_frag_ch1_no_cookie(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)
     int mode;
+    int modes = 16;
 
-    for (mode = 0; mode < 16 && EXPECT_SUCCESS(); mode++) {
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(OPENSSL_EXTRA)
+    modes = 32;
+#endif
+    for (mode = 0; mode < modes && EXPECT_SUCCESS(); mode++) {
         WOLFSSL_CTX *ctx_s = NULL;
         WOLFSSL *ssl_s = NULL;
         struct test_memio_ctx test_ctx;
@@ -537,6 +541,12 @@ int test_dtls13_frag_ch1_no_cookie(void)
         int isHrr = 1;
         int offsets[5] = {0};
         int i;
+        method_provider method_s = wolfDTLSv1_3_server_method;
+
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(OPENSSL_EXTRA)
+        if (mode & 16)
+            method_s = wolfDTLS_method;
+#endif
 
         for (i = 0; i < 4; i++) {
             word16 payloadLen;
@@ -548,10 +558,22 @@ int test_dtls13_frag_ch1_no_cookie(void)
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
-            NULL, wolfDTLSv1_3_server_method), 0);
-        ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+            NULL, method_s), 0);
+        if (!(mode & 16)) {
+            ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1),
+                WOLFSSL_SUCCESS);
+        }
         ExpectIntEQ((mode & 1) ? wolfSSL_disable_hrr_cookie(ssl_s) :
             wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(OPENSSL_EXTRA)
+        if (mode & 16) {
+            /* Promotion must enable the ML-KEM fragmentation default even
+             * when cookies were disabled before the side was chosen. */
+            ExpectIntEQ(ssl_s->options.side, WOLFSSL_NEITHER_END);
+            wolfSSL_set_accept_state(ssl_s);
+            ExpectIntEQ(ssl_s->options.sendCookie, 0);
+        }
+#endif
         ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, (mode & 8) ?
             test_dtls_no_cookie_ch_pause : test_dtls_no_cookie_ch_good,
             &calls), WOLFSSL_SUCCESS);
@@ -581,14 +603,15 @@ int test_dtls13_frag_ch1_no_cookie(void)
                 ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
                     WOLFSSL_ERROR_WANT_WRITE);
                 ExpectIntEQ(calls, 1);
-                /* Retry without new input: continue, but do not notify
-                 * again. */
+                /* A pause produces no reply for the peer. */
                 ExpectIntEQ(test_ctx.c_len, 0);
             }
             ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
             ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
                 WOLFSSL_ERROR_WANT_READ);
-            ExpectIntEQ(calls, records == 3 ? 1 : 0);
+            /* Retry without new input: a pause is asked again, an accepted
+             * ClientHello is not. */
+            ExpectIntEQ(calls, records == 3 ? ((mode & 8) ? 2 : 1) : 0);
             ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
             ExpectIntEQ(test_ctx.s_len, 0);
             if (records == 0) {

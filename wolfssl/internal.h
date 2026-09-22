@@ -2290,13 +2290,16 @@ WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL byte SuiteMac(const byte* suite);
 #endif
-#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-WOLFSSL_LOCAL int Tls13SetCookieSecret(WOLFSSL* ssl, const unsigned char* secret,
-                                     unsigned int secretSz);
-#endif
 #if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
     !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_LOCAL void FreeCookieSecret(WOLFSSL* ssl, buffer* secret);
+WOLFSSL_LOCAL int SetCookieSecret(WOLFSSL* ssl, buffer* dst,
+                                  const byte* secret, word32 secretSz,
+                                  const char* name);
+WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
+                                  word32 hrrSecretSz, int replaceHrr);
+WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
+WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
@@ -5698,9 +5701,6 @@ struct Options {
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
     word16            shSentKeyShare:1;   /* SH sent with key share */
-#endif
-#ifdef WOLFSSL_DTLS
-    word16            chGoodCbDone:1;    /* No-cookie CH callback was invoked */
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;

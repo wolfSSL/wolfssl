@@ -1882,15 +1882,25 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
            the listener for new connections and being able to isolate the
            WOLFSSL object once the ClientHello is verified (either through a
            cookie exchange or just checking if the ClientHello had the correct
-           format). With DTLS cookies disabled, the callback is invoked once,
-           only after complete successful ClientHello processing, not on its
-           first fragment. The object is already stateful before input is read,
-           but the peer's return-routability has not been verified. Retries and
-           a second ClientHello do not repeat this no-cookie notification,
-           even if the callback returns a negative error code. A callback may
-           return WANT_READ or WANT_WRITE to pause the handshake; the next
-           accept call resumes after the notification. Other non-retryable
-           errors require abandoning the handshake.
+           format). With DTLS cookies disabled, the callback is
+           invoked once per ClientHello, only after complete successful
+           ClientHello processing, not on its first fragment. Retries,
+           retransmitted fragments and a second ClientHello after a key-share
+           HelloRetryRequest do not repeat the notification. The object is
+           already stateful before input is read, but the peer's
+           return-routability has not been verified.
+           Returning 0 accepts the ClientHello and the handshake continues.
+           Any negative return stops the accept call with that error and leaves
+           the accept state machine at the ClientHello, so nothing is sent to
+           the peer and the next accept call asks the callback again instead of
+           continuing the handshake. All negative returns behave this way; the
+           value only decides what wolfSSL_get_error() reports, so what it
+           means is the application's choice. A callback that is not ready to
+           decide can return WANT_READ or WANT_WRITE and be asked again as
+           many times as it needs, and one that refuses the peer returns its
+           own error and keeps the server silent by refusing again on every
+           later accept call. The cookie mode cannot be changed from the
+           callback; see wolfSSL_disable_cookie().
            DTLS 1.2:
            https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1
            DTLS 1.3:
@@ -2422,13 +2432,11 @@ int  wolfSSL_accept(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
-    \brief This function is called on a server-side object and statelessly
-    listens for an SSL client to initiate the DTLS handshake. A general-purpose
-    object must first be made server-side with wolfSSL_set_accept_state().
-    Cookies must be enabled. A cookie-disabled DTLS object is rejected before
-    I/O or callback changes:
-    WOLFSSL_FATAL_ERROR is returned and wolfSSL_get_error() reports BAD_STATE_E.
-    Use wolfSSL_accept() for cookie-disabled connections instead.
+    \brief This function statelessly listens for an SSL client to initiate the
+    DTLS handshake. Cookies must be enabled. A cookie-disabled DTLS object is
+    rejected before I/O or callback changes: WOLFSSL_FATAL_ERROR is returned
+    and wolfSSL_get_error() reports BAD_STATE_E. Use wolfSSL_accept() for
+    cookie-disabled connections instead.
 
     \return WOLFSSL_SUCCESS ClientHello containing a valid cookie was received.
     The connection can be continued with wolfSSL_accept().
@@ -2438,7 +2446,9 @@ int  wolfSSL_accept(WOLFSSL* ssl);
     call wolfDTLS_accept_stateless again after data becomes available in
     the I/O layer.
     \return WOLFSSL_FATAL_ERROR A fatal error occurred. The ssl object should be
-    free'd and allocated again to continue.
+    free'd and allocated again to continue. wolfSSL_get_error() reports
+    SIDE_ERROR when called on a client object, and BAD_STATE_E when cookies
+    are disabled on this object.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -2481,10 +2491,20 @@ int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
     Primary and secondary cookie secrets for the applicable protocols are
     securely erased and freed.
 
+    The DTLS cookie mode is fixed once the handshake commits to stateful
+    processing, which the accept functions do before the first read and
+    stateless processing does when a cookie verifies. After that this call
+    fails instead of reporting a change that cannot take effect, so it cannot
+    be used from a ClientHello good callback.
+
     \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    A general-purpose session that has not chosen a side yet is accepted: the
+    policy set here is what the promotion to the server side finds.
     \return WOLFSSL_SUCCESS on success (including an unchanged mode).
     \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
-    \return SIDE_ERROR if ssl is not a server.
+    \return SIDE_ERROR if ssl is a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing.
     \sa wolfSSL_enable_cookie
     \sa wolfDTLS_SetChGoodCb
 */
@@ -2499,11 +2519,17 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl);
     generated immediately; existing primary and secondary secrets are preserved.
 
     \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    A general-purpose session that has not chosen a side yet is accepted: the
+    policy set here is what the promotion to the server side finds.
     \return WOLFSSL_SUCCESS on success (including an unchanged mode).
     \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
-    \return SIDE_ERROR if ssl is not a server.
+    \return SIDE_ERROR if ssl is a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing, as for wolfSSL_disable_cookie().
     \return MEMORY_ERROR if secret allocation fails, or another negative error
-    if random secret generation fails.
+    if random secret generation fails. A failure is all or nothing: no secret
+    is installed and the cookie policy is left as it was found, even when the
+    session needs both a DTLS 1.2 and a DTLS 1.3 secret.
     \sa wolfSSL_disable_cookie
 */
 int wolfSSL_enable_cookie(WOLFSSL* ssl);
@@ -9499,6 +9525,9 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
     \return COOKIE_SECRET_SZ returned if the secret size is 0.
     \return MEMORY_ERROR returned if there was a problem allocating
     memory for a new cookie secret.
+    \return Another -ve value when a new secret could not be generated. The
+    rotation does not happen and the secret already in use is kept, so the
+    server carries on issuing and verifying cookies under it.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
@@ -9538,7 +9567,8 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     \return 0 returned if the function executed without an error.
     \return BAD_FUNC_ARG returned if ssl is NULL.
     \return MEMORY_ERROR returned if there was a problem allocating
-    memory for the secondary cookie secret.
+    memory for the secondary cookie secret. The secondary secret already in
+    use, if any, is kept.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
@@ -14632,9 +14662,14 @@ int  wolfSSL_connect(WOLFSSL* ssl);
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing, as for wolfSSL_enable_cookie(). The installed secret is left
+    unchanged.
     \return WOLFSSL_SUCCESS if successful.
     \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
-    \return Another -ve value on internal error.
+    \return Another -ve value on internal error. Every failure is all or
+    nothing: the secret in use and the cookie policy are left exactly as they
+    were found, so the object stays usable.
 
     _Example_
     \code
@@ -14677,7 +14712,8 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or not using DTLS.
     \return SIDE_ERROR if called with a client.
     \return WOLFSSL_SUCCESS if successful.
-    \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
+    \return MEMORY_ERROR if allocating dynamic memory for storing secret
+    failed. The secondary secret already in use, if any, is kept.
 
     _Example_
     \code
@@ -14711,16 +14747,27 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     handshake. Please note that not doing a cookie exchange when using protocol
     DTLS v1.3 can make the server susceptible to DoS/Amplification attacks.
     This delegates to wolfSSL_disable_cookie(), including its
-    DTLS 1.2 fallback policy. Cookie mode changes after handshake processing
-    starts are unsupported. On
+    DTLS 1.2 fallback policy and its state check: for DTLS it fails once the
+    handshake has committed to stateful processing. On
     success the primary and secondary HRR secrets are erased as before.
     TLS 1.3 over a reliable transport is unchanged.
+    On a DTLS object this now also switches off the DTLS 1.2
+    HelloVerifyRequest exchange on the downgrade path, which wolfSSL_accept()
+    left running while wolfSSL_accept_TLSv13() already turned it off; the two
+    entry points now agree. One setting covers both protocol versions, so
+    keeping the DTLS 1.2 exchange while skipping the DTLS 1.3
+    HelloRetryRequest round trip is not an available policy. It was not a
+    working one either: with the HRR secret erased, a DTLS 1.3 ClientHello
+    still reached cookie creation and the handshake failed with COOKIE_ERROR.
+    A server that needs return routability should leave cookies enabled.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     \return WOLFSSL_SUCCESS if successful
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3
-    \return SIDE_ERROR if invoked on client
+    \return SIDE_ERROR if invoked on a client
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing
 
     \sa wolfSSL_disable_cookie
     \sa wolfSSL_send_hrr_cookie

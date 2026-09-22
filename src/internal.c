@@ -2381,6 +2381,10 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
     method->downgrade  = 0;
 }
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+static int InitSSL_DtlsServer(WOLFSSL* ssl);
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || \
     defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
@@ -2435,34 +2439,10 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
 #endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-    if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
-        int ret;
-        ssl->options.sendCookie = 1;
-        ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
-        if (ret != 0) {
-            WOLFSSL_MSG("DTLS Cookie Secret error");
+    {
+        int ret = InitSSL_DtlsServer(ssl);
+        if (ret != 0)
             return ret;
-        }
-    #if defined(WOLFSSL_DTLS13)
-        if (IsAtLeastTLSv1_3(ssl->version)) {
-        #if defined(WOLFSSL_SEND_HRR_COOKIE)
-            ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
-            if (ret != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("DTLS1.3 Cookie secret error");
-                return ret;
-            }
-        #endif /* WOLFSSL_SEND_HRR_COOKIE */
-        #if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
-            /* Allow fragmentation of the second ClientHello due to the
-             * large PQC key share. */
-            ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
-            if (ret != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("DTLS1.3 CH frag error");
-                return ret;
-            }
-        #endif /* WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
-        }
-    #endif /* WOLFSSL_DTLS13 */
     }
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
@@ -8560,40 +8540,45 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif /* WOLFSSL_TLS13 */
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-/* Initialize DTLS server state: cookie secret(s), HRR cookie and
- * ClientHello fragmentation. */
+/* Generate the cookie material a DTLS server needs and allow ClientHello
+ * fragmentation.
+ *
+ * Only the material is set up here. The cookie policy bit is armed once, by
+ * InitSSL(), and belongs to the application from then on. This runs both when
+ * the object is created server side and when InitSSL_Side() promotes a
+ * general-purpose object, so it must not re-arm a policy that the application
+ * turned off in between.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  0 on success, and when there is nothing to do.
+ * @return  A negative error code when a secret cannot be generated.
+ */
 static int InitSSL_DtlsServer(WOLFSSL* ssl)
 {
     int ret;
 
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
-        ssl->options.sendCookie = 1; /* Cookies enabled for every DTLS version. */
-        /* Initialize both in case we allow downgrading. */
-        ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
-        if (ret != 0) {
-            WOLFSSL_MSG("DTLS Cookie Secret error");
-            return ret;
-        }
-    #if defined(WOLFSSL_DTLS13)
-        if (IsAtLeastTLSv1_3(ssl->version)) {
-        #if defined(WOLFSSL_SEND_HRR_COOKIE)
-            ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
+        if (ssl->options.sendCookie) {
+            /* Generate missing secrets, including DTLS 1.2 fallback material,
+             * without replacing application-supplied secrets. */
+            ret = CookiePolicyEnable(ssl);
             if (ret != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("DTLS1.3 Cookie secret error");
+                WOLFSSL_MSG("DTLS Cookie Secret error");
                 return ret;
             }
-        #endif /* WOLFSSL_SEND_HRR_COOKIE */
-        #if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM)
-            /* Allow fragmentation of the second ClientHello due to the
-             * large PQC key share. */
+        }
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG) && \
+        defined(WOLFSSL_HAVE_MLKEM)
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            /* Allow large PQC ClientHellos to fragment independently of the
+             * cookie policy, including the first CH when cookies are off. */
             ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("DTLS1.3 CH frag error");
                 return ret;
             }
-        #endif /* WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
         }
-    #endif /* WOLFSSL_DTLS13 */
+    #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
     }
 
     return 0;
@@ -8952,6 +8937,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         return ret;
     }
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
+#if (defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* DTLS cookie policy default */
+    ssl->options.sendCookie = ssl->options.dtls;
+#endif /* (WOLFSSL_TLS13 || WOLFSSL_DTLS) && !NO_WOLFSSL_SERVER */
 
 
 #ifdef WOLFSSL_DTLS13
@@ -9676,22 +9666,8 @@ static void FreeSSL_DtlsResources(WOLFSSL* ssl)
     ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
 #endif
 #ifndef NO_WOLFSSL_SERVER
-    if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
-        ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
-            ssl->buffers.dtlsCookieSecret.length);
-    }
-    XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
-          DYNAMIC_TYPE_COOKIE_PWD);
-    ssl->buffers.dtlsCookieSecret.buffer = NULL;
-    ssl->buffers.dtlsCookieSecret.length = 0;
-    if (ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.dtlsCookieSecretSecondary.buffer,
-            ssl->buffers.dtlsCookieSecretSecondary.length);
-    }
-    XFREE(ssl->buffers.dtlsCookieSecretSecondary.buffer, ssl->heap,
-          DYNAMIC_TYPE_COOKIE_PWD);
-    ssl->buffers.dtlsCookieSecretSecondary.buffer = NULL;
-    ssl->buffers.dtlsCookieSecretSecondary.length = 0;
+    FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
+    FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecretSecondary);
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -9987,22 +9963,8 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-    if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecret.buffer,
-            ssl->buffers.tls13CookieSecret.length);
-    }
-    XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
-          DYNAMIC_TYPE_COOKIE_PWD);
-    ssl->buffers.tls13CookieSecret.buffer = NULL;
-    ssl->buffers.tls13CookieSecret.length = 0;
-    if (ssl->buffers.tls13CookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecretSecondary.buffer,
-            ssl->buffers.tls13CookieSecretSecondary.length);
-    }
-    XFREE(ssl->buffers.tls13CookieSecretSecondary.buffer, ssl->heap,
-          DYNAMIC_TYPE_COOKIE_PWD);
-    ssl->buffers.tls13CookieSecretSecondary.buffer = NULL;
-    ssl->buffers.tls13CookieSecretSecondary.length = 0;
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary);
 #endif
 #if !defined(NO_CERTS) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
