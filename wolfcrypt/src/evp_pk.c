@@ -1729,9 +1729,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey)
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_dup");
 
-    /* An HMAC key is raw octets, so an empty one is still a key. */
-    if (pkey == NULL || pkey->pkey.ptr == NULL || pkey->pkey_sz < 0 ||
-            ((pkey->pkey_sz == 0) && (pkey->type != WC_EVP_PKEY_HMAC))) {
+    /* An HMAC key is raw octets, so an empty one is still a key. XMALLOC(0)
+     * is allowed to return NULL, so an empty key carries no buffer either. */
+    if ((pkey == NULL) || (pkey->pkey_sz < 0) ||
+            ((pkey->pkey_sz == 0) ? (pkey->type != WC_EVP_PKEY_HMAC)
+                                  : (pkey->pkey.ptr == NULL))) {
         WOLFSSL_MSG("No key data to duplicate");
         return NULL;
     }
