@@ -133,9 +133,13 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
         ret = MEMORY_E;
 #endif
 
-#ifdef WC_RNG_HAVE_RBGC
-    if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_RBGC))
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    if (ret == 0) {
+        /* Note we initialize the root_rng even if ! (flags &
+         * WC_RNG_BANK_FLAG_RBGC) -- it can be used for other purposes, such as
+         * pool replenishment, as in the linuxkm entropy daemon. */
         ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz, 0);
+    }
 #endif
 
     if (ret == 0) {
@@ -378,7 +382,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             return ret;
     }
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
         int free_ret = wc_FreeRng(&ctx->root_rng);
         if (free_ret != 0) {
@@ -390,7 +394,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             ++rng_free_failed;
         }
     }
-#endif
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifndef WC_RNG_BANK_STATIC
     if (ctx->rngs)
@@ -1338,7 +1342,7 @@ WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
 
 #endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
 
 WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                                           const byte *nonce, word32 nonceSz,
@@ -1375,7 +1379,7 @@ WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
     return &bank->root_rng;
 }
 
-#endif /* WC_RNG_HAVE_RBGC || WC_RNG_HAVE_NEXT_SEED */
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifdef WC_HAVE_RNG_BANKREF
 /* wc_local_rng_bank_checkout_for_bankref() is the shim to the real WC_RNG when
@@ -2526,7 +2530,7 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
             return BAD_STATE_E;
     }
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     {
         if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
         #if !defined(WC_RNG_HAVE_LOCK)

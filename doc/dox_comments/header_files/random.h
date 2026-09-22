@@ -1434,7 +1434,7 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     \ingroup Random
 
     \brief Bank caller-supplied material (up to
-    WC_DRBG_NEXT_STIR_LEN bytes) in the uncredited accumulator
+    WC_RNG_NEXT_STIR_LEN bytes) in the uncredited accumulator
     beside the banked next seed.  Writer-safe without a lease
     (read-copy-store); if the accumulator is already full, the material is
     absorbed by xor.  Harvested entropy deposited here improves the instance

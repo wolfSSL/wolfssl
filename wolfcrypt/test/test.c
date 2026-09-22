@@ -32471,7 +32471,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
 
         /* fill to the top: READY; excess deposits absorbed by xorbuf();
          * oversize deposits clamp. */
-        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
+        for (i = 0; i < (int)(WC_RNG_NEXT_STIR_LEN /
                               sizeof(frag)); i++)
         {
             api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
@@ -32523,7 +32523,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
 
         /* top up and verify the universal opportunistic consume at
          * generate: post-generate, the accumulator is spent. */
-        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
+        for (i = 0; i < (int)(WC_RNG_NEXT_STIR_LEN /
                               sizeof(frag)); i++)
         {
             api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
@@ -32544,7 +32544,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
      * preserves WC_RNG_LOCK_ENTROPY_INVALIDATED and RBGCStratum. */
     if (present) {
         WC_RNG_lock_arg_t lock_state;
-        byte frag64[WC_DRBG_NEXT_STIR_LEN];
+        byte frag64[WC_RNG_NEXT_STIR_LEN];
         XMEMSET(frag64, 0x5e, sizeof(frag64));
 
         api_ret = wc_InitRngNonceRBGC(&leaf, root, NULL, 0,
@@ -84700,6 +84700,8 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
         return WC_TEST_RET_ENC_NC;
     }
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+
 #if defined(SP_INT_BITS) && (SP_INT_BITS >= 2048)
     /* Odd moduli of RSA/DH sizes with a power of two top word and nearly
      * empty words below it: m = 2^1023 + 2^900 + 1 and 2^2047 + 2^1900 + 1.
@@ -84759,6 +84761,9 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
         return WC_TEST_RET_ENC_NC;
     }
 #endif /* SP_INT_BITS >= 2048 */
+
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
 #endif /* WOLFSSL_SP_MATH_ALL */
 
     return 0;
