@@ -303,6 +303,13 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         return BAD_FUNC_ARG;
 #endif
 
+#if IS_ENABLED(CONFIG_PREEMPT_RT)
+    /* On RT, spinlock_t is retyped to a sleeping rtmutex, and spin_trylock
+     * becomes rt_spin_trylock, illegal from NMI. */
+    if (in_nmi())
+        return BUSY_E;
+#endif
+
     /* first, try the cheap way. */
 #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
     if (spin_trylock_irqsave(&m->lock, irq_flags)) {
@@ -322,8 +329,12 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         return 0;
     }
 #endif
+
+#if !IS_ENABLED(CONFIG_PREEMPT_RT)
     if (in_nmi())
         return BUSY_E;
+#endif
+
     if (! can_block) {
 #ifndef WC_LINUXKM_SPIN_IN_ATOMIC
         /* RT spinlock_t is a sleeping rtmutex; an atomic caller has no legal
