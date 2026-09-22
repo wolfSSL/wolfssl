@@ -185,6 +185,22 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <signal.h>
     #include <time.h>
 #endif
+/* WOLF_CRYPTO_CB_SEED_ONLY_TEST: a NO_DEV_RANDOM crypto callback build
+ * where the callback is the only seed source, so a missing devId fails. */
+#ifdef WOLF_CRYPTO_CB_SEED_ONLY_TEST
+    #if !defined(WOLF_CRYPTO_CB) || !defined(HAVE_HASHDRBG) || \
+        defined(WC_NO_RNG)
+        #error "WOLF_CRYPTO_CB_SEED_ONLY_TEST needs WOLF_CRYPTO_CB and HASHDRBG"
+    #endif
+#endif
+/* Seed device for that mode when the build names no device of its own. It
+ * reads /dev/urandom, so Unix hosts only. */
+#if defined(WOLF_CRYPTO_CB_SEED_ONLY_TEST) && \
+    (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
+    #define HAVE_SEED_ONLY_TEST_DEV
+    #include <fcntl.h>
+    #include <unistd.h>
+#endif
 
 /* printf mappings */
 #ifndef WOLFSSL_LOG_PRINTF
@@ -1617,6 +1633,59 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
+#ifdef HAVE_SEED_ONLY_TEST_DEV
+/* Seed device for WOLF_CRYPTO_CB_SEED_ONLY_TEST builds: a NO_DEV_RANDOM
+ * crypto callback build, where the callback is the only seed source. The
+ * callback serves WC_ALGO_TYPE_SEED and nothing else, so the software DRBG
+ * still generates, and any RNG set up without a devId fails. /dev/urandom
+ * stands in for a hardware entropy source; it never blocks. Test only. */
+#define SEED_ONLY_DEV "/dev/urandom"
+#define SEED_ONLY_CHUNK 32
+
+static int seed_only_fill(byte* out, word32 len)
+{
+    int fd;
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    fd = open(SEED_ONLY_DEV, O_RDONLY);
+    if (fd < 0)
+        return WC_HW_E;
+
+    while (len > 0) {
+        word32 chunk = (len < SEED_ONLY_CHUNK) ? len : SEED_ONLY_CHUNK;
+        ssize_t got = read(fd, out, chunk);
+
+        if (got <= 0) {
+            close(fd);
+            return WC_HW_E;
+        }
+        out += got;
+        len -= (word32)got;
+    }
+
+    close(fd);
+    return 0;
+}
+
+static int seed_only_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)thisDevId;
+    (void)ctx;
+
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (info->algo_type) {
+        case WC_ALGO_TYPE_SEED:
+            return seed_only_fill(info->seed.seed, info->seed.sz);
+        default:
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+}
+#endif /* HAVE_SEED_ONLY_TEST_DEV */
+
 #if defined(WC_KDF_NIST_SP_800_56C) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #define INIT_SP80056C_TEST_VECTOR(_z, _fixedInfo, _derivedKey, _hashType)      \
@@ -2475,6 +2544,21 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         /* for testing RNG with crypto callback register function */
         devId = 100; /* any value beside -2 (INVALID_DEVID) */
         wc_CryptoCb_RegisterDevice(devId, rng_crypto_cb, NULL);
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_SEED_ONLY_TEST
+    if (devId == INVALID_DEVID) {
+    #ifdef HAVE_SEED_ONLY_TEST_DEV
+        /* seed device, see seed_only_crypto_cb() */
+        devId = 100;
+        ret = wc_CryptoCb_RegisterDevice(devId, seed_only_crypto_cb, NULL);
+        if (ret != 0)
+            TEST_FAIL("seed-only device register failed!\n", ret);
+    #else
+        TEST_FAIL("seed-only test needs a seed device: set WC_USE_DEVID\n",
+                  NO_VALID_DEVID);
+    #endif
     }
 #endif
 
