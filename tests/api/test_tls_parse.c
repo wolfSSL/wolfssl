@@ -988,7 +988,7 @@ int test_TLSX_SupportedVersions_parse(void)
      * WOLFSSL_LOCAL: called directly (guarded). */
 #if defined(WOLFSSL_TLS13) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)  && !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + MAX_SV_EXT_LEN];
@@ -1449,13 +1449,23 @@ int test_TLSX_CSR_parse(void)
 int test_TLSX_PointFormat_parse(void)
 {
     EXPECT_DECLS;
+#if (defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+     defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_NO_TLS12)) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
+     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+     (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+     ((!defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)) || \
+      defined(HAVE_CURVE25519)))
+    byte ext[16];
+    word16 extLen;
+#endif
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte ext[16];
-    word16 extLen;
 
     ctx = test_tls_parse_server_ctx(wolfTLSv1_2_server_method());
     ExpectNotNull(ctx);
@@ -1490,7 +1500,8 @@ int test_TLSX_PointFormat_parse(void)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* TLSX_SupportedCurve_Preferred(): checkSupported gating and the
      * TLSX_IsGroupSupported() result, driven by a raw (unfiltered) offered
      * groups list -- TLSX_SupportedCurve_Parse() records whatever the peer
@@ -1557,7 +1568,8 @@ int test_TLSX_PointFormat_parse(void)
 #endif
 
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* TLSX_PointFormat_ValidateResponse(): reached while sizing/writing a
      * ServerHello, through the WOLFSSL_LOCAL TLSX_GetResponseSize() rather
      * than TLSX_Parse() (there is no wire input on this side). A cipher
@@ -2204,7 +2216,7 @@ int test_TLSX_KeyShare_negotiate(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
