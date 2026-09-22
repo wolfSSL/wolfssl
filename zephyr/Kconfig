@@ -280,9 +280,15 @@ config WOLFSSL_ECC_BRAINPOOL
 
 endif # WOLFSSL_ECC
 
+# The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it.
+config WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
+  bool
+  default y if !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
+
 config WOLFSSL_AES_CONSTANT_TIME
   bool "Constant-time AES software backend"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
   help
     Build the AES software core so that no memory access depends on a
     secret.
@@ -298,6 +304,13 @@ config WOLFSSL_AES_CONSTANT_TIME
 
     It has no effect when the build uses a hardware AES engine or the
     assembly core: neither compiles a software table.
+
+    Unavailable under FIPS v2 and v5, whose pinned aes.c predates both
+    backends and would ignore the macro rather than fail: a build would come
+    out with the table core and no sign that the request was dropped. It does
+    take effect from FIPS v6 on, where it changes the in-core integrity
+    digest, so the module must be rehashed and is no longer the validated
+    binary.
 
 choice WOLFSSL_AES_CONSTANT_TIME_IMPL
   prompt "Constant-time AES implementation"
