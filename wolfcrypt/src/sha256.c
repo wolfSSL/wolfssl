@@ -348,8 +348,22 @@ static int InitSha256(wc_Sha256* sha256)
 
     return 0;
 }
-#endif
 
+#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP)
+
+/* Reset a hash context to its freshly initialized state, reusing its existing
+ * allocations.  Like the Final functions, Reset does not destroy sensitive
+ * internal state; use the matching Free function for teardown at end of life.
+ */
+int wc_Sha256Reset(wc_Sha256* sha256) {
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+    return InitSha256(sha256);
+}
+#define WC_SHA256RESET_DEFINED
+#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP */
+
+#endif
 
 /* Hardware Acceleration */
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
@@ -2752,6 +2766,15 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         return ret;
     }
 
+#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha224Reset(wc_Sha224* sha224) {
+    if (sha224 == NULL)
+        return BAD_FUNC_ARG;
+    return InitSha224(sha224);
+}
+#define WC_SHA224RESET_DEFINED
+#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP */
+
 #endif
 
 #ifdef NEED_SOFT_SHA224
@@ -3198,6 +3221,51 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 
 #endif /* !WOLFSSL_TI_HASH */
 
+/* Fallback implementations of the Reset functions, for all configurations other
+ * than plain software.  Continues with the established heap and devId.
+ */
+
+#ifndef WC_SHA256RESET_DEFINED
+int wc_Sha256Reset(wc_Sha256* sha256) {
+    void *heap;
+    int devId;
+
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+
+    heap = sha256->heap;
+#ifdef WOLF_CRYPTO_CB
+    devId = sha256->devId;
+#else
+    devId = INVALID_DEVID;
+#endif
+
+    wc_Sha256Free(sha256);
+    return wc_InitSha256_ex(sha256, heap, devId);
+}
+#define WC_SHA256RESET_DEFINED
+#endif
+
+#if defined(WOLFSSL_SHA224) && !defined(WC_SHA224RESET_DEFINED)
+int wc_Sha224Reset(wc_Sha224* sha224) {
+    void *heap;
+    int devId;
+
+    if (sha224 == NULL)
+        return BAD_FUNC_ARG;
+
+    heap = sha224->heap;
+#ifdef WOLF_CRYPTO_CB
+    devId = sha224->devId;
+#else
+    devId = INVALID_DEVID;
+#endif
+
+    wc_Sha224Free(sha224);
+    return wc_InitSha224_ex(sha224, heap, devId);
+}
+#define WC_SHA224RESET_DEFINED
+#endif /* WOLFSSL_SHA224 && !WC_SHA224RESET_DEFINED */
 
 #ifndef WOLFSSL_TI_HASH
 #if !defined(WOLFSSL_RENESAS_RX64_HASH) && \
