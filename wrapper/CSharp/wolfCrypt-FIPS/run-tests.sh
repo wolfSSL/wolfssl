@@ -3,6 +3,9 @@
 # installed wolfSSL FIPS library.
 #
 # Usage: run-tests.sh <wolfssl-install-prefix>   (default: /usr/local)
+#
+# Set WOLFACVP_VECTORS to the fips/wolfACVP directory of a FIPS bundle to run
+# the ACVP known-answer tests (aegisolve vectors); they report SKIP otherwise.
 set -e
 PREFIX="${1:-/usr/local}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
