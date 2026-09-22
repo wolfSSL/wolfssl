@@ -292,6 +292,8 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
+    int can_block = wc_linuxkm_can_block();
+
 #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
     unsigned long irq_flags;
 #endif
@@ -309,16 +311,20 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     }
 #else
     if (spin_trylock(&m->lock)) {
-        if (wc_linuxkm_can_block()) {
+    #if !IS_ENABLED(CONFIG_PREEMPT_RT)
+        /* On CONFIG_PREEMPT_RT kernels, spin_trylock() does not disable
+         * preemption, so don't re-enable it. */
+        if (can_block) {
             preempt_enable();
             m->preempt_reenabled = 1;
         }
+    #endif
         return 0;
     }
 #endif
     if (in_nmi())
         return BUSY_E;
-    if (! wc_linuxkm_can_block()) {
+    if (! can_block) {
 #ifndef WC_LINUXKM_SPIN_IN_ATOMIC
         /* RT spinlock_t is a sleeping rtmutex; an atomic caller has no legal
          * wait -- the entry trylock was its one shot. */
@@ -365,8 +371,12 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
              * otherwise deadlocks are inevitable.
              */
             if (spin_trylock(&m->lock)) {
+        #if !IS_ENABLED(CONFIG_PREEMPT_RT)
+                /* On CONFIG_PREEMPT_RT kernels, spin_trylock() does not disable
+                 * preemption, so don't re-enable it. */
                 preempt_enable();
                 m->preempt_reenabled = 1;
+        #endif
                 return 0;
             }
 #endif

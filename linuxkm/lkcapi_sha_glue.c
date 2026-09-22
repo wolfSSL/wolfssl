@@ -2813,8 +2813,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
     struct WC_RNG *root_rng;
     int root_rng_reseed_countdown = 0;
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
-    defined(WC_RNG_HAVE_POOL)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     root_rng = wc_rng_bank_root_rng_get(bank);
 #else
     root_rng = (struct WC_RNG *)malloc(sizeof(*root_rng));
@@ -2941,8 +2940,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
                     inv_ret = wc_FreeRng(root_rng);
                     if (inv_ret == 0) {
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
-    defined(WC_RNG_HAVE_POOL)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
                         inv_ret = wc_rng_bank_root_rng_init(
                             bank,
                             (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
@@ -3252,8 +3250,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 #endif
     }
 
-#if !(defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) ||    \
-      defined(WC_RNG_HAVE_POOL))
+#ifndef WC_RNG_BANK_HAVE_ROOT_RNG
     if (root_rng != NULL) {
         wc_FreeRng(root_rng);
         free(root_rng);
@@ -3412,12 +3409,13 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
 {
     struct wc_rng_debug_stats_snapshot s;
 
+    #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     {
         WC_RNG *root_rng = wc_rng_bank_root_rng_get(ctx);
         if ((root_rng != NULL) &&
             (wc_rng_debug_stats_snap(&s, root_rng) == 0))
         {
-            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
+            pr_info("RNG INFO: default bank root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
                     "    total_bytes_produced=" WC_RNG_STAT_FMT
                         " total_requests=" WC_RNG_STAT_FMT "\n"
                     "    reseeds=" WC_RNG_STAT_FMT
@@ -3442,6 +3440,7 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
                     );
         }
     }
+    #endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
     if (wc_rng_bank_debug_stats_snap(&s, ctx) == 0) {
             pr_info("RNG INFO: default bank size=%d total_bytes_requested=" WC_RNG_STAT_FMT "\n"
@@ -4192,7 +4191,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
     }
     else {
 
-#ifdef WC_LINUXKM_HAVE_RNG_INVALIDATION
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
         /* if in a recovery window, defer the request until done, if possible. */
 
     try_again:
@@ -4202,21 +4201,22 @@ static int wc__get_random_bytes(void *buf, size_t len)
             (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
             return ret;
         }
-#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION */
+#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION && WC_RNG_BANK_HAVE_ROOT_RNG */
 
         ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                        NULL, 0, buf, (unsigned int)len, 0 /* pr */);
 
-#ifdef WC_LINUXKM_HAVE_RNG_INVALIDATION
-        if ((ret == -WC_NO_ERR_TRACE(EAGAIN)) &&
-            (jiffies_to_msecs(jiffies - last_invalidation_at) < 1000))
-        {
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+        if (ret == -WC_NO_ERR_TRACE(EAGAIN)) {
             /* An invalidation may be unique to this VM, leaving these bytes
              * live in another VM -- wipe them here. */
             ForceZero(buf, (word32)len);
-            goto try_again;
+            ret = rng_invalidation_post_check(__func__, ret);
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                goto try_again;
+            /* else terminal: -ETIMEDOUT/-EBUSY/-EINTR from the post-check. */
         }
-#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION */
+#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION && WC_RNG_BANK_HAVE_ROOT_RNG */
 
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret != 0) {
@@ -4253,11 +4253,13 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
         return -EIO; /* no fallthrough to native randomness */
     }
 
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
     ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, iov_iter_count(iter));
     if (ret != 0) {
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         return ret;
     }
+#endif
 
     {
         size_t this_copied, total_copied = 0;
@@ -4280,9 +4282,14 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             size_t n = min_t(size_t, iov_iter_count(iter), block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, n, 0 /* pr */);
-            ret = rng_invalidation_post_check(__func__, ret);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
             if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                ForceZero(block, n);
+            ret = rng_invalidation_post_check(__func__, ret);
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN)) {
                 continue;
+            }
+#endif
             if (unlikely(ret != 0)) {
                 if (ret != -WC_NO_ERR_TRACE(EINTR)) {
                     pr_emerg_ratelimited(
@@ -4346,11 +4353,13 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
         return -EIO; /* no fallthrough to native randomness */
     }
 
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
     ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, nbytes);
     if (ret != 0) {
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         return ret;
     }
+#endif
 
     {
         size_t this_copied, total_copied = 0;
@@ -4373,9 +4382,13 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             size_t n = min_t(size_t, nbytes - total_copied, block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, n, 0 /* pr */);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                ForceZero(block, n);
             ret = rng_invalidation_post_check(__func__, ret);
             if (ret == -WC_NO_ERR_TRACE(EAGAIN))
                 continue;
+#endif
             if (unlikely(ret != 0)) {
                 if (ret != -WC_NO_ERR_TRACE(EINTR)) {
                     pr_emerg_ratelimited(
@@ -4442,8 +4455,8 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 
     if (! can_sleep) {
 #ifdef WC_RNG_HAVE_NEXT_SEED
-        if (len > WC_DRBG_NEXT_STIR_LEN)
-            len = WC_DRBG_NEXT_STIR_LEN;
+        if (len > WC_RNG_NEXT_STIR_LEN)
+            len = WC_RNG_NEXT_STIR_LEN;
 #else
         if (len > 64)
             len = 64;
@@ -4464,7 +4477,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         WC_RNG *stir_root = wc_rng_bank_root_rng_get(ctx);
 
         /* Small input, fast path: lock-free XMEMCPY/xorbuf. */
-        if (len <= WC_DRBG_NEXT_STIR_LEN) {
+        if (len <= WC_RNG_NEXT_STIR_LEN) {
             static DEFINE_PER_CPU(int, stir_index) = -2;
             int this_index = this_cpu_inc_return(stir_index);
             /* at startup, stagger them across the bank, to get wider spread and
@@ -4490,13 +4503,13 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         }
 
         if (stir_root != NULL) {
-            /* note that input beyond WC_DRBG_NEXT_STIR_LEN is discarded. */
+            /* note that input beyond WC_RNG_NEXT_STIR_LEN is discarded. */
             (void)wc_RNG_DRBG_NextStirStore(stir_root, (const byte *)buf,
                                             (word32)len);
         }
     }
 
-    if (len > WC_DRBG_NEXT_STIR_LEN)
+    if (len > WC_RNG_NEXT_STIR_LEN)
 #endif /* WC_RNG_HAVE_NEXT_SEED */
     {
         word32 flags =
