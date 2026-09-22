@@ -596,6 +596,15 @@ static int devId = INVALID_DEVID;
   #endif
 #endif
 
+/* The RNG lock tests need a device that never answers a generate request,
+ * since a callback would answer before the lock. Without another seed
+ * source the suite's seed-only device is that: it serves seeds only. */
+#ifdef WOLF_CRYPTO_CB_SEED_ONLY_TEST
+    #define RNG_LOCK_DEVID devId
+#else
+    #define RNG_LOCK_DEVID INVALID_DEVID
+#endif
+
 /* ============================================================================
  * Test init helpers -- use id[] when WC_TEST_*_ID is defined, else plain init.
  * Each algorithm has a static global id array (when defined) and a helper
@@ -27211,9 +27220,10 @@ static wc_test_ret_t random_rng_test(void)
         byte nonce[8] = { 0 };
 
         /* Test dynamic RNG */
-        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
-        if (rng == NULL)
-            return WC_TEST_RET_ENC_ERRNO;
+        ret = wc_rng_new_ex(&rng, nonce, (word32)sizeof(nonce), HEAP_HINT,
+                            devId);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
 
         ret = _rng_test(rng);
         wc_rng_free(rng);
@@ -27528,6 +27538,9 @@ static wc_test_ret_t rng_seed_test(void)
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    /* No devId on purpose. The seed is the fixed seed_cb above, so a devId
+     * gives nothing for seeding, and a device that supplies its own random
+     * bytes for wc_RNG_GenerateBlock would break the known-answer check. */
     ret = wc_InitRng(&rng);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28808,7 +28821,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
         WOLFSSL_RETURN_FROM_THREAD(0);
     do {
         r = NULL;
-        a->ret = wc_rng_new_ex(&r, NULL, 0, HEAP_HINT, INVALID_DEVID);
+        a->ret = wc_rng_new_ex(&r, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
         if (a->ret != 0)
             break;
         wc_rng_free(r);
@@ -28841,7 +28854,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         sizeof(*args) * WC_RNG_THREAD_TEST_THREADS, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     /* INVALID_DEVID: a crypto callback would answer before the lock. */
-    (void)wc_rng_new_ex(&rng, NULL, 0, HEAP_HINT, INVALID_DEVID);
+    (void)wc_rng_new_ex(&rng, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
     if (out == NULL || args == NULL || rng == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
 
@@ -28860,7 +28873,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             for (op = WC_RNG_LOCK_OP_STIR;
                  (op <= WC_RNG_LOCK_OP_SCHEDULE) && (ret == 0); op++) {
                 WC_RNG* mut = NULL;
-                (void)wc_rng_new_ex(&mut, NULL, 0, HEAP_HINT, INVALID_DEVID);
+                (void)wc_rng_new_ex(&mut, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
                 if (mut == NULL) {
                     ret = WC_TEST_RET_ENC_EC(MEMORY_E);
                     break;
@@ -28875,7 +28888,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
          * which is the point. */
         for (useNow = 0; (useNow < 2) && (ret == 0); useNow++) {
             WC_RNG* doomed = NULL;
-            (void)wc_rng_new_ex(&doomed, NULL, 0, HEAP_HINT, INVALID_DEVID);
+            (void)wc_rng_new_ex(&doomed, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
             if (doomed == NULL) {
                 ret = WC_TEST_RET_ENC_EC(MEMORY_E);
                 break;
@@ -28897,8 +28910,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         struct rng_churn_args* c = NULL;
         THREAD_TYPE churn = INVALID_THREAD_VAL;   /* joined only if started */
         int churning = 0;
-        (void)wc_rng_new_ex(&mid, NULL, 0, HEAP_HINT, INVALID_DEVID);
-        (void)wc_rng_new_ex(&third, NULL, 0, HEAP_HINT, INVALID_DEVID);
+        (void)wc_rng_new_ex(&mid, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
+        (void)wc_rng_new_ex(&third, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
         if (mid == NULL || third == NULL) {
             if (mid != NULL)
                 wc_rng_free(mid);
@@ -28935,8 +28948,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
              * lands on each side of the blocker either way round. */
             WC_RNG* blocker = NULL;
             WC_RNG* last = NULL;
-            (void)wc_rng_new_ex(&blocker, NULL, 0, HEAP_HINT, INVALID_DEVID);
-            (void)wc_rng_new_ex(&last, NULL, 0, HEAP_HINT, INVALID_DEVID);
+            (void)wc_rng_new_ex(&blocker, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
+            (void)wc_rng_new_ex(&last, NULL, 0, HEAP_HINT, RNG_LOCK_DEVID);
             if (blocker == NULL || last == NULL)
                 ret = WC_TEST_RET_ENC_EC(MEMORY_E);
             else
@@ -29117,7 +29130,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif
                            WC_RNG_BANK_FLAG_QUIET |
                            WC_RNG_BANK_FLAG_CAN_WAIT,
-                           10, HEAP_HINT, INVALID_DEVID);
+                           10, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -29556,7 +29569,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #else /* !WC_RNG_BANK_STATIC */
 
-    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_QUIET, 10, HEAP_HINT, INVALID_DEVID);
+    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1,
+                          WC_RNG_BANK_FLAG_QUIET, 10, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -30271,7 +30285,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     if (wc_RNG_DRBG_GetReseedCtr(NULL, &c1) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(root, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(root);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     root_inited = 1;
@@ -30542,7 +30560,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 
     api_ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
                                WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT,
-                               INVALID_DEVID);
+                               devId);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     bank_inited = 1;
@@ -30718,7 +30736,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 #ifdef WC_RNG_HAVE_RBGC
     /* credited-chain recovery: an RBGC reseed from a healthy root clears
      * the flag, exactly as a primary reseed does. */
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(&root, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(&root);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     root_inited = 1;
@@ -30828,7 +30850,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
      * NULL-unregister. */
     {
         WC_RNG hook_rng;
+#ifndef HAVE_FIPS
+        api_ret = wc_InitRng_ex(&hook_rng, HEAP_HINT, devId);
+#else
         api_ret = wc_InitRng(&hook_rng);
+#endif
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         if (wc_RNG_register_free_hook(NULL, rng_inval_test_hook_cb, NULL) !=
@@ -30847,7 +30873,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
         if (rng_inval_test_hook_fired != 1)
             ERROR_OUT(WC_TEST_RET_ENC_I(rng_inval_test_hook_fired), out);
         /* NULL-unregister: no fire on free. */
+#ifndef HAVE_FIPS
+        api_ret = wc_InitRng_ex(&hook_rng, HEAP_HINT, devId);
+#else
         api_ret = wc_InitRng(&hook_rng);
+#endif
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_register_free_hook(&hook_rng, rng_inval_test_hook_cb,
@@ -30871,7 +30901,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
      * recovery-consumption and chain-promotion at generate. */
     {
         WC_RNG flag_rng;
-        api_ret = wc_InitRng_ex2(&flag_rng, HEAP_HINT, INVALID_DEVID,
+        api_ret = wc_InitRng_ex2(&flag_rng, HEAP_HINT, devId,
                     WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30904,7 +30934,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
          * not. */
         {
             WC_RNG proot;
+#ifndef HAVE_FIPS
+            api_ret = wc_InitRng_ex(&proot, HEAP_HINT, devId);
+#else
             api_ret = wc_InitRng(&proot);
+#endif
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             api_ret = wc_InitRngNonceRBGC(&flag_rng, &proot, NULL, 0, NULL, 0,
@@ -30965,7 +30999,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
         WC_RNG_lock_arg_t mlock = 0;
 
         api_ret = wc_rng_bank_new(&mb, 2, WC_RNG_BANK_FLAG_NONE, 0, HEAP_HINT,
-                                  INVALID_DEVID);
+                                  devId);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_rng_bank_invalidate_entropy(mb, 0);
@@ -31093,7 +31127,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 
     XMEMSET(matter, 0xa5, sizeof(matter));
 
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(&root, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(&root);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     root_inited = 1;
@@ -31229,7 +31267,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 
 #if !defined(WC_NO_CONSTRUCTORS) && !defined(HAVE_INTEL_RDRAND)
     /* chain-reseeding a source-born instance demotes it, one-way */
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(&extra, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(&extra);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     extra_inited = 1;
@@ -31429,7 +31471,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 
     XMEMSET(matter, 0xa5, sizeof(matter));
 
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(&root, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(&root);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     root_inited = 1;
@@ -31506,7 +31552,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 
 #if !defined(WC_NO_CONSTRUCTORS)
     /* chain-reseeding a source-born instance demotes it, one-way */
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(&extra, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(&extra);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     extra_inited = 1;
@@ -31636,7 +31686,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(root, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(root);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     root_inited = 1;
@@ -31999,11 +32053,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
 
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(rng, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(rng);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     rng_inited = 1;
+#ifndef HAVE_FIPS
+    api_ret = wc_InitRng_ex(src, HEAP_HINT, devId);
+#else
     api_ret = wc_InitRng(src);
+#endif
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     src_inited = 1;
@@ -44548,7 +44610,11 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke, int kem, int kdf, int aead)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+#ifndef HAVE_FIPS
+    rngRet = ret = wc_InitRng_ex(rng, HEAP_HINT, devId);
+#else
     rngRet = ret = wc_InitRng(rng);
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -44938,7 +45004,11 @@ static wc_test_ret_t hpke_test_multi(Hpke* hpke)
     word16 pubKeySz = (word16)sizeof(pubKey);
 #endif
 
+#ifndef HAVE_FIPS
+    rngRet = ret = wc_InitRng_ex(rng, HEAP_HINT, devId);
+#else
     rngRet = ret = wc_InitRng(rng);
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -84889,7 +84959,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
 #endif
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret == 0)
         rng_inited = 1;
     else
@@ -86213,7 +86287,11 @@ static wc_test_ret_t ed25519_onlycb_test(myCryptoDevCtx *ctx)
         return WC_TEST_RET_ENC_EC(ret);
 
 #ifdef HAVE_ED25519_MAKE_KEY
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         wc_ed25519_free(&key);
         return WC_TEST_RET_ENC_EC(ret);
@@ -86354,7 +86432,11 @@ static wc_test_ret_t curve25519_onlycb_test(myCryptoDevCtx *ctx)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         wc_curve25519_free(&key);
         return WC_TEST_RET_ENC_EC(ret);
@@ -86448,7 +86530,11 @@ static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         wc_curve448_free(&key);
         return WC_TEST_RET_ENC_EC(ret);
@@ -91195,7 +91281,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
 
         printf("--- Test 1: Basic RNG Functionality ---\n");
 
+#ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
         ret = wc_InitRng(&rng);
+#endif
         if (ret != 0) {
             printf("ERROR: wc_InitRng failed with code %d: %s\n",
                    ret, wc_GetErrorString(ret));
@@ -91246,7 +91336,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
 
         /* Initialize all RNGs */
         for (i = 0; i < NUM_RNGS; i++) {
+#ifndef HAVE_FIPS
+            ret = wc_InitRng_ex(&rngs[i], HEAP_HINT, devId);
+#else
             ret = wc_InitRng(&rngs[i]);
+#endif
             if (ret != 0) {
                 printf("ERROR: wc_InitRng[%d] failed with code %d\n", i, ret);
                 /* Clean up any initialized RNGs */
@@ -91310,7 +91404,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
         printf("\n--- Test 5: Stress Test (%lu iterations) ---\n", iterations);
         printf("Verifies no false positive continuous test failures occur.\n");
 
+#ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
         ret = wc_InitRng(&rng);
+#endif
         if (ret != 0) {
             printf("ERROR: wc_InitRng failed with code %d\n", ret);
             return ret;
@@ -91361,7 +91459,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
         printf("\n--- Test 4: RNG Reinitialization Test ---\n");
 
         for (i = 0; i < REINIT_COUNT; i++) {
+#ifndef HAVE_FIPS
+            ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
             ret = wc_InitRng(&rng);
+#endif
             if (ret != 0) {
 #if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
 /* SUPER noisy default on when not FIPS and off when FIPS */
@@ -91458,7 +91560,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
         unsigned long i;
 
         for (i = 0; i < wa->iterations; i++) {
+#ifndef HAVE_FIPS
+            ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
             ret = wc_InitRng(&rng);
+#endif
             if (ret != 0) {
 #if defined(HAVE_FIPS) && defined(VERBOSE_STRESS_TEST)
 /* SUPER noisy default on when not FIPS and off when FIPS */
