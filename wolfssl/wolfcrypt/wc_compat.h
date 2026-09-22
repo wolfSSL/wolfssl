@@ -23,7 +23,8 @@
     \brief Header file containing wolfCrypt compatibility shims
 */
 
-#if (defined(WOLF_CRYPT_SHA256_H) && !defined(NO_SHA256) &&                  \
+#if defined(WC_NO_COMPAT_H_REMAPS) ||                                        \
+    (defined(WOLF_CRYPT_SHA256_H) && !defined(NO_SHA256) &&                  \
      !defined(WC_SHA256_TYPE_DEFINED) && !defined(SHA256_NOINLINE)) ||       \
     (defined(WOLF_CRYPT_SHA512_H) &&                                         \
      (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) &&                 \
