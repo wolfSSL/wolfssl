@@ -6091,7 +6091,6 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #ifndef O_CLOEXEC
@@ -6157,6 +6156,8 @@ int wc_open_cloexec_mode(const char* path, int flags, int mode)
 }
 
 #if !defined(NO_FILESYSTEM) && defined(XFDOPEN)
+#include <sys/stat.h>
+
 /* Truncate or create path for writing, owner read/write only. */
 XFILE wc_fopen_owner_only(const char* path)
 {
