@@ -2938,17 +2938,23 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                             "failed (%d) -- attempting reinit\n", inv_ret);
                     }
 
-                    inv_ret = wc_FreeRng(root_rng);
-                    if (inv_ret == 0) {
 #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
-                        inv_ret = wc_rng_bank_root_rng_init(
-                            bank,
-                            (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
-                            NULL, 0, 0);
+                    /* Gate-bracketed free+reinstantiate: the inst-op gate
+                     * excludes concurrent invalidation walkers, which
+                     * dereference the root's DRBG state, for the span of
+                     * the transition. */
+                    inv_ret = wc_rng_bank_root_rng_reinit(
+                        bank,
+                        (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
+                        NULL, 0, 0);
 #else
+                    /* Standalone (memberless) root: daemon-private, never
+                     * reachable by the invalidation walk -- no gating
+                     * needed or possible. */
+                    inv_ret = wc_FreeRng(root_rng);
+                    if (inv_ret == 0)
                         inv_ret = wc_InitRng(root_rng);
 #endif
-                    }
                     ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                     if (inv_ret == 0) {
                         progress = 1;
