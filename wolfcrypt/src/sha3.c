@@ -2372,7 +2372,14 @@ void wc_Shake128_Free(wc_Shake* shake)
 }
 
 int wc_Shake128_Reset(wc_Shake* shake) {
-    return wc_Sha3Reset(shake);
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE128;
+#endif
+    return ret;
 }
 
 /* Copy the state of the SHA3-512 operation.
@@ -2681,7 +2688,14 @@ void wc_Shake256_Free(wc_Shake* shake)
 }
 
 int wc_Shake256_Reset(wc_Shake* shake) {
-    return wc_Sha3Reset(shake);
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
+    return ret;
 }
 
 /* Copy the state of the SHA3-512 operation.

@@ -2914,7 +2914,11 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     {
                         break;
                     }
-                    wc_linuxkm_relax_long_loop();
+                    /* relax the loop -- there's no point continuing
+                     * unless/until we have the root_rng recovered, but there's
+                     * also no point hammering away at ludicrous speed
+                     * indefinitely. */
+                    schedule_timeout_interruptible(msecs_to_jiffies(WC_LINUXKM_ENTROPY_DAEMON_NAP_MS));
                 }
             }
             if (inv_ret != 0) {

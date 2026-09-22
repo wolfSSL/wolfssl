@@ -6045,6 +6045,17 @@ int wc_FreeRng(WC_RNG* rng)
     RngAutoLockFree(rng);
 #endif
 
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* The stir accumulator is WC_RNG-resident (it survives DRBG teardown so
+     * that blind depositors never dereference rng->drbg), so the DRBG
+     * teardown below cannot wipe it -- wipe it here.  A concurrent blind
+     * deposit can tear the wipe harmlessly (uncredited material, and
+     * all-zeros decodes as empty/accumulating).  Note the contrast with the
+     * lock word, which deliberately survives deallocation. */
+    ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
+    WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT)
     wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
 #endif
