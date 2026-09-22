@@ -3817,6 +3817,12 @@ int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz)
     }
 
 #if defined(WOLFSSL_SHA512) && !defined(WC_SHA512RESET_DEFINED)
+
+    #if (defined(WOLFSSL_KERNEL_MODE) || defined(WOLFSSL_KERNEL_MODE_DEFAULTS)) && \
+        defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512)
+        #error "SHA-512 misconfiguration -- Kernel mode RNG requires reset-in-place."
+    #endif
+
     WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512)
 #endif
 

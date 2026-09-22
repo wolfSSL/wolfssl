@@ -349,19 +349,28 @@ static int InitSha256(wc_Sha256* sha256)
     return 0;
 }
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 /* Reset a hash context to its freshly initialized state, reusing its existing
  * allocations.  Like the Final functions, Reset does not destroy sensitive
  * internal state; use the matching Free function for teardown at end of life.
- */
+ *
+ * The in-place form is only for the software implementation: a CB_ONLY build
+ * routes hashing through a device whose state InitSha256() cannot restart, so
+ * it falls back to Free + Init_ex, which gives the callback its teardown and
+ * re-setup hooks.  (SHA-224's in-place variant sits in the NEED_SOFT arm and
+ * sha512.c's sit in the software-implementation arm, so both exclude CB_ONLY
+ * structurally; SHA-256's region also serves the CB_ONLY build -- see
+ * wc_InitSha224_ex()'s CB_ONLY arm -- hence the explicit conjunct.) */
 int wc_Sha256Reset(wc_Sha256* sha256) {
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
     return InitSha256(sha256);
 }
 #define WC_SHA256RESET_DEFINED
-#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP &&
+        * !WOLF_CRYPTO_CB_ONLY_SHA256 */
 
 #endif
 
@@ -3226,6 +3235,12 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
  */
 
 #ifndef WC_SHA256RESET_DEFINED
+
+#if (defined(WOLFSSL_KERNEL_MODE) || defined(WOLFSSL_KERNEL_MODE_DEFAULTS)) && \
+    defined(HAVE_HASHDRBG)
+    #error "SHA-256 misconfiguration -- Kernel mode RNG requires reset-in-place."
+#endif
+
 int wc_Sha256Reset(wc_Sha256* sha256) {
     void *heap;
     int devId;
