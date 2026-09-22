@@ -1,5 +1,15 @@
 # wolfSSL Release (unreleased)
 
+## Behavioral Changes
+* **Behavioral change (`NO_SESSION_CACHE_REF` no longer disables the client
+  cache)**: the macro suppressed the `AddSession()` write to the ClientCache as
+  well as the `wolfSSL_get_session()` return value, because one field served as
+  both the handle and the write trigger.  Nothing populated that cache while
+  `wolfSSL_GetSessionClient()` kept searching it, so
+  `wolfSSL_SetServerID(ssl, id, len, 0)` resumption silently never resumed in
+  any build defining the macro.  The write is now gated on `NO_CLIENT_CACHE`
+  alone, which is what declares the field; the cache is not resized.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

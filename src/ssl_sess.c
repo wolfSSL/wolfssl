@@ -2291,11 +2291,11 @@ void AddSession(WOLFSSL* ssl)
 #else
                 0,
 #endif
-#ifdef NO_SESSION_CACHE_REF
-                NULL
-#else
+#ifndef NO_CLIENT_CACHE
                 (ssl->options.side == WOLFSSL_CLIENT_END) ?
                         &ssl->clientSession : NULL
+#else
+                NULL
 #endif
                         );
     }
