@@ -1,0 +1,73 @@
+name: Actions cache janitor
+
+# Scheduled workflow to delete stale/superseded cache entries.
+# Goal is to keep the repo cache usage under the 10 GB limit, but also to ensure
+# that stale entries are not used. Without this cleanup, it's been observed that
+# a new cache entry can fall to the end of the LRU list and be evicted before
+# it is used.
+on:
+  schedule:
+    # After the morning reseed workflow, then periodically through the day
+    - cron: '30 11,15,19,23 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only list what would be deleted
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+
+jobs:
+  prune:
+    name: keep the newest entry per lineage
+    if: ${{ github.repository_owner == 'wolfssl' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: List, group and delete superseded cache entries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && 'true' || 'false' }}
+        run: |
+          gh api "repos/$REPO/actions/caches?per_page=100" --paginate \
+            --jq '.actions_caches[]' | jq -s '.' > caches.json
+          python3 - <<'PY' > delete-ids.txt
+          import json, re, sys
+          entries = json.load(open("caches.json"))
+          def lineage(key):
+              key = re.sub(r"-[0-9a-f]{40}$", "", key)
+              key = re.sub(r"-\d+-\d+$", "", key)
+              return key
+          for e in entries:
+              groups.setdefault((e["ref"], lineage(e["key"])), []).append(e)
+          keep = deleted = 0
+          for (ref, lin), group in sorted(groups.items()):
+              group.sort(key=lambda e: e["created_at"], reverse=True)
+              keep += group[0]["size_in_bytes"]
+              for e in group[1:]:
+                  deleted += e["size_in_bytes"]
+                  print(e["id"])
+                  print("delete %s %6.0f MB %s (%s), newest is %s" % (
+                      e["created_at"][:16], e["size_in_bytes"] / 1e6, e["key"],
+                      ref, group[0]["created_at"][:16]), file=sys.stderr)
+          print("entries: %d, keep %.1f GB, delete %.1f GB" % (
+              len(entries), keep / 1e9, deleted / 1e9), file=sys.stderr)
+          PY
+          echo "superseded entries: $(wc -l < delete-ids.txt)"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry run: nothing deleted"
+            exit 0
+          fi
+          failed=0
+          while read -r id; do
+            if gh api --method DELETE "repos/$REPO/actions/caches/$id" > /dev/null; then
+              echo "deleted $id"
+            else
+              echo "failed to delete $id"; failed=1
+            fi
+          done < delete-ids.txt
+          exit $failed

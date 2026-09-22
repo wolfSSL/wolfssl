@@ -97,8 +97,9 @@ runs:
 
     # read-only=false (default): restore + post-job save (the run_id in the
     # key never hits, so it always saves its contribution).
+    # Skip restore on reseed-only scheduled runs, cache built from scratch.
     - name: Restore + save ccache
-      if: inputs.read-only != 'true'
+      if: inputs.read-only != 'true' && github.event_name != 'schedule'
       uses: actions/cache@v5
       with:
         path: ~/.ccache
@@ -109,6 +110,13 @@ runs:
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+    # Scheduled reseed: no restore, save only
+    - name: Save ccache (scheduled reseed, no restore)
+      if: inputs.read-only != 'true' && github.event_name == 'schedule'
+      uses: actions/cache@v5
+      with:
+        path: ~/.ccache
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
     # read-only=true: restore the shared cache but never upload (PR runs).
     - name: Restore ccache (read-only)
       if: inputs.read-only == 'true'

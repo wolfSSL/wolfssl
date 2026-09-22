@@ -50,6 +50,9 @@ permissions:
 
 jobs:
   smoke:
+    permissions:
+      contents: read
+      actions: write # allows deletion of old caches
     # Only run from the wolfssl org to avoid burning forks' CI minutes.
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
@@ -160,6 +163,27 @@ jobs:
         with:
           path: ~/.cache/ccache
           key: smoke-ccache-${{ github.ref_name }}-${{ github.sha }}
+
+      - name: Prune superseded seeds
+        if: github.event_name != 'pull_request' && steps.merge_check.outputs.skip != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFIX: smoke-ccache-${{ github.ref_name }}-
+        run: |
+          gh api "repos/${{ github.repository }}/actions/caches?key=$PREFIX&ref=${{ github.ref }}&per_page=100" \
+            --paginate --jq '.actions_caches[] | "\(.created_at) \(.id) \(.key)"' \
+            | sort -r | tail -n +2 | {
+            failed=0
+            while read -r created id key; do
+              if gh api --method DELETE "repos/${{ github.repository }}/actions/caches/$id" > /dev/null; then
+                echo "deleted $key (created $created)"
+              else
+                echo "failed to delete $key"; failed=1
+              fi
+            done
+            exit $failed
+          }
 
       - name: ccache stats
         if: always() && steps.merge_check.outputs.skip != 'true'
