@@ -102,6 +102,23 @@ namespace wolfSSL.CSharp.Fips
          * C#, so it is not declared as a DllImport. */
         internal const string OS_SEED_EXPORT = "wc_GenerateSeed";
 
+        /* ---- Hash_DRBG (SP 800-90A) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitRng_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitRng_fips(IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitRngNonce_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitRngNonce_fips(IntPtr rng, byte[] nonce, uint nonceSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_FreeRng_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_FreeRng_fips(IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RNG_GenerateBlock_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RNG_GenerateBlock_fips(IntPtr rng, byte[] output, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RNG_HealthTest_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RNG_HealthTest_fips(int reseed, byte[] seedA, uint seedASz,
+            byte[]? seedB, uint seedBSz, byte[] output, uint outputSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]
