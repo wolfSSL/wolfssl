@@ -151,6 +151,12 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/libwolfssl_sources.h \
                          wolfssl/wolfcrypt/libwolfssl_sources_asm.h
 
+# Installed unconditionally: settings.h includes nuvoton_settings.h whenever
+# WOLFSSL_NUVOTON_M2354 is set, so an installed tree needs it to preprocess.
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_cryptocb.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_key.h
+
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
