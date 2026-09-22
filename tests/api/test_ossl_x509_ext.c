@@ -1225,7 +1225,7 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
         "pathlen:1"));
     ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
         "CA:TRUE,pathlen:x"));
-    XSNPRINTF(bcTooLong, sizeof(bcTooLong), "CA:TRUE,pathlen:%d",
+    (void)XSNPRINTF(bcTooLong, sizeof(bcTooLong), "CA:TRUE,pathlen:%d",
         WOLFSSL_MAX_PATH_LEN + 1);
     ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
         bcTooLong));
