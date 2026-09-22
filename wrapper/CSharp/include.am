@@ -63,3 +63,7 @@ EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/ModuleTests.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsRng.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/RngTests.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/Acvp.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsHash.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsHmac.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsCmac.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/MacHashTests.cs

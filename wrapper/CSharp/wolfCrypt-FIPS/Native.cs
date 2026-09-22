@@ -119,6 +119,138 @@ namespace wolfSSL.CSharp.Fips
         internal static extern int wc_RNG_HealthTest_fips(int reseed, byte[] seedA, uint seedASz,
             byte[]? seedB, uint seedBSz, byte[] output, uint outputSz);
 
+        /* ---- SHA-1, SHA-2, SHA-3 (FIPS 180-4, FIPS 202) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ShaUpdate_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ShaUpdate_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ShaFinal_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ShaFinal_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ShaFree_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_ShaFree_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha224_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha224_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha224Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha224Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha224Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha224Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha224Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha224Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha256_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha256_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha256Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha256Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha256Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha256Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha256Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha256Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha384_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha384_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha384Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha384Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha384Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha384Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha384Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha384Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha512_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha512_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha512Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha512Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha512Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha512Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha512Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha512Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha3_224_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha3_224_fips(IntPtr sha, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_224_Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_224_Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_224_Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_224_Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_224_Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha3_224_Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha3_256_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha3_256_fips(IntPtr sha, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_256_Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_256_Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_256_Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_256_Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_256_Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha3_256_Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha3_384_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha3_384_fips(IntPtr sha, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_384_Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_384_Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_384_Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_384_Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_384_Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha3_384_Free_fips(IntPtr sha);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitSha3_512_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitSha3_512_fips(IntPtr sha, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_512_Update_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_512_Update_fips(IntPtr sha, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_512_Final_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Sha3_512_Final_fips(IntPtr sha, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Sha3_512_Free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_Sha3_512_Free_fips(IntPtr sha);
+
+        /* ---- HMAC (FIPS 198-1) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_HmacSetKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HmacSetKey_fips(IntPtr hmac, int type, byte[] key, uint keySz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HmacUpdate_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HmacUpdate_fips(IntPtr hmac, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HmacFinal_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HmacFinal_fips(IntPtr hmac, byte[] hash);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HmacFree_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void wc_HmacFree_fips(IntPtr hmac);
+
+        /* ---- CMAC-AES (SP 800-38B) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitCmac_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitCmac_fips(IntPtr cmac, byte[] key, uint keySz, int type, IntPtr unused);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_CmacUpdate_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_CmacUpdate_fips(IntPtr cmac, byte[] data, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_CmacFinal_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_CmacFinal_fips(IntPtr cmac, byte[] tag, ref uint tagSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]

@@ -30,6 +30,7 @@ namespace wolfSSL.CSharp.Fips.Test
             Console.WriteLine("wolfCrypt FIPS v5.2.3 C# wrapper tests");
             ModuleTests.Run();
             RngTests.Run();
+            MacHashTests.Run();
             return T.Summary();
         }
     }
