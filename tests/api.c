@@ -6623,7 +6623,10 @@ static int test_wolfSSL_SetVersion_auto_min(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-    /* a required PSK still wins over a minimum being set */
+    /* a required PSK still wins over a minimum being set. The requirement
+     * only takes effect when external PSK or session tickets are built in;
+     * mirror the guard used by the API itself. */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
@@ -6635,6 +6638,7 @@ static int test_wolfSSL_SetVersion_auto_min(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+#endif
 
     /* setting a maximum reapplies the minimum internally, which must not
      * disturb the flag */
