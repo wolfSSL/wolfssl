@@ -835,9 +835,14 @@ int test_EVP_PKEY_cmp(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && \
+/* i2d_PrivateKey()/i2d_PUBKEY() need the DER encoders. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
     ((!defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)) || \
      (defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)))
+    #define TEST_EVP_PKEY_DUP_I2D
+#endif
+
+#ifdef TEST_EVP_PKEY_DUP_I2D
 /* Check dup is a distinct key with identical encoding, usable after src is
  * freed. */
 static int test_EVP_PKEY_dup_check(EVP_PKEY** src, int id, int priv)
@@ -887,7 +892,7 @@ static int test_EVP_PKEY_dup_check(EVP_PKEY** src, int id, int priv)
 
     return EXPECT_RESULT();
 }
-#endif /* OPENSSL_EXTRA && (RSA 2048 or ECC 256 cert buffers) */
+#endif /* TEST_EVP_PKEY_DUP_I2D */
 
 /* d2i_evp_pkey() only knows DSA and DH in these builds. */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && \
@@ -940,7 +945,8 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     RSA* rsa = NULL;
 #endif
 
-#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+#if defined(TEST_EVP_PKEY_DUP_I2D) && !defined(NO_RSA) && \
+    defined(USE_CERT_BUFFERS_2048)
     in = client_key_der_2048;
     ExpectNotNull(key = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
         (long)sizeof_client_key_der_2048));
@@ -958,7 +964,8 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     key = NULL;
 #endif
 
-#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+#if defined(TEST_EVP_PKEY_DUP_I2D) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256)
     in = ecc_clikey_der_256;
     ExpectNotNull(key = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &in,
         (long)sizeof_ecc_clikey_der_256));
@@ -1102,6 +1109,8 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     ExpectNotNull(key = EVP_PKEY_new());
     ExpectNull(EVP_PKEY_dup(key));
     EVP_PKEY_free(key);
+
+    (void)in;
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
