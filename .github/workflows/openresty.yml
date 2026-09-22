@@ -151,8 +151,10 @@ jobs:
           make install
 
       - name: Confirm OpenResty built with wolfSSL
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
         run: |
-          ldd $TEST_NGINX_BINARY | grep wolfssl
+          ldd $TEST_NGINX_BINARY | grep 'libwolfssl.*=> /'
           $TEST_NGINX_BINARY -V 2>&1 | grep 'built with wolfSSL'
 
       # Short paths: the tests listen on unix sockets under t/servroot.
