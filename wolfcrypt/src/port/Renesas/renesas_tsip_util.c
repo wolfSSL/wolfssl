@@ -2560,20 +2560,26 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
 /* return  :1 when tsip can be used , 0 not be used.           */
 int tsip_usable(const WOLFSSL *ssl, uint8_t session_key_generated)
 {
-    byte cipher0 = ssl->options.cipherSuite0;
-    byte cipher  = ssl->options.cipherSuite;
-    byte side    = ssl->options.side;
-    int  ret     = WOLFSSL_SUCCESS;
+    byte cipher0;
+    byte cipher;
+    byte side;
+    int  ret = WOLFSSL_SUCCESS;
     const Ciphers *enc;
     const Ciphers *dec;
 
     WOLFSSL_ENTER("tsip_usable");
 
-    /* sanity check */
+    /* sanity check - before any field read; return 0 (not usable),
+     * not BAD_FUNC_ARG, because callers treat the result as bool. */
     if (ssl == NULL) {
         WOLFSSL_MSG("ssl is NULL");
-        ret = BAD_FUNC_ARG;
+        WOLFSSL_LEAVE("tsip_usable", 0);
+        return 0;
     }
+
+    cipher0 = ssl->options.cipherSuite0;
+    cipher  = ssl->options.cipherSuite;
+    side    = ssl->options.side;
 
     /* when rsa key index == NULL, tsip isn't used for cert verification. */
     /* in the case, we cannot use TSIP.                                   */
