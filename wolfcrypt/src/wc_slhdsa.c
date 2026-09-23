@@ -35,7 +35,8 @@
 
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 
-#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_FIPS_DEV)
     #error "SLH-DSA signing is required for the v7 FIPS module"
 #endif
 
