@@ -182,5 +182,26 @@ namespace wolfSSL.CSharp.Fips
 
         public static bool PrivateKeyReadEnabled =>
             Native.wolfCrypt_GetPrivateKeyReadEnable_fips(0) != 0;
+
+        /* Runs an operation whose purpose is to return an SSP-bearing value
+         * (shared secret, generated key pair, derived key) with the private
+         * key read gate enabled on this thread, then restores the previous
+         * state. Mirrors wolfSSL's own PRIVATE_KEY_UNLOCK()/LOCK() use around
+         * these calls. The operation must be synchronous (the gate is per
+         * thread). Bulk private key export (FipsRsaKey.Export) does not use
+         * this and stays under explicit caller control. */
+        internal static TR WithPrivateKeyRead<TR>(Func<TR> op)
+        {
+            bool prev = PrivateKeyReadEnabled;
+            if (!prev)
+                SetPrivateKeyReadEnable(true);
+            try {
+                return op();
+            }
+            finally {
+                if (!prev)
+                    SetPrivateKeyReadEnable(false);
+            }
+        }
     }
 }

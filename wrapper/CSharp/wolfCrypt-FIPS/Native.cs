@@ -355,6 +355,69 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wc_RsaPrivateDecryptEx_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_RsaPrivateDecryptEx_fips(byte[] input, uint inLen, byte[] output, uint outLen, IntPtr key, int type, int hash, int mgf, byte[]? label, uint labelSz);
 
+        /* ---- ECC: ECDSA (FIPS 186), ECC CDH (SP 800-56A) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_init_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_init_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_free_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_free_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_set_rng_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_set_rng_fips(IntPtr key, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_check_key_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_check_key_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_make_key_ex_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_make_key_ex_fips(IntPtr rng, int keysize, IntPtr key, int curveId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_export_x963_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_export_x963_fips(IntPtr key, byte[] output, ref uint outLen);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_import_x963_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_import_x963_fips(byte[] input, uint inLen, IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_shared_secret_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_shared_secret_fips(IntPtr privateKey, IntPtr publicKey, byte[] output, ref uint outLen);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_sign_hash_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_sign_hash_fips(byte[] input, uint inLen, byte[] output, ref uint outLen, IntPtr rng, IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_ecc_verify_hash_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_ecc_verify_hash_fips(byte[] sig, uint sigLen, byte[] hash, uint hashLen, out int res, IntPtr key);
+
+        /* ---- Finite field DH (SP 800-56A) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitDhKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitDhKey_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_FreeDhKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_FreeDhKey_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhSetKeyEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhSetKeyEx_fips(IntPtr key, byte[] p, uint pSz, byte[] g, uint gSz, byte[]? q, uint qSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhSetNamedKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhSetNamedKey_fips(IntPtr key, int name);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhGenerateKeyPair_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhGenerateKeyPair_fips(IntPtr key, IntPtr rng, byte[] priv, ref uint privSz, byte[] pub, ref uint pubSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhCheckPubKeyEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhCheckPubKeyEx_fips(IntPtr key, byte[] pub, uint pubSz, byte[]? prime, uint primeSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhCheckPrivKeyEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhCheckPrivKeyEx_fips(IntPtr key, byte[] priv, uint privSz, byte[]? prime, uint primeSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhCheckKeyPair_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhCheckKeyPair_fips(IntPtr key, byte[] pub, uint pubSz, byte[] priv, uint privSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhAgree_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhAgree_fips(IntPtr key, byte[] agree, ref uint agreeSz, byte[] priv, uint privSz, byte[] otherPub, uint pubSz);
+
+        /* v5.2.3 only (not in the v5.2.1 boundary) */
+        [DllImport(WOLFSSL, EntryPoint = "wc_DhGeneratePublic_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_DhGeneratePublic_fips(IntPtr key, byte[] priv, uint privSz, byte[] pub, ref uint pubSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]
