@@ -3115,6 +3115,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
     ctx->suites = NULL;
 
+#ifdef WOLFSSL_CERT_COMPRESSION
+    XFREE(ctx->compressionAlgPrefList, ctx->heap, DYNAMIC_TYPE_TLSX);
+    ctx->compressionAlgPrefList = NULL;
+#endif
+
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ctx->serverDH_G.buffer = NULL;
@@ -9045,6 +9050,18 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.noTicketTls12 = ctx->noTicketTls12;
 #endif
 
+#ifdef WOLFSSL_CERT_COMPRESSION
+    /* inherit the context's compression alg list; each object owns a copy */
+    if (ctx->compressionAlgPrefList != NULL) {
+        ret = wolfSSL_set_cert_compression_algs(ssl,
+            ctx->compressionAlgPrefList, ctx->compressionAlgPrefListLen);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+    }
+    /* after the list copy, which clears the flag */
+    ssl->noOfferCompressionAlgPrefList = ctx->noOfferCompressionAlgPrefList;
+#endif
+
 #ifdef WOLFSSL_MULTICAST
     InitSSL_Multicast(ssl, ctx);
 #endif
@@ -10077,8 +10094,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef WOLFSSL_CERT_COMPRESSION
     wc_CompressionData_Free(ssl->compressedCert);
-    XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+    if (ssl->compressedCert != NULL)
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     ssl->compressedCert = NULL;
+    XFREE(ssl->compressionAlgPrefList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->compressionAlgPrefList = NULL;
 #endif
 #if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
     if (ssl->mnCtx) {
@@ -10434,7 +10454,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_CERT_COMPRESSION
     wc_CompressionData_Free(ssl->compressedCert);
-    XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+    if (ssl->compressedCert != NULL)
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     ssl->compressedCert = NULL;
 #endif
 
@@ -13002,7 +13023,6 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case hello_verify_request:
             case hello_retry_request:
             case certificate:
-            case compressed_certificate:
             case server_key_exchange:
             case certificate_request:
             case server_hello_done:
@@ -13038,6 +13058,7 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case end_of_early_data:
             case request_connection_id:
             case new_connection_id:
+            case compressed_certificate:
             case message_hash:
             case no_shake:
             default:
@@ -13114,7 +13135,6 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case session_ticket:
                 case end_of_early_data:
                 case certificate:
-                case compressed_certificate:
                 case server_key_exchange:
                 case certificate_request:
                 case server_hello_done:
@@ -13126,6 +13146,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                     break;
                 case hello_retry_request:
                 case encrypted_extensions:
+                case compressed_certificate:
                 case key_update:
                 case request_connection_id:
                 case new_connection_id:

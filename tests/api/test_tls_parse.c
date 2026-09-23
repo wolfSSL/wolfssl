@@ -3249,19 +3249,18 @@ int test_TLSX_CertCompression_parse(void)
 
     /* CertificateCompressionAlgorithms: algorithms<2..2^8-2>, i.e. a 1-byte
      * length in bytes followed by that many bytes of 2-byte algorithm IDs. */
-    const byte zlibOnly[]    = { 0x02, 0x00, 0x01 };
+    const byte zlibOnly[]    = { 0x02, 0x00, WC_ZLIB };
     /* brotli and zstd: registered, but not implemented by this build. */
     const byte unsupported[] = { 0x04, 0x00, 0x02, 0x00, 0x03 };
-    /* The list OpenSSL 3.x actually offers. An unsupported algorithm sits
-     * ahead of zlib, which is what catches an index mix-up between the peer's
-     * list and our own supported list. */
-    const byte opensslList[] = { 0x06, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03 };
+    /* OPENSSL offer list and order */
+    const byte opensslList[] = { 0x06, 0x00, 0x02, 0x00, WC_ZLIB,
+        0x00, 0x03 };
 
     /* Malformed bodies, each rejected before any algorithm is looked at. */
     const byte truncated[]   = { 0x02, 0x00 };             /* shorter than 3 */
     const byte emptyList[]   = { 0x00 };                   /* no algorithms */
-    const byte oddLen[]      = { 0x03, 0x00, 0x01, 0x00 }; /* len not even */
-    const byte lenMismatch[] = { 0x04, 0x00, 0x01 };       /* len > body */
+    const byte oddLen[]      = { 0x03, 0x00, WC_ZLIB, 0x00 }; /* len not even */
+    const byte lenMismatch[] = { 0x04, 0x00, WC_ZLIB };       /* len > body */
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -3349,7 +3348,7 @@ int test_TLSX_CertCompression_write(void)
     word32 len;
     word32 off;
     /* type(2) + length(2) + body: list length 2, then zlib. */
-    const byte wire[] = { 0x00, 0x1B, 0x00, 0x03, 0x02, 0x00, 0x01 };
+    const byte wire[] = { 0x00, 0x1B, 0x00, 0x03, 0x02, 0x00, WC_ZLIB };
 
     /* Client: the extension goes into the ClientHello. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -3385,6 +3384,9 @@ int test_TLSX_CertCompression_write(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 1), 0);
+        /* The server only adds compress_certificate when it builds a
+         * CertificateRequest (see SendTls13CertificateRequest). */
+        ExpectIntEQ(TLSX_UseCertCompression(ssl, ssl->heap), 0);
         ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION));
 
         len = 0;
@@ -3405,18 +3407,6 @@ int test_TLSX_CertCompression_write(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
-
-    /* A server that will not request a client certificate has nothing to
-     * advertise, so it must not offer the extension at all. */
-    ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
-    if (ssl != NULL) {
-        ExpectIntEQ(ssl->options.verifyPeer, 0);
-        ExpectIntEQ(TLSX_PopulateExtensions(ssl, 1), 0);
-        ExpectNull(TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION));
-    }
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

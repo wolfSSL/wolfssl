@@ -170,13 +170,12 @@
     #include <limits.h>
 #endif
 
+#if defined(WOLFSSL_CERT_COMPRESSION) || defined(HAVE_LIBZ)
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
-#endif
-
-#ifdef WOLFSSL_CERT_COMPRESSION
-    #include <wolfssl/wolfcrypt/compress.h>
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -2091,10 +2090,12 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #endif
 #endif
 
-/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and zlib */
-#if defined(WOLFSSL_CERT_COMPRESSION) && \
-    (!defined(WOLFSSL_TLS13) || !defined(HAVE_LIBZ))
-    #error WOLFSSL_CERT_COMPRESSION needs WOLFSSL_TLS13 and HAVE_LIBZ.
+/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and other relveant
+ * macros*/
+#if defined(WOLFSSL_CERT_COMPRESSION) && defined (HAVE_TLS_EXTENSIONS) && \
+    (!defined(WOLFSSL_TLS13) || !defined(HAVE_LIBZ) || defined(NO_CERTS))
+    #error WOLFSSL_CERT_COMPRESSION needs WOLFSSL_TLS13, HAVE_LIBZ, not \
+    NO_CERTS, and HAVE_TLS_HAVE_TLS_EXTENSIONS.
 #endif
 
 /* Max certificate extensions in TLS1.3 */
@@ -2307,6 +2308,14 @@ WOLFSSL_LOCAL int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOut
 #endif
 WOLFSSL_TEST_VIS int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     int sniff);
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_COMPRESSION) && \
+    !defined(NO_CERTS)
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define DoTls13CompressedCertificate wolfSSL_DoTls13CompressedCertificate
+#endif
+WOLFSSL_TEST_VIS int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
+                                    word32* inOutIdx, word32 totalSz);
+#endif
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites);
 #ifdef WOLFSSL_TLS13
@@ -3648,6 +3657,14 @@ WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length);
 #endif
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_UseCertCompression wolfSSL_TLSX_UseCertCompression
+#endif
+WOLFSSL_TEST_VIS int TLSX_UseCertCompression(WOLFSSL* ssl, void* heap);
+#endif
+
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -4513,6 +4530,13 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_TLS13
     word16          group[WOLFSSL_MAX_GROUP_COUNT];
     byte            numGroups;
+#endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+    /* list of offered compression algs, copied to each new WOLFSSL.
+     * NULL = use the built-in default list */
+    byte                     noOfferCompressionAlgPrefList;
+    byte                     compressionAlgPrefListLen;
+    word16*                  compressionAlgPrefList;
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
@@ -7162,8 +7186,13 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_CERT_COMPRESSION
     /* RFC 8879 algorithm ID; WC_NO_COMPRESSION = none negotiated */
-    enum wc_CompressionAlgs peerCertCompressionAlg;
+    word16 peerCertCompressionAlg;
     wc_CompressionData* compressedCert;
+    /* list of offered compression algs; NULL = use the built-in default,
+     * This also determines what we are willing to send */
+    byte noOfferCompressionAlgPrefList;
+    byte compressionAlgPrefListLen;
+    word16* compressionAlgPrefList;
 #endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
@@ -7430,27 +7459,27 @@ typedef struct DtlsHandShakeHeader {
 
 
 enum HandShakeType {
-    hello_request          =  0,
-    client_hello           =  1,
-    server_hello           =  2,
-    hello_verify_request   =  3,    /* DTLS addition */
-    session_ticket         =  4,
-    end_of_early_data      =  5,
-    hello_retry_request    =  6,
-    encrypted_extensions   =  8,
-    request_connection_id  =  9,    /* DTLS v1.3 addition (RFC 9147) */
-    new_connection_id      =  10,   /* DTLS v1.3 addition (RFC 9147) */
-    certificate            =  11,
-    server_key_exchange    =  12,
-    certificate_request    =  13,
-    server_hello_done      =  14,
-    certificate_verify     =  15,
-    client_key_exchange    =  16,
-    finished               =  20,
-    certificate_status     =  22,
-    key_update             =  24,
-    compressed_certificate =  25,  /* RFC 8879 TLS1.3 > only */
-    change_cipher_hs       =  55,  /* simulate unique handshake type for sanity
+    hello_request        =   0,
+    client_hello         =   1,
+    server_hello         =   2,
+    hello_verify_request =   3,    /* DTLS addition */
+    session_ticket       =   4,
+    end_of_early_data    =   5,
+    hello_retry_request  =   6,
+    encrypted_extensions =   8,
+    request_connection_id =  9,    /* DTLS v1.3 addition (RFC 9147) */
+    new_connection_id    =  10,    /* DTLS v1.3 addition (RFC 9147) */
+    certificate          =  11,
+    server_key_exchange  =  12,
+    certificate_request  =  13,
+    server_hello_done    =  14,
+    certificate_verify   =  15,
+    client_key_exchange  =  16,
+    finished             =  20,
+    certificate_status   =  22,
+    key_update           =  24,
+    compressed_certificate = 25,    /* RFC 8879 TLS1.3 > only */
+    change_cipher_hs     =  55,    /* simulate unique handshake type for sanity
                                       checks.  record layer change_cipher
                                       conflicts with handshake finished */
     message_hash         = 254,    /* synthetic message type for TLS v1.3 */

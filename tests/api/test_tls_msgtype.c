@@ -2673,10 +2673,6 @@ int test_tls_msgtype_cert_compression(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, encrypted_extensions, NULL),
                 WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
 
-    /* A Certificate message is refused a step earlier: RFC 8446 4.4.2 requires
-     * its extensions to correspond to ones we offered, and this client never
-     * offered compress_certificate, so the "not requested" gate fires before
-     * the per-extension message-type gate is reached. */
     len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
             (word16)sizeof(body));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate, NULL),

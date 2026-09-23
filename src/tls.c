@@ -8347,27 +8347,13 @@ static int TLSX_SetSignatureAlgorithmsCert(TLSX** extensions,
 /******************************************************************************/
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && \
-defined(WOLFSSL_CERT_COMPRESSION)
+    defined(WOLFSSL_CERT_COMPRESSION)
 
-/* The supported list of compression algs in wolfSSL
- * stored in wire order ready to use
- *
- * These are also our order of preference */
-/* TODO: allow for custom ordering */
-static const byte TLSX_CertCompression_Supported_Algs[] = {
-#ifdef HAVE_CUSTOM_COMPRESSION
-    /* split the word16 over 2 bytes */
-    (byte)((WC_CUSTOM_COMPRESSION >> 8) & 0xFF),
-    (byte)(WC_CUSTOM_COMPRESSION & 0xFF),
-#endif
+/* List of algs offered in the certificate_compression extension, most
+ * preferred first. */
+static const word16 TLSX_CertCompression_DefaultAlgs[] = {
 #ifdef HAVE_LIBZ
-    (byte)0x00, (byte)WC_ZLIB,
-#endif
-#ifdef HAVE_BROTLI
-    (byte)0x00, (byte)WC_BROTLI,
-#endif
-#ifdef HAVE_ZSTD
-    (byte)0x00, (byte)WC_ZSTD,
+    WC_ZLIB,
 #endif
 };
 
@@ -8379,25 +8365,60 @@ static void TLSX_CertCompression_FreeAll(byte* data, void* heap)
         XFREE(data, heap, DYNAMIC_TYPE_TLSX);
 }
 
-static int TLSX_UseCertCompression(TLSX** extensions, void* heap)
+int TLSX_UseCertCompression(WOLFSSL* ssl, void* heap)
 {
-    int ret = 0;
+    int   ret = 0;
     TLSX* extension;
 
-    if (extensions == NULL) {
+    if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    extension = TLSX_Find(*extensions, TLSX_CERT_COMPRESSION);
+    if (ssl->noOfferCompressionAlgPrefList == 1)
+        return 0;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION);
     if (extension == NULL) {
-        byte* data = (byte*)XMALLOC(sizeof(TLSX_CertCompression_Supported_Algs)
-                + 1, heap, DYNAMIC_TYPE_TLSX);
+        /* certificate_compression(27) extension format is:
+         * |num following bytes
+         * v
+         * +-------------------------+
+         * |<1 byte>|<2 byte>[0..127]|
+         * +-------------------------+
+         *          ^
+         *          | list of alg Ids
+         */
+        byte*         data = NULL;
+        word32        i;
+        byte          len = 1; /* 1 for the size of the len byte */
+        byte*         dataPtr;
+        const word16* list = NULL;
+
+        /* use the user's list if set, else the built-in default */
+        if (ssl->compressionAlgPrefList == NULL) {
+            len += (byte)(XELEM_CNT(TLSX_CertCompression_DefaultAlgs) *
+                          OPAQUE16_LEN);
+            list = TLSX_CertCompression_DefaultAlgs;
+        }
+        else {
+            len += (byte)(ssl->compressionAlgPrefListLen * OPAQUE16_LEN);
+            list = ssl->compressionAlgPrefList;
+        }
+        data = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TLSX);
         if (data == NULL)
             return MEMORY_ERROR;
-        *data = (byte)sizeof(TLSX_CertCompression_Supported_Algs);
-        XMEMCPY(data + OPAQUE8_LEN,
-                TLSX_CertCompression_Supported_Algs, *data);
-        ret = TLSX_Push(extensions, TLSX_CERT_COMPRESSION, data, heap);
+        /* length of the alg list so sub self */
+        *data = (byte)(len - sizeof(*data));
+        /* skip past len byte */
+        dataPtr = data + 1;
+        for (i = 0; i < (word32)((len - 1) / 2); i++) {
+            /* write each alg Id in to wire order list of Opaque 16s */
+            c16toa(list[i], dataPtr);
+            dataPtr += 2;
+        }
+        ret = TLSX_Push(&ssl->extensions, TLSX_CERT_COMPRESSION, data, heap);
+        if (ret != 0)
+            XFREE(data, heap, DYNAMIC_TYPE_TLSX);
     }
     return ret;
 }
@@ -8459,13 +8480,13 @@ static int TLSX_CertCompression_Write(byte* data, byte* output, byte msgType,
         return SANITY_MSG_E;
     }
 
-    /* 254 is the max number of bytes the compressions alg list can be */
-    if (*data > 254) {
+    /* length cannot be 0 if this ext is present algorithms<2...2^8-2> */
+    if (*data == 0) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
-    len = *data + OPAQUE8_LEN;
+    len = (byte)(*data + OPAQUE8_LEN);
 
     XMEMCPY(output, data, len);
 
@@ -8478,16 +8499,20 @@ static int TLSX_CertCompression_Write(byte* data, byte* output, byte msgType,
  *
  * ssl     The SSL/TLS object.
  * input   The buffer with the extension data.
- * length  The length of the extension data must be 254 or less and even.
+ * length  The length of the extension data must be less than 1 + 254 and odd.
  * returns 0 on success, otherwise failure.
  */
-static int TLSX_CertCompression_Parse(WOLFSSL *ssl, const byte* input,
-                                              word16 length)
+static int TLSX_CertCompression_Parse(WOLFSSL* ssl, const byte* input,
+                                      word16 length)
 {
-    byte len;
+    byte   len;
     word16 i;
+
     /* set default */
     ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
+    if (ssl->noOfferCompressionAlgPrefList)
+        /* skip we have this feat turned off */
+        return 0;
 
     /* algorithms<2..2^8-2>: length byte plus at least one 2-byte alg id. */
     if (length < OPAQUE8_LEN + OPAQUE16_LEN) {
@@ -8504,21 +8529,33 @@ static int TLSX_CertCompression_Parse(WOLFSSL *ssl, const byte* input,
 
     /* Peer's list is in its preference order. An all-unsupported list is not
      * an error - we just send an uncompressed Certificate. */
-    for (i = OPAQUE8_LEN; i < len; i += OPAQUE16_LEN) {
+    for (i = OPAQUE8_LEN; i + OPAQUE16_LEN <= OPAQUE8_LEN + len &&
+            ssl->peerCertCompressionAlg == WC_NO_COMPRESSION;
+            i += OPAQUE16_LEN) {
         word16 alg;
         ato16(input + i, &alg);
-        if (wc_isCompressionAlgSupported(alg)) {
+        if (ssl->compressionAlgPrefListLen > 0) {
+            word32 subIndex = 0;
+            for (; subIndex < ssl->compressionAlgPrefListLen; subIndex++) {
+                if (alg == ssl->compressionAlgPrefList[subIndex]) {
+                    ssl->peerCertCompressionAlg = alg;
+                    break;
+                }
+            }
+        }
+        /* default if user has not set a list */
+        else if (wc_IsCompressionAlgSupported(alg)) {
             ssl->peerCertCompressionAlg = alg;
-            break;
         }
     }
     return 0;
 }
 
-#define CC_GET_SIZE  TLSX_CertCompression_GetSize
-#define CC_WRITE     TLSX_CertCompression_Write
-#define CC_PARSE     TLSX_CertCompression_Parse
-#endif /* WOLFSSL_TLS13 && NO_CERTS && WOLFSSL_CERT_COMPRESSION */
+#define CC_GET_SIZE   TLSX_CertCompression_GetSize
+#define CC_WRITE      TLSX_CertCompression_Write
+#define CC_PARSE      TLSX_CertCompression_Parse
+#endif /* WOLFSSL_TLS13 && !NO_CERTS && WOLFSSL_CERT_COMPRESSION */
+
 
 /******************************************************************************/
 /* Key Share                                                                  */
@@ -16059,9 +16096,9 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 ret = PSK_WITH_CERT_GET_SIZE(msgType, &cbShim);
                 length += cbShim;
                 break;
-        #endif /* WOLFSSL_CERT_WITH_EXTERN_PSK */
-        #endif /* WOLFSSL_TLS13 */
-    #endif /* HAVE_SESSION_TICKET or ! NO_PSK */
+        #endif
+        #endif
+    #endif
             case TLSX_KEY_SHARE:
                 length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
                 break;
@@ -16090,11 +16127,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #ifdef WOLFSSL_CERT_COMPRESSION
             case TLSX_CERT_COMPRESSION:
                 cbShim = 0;
-                ret = CC_GET_SIZE((byte*)extension->data, msgType,
-                                                                       &cbShim);
+                ret = CC_GET_SIZE((byte*)extension->data, msgType, &cbShim);
                 length += cbShim;
                 break;
     #endif
+
 
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
@@ -16401,7 +16438,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 WOLFSSL_MSG("Certificate Compression extension to write");
                 cbShim = 0;
                 ret = CC_WRITE((byte*)extension->data, output + offset,
-                        msgType, &cbShim);
+                                                              msgType, &cbShim);
                 offset += cbShim;
                 break;
     #endif
@@ -16970,9 +17007,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
         }
 #endif
-
 #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_COMPRESSION)
-        ret = TLSX_UseCertCompression(&ssl->extensions, ssl->heap);
+        /* This extension is always added to the client if it has not been
+         * turned off with the set func. It is added to the server when a
+         * certificate request is sent. */
+        ret = TLSX_UseCertCompression(ssl, ssl->heap);
         if (ret != 0)
             return ret;
 #endif
@@ -17016,17 +17055,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif
     } /* is not server */
-
-#if !defined(NO_CERTS) && defined(WOLFSSL_CERT_COMPRESSION)
-    /* RFC 8879 Section 3: the server's only slot for compress_certificate is
-     * CertificateRequest, so only advertise when we will actually ask the
-     * client for a certificate. */
-    if (isServer && ssl->options.verifyPeer) {
-        ret = TLSX_UseCertCompression(&ssl->extensions, ssl->heap);
-        if (ret != 0)
-            return ret;
-    }
-#endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     WOLFSSL_MSG("Adding signature algorithms extension");
@@ -18121,12 +18149,12 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         /* TLSX_STATUS_REQUEST is enabled: the server may request the client
          * to staple an OCSP response with its CertificateRequest. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
-#ifdef WOLFSSL_CERT_COMPRESSION
+    #ifdef WOLFSSL_CERT_COMPRESSION
         /* RFC 8879 Section 3: compress_certificate may be sent in
          * CertificateRequest to tell the client how it may compress its own
          * Certificate message. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CERT_COMPRESSION));
-#endif
+    #endif
     }
     #endif
 #if defined(HAVE_ECH)
@@ -18375,12 +18403,12 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         /* TLSX_STATUS_REQUEST is enabled: the server may request the client
          * to staple an OCSP response with its CertificateRequest. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
-#ifdef WOLFSSL_CERT_COMPRESSION
+    #ifdef WOLFSSL_CERT_COMPRESSION
         /* RFC 8879 Section 3: compress_certificate may be sent in
          * CertificateRequest to tell the client how it may compress its own
          * Certificate message. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CERT_COMPRESSION));
-#endif
+    #endif
     }
 #endif
 #endif
@@ -19595,7 +19623,8 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
 
-                if (msgType != client_hello && msgType != certificate_request) {
+                if (msgType != client_hello &&
+                    msgType != certificate_request) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
