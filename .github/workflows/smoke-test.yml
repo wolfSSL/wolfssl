@@ -169,21 +169,25 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
           PREFIX: smoke-ccache-${{ github.ref_name }}-
         run: |
-          gh api "repos/${{ github.repository }}/actions/caches?key=$PREFIX&ref=${{ github.ref }}&per_page=100" \
-            --paginate --jq '.actions_caches[] | "\(.created_at) \(.id) \(.key)"' \
-            | sort -r | tail -n +2 | {
-            failed=0
-            while read -r created id key; do
-              if gh api --method DELETE "repos/${{ github.repository }}/actions/caches/$id" > /dev/null; then
-                echo "deleted $key (created $created)"
-              else
-                echo "failed to delete $key"; failed=1
-              fi
-            done
-            exit $failed
-          }
+          # Housekeeping must not fail the build: an entry that vanished
+          # between the list and the delete is fine, anything else is
+          # surfaced as an annotation.
+          gh api -X GET "repos/$REPO/actions/caches" -f key="$PREFIX" -f ref="$REF" \
+            -f sort=created_at -f direction=desc -F per_page=100 \
+            --jq '.actions_caches[1:][] | "\(.id) \(.key)"' |
+          while read -r id key; do
+            if err=$(gh api -X DELETE "repos/$REPO/actions/caches/$id" 2>&1 >/dev/null); then
+              echo "deleted $key"
+            elif [[ $err == *"HTTP 404"* ]]; then
+              echo "$key already gone"
+            else
+              echo "::error::could not delete $key: $err"
+            fi
+          done
 
       - name: ccache stats
         if: always() && steps.merge_check.outputs.skip != 'true'

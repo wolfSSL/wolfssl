@@ -20,7 +20,9 @@ on:
   # Run the build and update the ccache on:
   # - Scheduled: weekday mornings at 10:00 UTC to keep the ccache.
   #   This reseeds the ccache from scratch (manual runs do as well).
-  # - Any push to master that changed headers or the build system.
+  # - Any push to master that changed headers or the build system since the
+  #   last seed (linux shards only; macOS is seeded by the cron and manual
+  #   runs, since its runner pool is small and its cold-cache cost minor).
   # Note that Windows builds are skipped on a seed run since it uses Visual
   # Studio and has no ccache to seed.
   #
@@ -29,7 +31,7 @@ on:
   # on a cron or manual seed run (a push seed is incremental), and a save
   # only on seed runs. macOS goes through the shared ccache-setup composite,
   # which sets CCACHE_RECACHE and skips the restore only on the cron (not on
-  # a dispatch or push seed) and saves on every run that is not read-only,
+  # a dispatch seed) and saves on every run that is not read-only,
   # i.e. every non-PR run, release pushes included. Left as-is deliberately;
   # the note is here so the difference is not rediscovered from a surprising
   # cache.
@@ -65,6 +67,9 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name == 'push') && (github.ref == 'refs/heads/master') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
       seed: ${{ steps.check.outputs.seed }}
     steps:
@@ -72,16 +77,30 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
+          # Compare with the commit of the oldest shard seed rather than the
+          # previous push, so a reseed cancelled by a later push (the master
+          # runs share one concurrency group) is redone by that push.
           # The compare endpoint lists at most 300 changed files, so a push
           # that large is treated as wide-reaching without looking further.
           seed=true
-          if files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --paginate --jq '.files[].filename' | sort -u); then
+          last=$(gh api -X GET "repos/$REPO/actions/caches" \
+                   -f key=os-check-linux-ccache- -f ref=refs/heads/master -F per_page=100 \
+                   --jq '[.actions_caches[] | select(.key | test("^os-check-linux-ccache-[1-4]-master-[0-9a-f]{40}$"))]
+                         | group_by(.key | split("-")[4])
+                         | if length == 4 then map(max_by(.created_at)) | min_by(.created_at).key else empty end') || last=
+          base=${last##*-}
+          [[ $base =~ ^[0-9a-f]{40}$ ]] || base=$BEFORE
+          if files=$(gh api "repos/$REPO/compare/$base...$SHA" --jq '.files[]?.filename' | sort -u); then
             count=$(printf '%s\n' "$files" | grep -c . || true)
-            if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -qE '^(wolfssl/.*\.h|configure\.ac|m4/.*|.*\.am)$'; then
+            if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -qE \
+                '^(wolfssl/.*\.h|wolfcrypt/src/misc\.c|tests/.*\.h|configure\.ac|m4/.*|.*\.am|\.github/configs/os-check-.*\.json|\.github/workflows/os-check\.yml)$'; then
               seed=false
             fi
-            echo "changed files: $count, wide reach: $seed"
+            echo "last seed ${base:0:10}, changed files: $count, wide reach: $seed"
           else
             echo "compare unavailable, seeding to be safe"
           fi
@@ -227,21 +246,25 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
           PREFIX: os-check-linux-ccache-${{ matrix.shard }}-${{ github.ref_name }}-
         run: |
-          gh api "repos/${{ github.repository }}/actions/caches?key=$PREFIX&ref=${{ github.ref }}&per_page=100" \
-            --paginate --jq '.actions_caches[] | "\(.created_at) \(.id) \(.key)"' \
-            | sort -r | tail -n +2 | {
-            failed=0
-            while read -r created id key; do
-              if gh api --method DELETE "repos/${{ github.repository }}/actions/caches/$id" > /dev/null; then
-                echo "deleted $key (created $created)"
-              else
-                echo "failed to delete $key"; failed=1
-              fi
-            done
-            exit $failed
-          }
+          # Housekeeping must not fail the build: an entry that vanished
+          # between the list and the delete is fine, anything else is
+          # surfaced as an annotation.
+          gh api -X GET "repos/$REPO/actions/caches" -f key="$PREFIX" -f ref="$REF" \
+            -f sort=created_at -f direction=desc -F per_page=100 \
+            --jq '.actions_caches[1:][] | "\(.id) \(.key)"' |
+          while read -r id key; do
+            if err=$(gh api -X DELETE "repos/$REPO/actions/caches/$id" 2>&1 >/dev/null); then
+              echo "deleted $key"
+            elif [[ $err == *"HTTP 404"* ]]; then
+              echo "$key already gone"
+            else
+              echo "::error::could not delete $key: $err"
+            fi
+          done
 
       - name: ccache stats
         if: always()
@@ -273,11 +296,13 @@ jobs:
   # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
-    needs: [seed_gate]
     # Runs on PRs/pushes and on a seed run (the cron or a manual dispatch),
     # where it --build-only-seeds the macOS ccache like the linux shards.
     # Windows is the only job skipped on a seed run (no ccache to seed).
-    if: ${{ !cancelled() && (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && (github.event_name != 'push' || github.ref != 'refs/heads/master' || needs.seed_gate.outputs.seed == 'true') }}
+    # Not seeded on master pushes: macOS runner concurrency is small, and a
+    # fresh macOS seed saves only about two minutes per PR job. The cron and
+    # a manual dispatch still seed it.
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && (github.event_name != 'push' || github.ref != 'refs/heads/master') }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
     # one-time setup, with headroom for a cold ccache.
@@ -319,7 +344,7 @@ jobs:
       - name: Build and make check all configs (serial checks, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
-            ${{ (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
+            ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --threads 1 --cc= \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs .github/configs/os-check-macos.json
