@@ -285,9 +285,11 @@ endif # WOLFSSL_ECC
 config WOLFSSL_ECC_ALLOW_ZERO_HASH
   bool
 
-# The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it.
+# The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it, and
+# a settings file replaces the module defaults that map the choice below.
 config WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
   bool
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y if !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
 
 config WOLFSSL_AES_CONSTANT_TIME
