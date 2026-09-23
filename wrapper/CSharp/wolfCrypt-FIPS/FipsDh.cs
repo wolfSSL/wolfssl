@@ -61,15 +61,32 @@ namespace wolfSSL.CSharp.Fips
             PrimeSize = (int)group switch { 256 => 256, 257 => 384, 258 => 512, 259 => 768, _ => 1024 };
         }
 
-        /* Explicit domain parameters p, g and q (q may be null). */
-        public FipsDh(byte[] p, byte[] g, byte[]? q) : base(FipsStructType.Dh)
+        /* Explicit FIPS 186-type domain parameters p, g and q. SP 800-131A
+         * Rev. 2 Table 4 allows only (len(p), len(q)) = (2048, 224) or
+         * (2048, 256); other sizes are disallowed. Prefer the named groups. */
+        public FipsDh(byte[] p, byte[] g, byte[] q) : base(FipsStructType.Dh)
         {
-            if (p == null || g == null)
-                throw new ArgumentNullException(p == null ? nameof(p) : nameof(g));
+            if (p == null || g == null || q == null)
+                throw new ArgumentNullException(p == null ? nameof(p) : g == null ? nameof(g) : nameof(q));
+            int pBits = BitLength(p), qBits = BitLength(q);
+            if (pBits != 2048 || (qBits != 224 && qBits != 256)) {
+                Dispose();
+                throw new ArgumentException("DH domain parameters must be (len(p), len(q)) = (2048, 224) or (2048, 256)");
+            }
             Init();
             Call("wc_DhSetKeyEx_fips", Native.wc_DhSetKeyEx_fips(Handle, p, (uint)p.Length, g, (uint)g.Length,
-                q, q == null ? 0u : (uint)q.Length));
+                q, (uint)q.Length));
             PrimeSize = p.SkipWhile(b => b == 0).Count();
+        }
+
+        private static int BitLength(byte[] v)
+        {
+            int i = 0;
+            while (i < v.Length && v[i] == 0) i++;
+            if (i == v.Length) return 0;
+            int bits = (v.Length - i - 1) * 8, b = v[i];
+            while (b != 0) { bits++; b >>= 1; }
+            return bits;
         }
 
         private void Init()

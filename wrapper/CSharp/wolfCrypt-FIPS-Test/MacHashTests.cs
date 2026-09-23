@@ -87,6 +87,15 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!FipsCmac.Verify(key, msg, tag), "modified tag accepted");
             });
 
+            T.Run("CMAC tags below 64 bits are refused", () => {
+                bool threw = false;
+                try { FipsCmac.Compute(new byte[16], new byte[1], 4); } catch (ArgumentOutOfRangeException) { threw = true; }
+                T.True(threw, "4-byte tag generated");
+                threw = false;
+                try { FipsCmac.Verify(new byte[16], new byte[1], new byte[6]); } catch (ArgumentOutOfRangeException) { threw = true; }
+                T.True(threw, "6-byte tag verified");
+            });
+
             T.Run("CMAC is single use", () => {
                 using var c = new FipsCmac(new byte[16]);
                 c.Final();
@@ -165,7 +174,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
         private static void CmacVectors()
         {
-            int gen = 0, ver = 0;
+            int gen = 0, ver = 0, shortTag = 0;
             foreach (AcvpVectorSet set in Acvp.Load("CMAC-AES")) {
                 foreach (var g in set.Groups) {
                     int macLen = g.GetProperty("macLen").GetInt32() / 8;
@@ -174,6 +183,18 @@ namespace wolfSSL.CSharp.Fips.Test
                         var exp = set.ExpectedFor(g, t);
                         string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
                         byte[] key = Acvp.Hex(t, "key"), msg = Acvp.Hex(t, "message");
+                        if (macLen < FipsCmac.MinTagSize) {
+                            /* tags under 64 bits are not offered (SP 800-38B A.2) */
+                            bool refused = false;
+                            try {
+                                if (dir == "gen") FipsCmac.Compute(key, msg, macLen);
+                                else FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"));
+                            }
+                            catch (ArgumentOutOfRangeException) { refused = true; }
+                            T.True(refused, where + " short CMAC tag accepted");
+                            shortTag++;
+                            continue;
+                        }
                         if (dir == "gen") {
                             T.Bytes(Acvp.Hex(exp, "mac"), FipsCmac.Compute(key, msg, macLen), where);
                             gen++;
@@ -186,7 +207,7 @@ namespace wolfSSL.CSharp.Fips.Test
                     }
                 }
             }
-            Console.WriteLine("        CMAC-AES: " + gen + " gen, " + ver + " ver vectors");
+            Console.WriteLine("        CMAC-AES: " + gen + " gen, " + ver + " ver, " + shortTag + " sub-64-bit tag refused");
         }
     }
 }

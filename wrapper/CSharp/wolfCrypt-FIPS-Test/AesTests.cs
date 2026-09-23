@@ -70,7 +70,37 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(threw, "15-byte key accepted");
             });
 
+            T.Run("CBC/OFB/CTR with DRBG-generated IV: fresh IV per object, round trip", () => {
+                using var rng = new FipsRng();
+                byte[] key = new byte[16], msg = new byte[48];
+                using var c1 = FipsAes.CreateCbc(key, rng);
+                using var c2 = FipsAes.CreateCbc(key, rng);
+                T.True(!c1.IV!.SequenceEqual(c2.IV!), "IV repeated");
+                byte[] ct = c1.Transform(msg);
+                using var dec = FipsAes.CreateCbc(key, c1.IV!, false);
+                T.Bytes(msg, dec.Transform(ct), "CBC round trip");
+                using var ctr = FipsAes.CreateCtr(key, rng);
+                using var ctrDec = FipsAes.CreateCtr(key, ctr.IV!);
+                T.Bytes(msg, ctrDec.Transform(ctr.Transform(msg)), "CTR round trip");
+                using var ofb = FipsAes.CreateOfb(key, rng);
+                using var ofbDec = FipsAes.CreateOfb(key, ofb.IV!, false);
+                T.Bytes(msg, ofbDec.Transform(ofb.Transform(msg)), "OFB round trip");
+            });
+
             T.Section("AES-GCM / GMAC");
+
+            T.Run("GCM/GMAC internal IV below 96 bits is refused (IG C.H Scenario 2)", () => {
+                using var rng = new FipsRng();
+                using var gcm = new FipsAesGcm(new byte[16]);
+                bool threw = false;
+                try { gcm.UseInternalIV(rng, 8); } catch (ArgumentOutOfRangeException) { threw = true; }
+                T.True(threw, "8-byte GCM IV accepted");
+                threw = false;
+                try { FipsGmac.Compute(new byte[16], new byte[4], rng, 8); } catch (ArgumentOutOfRangeException) { threw = true; }
+                T.True(threw, "8-byte GMAC IV accepted");
+                gcm.UseInternalIV(rng, 16);
+                T.Equal(16, gcm.Encrypt(new byte[1]).IV.Length, "16-byte IV");
+            });
             T.Run("ACVP AES-GCM (external + internal IV, 8.2.1 + 8.2.2)", GcmVectors);
             T.Run("ACVP AES-GMAC (external + internal IV, 8.2.1 + 8.2.2)", GmacVectors);
 
@@ -111,6 +141,16 @@ namespace wolfSSL.CSharp.Fips.Test
                 var r2 = ccm.Encrypt(new byte[] { 1, 2, 3 });
                 T.True(!r1.IV.SequenceEqual(r2.IV), "nonce reused");
                 T.Bytes(new byte[] { 1, 2, 3 }, ccm.Decrypt(r2.IV, r2.Ciphertext, r2.Tag), "round trip");
+            });
+
+            T.Run("CCM tags below 64 bits are refused", () => {
+                using var ccm = new FipsAesCcm(new byte[16]);
+                ccm.SetNonce(new byte[12]);
+                foreach (int ts in new[] { 4, 6, 9 }) {
+                    bool threw = false;
+                    try { ccm.Encrypt(new byte[1], null, ts); } catch (ArgumentOutOfRangeException) { threw = true; }
+                    T.True(threw, "tag " + ts + " accepted");
+                }
             });
 
             T.Run("CCM modified tag fails with AES_CCM_AUTH_E", () => {
@@ -206,7 +246,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
         private static void GcmVectors()
         {
-            int ext = 0, intEnc = 0, dec = 0;
+            int ext = 0, intEnc = 0, dec = 0, refusedShortIv = 0;
             using var rng = new FipsRng();
             foreach (AcvpVectorSet set in Acvp.Load("ACVP-AES-GCM")) {
                 foreach (var g in set.Groups) {
@@ -232,6 +272,19 @@ namespace wolfSSL.CSharp.Fips.Test
                              * trips, and that the recorded response decrypts
                              * under the recorded IV. */
                             byte[] pt = Acvp.Hex(t, "pt");
+                            if (ivLen < 12) {
+                                /* IG C.H Scenario 2: internal IVs >= 96 bits;
+                                 * the wrapper refuses shorter ones. The
+                                 * recorded response still decrypts. */
+                                bool refused = false;
+                                try { gcm.UseInternalIV(rng, ivLen, deterministic ? FixedField : null); }
+                                catch (ArgumentOutOfRangeException) { refused = true; }
+                                T.True(refused, where + " 64-bit internal IV accepted");
+                                T.Bytes(pt, gcm.Decrypt(Acvp.Hex(exp, "iv"), Acvp.Hex(exp, "ct"), Acvp.Hex(exp, "tag"), aad),
+                                        where + " recorded response");
+                                refusedShortIv++;
+                                continue;
+                            }
                             gcm.UseInternalIV(rng, ivLen, deterministic ? FixedField : null);
                             var r = gcm.Encrypt(pt, aad, tagLen);
                             T.Equal(ivLen, r.IV.Length, where + " iv length");
@@ -248,7 +301,8 @@ namespace wolfSSL.CSharp.Fips.Test
                     }
                 }
             }
-            Console.WriteLine("        GCM: " + ext + " external-IV encrypt, " + intEnc + " internal-IV encrypt, " + dec + " decrypt");
+            Console.WriteLine("        GCM: " + ext + " external-IV encrypt, " + intEnc + " internal-IV encrypt, " + dec +
+                              " decrypt, " + refusedShortIv + " internal 64-bit IV refused");
         }
 
         private static void GmacVectors()
@@ -270,6 +324,15 @@ namespace wolfSSL.CSharp.Fips.Test
                             var r = gcm.EncryptWithIV(Acvp.Hex(t, "iv"), Array.Empty<byte>(), aad, tagLen);
                             T.Bytes(Acvp.Hex(exp, "tag"), r.Tag, where);
                             ext++;
+                        }
+                        else if (enc && ivLen < 12) {
+                            bool refused = false;
+                            try { FipsGmac.Compute(key, aad, rng, ivLen, tagLen); }
+                            catch (ArgumentOutOfRangeException) { refused = true; }
+                            T.True(refused, where + " 64-bit internal IV accepted");
+                            T.True(FipsGmac.Verify(key, Acvp.Hex(exp, "iv"), aad, Acvp.Hex(exp, "tag")),
+                                   where + " recorded response");
+                            intEnc++;
                         }
                         else if (enc) {
                             var r = FipsGmac.Compute(key, aad, rng, ivLen, tagLen);
@@ -294,7 +357,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
         private static void CcmVectors()
         {
-            int e = 0, d = 0;
+            int e = 0, d = 0, shortTag = 0;
             foreach (AcvpVectorSet set in Acvp.Load("ACVP-AES-CCM")) {
                 foreach (var g in set.Groups) {
                     bool enc = g.GetProperty("direction").GetString() == "encrypt";
@@ -304,6 +367,22 @@ namespace wolfSSL.CSharp.Fips.Test
                         string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
                         byte[] key = Acvp.Hex(t, "key"), aad = Acvp.Hex(t, "aad"), nonce = Acvp.Hex(t, "iv");
                         using var ccm = new FipsAesCcm(key);
+                        if (tagLen < FipsAesCcm.MinTagSize) {
+                            /* 32/48-bit tags are not offered by the wrapper */
+                            bool refused = false;
+                            try {
+                                if (enc) { ccm.SetNonce(nonce); ccm.Encrypt(Acvp.Hex(t, "pt"), aad, tagLen); }
+                                else {
+                                    byte[] ct2 = Acvp.Hex(t, "ct");
+                                    ccm.Decrypt(nonce, ct2.Take(ct2.Length - tagLen).ToArray(),
+                                                ct2.Skip(ct2.Length - tagLen).ToArray(), aad);
+                                }
+                            }
+                            catch (ArgumentOutOfRangeException) { refused = true; }
+                            T.True(refused, where + " short CCM tag accepted");
+                            shortTag++;
+                            continue;
+                        }
                         if (enc) {
                             ccm.SetNonce(nonce);
                             var r = ccm.Encrypt(Acvp.Hex(t, "pt"), aad, tagLen);
@@ -321,7 +400,7 @@ namespace wolfSSL.CSharp.Fips.Test
                     }
                 }
             }
-            Console.WriteLine("        CCM: " + e + " encrypt, " + d + " decrypt");
+            Console.WriteLine("        CCM: " + e + " encrypt, " + d + " decrypt, " + shortTag + " 32/48-bit tag refused");
         }
 
         /* Expected is either {pt} (tag verifies) or {testPassed: false}. */

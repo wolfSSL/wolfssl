@@ -45,6 +45,10 @@ namespace wolfSSL.CSharp.Fips
         public FipsAesMode Mode { get; }
         public bool Encrypting { get; }
 
+        /* IV (or initial counter block) the object was created with; null
+         * for ECB. */
+        public byte[]? IV { get; }
+
         private FipsAes(FipsAesMode mode, bool encrypt, byte[] key, byte[]? iv) : base(FipsStructType.Aes)
         {
             if (key == null)
@@ -53,6 +57,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
             Mode = mode;
             Encrypting = encrypt;
+            IV = iv == null ? null : (byte[])iv.Clone();
             int ret;
             string fn;
             if (mode == FipsAesMode.Ctr) {
@@ -71,7 +76,23 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
+        /* IV requirements (SP 800-38A): the CBC IV must be unpredictable,
+         * the OFB IV unique per key, and CTR counter blocks unique per key.
+         * The overloads taking a FipsRng draw a fresh 16-byte IV / initial
+         * counter from the module DRBG for encryption (read it from IV);
+         * the overloads taking an IV leave these conditions to the caller
+         * and are intended for decryption and interoperability. */
         public static FipsAes CreateEcb(byte[] key, bool encrypt) => new FipsAes(FipsAesMode.Ecb, encrypt, key, null);
+        public static FipsAes CreateCbc(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng));
+        public static FipsAes CreateOfb(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng));
+        public static FipsAes CreateCtr(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Ctr, true, key, NewIV(rng));
+
+        private static byte[] NewIV(FipsRng rng)
+        {
+            if (rng == null)
+                throw new ArgumentNullException(nameof(rng));
+            return rng.Generate(BlockSize);
+        }
         public static FipsAes CreateCbc(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Cbc, encrypt, key, iv);
         public static FipsAes CreateOfb(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Ofb, encrypt, key, iv);
         /* iv is the initial counter block. CTR encryption and decryption are

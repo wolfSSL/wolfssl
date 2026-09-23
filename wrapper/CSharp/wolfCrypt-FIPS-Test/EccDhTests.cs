@@ -92,7 +92,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             byte[] msg = Acvp.Hex(t, "message");
                             byte[] digest = component ? msg : FipsHash.Compute(h, msg);
-                            byte[] sig = key.SignHash(digest);
+                            byte[] sig = key.SignHash(h, digest);
                             string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
                             T.True(key.VerifyHash(digest, sig), where + " module verify");
                             if (dn != null) {
@@ -141,7 +141,7 @@ namespace wolfSSL.CSharp.Fips.Test
             T.Run("tampered signature or digest does not verify", () => {
                 using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
                 byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
-                byte[] sig = k.SignHash(d);
+                byte[] sig = k.SignHash(FipsHashType.Sha256, d);
                 byte[] d2 = (byte[])d.Clone(); d2[0] ^= 1;
                 T.True(!k.VerifyHash(d2, sig), "wrong digest");
                 byte[] rs = FipsEcdsaSignature.ToP1363(sig, 32);
@@ -153,8 +153,19 @@ namespace wolfSSL.CSharp.Fips.Test
                 using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
                 using var pub = FipsEccKey.ImportPublic(FipsEccCurve.P256, k.ExportPublic());
                 bool threw = false;
-                try { pub.SignHash(new byte[32]); } catch (InvalidOperationException) { threw = true; }
+                try { pub.SignHash(FipsHashType.Sha256, new byte[32]); } catch (InvalidOperationException) { threw = true; }
                 T.True(threw, "public key signed");
+            });
+
+            T.Run("ECDSA signing refuses SHA-1 and mismatched digest lengths", () => {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
+                bool threw = false;
+                try { k.SignHash(FipsHashType.Sha1, new byte[20]); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "SHA-1 signed");
+                threw = false;
+                try { k.SignHash(FipsHashType.Sha384, new byte[32]); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "32-byte digest accepted as SHA-384");
+                T.True(k.VerifyHash(new byte[32], k.SignHash(FipsHashType.Sha256, new byte[32])), "SHA-256 still signs");
             });
 
             T.Run("off-curve public key fails key check", () => {
@@ -258,6 +269,22 @@ namespace wolfSSL.CSharp.Fips.Test
                 bool threw = false;
                 try { dh.Agree(a.PrivateKey, one); } catch (WolfCryptFipsException) { threw = true; }
                 T.True(threw, "agreement with y = 1");
+            });
+
+            T.Run("explicit DH parameters other than (2048, 224/256) are refused", () => {
+                /* RFC 2409 group 2: 1024-bit p */
+                byte[] p1024 = Convert.FromHexString(
+                    "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22" +
+                    "514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6" +
+                    "F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" +
+                    "FFFFFFFFFFFFFFFF");
+                byte[] q160 = new byte[20]; q160[0] = 0x80;
+                byte[] p2048 = new byte[256]; p2048[0] = 0x80; p2048[^1] = 1;
+                foreach (var (p, q, what) in new[] { (p1024, q160, "1024/160"), (p2048, q160, "2048/160") }) {
+                    bool threw = false;
+                    try { new FipsDh(p, new byte[] { 2 }, q).Dispose(); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, "" + what + " accepted");
+                }
             });
 
             T.Run("DH GeneratePublic matches generated key pair (v5.2.3+)", () => {

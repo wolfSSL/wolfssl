@@ -133,12 +133,17 @@ namespace wolfSSL.CSharp.Fips
             return buf.Take((int)len).ToArray();
         }
 
-        /* ECDSA signature over a message digest; returns DER
-         * SEQUENCE { r, s } (see FipsEcdsaSignature for r/s conversion). */
-        public byte[] SignHash(byte[] digest)
+        /* ECDSA signature over a message digest made with hash; returns DER
+         * SEQUENCE { r, s } (see FipsEcdsaSignature for r/s conversion).
+         * SHA-1 is refused (signature generation, SP 800-131A); the digest
+         * length must match hash. */
+        public byte[] SignHash(FipsHashType hash, byte[] digest)
         {
             if (digest == null)
                 throw new ArgumentNullException(nameof(digest));
+            FipsRsaKey.RejectSha1ForSigning(hash);
+            if (digest.Length != FipsHash.DigestSizeOf(hash))
+                throw new ArgumentException("digest length does not match " + hash, nameof(digest));
             RequirePrivate();
             if (Curve == FipsEccCurve.P192)
                 throw new InvalidOperationException("P-192 signing is not approved");

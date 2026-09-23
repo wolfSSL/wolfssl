@@ -24,14 +24,16 @@ using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* CMAC-AES (SP 800-38B) from the FIPS module. Single use: create a new
+    /* CMAC-AES (SP 800-38B) from the FIPS module. Tags are 8 to 16 bytes:
+     * tags under 64 bits need a separate risk analysis (SP 800-38B A.2) and
+     * are not offered. Single use: create a new
      * instance per message. The v5.2.3 boundary has no CMAC free routine;
      * the object's memory is zeroed and released on Dispose. */
     public sealed class FipsCmac : FipsObject
     {
         private const int WC_CMAC_AES = 1;
         public const int MaxTagSize = 16;
-        public const int MinTagSize = 4;
+        public const int MinTagSize = 8;
         private bool finished;
 
         public FipsCmac(byte[] key) : base(FipsStructType.Cmac)
@@ -56,7 +58,7 @@ namespace wolfSSL.CSharp.Fips
                 Native.wc_CmacUpdate_fips(Handle, data, (uint)data.Length));
         }
 
-        /* Returns a tag of tagSize bytes (4 to 16; shorter tags are the
+        /* Returns a tag of tagSize bytes (8 to 16; shorter tags are the
          * leftmost bytes of the full tag). */
         public byte[] Final(int tagSize = MaxTagSize)
         {
@@ -87,7 +89,7 @@ namespace wolfSSL.CSharp.Fips
             if (tag == null)
                 throw new ArgumentNullException(nameof(tag));
             if (tag.Length < MinTagSize || tag.Length > MaxTagSize)
-                return false;
+                throw new ArgumentOutOfRangeException(nameof(tag), "CMAC tag must be 8 to 16 bytes");
             byte[] expected = Compute(key, data, tag.Length);
             return CryptographicOperations.FixedTimeEquals(expected, tag);
         }

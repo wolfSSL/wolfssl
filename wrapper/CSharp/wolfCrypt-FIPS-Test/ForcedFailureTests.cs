@@ -150,7 +150,7 @@ namespace wolfSSL.CSharp.Fips.Test
             var ecc = FipsEccKey.Generate(FipsEccCurve.P256, rng);
             var eccPeer = FipsEccKey.Generate(FipsEccCurve.P256, rng);
             byte[] eccPub = eccPeer.ExportPublic();
-            byte[] eccSig = ecc.SignHash(d256);
+            byte[] eccSig = ecc.SignHash(FipsHashType.Sha256, d256);
             var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
             var dhA = dh.GenerateKeyPair(rng);
             var dhB = dh.GenerateKeyPair(rng);
@@ -173,7 +173,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 new() { Name = "RSA sign (existing key)", UsesDrbg = true, Casts = new[] { "RSA" }, Run = () => rsa.SignPkcs1v15(FipsHashType.Sha256, d256, rng) },
                 new() { Name = "RSA verify (existing key)", Casts = new[] { "RSA" }, Run = () => Require(rsa.VerifyPkcs1v15(FipsHashType.Sha256, d256, rsaSig)) },
                 new() { Name = "RSA key generation", UsesDrbg = true, Casts = new[] { "RSA" }, Run = () => FipsRsaKey.Generate(2048, rng).Dispose() },
-                new() { Name = "ECDSA sign (existing key)", UsesDrbg = true, Casts = new[] { "ECDSA" }, Run = () => ecc.SignHash(d256) },
+                new() { Name = "ECDSA sign (existing key)", UsesDrbg = true, Casts = new[] { "ECDSA" }, Run = () => ecc.SignHash(FipsHashType.Sha256, d256) },
                 new() { Name = "ECDSA verify (existing key)", Casts = new[] { "ECDSA" }, Run = () => Require(ecc.VerifyHash(d256, eccSig)) },
                 new() { Name = "ECC key generation", UsesDrbg = true, Casts = new[] { "ECDSA" }, Run = () => FipsEccKey.Generate(FipsEccCurve.P256, rng).Dispose() },
                 new() { Name = "ECC public import", Casts = new[] { "ECDSA" }, Run = () => FipsEccKey.ImportPublic(FipsEccCurve.P256, eccPub).Dispose() },

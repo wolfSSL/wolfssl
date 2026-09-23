@@ -46,9 +46,9 @@ namespace wolfSSL.CSharp.Fips
      * and advances an invocation counter on every encryption; the IV used is
      * returned in the result.
      *
-     * EncryptWithIV loads a caller-supplied IV (wc_AesGcmSetExtIV_fips). Use
-     * it only where the IV is constructed by a protocol that meets
-     * SP 800-38D (for example TLS), or for known-answer testing.
+     * IVs are at least 96 bits (IG C.H Scenario 2): 12 or 16 bytes.
+     * Encryption with a caller-supplied IV is not offered: the module
+     * Security Policy permits external IVs only for TLS (IG C.H 1(a)).
      *
      * Decryption always takes the IV explicitly and throws
      * WolfCryptFipsException with AES_GCM_AUTH_E on tag mismatch. */
@@ -69,12 +69,14 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Selects module-generated IVs of ivSize bytes. fixedField (may be
-         * null) forms the leading bytes of each IV; the rest comes from rng. */
+        /* Selects module-generated IVs of ivSize bytes (12 or 16).
+         * fixedField (null or 4 bytes) forms the leading bytes of each IV;
+         * the rest comes from rng. */
         public void UseInternalIV(FipsRng rng, int ivSize = DefaultIVSize, byte[]? fixedField = null)
         {
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
+            CheckInternalIVSize(ivSize);
             ThrowIfDisposed();
             rng.ThrowIfDisposed();
             WolfCryptFipsException.Check("wc_AesGcmSetIV_fips",
@@ -91,8 +93,19 @@ namespace wolfSSL.CSharp.Fips
             return EncryptCurrent(plaintext, aad, tagSize, internalIvSize);
         }
 
-        /* Encrypts with a caller-supplied IV. See the class comment. */
-        public FipsAeadResult EncryptWithIV(byte[] iv, byte[] plaintext, byte[]? aad = null,
+        /* IG C.H Scenario 2: an internally generated random IV shall be at
+         * least 96 bits. The module also accepts 8-byte IVs, so this is
+         * checked here. */
+        internal static void CheckInternalIVSize(int ivSize)
+        {
+            if (ivSize != 12 && ivSize != 16)
+                throw new ArgumentOutOfRangeException(nameof(ivSize),
+                    "internally generated GCM IVs must be 12 or 16 bytes (at least 96 bits)");
+        }
+
+        /* Encrypts with a caller-supplied IV (wc_AesGcmSetExtIV_fips).
+         * Internal: used for known-answer testing only. */
+        internal FipsAeadResult EncryptWithIV(byte[] iv, byte[] plaintext, byte[]? aad = null,
                                             int tagSize = MaxTagSize)
         {
             if (iv == null)
@@ -151,6 +164,7 @@ namespace wolfSSL.CSharp.Fips
         {
             if (key == null || aad == null || rng == null)
                 throw new ArgumentNullException(key == null ? nameof(key) : aad == null ? nameof(aad) : nameof(rng));
+            FipsAesGcm.CheckInternalIVSize(ivSize);
             rng.ThrowIfDisposed();
             byte[] iv = new byte[ivSize];
             byte[] tag = new byte[tagSize];
@@ -174,7 +188,9 @@ namespace wolfSSL.CSharp.Fips
         }
     }
 
-    /* AES-CCM (SP 800-38C) from the FIPS module.
+    /* AES-CCM (SP 800-38C) from the FIPS module. Tags are 8 to 16 bytes:
+     * 32 and 48-bit tags need a separate risk analysis (SP 800-38C App. B)
+     * and are not offered.
      *
      * Encryption: SetNonce once, then Encrypt. The module uses the nonce and
      * increments it after each encryption; the nonce used is returned in the
@@ -206,10 +222,19 @@ namespace wolfSSL.CSharp.Fips
             nonceSize = nonce.Length;
         }
 
+        public const int MinTagSize = 8;
+
+        private static void CheckTagSize(int tagSize)
+        {
+            if (tagSize < MinTagSize || tagSize > 16 || tagSize % 2 != 0)
+                throw new ArgumentOutOfRangeException(nameof(tagSize), "CCM tag must be 8, 10, 12, 14 or 16 bytes");
+        }
+
         public FipsAeadResult Encrypt(byte[] plaintext, byte[]? aad = null, int tagSize = 16)
         {
             if (plaintext == null)
                 throw new ArgumentNullException(nameof(plaintext));
+            CheckTagSize(tagSize);
             if (nonceSize == 0)
                 throw new InvalidOperationException("call SetNonce before Encrypt");
             ThrowIfDisposed();
@@ -227,6 +252,7 @@ namespace wolfSSL.CSharp.Fips
         {
             if (nonce == null || ciphertext == null || tag == null)
                 throw new ArgumentNullException();
+            CheckTagSize(tag.Length);
             ThrowIfDisposed();
             aad ??= Array.Empty<byte>();
             byte[] pt = new byte[ciphertext.Length];

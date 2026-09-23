@@ -26,7 +26,7 @@ wrapper binds every entry point by its `_fips` name
 | `FipsRng.cs` | Hash_DRBG (SP 800-90A) |
 | `FipsHash.cs`, `FipsHmac.cs`, `FipsCmac.cs` | SHA-1/2/3, HMAC, CMAC-AES |
 | `FipsAes.cs`, `FipsAesGcm.cs` | AES ECB/CBC/CTR/OFB, GCM, GMAC, CCM |
-| `FipsRsa.cs` | RSA key generation, PKCS#1 v1.5 and PSS signatures, OAEP / PKCS#1 v1.5 encryption |
+| `FipsRsa.cs` | RSA key generation, PKCS#1 v1.5 and PSS signatures, OAEP encryption |
 | `FipsEcc.cs`, `FipsDh.cs` | ECDSA, ECC CDH, finite field DH |
 | `FipsKdf.cs` | TLS 1.2 PRF, HKDF, TLS 1.3 HKDF, SSH KDF |
 | `native/fips_sizes.c` | Structure size helper (see below) |
@@ -108,6 +108,29 @@ in a `finally`. This mirrors wolfSSL's own `PRIVATE_KEY_UNLOCK()` /
 `FipsModule.SetPrivateKeyReadEnable(true)` on the same thread first, and do
 not `await` between the two calls.
 
+## IVs and nonces
+
+- AES-GCM and GMAC encryption use module-generated IVs of 12 or 16 bytes
+  (IG C.H Scenario 2, at least 96 bits). Encryption with a caller-supplied
+  IV is not public: the module Security Policy allows external IVs only for
+  TLS (IG C.H 1(a)).
+- AES-CCM: `SetNonce` once; the module advances the nonce per encryption.
+- AES-CBC, OFB and CTR: `CreateCbc(key, rng)`, `CreateOfb(key, rng)` and
+  `CreateCtr(key, rng)` draw a fresh IV / initial counter from the module
+  DRBG (read it from `IV`). The overloads that take an IV are for
+  decryption and interoperability; with them the caller must meet
+  SP 800-38A (CBC IV unpredictable, OFB IV unique per key, CTR counter
+  blocks unique per key).
+
+## Secret values outside the module
+
+Values the module outputs are the application's to protect: DH private
+keys, ECDH and DH shared secrets, KDF output, decrypted plaintext and
+exported RSA key components are returned as `byte[]`. `FipsDhKeyPair` and
+`FipsRsaKeyComponents` zero their private parts on `Dispose`; zero other
+buffers with `CryptographicOperations.ZeroMemory` when done. The managed
+heap can move arrays, so copies may remain until the memory is reused.
+
 ## Errors
 
 Failures throw `WolfCryptFipsException`; `Code` holds the module's return
@@ -123,6 +146,8 @@ Only services in the v5.2.3 boundary are wrapped.
 | Not provided | Reason |
 |---|---|
 | RSA key import (DER or raw) | Decoders are outside the boundary (`asn.c`); RSA keys come from `FipsRsaKey.Generate` |
+| RSAES-PKCS1-v1_5 encryption | Disallowed for key transport after 2023 (SP 800-131A Rev. 2 Table 5); OAEP only |
+| GCM encryption with a caller IV | External IVs are allowed only for TLS in the Security Policy |
 | ECC private key import | Not in the boundary; ECC public key import (X9.63) is provided |
 | DSA, Ed25519, Curve25519, ML-KEM, ML-DSA, ECIES, HPKE | Not approved services of the v5.2.3 module |
 | MGF1 with SHA-3 (PSS, OAEP) | Not supported by the module |
@@ -135,6 +160,12 @@ wrapper rejects them before calling the module:
 | Check | Module behavior |
 |---|---|
 | RSA key generation limited to 2048, 3072, 4096 bits | v5.2.1 and v5.2.3 also generate 1024-bit keys (bug 6367, `RsaSizeCheck`) |
+| RSA public exponent odd and greater than 2^16 (FIPS 186-5 5.4(e)) | Module accepts any odd e >= 3 |
+| No SHA-1 for RSA or ECDSA signature generation (SP 800-131A Table 8; Security Policy rule 3b) | Module signs SHA-1 digests; SHA-1 verification stays available for legacy signatures |
+| `FipsEccKey.SignHash` takes the hash type and checks the digest length | ECDSA signs any digest |
+| GCM and GMAC internal IVs of 12 or 16 bytes (IG C.H Scenario 2) | Module also accepts 8-byte (64-bit) internal IVs |
+| CMAC and CCM tags of at least 64 bits (SP 800-38B A.2, SP 800-38C App. B) | Module accepts 32-bit tags |
+| Explicit DH parameters only (len(p), len(q)) = (2048, 224/256) (SP 800-131A Table 4) | Module accepts any prime size; use the FFDHE named groups where possible |
 | AES ECB and CBC input must be a multiple of 16 bytes | Without `WOLFSSL_AES_CBC_LENGTH_CHECKS` the module processes only whole blocks, returns success and leaves the tail of the output unencrypted |
 | P-192 limited to public key import and verification | FIPS 186-5 disallows P-192 key generation and signing |
 | An empty HKDF salt is passed as NULL | The module uses HashLen zeros for NULL but rejects a zero-length non-NULL salt as a 0-byte HMAC key |

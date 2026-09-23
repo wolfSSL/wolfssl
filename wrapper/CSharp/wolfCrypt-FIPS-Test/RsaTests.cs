@@ -162,19 +162,43 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(pt, net.Decrypt(key.Encrypt(pt, rng), RSAEncryptionPadding.OaepSHA256), ".NET decrypt");
             });
 
-            T.Run("OAEP with label, and PKCS#1 v1.5 encryption round trip", () => {
+            T.Run("OAEP with label and with SHA-384 round trip", () => {
                 byte[] pt = { 42 }, label = { 1, 1 };
-                T.Bytes(pt, key.Decrypt(key.Encrypt(pt, rng, FipsRsaPadding.Oaep, FipsHashType.Sha256, label),
-                    FipsRsaPadding.Oaep, FipsHashType.Sha256, label), "OAEP label");
-                T.Bytes(pt, key.Decrypt(key.Encrypt(pt, rng, FipsRsaPadding.Pkcs1v15), FipsRsaPadding.Pkcs1v15), "v1.5");
+                T.Bytes(pt, key.Decrypt(key.Encrypt(pt, rng, FipsHashType.Sha256, label), FipsHashType.Sha256, label), "label");
+                T.Bytes(pt, key.Decrypt(key.Encrypt(pt, rng, FipsHashType.Sha384), FipsHashType.Sha384), "SHA-384");
             });
 
             T.Run("OAEP decrypt with wrong label fails", () => {
-                byte[] ct = key.Encrypt(new byte[] { 1 }, rng, FipsRsaPadding.Oaep, FipsHashType.Sha256, new byte[] { 1 });
+                byte[] ct = key.Encrypt(new byte[] { 1 }, rng, FipsHashType.Sha256, new byte[] { 1 });
                 bool threw = false;
-                try { key.Decrypt(ct, FipsRsaPadding.Oaep, FipsHashType.Sha256, new byte[] { 2 }); }
+                try { key.Decrypt(ct, FipsHashType.Sha256, new byte[] { 2 }); }
                 catch (WolfCryptFipsException) { threw = true; }
                 T.True(threw, "wrong label accepted");
+            });
+
+            T.Run("PKCS#1 v1.5 encryption is not offered (OAEP only)", () => {
+                T.True(typeof(FipsRsaKey).Assembly.GetType("wolfSSL.CSharp.Fips.FipsRsaPadding") == null,
+                       "FipsRsaPadding still present");
+            });
+
+            T.Run("SHA-1 signature generation is refused (PKCS#1 v1.5 and PSS)", () => {
+                byte[] d = new byte[20];
+                bool threw = false;
+                try { key.SignPkcs1v15(FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "SHA-1 PKCS#1 v1.5 signed");
+                threw = false;
+                try { key.SignPss(FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "SHA-1 PSS signed");
+            });
+
+            T.Run("public exponent must be odd and above 2^16 (FIPS 186-5 5.4(e))", () => {
+                foreach (long e in new long[] { 3, 17, 65536, 65538 }) {
+                    bool threw = false;
+                    try { FipsRsaKey.Generate(2048, rng, e).Dispose(); } catch (ArgumentOutOfRangeException) { threw = true; }
+                    T.True(threw, "e = " + e + " accepted");
+                }
+                using var ok = FipsRsaKey.Generate(2048, rng, 65539);
+                ok.Check();
             });
 
             /* The module itself accepts 1024 (bug 6367); the wrapper must not. */

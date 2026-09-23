@@ -25,15 +25,6 @@ using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
-    public enum FipsRsaPadding
-    {
-        /* RSAES-PKCS1-v1_5. Not approved for key transport after 2023 under
-         * SP 800-131A Rev. 2; provided for interoperability. */
-        Pkcs1v15 = 0,
-        /* RSAES-OAEP (SP 800-56B) */
-        Oaep = 1
-    }
-
     /* Public RSA key components (big-endian). */
     public sealed class FipsRsaPublicKey
     {
@@ -42,9 +33,16 @@ namespace wolfSSL.CSharp.Fips
         internal FipsRsaPublicKey(byte[] n, byte[] e) { Modulus = n; Exponent = e; }
     }
 
-    /* Full RSA key components (big-endian). */
-    public sealed class FipsRsaKeyComponents
+    /* Full RSA key components (big-endian). Dispose zeroes D, P and Q. */
+    public sealed class FipsRsaKeyComponents : IDisposable
     {
+        public void Dispose()
+        {
+            CryptographicOperations.ZeroMemory(D);
+            CryptographicOperations.ZeroMemory(P);
+            CryptographicOperations.ZeroMemory(Q);
+        }
+
         public byte[] E { get; }
         public byte[] N { get; }
         public byte[] D { get; }
@@ -102,6 +100,10 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(rng));
             if (Array.IndexOf(ApprovedKeySizes, bits) < 0)
                 throw new ArgumentException("RSA key size must be 2048, 3072 or 4096 bits", nameof(bits));
+            /* FIPS 186-5 5.4(e): e odd, 2^16 < e < 2^256 (the module also
+             * accepts e = 3). */
+            if (exponent <= 65536 || (exponent & 1) == 0)
+                throw new ArgumentOutOfRangeException(nameof(exponent), "exponent must be odd and greater than 2^16");
             return new FipsRsaKey(bits, exponent, rng);
         }
 
@@ -136,19 +138,18 @@ namespace wolfSSL.CSharp.Fips
          * components are zeroed immediately. */
         public FipsRsaPublicKey ExportPublic()
         {
-            FipsRsaKeyComponents c = Export();
-            CryptographicOperations.ZeroMemory(c.D);
-            CryptographicOperations.ZeroMemory(c.P);
-            CryptographicOperations.ZeroMemory(c.Q);
+            using FipsRsaKeyComponents c = Export();
             return new FipsRsaPublicKey(c.N, c.E);
         }
 
         /* ---- PKCS#1 v1.5 signatures (RSASSA-PKCS1-v1_5) ---- */
 
         /* Signs a message digest. digest must be the hash of the message
-         * with the given algorithm; the DigestInfo encoding is added here. */
+         * with the given algorithm; the DigestInfo encoding is added here.
+         * SHA-1 is refused (signature generation, SP 800-131A). */
         public byte[] SignPkcs1v15(FipsHashType hash, byte[] digest, FipsRng rng)
         {
+            RejectSha1ForSigning(hash);
             byte[] di = DigestInfo(hash, digest);
             byte[] sig = new byte[Size];
             rng.ThrowIfDisposed();
@@ -179,6 +180,7 @@ namespace wolfSSL.CSharp.Fips
          * not supported for MGF1 in this module. */
         public byte[] SignPss(FipsHashType hash, byte[] digest, FipsRng rng, int saltLen = -1)
         {
+            RejectSha1ForSigning(hash);
             CheckDigest(hash, digest);
             byte[] sig = new byte[Size];
             rng.ThrowIfDisposed();
@@ -208,9 +210,14 @@ namespace wolfSSL.CSharp.Fips
             return ret == 0;
         }
 
-        /* ---- encryption ---- */
+        /* ---- encryption: RSAES-OAEP (SP 800-56B) ----
+         *
+         * RSAES-PKCS1-v1_5 is not offered: SP 800-131A Rev. 2 disallows it
+         * for key transport after 2023. */
 
-        public byte[] Encrypt(byte[] plaintext, FipsRng rng, FipsRsaPadding padding = FipsRsaPadding.Oaep,
+        private const int WC_RSA_OAEP_PAD = 1;
+
+        public byte[] Encrypt(byte[] plaintext, FipsRng rng,
                               FipsHashType oaepHash = FipsHashType.Sha256, byte[]? label = null)
         {
             if (plaintext == null)
@@ -219,14 +226,14 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             byte[] ct = new byte[Size];
             int ret = Native.wc_RsaPublicEncryptEx_fips(plaintext, (uint)plaintext.Length, ct, (uint)ct.Length,
-                Handle, rng.Handle, (int)padding, PadHash(padding, oaepHash), PadMgf(padding, oaepHash),
+                Handle, rng.Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
                 label, label == null ? 0u : (uint)label.Length);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPublicEncryptEx_fips", ret);
             return ct.Take(ret).ToArray();
         }
 
-        public byte[] Decrypt(byte[] ciphertext, FipsRsaPadding padding = FipsRsaPadding.Oaep,
+        public byte[] Decrypt(byte[] ciphertext,
                               FipsHashType oaepHash = FipsHashType.Sha256, byte[]? label = null)
         {
             if (ciphertext == null)
@@ -234,7 +241,7 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             byte[] pt = new byte[Size];
             int ret = Native.wc_RsaPrivateDecryptEx_fips(ciphertext, (uint)ciphertext.Length, pt, (uint)pt.Length,
-                Handle, (int)padding, PadHash(padding, oaepHash), PadMgf(padding, oaepHash),
+                Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
                 label, label == null ? 0u : (uint)label.Length);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPrivateDecryptEx_fips", ret);
@@ -254,8 +261,14 @@ namespace wolfSSL.CSharp.Fips
             return false;
         }
 
-        private static int PadHash(FipsRsaPadding p, FipsHashType h) => p == FipsRsaPadding.Oaep ? (int)h : 0;
-        private static int PadMgf(FipsRsaPadding p, FipsHashType h) => p == FipsRsaPadding.Oaep ? Mgf(h) : 0;
+        /* SP 800-131A Rev. 2 section 9 and Security Policy rule 3b: SHA-1 is
+         * disallowed for signature generation (verification stays allowed
+         * for legacy signatures). */
+        internal static void RejectSha1ForSigning(FipsHashType hash)
+        {
+            if (hash == FipsHashType.Sha1)
+                throw new ArgumentException("SHA-1 is not allowed for signature generation", nameof(hash));
+        }
 
         /* MGF1 identifiers from rsa.h */
         private static int Mgf(FipsHashType h) => h switch {
