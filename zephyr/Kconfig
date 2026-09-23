@@ -280,6 +280,11 @@ config WOLFSSL_ECC_BRAINPOOL
 
 endif # WOLFSSL_ECC
 
+# Selected by consumers that must sign an all-zero digest, such as wolfPSA.
+# No depends on: settings-file builds select it too.
+config WOLFSSL_ECC_ALLOW_ZERO_HASH
+  bool
+
 # The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it.
 config WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
   bool

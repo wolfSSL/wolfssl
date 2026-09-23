@@ -319,7 +319,9 @@ extern "C" {
     #define HAVE_ECC
     #define ECC_USER_CURVES      /* only the curves selected below */
     #define ECC_TIMING_RESISTANT /* Enable Timing Resistance */
-    #define WC_ALLOW_ECC_ZERO_HASH /* PSA signs an all-zero digest */
+    #if defined(CONFIG_WOLFSSL_ECC_ALLOW_ZERO_HASH)
+        #define WC_ALLOW_ECC_ZERO_HASH
+    #endif
 
     #if defined(CONFIG_WOLFSSL_ECC_256)
         #undef  NO_ECC256
