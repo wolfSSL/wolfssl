@@ -121,6 +121,9 @@ pub fn wolfcrypt_init() -> Result<(), i32> {
 
 /// Clean up resources used by wolfCrypt.
 ///
+/// The caller should ensure that all wolfCrypt objects have been destroyed
+/// and will no longer be used across all threads before calling this function.
+///
 /// # Returns
 ///
 /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
