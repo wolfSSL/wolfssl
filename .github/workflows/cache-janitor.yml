@@ -1,10 +1,10 @@
 name: Actions cache janitor
 
-# Deletes superseded cache entries: every seed is saved under a fresh key, so
-# without cleanup the repository sits above its 10 GB limit and GitHub evicts
-# by last access, where a seed nobody has read yet ranks below the entries the
-# other seed jobs are restoring. Runs every other hour; a pass that finds
-# nothing to delete costs a few seconds.
+# Scheduled workflow to delete stale/superseded cache entries.
+# Goal is to keep the repo cache usage under the 10 GB limit, but also to ensure
+# that stale entries are not restored. Without this cleanup, it's been observed
+# that a new cache entry can fall to the end of the LRU list and be evicted
+# before it is used.
 on:
   schedule:
     - cron: '30 1-23/2 * * *' # :30 past every odd numbered hour
