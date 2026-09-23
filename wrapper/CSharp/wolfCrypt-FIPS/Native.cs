@@ -251,6 +251,70 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wc_CmacFinal_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_CmacFinal_fips(IntPtr cmac, byte[] tag, ref uint tagSz);
 
+        /* ---- AES (FIPS 197; SP 800-38A/B/C/D) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesSetKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesSetKey_fips(IntPtr aes, byte[] key, uint len, byte[]? iv, int dir);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesSetIV_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesSetIV_fips(IntPtr aes, byte[]? iv);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesEcbEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesEcbEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesEcbDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesEcbDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCbcEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCbcEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCbcDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCbcDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesOfbEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesOfbEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesOfbDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesOfbDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCtrSetKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCtrSetKey_fips(IntPtr aes, byte[] key, uint len, byte[]? iv, int dir);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCtrEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCtrEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesGcmSetKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesGcmSetKey_fips(IntPtr aes, byte[] key, uint len);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesGcmSetExtIV_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesGcmSetExtIV_fips(IntPtr aes, byte[] iv, uint ivSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesGcmSetIV_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesGcmSetIV_fips(IntPtr aes, uint ivSz, byte[]? ivFixed, uint ivFixedSz, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesGcmEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesGcmEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz, byte[] ivOut, uint ivOutSz, byte[] authTag, uint authTagSz, byte[] authIn, uint authInSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesGcmDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesGcmDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz, byte[] iv, uint ivSz, byte[] authTag, uint authTagSz, byte[] authIn, uint authInSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Gmac_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Gmac_fips(byte[] key, uint keySz, byte[] iv, uint ivSz, byte[] authIn, uint authInSz, byte[] authTag, uint authTagSz, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_GmacVerify_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_GmacVerify_fips(byte[] key, uint keySz, byte[] iv, uint ivSz, byte[] authIn, uint authInSz, byte[] authTag, uint authTagSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCcmSetKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCcmSetKey_fips(IntPtr aes, byte[] key, uint keySz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCcmSetNonce_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCcmSetNonce_fips(IntPtr aes, byte[] nonce, uint nonceSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCcmEncrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCcmEncrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz, byte[] ivOut, uint ivOutSz, byte[] authTag, uint authTagSz, byte[] authIn, uint authInSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_AesCcmDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_AesCcmDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz, byte[] nonce, uint nonceSz, byte[] authTag, uint authTagSz, byte[] authIn, uint authInSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]

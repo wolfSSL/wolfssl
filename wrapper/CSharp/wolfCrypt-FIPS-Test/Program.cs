@@ -31,6 +31,7 @@ namespace wolfSSL.CSharp.Fips.Test
             ModuleTests.Run();
             RngTests.Run();
             MacHashTests.Run();
+            AesTests.Run();
             return T.Summary();
         }
     }

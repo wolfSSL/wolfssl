@@ -30,6 +30,9 @@ namespace wolfSSL.CSharp.Fips
     {
         public const int SUCCESS                   = 0;
         public const int BAD_FUNC_ARG              = -173;
+        public const int AES_GCM_AUTH_E            = -180;
+        public const int AES_CCM_AUTH_E            = -181;
+        public const int BAD_LENGTH_E              = -279;
         public const int FIPS_DEGRADED_E           = -127;
         public const int FIPS_CODE_SZ_E            = -128;
         public const int FIPS_DATA_SZ_E            = -129;
