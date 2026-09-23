@@ -1616,6 +1616,90 @@ int test_wolfSSL_SESSION_get_ex_new_index(void)
 #endif
 
 /*----------------------------------------------------------------------------*/
+/* wolfSSL_SESSION_dup                                                        */
+/*----------------------------------------------------------------------------*/
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+static int session_dup_fail_x509_alloc = 0;
+
+static void* session_dup_fail_malloc(size_t size)
+{
+    if (session_dup_fail_x509_alloc && size == sizeof(WOLFSSL_X509))
+        return NULL;
+    return malloc(size);
+}
+
+static void session_dup_fail_free(void* ptr)
+{
+    free(ptr);
+}
+
+static void* session_dup_fail_realloc(void* ptr, size_t size)
+{
+    return realloc(ptr, size);
+}
+
+/* wolfSSL_SESSION_dup must fail, not return a copy without the peer
+ * certificate, when copying the source session's peer certificate fails. */
+int test_wolfSSL_SESSION_dup_peer_fail(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (sess != NULL) {
+        ExpectNotNull(sess->peer = wolfSSL_X509_load_certificate_file(
+            svrCertFile, CERT_FILETYPE));
+    }
+#ifdef HAVE_SESSION_TICKET
+    /* Long ticket so the failed copy must not free sess's buffer. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(sess->ticket = (byte*)XMALLOC(SESSION_TICKET_LEN + 1,
+            NULL, DYNAMIC_TYPE_SESSION_TICK));
+        if (sess->ticket == NULL)
+            sess->ticket = sess->staticTicket;
+    }
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(sess->ticket, 0xC3, SESSION_TICKET_LEN + 1);
+        sess->ticketLen = SESSION_TICKET_LEN + 1;
+        sess->ticketLenAlloc = SESSION_TICKET_LEN + 1;
+    }
+#endif
+    if (EXPECT_SUCCESS()) {
+        /* Take the deep-copy branch, which allocates a new certificate. */
+        sess->peer->dynamicMemory = 0;
+
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        ExpectIntEQ(wolfSSL_SetAllocators(session_dup_fail_malloc,
+                    session_dup_fail_free, session_dup_fail_realloc), 0);
+        session_dup_fail_x509_alloc = 1;
+        dup = wolfSSL_SESSION_dup(sess);
+        session_dup_fail_x509_alloc = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+        ExpectNull(dup);
+        sess->peer->dynamicMemory = 1;
+    }
+
+    wolfSSL_SESSION_free(dup);
+    wolfSSL_SESSION_free(sess);
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfSSL_SESSION_dup_peer_fail(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+/*----------------------------------------------------------------------------*/
 /* wolfSSL_GetSessionAtIndex                                                  */
 /*----------------------------------------------------------------------------*/
 
