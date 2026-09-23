@@ -87330,12 +87330,16 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     else if (info->algo_type == WC_ALGO_TYPE_SEED) {
     #ifndef WC_NO_RNG
         /* wc_GenerateSeed is a local symbol so we need to fake the entropy.
-         * A byte-wise counter always passes the RCT/APT seed health tests. */
-        static byte seedCtr = 0;
+         * xorshift32 (Marsaglia 2003) passes the seed health tests and does not
+         * repeat. */
+        static word32 seedState = 0x2545F491U;
         word32 i;
 
         for (i = 0; i < info->seed.sz; i++) {
-            info->seed.seed[i] = seedCtr++;
+            seedState ^= seedState << 13;
+            seedState ^= seedState >> 17;
+            seedState ^= seedState << 5;
+            info->seed.seed[i] = (byte)seedState;
         }
 
         ret = 0;
