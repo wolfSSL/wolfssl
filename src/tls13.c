@@ -6670,7 +6670,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 #ifdef WOLFSSL_CERT_COMPRESSION
     /* reset this for a new request we don't want to compress if we don't
-     * get the cerificate_compression extension this request */
+     * get the certificate_compression extension this request */
     ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
 #endif
     /* RFC 9846 Section 4.4.2: CertificateRequest.extensions has a lower bound of
@@ -8438,7 +8438,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_CERT_COMPRESSION
     /* reset this for a new request we don't want to compress if we don't
-     * get the cerificate_compression extension this request */
+     * get the certificate_compression extension this request */
     ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
 #endif
     /* Parse extensions */
@@ -9377,6 +9377,13 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
                     ssl->heap);
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+    ret = TLSX_UseCertCompression(ssl, ssl->heap);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 #ifdef WOLFSSL_DTLS13
@@ -10468,17 +10475,21 @@ static word32 WriteTls13CertHeader(byte* output, const Tls13CertMsg* msg)
  * message: the leaf certificate and its extensions, then each chain
  * certificate with its length and extensions.
  *
+ * When OCSP stapling is compiled in on the server, the stapled response
+ * buffer (ssl->buffers.certExts[]) of each entry that is fully written is
+ * freed, so the same entries cannot be written a second time.
+ *
  * ssl          SSL/TLS object.
- * certSz       The length of the leaf certificate. 0 when there is none.
- * certChainSz  The length of the chain to send. 0 when there is none.
- * extSz        The length of each certificate's extensions.
+ * msg          Certificate message layout: certificate sizes and extension
+ *              sizes of each entry.
  * pos          Offset into the entries, after the leaf's length, to start at.
  * output       The buffer to write to.
  * outSz        The maximum number of bytes to write.
  * returns the number of bytes written.
  */
 static word32 WriteTls13CertEntries(WOLFSSL* ssl, const Tls13CertMsg* msg,
-                                    word32 pos, byte* output, word32 outSz)
+                                    word32 pos, byte* output, word32 outSz,
+                                    byte shouldFreeExt)
 {
     word32 written = 0;
     word32 start = 0;
@@ -10507,7 +10518,10 @@ static word32 WriteTls13CertEntries(WOLFSSL* ssl, const Tls13CertMsg* msg,
                 break;
         }
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
-        FreeDer(&ssl->buffers.certExts[extIdx]);
+        if (shouldFreeExt)
+            FreeDer(&ssl->buffers.certExts[extIdx]);
+    #else
+        (void)shouldFreeExt;
     #endif
         start += entrySz;
 
@@ -11104,7 +11118,7 @@ static int SendTls13CertificateRecords(WOLFSSL* ssl, const Tls13CertMsg* msg)
             AddTls13RecordHeader(output, fragSz, handshake, ssl);
 
         copySz = WriteTls13CertEntries(ssl, msg, ssl->fragOffset, output + i,
-                                       fragSz);
+                                       fragSz, 1);
         i += copySz;
         ssl->fragOffset += copySz;
         length -= (sword32)copySz;
@@ -11161,7 +11175,7 @@ static int SendTls13CertificateRecords(WOLFSSL* ssl, const Tls13CertMsg* msg)
     return ret;
 }
 
-/* handle generation TLS v1.3 cmpressed_certificate (25) */
+/* handle generation TLS v1.3 certificate (11) */
 /* Send the certificate for this end and any CAs that help with validation.
  * This message is always encrypted in TLS v1.3.
  *
@@ -11191,43 +11205,41 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 }
 
 #ifdef WOLFSSL_CERT_COMPRESSION
-static int BuildAndCompressCertificateMsg(WOLFSSL* ssl,
-        const Tls13CertMsg* msg)
+/* Serialize the uncompressed Certificate message into a new buffer. */
+static int BuildTls13CertMsg(WOLFSSL* ssl, const Tls13CertMsg* msg,
+                             byte** out)
+{
+    byte* buf = (byte*)XMALLOC(msg->payloadSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (buf == NULL)
+        return MEMORY_ERROR;
+    if (WriteTls13CertHeader(buf, msg) != msg->headerSz ||
+            WriteTls13CertEntries(ssl, msg, 0, buf + msg->headerSz,
+                msg->payloadSz - msg->headerSz, 0) !=
+                msg->payloadSz - msg->headerSz) {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BUFFER_ERROR;
+    }
+    *out = buf;
+    return 0;
+}
+
+static int CompressCertificateMsg(WOLFSSL* ssl, byte* uncompMsg,
+        word32 uncompMsgSz)
 {
     int ret = 0;
-    struct {
-        byte* certMsg;
-        word32 certMsgLen;
-    } certMsgToComp = {0};
-    /* Calculate full size of cert msg */
-    /* calc header len */
-    certMsgToComp.certMsgLen = msg->payloadSz;
-    certMsgToComp.certMsg = XMALLOC(certMsgToComp.certMsgLen, ssl->heap,
-            DYNAMIC_TYPE_SSL);
 
-    if(certMsgToComp.certMsg == NULL) {
-        ret = MEMORY_ERROR;
-    }
-
-    /* build cert message that we will be compressing */
-    if (ret == 0 && msg->headerSz !=
-            WriteTls13CertHeader(certMsgToComp.certMsg, msg)) {
-        WOLFSSL_MSG("Did not write expected header sz into compression buffer");
-        ret = BUFFER_ERROR;
-    }
-    if (ret == 0 && msg->payloadSz - msg->headerSz !=
-                        WriteTls13CertEntries(ssl, msg, 0,
-                            certMsgToComp.certMsg + msg->headerSz,
-                            certMsgToComp.certMsgLen)) {
-        WOLFSSL_MSG("Did not write entire cert msg into compression buffer");
-        ret = BUFFER_ERROR;
-    }
-
-    /* create out compression object */
+    /* create our compression object */
     if (ret == 0 && wc_CompressionData_InitComp(ssl->compressedCert,
-                certMsgToComp.certMsg, certMsgToComp.certMsgLen,
+                uncompMsg, uncompMsgSz,
                 ssl->peerCertCompressionAlg) != 0) {
         WOLFSSL_MSG("Could not create compression object");
+        ret = BUFFER_ERROR;
+    }
+
+    if (ret == 0 && wc_CompressionData_SetHeap(ssl->compressedCert, ssl->heap)
+            != 0) {
+        WOLFSSL_MSG("Could not set heap on compressed cert object");
         ret = BUFFER_ERROR;
     }
 
@@ -11236,16 +11248,20 @@ static int BuildAndCompressCertificateMsg(WOLFSSL* ssl,
         ret = BUFFER_ERROR;
     }
 
-    if (certMsgToComp.certMsg != NULL) {
-        XFREE(certMsgToComp.certMsg, ssl->heap, DYNAMIC_TYPE_SSL);
-    }
-
-   return ret;
+    /* uncompMsg is only borrowed; the caller keeps or frees it */
+    return ret;
 }
 
+/* handle generation TLS v1.3 compressed_certificate (25) */
+/* Send the certificate for this end and any CAs that help with validation.
+ * This message is always encrypted in TLS v1.3.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 on success, otherwise failure.
+ */
 static int SendTls13CompressedCertificate(WOLFSSL* ssl)
 {
-    int ret;
+    int ret = 0;
     Tls13CertMsg msg;
     word32 maxFragmentSz;
     word32 fullCompCertMsgSz = 0;
@@ -11255,39 +11271,64 @@ static int SendTls13CompressedCertificate(WOLFSSL* ssl)
 
     ssl->options.buildingMsg = 1;
 
-    ret = Tls13CertMsgSetup(ssl, &msg);
-    if (ret != 0)
-        return ret;
-
-    /* Nothing to compress fallback to uncompressed path */
-    if (msg.certSz == 0) {
-        WOLFSSL_LEAVE("SendTls13CompressedCertificate", ret);
-        WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
-        return SendTls13CertificateRecords(ssl, &msg);
-    }
-
     /* refresh the compressed cert object when starting new message */
     if (ssl->fragOffset == 0) {
+        byte* certMsg = NULL;
+        ret = Tls13CertMsgSetup(ssl, &msg);
+        if (ret != 0)
+            return ret;
+
+        /* Nothing to compress fallback to uncompressed path */
+        if (msg.certSz == 0) {
+            WOLFSSL_LEAVE("SendTls13CompressedCertificate", ret);
+            WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
+            return SendTls13CertificateRecords(ssl, &msg);
+        }
+        ret = BuildTls13CertMsg(ssl, &msg, &certMsg);
+        if (ret != 0)
+            return ret;
         /* reuse our compression data object if we can */
         if (ssl->compressedCert != NULL) {
             wc_CompressionData_Free(ssl->compressedCert);
         }
         /* else make a new object */
         else {
-            ssl->compressedCert = XMALLOC(sizeof(*ssl->compressedCert),
-                    ssl->heap, DYNAMIC_TYPE_SSL);
-            if (ssl->compressedCert == NULL)
+            ssl->compressedCert = (wc_CompressionData*)XMALLOC(
+                    sizeof(*ssl->compressedCert), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ssl->compressedCert == NULL) {
+                XFREE(certMsg, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_ERROR;
+            }
         }
-        wc_CompressionData_SetHeap(ssl->compressedCert, ssl->heap);
-        if (BuildAndCompressCertificateMsg(ssl, &msg) != 0) {
+        ret = CompressCertificateMsg(ssl, certMsg, msg.payloadSz);
+        XFREE(certMsg, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0) {
             WOLFSSL_MSG("Could not compress Certificate falling back "
                     "to sending plain cert");
             wc_CompressionData_Free(ssl->compressedCert);
-            XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+            XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             ssl->compressedCert = NULL;
+            ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
             return SendTls13CertificateRecords(ssl, &msg);
         }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
+        /* If compression succeeded we need to free the cert extensions
+         * in ssl object. These were not freed in BuildTls13CertMsg to leave
+         * them available for the plain cert fallback if compression failed */
+        else {
+            int i = 0;
+            for(; i < (int)XELEM_CNT(ssl->buffers.certExts); i++) {
+                FreeDer(&ssl->buffers.certExts[i]);
+            }
+        }
+#endif
+    }
+
+    /* should never be null here */
+    if (ssl->compressedCert == NULL ||
+            ssl->fragOffset > ssl->compressedCert->compressedSz) {
+        WOLFSSL_MSG("No compressed cert message to resume.");
+        return SANITY_MSG_E;
     }
 
     maxFragmentSz = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
@@ -11409,15 +11450,16 @@ static int SendTls13CompressedCertificate(WOLFSSL* ssl)
 
     Tls13CertificateSendDone(ssl, ret);
 
-    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)
+    if ((ret != WC_NO_ERR_TRACE(WANT_WRITE)
 #ifdef WOLFSSL_DTLS13
         /* Dtls13HandshakeSend has sent the entire message so we want
          * to free no matter what */
         || ssl->options.dtls
 #endif
+        )
             ) {
         wc_CompressionData_Free(ssl->compressedCert);
-        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ssl->compressedCert = NULL;
         ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
     }
@@ -12812,12 +12854,37 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
 #endif
     }
-    (void)ssl;
 
     WOLFSSL_LEAVE("DoTls13Certificate", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_DO);
 
     return ret;
+}
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+static int CompressionAlgWasRequested(WOLFSSL* ssl,
+        word16 alg)
+{
+    byte i = 0;
+    byte* cursor = NULL;
+    TLSX* ext;
+    byte len;
+    if (ssl->extensions == NULL)
+        return 0;
+    ext = TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION);
+    if (ext == NULL)
+        return 0;
+
+    cursor = (byte*)ext->data;
+    len = *cursor;
+    cursor += 1;
+    for (; i < len; i += 2, cursor += 2) {
+        word16 reqAlg = 0;
+        ato16(cursor, &reqAlg);
+        if (alg == reqAlg)
+            return 1;
+    }
+    return 0;
 }
 
 /* handle processing compressed TLS v1.3 certificate (25) */
@@ -12832,10 +12899,7 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
  * totalSz   The length of the current handshake message.
  * returns 0 on success and otherwise failure.
  */
-#ifdef WOLFSSL_CERT_COMPRESSION
-#define COMPRESSED_CERT_HEADER_SZ (OPAQUE16_LEN + OPAQUE24_LEN + OPAQUE24_LEN)
-
-static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
+int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
         word32* inOutIdx, word32 totalSz)
 {
     int ret = 0;
@@ -12848,7 +12912,7 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
     WOLFSSL_ENTER("DoTls13CompressedCertificate");
 
-    if (totalSz < COMPRESSED_CERT_HEADER_SZ)
+    if (totalSz < COMP_CERT_HEADER_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dcc);
 
     ato16(input + idx, &alg);
@@ -12858,30 +12922,36 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
     c24to32(input + idx, &compSz);
     idx += OPAQUE24_LEN;
 
-    if (compSz == 0 || compSz != totalSz - COMPRESSED_CERT_HEADER_SZ)
+    if (compSz == 0 || compSz != totalSz - COMP_CERT_HEADER_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dcc);
 
-    /* check if compression arg is supported or not
-     * this also doubles as our if check to see if the alg we got back
-     * was what we requested because we send all of out support compression
-     * algs as options for compression */
-    if (!wc_isCompressionAlgSupported(alg)) {
+    /* check if compression alg is linked in */
+    if (!wc_IsCompressionAlgSupported(alg)) {
         WOLFSSL_MSG("Alg sent was not expected");
-        SendAlert(ssl, alert_fatal, bad_certificate);
-        ERROR_OUT(BAD_FUNC_ARG, exit_dcc);
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        ERROR_OUT(DECOMPRESS_E, exit_dcc);
+    }
+
+    if (!CompressionAlgWasRequested(ssl, alg)) {
+        WOLFSSL_MSG("Alg sent was not requested");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        ERROR_OUT(DECOMPRESS_E, exit_dcc);
     }
 
     /* if not NULL we already have the decompressed cert in hand and just
      * needed to recall this func due to a pending or want read */
     if (ssl->compressedCert == NULL) {
-        if (uncompSz == 0 || uncompSz > MAX_CERTIFICATE_SZ) {
+        if (uncompSz == 0 || uncompSz > MAX_CERTIFICATE_SZ + OPAQUE8_LEN +
+                /* 255 ie. 2^8-1 is the max len of the certificate context
+                 * RFC-9846 section 4.5.1 */
+                CERT_HEADER_SZ + 255) {
             WOLFSSL_MSG("CompressedCertificate uncompressed_length too big");
             SendAlert(ssl, alert_fatal, bad_certificate);
             ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
 
         ssl->compressedCert = (wc_CompressionData*)XMALLOC(
-                sizeof(wc_CompressionData), ssl->heap, DYNAMIC_TYPE_SSL);
+                sizeof(wc_CompressionData), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (ssl->compressedCert == NULL) {
             ERROR_OUT(MEMORY_ERROR, exit_dcc);
@@ -12894,8 +12964,15 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
             ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
 
-        if (wc_CompressionData_Decompress(ssl->compressedCert) != 0) {
+        if (wc_CompressionData_SetHeap(ssl->compressedCert, ssl->heap) != 0) {
+            WOLFSSL_MSG("Could not set heap on compressed cert object");
+            ERROR_OUT(MEMORY_E, exit_dcc);
+        }
+
+        if ((ret = wc_CompressionData_DeCompress(ssl->compressedCert)) != 0) {
             WOLFSSL_MSG("Could not decompress cert");
+            if (ret == MEMORY_E)
+                ERROR_OUT(ret, exit_dcc);
             SendAlert(ssl, alert_fatal, bad_certificate);
             ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
@@ -12906,29 +12983,29 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
             ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
     }
+    /* quick state check */
+    else if (ssl->compressedCert->isCompressed != 0 ||
+            ssl->compressedCert->compressionAlg != alg ||
+            ssl->compressedCert->uncompressedSz != uncompSz) {
+        ERROR_OUT(SANITY_MSG_E, exit_dcc);
+    }
 
     ret = DoTls13Certificate(ssl, ssl->compressedCert->data, &certIdx,
             ssl->compressedCert->uncompressedSz);
-
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-            ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
-        goto exit_dcc;
-    }
-#endif
-
-    wc_CompressionData_Free(ssl->compressedCert);
-    XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
-    ssl->compressedCert = NULL;
 
     if (ret == 0)
         *inOutIdx = idx + compSz;
 
 exit_dcc:
 
-    if (ret != 0 && ssl->compressedCert != NULL) {
+    if (ssl->compressedCert != NULL
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+            && !(ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
+            ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+#endif
+            ) {
         wc_CompressionData_Free(ssl->compressedCert);
-        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ssl->compressedCert = NULL;
     }
 
@@ -15719,7 +15796,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 #endif
     #ifdef WOLFSSL_CERT_COMPRESSION
-        /* compressed certificate and certficiate are valid in the same
+        /* compressed certificate and certificate are valid in the same
          * states. */
         case compressed_certificate:
     #endif
@@ -17342,20 +17419,26 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if ((!ssl->options.resuming || TLS13_AFTER_HANDSHAKE(ssl)) &&
                     ssl->options.sendVerify) {
 #ifdef WOLFSSL_CERT_COMPRESSION
-                if (wc_isCompressionAlgSupported(ssl->peerCertCompressionAlg)) {
+                if (wc_IsCompressionAlgSupported(
+                        ssl->peerCertCompressionAlg)) {
                     ssl->error = SendTls13CompressedCertificate(ssl);
+                    if (ssl->error != 0) {
+                        wolfssl_local_MaybeCheckAlertOnErr(ssl, ssl->error);
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                     WOLFSSL_MSG("sent: compressed_certificate");
                 }
                 else
 #endif
                 {
                     ssl->error = SendTls13Certificate(ssl);
+                    if (ssl->error != 0) {
+                        wolfssl_local_MaybeCheckAlertOnErr(ssl, ssl->error);
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                     WOLFSSL_MSG("sent: certificate");
-                }
-                if (ssl->error != 0) {
-                    wolfssl_local_MaybeCheckAlertOnErr(ssl, ssl->error);
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
                 }
             }
         #endif
@@ -17705,6 +17788,117 @@ int wolfSSL_CTX_no_ticket_TLSv13(WOLFSSL_CTX* ctx)
 
     return 0;
 }
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+/* Validate a list of certificate compression algorithms and replace the list
+ * in dst with a copy of it.
+ *
+ * dst    The list to replace; freed and set to the new copy on success.
+ * dstLen Number of algorithm IDs in dst; set on success.
+ * algs   RFC 8879 algorithm IDs, most preferred first.
+ * count  Number of algorithm IDs.
+ * heap   Heap hint for the allocation.
+ * returns BAD_FUNC_ARG when algs is NULL, count is out of range, or an
+ *         algorithm is not supported, MEMORY_E on allocation failure and
+ *         WOLFSSL_SUCCESS on success.
+ */
+static int CertCompression_SetAlgs(word16** dst,
+    byte* dstLen, const word16* algs, int count, void* heap)
+{
+    int i;
+    word16* list;
+
+    /* the wire list is at most 254 bytes of 2-byte IDs */
+    if (algs == NULL || count < 1 || count > 127)
+        return BAD_FUNC_ARG;
+    for (i = 0; i < count; i++) {
+        if (!wc_IsCompressionAlgSupported(algs[i]))
+            return BAD_FUNC_ARG;
+    }
+
+    list = (word16*)XMALLOC(sizeof(*list) * (size_t)count,
+        heap, DYNAMIC_TYPE_TLSX);
+    if (list == NULL)
+        return MEMORY_E;
+    XMEMCPY(list, algs, sizeof(*list) * (size_t)count);
+    XFREE(*dst, heap, DYNAMIC_TYPE_TLSX);
+    *dst = list;
+    *dstLen = (byte)count;
+    (void)heap;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the certificate compression algorithms to offer, in order of
+ * preference, for every WOLFSSL created from this context afterwards.
+ * Replaces the built-in default list: {ZLIB}
+ *
+ * If count is 0 certificate_compression is turned off.
+ *
+ * ctx    The SSL/TLS CTX object.
+ * algs   RFC 8879 algorithm IDs, most preferred first.
+ * count  Number of algorithm IDs.
+ * returns BAD_FUNC_ARG when ctx or algs is NULL, count is out of range, or an
+ *         algorithm is not supported, MEMORY_E on allocation failure and
+ *         WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_CTX_set_cert_compression_algs(WOLFSSL_CTX* ctx,
+    const word16* algs, int count)
+{
+    int ret;
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (count == 0) {
+        ctx->noOfferCompressionAlgPrefList = 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    ret = CertCompression_SetAlgs(&ctx->compressionAlgPrefList,
+        &ctx->compressionAlgPrefListLen, algs, count, ctx->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->noOfferCompressionAlgPrefList = 0;
+    return ret;
+}
+
+/* Set the certificate compression algorithms to offer, in order of
+ * preference. Replaces the list inherited from the context, or the
+ * built-in default list: {ZLIB}
+ *
+ * If count is 0 certificate_compression is turned off.
+ *
+ * ssl    The SSL/TLS object.
+ * algs   RFC 8879 algorithm IDs, most preferred first.
+ * count  Number of algorithm IDs.
+ * returns BAD_FUNC_ARG when ssl or algs is NULL, count is out of range, or an
+ *         algorithm is not supported, MEMORY_E on allocation failure and
+ *         WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_set_cert_compression_algs(WOLFSSL* ssl,
+    const word16* algs, int count)
+{
+    int ret;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (count == 0) {
+        /* clear out the extension if already added */
+        TLSX_Remove(&ssl->extensions, TLSX_CERT_COMPRESSION, ssl->heap);
+        ssl->noOfferCompressionAlgPrefList = 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    ret = CertCompression_SetAlgs(&ssl->compressionAlgPrefList,
+        &ssl->compressionAlgPrefListLen, algs, count, ssl->heap);
+    if (ret == WOLFSSL_SUCCESS) {
+        TLSX_Remove(&ssl->extensions, TLSX_CERT_COMPRESSION, ssl->heap);
+        ssl->noOfferCompressionAlgPrefList = 0;
+    }
+    return ret;
+}
+#endif /* WOLFSSL_CERT_COMPRESSION */
 
 /* Do not send a ticket after TLS v1.3 handshake for resumption.
  *
@@ -18650,7 +18844,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
 #ifdef WOLFSSL_CERT_COMPRESSION
-                if (wc_isCompressionAlgSupported(ssl->peerCertCompressionAlg)) {
+                if (wc_IsCompressionAlgSupported(
+                        ssl->peerCertCompressionAlg)) {
                     ssl->error = SendTls13CompressedCertificate(ssl);
                 }
                 else

@@ -5819,6 +5819,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.certYieldPending = 0;
 #endif
         ssl->recordSzOverhead = 0;
+        /* Drop any half-built outgoing message state. */
+        ssl->fragOffset = 0;
+        ssl->options.buildMsgState = BUILD_MSG_BEGIN;
 #ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
         /* Drop any half-sent streamed CertificateVerify. Left in place, the
          * resume guard in SendTls13CertificateVerify would fire on the next
@@ -5827,11 +5830,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
 #ifdef WOLFSSL_CERT_COMPRESSION
         wc_CompressionData_Free(ssl->compressedCert);
-        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ssl->compressedCert = NULL;
         ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
 #endif
