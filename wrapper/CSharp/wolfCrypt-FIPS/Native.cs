@@ -315,6 +315,46 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wc_AesCcmDecrypt_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_AesCcmDecrypt_fips(IntPtr aes, byte[] output, byte[] input, uint sz, byte[] nonce, uint nonceSz, byte[] authTag, uint authTagSz, byte[] authIn, uint authInSz);
 
+        /* ---- RSA (FIPS 186-4/5, SP 800-56B) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_InitRsaKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_InitRsaKey_fips(IntPtr key, IntPtr heap);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_FreeRsaKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_FreeRsaKey_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_MakeRsaKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_MakeRsaKey_fips(IntPtr key, int size, long e, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_CheckRsaKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_CheckRsaKey_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaEncryptSize_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaEncryptSize_fips(IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaExportKey_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaExportKey_fips(IntPtr key, byte[] e, ref uint eSz, byte[] n, ref uint nSz, byte[] d, ref uint dSz, byte[] p, ref uint pSz, byte[] q, ref uint qSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaSSL_Sign_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaSSL_Sign_fips(byte[] input, uint inLen, byte[] output, uint outLen, IntPtr key, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaSSL_Verify_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaSSL_Verify_fips(byte[] input, uint inLen, byte[] output, uint outLen, IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaPSS_SignEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaPSS_SignEx_fips(byte[] input, uint inLen, byte[] output, uint outLen, int hash, int mgf, int saltLen, IntPtr key, IntPtr rng);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaPSS_VerifyEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaPSS_VerifyEx_fips(byte[] input, uint inLen, byte[] output, uint outLen, int hash, int mgf, int saltLen, IntPtr key);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaPSS_CheckPaddingEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaPSS_CheckPaddingEx_fips(byte[] input, uint inSz, byte[] sig, uint sigSz, int hashType, int saltLen, int bits);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaPublicEncryptEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaPublicEncryptEx_fips(byte[] input, uint inLen, byte[] output, uint outLen, IntPtr key, IntPtr rng, int type, int hash, int mgf, byte[]? label, uint labelSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_RsaPrivateDecryptEx_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_RsaPrivateDecryptEx_fips(byte[] input, uint inLen, byte[] output, uint outLen, IntPtr key, int type, int hash, int mgf, byte[]? label, uint labelSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]

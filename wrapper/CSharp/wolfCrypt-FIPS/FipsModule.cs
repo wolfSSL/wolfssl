@@ -171,7 +171,11 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* Private key export gate (WC_KEYTYPE_ALL). Export of private keys
-         * is locked by default in the module. */
+         * is locked by default in the module.
+         *
+         * The gate is per thread: the module keeps it in thread-local
+         * storage. Enable it and export on the same thread; with async code
+         * do not await between the two. */
         public static void SetPrivateKeyReadEnable(bool enable) =>
             WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
                 Native.wolfCrypt_SetPrivateKeyReadEnable_fips(enable ? 1 : 0, 0));

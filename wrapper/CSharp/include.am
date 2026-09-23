@@ -70,3 +70,5 @@ EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/MacHashTests.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsAes.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsAesGcm.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/AesTests.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsRsa.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/RsaTests.cs
