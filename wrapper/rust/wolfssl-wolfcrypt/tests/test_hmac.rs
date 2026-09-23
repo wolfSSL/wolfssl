@@ -54,3 +54,47 @@ fn test_hmac_sha256() {
         assert_eq!(*expected[i], hash);
     }
 }
+
+#[test]
+fn test_hmac_sha256_copy() {
+    let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
+
+    let mut hmac = HMAC::new(HMAC::TYPE_SHA256, key).expect("Error with new()");
+    hmac.update(b"Hi ").expect("Error with update()");
+
+    let mut forked = hmac.copy().expect("Error with copy()");
+
+    // The copy continues independently from the same point.
+    forked.update(b"There").expect("Error with update()");
+    let mut hash_forked = [0u8; SHA256::DIGEST_SIZE];
+    forked.finalize(&mut hash_forked).expect("Error with finalize()");
+    assert_eq!(hash_forked, *expected);
+
+    // The original is unaffected by the copy.
+    hmac.update(b"There").expect("Error with update()");
+    let mut hash_orig = [0u8; SHA256::DIGEST_SIZE];
+    hmac.finalize(&mut hash_orig).expect("Error with finalize()");
+    assert_eq!(hash_orig, *expected);
+}
+
+#[test]
+fn test_hmac_sha256_clone() {
+    let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
+
+    let mut hmac = HMAC::new(HMAC::TYPE_SHA256, key).expect("Error with new()");
+    hmac.update(b"Hi ").expect("Error with update()");
+
+    let mut forked = hmac.clone();
+
+    forked.update(b"There").expect("Error with update()");
+    let mut hash_forked = [0u8; SHA256::DIGEST_SIZE];
+    forked.finalize(&mut hash_forked).expect("Error with finalize()");
+    assert_eq!(hash_forked, *expected);
+
+    hmac.update(b"There").expect("Error with update()");
+    let mut hash_orig = [0u8; SHA256::DIGEST_SIZE];
+    hmac.finalize(&mut hash_orig).expect("Error with finalize()");
+    assert_eq!(hash_orig, *expected);
+}
