@@ -43,6 +43,7 @@ int test_dtls13_cid_oversized_tx(void);
 int test_dtls13_cid_oversized_tx_post_hs(void);
 int test_dtls_version_checking(void);
 int test_dtls_drop_invalid_record_during_handshake(void);
+int test_dtls_drop_invalid_hs_header_when_unverified(void);
 int test_dtls_short_ciphertext(void);
 int test_dtls12_record_length_mismatch(void);
 int test_dtls12_short_read(void);
@@ -59,6 +60,7 @@ int test_dtls_timeout(void);
 int test_dtls_certreq_order(void);
 int test_dtls_memio_wolfio(void);
 int test_dtls_memio_wolfio_stateless(void);
+int test_dtls_memio_wolfio_invalid_peer(void);
 int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
@@ -98,6 +100,7 @@ int test_dtls_client_hello_timeout(void);
 int test_dtls_dropped_ccs(void);
 int test_dtls_seq_num_downgrade(void);
 int test_dtls_old_seq_number(void);
+int test_dtls12_stateless_window(void);
 int test_dtls12_seq_num_wrap(void);
 int test_dtls12_scr_epoch_wrap(void);
 int test_dtls12_scr_client_epoch_wrap(void);
@@ -165,6 +168,8 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls",                                                \
             test_dtls_drop_invalid_record_during_handshake),                   \
+        TEST_DECL_GROUP("dtls",                                                \
+            test_dtls_drop_invalid_hs_header_when_unverified),                 \
         TEST_DECL_GROUP("dtls", test_dtls_short_ciphertext),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_record_length_mismatch),           \
         TEST_DECL_GROUP("dtls", test_dtls12_short_read),                       \
@@ -183,6 +188,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_mtu_fragment_headroom),              \
         TEST_DECL_GROUP("dtls", test_dtls_mtu_split_messages),                 \
         TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless),             \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_invalid_peer),          \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export),                     \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export_peers),               \
@@ -216,6 +222,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_dropped_ccs),                        \
         TEST_DECL_GROUP("dtls", test_dtls_seq_num_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_old_seq_number),                     \
+        TEST_DECL_GROUP("dtls", test_dtls12_stateless_window),                 \
         TEST_DECL_GROUP("dtls", test_dtls12_seq_num_wrap),                     \
         TEST_DECL_GROUP("dtls", test_dtls12_scr_epoch_wrap),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_scr_client_epoch_wrap),            \

@@ -24943,6 +24943,44 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 
     return 0;
 }
+
+/* Handshake-level counterpart of DtlsShouldDrop(). A stateless server that has
+ * not yet verified a ClientHello must discard a bad handshake message instead
+ * of failing on it, the same way DoClientHello() and DoTls13HandShakeMsgType()
+ * already ignore errors from the stateless ClientHello check. Only errors from
+ * validating the handshake header, raised before any state is changed, are
+ * dropped; anything else is still fatal. */
+static int DtlsShouldDropHandshake(WOLFSSL* ssl, int retcode)
+{
+#ifndef NO_WOLFSSL_SERVER
+    int invalidInput = 0;
+
+    switch (retcode) {
+        case WC_NO_ERR_TRACE(PARSE_ERROR):
+        case WC_NO_ERR_TRACE(SANITY_MSG_E):
+        case WC_NO_ERR_TRACE(OUT_OF_ORDER_E):
+        case WC_NO_ERR_TRACE(LENGTH_ERROR):
+        case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
+        case WC_NO_ERR_TRACE(HANDSHAKE_SIZE_ERROR):
+            invalidInput = 1;
+            break;
+        default:
+            break;
+    }
+
+    if (invalidInput && ssl->options.side == WOLFSSL_SERVER_END
+            && !ssl->options.dtlsStateful && !IsEncryptionOn(ssl, 0)) {
+        WOLFSSL_MSG_EX("Silently dropping DTLS handshake message from "
+                       "unverified peer: %d", retcode);
+        return 1;
+    }
+#else
+    (void)ssl;
+    (void)retcode;
+#endif /* NO_WOLFSSL_SERVER */
+
+    return 0;
+}
 #endif /* WOLFSSL_DTLS */
 
 #if defined(WOLFSSL_TLS13) || \
@@ -26146,7 +26184,8 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 }
                 else
 #endif /* WOLFSSL_DTLS13 */
-                if (IsDtlsNotSctpMode(ssl)) {
+                /* Only update the window once we enter stateful parsing */
+                if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsStateful) {
 #ifdef WOLFSSL_DTLS_CID
                     dtlsPeerNewer = dtlsRecordIsNewest(ssl);
 #endif
@@ -26226,6 +26265,10 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                  * DTLS handshake message */
                                 ssl->dtls_timeout = ssl->dtls_timeout_init;
                             }
+                            else if (DtlsShouldDropHandshake(ssl, ret)) {
+                                DropAndRestartProcessReply(ssl);
+                                continue;
+                            }
                             else {
                                 if (SendFatalAlertOnly(ssl, ret)
                                         == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
@@ -26263,6 +26306,10 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 /* Reset timeout as we have received a valid
                                  * DTLS handshake message */
                                 ssl->dtls_timeout = ssl->dtls_timeout_init;
+                            }
+                            else if (DtlsShouldDropHandshake(ssl, ret)) {
+                                DropAndRestartProcessReply(ssl);
+                                continue;
                             }
                             else {
                                 if (SendFatalAlertOnly(ssl, ret)

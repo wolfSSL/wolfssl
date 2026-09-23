@@ -758,6 +758,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 #endif /* WOLFSSL_DTLS13 */
 
     do {
+        int ignore = 0;
 
         if (!doDtlsTimeout) {
             dtls_timeout = 0;
@@ -864,7 +865,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         else if (dtlsCtx->userSet) {
             /* Check we received the packet from the correct peer */
-            int ignore = 0;
 #ifdef WOLFSSL_RW_THREADED
             if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
                 return WOLFSSL_CBIO_ERR_GENERAL;
@@ -880,19 +880,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
                 return WOLFSSL_CBIO_ERR_GENERAL;
 #endif
-            if (ignore) {
-#if defined(NO_ASN_TIME) &&                                                    \
-    !defined(DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER)
-                if (doDtlsTimeout) {
-                    invalidPeerPackets++;
-                    if (invalidPeerPackets > DTLS_RECEIVEFROM_MAX_INVALID_PEER)
-                        return wolfSSL_dtls_get_using_nonblock(ssl)
-                                   ? WOLFSSL_CBIO_ERR_WANT_READ
-                                   : WOLFSSL_CBIO_ERR_TIMEOUT;
-                }
-#endif /* NO_ASN_TIME && !DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER */
-                continue;
-            }
         }
         else {
             if (newPeer) {
@@ -903,23 +890,38 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             }
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
             else {
-                ret = 0;
+                /* The peer we learned ourselves is kept, but a datagram from
+                 * anywhere else is not part of this association. Drop it like
+                 * the userSet branch above does. */
     #ifdef WOLFSSL_RW_THREADED
                 if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
     #endif /* WOLFSSL_RW_THREADED */
                 if (!sockAddrEqual(peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
                                     dtlsCtx->peer.sz)) {
-                    ret = WOLFSSL_CBIO_ERR_GENERAL;
+                    WOLFSSL_MSG("    Ignored packet from invalid peer");
+                    ignore = 1;
                 }
     #ifdef WOLFSSL_RW_THREADED
                 if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
     #endif /* WOLFSSL_RW_THREADED */
-                if (ret != 0)
-                    return ret;
             }
 #endif /* !WOLFSSL_PEER_ADDRESS_CHANGES */
+        }
+
+        if (ignore) {
+#if defined(NO_ASN_TIME) &&                                                    \
+    !defined(DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER)
+            if (doDtlsTimeout) {
+                invalidPeerPackets++;
+                if (invalidPeerPackets > DTLS_RECEIVEFROM_MAX_INVALID_PEER)
+                    return wolfSSL_dtls_get_using_nonblock(ssl)
+                               ? WOLFSSL_CBIO_ERR_WANT_READ
+                               : WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+#endif /* NO_ASN_TIME && !DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER */
+            continue;
         }
 #ifndef NO_ASN_TIME
         ssl->dtls_start_timeout = 0;
