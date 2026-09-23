@@ -715,6 +715,438 @@ int test_wolfSSL_inject_app_data_ready(void)
     return EXPECT_RESULT();
 }
 
+/* Test that application data decrypted from an injected record is returned
+ * before a partial record queued behind it is processed.
+ *
+ * clearOutputBuffer points into the input buffer. Reading the rest of the
+ * partial record grows, and so reallocates, the input buffer, which must not
+ * happen while decrypted data is still waiting to be read.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_inject_app_data_partial_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) \
+    && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg1[32];
+    byte msg2[2000];
+    byte reply[sizeof(msg2)];
+    byte* records = NULL;
+    int rec1Sz = 0;
+    int recordsSz = 0;
+    int injectSz = 0;
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg1); i++) {
+        msg1[i] = (byte)i;
+    }
+    for (i = 0; i < (int)sizeof(msg2); i++) {
+        msg2[i] = (byte)(0xA5 ^ i);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* A small record followed by one larger than the input buffer will be
+     * once the pair has been injected. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg1, (int)sizeof(msg1)),
+        (int)sizeof(msg1));
+    rec1Sz = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg2, (int)sizeof(msg2)),
+        (int)sizeof(msg2));
+    recordsSz = test_ctx.c_len;
+    ExpectIntGT(recordsSz, rec1Sz + RECORD_HEADER_SZ + 16);
+
+    /* Take the records off the transport so they only arrive by injection. */
+    ExpectNotNull(records = (byte*)XMALLOC((size_t)recordsSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (records != NULL) {
+        XMEMCPY(records, test_ctx.c_buff, (size_t)recordsSz);
+    }
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* Inject the first record whole and only the start of the second. */
+    injectSz = rec1Sz + RECORD_HEADER_SZ + 16;
+    if (records != NULL) {
+        ExpectIntEQ(wolfSSL_inject(ssl_c, records, injectSz), WOLFSSL_SUCCESS);
+    }
+
+    /* The first record's data is returned without waiting for the second. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg1));
+    ExpectBufEQ(reply, msg1, sizeof(msg1));
+    ExpectIntEQ(wolfSSL_pending(ssl_c), 0);
+
+    /* The partial record stays buffered and completes once the rest arrives.
+     */
+    if (records != NULL) {
+        ExpectIntEQ(wolfSSL_inject(ssl_c, records + injectSz,
+            recordsSz - injectSz), WOLFSSL_SUCCESS);
+    }
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg2));
+    ExpectBufEQ(reply, msg2, sizeof(msg2));
+
+    XFREE(records, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a renegotiation does not read input while decrypted application
+ * data is still waiting to be read.
+ *
+ * clearOutputBuffer points into the input buffer. Receiving the server's
+ * flight would write over it or reallocate it, so the handshake reports
+ * APP_DATA_READY until the pending data has been read, then carries on.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_rehandshake_app_data_pending(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) \
+    && !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg[32];
+    byte reply[sizeof(msg)];
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg); i++) {
+        msg[i] = (byte)i;
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Leave application data buffered by reading less than was written. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, 8), 8);
+    ExpectIntGT(wolfSSL_pending(ssl_c), 0);
+
+    /* The ClientHello goes out but no reply is read over the pending data. */
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* With the server's flight waiting, the client still holds off. */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+
+    /* The pending data is intact and can be read mid-renegotiation. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg) - 8);
+    ExpectBufEQ(reply, msg + 8, sizeof(msg) - 8);
+    ExpectIntEQ(wolfSSL_pending(ssl_c), 0);
+
+    /* Once drained the renegotiation completes and data flows again. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg));
+    ExpectBufEQ(reply, msg, sizeof(msg));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION)
+/* Read into out until data is returned, allowing APP_DATA_READY from a
+ * handshake that is carried forward by the read.
+ *
+ * @param [in, out] ssl  SSL/TLS object to read from.
+ * @param [out]     out  Buffer to hold the data read.
+ * @param [in]      sz   Size of out in bytes.
+ * @return  Number of bytes read on success.
+ * @return  Negative on any other error.
+ */
+static int test_ssl_rw_read_app_data(WOLFSSL* ssl, byte* out, int sz)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int tries;
+
+    for (tries = 0; tries < 3; tries++) {
+        ret = wolfSSL_read(ssl, out, sz);
+        if ((ret > 0) || (wolfSSL_get_error(ssl, ret) !=
+                WC_NO_ERR_TRACE(APP_DATA_READY))) {
+            break;
+        }
+    }
+
+    return ret;
+}
+#endif
+
+/* Test that a renegotiation started over pending application data, with a
+ * partial record buffered behind it, stops without alerting the peer.
+ *
+ * The record header is already buffered, so the handshake would go straight
+ * to reading the record body. It must report APP_DATA_READY before that
+ * instead of treating the pending data as a bad record.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_rehandshake_app_data_partial_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) \
+    && !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg1[32];
+    byte msg2[2000];
+    byte reply[sizeof(msg2)];
+    byte* records = NULL;
+    int rec1Sz = 0;
+    int recordsSz = 0;
+    int injectSz = 0;
+    int off;
+    int handshakeRecs = 0;
+    int alertRecs = 0;
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg1); i++) {
+        msg1[i] = (byte)i;
+    }
+    for (i = 0; i < (int)sizeof(msg2); i++) {
+        msg2[i] = (byte)(0xA5 ^ i);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg1, (int)sizeof(msg1)),
+        (int)sizeof(msg1));
+    rec1Sz = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg2, (int)sizeof(msg2)),
+        (int)sizeof(msg2));
+    recordsSz = test_ctx.c_len;
+    ExpectNotNull(records = (byte*)XMALLOC((size_t)recordsSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (records != NULL) {
+        XMEMCPY(records, test_ctx.c_buff, (size_t)recordsSz);
+    }
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* The first record whole, then the header and part of the second. */
+    injectSz = rec1Sz + RECORD_HEADER_SZ + 16;
+    if (records != NULL) {
+        ExpectIntEQ(wolfSSL_inject(ssl_c, records, injectSz), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, 8), 8);
+    ExpectIntGT(wolfSSL_pending(ssl_c), 0);
+
+    /* The ClientHello goes out and the handshake stops for the pending data
+     * without an alert. */
+    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+    for (off = 0; (off + RECORD_HEADER_SZ) <= test_ctx.s_len;
+            off += RECORD_HEADER_SZ + ((test_ctx.s_buff[off + 3] << 8) |
+                                        test_ctx.s_buff[off + 4])) {
+        if (test_ctx.s_buff[off] == handshake) {
+            handshakeRecs++;
+        }
+        else if (test_ctx.s_buff[off] == alert) {
+            alertRecs++;
+        }
+    }
+    ExpectIntEQ(handshakeRecs, 1);
+    ExpectIntEQ(alertRecs, 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* The pending data is intact. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg1) - 8);
+    ExpectBufEQ(reply, msg1 + 8, sizeof(msg1) - 8);
+
+    /* The rest of the second record arrives and is delivered mid
+     * renegotiation, then the renegotiation completes. */
+    if (records != NULL) {
+        ExpectIntEQ(wolfSSL_inject(ssl_c, records + injectSz,
+            recordsSz - injectSz), WOLFSSL_SUCCESS);
+    }
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(test_ssl_rw_read_app_data(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg2));
+    ExpectBufEQ(reply, msg2, sizeof(msg2));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    XFREE(records, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a TLS 1.3 server asked to finish the handshake while early data
+ * is still unread reports APP_DATA_READY, lets the data be read and then
+ * finishes.
+ *
+ * The EndOfEarlyData and Finished messages would be read over the pending
+ * early data. APP_DATA_READY must not be a sticky error in builds without
+ * secure renegotiation or DTLS 1.3.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_accept_early_data_pending(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    const char earlyMsg[] = "0123456789abcdefghi";
+    const char msg[] = "after the handshake";
+    char buf[64];
+    int written = 0;
+    int rd = 0;
+
+    /* Full handshake to get a ticket that allows early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Resume with early data and read only part of it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg,
+        (int)XSTRLEN(earlyMsg), &written), (int)XSTRLEN(earlyMsg));
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, buf, 4, &rd), 4);
+    ExpectIntEQ(rd, 4);
+    ExpectIntEQ(wolfSSL_pending(ssl_s), (int)XSTRLEN(earlyMsg) - 4);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+
+    /* The server holds off until the early data has been read. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+        (int)XSTRLEN(earlyMsg) - 4);
+    ExpectBufEQ(buf, earlyMsg + 4, XSTRLEN(earlyMsg) - 4);
+
+    /* Then the handshake finishes and data flows. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), (int)sizeof(msg));
+    ExpectBufEQ(buf, msg, sizeof(msg));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Same again, but drain the rest with wolfSSL_read_early_data(). The
+     * APP_DATA_READY left by wolfSSL_accept() must not hide the byte count. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg,
+        (int)XSTRLEN(earlyMsg), &written), (int)XSTRLEN(earlyMsg));
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, buf, 4, &rd), 4);
+    ExpectIntEQ(rd, 4);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, buf, sizeof(buf), &rd),
+        (int)XSTRLEN(earlyMsg) - 4);
+    ExpectIntEQ(rd, (int)XSTRLEN(earlyMsg) - 4);
+    ExpectBufEQ(buf, earlyMsg + 4, XSTRLEN(earlyMsg) - 4);
+
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), (int)sizeof(msg));
+    ExpectBufEQ(buf, msg, sizeof(msg));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /* QUIC secret callback. Only send_alert below matters to this test.

@@ -2385,6 +2385,12 @@ int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
     is blocking, wolfSSL_accept() will only return once the handshake has
     been finished or an error occurred.
 
+    If decrypted application data is waiting to be read, for example early
+    data that has not been read yet or data received during a secure
+    renegotiation, the handshake is not continued and wolfSSL_get_error()
+    returns APP_DATA_READY. Read the data with wolfSSL_read() and then call
+    wolfSSL_accept() again.
+
     \return SSL_SUCCESS upon success.
     \return SSL_FATAL_ERROR will be returned if an error occurred. To get a
     more detailed error code, call wolfSSL_get_error().
@@ -7267,6 +7273,10 @@ word32 wolfSSL_lib_version_hex(void);
     \brief Performs the actual connect or accept based on the side of the SSL
     method.  If called from the client side then an wolfSSL_connect() is done
     while a wolfSSL_accept() is performed if called from the server side.
+
+    If decrypted application data is waiting to be read, the handshake is not
+    continued and wolfSSL_get_error() returns APP_DATA_READY. Read the data
+    with wolfSSL_read() and then call wolfSSL_negotiate() again.
 
     \return SSL_SUCCESS will be returned if successful. (Note, older versions
     will return 0.)
@@ -12945,6 +12955,11 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl);
     \brief This function executes a secure renegotiation handshake; this is user
     forced as wolfSSL discourages this functionality.
 
+    If decrypted application data is waiting to be read, the renegotiation is
+    not continued and wolfSSL_get_error() returns APP_DATA_READY. Read the
+    data with wolfSSL_read(), which also moves the renegotiation forward, or
+    call wolfSSL_Rehandshake() again once it has been read.
+
     \return SSL_SUCCESS returned if the function executed without error.
     \return BAD_FUNC_ARG returned if an unacceptable argument was passed in a
     subroutine.
@@ -14527,6 +14542,11 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(WOLFSSL_X509*);
     SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0); before calling SSL_new();
     Though it's not recommended.
 
+    If decrypted application data is waiting to be read, for example data
+    received during a secure renegotiation, the handshake is not continued
+    and wolfSSL_get_error() returns APP_DATA_READY. Read the data with
+    wolfSSL_read() and then call wolfSSL_connect() again.
+
     \return SSL_SUCCESS If successful.
     \return SSL_FATAL_ERROR will be returned if an error occurred.  To get a
     more detailed error code, call wolfSSL_get_error().
@@ -15540,6 +15560,10 @@ int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
     verifying the server fails and reducing security you can do this by
     calling: SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0); before calling
     SSL_new();  Though it's not recommended.
+
+    If decrypted application data is waiting to be read, the handshake is not
+    continued and wolfSSL_get_error() returns APP_DATA_READY. Read the data
+    with wolfSSL_read() and then call wolfSSL_connect_TLSv13() again.
 
     \return SSL_SUCCESS upon success.
     \return SSL_FATAL_ERROR will be returned if an error occurred.  To get a

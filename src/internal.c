@@ -25566,7 +25566,8 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     if (ssl->error != 0 &&
         ssl->error != WC_NO_ERR_TRACE(WANT_READ) &&
         ssl->error != WC_NO_ERR_TRACE(WANT_WRITE)
-    #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
+    #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13) || \
+        defined(WOLFSSL_EARLY_DATA)
         && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
     #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -26463,16 +26464,16 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 SERVER_FINISHED_COMPLETE &&
                             ssl->options.handShakeState != HANDSHAKE_DONE)))
 #endif
-#ifdef WOLFSSL_TLS_READ_AHEAD
-                    /* With read-ahead, more than one record may be buffered. If
-                     * application data was just decrypted, return it now so it
-                     * is delivered to the caller before any following buffered
-                     * record (e.g. a close_notify alert) is processed, which
-                     * would otherwise discard the pending app data. The
-                     * remaining records stay buffered for the next call. */
+                    /* If application data was just decrypted, return it now so
+                     * it is delivered to the caller before any following
+                     * buffered record is processed. clearOutputBuffer points
+                     * into inputBuffer, so reading the rest of a partial record
+                     * could compact or reallocate it and leave the pending data
+                     * overwritten or freed. A following record such as a
+                     * close_notify alert would also discard the pending data.
+                     * The remaining records stay buffered for the next call. */
                     || (ssl->curRL.type == application_data &&
                         ssl->buffers.clearOutputBuffer.length > 0)
-#endif
                     ) {
                     /* Shrink input buffer when we successfully finish record
                      * processing */
@@ -26515,6 +26516,30 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 int ProcessReply(WOLFSSL* ssl)
 {
     return ProcessReplyEx(ssl, 0);
+}
+
+/* Process a reply from within a handshake function.
+ *
+ * Decrypted application data waiting to be read is held in inputBuffer, or in
+ * decompBuffer with compression. Processing more records would overwrite it
+ * or free it, so the application is asked to read it first. This happens
+ * during a secure renegotiation, while early data is unread or when DTLS 1.3
+ * returned application data while waiting for an ACK. ReceiveData() only calls
+ * ProcessReply() when no data is pending, so it does not need this check.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  APP_DATA_READY when application data must be read first.
+ * @return  Otherwise, as ProcessReply().
+ */
+int ProcessReplyHandshake(WOLFSSL* ssl)
+{
+    if (ssl->buffers.clearOutputBuffer.length > 0) {
+        WOLFSSL_MSG("Application data pending, read it before the handshake "
+                    "continues");
+        return APP_DATA_READY;
+    }
+
+    return ProcessReply(ssl);
 }
 
 int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
@@ -29910,7 +29935,8 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 #ifdef WOLFSSL_ASYNC_CRYPT
             && error != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
-#if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
+#if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13) || \
+    defined(WOLFSSL_EARLY_DATA)
             && error != WC_NO_ERR_TRACE(APP_DATA_READY)
 #endif
     ) {
