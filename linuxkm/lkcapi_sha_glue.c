@@ -4272,7 +4272,10 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
     ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, iov_iter_count(iter));
     if (ret != 0) {
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
-        return ret;
+        if (ret == -WC_NO_ERR_TRACE(EINTR))
+            return -ERESTARTSYS; /* as at the end with no output -- SA_RESTART contract */
+        else
+            return ret;
     }
 #endif
 
@@ -4372,7 +4375,10 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
     ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, nbytes);
     if (ret != 0) {
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
-        return ret;
+        if (ret == -WC_NO_ERR_TRACE(EINTR))
+            return -ERESTARTSYS; /* as at the end with no output -- SA_RESTART contract */
+        else
+            return ret;
     }
 #endif
 
