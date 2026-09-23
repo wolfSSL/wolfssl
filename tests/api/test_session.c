@@ -1814,9 +1814,55 @@ int test_wolfSSL_GetSessionAtIndex(void)
     return EXPECT_RESULT();
 }
 
+/* A short ticket cached over a slot that kept a long ticket's buffer must be
+ * read back as the short ticket, not the long ticket's leftover bytes. */
+int test_wolfSSL_session_cache_short_ticket_reuse(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* copy = NULL;
+    byte id[ID_LEN];
+    word16 shortLen = 32;
+    int idx = -1;
+
+    XMEMSET(id, 0x5A, sizeof(id));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(test_session_at_index_add(ctx, id,
+        (word16)(SESSION_TICKET_LEN + 128), 0xA1, NULL), TEST_SUCCESS);
+
+    /* Same ID, short ticket in the session's static buffer. */
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(sess->sessionID, id, ID_LEN);
+        sess->sessionIDSz = ID_LEN;
+        sess->side = WOLFSSL_CLIENT_END;
+        sess->isSetup = 1;
+        XMEMSET(sess->staticTicket, 0xB2, shortLen);
+        sess->ticketLen = shortLen;
+    }
+    ExpectIntEQ(AddSessionToCache(ctx, sess, id, ID_LEN, &idx,
+        WOLFSSL_CLIENT_END, 1, NULL), 0);
+    ExpectIntGE(idx, 0);
+
+    ExpectNotNull(copy = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_GetSessionAtIndex(idx, copy), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy, shortLen, 0xB2), 1);
+
+    wolfSSL_SESSION_free(copy);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+
 #else
 
 int test_wolfSSL_GetSessionAtIndex(void)
+{
+    return TEST_SKIPPED;
+}
+
+int test_wolfSSL_session_cache_short_ticket_reuse(void)
 {
     return TEST_SKIPPED;
 }

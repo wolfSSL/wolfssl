@@ -4152,9 +4152,8 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
-        if (input->ticketLenAlloc > 0 && ret == WOLFSSL_SUCCESS) {
-            /* Shouldn't happen as session should have placed this in
-             * the static buffer */
+        if (input->ticketLen > 0 && ret == WOLFSSL_SUCCESS) {
+            /* Output may be a reused buffer, not a copy of input's */
             XMEMCPY(output->ticket, input->ticket,
                     input->ticketLen);
         }
