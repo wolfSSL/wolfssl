@@ -1,6 +1,8 @@
 # wolfCrypt FIPS C# wrapper
 
-A .NET (net8.0) wrapper for the wolfCrypt FIPS 140-3 module. It binds only
+A .NET wrapper for the wolfCrypt FIPS 140-3 module, targeting .NET 10
+(LTS, supported through November 2028) and .NET 8 (LTS, supported through
+November 10, 2026). It binds only
 the module's approved-service entry points (the `*_fips` functions of the
 v5.2.3 boundary) and contains no cryptographic code of its own.
 
@@ -53,13 +55,17 @@ wrapper/CSharp/wolfCrypt-FIPS/run-tests.sh <prefix>
 ```
 
 `run-tests.sh` builds `libwolfssl_csharp_fips` into `<prefix>/lib`, runs the
-binding audit, and runs `wolfCrypt-FIPS-Test`.
+binding audit, and builds and runs `wolfCrypt-FIPS-Test` for one target
+framework (default `net10.0`). Each build runs only on its matching runtime;
+there is no roll-forward, so a `net8.0` run needs a .NET 8 runtime.
 
 Environment:
 
 | Variable | Effect |
 |---|---|
 | `WOLFSSL_FIPS_LIB_DIR` | Directory holding libwolfssl and the size helper (otherwise the normal search path, e.g. `/usr/local/lib`) |
+| `DOTNET_TFM` | Target framework to test: `net10.0` (default) or `net8.0` |
+| `DOTNET_ROOT` | .NET install holding the runtime for `DOTNET_TFM`, if it is not the default install |
 | `WOLFACVP_VECTORS` | Path to `fips/wolfACVP` of a FIPS bundle; enables the ACVP known-answer tests (they report SKIP otherwise) |
 
 Forced-failure tests run automatically when the library exports

@@ -31,6 +31,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 return ForcedFailureTests.Child(int.Parse(args[1]));
 
             Console.WriteLine("wolfCrypt FIPS v5.2.3 C# wrapper tests");
+            Console.WriteLine("runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription +
+                              " (" + System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + ")");
             ModuleTests.Run();
             RngTests.Run();
             MacHashTests.Run();
