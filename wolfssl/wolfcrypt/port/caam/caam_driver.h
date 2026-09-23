@@ -376,6 +376,8 @@ int caamECDSAMake(DESCSTRUCT *desc, CAAM_BUFFER *buf, unsigned int args[4]);
 
 
 int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4]);
+int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4],
+    unsigned int phyMem);
 int caamAead(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4]);
 int caamAesCmac(DESCSTRUCT *desc, int sz, unsigned int args[4]);
 int caamBlob(DESCSTRUCT *desc);
