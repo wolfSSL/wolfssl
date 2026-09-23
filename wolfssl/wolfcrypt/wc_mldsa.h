@@ -1127,6 +1127,11 @@ WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
 #endif
 #endif
 
+#if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+WOLFSSL_TEST_VIS int wc_MlDsa_TestRejNttFail(int n);
+#endif
+
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif
