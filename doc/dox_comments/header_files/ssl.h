@@ -14746,20 +14746,9 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     protocol DTLS v1.3, a cookie exchange will not be included in the
     handshake. Please note that not doing a cookie exchange when using protocol
     DTLS v1.3 can make the server susceptible to DoS/Amplification attacks.
-    This delegates to wolfSSL_disable_cookie(), including its
-    DTLS 1.2 fallback policy and its state check: for DTLS it fails once the
-    handshake has committed to stateful processing. On
-    success the primary and secondary HRR secrets are erased as before.
-    TLS 1.3 over a reliable transport is unchanged.
-    On a DTLS object this now also switches off the DTLS 1.2
-    HelloVerifyRequest exchange on the downgrade path, which wolfSSL_accept()
-    left running while wolfSSL_accept_TLSv13() already turned it off; the two
-    entry points now agree. One setting covers both protocol versions, so
-    keeping the DTLS 1.2 exchange while skipping the DTLS 1.3
-    HelloRetryRequest round trip is not an available policy. It was not a
-    working one either: with the HRR secret erased, a DTLS 1.3 ClientHello
-    still reached cookie creation and the handshake failed with COOKIE_ERROR.
-    A server that needs return routability should leave cookies enabled.
+    This delegates to wolfSSL_disable_cookie(): on a DTLS object it also
+    disables the DTLS 1.2 HelloVerifyRequest exchange, and it fails with
+    BAD_STATE_E once the handshake has committed to stateful processing.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 

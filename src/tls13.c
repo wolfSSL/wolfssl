@@ -16864,10 +16864,7 @@ int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
-    /* All or nothing: every secret a cookie-enabled object needs - including
-     * the DTLS 1.2 fallback secret of a DTLS 1.3 server - is built before any
-     * of them is installed, so a failure here leaves the object exactly as it
-     * was found, with its previous secret and policy intact. */
+    /* On failure the previous secrets and policy are kept. */
     return CookiePolicySet(ssl, secret, secretSz, 1);
 #else
     (void)secret;

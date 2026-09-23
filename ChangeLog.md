@@ -249,21 +249,21 @@
 * **Behavioral change (DTLS cookie mode is one policy, set by the
   application)**: `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` are
   new and switch server cookies on and off for DTLS 1.2, DTLS 1.3 and TLS 1.3
-  alike, which changes three existing entry points that now share that one
+  alike, which changes existing entry points that now share that one
   switch.  `wolfSSL_disable_hrr_cookie()` delegates to
-  `wolfSSL_disable_cookie()`, so on a `wolfDTLS_server_method()` object it now
-  also turns off the DTLS 1.2 HelloVerifyRequest exchange on the downgrade
-  path, where it used to leave that exchange alone;
+  `wolfSSL_disable_cookie()`, so on a DTLS object it now also frees the
+  DTLS 1.2 cookie secrets;
   `wolfSSL_send_hrr_cookie()`, `wolfSSL_disable_hrr_cookie()`,
   `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` now return
   `BAD_STATE_E` once the handshake has decided how to process the
-  ClientHello. `wolfDTLS_accept_stateless()` reports `BAD_STATE_E` when called on an object
-  whose cookies are disabled, which `wolfSSL_accept()` handles instead. Finally,
-  every cookie secret change is now all or nothing: the replacement is built
-  before the secret it replaces is freed, so when `wolfSSL_send_hrr_cookie()`,
-  `wolfSSL_enable_cookie()`, `wolfSSL_DTLS_SetCookieSecret()` or either
-  secondary-secret setter fails, the secrets and the cookie policy are left
-  exactly as they were found instead of the rotation half happening.
+  ClientHello. `wolfDTLS_accept_stateless()` reports `BAD_STATE_E` when called
+  on an object whose cookies are disabled, which `wolfSSL_accept()` handles
+  instead. Finally, every cookie secret change is now all or nothing: the
+  replacement is built before the secret it replaces is freed, so when
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_enable_cookie()`,
+  `wolfSSL_DTLS_SetCookieSecret()` or either secondary-secret setter fails,
+  the secrets and the cookie policy are left exactly as they were found
+  instead of the rotation half happening.
 
 ## New Features
 

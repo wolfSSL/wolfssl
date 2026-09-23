@@ -8543,11 +8543,8 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 /* Generate the cookie material a DTLS server needs and allow ClientHello
  * fragmentation.
  *
- * Only the material is set up here. The cookie policy bit is armed once, by
- * InitSSL(), and belongs to the application from then on. This runs both when
- * the object is created server side and when InitSSL_Side() promotes a
- * general-purpose object, so it must not re-arm a policy that the application
- * turned off in between.
+ * Does not arm the cookie policy: InitSSL() does that once, and this also runs
+ * when InitSSL_Side() promotes an object whose cookies may be off by then.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  0 on success, and when there is nothing to do.

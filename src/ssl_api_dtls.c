@@ -1613,6 +1613,73 @@ void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
     }
 }
 
+/* Build a cookie secret in a buffer the SSL object does not own yet.
+ *
+ * @param [in]  ssl       SSL/TLS object.
+ * @param [out] out       New secret. Left empty on failure.
+ * @param [in]  secret    Secret data to copy, or NULL to generate one.
+ * @param [in]  secretSz  Length of the secret in bytes. Never 0.
+ * @return  0 on success.
+ * @return  MEMORY_ERROR on allocation failure.
+ * @return  BAD_STATE_E when a secret must be generated without an RNG.
+ * @return  A negative error code when the RNG fails.
+ */
+static int NewCookieSecret(WOLFSSL* ssl, buffer* out, const byte* secret,
+                           word32 secretSz)
+{
+    int ret;
+
+    out->buffer = NULL;
+    out->length = 0;
+
+    if (secret == NULL && ssl->rng == NULL) {
+        WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
+        return BAD_STATE_E;
+    }
+
+    out->buffer = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+    if (out->buffer == NULL) {
+        WOLFSSL_MSG("couldn't allocate new cookie secret");
+        return MEMORY_ERROR;
+    }
+    out->length = secretSz;
+
+    /* If the supplied secret is NULL, randomly generate a new secret. */
+    if (secret != NULL)
+        XMEMCPY(out->buffer, secret, secretSz);
+    else {
+        ret = wc_RNG_GenerateBlock(ssl->rng, out->buffer, secretSz);
+        if (ret != 0) {
+            FreeCookieSecret(ssl, out);
+            return ret;
+        }
+    }
+    return 0;
+}
+
+/* Install a secret built by NewCookieSecret(), freeing the one it replaces.
+ * Cannot fail.
+ *
+ * @param [in]      ssl   SSL/TLS object.
+ * @param [in, out] dst   Secret in the SSL object to replace.
+ * @param [in, out] src   New secret. Left empty.
+ * @param [in]      name  Name of dst, for the memory-zero check.
+ */
+static void CommitCookieSecret(WOLFSSL* ssl, buffer* dst, buffer* src,
+                               const char* name)
+{
+    FreeCookieSecret(ssl, dst);
+    dst->buffer = src->buffer;
+    dst->length = src->length;
+    src->buffer = NULL;
+    src->length = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add(name, dst->buffer, dst->length);
+#else
+    (void)name;
+#endif
+}
+
 /* Atomically replace one cookie secret.
  *
  * The replacement is built in its own allocation and only swapped in once it
@@ -1632,42 +1699,15 @@ void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
 int SetCookieSecret(WOLFSSL* ssl, buffer* dst, const byte* secret,
                     word32 secretSz, const char* name)
 {
-    byte* newSecret;
-    int   ret;
+    buffer newSecret;
+    int    ret;
 
-    newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-    if (newSecret == NULL) {
-        WOLFSSL_MSG("couldn't allocate new cookie secret");
-        return MEMORY_ERROR;
-    }
-
-    /* If the supplied secret is NULL, randomly generate a new secret. */
-    if (secret != NULL)
-        XMEMCPY(newSecret, secret, secretSz);
-    else {
-        if (ssl->rng == NULL) {
-            WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
-            ForceZero(newSecret, secretSz);
-            XFREE(newSecret, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-            return BAD_STATE_E;
-        }
-        ret = wc_RNG_GenerateBlock(ssl->rng, newSecret, secretSz);
-        if (ret != 0) {
-            ForceZero(newSecret, secretSz);
-            XFREE(newSecret, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-            return ret;
-        }
-    }
+    ret = NewCookieSecret(ssl, &newSecret, secret, secretSz);
+    if (ret != 0)
+        return ret;
 
     /* Swap: the old secret is only dropped once the new one is ready. */
-    FreeCookieSecret(ssl, dst);
-    dst->buffer = newSecret;
-    dst->length = secretSz;
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add(name, dst->buffer, dst->length);
-#else
-    (void)name;
-#endif
+    CommitCookieSecret(ssl, dst, &newSecret, name);
     return 0;
 }
 
@@ -1847,20 +1887,10 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
 
 /* Notify the ClientHello good callback when cookies are disabled.
  *
- * Called by the accept functions at the first ClientHello transition, after
- * a complete ClientHello has been processed. With cookies enabled the callback
- * is invoked from the stateless ClientHello processing instead.
- *
- * How often this runs is decided by the accept state machine, not here. The
- * call sites reach it only at the first ClientHello transition and only after
- * the ClientHello loop has completed, so reassembly and retransmission never
- * reach it. The transition is left behind as soon as the callback accepts, so
- * an accepted ClientHello is notified once. Any negative return stops the
- * accept call before the transition is left, so the next accept call asks
- * again: a callback can pause with WANT_READ/WANT_WRITE for as long as it
- * needs, and one that refuses the peer is asked again and refuses again,
- * which is what stops the handshake before the ServerHello. The
- * cookie-enabled path re-runs its check on every retry in the same way.
+ * Called by the accept functions once a complete first ClientHello has been
+ * processed. With cookies enabled the stateless ClientHello processing calls
+ * it instead. A negative return stops the accept call before its state
+ * advances, so the next accept call asks again.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  0 when the callback is not called or succeeds.
@@ -1958,18 +1988,8 @@ static int CheckCookieSide(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
-/* Reject a cookie policy change that can no longer take effect.
- *
- * dtlsStateful is latched by the accept functions before the first record is
- * read, and by DoClientHelloStateless() once a cookie verifies. After that the
- * accept path has already decided how this ClientHello is processed, so
- * reporting success would misreport whether return routability is enforced.
- * It would also let a ClientHello good callback change the policy under itself
- * and be notified twice for one ClientHello.
- *
- * Every public entry point that changes the cookie policy calls this:
- * wolfSSL_enable_cookie(), wolfSSL_disable_cookie() and, through them or
- * directly, wolfSSL_send_hrr_cookie() and wolfSSL_disable_hrr_cookie().
+/* Reject a cookie policy change once the DTLS handshake has committed to
+ * stateful processing, when it can no longer take effect.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS when the policy can still be changed.
@@ -2034,17 +2054,10 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl)
 /* Turn the cookie policy on, optionally replacing the HelloRetryRequest
  * cookie secret.
  *
- * A server can need two secrets at once: a DTLS 1.3 object also keeps the
- * DTLS 1.2 secret for a fallback HelloVerifyRequest. Both are built in
- * detached buffers before either is installed, so the only steps that can fail
- * all run before the object is touched. Either every secret the policy needs
- * is in place and sendCookie is set, or the object is exactly as it was found.
- * That holds no matter which secret was already present, so there is no
- * ordering between them for a caller to get wrong.
- *
- * Does not check the handshake state: InitSSL_DtlsServer() uses this to set a
- * new object up, which is outside the window CheckCookieState() guards. The
- * public entry points check the state themselves before they get here.
+ * Every secret the policy needs, including the DTLS 1.2 fallback secret of a
+ * DTLS 1.3 server, is built before any is installed, so a failure leaves the
+ * object as it was found. The handshake state is not checked here: the public
+ * entry points check it, and InitSSL_DtlsServer() runs before it matters.
  *
  * @param [in, out] ssl          SSL/TLS object.
  * @param [in]      hrrSecret    HRR cookie secret to install, or NULL to
@@ -2065,88 +2078,54 @@ int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
 {
     int ret;
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    byte*  newTls13Secret = NULL;
-    word32 newTls13SecretSz = 0;
+    buffer newTls13Secret;
 #endif
 #ifdef WOLFSSL_DTLS
-    byte*  newDtlsSecret = NULL;
+    buffer newDtlsSecret;
+#endif
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    XMEMSET(&newTls13Secret, 0, sizeof(newTls13Secret));
+#endif
+#ifdef WOLFSSL_DTLS
+    XMEMSET(&newDtlsSecret, 0, sizeof(newDtlsSecret));
 #endif
 
     ret = CheckCookieSide(ssl);
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
-    /* Prepare. Every step that can fail runs here, against memory this call
-     * owns; nothing reachable from ssl is touched. */
+    /* Prepare. Every step that can fail runs here. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (IsAtLeastTLSv1_3(ssl->version) &&
             (replaceHrr || ssl->buffers.tls13CookieSecret.buffer == NULL)) {
-        newTls13SecretSz = (hrrSecretSz != 0) ? hrrSecretSz
-                                              : (word32)TLS13_COOKIE_SECRET_SZ;
-        newTls13Secret = (byte*)XMALLOC(newTls13SecretSz, ssl->heap,
-                                        DYNAMIC_TYPE_COOKIE_PWD);
-        if (newTls13Secret == NULL) {
-            WOLFSSL_MSG("couldn't allocate new cookie secret");
-            ret = MEMORY_ERROR;
+        ret = NewCookieSecret(ssl, &newTls13Secret, hrrSecret,
+                              (hrrSecretSz != 0) ? hrrSecretSz
+                                  : (word32)TLS13_COOKIE_SECRET_SZ);
+        if (ret != 0)
             goto cleanup;
-        }
-        if (hrrSecret != NULL)
-            XMEMCPY(newTls13Secret, hrrSecret, newTls13SecretSz);
-        else {
-            if (ssl->rng == NULL) {
-                WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
-                ret = BAD_STATE_E;
-                goto cleanup;
-            }
-            ret = wc_RNG_GenerateBlock(ssl->rng, newTls13Secret,
-                                       newTls13SecretSz);
-            if (ret != 0)
-                goto cleanup;
-        }
     }
 #endif
 #ifdef WOLFSSL_DTLS
     /* DTLS 1.3 also needs this secret for DTLS 1.2 fallback. */
     if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL) {
-        newDtlsSecret = (byte*)XMALLOC(COOKIE_SECRET_SZ, ssl->heap,
-                                       DYNAMIC_TYPE_COOKIE_PWD);
-        if (newDtlsSecret == NULL) {
-            WOLFSSL_MSG("couldn't allocate new cookie secret");
-            ret = MEMORY_ERROR;
-            goto cleanup;
-        }
-        if (ssl->rng == NULL) {
-            WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
-            ret = BAD_STATE_E;
-            goto cleanup;
-        }
-        ret = wc_RNG_GenerateBlock(ssl->rng, newDtlsSecret,
-                                   COOKIE_SECRET_SZ);
+        ret = NewCookieSecret(ssl, &newDtlsSecret, NULL, COOKIE_SECRET_SZ);
         if (ret != 0)
             goto cleanup;
     }
 #endif
 
-    /* Commit. The old secrets are dropped and the new ones swapped in.
-     * Nothing below this point can fail. */
+    /* Commit. Nothing below this point can fail. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    if (newTls13Secret != NULL) {
-        FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
-        ssl->buffers.tls13CookieSecret.buffer = newTls13Secret;
-        ssl->buffers.tls13CookieSecret.length = newTls13SecretSz;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("tls13CookieSecret", newTls13Secret, newTls13SecretSz);
-    #endif
+    if (newTls13Secret.buffer != NULL) {
+        CommitCookieSecret(ssl, &ssl->buffers.tls13CookieSecret,
+                           &newTls13Secret, "tls13CookieSecret");
     }
 #endif
 #ifdef WOLFSSL_DTLS
-    if (newDtlsSecret != NULL) {
-        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
-        ssl->buffers.dtlsCookieSecret.buffer = newDtlsSecret;
-        ssl->buffers.dtlsCookieSecret.length = COOKIE_SECRET_SZ;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("dtlsCookieSecret", newDtlsSecret, COOKIE_SECRET_SZ);
-    #endif
+    if (newDtlsSecret.buffer != NULL) {
+        CommitCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret,
+                           &newDtlsSecret, "dtlsCookieSecret");
     }
 #endif
     ssl->options.sendCookie = 1;
@@ -2157,19 +2136,12 @@ int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
     return WOLFSSL_SUCCESS;
 
 cleanup:
-    /* Only the secrets this call built are dropped. The object still holds
-     * exactly what it held on entry. */
+    /* Only the secrets this call built are dropped. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    if (newTls13Secret != NULL) {
-        ForceZero(newTls13Secret, newTls13SecretSz);
-        XFREE(newTls13Secret, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-    }
+    FreeCookieSecret(ssl, &newTls13Secret);
 #endif
 #ifdef WOLFSSL_DTLS
-    if (newDtlsSecret != NULL) {
-        ForceZero(newDtlsSecret, COOKIE_SECRET_SZ);
-        XFREE(newDtlsSecret, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-    }
+    FreeCookieSecret(ssl, &newDtlsSecret);
 #endif
     return ret;
 }
