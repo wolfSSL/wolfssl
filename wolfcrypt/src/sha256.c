@@ -349,8 +349,7 @@ static int InitSha256(wc_Sha256* sha256)
     return 0;
 }
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 /* Reset a hash context to its freshly initialized state, reusing its existing
  * allocations.  Like the Final functions, Reset does not destroy sensitive
@@ -369,8 +368,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
     return InitSha256(sha256);
 }
 #define WC_SHA256RESET_DEFINED
-#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP &&
-        * !WOLF_CRYPTO_CB_ONLY_SHA256 */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB_ONLY_SHA256 */
 
 #endif
 
@@ -2775,14 +2773,14 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         return ret;
     }
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_HASH_KEEP)
 int wc_Sha224Reset(wc_Sha224* sha224) {
     if (sha224 == NULL)
         return BAD_FUNC_ARG;
     return InitSha224(sha224);
 }
 #define WC_SHA224RESET_DEFINED
-#endif /* !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_HASH_KEEP */
 
 #endif
 
@@ -3235,11 +3233,6 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
  */
 
 #ifndef WC_SHA256RESET_DEFINED
-
-#if (defined(WOLFSSL_KERNEL_MODE) || defined(WOLFSSL_KERNEL_MODE_DEFAULTS)) && \
-    defined(HAVE_HASHDRBG)
-    #error "SHA-256 misconfiguration -- Kernel mode RNG requires reset-in-place."
-#endif
 
 int wc_Sha256Reset(wc_Sha256* sha256) {
     void *heap;

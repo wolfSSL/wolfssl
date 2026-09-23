@@ -791,6 +791,9 @@ static WARN_UNUSED_RESULT int Hash_df(DRBG_internal* drbg, byte* out,
                 XMEMCPY(out, digest, outSz);
             }
         }
+        else {
+            break;
+        }
     }
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
@@ -1787,7 +1790,15 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Generate(DRBG_internal* drbg,
         ForceZero(thisV, DRBG_SEED_LEN);
     WC_FREE_VAR_EX(shadowV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
+    if (ret == 0)
+        return DRBG_SUCCESS;
+    else {
+        /* wipe the stranded output, which would otherwise be repeated
+         * on a subsequent successful call.
+         */
+        ForceZero(out, outSz);
+        return DRBG_FAILURE;
+    }
 }
 
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
@@ -2004,6 +2015,9 @@ static WARN_UNUSED_RESULT int Hash512_df(DRBG_SHA512_internal* drbg, byte* out,
             else {
                 XMEMCPY(out, digest, outSz);
             }
+        }
+        else {
+            break;
         }
     }
 
@@ -2376,7 +2390,15 @@ static WARN_UNUSED_RESULT int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg,
         ForceZero(thisV, DRBG_SHA512_SEED_LEN);
     WC_FREE_VAR_EX(shadowV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
+    if (ret == 0)
+        return DRBG_SUCCESS;
+    else {
+        /* wipe the stranded output, which would otherwise be repeated
+         * on a subsequent successful call.
+         */
+        ForceZero(out, outSz);
+        return DRBG_FAILURE;
+    }
 }
 
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
@@ -2509,10 +2531,15 @@ static WARN_UNUSED_RESULT int Hash_DRBG_StirGenerate(WC_RNG* rng,
 #endif
 #ifdef WC_RNG_DEBUG_STATS
     if (ret == 0)
-        ++rng->_stats_stirs; /* counts uncredited
-                                           * stir-generates. */
+        ++rng->_stats_stirs; /* counts uncredited stir-generates. */
 #endif
-    return ret;
+
+    if (ret == DRBG_NEED_RESEED)
+        return NOT_READY_E;
+    else if (ret > 0)
+        return RNG_FAILURE_E;
+    else
+        return ret;
 }
 
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_Stir_Nonce_local(WC_RNG* rng,
@@ -2545,9 +2572,8 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_Stir_Nonce_local(WC_RNG* rng,
     }
 }
 
-int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng,
-                                        const byte* seed, word32 seedSz,
-                                        const byte *nonce, word32 nonceSz)
+int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
+                           const byte *nonce, word32 nonceSz)
 {
     int ret;
 
@@ -2563,8 +2589,7 @@ int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng,
 
 int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL,
-                                               0);
+    return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
 }
 
 /* FIPS 140-3 IG 10.3.A / SP800-90B Health Tests for Seed Data
@@ -5835,7 +5860,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ((rng->RBGCStratum > 0) && (banked_stratum == 0)))
             {
                 ret = wc_RNG_DRBG_NextSeedNow_local(rng);
-                if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E)) {
+                if ((ret == WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E)) ||
+                    (ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)))
+                {
                     RngAutoLockExit(rng);
                     return ret;
                 }

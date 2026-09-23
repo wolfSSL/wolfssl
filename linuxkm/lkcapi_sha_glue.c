@@ -4082,9 +4082,14 @@ static int wc_linuxkm_drbg_generate_tfm(struct crypto_rng *tfm,
     for (;;) {
         ret = wc_linuxkm_drbg_generate((struct wc_rng_bank *)crypto_rng_ctx(tfm),
                                            src, slen, dst, dlen, 0 /* pr */);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
         ret = rng_invalidation_post_check(__func__, ret);
         if (ret != -WC_NO_ERR_TRACE(EAGAIN))
+#endif
+        {
             break;
+
+        }
     }
 
     /* Failure may be due to an invalidation, which may be unique to this VM,
