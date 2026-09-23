@@ -167,7 +167,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException();
             int ret = Native.wc_GmacVerify_fips(key, (uint)key.Length, iv, (uint)iv.Length,
                 aad, (uint)aad.Length, tag, (uint)tag.Length);
-            if (ret == FipsError.AES_GCM_AUTH_E)
+            if (ret == FipsError.AES_GCM_AUTH_E || (ret != 0 && !FipsError.IsModuleStateError(ret)))
                 return false;
             WolfCryptFipsException.Check("wc_GmacVerify_fips", ret);
             return true;

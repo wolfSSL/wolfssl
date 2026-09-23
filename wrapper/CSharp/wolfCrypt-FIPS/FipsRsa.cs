@@ -203,6 +203,8 @@ namespace wolfSSL.CSharp.Fips
                 return VerifyFailure("wc_RsaPSS_VerifyEx_fips", ret);
             ret = Native.wc_RsaPSS_CheckPaddingEx_fips(digest, (uint)digest.Length, decoded, (uint)ret,
                 (int)hash, saltLen, Bits);
+            if (FipsError.IsModuleStateError(ret))
+                throw new WolfCryptFipsException("wc_RsaPSS_CheckPaddingEx_fips", ret);
             return ret == 0;
         }
 
@@ -247,8 +249,7 @@ namespace wolfSSL.CSharp.Fips
          * as false; FIPS state errors are thrown. */
         private static bool VerifyFailure(string fn, int ret)
         {
-            if (ret == FipsError.FIPS_NOT_ALLOWED_E || ret == FipsError.RSA_KAT_FIPS_E ||
-                ret == FipsError.FIPS_DEGRADED_E)
+            if (FipsError.IsModuleStateError(ret))
                 throw new WolfCryptFipsException(fn, ret);
             return false;
         }

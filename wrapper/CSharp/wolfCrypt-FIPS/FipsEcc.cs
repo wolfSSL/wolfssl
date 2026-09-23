@@ -157,8 +157,7 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             int ret = Native.wc_ecc_verify_hash_fips(derSignature, (uint)derSignature.Length,
                                                      digest, (uint)digest.Length, out int res, Handle);
-            if (ret == FipsError.FIPS_NOT_ALLOWED_E || ret == FipsError.ECDSA_KAT_FIPS_E ||
-                ret == FipsError.FIPS_DEGRADED_E)
+            if (FipsError.IsModuleStateError(ret))
                 throw new WolfCryptFipsException("wc_ecc_verify_hash_fips", ret);
             return ret == 0 && res == 1;
         }

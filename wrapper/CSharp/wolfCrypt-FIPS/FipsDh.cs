@@ -145,14 +145,24 @@ namespace wolfSSL.CSharp.Fips
             return result;
         }
 
+        /* Key checks return false for an invalid key and throw when the
+         * module is not in a state to perform the check. */
         public bool CheckPublicKey(byte[] pub) =>
-            Native.wc_DhCheckPubKeyEx_fips(Handle, pub, (uint)pub.Length, null, 0) == 0;
+            CheckResult("wc_DhCheckPubKeyEx_fips", Native.wc_DhCheckPubKeyEx_fips(Handle, pub, (uint)pub.Length, null, 0));
 
         public bool CheckPrivateKey(byte[] priv) =>
-            Native.wc_DhCheckPrivKeyEx_fips(Handle, priv, (uint)priv.Length, null, 0) == 0;
+            CheckResult("wc_DhCheckPrivKeyEx_fips", Native.wc_DhCheckPrivKeyEx_fips(Handle, priv, (uint)priv.Length, null, 0));
 
         public bool CheckKeyPair(byte[] pub, byte[] priv) =>
-            Native.wc_DhCheckKeyPair_fips(Handle, pub, (uint)pub.Length, priv, (uint)priv.Length) == 0;
+            CheckResult("wc_DhCheckKeyPair_fips",
+                Native.wc_DhCheckKeyPair_fips(Handle, pub, (uint)pub.Length, priv, (uint)priv.Length));
+
+        private static bool CheckResult(string fn, int ret)
+        {
+            if (FipsError.IsModuleStateError(ret))
+                throw new WolfCryptFipsException(fn, ret);
+            return ret == 0;
+        }
 
         protected override void FreeNative()
         {

@@ -27,6 +27,9 @@ namespace wolfSSL.CSharp.Fips.Test
     {
         private static int Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--force")
+                return ForcedFailureTests.Child(int.Parse(args[1]));
+
             Console.WriteLine("wolfCrypt FIPS v5.2.3 C# wrapper tests");
             ModuleTests.Run();
             RngTests.Run();
@@ -35,6 +38,7 @@ namespace wolfSSL.CSharp.Fips.Test
             RsaTests.Run();
             EccDhTests.Run();
             KdfTests.Run();
+            ForcedFailureTests.Run();
             return T.Summary();
         }
     }

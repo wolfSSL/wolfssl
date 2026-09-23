@@ -63,6 +63,20 @@ namespace wolfSSL.CSharp.Fips
         public const int ECC_PCT_E                 = -286;
         public const int FIPS_PRIVATE_KEY_LOCKED_E = -287;
 
+        /* True for errors that report the module's state (failed, degraded,
+         * or a self-test failure) rather than a bad input. Verification
+         * APIs throw on these instead of returning false, so a degraded
+         * module is never mistaken for an invalid signature or tag. */
+        public static bool IsModuleStateError(int code) =>
+            code == FIPS_NOT_ALLOWED_E || code == FIPS_DEGRADED_E || code == IN_CORE_FIPS_E ||
+            code == AES_KAT_FIPS_E || code == DES3_KAT_FIPS_E || code == HMAC_KAT_FIPS_E ||
+            code == RSA_KAT_FIPS_E || code == DRBG_KAT_FIPS_E || code == DRBG_CONT_FIPS_E ||
+            code == AESGCM_KAT_FIPS_E || code == ECC_CDH_KAT_FIPS_E || code == RSAPSS_PAT_FIPS_E ||
+            code == ECDSA_PAT_FIPS_E || code == DH_KAT_FIPS_E || code == AESCCM_KAT_FIPS_E ||
+            code == SHA3_KAT_FIPS_E || code == ECDHE_KAT_FIPS_E || code == ECDSA_KAT_FIPS_E ||
+            code == RSA_PAT_FIPS_E || code == KDF_TLS12_KAT_FIPS_E || code == KDF_TLS13_KAT_FIPS_E ||
+            code == KDF_SSH_KAT_FIPS_E || code == DHE_PCT_E || code == ECC_PCT_E;
+
         public static string Name(int code)
         {
             foreach (var f in typeof(FipsError).GetFields())

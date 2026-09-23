@@ -183,6 +183,14 @@ namespace wolfSSL.CSharp.Fips
         public static bool PrivateKeyReadEnabled =>
             Native.wolfCrypt_GetPrivateKeyReadEnable_fips(0) != 0;
 
+        /* Failure injection for operational testing. Only libraries built
+         * with HAVE_FORCE_FIPS_FAILURE export wolfCrypt_SetStatus_fips.
+         * Internal: exposed to the test assembly only. */
+        internal static bool CanInjectFailure =>
+            NativeLibrary.TryGetExport(NativeLoader.WolfsslHandle(), "wolfCrypt_SetStatus_fips", out _);
+
+        internal static int InjectFailure(int code) => Native.wolfCrypt_SetStatus_fips(code);
+
         /* Runs an operation whose purpose is to return an SSP-bearing value
          * (shared secret, generated key pair, derived key) with the private
          * key read gate enabled on this thread, then restores the previous

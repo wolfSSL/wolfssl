@@ -77,3 +77,6 @@ EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsDh.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/EccDhTests.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/FipsKdf.cs
 EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/KdfTests.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS-Test/ForcedFailureTests.cs
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/README.md
+EXTRA_DIST+= wrapper/CSharp/wolfCrypt-FIPS/tools/fips-bind-audit.sh
