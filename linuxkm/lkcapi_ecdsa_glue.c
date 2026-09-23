@@ -1048,7 +1048,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating sig algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -1123,7 +1123,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
 
     ret = crypto_sig_verify(tfm, raw_sig, (unsigned int)sizeof(*raw_sig),
                             hash, hash_len);
-    if ((ret != -EBADMSG) && (ret != -EKEYREJECTED)) {
+    if ((ret != -WC_NO_ERR_TRACE(EBADMSG)) && (ret != -WC_NO_ERR_TRACE(EKEYREJECTED))) {
         pr_err("error: crypto_sig_verify returned %d, expected %d or %d\n",
                ret, -EBADMSG, -EKEYREJECTED);
         test_rc = BAD_FUNC_ARG;
@@ -1193,7 +1193,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         {
             pr_err("error: allocating akcipher algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM)
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
                 test_rc = MEMORY_E;
             else
                 test_rc = BAD_FUNC_ARG;
@@ -1269,7 +1269,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
 
     /* it should fail */
     ret = crypto_akcipher_verify(req);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify returned %d, expected %d\n",
                ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;

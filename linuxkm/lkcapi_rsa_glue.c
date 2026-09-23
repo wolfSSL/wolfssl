@@ -2736,7 +2736,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         else {
             pr_err("error: allocating akcipher algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM) {
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM)) {
                 test_rc = MEMORY_E;
             }
             else {
@@ -3243,7 +3243,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         else {
             pr_err("error: allocating sig algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM) {
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM)) {
                 test_rc = MEMORY_E;
             }
             else {

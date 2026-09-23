@@ -1626,6 +1626,42 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 #endif
 }
 
+/* Reset a SHA-3/SHAKE context to its freshly initialized state, reusing its
+ * existing heap hint and device association.  Like the Final functions,
+ * Reset does not destroy sensitive internal state; use the matching Free
+ * function for teardown at end of life.
+ */
+static int wc_Sha3Reset(wc_Sha3* sha3)
+{
+    if (sha3 == NULL)
+        return BAD_FUNC_ARG;
+
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(STM32_HASH_SHA3) && \
+    !defined(PSOC6_HASH_SHA3)
+    /* InitSha3() reinitializes the sponge and block-dispatch state in place,
+     * touching neither the heap hint nor the device association. */
+    return InitSha3(sha3);
+#else
+    {
+#if defined(PSOC6_HASH_SHA3)
+        /* The PSOC6 wc_Sha3 carries no heap hint or devId, and its
+         * wc_InitSha3() ignores both. */
+        void *heap = NULL;
+        int devId = INVALID_DEVID;
+#else
+        void *heap = sha3->heap;
+#ifdef WOLF_CRYPTO_CB
+        int devId = sha3->devId;
+#else
+        int devId = INVALID_DEVID;
+#endif
+#endif /* PSOC6_HASH_SHA3 */
+        wc_Sha3Free(sha3);
+        return wc_InitSha3(sha3, heap, devId);
+    }
+#endif /* !ASYNC && !HASH_KEEP && !STM32 && !PSOC6 */
+}
+
 /* Copy the state of the SHA3 operation.
  *
  * src  wc_Sha3 object holding state top copy.
@@ -1757,6 +1793,10 @@ void wc_Sha3_224_Free(wc_Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
+int wc_Sha3_224_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
+}
+
 /* Calculate the SHA3-224 hash based on all the message data so far.
  * More message data can be added, after this operation, using the current
  * state.
@@ -1828,6 +1868,10 @@ int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash)
 void wc_Sha3_256_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
+}
+
+int wc_Sha3_256_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
 }
 
 /* Calculate the SHA3-256 hash based on all the message data so far.
@@ -1903,6 +1947,10 @@ void wc_Sha3_384_Free(wc_Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
+int wc_Sha3_384_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
+}
+
 /* Calculate the SHA3-384 hash based on all the message data so far.
  * More message data can be added, after this operation, using the current
  * state.
@@ -1974,6 +2022,10 @@ int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash)
 void wc_Sha3_512_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
+}
+
+int wc_Sha3_512_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
 }
 
 /* Calculate the SHA3-512 hash based on all the message data so far.
@@ -2319,6 +2371,17 @@ void wc_Shake128_Free(wc_Shake* shake)
     wc_Sha3Free(shake);
 }
 
+int wc_Shake128_Reset(wc_Shake* shake) {
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE128;
+#endif
+    return ret;
+}
+
 /* Copy the state of the SHA3-512 operation.
  *
  * src  wc_Shake object holding state top copy.
@@ -2622,6 +2685,17 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 void wc_Shake256_Free(wc_Shake* shake)
 {
     wc_Sha3Free(shake);
+}
+
+int wc_Shake256_Reset(wc_Shake* shake) {
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
+    return ret;
 }
 
 /* Copy the state of the SHA3-512 operation.

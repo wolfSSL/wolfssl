@@ -861,6 +861,37 @@ int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
 WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
 
 /*!
+    \ingroup RNGBank
+
+    \brief Retire and reinstantiate the bank's root RNG as one serialized
+    transition, excluding concurrent entropy-invalidation walks and
+    whole-instance operations for its span.  The recovery path of last
+    resort for a condemned root.  Task context only: acquisition of the
+    serializing gate spin-waits, and reinstantiation performs a full seed
+    acquisition.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG bank is null.
+    \return negative wc_FreeRng() or reinstantiation failure; the root is
+    left out of service (WC_DRBG_NOT_INIT) and a later reinit may be
+    attempted.
+
+    \param bank The bank whose root to reinstantiate.
+    \param nonce Optional instantiation nonce (may be null).
+    \param nonceSz Length of nonce in bytes.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes.
+
+    \sa wc_rng_bank_root_rng_init
+    \sa wc_rng_bank_root_rng_get
+*/
+int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
+                                const byte *nonce, word32 nonceSz,
+                                const byte *perso, word32 persoSz,
+                                word32 flags);
+
+/*!
     \ingroup Random
 
     \brief Register a callback fired by wc_rng_bank_fini() once its

@@ -45,6 +45,21 @@
     #define WC_RNG_BANK_DAEMON_MAGIC_FREE 0U
 #endif
 
+#if defined(WC_RNG_HAVE_LOCK) || defined(WC_RNG_HAVE_RBGC) || \
+    defined(WC_RNG_HAVE_NEXT_SEED) || defined(WC_RNG_HAVE_POOL)
+    #define WC_RNG_BANK_HAVE_ROOT_RNG
+#endif
+
+/* The inst-op gate serializes whole-object transitions -- instance and root
+ * free/reinstantiate cycles -- against lockless traversals of the same
+ * objects (the entropy daemon's banking, entropy invalidation walks).
+ * Present whenever either side of such a race can be compiled in: the
+ * next-seed banker, or any root_rng (whose transitions the gate brackets).
+ */
+#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) || defined(WC_RNG_HAVE_NEXT_SEED)
+    #define WC_RNG_BANK_HAVE_INST_OP_GATE
+#endif
+
 #define WC_RNG_BANK_FLAG_NONE                      0
 #define WC_RNG_BANK_FLAG_INITED                    (1U << 0)
 #define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST        (1U << 1)
@@ -139,7 +154,7 @@ struct wc_rng_bank {
     void *cb_arg; /* if mutable, caller is responsible for thread safety. */
     int n_rngs;
     int first_failover_inst;
-#ifdef WC_RNG_HAVE_NEXT_SEED
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
     wolfSSL_Atomic_Int inst_op_gate;
 #endif
 #ifdef WC_RNG_BANK_STATIC
@@ -151,8 +166,7 @@ struct wc_rng_bank {
     wolfSSL_Atomic_Uint daemon_magic;
     void *daemon; /* e.g. a task_struct* for a wc_linuxkm_entropy_daemon() */
 #endif
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
-    defined(WC_RNG_HAVE_POOL)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     WC_RNG root_rng;
 #endif
 };
@@ -360,13 +374,16 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
 
 #endif /* HAVE_HASHDRBG */
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
-    defined(WC_RNG_HAVE_POOL)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
 WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                                           const byte *nonce, word32 nonceSz,
                                           const byte *perso, word32 persoSz,
                                           word32 flags);
 WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
+WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
+                                            const byte *nonce, word32 nonceSz,
+                                            const byte *perso, word32 persoSz,
+                                            word32 flags);
 #endif
 
 WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,

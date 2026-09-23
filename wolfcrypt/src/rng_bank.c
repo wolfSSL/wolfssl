@@ -62,6 +62,43 @@
  * those services, rng_bank.h supplies source-compatible static fallbacks.
  */
 
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+/* inst_op_gate holder identities, for debuggability -- release always stores
+ * WC_RNG_BANK_INST_OP_FREE.  Holders that spin (invalidate, root reinit) are
+ * task-context by contract; holders that must stay atomic-legal (daemon
+ * banking, instance reinit) try once and fail fast with BUSY_E. */
+#define WC_RNG_BANK_INST_OP_FREE       0
+#define WC_RNG_BANK_INST_OP_DAEMON     1
+#define WC_RNG_BANK_INST_OP_REINIT     2
+#define WC_RNG_BANK_INST_OP_INVALIDATE 3
+#define WC_RNG_BANK_INST_OP_ROOT       4
+
+/* Spin until the gate is idle, then claim it as op.  Task context only: the
+ * wait is bounded by the longest gate hold -- a wc_rng_bank_inst_reinit()
+ * retry loop or a root reinstantiation, i.e. seed-acquisition timescales.
+ * Never called with the gate already held (no recursion), and gate holders
+ * take no locks a spinner can hold, so the wait always resolves. */
+static void wc_rng_bank_inst_op_gate_spinenter(struct wc_rng_bank *bank,
+                                               WC_ATOMIC_INT_ARG op)
+{
+    WC_ATOMIC_INT_ARG cur_gate = WC_RNG_BANK_INST_OP_FREE;
+    int cas_ret;
+
+    /* Uncontended fast path. */
+    if (wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate, &cur_gate, op))
+        return;
+
+    WC_CAS_WITH_RETRY_BEGIN(&bank->inst_op_gate, cur_gate, cas_ret) {
+        WC_RELAX_LONG_LOOP();
+        cur_gate = WC_RNG_BANK_INST_OP_FREE; /* only an idle gate may be claimed. */
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                       &bank->inst_op_gate, cur_gate, op,
+                                       cas_ret);
+    } WC_CAS_WITH_RETRY_END;
+    (void)cas_ret; /* the forever loop exits only on success. */
+}
+#endif /* WC_RNG_BANK_HAVE_INST_OP_GATE */
+
 /* To disable retry looping in wc_rng_bank_init(), pass timeout_secs=0, and to
  * retry indefinitely, pass negative timeout_secs -- the flags arg here is only
  * used to initialize the flags in the new bank.
@@ -110,8 +147,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     if (ret != 0)
         return ret;
 
-#ifdef WC_RNG_HAVE_NEXT_SEED
-    wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, 0);
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+    wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
 #ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
@@ -133,9 +170,13 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
         ret = MEMORY_E;
 #endif
 
-#ifdef WC_RNG_HAVE_RBGC
-    if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_RBGC))
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    if (ret == 0) {
+        /* Note we initialize the root_rng even if ! (flags &
+         * WC_RNG_BANK_FLAG_RBGC) -- it can be used for other purposes, such as
+         * pool replenishment, as in the linuxkm entropy daemon. */
         ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz, 0);
+    }
 #endif
 
     if (ret == 0) {
@@ -378,7 +419,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             return ret;
     }
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
         int free_ret = wc_FreeRng(&ctx->root_rng);
         if (free_ret != 0) {
@@ -390,7 +431,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             ++rng_free_failed;
         }
     }
-#endif
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifndef WC_RNG_BANK_STATIC
     if (ctx->rngs)
@@ -1338,7 +1379,7 @@ WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
 
 #endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
 
 WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
                                           const byte *nonce, word32 nonceSz,
@@ -1375,7 +1416,44 @@ WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
     return &bank->root_rng;
 }
 
-#endif /* WC_RNG_HAVE_RBGC || WC_RNG_HAVE_NEXT_SEED */
+/* Retire and reinstantiate the bank's root_rng under the inst-op gate,
+ * excluding the entropy invalidation walk (which dereferences the root's live
+ * DRBG state) and instance ops for the span of the transition.  The recovery
+ * path of last resort for a condemned root -- see the linuxkm entropy
+ * daemon's post-invalidation arm.  Task context only: the gate is
+ * spin-acquired, and the reinstantiation performs a full seed acquisition.
+ * WC_RNG_BANK_HAVE_ROOT_RNG implies WC_RNG_BANK_HAVE_INST_OP_GATE, so the
+ * gate ops here are unconditional -- if the derivations ever diverge, this
+ * breaks loudly rather than compiling unprotected. */
+WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
+                                            const byte *nonce, word32 nonceSz,
+                                            const byte *perso, word32 persoSz,
+                                            word32 flags)
+{
+    int ret;
+
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+
+    wc_rng_bank_inst_op_gate_spinenter(bank, WC_RNG_BANK_INST_OP_ROOT);
+
+    if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
+        ret = wc_FreeRng(&bank->root_rng);
+        if (ret != 0)
+            goto out;
+    }
+
+    ret = wc_rng_bank_root_rng_init(bank, nonce, nonceSz, perso, persoSz,
+                                    flags);
+
+  out:
+
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+
+    return ret;
+}
+
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
 #ifdef WC_HAVE_RNG_BANKREF
 /* wc_local_rng_bank_checkout_for_bankref() is the shim to the real WC_RNG when
@@ -1581,9 +1659,6 @@ WOLFSSL_API int wc_rng_bank_inst_checkin(
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
 
-#define WC_RNG_BANK_INST_OP_DAEMON ((WC_ATOMIC_INT_ARG)1)
-#define WC_RNG_BANK_INST_OP_REINIT ((WC_ATOMIC_INT_ARG)2)
-
 static int wc_rng_bank_next_seed_generate_local(
     struct wc_rng_bank *bank,
     int inst_offset,
@@ -1591,7 +1666,7 @@ static int wc_rng_bank_next_seed_generate_local(
     WC_RNG *root)
 {
     int ret;
-    WC_ATOMIC_INT_ARG expected = 0;
+    WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
 
     if (bank == NULL)
         return BAD_FUNC_ARG;
@@ -1627,7 +1702,7 @@ static int wc_rng_bank_next_seed_generate_local(
             WC_RNG_BANK_INST_TO_RNG(&bank->rngs[inst_offset]), n);
     }
 
-    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, 0);
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 
     return ret;
 }
@@ -1712,14 +1787,16 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     devId = INVALID_DEVID;
 #endif
 
-#ifdef WC_RNG_HAVE_NEXT_SEED
-    /* Exclude the entropy daemon's lockless banking for the duration of the
-     * free/reinstantiate cycle.  Non-blocking on both sides: if the daemon
-     * holds the gate, skip this reinit attempt (the instance stays out of
-     * service and a later checkout retries); if reinit holds it, the daemon
-     * skips its turn. */
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+    /* Exclude the entropy daemon's lockless banking and the entropy
+     * invalidation walk for the duration of the free/reinstantiate cycle.
+     * Non-blocking on this side (atomic-context callers reach here via
+     * checkout recovery): if another party holds the gate, skip this reinit
+     * attempt (the instance stays out of service and a later checkout
+     * retries); if reinit holds it, the daemon skips its turn and the
+     * invalidation walk spin-waits. */
     {
-        WC_ATOMIC_INT_ARG expected = 0;
+        WC_ATOMIC_INT_ARG expected = WC_RNG_BANK_INST_OP_FREE;
         if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate,
                                                  &expected,
                                                  WC_RNG_BANK_INST_OP_REINIT))
@@ -1736,8 +1813,12 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
      * annotations (including a sticky WC_RNG_LOCK_REQUIRED, when the
      * instance carries one) are re-asserted below on success. */
     ret = wc_rng_bank_inst_lock_read(rng_inst, &cur_lock);
-    if (ret < 0)
+    if (ret < 0) {
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+        WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
         return ret;
+    }
 
 #ifdef WC_RNG_DEBUG_STATS
     stats_snap_ret =
@@ -1851,8 +1932,8 @@ out:
     if (ret != 0)
         (void)wc_FreeRng(WC_RNG_BANK_INST_TO_RNG(rng_inst));
 
-#ifdef WC_RNG_HAVE_NEXT_SEED
-    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, 0);
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
 #endif
 
     return ret;
@@ -2526,7 +2607,19 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
             return BAD_STATE_E;
     }
 
-#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+    /* Serialize the whole walk against instance and root free/reinstantiate
+     * transitions (wc_rng_bank_inst_reinit(), wc_rng_bank_root_rng_reinit()):
+     * wc_RNG_invalidate_entropy() dereferences live DRBG state, which must
+     * not be torn down mid-purge.  Spin rather than skip: an event arriving
+     * during a reinit must latch the reborn object, not be lost.  The wait is
+     * bounded by the holder's transition (up to a reinit retry-loop timeout);
+     * this walk itself holds the gate only across bounded purge CAS loops,
+     * and takes no locks a gate holder can block on. */
+    wc_rng_bank_inst_op_gate_spinenter(bank, WC_RNG_BANK_INST_OP_INVALIDATE);
+#endif
+
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     {
         if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
         #if !defined(WC_RNG_HAVE_LOCK)
@@ -2545,6 +2638,10 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
         if ((this_ret != 0) && (ret == 0))
             ret = this_ret;
     }
+
+#ifdef WC_RNG_BANK_HAVE_INST_OP_GATE
+    WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, WC_RNG_BANK_INST_OP_FREE);
+#endif
 
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (bank_is_default)

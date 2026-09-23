@@ -307,6 +307,11 @@ struct OS_Seed {
     #endif
 };
 
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* Length of the DRBG-flavor-independent stir buffer */
+    #define WC_RNG_NEXT_STIR_LEN 64
+#endif
+
 #ifdef HAVE_HASHDRBG
 
 /* The security strength for the RNG is the target number of bits of
@@ -427,7 +432,6 @@ struct OS_Seed {
      * source-fed (re)seeds in the module (gather SEED_SZ + SEED_BLOCK_SZ, apply
      * the block-offset remainder). */
     #define WC_DRBG_NEXT_SEED_LEN (WC_DRBG_SEED_SZ + WC_DRBG_SEED_BLOCK_SZ)
-    #define WC_DRBG_NEXT_STIR_LEN 64
 #endif
 
 #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
@@ -450,8 +454,6 @@ struct DRBG_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
-    byte nextStir[WC_DRBG_NEXT_STIR_LEN];
-    WC_DRBG_nextSeedLen_t nextStirLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -459,7 +461,7 @@ struct DRBG_internal {
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256 sha256;
-    byte seed_scratch[DRBG_SEED_LEN];
+    byte seed_scratch[DRBG_SEED_LEN * 2];
     byte digest_scratch[WC_SHA256_DIGEST_SIZE];
 #endif
 };
@@ -476,8 +478,6 @@ struct DRBG_SHA512_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
-    byte nextStir[WC_DRBG_NEXT_STIR_LEN];
-    WC_DRBG_nextSeedLen_t nextStirLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -485,7 +485,7 @@ struct DRBG_SHA512_internal {
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha512 sha512;
-    byte seed_scratch[DRBG_SHA512_SEED_LEN];
+    byte seed_scratch[DRBG_SHA512_SEED_LEN * 2];
     byte digest_scratch[WC_SHA512_DIGEST_SIZE];
 #endif
 };
@@ -585,6 +585,10 @@ struct WC_RNG {
         wc_rng_debug_counter_t _stats_pool_bytes_produced;
         wc_rng_debug_counter_t _stats_pool_bytes_missed;
     #endif
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    byte nextStir[WC_RNG_NEXT_STIR_LEN];
+    WC_DRBG_nextSeedLen_t nextStirLen;
 #endif
 
 #ifdef WC_RNG_DEBUG_STATS

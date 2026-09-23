@@ -20,6 +20,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_NO_COMPAT_H_REMAPS
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_FIPS

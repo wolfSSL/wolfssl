@@ -1739,13 +1739,26 @@ static void wb_prime_trial_alloc(void)
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
         wb_set_d(&a, (sp_int_digit)100160063ULL);
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
-        /* Real-entropy sweep. Kept for the rows it does reach (the
-         * wc_RNG_GenerateBlock() error break at :19666's neighbour), but it
-         * does NOT close :19672:0: the first faulted allocation lands inside
-         * Hash_DRBG_Generate() and leaves the WC_RNG permanently
-         * DRBG_FAILED, so every later index dies at the draw. Measured: for
-         * n >= 3 the call returns RNG_FAILURE_E with the RNG reporting a
-         * failure, never MP_MEM from the exponentiation. */
+        /* Real-entropy sweep, re-measured 2026-09-21 after random.c made
+         * Hash_DRBG_Generate() failure-atomic (no state mutation and no
+         * condemnation on a generate-path fault).  Rows under
+         * WOLFSSL_SMALL_STACK (non-cache), candidate 2^31 - 1, 30 indices:
+         * n = 1..2 fault this function's own ALLOC_SP_INT_ARRAYs (MP_MEM,
+         * decision not reached); n = 3..5 fault the draw's three
+         * allocations inside Hash_DRBG_Generate() (its digest, Hash_gen()'s
+         * data and digest) and return RNG_FAILURE_E for that index ONLY --
+         * rng.status stays WC_DRBG_OK at every index, so later indices
+         * proceed past the draw; n >= 6 lands inside the exponentiation and
+         * breaks the trial loop on `err != MP_OKAY` with MP_MEM, so this
+         * sweep now reaches :19672:0 as well.  (Before the refactor the
+         * first in-generate fault left the WC_RNG permanently DRBG_FAILED
+         * and every later index died at the draw, so the sweep could not
+         * close :19672:0.)  The PINNED-RNG block below remains the
+         * deterministic closer of record for that key: live-RNG allocation
+         * counts can drift with build shape, the pinned hook's cannot.  A
+         * fault landing in a DRBG reseed would still condemn at the reseed
+         * site, but 30 draws cannot approach WC_RESEED_INTERVAL, so no
+         * index here reaches one. */
         for (n = 1; n <= 30; n++) {
             wb_set_d(&a, (sp_int_digit)2147483647UL);
             mcdc_fa_arm_only(n);

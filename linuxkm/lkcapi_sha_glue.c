@@ -2192,6 +2192,7 @@ static int linuxkm_affinity_unlock(void *arg) {
     defined(WC_RNG_HAVE_FREE_HOOK) && defined(WC_RNG_HAVE_LOCK)
 
 #define WC_LINUXKM_HAVE_RNG_REGISTRY
+#define WC_LINUXKM_HAVE_RNG_INVALIDATION
 
 /* Registry of every kernel-module RNG object needing state-invalidation
  * coverage: banks (default and tfm-private) and long-lived process-context
@@ -2311,9 +2312,14 @@ static WARN_UNUSED_RESULT int wc_linuxkm_rng_registry_add_bank(struct wc_rng_ban
  * and wake the daemon -- its loop-head check recovers the root first, and
  * consumers recover per-instance through the NEEDS_RECOVERY_E protocol
  * and the daemon's recovery pass. */
+
+static volatile unsigned long last_invalidation_at;
+
 static int wc_linuxkm_rng_state_invalidate(void) {
     struct linuxkm_rng_object *obj;
     int ret = 0;
+
+    last_invalidation_at = jiffies;
 
     /* Process context (vmfork notifier / pm notifier); the registry mutex
      * is sleepable and never taken from atomic context. */
@@ -2362,6 +2368,59 @@ static int wc_linuxkm_rng_state_invalidate(void) {
     }
     pr_notice("wolfssl: RNG state invalidated; all instances will recover by credited reseed\n");
     return 0;
+}
+
+static WC_INLINE int rng_invalidation_pre_check(WC_RNG *rng, size_t n) {
+    while (jiffies_to_msecs(jiffies - last_invalidation_at) < 1000) {
+        WC_RNG_lock_arg_t lock_state;
+        if (wc_RNG_lock_read(rng, &lock_state) != 0)
+        {
+            /* something's wrong, but it's not ours to fix. */
+            return 0;
+        }
+        if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
+            /* all is well, at least in terms of _ENTROPY_INVALIDATED. */
+            return 0;
+        }
+        if (! wc_linuxkm_can_block()) {
+            pr_notice_ratelimited(
+                "libwolfssl: RNG call (%zu B) from non-blockable "
+                "context with root RNG in invalidation recovery "
+                "(CPU %d, preempt_count 0x%x).\n",
+                n, raw_smp_processor_id(), preempt_count());
+            return -EBUSY;
+        }
+        if (wc_linuxkm_check_for_intr_signals() == WC_NO_ERR_TRACE(INTERRUPTED_E)) {
+            return -EINTR;
+        }
+        wc_linuxkm_relax_long_loop();
+    }
+    /* either not in invalidation/recovery at all, or it's been more than a
+     * second since the most recent invalidation. proceed as usual either
+     * way. */
+    return 0;
+}
+
+static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret) {
+    if (genret != -WC_NO_ERR_TRACE(EAGAIN))
+        return genret;
+    if (jiffies_to_msecs(jiffies - last_invalidation_at) >= 1000) {
+        pr_err_ratelimited("%s: RNG invalidation recovery window exceeded; "
+                           "failing RNG request.\n", caller);
+        return -ETIMEDOUT;
+    }
+    if (! wc_linuxkm_can_block()) {
+        pr_notice_ratelimited(
+            "libwolfssl: RNG call from non-blockable "
+            "context with root RNG in invalidation recovery "
+            "(CPU %d, preempt_count 0x%x).\n",
+            raw_smp_processor_id(), preempt_count());
+        return -EBUSY;
+    }
+    if (wc_linuxkm_check_for_intr_signals() == WC_NO_ERR_TRACE(INTERRUPTED_E))
+        return -EINTR;
+    wc_linuxkm_relax_long_loop();
+    return -EAGAIN;
 }
 
 /* Stock-kernel event coverage for the invalidation machinery: the kernel
@@ -2525,23 +2584,38 @@ static struct module_attribute wc_linuxkm_rng_state_invalidate_attr =
 
 #endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
 
+#ifndef WC_LINUXKM_HAVE_RNG_INVALIDATION
+
+static WC_INLINE int rng_invalidation_pre_check(WC_RNG *rng, size_t n) {
+    (void)rng;
+    (void)n;
+    return 0;
+}
+
+static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret) {
+    (void)caller;
+    return genret;
+}
+
+#endif
+
 #ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
 
-#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
+#if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && defined(WC_LINUXKM_HAVE_RNG_INVALIDATION)
 
-#if defined(WC_LINUXKM_VMGENID_POLL) || \
-    (defined(CONFIG_ACPI) && !IS_ENABLED(CONFIG_VMGENID))
-/* Without CONFIG_VMGENID, we can only detect VM fork events by polling.
- * Mainline gained vmgenid and the random_vmfork notifier chain together in
- * kernel 5.18, so on older kernels and kernels with CONFIG_VMGENID configured
- * off, there is no event to subscribe to -- but the ACPI VM Generation ID
- * device (Microsoft spec; exposed by QEMU, Hyper-V, VMware) is still present,
- * and its 16-byte counter changes exactly when the hypervisor
- * forks/clones/restores the VM.  The daemon polls it each iteration (a 16-byte
- * compare of a memremap'd page -- effectively free) and, on change, invalidates
- * all module RNG state and recovers its own root immediately, folding the new
- * generation id into the credited recovery reseed as nonce.  Detection latency
- * is bounded by the daemon nap.
+#if defined(CONFIG_ACPI) && \
+    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID))
+/* Without CONFIG_VMGENID, or with it modularized and possibly unloaded, we can
+ * only detect VM fork events by polling.  Mainline gained vmgenid and the
+ * random_vmfork notifier chain together in kernel 5.18, so on older kernels and
+ * kernels with CONFIG_VMGENID configured off, there is no event to subscribe to
+ * -- but the ACPI VM Generation ID device (Microsoft spec; exposed by QEMU,
+ * Hyper-V, VMware) is still present, and its 16-byte counter changes exactly
+ * when the hypervisor forks/clones/restores the VM.  The daemon polls it each
+ * iteration (a 16-byte compare of a memremap'd page -- effectively free) and,
+ * on change, invalidates all module RNG state and recovers its own root
+ * immediately, folding the new generation id into the credited recovery reseed
+ * as nonce.  Detection latency is bounded by the daemon nap.
  *
  * All state is per-daemon, on the daemon's stack: wc_linuxkm_entropy_daemon()
  * is threadsafe, and concurrent daemons discover, map, and poll
@@ -2648,9 +2722,9 @@ static void wc_linuxkm_vmgenid_poll_teardown(
     }
     st->state = 0;
 }
-#endif /* CONFIG_ACPI && !CONFIG_VMGENID */
+#endif /* CONFIG_ACPI && !IS_BUILTIN(CONFIG_VMGENID) */
 
-#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY */
+#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_LINUXKM_HAVE_RNG_INVALIDATION */
 
 /* Entropy-banking daemon for the default rng bank: cycles the bank's
  * instances, keeping each DRBG's nextSeed aperture full so that
@@ -2736,8 +2810,28 @@ static int wc_linuxkm_entropy_daemon(void *arg)
     if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != WC_LINUXKM_ENTROPY_DAEMON_MAGIC)
         return -EINVAL;
 
-    struct WC_RNG *root_rng = wc_rng_bank_root_rng_get(bank);
+    struct WC_RNG *root_rng;
     int root_rng_reseed_countdown = 0;
+
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    root_rng = wc_rng_bank_root_rng_get(bank);
+#else
+    root_rng = (struct WC_RNG *)malloc(sizeof(*root_rng));
+    if (root_rng == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_InitRng(root_rng);
+        if (ret != 0) {
+            free(root_rng);
+            root_rng = NULL;
+        }
+    }
+    if (ret != 0) {
+        pr_err("wc_linuxkm_entropy_daemon: could not instantiate root_rng "
+               "(code %d) -- continuing without.\n", ret);
+    }
+#endif
 
 #ifdef WC_RNG_HAVE_POOL
     if (root_rng != NULL) {
@@ -2771,31 +2865,133 @@ static int wc_linuxkm_entropy_daemon(void *arg)
          * event: the saturated reseedCtr from wc_RNG_invalidate_entropy()
          * also forces this, but that write races our own generates (the
          * root is unleased by design), so the flag is the authoritative
-         * signal and this the authoritative response. */
+         * signal and this is the authoritative response. */
         if (root_rng != NULL) {
-            WC_RNG_lock_arg_t root_lock_state;
-            if ((wc_RNG_lock_read(root_rng, &root_lock_state) == 0) &&
-                (root_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            WC_RNG_lock_arg_t root_lock_state = 0;
+            int inv_ret;
+            while (((inv_ret = wc_RNG_lock_read(root_rng, &root_lock_state)) == 0) &&
+                   (root_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
             {
                 unsigned long uncredited_nonce = random_get_entropy();
-                int inv_ret;
 
 #ifdef WC_VERBOSE_RNG
                 pr_info("wc_linuxkm_entropy_daemon: starting root recovery reseed.\n");
 #endif
+
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || defined(WC_SVR_USE_NATIVE_REG_BUFS)
+                if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+                    /* all RNGs depend on the default root reseed -- inhibit
+                     * preemption to maximize our chances. */
+                    preempt_disable();
+                }
+#endif
                 inv_ret = wc_RNG_DRBG_Reseed_Now(
                     root_rng,
                     (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || defined(WC_SVR_USE_NATIVE_REG_BUFS)
+                if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK)
+                    preempt_enable();
+#endif
+
                 ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
+
                 if (inv_ret == 0) {
 #ifdef WC_VERBOSE_RNG
                     pr_info("wc_linuxkm_entropy_daemon: finished root recovery reseed.\n");
 #endif
                     progress = 1;
+                    break;
                 }
-                else
+                else {
                     pr_err_ratelimited("wc_entropyd: post-invalidation "
-                        "root_rng reseed failed: %d\n", inv_ret);
+                                       "root_rng reseed failed: %d\n", inv_ret);
+                    if (kthread_should_stop())
+                        break;
+                    if ((inv_ret != WC_NO_ERR_TRACE(BUSY_E)) &&
+                        (inv_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                        (inv_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                        (inv_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+                    {
+                        break;
+                    }
+                    /* relax the loop -- there's no point continuing
+                     * unless/until we have the root_rng recovered, but there's
+                     * also no point hammering away at ludicrous speed
+                     * indefinitely. */
+                    schedule_timeout_interruptible(msecs_to_jiffies(WC_LINUXKM_ENTROPY_DAEMON_NAP_MS));
+                }
+            }
+            if (inv_ret != 0) {
+                if (kthread_should_stop()) {
+                    /* prompt shutdown; skip sweeps; the pr_err above already
+                     * notified of error condition. */
+                    break;
+                }
+                else {
+                    /* One last ditch effort to recover. */
+                    unsigned long uncredited_nonce = random_get_entropy();
+
+                    if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+                        pr_notice(
+                            "wc_entropyd: default root_rng recovery via reseed "
+                            "failed (%d) -- attempting reinit\n", inv_ret);
+                    }
+                    else {
+                        pr_notice(
+                            "wc_entropyd: root_rng recovery via reseed "
+                            "failed (%d) -- attempting reinit\n", inv_ret);
+                    }
+
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+                    /* Gate-bracketed free+reinstantiate: the inst-op gate
+                     * excludes concurrent invalidation walkers, which
+                     * dereference the root's DRBG state, for the span of
+                     * the transition. */
+                    inv_ret = wc_rng_bank_root_rng_reinit(
+                        bank,
+                        (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
+                        NULL, 0, 0);
+#else
+                    /* Standalone (memberless) root: daemon-private, never
+                     * reachable by the invalidation walk -- no gating
+                     * needed or possible. */
+                    inv_ret = wc_FreeRng(root_rng);
+                    if (inv_ret == 0)
+                        inv_ret = wc_InitRng(root_rng);
+#endif
+                    ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
+                    if (inv_ret == 0) {
+                        progress = 1;
+                        if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+                            pr_notice("wc_entropyd: default root_rng reinitialization "
+                                      "succeeded.\n");
+                        }
+                        else {
+                            pr_info("wc_entropyd: root_rng reinitialization "
+                                    "succeeded.\n");
+                        }
+                        /* Valid recovery: successful wc_InitRng() always clears
+                         * WC_RNG_LOCK_ENTROPY_INVALIDATED and (of course) only
+                         * succeeds if seeding succeeded -- fall through to the
+                         * sweeps.
+                         */
+                    }
+                    else {
+                        if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+                            pr_emerg(
+                                "wc_entropyd: default root_rng reinitialization "
+                                "failed (%d) -- daemon exiting; bank instances "
+                                "will self-reseed\n", inv_ret);
+                        }
+                        else {
+                            pr_err(
+                                "wc_entropyd: root_rng reinitialization "
+                                "failed (%d) -- daemon exiting; bank instances "
+                                "will self-reseed\n", inv_ret);
+                        }
+                        break;
+                    }
+                }
             }
         }
 #endif
@@ -2972,7 +3168,8 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         }
 #endif /* WC_RNG_HAVE_POOL */
 
-#if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC)
+#if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) &&                    \
+    defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC)
         /* registered-leaf pass: bank RBGC seeds from root_rng into
          * long-lived leaves that are invalidated or chain-backed, so their
          * next generate recovers/promotes in place
@@ -3009,7 +3206,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     &needs_recovery_snapshot, 0);
             }
         }
-#endif /* WC_RNG_HAVE_NEXT_SEED && WC_RNG_HAVE_RBGC */
+#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_RNG_HAVE_NEXT_SEED && WC_RNG_HAVE_RBGC */
 
         /* if we're coping with congestion hits, continue here, don't bog down
          * in primary seed ops. */
@@ -3034,11 +3231,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                      (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
             {
-#ifdef WC_VERBOSE_RNG
-                pr_err_ratelimited(
+                pr_warn_ratelimited(
                     "WARNING: wc_entropyd: seed health test failed on DRBG inst "
                     "%d: %d -- entropy source suspect\n", i, ret);
-#endif
             }
             else {
                 pr_err_ratelimited(
@@ -3048,7 +3243,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
-        next_pass:
+    next_pass:
 
         if (progress) {
             cond_resched();
@@ -3060,38 +3255,17 @@ static int wc_linuxkm_entropy_daemon(void *arg)
     }
 
     if (root_rng != NULL) {
-#ifdef WC_RNG_DEBUG_STATS
-        struct wc_rng_debug_stats_snapshot s;
-        if (wc_rng_debug_stats_snap(&s, root_rng) == 0) {
-            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
-                    "    total_bytes_produced=" WC_RNG_STAT_FMT
-                        " total_requests=" WC_RNG_STAT_FMT "\n"
-                    "    reseeds=" WC_RNG_STAT_FMT
-                        " stirs=" WC_RNG_STAT_FMT
-                        " seed_failures=" WC_RNG_STAT_FMT "\n"
-#ifdef WC_RNG_HAVE_NEXT_SEED
-                    "    nextstirs_banked=" WC_RNG_STAT_FMT
-                        " nextstirs_redeemed=" WC_RNG_STAT_FMT "\n"
-#endif
-                    ,
-                    s._stats_total_bytes_requested,
-                    s._stats_total_bytes_produced,
-                    s._stats_total_requests,
-                    s._stats_reseeds,
-                    s._stats_stirs,
-                    s._stats_seed_failures
-#ifdef WC_RNG_HAVE_NEXT_SEED
-                    ,
-                    s._stats_nextstirs_banked,
-                    s._stats_nextstirs_redeemed
-#endif
-                    );
-        }
-#endif /* WC_RNG_DEBUG_STATS */
 #ifdef WC_LINUXKM_VMGENID_POLL
         wc_linuxkm_vmgenid_poll_teardown(&vmgenid_poll_state);
 #endif
     }
+
+#ifndef WC_RNG_BANK_HAVE_ROOT_RNG
+    if (root_rng != NULL) {
+        wc_FreeRng(root_rng);
+        free(root_rng);
+    }
+#endif
 
     return 0;
 }
@@ -3245,12 +3419,13 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
 {
     struct wc_rng_debug_stats_snapshot s;
 
+    #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     {
         WC_RNG *root_rng = wc_rng_bank_root_rng_get(ctx);
         if ((root_rng != NULL) &&
             (wc_rng_debug_stats_snap(&s, root_rng) == 0))
         {
-            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
+            pr_info("RNG INFO: default bank root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
                     "    total_bytes_produced=" WC_RNG_STAT_FMT
                         " total_requests=" WC_RNG_STAT_FMT "\n"
                     "    reseeds=" WC_RNG_STAT_FMT
@@ -3275,6 +3450,7 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
                     );
         }
     }
+    #endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
 
     if (wc_rng_bank_debug_stats_snap(&s, ctx) == 0) {
             pr_info("RNG INFO: default bank size=%d total_bytes_requested=" WC_RNG_STAT_FMT "\n"
@@ -3450,19 +3626,24 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     return ret;
 }
 
-static void linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
+static int linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
     int ret = wc_rng_bank_inst_checkin(drbg);
     if (ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
         /* informational: checked in successfully; the instance is
          * entropy-invalidated (e.g. a state-invalidation event landed
-         * mid-lease) and recovers via the checkout admissions or the
-         * patrol. */
+         * mid-lease) and recovers via the checkout admissions or the patrol.
+         * The caller is notified to give it the option of regenerating the
+         * random bytes generated under the previous lease. */
+        return -EAGAIN;
     }
     else if (ret != 0) {
         pr_err("ERROR: wc_rng_bank_inst_checkin() in linuxkm_put_drbg() "
                "returned err %d.\n", ret);
         WC_DUMP_BACKTRACE_NONDEBUG;
+        return -EFAULT;
     }
+    else
+        return 0;
 }
 
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
@@ -3563,8 +3744,18 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
     wc_drbg_reseed_ctr_t cur_counter = 0;
     struct wc_rng_bank_inst *drbg;
 
-    if (pr && !can_wait)
-        return -EAGAIN;
+    if (pr && !can_wait) {
+        /* -EBUSY is the module's meaning for "non-blockable context, service
+         * requires waiting" (rng_invalidation_{pre,post}_check()), and
+         * PR-from-atomic is exactly that -- prediction resistance mandates a
+         * fresh gather, and the current procedure for PR gathering arranges for
+         * preemptibility, which is incompatible with calls from atomic
+         * context. Returning -EBUSY here keeps the kernel layer's error
+         * language two-valued and clean: -EBUSY = your context can't be served,
+         * -EAGAIN = regenerate protocol.
+         */
+        return -EBUSY;
+    }
 
     drbg = linuxkm_get_drbg(ctx);
 
@@ -3867,7 +4058,11 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
 out:
 
-    linuxkm_put_drbg(&drbg);
+    {
+        int checkin_ret = linuxkm_put_drbg(&drbg);
+        if (ret == 0)
+            ret = checkin_ret;
+    }
 
     return ret;
 }
@@ -3876,14 +4071,33 @@ static int wc_linuxkm_drbg_generate_tfm(struct crypto_rng *tfm,
                         const u8 *src, unsigned int slen,
                         u8 *dst, unsigned int dlen)
 {
+    int ret;
+
     if (tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm)
     {
         pr_err_once("BUG: mismatched tfm.\n");
         return -EFAULT;
     }
 
-    return wc_linuxkm_drbg_generate((struct wc_rng_bank *)crypto_rng_ctx(tfm),
-                                    src, slen, dst, dlen, 0 /* pr */);
+    for (;;) {
+        ret = wc_linuxkm_drbg_generate((struct wc_rng_bank *)crypto_rng_ctx(tfm),
+                                           src, slen, dst, dlen, 0 /* pr */);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+        ret = rng_invalidation_post_check(__func__, ret);
+        if (ret != -WC_NO_ERR_TRACE(EAGAIN))
+#endif
+        {
+            break;
+
+        }
+    }
+
+    /* Failure may be due to an invalidation, which may be unique to this VM,
+     * leaving these bytes live in another VM -- wipe them here. */
+    if (ret != 0)
+        ForceZero(dst, dlen);
+
+    return ret;
 }
 
 static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
@@ -3991,10 +4205,39 @@ static int wc__get_random_bytes(void *buf, size_t len)
         return -ECANCELED;
     }
     else {
+
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+        /* if in a recovery window, defer the request until done, if possible. */
+
+    try_again:
+
+        ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, len);
+        if (ret != 0) {
+            (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
+            return ret;
+        }
+#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION && WC_RNG_BANK_HAVE_ROOT_RNG */
+
         ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                        NULL, 0, buf, (unsigned int)len, 0 /* pr */);
+
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+        if (ret == -WC_NO_ERR_TRACE(EAGAIN)) {
+            /* An invalidation may be unique to this VM, leaving these bytes
+             * live in another VM -- wipe them here. */
+            ForceZero(buf, (word32)len);
+            ret = rng_invalidation_post_check(__func__, ret);
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                goto try_again;
+            /* else terminal: -ETIMEDOUT/-EBUSY/-EINTR from the post-check. */
+        }
+#endif /* WC_LINUXKM_HAVE_RNG_INVALIDATION && WC_RNG_BANK_HAVE_ROOT_RNG */
+
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
-        if (ret) {
+        if (ret != 0) {
+            /* An invalidation may be unique to this VM, leaving these bytes
+             * live in another VM -- wipe them here. */
+            ForceZero(buf, (word32)len);
 #ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
             pr_emerg_ratelimited("ERROR: FIPS RNG source failed: "
                                  "wc__get_random_bytes(): wc_linuxkm_drbg_generate() "
@@ -4024,7 +4267,19 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
                              "wc_get_random_bytes_user() returned %ld.\n", ret);
         return -EIO; /* no fallthrough to native randomness */
     }
-    else {
+
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+    ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, iov_iter_count(iter));
+    if (ret != 0) {
+        (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
+        if (ret == -WC_NO_ERR_TRACE(EINTR))
+            return -ERESTARTSYS; /* as at the end with no output -- SA_RESTART contract */
+        else
+            return ret;
+    }
+#endif
+
+    {
         size_t this_copied, total_copied = 0;
         byte *block;
         byte block_small[WC_SHA256_BLOCK_SIZE];
@@ -4045,9 +4300,20 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             size_t n = min_t(size_t, iov_iter_count(iter), block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, n, 0 /* pr */);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                ForceZero(block, n);
+            ret = rng_invalidation_post_check(__func__, ret);
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN)) {
+                continue;
+            }
+#endif
             if (unlikely(ret != 0)) {
-                pr_emerg_ratelimited("ERROR: wc_get_random_bytes_user() "
-                                     "wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+                if (ret != -WC_NO_ERR_TRACE(EINTR)) {
+                    pr_emerg_ratelimited(
+                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %ld.\n",
+                        __func__, ret);
+                }
                 break;
             }
 
@@ -4065,6 +4331,10 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             cond_resched();
         }
 
+        /* NEEDS_RECOVERY_E here is a duplicate of the epoch flag: daemon is
+         * already woken, gates already armed, and this caller's only remaining
+         * duty is honest accounting of total_copied. Next read parks at
+         * pre_check. */
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
 
         ForceZero(block, block_size);
@@ -4074,16 +4344,14 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
 
         if (total_copied == 0) {
             if (ret == 0)
-                ret = -EFAULT;
-            else {
-                ret = -EIO;
-            }
+                return -EFAULT;
+            else if (ret == -WC_NO_ERR_TRACE(EINTR))
+                return -ERESTARTSYS;
+            else
+                return ret;
         }
 
-        if (total_copied != 0)
-            ret = (ssize_t)total_copied;   /* partial success wins */
-
-        return ret;
+        return (ssize_t)total_copied;
     }
     __builtin_unreachable();
 }
@@ -4102,7 +4370,19 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
                              "wc_extract_crng_user() returned %ld.\n", ret);
         return -EIO; /* no fallthrough to native randomness */
     }
-    else {
+
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+    ret = rng_invalidation_pre_check(&current_default_wc_rng_bank->root_rng, nbytes);
+    if (ret != 0) {
+        (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
+        if (ret == -WC_NO_ERR_TRACE(EINTR))
+            return -ERESTARTSYS; /* as at the end with no output -- SA_RESTART contract */
+        else
+            return ret;
+    }
+#endif
+
+    {
         size_t this_copied, total_copied = 0;
         byte *block;
         byte block_small[WC_SHA256_BLOCK_SIZE];
@@ -4123,9 +4403,19 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             size_t n = min_t(size_t, nbytes - total_copied, block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, n, 0 /* pr */);
+#if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                ForceZero(block, n);
+            ret = rng_invalidation_post_check(__func__, ret);
+            if (ret == -WC_NO_ERR_TRACE(EAGAIN))
+                continue;
+#endif
             if (unlikely(ret != 0)) {
-                pr_emerg_ratelimited("ERROR: wc_extract_crng_user() "
-                                     "wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+                if (ret != -WC_NO_ERR_TRACE(EINTR)) {
+                    pr_emerg_ratelimited(
+                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %ld.\n",
+                        __func__, ret);
+                }
                 break;
             }
 
@@ -4153,15 +4443,14 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
         if (total_copied == 0) {
             if (ret == 0)
-                ret = -EFAULT;
+                return -EFAULT;
+            else if (ret == -WC_NO_ERR_TRACE(EINTR))
+                return -ERESTARTSYS;
             else
-                ret = -EIO;
+                return ret;
         }
 
-        if (total_copied != 0)
-            ret = (ssize_t)total_copied;   /* partial success wins */
-
-        return ret;
+        return (ssize_t)total_copied;
     }
     __builtin_unreachable();
 }
@@ -4187,8 +4476,8 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 
     if (! can_sleep) {
 #ifdef WC_RNG_HAVE_NEXT_SEED
-        if (len > WC_DRBG_NEXT_STIR_LEN)
-            len = WC_DRBG_NEXT_STIR_LEN;
+        if (len > WC_RNG_NEXT_STIR_LEN)
+            len = WC_RNG_NEXT_STIR_LEN;
 #else
         if (len > 64)
             len = 64;
@@ -4209,7 +4498,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         WC_RNG *stir_root = wc_rng_bank_root_rng_get(ctx);
 
         /* Small input, fast path: lock-free XMEMCPY/xorbuf. */
-        if (len <= WC_DRBG_NEXT_STIR_LEN) {
+        if (len <= WC_RNG_NEXT_STIR_LEN) {
             static DEFINE_PER_CPU(int, stir_index) = -2;
             int this_index = this_cpu_inc_return(stir_index);
             /* at startup, stagger them across the bank, to get wider spread and
@@ -4235,13 +4524,13 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         }
 
         if (stir_root != NULL) {
-            /* note that input beyond WC_DRBG_NEXT_STIR_LEN is discarded. */
+            /* note that input beyond WC_RNG_NEXT_STIR_LEN is discarded. */
             (void)wc_RNG_DRBG_NextStirStore(stir_root, (const byte *)buf,
                                             (word32)len);
         }
     }
 
-    if (len > WC_DRBG_NEXT_STIR_LEN)
+    if (len > WC_RNG_NEXT_STIR_LEN)
 #endif /* WC_RNG_HAVE_NEXT_SEED */
     {
         word32 flags =
