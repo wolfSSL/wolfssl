@@ -418,6 +418,31 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wc_DhGeneratePublic_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_DhGeneratePublic_fips(IntPtr key, byte[] priv, uint privSz, byte[] pub, ref uint pubSz);
 
+        /* ---- KDFs (SP 800-135, SP 800-56C, RFC 5869) ---- */
+        [DllImport(WOLFSSL, EntryPoint = "wc_PRF_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_PRF_fips(byte[] result, uint resLen, byte[] secret, uint secLen, byte[] seed, uint seedLen, int macType, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_PRF_TLSv12_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_PRF_TLSv12_fips(byte[] result, uint resLen, byte[] secret, uint secLen, byte[] label, uint labLen, byte[] seed, uint seedLen, int useAtLeastSha256, int macType, IntPtr heap, int devId);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HKDF_Extract_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HKDF_Extract_fips(int type, byte[]? salt, uint saltSz, byte[] inKey, uint inKeySz, byte[] output);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HKDF_Expand_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HKDF_Expand_fips(int type, byte[] inKey, uint inKeySz, byte[]? info, uint infoSz, byte[] output, uint outSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_HKDF_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_HKDF_fips(int type, byte[] inKey, uint inKeySz, byte[]? salt, uint saltSz, byte[]? info, uint infoSz, byte[] output, uint outSz);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Tls13_HKDF_Extract_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Tls13_HKDF_Extract_fips(byte[] prk, byte[]? salt, int saltLen, byte[] ikm, int ikmLen, int digest);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_Tls13_HKDF_Expand_Label_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_Tls13_HKDF_Expand_Label_fips(byte[] okm, uint okmLen, byte[] prk, uint prkLen, byte[] protocol, uint protocolLen, byte[] label, uint labelLen, byte[] info, uint infoLen, int digest);
+
+        [DllImport(WOLFSSL, EntryPoint = "wc_SSH_KDF_fips", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int wc_SSH_KDF_fips(byte hashId, byte keyId, byte[] key, uint keySz, byte[] k, uint kSz, byte[] h, uint hSz, byte[] sessionId, uint sessionIdSz);
+
         /* Only exported by libraries built with HAVE_FORCE_FIPS_FAILURE
          * (operational-test builds). Used by the negative tests. */
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_SetStatus_fips", CallingConvention = CallingConvention.Cdecl)]
