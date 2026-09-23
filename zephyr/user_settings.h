@@ -319,6 +319,9 @@ extern "C" {
     #define HAVE_ECC
     #define ECC_USER_CURVES      /* only the curves selected below */
     #define ECC_TIMING_RESISTANT /* Enable Timing Resistance */
+    #if defined(CONFIG_WOLFSSL_ECC_ALLOW_ZERO_HASH)
+        #define WC_ALLOW_ECC_ZERO_HASH
+    #endif
 
     #if defined(CONFIG_WOLFSSL_ECC_256)
         #undef  NO_ECC256
@@ -467,6 +470,14 @@ extern "C" {
 //#define NO_AES_256
 //#define WOLFSSL_AES_SMALL_TABLES
 //#define WOLFSSL_AES_NO_UNROLL
+
+/* Constant-time AES backend */
+#if defined(CONFIG_WOLFSSL_AES_TOUCH_LINES)
+    #define WOLFSSL_AES_TOUCH_LINES
+#elif defined(CONFIG_WOLFSSL_AES_BITSLICED)
+    #define WC_AES_BITSLICED
+    #define WC_AES_BS_WORD_SIZE CONFIG_WOLFSSL_AES_BS_WORD_SIZE
+#endif
 
 
 /* HKDF */

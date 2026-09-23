@@ -280,6 +280,88 @@ config WOLFSSL_ECC_BRAINPOOL
 
 endif # WOLFSSL_ECC
 
+# Selected by consumers that must sign an all-zero digest, such as wolfPSA.
+# No depends on: settings-file builds select it too.
+config WOLFSSL_ECC_ALLOW_ZERO_HASH
+  bool
+
+# The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it, and
+# a settings file replaces the module defaults that map the choice below.
+config WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
+  bool
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default y if !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
+
+config WOLFSSL_AES_CONSTANT_TIME
+  bool "Constant-time AES software backend"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
+  help
+    Build the AES software core so that no memory access depends on a
+    secret.
+
+    wolfCrypt's default core indexes precomputed tables with key- and
+    state-derived bytes. On a part with a data cache that access pattern is
+    observable, so a caller that must be constant time - the PSA Crypto API
+    is one - has to turn this on. On a part with no data cache there is
+    nothing to observe and the default core is the right choice.
+
+    A subsystem that requires the guarantee defaults this on and leaves the
+    implementation below to the target.
+
+    It has no effect when the build uses a hardware AES engine or the
+    assembly core: neither compiles a software table.
+
+    Unavailable under FIPS v2 and v5, whose pinned aes.c predates both
+    backends and would ignore the macro rather than fail: a build would come
+    out with the table core and no sign that the request was dropped. It does
+    take effect from FIPS v6 on, where it changes the in-core integrity
+    digest, so the module must be rehashed and is no longer the validated
+    binary.
+
+choice WOLFSSL_AES_CONSTANT_TIME_IMPL
+  prompt "Constant-time AES implementation"
+  depends on WOLFSSL_AES_CONSTANT_TIME
+  default WOLFSSL_AES_TOUCH_LINES
+
+config WOLFSSL_AES_TOUCH_LINES
+  bool "Touch every cache line of the table"
+  help
+    Define WOLFSSL_AES_TOUCH_LINES. Every table access reads all cache lines
+    of the table, so the access pattern carries no secret. sizeof(Aes) is
+    unchanged, which is what makes this the affordable choice on a
+    constrained target.
+
+config WOLFSSL_AES_BITSLICED
+  bool "Bitsliced core"
+  help
+    Define WC_AES_BITSLICED. Holds the state as bit slices across machine
+    words, so there is no table and no secret-indexed load at all.
+
+    It grows every Aes and Cmac quadratically in the word size, so set
+    WOLFSSL_AES_BS_WORD_SIZE for the target before selecting it.
+
+endchoice
+
+config WOLFSSL_AES_BS_WORD_SIZE
+  int "Bitsliced AES word size"
+  depends on WOLFSSL_AES_BITSLICED
+  default 16
+  help
+    Define WC_AES_BS_WORD_SIZE: bits processed per round, and the term that
+    dominates the size of every Aes and Cmac. The bitsliced key schedule
+    costs 30 * WC_AES_BS_WORD_SIZE^2 bytes, so measured against this
+    module's own defaults:
+
+      8    2,248 byte Aes      32   31,048 byte Aes
+      16   8,008 byte Aes      64  123,208 byte Aes
+
+    Only 8, 16, 32 and 64 are implemented; wolfCrypt rejects anything else.
+
+    wolfCrypt itself defaults to 64 on a 64-bit build. 16 is the default
+    here because these contexts are allocated per live operation, and 64
+    puts a single AES operation beyond the whole heap of a typical part.
+
 config WOLFSSL_CHACHA_POLY
   bool "wolfCrypt ChaCha20-Poly1305 support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
