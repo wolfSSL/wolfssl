@@ -1652,6 +1652,11 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
         toAdd = DupCRL_list(newcrl->crlList, crl->heap);
         if (crl != newcrl)
             wc_UnLockRwLock(&newcrl->crlLock);
+        if (toAdd == NULL) {
+            WOLFSSL_MSG("DupCRL_list failed");
+            wc_UnLockRwLock(&crl->crlLock);
+            return WOLFSSL_FAILURE;
+        }
 
         tail = &crl->crlList;
         while (*tail != NULL)
