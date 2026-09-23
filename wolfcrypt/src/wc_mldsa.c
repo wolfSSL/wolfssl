@@ -117,6 +117,12 @@
  *   All valid reports are true.
  *   Fast fail gives faster signing times on average.
  *   DO NOT enable this if implementation must be conformant to FIPS 204.
+ * WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL                        Default: OFF
+ *   Test aid: wc_MlDsa_TestRejNttFail() makes a chosen later call of
+ *   mldsa_rej_ntt_poly_ex() fail, to test error handling. Every call counts,
+ *   including those from mldsa_expand_a(), except where Intel assembly
+ *   generates matrix A instead.
+ *   Not for production builds.
  *
  * MLDSA_MUL_SLOW                                         Default: OFF
  *   Define when multiplying by Q / 44 is slower than masking.
@@ -2737,6 +2743,31 @@ static void mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
  * Expand operations
  ******************************************************************************/
 
+#ifdef WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL
+/* Calls of mldsa_rej_ntt_poly_ex() left until one fails; 0 is off. */
+static int mldsa_rej_ntt_fail_countdown = 0;
+
+/* Test aid: make a later call of mldsa_rej_ntt_poly_ex() fail.
+ *
+ * @param [in] n  Call to fail, counting from 1; 0 turns failing off.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when n is negative.
+ */
+WOLFSSL_TEST_VIS int wc_MlDsa_TestRejNttFail(int n)
+{
+    int ret = 0;
+
+    if (n < 0) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        mldsa_rej_ntt_fail_countdown = n;
+    }
+
+    return ret;
+}
+#endif
+
 /* Generate a random polynomial by rejection.
  *
  * FIPS 204 Section 7.3, Algorithm 30 RejNTTPoly(rho)
@@ -2976,6 +3007,14 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
     }
 #endif
 
+#ifdef WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL
+    if ((ret == 0) && (mldsa_rej_ntt_fail_countdown > 0)) {
+        mldsa_rej_ntt_fail_countdown--;
+        if (mldsa_rej_ntt_fail_countdown == 0) {
+            ret = BAD_STATE_E;
+        }
+    }
+#endif
     return ret;
 }
 
@@ -9121,6 +9160,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
                 /* Next polynomial. */
                 s1t += MLDSA_N;
             }
+            /* A failed row's accumulator was never fully written. */
+            if (ret != 0) {
+                break;
+            }
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             for (e = 0; e < MLDSA_N; e++) {
                 tt[e] = mldsa_mont_red(t64[e]);
@@ -9139,13 +9182,16 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             s2t += MLDSA_N;
         }
 
-        /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
-         * Decompose t in t0 and t1 and encode into public and private key.
-         */
-        mldsa_vec_encode_t0_t1(t, params->k, t0, t1);
-        /* Step 8. Alg 24, Step 1: Hash public key into private key. */
-        ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
-            MLDSA_TR_SZ);
+        if (ret == 0) {
+            /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
+             * Decompose t in t0 and t1 and encode into public and private
+             * key.
+             */
+            mldsa_vec_encode_t0_t1(t, params->k, t0, t1);
+            /* Step 8. Alg 24, Step 1: Hash public key into private key. */
+            ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
+                MLDSA_TR_SZ);
+        }
     }
     if (ret == 0) {
         /* Public key and private key are available. */

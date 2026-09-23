@@ -31784,3 +31784,103 @@ int test_wc_MlDsaKey_seed_service_indicator(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A rejection-sampling failure part-way through small-mem key generation
+ * must be returned, and must not mark a freshly initialised key as set.
+ * Small-mem signing and verification must return one too. */
+int test_mldsa_make_key_rej_ntt_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)
+    wc_MlDsaKey* key = NULL;
+    byte seed[MLDSA_SEED_SZ];
+    byte level;
+    int l;
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    level = WC_ML_DSA_44; l = 4;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    level = WC_ML_DSA_65; l = 5;
+#else
+    level = WC_ML_DSA_87; l = 7;
+#endif
+
+    XMEMSET(seed, 0x5a, sizeof(seed));
+    ExpectNotNull(key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+
+    /* Fail the first polynomial of row 1 of A, after row 0 is done. */
+    ExpectIntEQ(wc_MlDsa_TestRejNttFail(l + 1), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    (void)wc_MlDsa_TestRejNttFail(0);
+    if (key != NULL) {
+        ExpectIntEQ(key->prvKeySet, 0);
+        ExpectIntEQ(key->pubKeySet, 0);
+    }
+
+    /* With failing off, the same key generates. */
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed), 0);
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    ((defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
+      !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)) || \
+     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))
+    {
+        WC_RNG rng;
+        byte msg[] = "rej ntt fail";
+        byte* sig = NULL;
+        word32 sigLen;
+    #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+        int res;
+    #endif
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectNotNull(sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+
+    #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
+        !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
+        /* Small-mem signing streams A, so its first row can fail. */
+        sigLen = MLDSA_MAX_SIG_SIZE;
+        ExpectIntEQ(wc_MlDsa_TestRejNttFail(1), 0);
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, msg,
+            sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
+        (void)wc_MlDsa_TestRejNttFail(0);
+    #endif
+
+    #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+        /* Small-mem verification streams A too; a valid signature must
+         * still report the failure. res has no meaning when an error is
+         * returned, so it is not checked. */
+        sigLen = MLDSA_MAX_SIG_SIZE;
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, msg,
+            sizeof(msg), &rng), 0);
+        res = 0;
+        ExpectIntEQ(wc_MlDsa_TestRejNttFail(1), 0);
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            sizeof(msg), &res), WC_NO_ERR_TRACE(BAD_STATE_E));
+        (void)wc_MlDsa_TestRejNttFail(0);
+    #endif
+
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FreeRng(&rng);
+    }
+#endif
+
+    wc_MlDsaKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
