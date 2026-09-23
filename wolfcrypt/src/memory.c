@@ -1610,6 +1610,12 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
         fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", p, (word32)n,
                                                         type, func, file, line);
     }
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    else {
+        /* Counted above, but the allocator returned NULL. No block to free. */
+        wc_MemFailCount_AllocFailed();
+    }
+#endif
 
     (void)heap;
 
@@ -1659,7 +1665,14 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
     }
 
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-    if (p != NULL) {
+    /* realloc(NULL, n) is malloc. AllocMem() already counted it; if the
+     * allocator returns NULL for a positive size, no block exists to free.
+     * Do not undo a failed realloc of a live pointer: that path still
+     * counts a free below and the original block remains. */
+    if (p32 == NULL && p == NULL && n > 0) {
+        wc_MemFailCount_AllocFailed();
+    }
+    else if (p != NULL) {
         wc_MemFailCount_FreeMem();
     }
 #endif
