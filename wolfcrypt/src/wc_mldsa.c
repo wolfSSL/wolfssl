@@ -123,6 +123,10 @@
  *   including those from mldsa_expand_a(), except where Intel assembly
  *   generates matrix A instead.
  *   Not for production builds.
+ * WOLFSSL_MLDSA_CHECK_INVNTT_BOUND                       Default: OFF
+ *   Test aid: abort if a coefficient entering the inverse NTT on a small-mem
+ *   path is outside (-Q, Q), the range those paths reduce it into.
+ *   Not for production builds.
  *
  * MLDSA_MUL_SLOW                                         Default: OFF
  *   Define when multiplying by Q / 44 is slower than masking.
@@ -157,6 +161,10 @@
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>
+#endif
+#ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+#include <stdio.h>
+#include <stdlib.h>
 #endif
 
 #if FIPS_VERSION3_GE(7,0,0)
@@ -7960,6 +7968,41 @@ static void mldsa_invntt(sword32* r)
 }
 #endif
 
+#if defined(WOLFSSL_MLDSA_CHECK_INVNTT_BOUND) && \
+    ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+      defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+      defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))
+/* Test aid: abort if a coefficient about to enter mldsa_invntt_full() on a
+ * small-mem path is outside (-Q, Q), the range those paths reduce it into.
+ *
+ * @param [in] r  Polynomial about to be inverse transformed.
+ * @return  0 when every coefficient is in range.
+ * @return  BAD_STATE_E when one is not, if TEST_ALWAYS_RUN_TO_END stops the
+ *          abort.
+ */
+static int mldsa_check_invntt_bound(const sword32* r)
+{
+    int ret = 0;
+    unsigned int i;
+
+    for (i = 0; i < MLDSA_N; i++) {
+        if ((r[i] <= -MLDSA_Q) || (r[i] >= MLDSA_Q)) {
+            ret = BAD_STATE_E;
+            fprintf(stderr, "[MLDSA_INVNTT] r[%u] = %d is outside (-Q, Q)\n",
+                i, (int)r[i]);
+        #ifndef TEST_ALWAYS_RUN_TO_END
+            abort();
+        #endif
+        }
+    }
+
+    return ret;
+}
+#endif
+
 /* Inverse Number-Theoretic Transform.
  *
  * Cannot overflow when |r[i]| < Q: the sum lane is left unreduced across
@@ -9173,6 +9216,13 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
              * inside |x| < Q, where mldsa_invntt_full() cannot overflow. */
             mldsa_poly_red(tt);
         #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            ret = mldsa_check_invntt_bound(tt);
+            if (ret != 0) {
+                /* Out-of-range input would overflow the inverse NTT. */
+                break;
+            }
+        #endif
             mldsa_invntt_full(tt);
             mldsa_add(tt, s2t);
             /* Make positive for decomposing. */
@@ -9907,6 +9957,15 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         #ifdef WOLFSSL_MLDSA_SMALL
             mldsa_vec_red(w, params->k);
         #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            for (r = 0; (ret == 0) && (r < maxK); r++) {
+                ret = mldsa_check_invntt_bound(w + (word32)r * MLDSA_N);
+            }
+            if (ret != 0) {
+                /* Out-of-range input would overflow the inverse NTT. */
+                break;
+            }
+        #endif
             mldsa_vec_invntt_full(w, maxK);
             /* Step 14, Step 22: Make values positive and decompose. */
             mldsa_vec_make_pos(w, maxK);
@@ -10069,6 +10128,13 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                  * inside |x| < Q, where mldsa_invntt_full() cannot
                  * overflow. */
                 mldsa_poly_red(wt);
+            #endif
+            #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+                ret = mldsa_check_invntt_bound(wt);
+                if (ret != 0) {
+                    /* Out-of-range input would overflow the inverse NTT. */
+                    break;
+                }
             #endif
                 mldsa_invntt_full(wt);
                 /* Step 14, Step 22: Make values positive and decompose. */
@@ -11253,6 +11319,15 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
              * back inside |x| < Q, where mldsa_invntt_full() cannot
              * overflow. */
             mldsa_poly_red(w);
+        #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            if (ret == 0) {
+                ret = mldsa_check_invntt_bound(w);
+            }
+            if (ret != 0) {
+                /* Out-of-range input would overflow the inverse NTT. */
+                break;
+            }
         #endif
 
             /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
