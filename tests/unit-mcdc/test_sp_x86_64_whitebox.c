@@ -1158,7 +1158,7 @@ static void wb_run_dispatch_256(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        (void)sp_256_add_points_4(&pp1, &pp2, tmp2);
+        (void)WB_CHECK(sp_256_add_points_4(&pp1, &pp2, tmp2));
     }
     {
         sp_point_256 pt;
@@ -1295,7 +1295,7 @@ static void wb_run_dispatch_384(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        (void)sp_384_add_points_6(&pp1, &pp2, tmp2);
+        (void)WB_CHECK(sp_384_add_points_6(&pp1, &pp2, tmp2));
     }
     {
         sp_point_384 pt;
@@ -1432,7 +1432,7 @@ static void wb_run_dispatch_521(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        (void)sp_521_add_points_9(&pp1, &pp2, tmp2);
+        (void)WB_CHECK(sp_521_add_points_9(&pp1, &pp2, tmp2));
     }
     {
         sp_point_521 pt;
