@@ -3057,16 +3057,29 @@ typedef struct test_scv_case {
     int expectRet; /* expected handshake result */
 } test_scv_case;
 
+/* SetupStoreCtxCallback() stores GetX509Error() under
+ * OPENSSL_COMPATIBLE_DEFAULTS. Other builds pass the ASN date error through. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define TEST_SCV_DATE_BEFORE_E  WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID
+    #define TEST_SCV_DATE_AFTER_E   WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED
+#else
+    #define TEST_SCV_DATE_BEFORE_E  WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)
+    #define TEST_SCV_DATE_AFTER_E   WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)
+#endif
+
 /* Stand in for a device with no real-time clock, the deployment the small
  * certificate verify build targets: date errors are the only ones it waives. */
 static int test_scv_date_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
-    if (store->error == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
-            store->error == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+    if (store->error == TEST_SCV_DATE_BEFORE_E ||
+            store->error == TEST_SCV_DATE_AFTER_E) {
         return 1;
     }
     return preverify;
 }
+
+#undef TEST_SCV_DATE_BEFORE_E
+#undef TEST_SCV_DATE_AFTER_E
 
 /* Build a TLS leaf naming the 2048-bit test root as its issuer and carrying
  * leafKey's public half. signKey decides whether it is genuine: the root's own
