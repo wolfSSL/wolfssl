@@ -40,6 +40,9 @@ int test_wolfSSL_GetSessionAtIndex(void);
 int test_wolfSSL_client_cache_id_prefix(void);
 int test_wolfSSL_client_cache_id_overwrite(void);
 int test_wolfSSL_session_cache_restore(void);
+int test_wolfSSL_session_cache_client_geometry(void);
+int test_wolfSSL_get_session_default_ref(void);
+int test_wolfSSL_SetServerID_resume(void);
 
 #define TEST_SESSION_DECLS                                                     \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session),                  \
@@ -57,6 +60,9 @@ int test_wolfSSL_session_cache_restore(void);
     TEST_DECL_GROUP("session", test_wolfSSL_GetSessionAtIndex),                \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_prefix),           \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_overwrite),        \
-    TEST_DECL_GROUP("session", test_wolfSSL_session_cache_restore)
+    TEST_DECL_GROUP("session", test_wolfSSL_session_cache_restore),            \
+    TEST_DECL_GROUP("session", test_wolfSSL_session_cache_client_geometry),    \
+    TEST_DECL_GROUP("session", test_wolfSSL_get_session_default_ref),          \
+    TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */

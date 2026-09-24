@@ -1,6 +1,41 @@
 # wolfSSL Release (unreleased)
 
 ## Behavioral Changes
+* **Behavioral change (`NO_SESSION_CACHE_REF` no longer disables the client
+  cache)**: the macro suppressed the `AddSession()` write to the ClientCache as
+  well as the `wolfSSL_get_session()` return value, because one field served as
+  both the handle and the write trigger.  Nothing populated that cache while
+  `wolfSSL_GetSessionClient()` kept searching it, so
+  `wolfSSL_SetServerID(ssl, id, len, 0)` resumption silently never resumed in
+  any build defining the macro.  The write is now gated on `NO_CLIENT_CACHE`
+  alone, which is what declares the field; the cache is not resized.
+
+* **Behavioral change (`NO_SESSION_CACHE_REF` is now the default everywhere)**:
+  `settings.h` defines it unless `WOLFSSL_SESSION_CACHE_REF` is defined, so
+  every build selects it, including `user_settings.h`, IDE and bare-metal
+  builds with no configure step.  `wolfSSL_get_session()` therefore returns a
+  non-persistent reference to `ssl->session` rather than a handle into the
+  process-global client cache.  **Mind the lifetime when migrating**: the old
+  handle stayed valid after `wolfSSL_free()`, this one does not, so code
+  holding the result past its `WOLFSSL` must move to `wolfSSL_get1_session()`
+  plus `wolfSSL_SESSION_free()`.  The old behaviour is opt-in through
+  `WOLFSSL_SESSION_CACHE_REF`, `--enable-session-cache-ref` or
+  `-DWOLFSSL_SESSION_CACHE_REF=yes`, and such a build warns at compile time
+  unless `WOLFSSL_SESSION_CACHE_REF_WARNED` is defined.  The recipes that
+  already defined `NO_SESSION_CACHE_REF` still force it on over the option,
+  which both build systems now report.
+
+  Two consequences of the new default worth planning for.  The `ClientCache`
+  is sized by `CLIENT_SESSIONS_MULTIPLIER`, which is 1 under
+  `NO_SESSION_CACHE_REF` and 8 without it, so a build that previously left the
+  macro unset gets a client cache 8x smaller (and correspondingly cheaper).
+  Define `CLIENT_SESSIONS_MULTIPLIER` to any value to choose the size
+  yourself.  Because that cache is part of the `PERSIST_SESSION_CACHE` image,
+  `WOLFSSL_CACHE_VERSION` goes to 4 and the header now records the client
+  cache rows and columns, so an image written by a build with different
+  dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
+  A saved cache from an older release cannot be restored by this one.
+
 * **Behavioral change (`ForceZero()` issues no CPU fences)**: the wipe is
   kept alive by a compiler barrier that takes the buffer address, which also
   keeps it from being optimized away for buffers that never leave the inlined
