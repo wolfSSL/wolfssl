@@ -635,8 +635,10 @@ out:
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
     if (ctx->rng.status == WC_DRBG_OK)
         return 0;
+#ifdef WC_RNG_FLAG_BANKREF
     if (ctx->rng.flags & WC_RNG_FLAG_BANKREF)
         return 0;
+#endif
     if (ctx->rng.status == WC_DRBG_NOT_INIT) {
         int err = LKCAPI_INITRNG(&ctx->rng);
         if (err) {
