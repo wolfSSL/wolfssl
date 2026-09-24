@@ -444,6 +444,31 @@ config WOLFSSL_OPENSSL_EXTRA_X509_SMALL
     helpers (wolfSSL_X509_free, wolfSSL_get_verify_result, ...) without
     the rest of OPENSSL_EXTRA.
 
+config WOLFSSL_USER_IO
+  bool "wolfSSL transport supplied by the application"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Define WOLFSSL_USER_IO. Leaves the built-in socket send/receive
+    callbacks out of the build, for an application that installs its own
+    with wolfSSL_CTX_SetIOSend()/SetIORecv(). Without a transport of its
+    own such a build cannot do TLS at all; with one it needs no network
+    stack, so CONFIG_NETWORKING can stay off.
+
+config WOLFSSL_CERT_GEN
+  bool "wolfSSL certificate generation"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Define WOLFSSL_CERT_GEN. Builds wc_InitCert(), wc_MakeCert() and
+    wc_SignCert(), so the application can issue X.509 certificates.
+
+config WOLFSSL_CERT_EXT
+  bool "wolfSSL certificate extensions"
+  depends on WOLFSSL_CERT_GEN
+  help
+    Define WOLFSSL_CERT_EXT. Adds the v3 extension setters -
+    wc_SetKeyUsage(), wc_SetExtKeyUsage(), wc_SetSubjectKeyId...() and
+    wc_SetAuthKeyId...() - to certificate generation.
+
 config WOLFCRYPT_ASM
 	bool "wolfCrypt assembly optimisations"
 	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
