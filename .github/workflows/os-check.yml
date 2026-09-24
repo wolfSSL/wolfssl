@@ -242,6 +242,7 @@ jobs:
       # Delete old ccache seed entries. Note that cache-janitor.yml cleans
       # entries which do not go through this flow.
       - name: Prune this shard's stale seeds
+        continue-on-error: true
         if: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
         shell: bash
         env:

@@ -165,6 +165,7 @@ jobs:
           key: smoke-ccache-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Prune superseded seeds
+        continue-on-error: true
         if: github.event_name != 'pull_request' && steps.merge_check.outputs.skip != 'true'
         shell: bash
         env:
