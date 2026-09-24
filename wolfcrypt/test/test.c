@@ -30852,6 +30852,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     wc_test_ret_t ret = 0;
     int api_ret;
     int present;
+    int gen_local;
     int root_inited = 0;
     WC_DECLARE_VAR(root, WC_RNG, 1, HEAP_HINT);
     wc_drbg_reseed_ctr_t c1 = 0;
@@ -30901,8 +30902,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
 
     present = wc_RNG_DRBG_Present(root);
 
+    /* A crypto callback services wc_RNG_GenerateBlock() off-instance, so the
+     * local DRBG's counter and stats only move when generate stays local. */
+    gen_local = present;
+#ifdef WOLF_CRYPTO_CB
+    #ifdef WOLF_CRYPTO_CB_FIND
+    gen_local = 0;
+    #else
+    if (root->devId != INVALID_DEVID)
+        gen_local = 0;
+    #endif
+#endif
+
     /* generate advances the reseed counter */
-    if (present) {
+    if (gen_local) {
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 < 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -30952,7 +30965,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if (present) {
+    if (gen_local) {
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 > 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
