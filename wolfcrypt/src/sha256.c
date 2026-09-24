@@ -349,7 +349,7 @@ static int InitSha256(wc_Sha256* sha256)
     return 0;
 }
 
-#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 /* Reset a hash context to its freshly initialized state, reusing its existing
  * allocations.  Like the Final functions, Reset does not destroy sensitive
@@ -361,16 +361,27 @@ static int InitSha256(wc_Sha256* sha256)
  * re-setup hooks.  (SHA-224's in-place variant sits in the NEED_SOFT arm and
  * sha512.c's sit in the software-implementation arm, so both exclude CB_ONLY
  * structurally; SHA-256's region also serves the CB_ONLY build -- see
- * wc_InitSha224_ex()'s CB_ONLY arm -- hence the explicit conjunct.)
- * Any WOLF_CRYPTO_CB build is excluded too: a port may keep state in devCtx
- * that InitSha256() does not clear. */
+ * wc_InitSha224_ex()'s CB_ONLY arm -- hence the explicit conjunct.) */
 int wc_Sha256Reset(wc_Sha256* sha256) {
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha256() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha256->heap;
+        int devId = sha256->devId;
+        wc_Sha256Free(sha256);
+        return wc_InitSha256_ex(sha256, heap, devId);
+    }
+#endif
     return InitSha256(sha256);
 }
 #define WC_SHA256RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB_ONLY_SHA256 */
 
 #endif
 
@@ -2784,14 +2795,27 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         return ret;
     }
 
-#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
+#if !defined(WOLFSSL_HASH_KEEP)
 int wc_Sha224Reset(wc_Sha224* sha224) {
     if (sha224 == NULL)
         return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha224() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha224->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha224->heap;
+        int devId = sha224->devId;
+        wc_Sha224Free(sha224);
+        return wc_InitSha224_ex(sha224, heap, devId);
+    }
+#endif
     return InitSha224(sha224);
 }
 #define WC_SHA224RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
+#endif /* !WOLFSSL_HASH_KEEP */
 
 #endif
 
