@@ -539,8 +539,11 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
     /* CPUID picks the lane; a refused save is an error, never another lane. */
     if (IS_INTEL_AVX2(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* The state still holds the seed in the clear, so wipe it. */
+            ForceZero(state, sizeof(shake->s));
             return svr_ret;
+        }
         /* Process the state using AVX2 instructions. */
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
@@ -655,8 +658,11 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
     /* CPUID picks the lane; a refused save is an error, never another lane. */
     if (IS_INTEL_AVX2(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* The state still holds the seed in the clear, so wipe it. */
+            ForceZero(state, sizeof(shake->s));
             return svr_ret;
+        }
         /* Process the state using AVX2 instructions. */
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
@@ -5971,6 +5977,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    byte* sig_start = sig_fors;
     word16 indices[SLHDSA_MAX_INDICES_SZ];
     int i;
     int j;
@@ -5998,8 +6005,10 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
             word16 idx = indices[i];
             int svr_ret = SAVE_VECTOR_REGISTERS2();
 
-            if (svr_ret != 0)
-                return svr_ret;
+            if (svr_ret != 0) {
+                ret = svr_ret;
+                break;
+            }
             /* Step 5: For each bit: */
             for (j = 0; j < a; j++) {
                 /* Calculate side. */
@@ -6042,6 +6051,11 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
         if (ret != 0) {
             break;
         }
+    }
+
+    if (ret != 0) {
+        /* Private key values reached the caller's buffer; do not leave them. */
+        ForceZero(sig_start, (size_t)(sig_fors - sig_start));
     }
 
     return ret;
