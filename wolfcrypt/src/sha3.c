@@ -1637,7 +1637,7 @@ static int wc_Sha3Reset(wc_Sha3* sha3)
         return BAD_FUNC_ARG;
 
 #if !defined(WOLFSSL_HASH_KEEP) && !defined(STM32_HASH_SHA3) && \
-    !defined(PSOC6_HASH_SHA3)
+    !defined(PSOC6_HASH_SHA3) && !defined(WOLF_CRYPTO_CB)
     /* InitSha3() reinitializes the sponge and block-dispatch state in place,
      * touching neither the heap hint nor the device association. */
     return InitSha3(sha3);
@@ -1659,7 +1659,7 @@ static int wc_Sha3Reset(wc_Sha3* sha3)
         wc_Sha3Free(sha3);
         return wc_InitSha3(sha3, heap, devId);
     }
-#endif /* !ASYNC && !HASH_KEEP && !STM32 && !PSOC6 */
+#endif /* !ASYNC && !HASH_KEEP && !STM32 && !PSOC6 && !CRYPTO_CB */
 }
 
 /* Copy the state of the SHA3 operation.
