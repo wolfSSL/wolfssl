@@ -633,15 +633,10 @@ out:
 }
 
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
-    if ((ctx->rng.status == WC_DRBG_OK)
-#ifdef WC_HAVE_RNG_BANKREF
-        || (ctx->rng.flags & WC_RNG_FLAG_BANKREF)
-#endif
-        )
-    {
+    if (ctx->rng.status == WC_DRBG_OK)
         return 0;
-    }
-
+    if (ctx->rng.flags & WC_RNG_FLAG_BANKREF)
+        return 0;
     if (ctx->rng.status == WC_DRBG_NOT_INIT) {
         int err = LKCAPI_INITRNG(&ctx->rng);
         if (err) {
@@ -653,8 +648,7 @@ static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
         }
         return 0;
     }
-    else
-    {
+    else {
         return -EINVAL;
     }
 }

@@ -30579,7 +30579,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         if (WC_RNG_BANK_INST_TO_RNG(rng_inst) == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* take the instance out of service while holding it */
-        WC_RNG_BANK_INST_TO_RNG(rng_inst)->status = WC_DRBG_FAILED;
+        {
+            WC_RNG *inst_rng = WC_RNG_BANK_INST_TO_RNG(rng_inst);
+            if (inst_rng != NULL)
+                inst_rng->status = WC_DRBG_FAILED;
+        }
         ret = wc_rng_bank_inst_checkin(&rng_inst);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
