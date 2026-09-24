@@ -3441,7 +3441,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in, out]  shake128  SHAKE-128 object.
  * @param  [in]       seed      Data to absorb.
  * @param  [in]       len       Length of data to absorb in bytes.
- * @return  0 on success always.
+ * @return  0 on success, or the error from a refused vector-register save.
  */
 static int mlkem_xof_absorb(wc_Shake* shake128, const byte* seed, int len)
 {
@@ -3603,7 +3603,7 @@ void mlkem_prf_free(wc_Shake* prf)
  * @param  [in]       outLen    Number of bytes to write.
  * @param  [in]       key       Data to derive from. Must be:
  *                                WC_ML_KEM_SYM_SZ + 1 bytes in length.
- * @return  0 on success always.
+ * @return  0 on success, or the error from a refused vector-register save.
  */
 static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     const byte* key)
@@ -3687,7 +3687,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
  * @param  [in]  seedLen   Length of data to derive from in bytes.
  * @param  [out] out       Buffer to write to.
  * @param  [in]  outLen    Number of bytes to derive.
- * @return  0 on success always.
+ * @return  0 on success, or the error from a refused vector-register save.
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
