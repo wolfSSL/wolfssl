@@ -1015,24 +1015,28 @@
         return 1;
     }
 
-    /* A new feature set is a new operating environment: re-run the power-on
-     * self test, then run every CAST now instead of waiting for first use,
-     * which is what the kernel module does at load.  Signals
-     * stay suspended across both so a CAST cannot be cut short. */
+    /* A new feature set means new lanes, so run every CAST now instead of
+     * waiting for first use.  The module image is unchanged, so the integrity
+     * test is not re-run: that call resets the module state and would let a
+     * tuning call clear a recorded failure.  Signals stay suspended in the
+     * kernel so a CAST cannot be cut short. */
     static WC_INLINE void cpuid_recast(void)
     {
     #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
         int ret;
+        /* A module that is not healthy stays as it is. */
+        if (wolfCrypt_GetStatus_fips() != 0) {
+            WOLFSSL_MSG("cpuid: module not in service, leaving the tests alone");
+            return;
+        }
         if (WC_SIG_IGNORE_BEGIN() < 0) {
             WOLFSSL_MSG("cpuid: cannot suspend signals for the self test");
             return;
         }
-        ret = wolfCrypt_IntegrityTest_fips();
-        if (ret == 0)
-            ret = wc_RunAllCast_fips();
+        ret = wc_RunAllCast_fips();
         (void)WC_SIG_IGNORE_END();
         if (ret != 0)
-            WOLFSSL_MSG("cpuid: self test failed after a feature change");
+            WOLFSSL_MSG("cpuid: a CAST failed after a feature change");
     #endif
     }
 
