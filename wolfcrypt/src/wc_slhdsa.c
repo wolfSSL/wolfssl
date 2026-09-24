@@ -5994,6 +5994,8 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
         ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs,
             ((word32)i << a) + indices[i], sig_fors);
         if (ret != 0) {
+            /* This slot may already hold a private key value. */
+            ForceZero(sig_fors, n);
             break;
         }
         /* Step 4: Move over private key value. */
