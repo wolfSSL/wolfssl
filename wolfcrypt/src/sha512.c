@@ -962,7 +962,7 @@ static int InitSha512(wc_Sha512* sha512)
     return 0;
 }
 
-#if !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
 
 /* Reset a hash context to its freshly initialized state, reusing its existing
  * allocations.  Like the Final functions, Reset does not destroy sensitive
@@ -974,7 +974,7 @@ int wc_Sha512Reset(wc_Sha512* sha512) {
     return InitSha512(sha512);
 }
 #define WC_SHA512RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
 
 #if !defined(WOLFSSL_NOSHA512_224) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
@@ -1029,14 +1029,14 @@ static int InitSha512_224(wc_Sha512* sha512)
     return 0;
 }
 
-#if !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
 int wc_Sha512_224Reset(wc_Sha512* sha512) {
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
     return InitSha512_224(sha512);
 }
 #define WC_SHA512_224RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
 #endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
 
 #if !defined(WOLFSSL_NOSHA512_256) && \
@@ -1091,14 +1091,14 @@ static int InitSha512_256(wc_Sha512* sha512)
     return 0;
 }
 
-#if !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
 int wc_Sha512_256Reset(wc_Sha512* sha512) {
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
     return InitSha512_256(sha512);
 }
 #define WC_SHA512_256RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
 #endif /* !WOLFSSL_NOSHA512_256 && !FIPS... */
 
 #endif /* WOLFSSL_SHA512 */
@@ -2926,14 +2926,14 @@ static int InitSha384(wc_Sha384* sha384)
     return 0;
 }
 
-#if !defined(WOLFSSL_HASH_KEEP)
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(WOLF_CRYPTO_CB)
 int wc_Sha384Reset(wc_Sha384* sha384) {
     if (sha384 == NULL)
         return BAD_FUNC_ARG;
     return InitSha384(sha384);
 }
 #define WC_SHA384RESET_DEFINED
-#endif /* !WOLFSSL_HASH_KEEP */
+#endif /* !WOLFSSL_HASH_KEEP && !WOLF_CRYPTO_CB */
 
 int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
 {
