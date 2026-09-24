@@ -56,7 +56,7 @@ int test_slhdsa_cb_free(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
-    TEST_DECL_GROUP("slhdsa", test_wc_SlhDsaKey_seed_service_indicator), \
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhDsaKey_seed_service_indicator),       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sizes),                           \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_make_key),                        \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign),                            \

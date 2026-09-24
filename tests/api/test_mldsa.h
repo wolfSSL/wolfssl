@@ -67,10 +67,10 @@ int test_wc_MldsaFeatureCoverage(void);
  * defined. */
 int test_mldsa_legacy_shim(void);
 int test_wc_MldsaDecisionCoverage2(void);
-int test_wc_MlDsaKey_seed_service_indicator(void);
 int test_wc_MldsaDerDecisionCoverage(void);
 int test_mldsa_cb_free(void);
 
+int test_wc_MlDsaKey_seed_service_indicator(void);
 int test_wc_MlDsaKey_SetPrecompA(void);
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
