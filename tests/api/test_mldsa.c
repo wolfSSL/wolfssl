@@ -31760,12 +31760,21 @@ int test_wc_MlDsaKey_seed_service_indicator(void)
     !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
     wc_MlDsaKey key;
     byte seed[MLDSA_SEED_SZ];
+    byte level;
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    level = WC_ML_DSA_44;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    level = WC_ML_DSA_65;
+#else
+    level = WC_ML_DSA_87;
+#endif
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(seed, 0x5a, sizeof(seed));
 
     ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
 
     /* Valid key, valid seed: the operation is performed, and in an approved
      * build it is reported non-approved rather than refused. */
