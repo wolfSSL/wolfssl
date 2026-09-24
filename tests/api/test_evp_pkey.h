@@ -60,6 +60,7 @@ int test_wolfSSL_EVP_SignInit_ex(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_rsa(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_ec(void);
+int test_wolfSSL_EVP_PKEY_verify_dsa_len(void);
 int test_wolfSSL_EVP_MD_rsa_signing(void);
 int test_wc_RsaPSS_DigitalSignVerify(void);
 int test_wolfSSL_EVP_MD_ecc_signing(void);
@@ -117,6 +118,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_rsa),        \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_dsa),        \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_ec),         \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_verify_dsa_len),         \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_MD_rsa_signing),              \
     TEST_DECL_GROUP("evp_pkey", test_wc_RsaPSS_DigitalSignVerify),             \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_MD_ecc_signing),              \
