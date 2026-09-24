@@ -53,6 +53,18 @@ jobs:
           # vs SE050-resident key) added to wolfcrypt/test/test.c.
           - name: only-key-id
             extra_cflags: '-DWOLFSSL_SE050_ONLY_KEY_ID'
+          # Hardware-only public key: the wolfCrypt software RSA
+          # implementation (mod-exp, prime search, key check) and the software
+          # ECC implementation (point arithmetic, scalar multiply, software
+          # signer/ECDH/make-pub) are both left out of the build, so every RSA
+          # and ECC operation the test binary runs has to be served by the
+          # SE050. The image's ./configure enables TLS 1.3 and with it
+          # WC_RSA_PSS, so this leg keeps the RSA padding layer compiled; the
+          # padding-free variant additionally needs --disable-rsapss
+          # --disable-tls13, which the simulator's Dockerfile does not
+          # currently expose as a build arg.
+          - name: no-pk-sw
+            extra_cflags: '-DWOLFSSL_NO_RSA_SW -DWOLFSSL_NO_ECC_SW'
     steps:
       - name: Checkout wolfSSL (PR source)
         uses: actions/checkout@v5

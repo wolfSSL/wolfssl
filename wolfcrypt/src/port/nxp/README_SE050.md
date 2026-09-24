@@ -307,6 +307,138 @@ regardless of `keyIdSet`. The SE050 port's "import a software key into the
 SE050 on first use" behavior is disabled under this macro, so a software key is
 never silently moved into hardware.
 
+**`WOLFSSL_NO_RSA_SW`**
+
+Builds RSA with no wolfCrypt software implementation at all: the software
+modular exponentiation (including the SP and non-blocking variants and the
+800-56B input bounds check), the prime search behind `wc_MakeRsaKey()` and the
+software key consistency check (`wc_CheckRsaKey()`, which is forced off along
+with `WOLFSSL_RSA_KEY_CHECK`) are left out of the build, and every RSA
+operation is performed by the SE050. The macro is not SE050-specific; the rest
+of this section describes what it means for the SE050.
+
+Requires an RSA hardware implementation that pads in hardware and generates
+keys on-chip: `WOLFSSL_SE050` without `WOLFSSL_SE050_NO_RSA`, or Arm
+CryptoCell-310 (`WOLFSSL_CRYPTOCELL`, documented in
+`IDE/CRYPTOCELL/README.md`). It is rejected at
+compile time together with `WOLFSSL_SE050_ONLY_KEY_ID` and
+`WOLFSSL_SE050_NO_RSA_VERIFY` (both route some operations to wolfCrypt
+software by design), `WOLF_CRYPTO_CB_ONLY_RSA`, `WC_RSA_NONBLOCK` and
+asynchronous RSA.
+
+Still available: PKCS#1 v1.5 sign/verify, public encrypt and private decrypt
+with PKCS#1 v1.5 or OAEP padding, key generation inside the SE050, the key
+insert/use-by-ID helpers, DER encode/decode, `wc_RsaEncryptSize()` and
+`wc_RsaFlattenPublicKey()`/`wc_RsaExportKey()`.
+
+Not available: the raw, unpadded operation (`wc_RsaFunction()` and
+`wc_RsaDirect()`) and RSA-PSS. The SE050 PSS API hashes the message itself, so
+it cannot serve wolfCrypt's sign-a-digest PSS interface; both return
+`NOT_COMPILED_IN`. TLS 1.3 authenticates RSA certificates with RSA-PSS, so a
+TLS 1.3 build still compiles but any RSA handshake fails at run time; use ECC
+certificates for TLS 1.3, and TLS 1.2 (or wolfCrypt on its own) for RSA.
+
+The PKCS#1 v1.5 un-pad helper (`wc_RsaUnPad_ex()`) stays in the build: the
+SE050 verify path performs the raw public operation in hardware and unpads on
+the host so that `wc_RsaSSL_Verify()` can hand the decoded DigestInfo back to
+the caller.
+
+For the smallest build, also configure RSA-PSS out (`--disable-rsapss`, which
+in turn needs `--disable-tls13`). With `WC_RSA_PSS` undefined, `rsa.c` drops
+the padding generation and the OAEP/PSS mask-generation and un-padding helpers
+as well, roughly halving its object size; with RSA-PSS enabled those stay
+compiled in even though the operation has no provider. For the same reason do
+not select an SP variant that includes RSA (`--enable-sp=yes`,
+`--enable-sp=rsa2048`, ...) - the SP RSA code would only be dead weight.
+
+**`WOLFSSL_NO_ECC_SW`**
+
+The ECC counterpart of `WOLFSSL_NO_RSA_SW`. Builds ECC with no wolfCrypt
+software implementation: the projective point add/double and mapping, the
+scalar multiplication (including Shamir's trick, used only by the software
+verify), the software signer, the software ECDH and the software derivation of
+a public key from a private scalar are all left out, and every keyed ECC
+operation is performed by the SE050.
+
+`ecc.c` already excludes that code for the ATECC508A/608A, TA100, CryptoCell,
+SiLabs and KCAPI ports and for `WOLF_CRYPTO_CB_ONLY_ECC`; this macro extends
+the same treatment to the SE05x port, which offloads every keyed ECC operation
+but otherwise still compiled the software curve math. On a 3-curve build
+(P-256/P-384/P-521) that takes `ecc.o` from roughly 30 KB to 17 KB. The macro
+does not remove the SP ECC code, so also select an SP variant without ECC if
+that is compiled in - otherwise it stays as dead weight.
+
+Requires `WOLFSSL_SE050` (or `WOLFSSL_CRYPTOCELL`, where the exclusions are
+already unconditional, so the macro is accepted but changes nothing). It is
+rejected at compile time together with `WOLFSSL_SE050_ONLY_KEY_ID`,
+`WOLFSSL_SE050_NO_ECDHE` (which also puts key generation back in software),
+`WOLFSSL_SE050_NO_ECDSA_VERIFY`, `WOLF_CRYPTO_CB_ONLY_ECC` and asynchronous
+ECC.
+
+The library and the application must be built with the same setting. Unlike the
+other macros in this section, this one is visible in a public header:
+`wolfssl/wolfcrypt/ecc.h` aliases `wc_ecc_shared_secret_ssh()` to
+`wc_ecc_shared_secret()` when it is defined and to `wc_ecc_shared_secret_ex()`
+when it is not, and those two take a different second argument type. There is
+no `./configure` option for it, so a generated `wolfssl/options.h` does not
+record it - put it in the `user_settings.h` that both the library and the
+application compile against.
+
+Still available: ECDSA sign and verify, ECDH between an SE050-resident private
+key and a peer public key, key generation inside the SE050, the key
+insert/use-by-ID helpers, x963 and DER key import/export, the raw key
+accessors, `wc_ecc_size()`/`wc_ecc_sig_size()` and the curve lookups.
+
+Not available, the same way they are absent on the ports listed above. Where a
+`NOT_COMPILED_IN` return is called out the function is still there and reports
+that; the rest are not compiled at all, and since their prototypes are
+unguarded a caller gets an undefined reference at link time.
+
+- `wc_ecc_make_pub()`/`wc_ecc_make_pub_ex()` - deriving `Q = d*G` for an
+  imported bare private key needs the software base-point multiply. These stay
+  in the build and return `NOT_COMPILED_IN`, which is what they already do on
+  the ports listed above.
+- ECDH where the private key is *not* resident in the SE050 (`keyIdSet == 0`,
+  for example one decoded from DER). The software fallback in
+  `wc_ecc_shared_secret()` returns `NOT_COMPILED_IN` instead. **This includes
+  PKCS#7 KARI** (`wc_PKCS7_EncodeEnvelopedData()` /
+  `wc_PKCS7_DecodeEnvelopedData()` with a key-agreement RecipientInfo), which
+  derives with an ephemeral key decoded from DER, and ECIES
+  (`wc_ecc_encrypt()`/`wc_ecc_decrypt()`) whenever the key it derives with is
+  not SE050-resident.
+- The public APIs over the curve arithmetic: `wc_ecc_mulmod()`,
+  `wc_ecc_mulmod_ex()`, `wc_ecc_point_is_at_infinity()`,
+  `wc_ecc_shared_secret_ex()` (`wc_ecc_shared_secret_ssh()` aliases to
+  `wc_ecc_shared_secret()` as it already does for those ports) and
+  `wc_ecc_check_key()`'s public-key order check.
+- Compressed-point import (`HAVE_COMP_KEY`) unless SP ECC provides the
+  uncompress helper for the curve; otherwise it returns `WC_KEY_SIZE_E`.
+- In an `OPENSSL_EXTRA` build, `EC_POINT_add()`, `EC_POINT_mul()` and
+  `ECDH_compute_key()`, which are built on the same curve arithmetic. They are
+  dropped as they already are for the ATECC ports, so an application calling
+  them fails to link. `EC_POINT_is_at_infinity()` is still there but always
+  reports failure, which is what it already does under
+  `WOLF_CRYPTO_CB_ONLY_ECC`, and so is the Jacobian-to-affine conversion that
+  `EC_POINT_get_affine_coordinates_GFp()` and `EC_POINT_invert()` fall back on
+  for a point whose z-ordinate is not one.
+
+`WOLFCRYPT_HAVE_ECCSI`, `WOLFCRYPT_HAVE_SAKKE`, `WOLFSSL_PUBLIC_ECC_ADD_DBL`
+and `WC_ECC_NONBLOCK` are rejected at compile time: all four are built directly
+on the software point arithmetic and have no hardware path to fall back to.
+
+Public-key point validation moves to the hardware with this macro. Importing an
+untrusted public key (`wc_ecc_import_x963()`, `wc_ecc_import_x963_ex()`, and
+the peer key-share and ECDHE paths in TLS that call them) normally rejects the
+point at infinity and checks that the point satisfies the curve equation before
+the key is used. Those host-side checks are compiled out here, as they already
+are for the ATECC508A/608A and CryptoCell ports, and the build relies on the
+SE05x applet rejecting an invalid point when wolfCrypt uploads the key for the
+ECDH or verify operation. Note this is an assumption about applet behaviour that
+the wolfSSL sources do not themselves enforce: if you are hardening against
+invalid-curve attacks on peer-supplied keys, confirm it against the applet
+documentation for your part, or leave this macro undefined so wolfCrypt keeps
+doing the checks.
+
 ## wolfSSL HostCrypto Support
 
 The NXP SE05x Plug & Trust Middleware by default can use either OpenSSL or

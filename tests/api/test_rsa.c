@@ -388,7 +388,7 @@ int test_wc_CheckProbablePrime(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && !defined(WOLFSSL_NO_RSA_SW)
 #define CHECK_PROBABLE_PRIME_KEY_BITS 2048
     RsaKey key;
     WC_RNG rng;
@@ -1432,7 +1432,8 @@ int test_wc_RsaDecisionCoverage(void)
  * that (newer) module honours these decisions and the harness gains coverage
  * from it. */
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_SELFTEST)
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_RSA_SW)
     RsaKey key;
     WC_RNG rng;
     const char inStr[] = TEST_STRING;
