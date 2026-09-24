@@ -13505,11 +13505,11 @@ then
         *) ENABLED_RNG_AUTOFORK_FLAGS=yes ;;
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
-       test "$ENABLED_ENTROPY_MEMUSE" != "no" || test "$ENABLED_RNG_BANK" = "yes" || \
+       test "$ENABLED_ENTROPY_MEMUSE" != "no" || \
        test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, netRandom, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_AUTOFORK_NEEDS"
     then
