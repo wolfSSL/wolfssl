@@ -21,7 +21,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
@@ -2695,7 +2695,7 @@ static int wc_InitRng_BankRef_local(struct wc_rng_bank *bank, WC_RNG **rng) {
 
     XMEMSET(*rng, 0, sizeof(**rng));
     (*rng)->heap = bank->heap;
-    (*rng)->status = WC_DRBG_BANKREF;
+    (*rng)->flags |= WC_RNG_FLAG_BANKREF;
     (*rng)->bankref = bank;
 
     ret = 0;
@@ -2727,6 +2727,8 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     int ret = 0;
     if (rng == NULL)
         return BAD_FUNC_ARG;
+    if (! (rng->flags & WC_RNG_FLAG_BANKREF))
+        return WRONG_TYPE_OBJECT_E;
     if (rng->bankref == NULL)
         return BAD_FUNC_ARG;
     wolfSSL_RefDec(&rng->bankref->refcount, &isZero, &ret);
@@ -2738,7 +2740,7 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
     (void)isZero;
 #endif
     rng->heap = NULL;
-    rng->status = WC_DRBG_NOT_INIT;
+    rng->flags &= ~WC_RNG_FLAG_BANKREF;
     rng->bankref = NULL;
     return ret;
 }
@@ -3444,4 +3446,4 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_Reseed_Now(
 
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* HAVE_WC_RNG_BANK */

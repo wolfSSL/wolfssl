@@ -3823,7 +3823,7 @@ if(WOLFSSL_RNG_BANK)
     if(NOT WOLFSSL_RNG)
         message(FATAL_ERROR "WOLFSSL_RNG_BANK requires WOLFSSL_RNG.")
     endif()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_WC_RNG_BANK")
 endif()
 
 # RNG lock (share one WC_RNG between threads)

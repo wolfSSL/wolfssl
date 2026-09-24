@@ -2829,7 +2829,11 @@ if test "$ENABLED_RNG_BANK" = "yes"
 then
     AS_IF([test "$ENABLED_RNG" = "no"],
     AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
-    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_RNG_BANK"
+    if test "$ENABLED_FIPS" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_RNG_WANT_BANKREF_SUPPORT"
+    fi
 fi
 
 
