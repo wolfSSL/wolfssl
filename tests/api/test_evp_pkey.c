@@ -2063,7 +2063,7 @@ int test_wolfSSL_EVP_PKEY_verify_dsa_len(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
-    !defined(WC_FIPS_186_5_PLUS)
+    !defined(WC_FIPS_186_5_PLUS) && defined(USE_CERT_BUFFERS_2048)
     DSA* dsa = NULL;
     EVP_PKEY* pkey = NULL;
     EVP_PKEY_CTX* ctx = NULL;

@@ -13982,8 +13982,9 @@ int test_tls13_psk_key_zeroized(void)
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_ECC) && \
-    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    defined(USE_CERT_BUFFERS_256) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY)
 #define TEST_TLS13_CKS_REPARSE
 
 static wolfSSL_Free_cb test_tls13_cks_prev_free;
