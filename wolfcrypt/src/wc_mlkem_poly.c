@@ -5752,6 +5752,9 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
  */
 int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail)
 {
+    /* Start at "did not match" so an error return cannot read as a match. */
+    *fail = -1;
+
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
     *fail = mlkem_cmp_neon(a, b, sz);
     return 0;
