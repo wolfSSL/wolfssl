@@ -13628,3 +13628,101 @@ int test_tls13_ticket_psk_modes_uses_policy(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_ECC) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+#define TEST_TLS13_CKS_REPARSE
+
+static wolfSSL_Free_cb test_tls13_cks_prev_free;
+static void*           test_tls13_cks_watch;
+static byte            test_tls13_cks_freed;
+
+static void test_tls13_cks_free_cb(void* ptr)
+{
+    if (ptr != NULL && ptr == test_tls13_cks_watch) {
+        /* Held until the test ends so the address is not handed out again. */
+        test_tls13_cks_freed++;
+        return;
+    }
+    if (test_tls13_cks_prev_free != NULL)
+        test_tls13_cks_prev_free(ptr);
+    else
+        free(ptr);
+}
+#endif
+
+/* The server copies the peer's CKS list from each ClientHello. After a
+ * HelloRetryRequest the copy taken from the first ClientHello has to be
+ * released when the second one replaces it. */
+int test_tls13_cks_hrr_reparse(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_CKS_REPARSE
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte cks[1] = { WOLFSSL_CKS_SIGSPEC_NATIVE };
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    byte hooked = 0;
+
+    test_tls13_cks_watch = NULL;
+    test_tls13_cks_freed = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl_s, ecc_key_der_256,
+        sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseCKS(ssl_c, cks, (word16)sizeof(cks)),
+        WOLFSSL_SUCCESS);
+    /* No key share entries, so the server has to ask for one. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.serverState,
+        SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+    ExpectNotNull(test_tls13_cks_watch = ssl_s->peerSigSpec);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &test_tls13_cks_prev_free,
+        &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(prev_mc, test_tls13_cks_free_cb,
+        prev_rc), 0);
+    if (EXPECT_SUCCESS())
+        hooked = 1;
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (hooked)
+        (void)wolfSSL_SetAllocators(prev_mc, test_tls13_cks_prev_free,
+            prev_rc);
+
+    ExpectNotNull(ssl_c->peerSigSpec);
+    ExpectIntEQ(test_tls13_cks_freed, 1);
+    ExpectNotNull(ssl_s->peerSigSpec);
+    ExpectPtrNE(ssl_s->peerSigSpec, test_tls13_cks_watch);
+    ExpectIntEQ(ssl_s->peerSigSpecSz, sizeof(cks));
+    /* With no preference of its own the server follows the second list. */
+    ExpectPtrEq(ssl_s->sigSpec, ssl_s->peerSigSpec);
+
+    if (test_tls13_cks_freed > 0 && ssl_s != NULL &&
+            ssl_s->peerSigSpec != test_tls13_cks_watch)
+        XFREE(test_tls13_cks_watch, NULL, DYNAMIC_TYPE_TLSX);
+    test_tls13_cks_watch = NULL;
+    test_tls13_cks_prev_free = NULL;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
