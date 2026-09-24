@@ -209,15 +209,16 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 /* AVX2 NTT/invNTT flavor selection: the non-full AVX2 NTT/invNTT keep the
  * NTT-domain coefficients in a permuted (lane-interleaved) order that only
  * the non-full AVX2 consumers understand, whereas the full variants and the
- * C implementations all use the standard order.  With WC_C_DYNAMIC_FALLBACK,
- * SAVE_VECTOR_REGISTERS2() can fail on any call, so NTT-domain data at rest
- * (cached s1/s2/t0 vectors, the challenge polynomial, etc.) can be produced
- * and consumed by differently-dispatched calls, and its representation must
- * be dispatch-invariant, i.e. standard order.  Without WC_C_DYNAMIC_FALLBACK,
- * SAVE_VECTOR_REGISTERS2() cannot fail intermittently (fuzzing without
- * fallback is an unsupported contradiction, and kernel-mode intelasm builds
- * always define WC_C_DYNAMIC_FALLBACK), so dispatch is invariant and the
- * slightly faster (~2%/~4% on NTT/invNTT) permuted-order variants are safe.
+ * C implementations all use the standard order.  A refused save in this file
+ * is an error, never a switch to another lane, so dispatch no longer changes
+ * from one call to the next on its own.  The choice still keys off
+ * WC_C_DYNAMIC_FALLBACK, which is where other files still switch lanes at run
+ * time, and the standard-order variants stay readable whatever ran before.
+ * Without it the slightly faster (~2%/~4% on NTT/invNTT) permuted-order
+ * variants are used; they assume the lane in force when NTT-domain data at
+ * rest (cached s1/s2/t0 vectors, the challenge polynomial) was produced is the
+ * lane that reads it back, so cpuid_set_flag()/cpuid_clear_flag() must not be
+ * used to change lanes while such a key is live.
  * Both pipelines yield bit-identical end results. */
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define MLDSA_NTT_AVX512(r)        wc_mldsa_ntt_full_1p_avx512(r)
