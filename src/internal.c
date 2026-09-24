@@ -16165,6 +16165,10 @@ int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request, int idx)
 #ifdef HAVE_CRL
     int ocspAnswered = 0;
 #endif
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    if (idx >= 0 && idx < 1 + MAX_CHAIN_DEPTH && ssl->csrLookupDone[idx])
+        return 0;
+#endif
     if (SSL_CM(ssl)->ocspEnabled && SSL_CM(ssl)->ocspCheckAll) {
         WOLFSSL_MSG("No status stapled, doing Non Leaf OCSP check");
         ret = CheckOcspRequest(SSL_CM(ssl)->ocsp, request, NULL, ssl);
@@ -16212,6 +16216,11 @@ int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request, int idx)
         }
 #endif
     }
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    else if (idx >= 0 && idx < 1 + MAX_CHAIN_DEPTH) {
+        ssl->csrLookupDone[idx] = 1;
+    }
+#endif
 
     return ret;
 }
@@ -17508,6 +17517,10 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
     }
     for (i = 0; i < csr->requests; i++) {
         if (csr->responses[i].length != 0) {
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            if (i < 1 + MAX_CHAIN_DEPTH && ssl->csrLookupDone[i])
+                continue;
+        #endif
             ssl->status_request = 1;
             idx = 0;
             ret = ProcessCSR_ex(ssl,
@@ -17517,6 +17530,10 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
                 WOLFSSL_ERROR_VERBOSE(ret);
                 break;
             }
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            if (ret == 0 && i < 1 + MAX_CHAIN_DEPTH)
+                ssl->csrLookupDone[i] = 1;
+        #endif
         }
         else if (i > 0) {
             /* ProcessPeerCerts() skipped this certificate's own lookups in
@@ -18683,6 +18700,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->deferredCrlDone = 0;
         XMEMSET(ssl->deferredChainCrlRet, 0,
                 sizeof(ssl->deferredChainCrlRet));
+    #endif
+    #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        XMEMSET(ssl->csrLookupDone, 0, sizeof(ssl->csrLookupDone));
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
         ssl->async->freeArgs = FreeProcPeerCertArgs;
@@ -20139,13 +20161,25 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         /* WOLFSSL_CSR_OCSP overlaps with WOLFSSL_CSR2_OCSP */
         case WOLFSSL_CSR2_OCSP:
-            ret = ProcessCSR(ssl, input, inOutIdx, status_length);
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+            defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_OCSP)
+            /* Verified before a chain lookup below would have blocked. */
+            if (statusReqV2 && ssl->csrLookupDone[0]) {
+                ssl->status_request_v2 = 0;
+                *inOutIdx += status_length;
+            }
+            else
+        #endif
+                ret = ProcessCSR(ssl, input, inOutIdx, status_length);
             endCertificateOK = (ret == 0);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
             if (ret == 0 && statusReqV2) {
                 OcspRequest* request;
                 byte idx;
 
+            #ifdef WOLFSSL_NONBLOCK_OCSP
+                ssl->csrLookupDone[0] = 1;
+            #endif
                 /* An offered ocsp_multi made the chain skip its own lookups. */
                 for (idx = 1; ret == 0 && idx <= MAX_CHAIN_DEPTH &&
                         (request = (OcspRequest*)TLSX_CSR2_GetRequest(
@@ -20217,7 +20251,12 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     break;
                 }
 
-                if (status_length) {
+                if (status_length
+                #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                        && !(idx < 1 + MAX_CHAIN_DEPTH &&
+                             ssl->csrLookupDone[idx])
+                #endif
+                        ) {
                     InitOcspResponse(response, single, status, input +*inOutIdx,
                                      status_length, ssl->heap);
                     response->pendingCAs = pendingCAs;
@@ -20253,10 +20292,23 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                #endif
                     if (ret == 0 && idx == 0) /* server cert must be OK */
                         endCertificateOK = 1;
+               #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                    if (ret == 0 && idx < 1 + MAX_CHAIN_DEPTH)
+                        ssl->csrLookupDone[idx] = 1;
+               #endif
 
                     *inOutIdx   += status_length;
                     list_length -= status_length;
                 }
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                else if (status_length) {
+                    /* Verified before a later entry's lookup would block. */
+                    if (idx == 0)
+                        endCertificateOK = 1;
+                    *inOutIdx   += status_length;
+                    list_length -= status_length;
+                }
+            #endif
                 else if (idx > 0 && endCertificateOK) {
                     /* RFC 6961 2.2: a zero-length entry means no response. */
                     request = (OcspRequest*)TLSX_CSR2_GetRequest(
