@@ -171,7 +171,8 @@
     #undef WC_RNG_WANT_BANKREF_SUPPORT
 #endif
 #ifdef WC_RNG_WANT_BANKREF_SUPPORT
-    #ifdef HAVE_FIPS
+    #if defined(HAVE_FIPS) && \
+        !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
         #error HAVE_FIPS is incompatible with WC_RNG_WANT_BANKREF_SUPPORT.
     #endif
     #ifndef HAVE_WC_RNG_BANK
