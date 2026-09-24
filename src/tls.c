@@ -4080,6 +4080,13 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                /* Passed before the status_request_v2 lookups would block. */
+                if (ssl->csrLookupDone[0]) {
+                    ret = 0;
+                }
+                else
+            #endif
                 if (SSL_CM(ssl)->ocspEnabled) {
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                            &csr->request.ocsp[0], NULL, ssl);
@@ -4098,7 +4105,14 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
                     ret = OCSP_LOOKUP_FAIL;
                 }
             #ifdef HAVE_CRL
-                ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                if (!ssl->csrLookupDone[0])
+            #endif
+                    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+            #endif
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                if (ret == 0)
+                    ssl->csrLookupDone[0] = 1;
             #endif
                 break;
         }
@@ -4644,6 +4658,13 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                /* Passed before a chain lookup below would have blocked. */
+                if (ssl->csrLookupDone[0]) {
+                    ret = 0;
+                }
+                else
+            #endif
                 if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                           &csr2->request.ocsp[csr2->requests-1],
@@ -4663,7 +4684,15 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                     ret = OCSP_LOOKUP_FAIL;
                 }
             #ifdef HAVE_CRL
-                ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                /* A leaf that passed keeps its verdict on the retry. */
+                if (!ssl->csrLookupDone[0])
+            #endif
+                    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+            #endif
+            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+                if (ret == 0)
+                    ssl->csrLookupDone[0] = 1;
             #endif
                 if (ret == 0 && multi != NULL) {
                     int i;

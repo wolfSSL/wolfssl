@@ -6985,6 +6985,13 @@ struct WOLFSSL {
          * fallback that runs for an entry no staple and no OCSP answered. */
         int  deferredChainCrlRet[1 + MAX_CHAIN_DEPTH];
     #endif
+    #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+        (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+         defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Staples and fallback lookups that passed, indexed like the staple
+         * list, so a retry after a later one blocked does not repeat them. */
+        byte csrLookupDone[1 + MAX_CHAIN_DEPTH];
+    #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         int                  secure_rene_count;    /* how many times */

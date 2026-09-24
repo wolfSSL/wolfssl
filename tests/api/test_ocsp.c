@@ -3302,7 +3302,21 @@ static struct {
     int leafLookups;
     int intLookups;
     int intNonce;
+    int verifyCbCalls;
 } test_ocsp_checkall_staple_opts;
+
+static int test_ocsp_checkall_staple_verify_cb(WOLFSSL* ssl, int err,
+    byte* staple, word32 stapleSz, word32 entry, void* arg)
+{
+    (void)ssl;
+    (void)staple;
+    (void)stapleSz;
+    (void)entry;
+    (void)arg;
+
+    test_ocsp_checkall_staple_opts.verifyCbCalls++;
+    return err;
+}
 
 /* 0 for a request without a nonce, 1 for a nonce, 2 for an all-zero one. */
 static int test_ocsp_checkall_staple_nonce(const unsigned char* req,
@@ -3469,6 +3483,8 @@ static int test_ocsp_checkall_staple_ctx_ready(WOLFSSL_CTX* ctx)
     /* After EnableOCSPStapling, which installs the built-in lookup. */
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_checkall_staple_io_cb,
             NULL, NULL), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_ocsp_status_verify_cb(ctx,
+        test_ocsp_checkall_staple_verify_cb, NULL);
 
     return EXPECT_RESULT();
 }
@@ -3485,6 +3501,19 @@ static int test_ocsp_checkall_staple_preload_ctx_ready(WOLFSSL_CTX* ctx)
 
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_CRL) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(WOLFSSL_NO_TLS12)
+static int test_ocsp_checkall_staple_noleafcrl_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_ocsp_checkall_staple_ctx_ready(ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
 
 int test_ocsp_checkall_staple_missing_chain(void)
 {
@@ -3625,11 +3654,11 @@ int test_ocsp_checkall_staple_missing_chain(void)
                 ExpectIntEQ(test_ocsp_checkall_staple_opts.leafLookups, 0);
             }
             else if (!unknown) {
-                /* A retried ServerHelloDone repeats the leaf's own lookup. */
-                ExpectIntGE(test_ocsp_checkall_staple_opts.leafLookups, 1);
-                ExpectIntLE(test_ocsp_checkall_staple_opts.leafLookups,
-                    1 + blocking);
+                ExpectIntEQ(test_ocsp_checkall_staple_opts.leafLookups, 1);
             }
+            /* Each staple is verified once, even when a later lookup blocks. */
+            ExpectIntEQ(test_ocsp_checkall_staple_opts.verifyCbCalls,
+                (params[i].staple || params[i].stock) ? 1 : 0);
             /* The chain request reuses the nonce the leaf's request carries. */
             ExpectIntEQ(test_ocsp_checkall_staple_opts.intNonce,
                 params[i].nonce ? 1 : 0);
@@ -3641,6 +3670,38 @@ int test_ocsp_checkall_staple_missing_chain(void)
             test_ssl_memio_cleanup(&test_ctx);
         }
     }
+
+#if defined(HAVE_CRL) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(WOLFSSL_NO_TLS12)
+    /* The leaf's good OCSP answer must survive a retry of the chain lookup, or
+     * the CRL the client holds nothing for would decide in its place. */
+    for (blocking = 0; blocking <= TEST_OCSP_NONBLOCK_MAX && !EXPECT_FAIL();
+            blocking++) {
+        struct test_ssl_memio_ctx test_ctx;
+
+        XMEMSET(&test_ocsp_checkall_staple_opts, 0,
+            sizeof(test_ocsp_checkall_staple_opts));
+        test_ocsp_checkall_staple_opts.block = blocking;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+        test_ctx.s_cb.ctx_ready = test_ocsp_checkall_staple_srv_ctx_ready;
+        test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready = test_ocsp_checkall_staple_noleafcrl_ctx_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+            WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_ocsp_checkall_staple_opts.leafLookups, 1);
+        ExpectIntEQ(test_ocsp_checkall_staple_opts.intLookups, 1);
+        if (EXPECT_FAIL())
+            fprintf(stderr, "no CRL for the leaf, block %d\n", blocking);
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+#endif
 
     return EXPECT_RESULT();
 }
