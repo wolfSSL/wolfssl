@@ -31,6 +31,52 @@ The `IDE/CRYPTOCELL/main.c` example application provides a function to run the s
 
 Note: All Cryptocell features are not supported. The wolfcrypt RSA API allows import and export of Private/Public keys in DER format. However, this is not possible with key pairs generated with Cryptocell because the importing/exporting Cryptocell keys has not been implemented yet.
 
+## Build options
+
+**`WOLFSSL_NO_RSA_SW`**
+
+Builds RSA with no wolfCrypt software implementation: the software modular
+exponentiation, the prime search behind `wc_MakeRsaKey()` and the software key
+consistency check (`wc_CheckRsaKey()`, forced off along with
+`WOLFSSL_RSA_KEY_CHECK`) are left out of the build, and CryptoCell performs
+every RSA operation. When RSA-PSS is not enabled, the PKCS#1 padding
+generation and the OAEP/PSS mask-generation and un-padding helpers are dropped
+as well; on a CC310 build that takes `rsa.o` from roughly 12.8 KB to 6.1 KB.
+
+This works because the CryptoCell arms in `rsa.c` already hand all four padded
+operations to CRYS (`cc310_RsaPublicEncrypt()`, `cc310_RsaSSL_Sign()`,
+`cc310_RsaPublicDecrypt()`, `cc310_RsaSSL_Verify()`), generate keys on-chip
+with `cc310_RSA_GenerateKeyPair()`, and pad and unpad inside CRYS rather than
+on the host.
+
+The raw, unpadded operation (`wc_RsaFunction()` and `wc_RsaDirect()`) has no
+CRYS equivalent and returns `NOT_COMPILED_IN`.
+
+Keep in mind that the CryptoCell RSA offload is PKCS#1 v1.5 only. OAEP, PSS and
+unpadded requests are not offloaded, so under this macro they have no provider
+and return `NOT_COMPILED_IN`; without it they use the wolfCrypt software path,
+which needs a key whose private material is in software (a key pair generated
+by `cc310_RSA_GenerateKeyPair()` exports only its public part). Prefer PKCS#1
+v1.5 on a CryptoCell build.
+
+**`WOLFSSL_NO_ECC_SW`**
+
+The ECC counterpart is accepted on CryptoCell but has no effect: `ecc.c` already
+excludes the software ECC implementation - the projective point arithmetic, the
+scalar multiplication, the software signer and ECDH, and `wc_ecc_make_pub()` -
+for this port unconditionally, so there is nothing left for the macro to remove.
+It is in the allow-list only so that a build setting both
+`WOLFSSL_NO_RSA_SW` and `WOLFSSL_NO_ECC_SW` for a hardware-only public-key
+target is not rejected. What the macro *does* rule out on any port is
+`WOLFCRYPT_HAVE_ECCSI`, `WOLFCRYPT_HAVE_SAKKE` and
+`WOLFSSL_PUBLIC_ECC_ADD_DBL`, and it drops `EC_POINT_add()`, `EC_POINT_mul()` and
+`ECDH_compute_key()` from an `OPENSSL_EXTRA` build, the same way
+`WOLFSSL_ATECC508A` does, leaving `EC_POINT_is_at_infinity()` and the
+Jacobian-to-affine conversion present but always reporting failure.
+
+Both macros are also available for the NXP SE05x port; see
+`wolfcrypt/src/port/nxp/README_SE050.md`.
+
 ## Setup
 ### Setting up Nordic SDK with wolfSSL
 1. Download the wolfSSL source code or a zip file from GitHub and place it under your SDK `InstallFolder/external/` directory. You can also copy or simlink to the source.

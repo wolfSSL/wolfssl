@@ -799,7 +799,8 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key,
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
+    defined(WOLFSSL_NO_ECC_SW)
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret
 #else
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */

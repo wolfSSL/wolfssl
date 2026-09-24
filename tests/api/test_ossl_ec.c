@@ -431,7 +431,7 @@ int test_wolfSSL_EC_POINT(void)
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     ExpectIntEQ(EC_POINT_add(NULL, NULL, NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_add(group, NULL, NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_add(NULL, new_point, NULL, NULL, ctx), 0);
@@ -514,16 +514,22 @@ int test_wolfSSL_EC_POINT(void)
     ExpectNotNull(dup_point = EC_POINT_dup(set_point, group));
     ExpectIntEQ(EC_POINT_cmp(group, dup_point, set_point, ctx), 0);
 
-    /* Test inverting */
+    /* Test inverting.
+     * Skipped under WOLFSSL_NO_ECC_SW: inverting a point whose z-ordinate is
+     * not one needs the Jacobian-to-affine conversion, which reports failure
+     * without the software point arithmetic. The block below that relies on
+     * new_point having been inverted is excluded by the same macro. */
+#ifndef WOLFSSL_NO_ECC_SW
     ExpectIntEQ(EC_POINT_invert(NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
+#endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     {
         EC_POINT* orig_point = NULL;
         ExpectNotNull(orig_point = EC_POINT_new(group));
@@ -560,7 +566,7 @@ int test_wolfSSL_EC_POINT(void)
     ExpectIntNE(BN_cmp(Y, set_point->Y), 0);
 
     /* Test check for infinity */
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     ExpectIntEQ(EC_POINT_is_at_infinity(NULL, NULL), 0);
     ExpectIntEQ(EC_POINT_is_at_infinity(NULL, infinity), 0);
     ExpectIntEQ(EC_POINT_is_at_infinity(group, NULL), 0);
@@ -876,7 +882,7 @@ int test_wolfSSL_SPAKE(void)
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A) \
     && !defined(WOLFSSL_ATECC608A) && !defined(HAVE_SELFTEST) && \
-       !defined(WOLFSSL_MICROCHIP_TA100) && \
+       !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_NO_ECC_SW) && \
        !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     BIGNUM* x = NULL; /* kdc priv */
     BIGNUM* y = NULL; /* client priv */
@@ -1653,7 +1659,7 @@ int test_ECDH_compute_key(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     EC_KEY* key1 = NULL;
     EC_KEY* key2 = NULL;
     EC_POINT* pub1 = NULL;

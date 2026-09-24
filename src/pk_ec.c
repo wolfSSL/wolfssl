@@ -1856,6 +1856,16 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
 int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WOLFSSL_EC_POINT *point)
 {
+#ifdef WOLFSSL_NO_ECC_SW
+    /* ecc_map() is part of the software point arithmetic that this build leaves
+     * out, so a Jacobian point cannot be converted here. Report failure, as
+     * wolfSSL_EC_POINT_is_at_infinity() does when its helper is compiled out;
+     * both callers treat a non-zero return as an error. */
+    (void)group;
+    (void)point;
+    WOLFSSL_MSG("ec_point_convert_to_affine compiled out");
+    return 1;
+#else
     int err = 0;
     mp_digit mp = 0;
     WC_DECLARE_VAR(modulus, mp_int, 1, 0);
@@ -1901,6 +1911,7 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WC_FREE_VAR_EX(modulus, NULL, DYNAMIC_TYPE_BIGINT);
 
     return err;
+#endif /* WOLFSSL_NO_ECC_SW */
 }
 
 /* Get the affine coordinates of the EC point on a Prime curve.
@@ -2050,7 +2061,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
 /* Add two points on the same together.
  *
  * @param [in]  curveIdx  Index of curve in ecc_set.
@@ -2549,7 +2560,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     return ret;
 }
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && !HAVE_SELFTEST &&
-        * !WOLFSSL_SP_MATH */
+        * !WOLFSSL_SP_MATH && !WOLFSSL_NO_ECC_SW */
 
 /* Invert the point on the curve.
  * (x, y) -> (x, -y) = (x, (prime - y) % prime)
@@ -2932,7 +2943,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
         ret = 0;
     }
     if (ret == 1) {
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+    #if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
         /* Check for infinity. */
         ret = wc_ecc_point_is_at_infinity((ecc_point*)point->internal);
         if (ret < 0) {
@@ -5514,7 +5525,7 @@ int wolfSSL_ECDSA_verify(int type, const unsigned char *digest, int digestSz,
 
 /* Start ECDH */
 
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
 /* Compute the shared secret (key) using ECDH.
  *
  * KDF not supported.
@@ -5624,7 +5635,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     }
     return (int)len;
 }
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* !WOLF_CRYPTO_CB_ONLY_ECC && !WOLFSSL_NO_ECC_SW */
 
 /* End ECDH */
 

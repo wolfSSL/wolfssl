@@ -5958,6 +5958,116 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error "WOLF_CRYPTO_CB_ONLY_SLHDSA requires WOLFSSL_HAVE_SLHDSA"
 #endif
 
+/*
+ * WOLFSSL_NO_RSA_SW omits the wolfCrypt software RSA implementation: the
+ * modular exponentiation, the prime search used by key generation and the
+ * software key consistency check.  Every RSA operation is then performed by a
+ * hardware implementation that does the PKCS#1 padding itself and generates
+ * keys on-chip.  Two ports qualify today: the NXP SE05x one (see
+ * wolfcrypt/src/port/nxp/README_SE050.md) and Arm CryptoCell-310
+ * (WOLFSSL_CRYPTOCELL).  rsa.c additionally drops the software padding
+ * generation when nothing else needs it.  Operations with no hardware provider
+ * (raw wc_RsaFunction()/wc_RsaDirect(), and RSA-PSS, which neither port can
+ * serve from a pre-computed digest) return NOT_COMPILED_IN.
+ */
+#if defined(WOLFSSL_NO_RSA_SW) && !defined(NO_RSA)
+    #if (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
+        !defined(WOLFSSL_CRYPTOCELL)
+        #error "WOLFSSL_NO_RSA_SW requires an RSA hardware implementation " \
+               "(WOLFSSL_SE050 without WOLFSSL_SE050_NO_RSA, " \
+               "or WOLFSSL_CRYPTOCELL)"
+    #endif
+    #ifdef WOLFSSL_SE050
+        #ifdef WOLFSSL_SE050_ONLY_KEY_ID
+            /* Per-key runtime routing needs the software implementation for
+             * keys that are not resident in the SE050. */
+            #error "WOLFSSL_NO_RSA_SW is incompatible with " \
+                   "WOLFSSL_SE050_ONLY_KEY_ID"
+        #endif
+        #ifdef WOLFSSL_SE050_NO_RSA_VERIFY
+            #error "WOLFSSL_NO_RSA_SW is incompatible with " \
+                   "WOLFSSL_SE050_NO_RSA_VERIFY"
+        #endif
+    #endif
+    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        #error "WOLFSSL_NO_RSA_SW is incompatible with WOLF_CRYPTO_CB_ONLY_RSA"
+    #endif
+    #ifdef WC_RSA_NONBLOCK
+        #error "WOLFSSL_NO_RSA_SW is incompatible with WC_RSA_NONBLOCK"
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+        #error "WOLFSSL_NO_RSA_SW is incompatible with asynchronous RSA"
+    #endif
+    /* wc_CheckRsaKey() re-does the key arithmetic in software, which a
+     * hardware-only build has no key material for. */
+    #undef WOLFSSL_RSA_KEY_CHECK
+#endif
+
+/*
+ * WOLFSSL_NO_ECC_SW is the ECC counterpart of WOLFSSL_NO_RSA_SW: it omits the
+ * wolfCrypt software ECC implementation - the projective point arithmetic, the
+ * scalar multiplication (including Shamir's trick), the software signer, the
+ * software ECDH and the software derivation of a public key from a private
+ * scalar.  Every keyed ECC operation is then performed by hardware.  ecc.c
+ * already excludes all of that for the ATECC508A/608A, TA100, CryptoCell,
+ * SiLabs and KCAPI ports and for WOLF_CRYPTO_CB_ONLY_ECC; this macro extends
+ * the same treatment to the NXP SE05x port, which offloads every keyed ECC
+ * operation but otherwise still compiles the software curve math.
+ *
+ * What goes with it: wc_ecc_make_pub() (deriving Q = d*G needs the software
+ * base-point multiply), the public APIs over that math (wc_ecc_mulmod(),
+ * wc_ecc_point_is_at_infinity(), ...) and compressed-point import, exactly as
+ * on the ports listed above.  The curve tables, the mp_int key storage and
+ * the key/signature import and export paths all stay.
+ */
+#if defined(WOLFSSL_NO_ECC_SW) && defined(HAVE_ECC)
+    #if !defined(WOLFSSL_SE050) && !defined(WOLFSSL_CRYPTOCELL)
+        #error "WOLFSSL_NO_ECC_SW requires an ECC hardware implementation " \
+               "(WOLFSSL_SE050 or WOLFSSL_CRYPTOCELL)"
+    #endif
+    #ifdef WOLFSSL_SE050
+        #ifdef WOLFSSL_SE050_ONLY_KEY_ID
+            /* Per-key runtime routing needs the software implementation for
+             * keys that are not resident in the SE050. */
+            #error "WOLFSSL_NO_ECC_SW is incompatible with " \
+                   "WOLFSSL_SE050_ONLY_KEY_ID"
+        #endif
+        #ifdef WOLFSSL_SE050_NO_ECDHE
+            /* This also puts ECC key generation back on the software path. */
+            #error "WOLFSSL_NO_ECC_SW is incompatible with " \
+                   "WOLFSSL_SE050_NO_ECDHE"
+        #endif
+        #ifdef WOLFSSL_SE050_NO_ECDSA_VERIFY
+            #error "WOLFSSL_NO_ECC_SW is incompatible with " \
+                   "WOLFSSL_SE050_NO_ECDSA_VERIFY"
+        #endif
+    #endif
+    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        #error "WOLFSSL_NO_ECC_SW is incompatible with WOLF_CRYPTO_CB_ONLY_ECC"
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+        #error "WOLFSSL_NO_ECC_SW is incompatible with asynchronous ECC"
+    #endif
+    #ifdef WC_ECC_NONBLOCK
+        /* Non-blocking ECC is the software SP state machine being driven a
+         * slice at a time; there is nothing to yield from in hardware. */
+        #error "WOLFSSL_NO_ECC_SW is incompatible with WC_ECC_NONBLOCK"
+    #endif
+    /* ECCSI (RFC 6507) and SAKKE (RFC 6508) are built directly on the software
+     * point arithmetic and have no hardware path to fall back to. */
+    #ifdef WOLFCRYPT_HAVE_ECCSI
+        #error "WOLFSSL_NO_ECC_SW is incompatible with WOLFCRYPT_HAVE_ECCSI"
+    #endif
+    #ifdef WOLFCRYPT_HAVE_SAKKE
+        #error "WOLFSSL_NO_ECC_SW is incompatible with WOLFCRYPT_HAVE_SAKKE"
+    #endif
+    /* Nothing is left to export. */
+    #ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+        #error "WOLFSSL_NO_ECC_SW is incompatible with " \
+               "WOLFSSL_PUBLIC_ECC_ADD_DBL"
+    #endif
+#endif
+
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
     !defined(WOLFSSL_TLS13)

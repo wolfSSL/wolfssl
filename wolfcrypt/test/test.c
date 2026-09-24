@@ -954,7 +954,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm4_test(void);
 #ifdef WOLFSSL_PUF
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  puf_test(void);
 #endif
-#ifdef WC_RSA_NO_PADDING
+#if defined(WC_RSA_NO_PADDING) && !defined(WOLFSSL_NO_RSA_SW)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_no_pad_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_test(void);
@@ -3246,7 +3246,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if !defined(NO_RSA) && !defined(HAVE_RENESAS_SYNC)
-    #ifdef WC_RSA_NO_PADDING
+    #if defined(WC_RSA_NO_PADDING) && !defined(WOLFSSL_NO_RSA_SW)
     if ( (ret = rsa_no_pad_test()) != 0)
         TEST_FAIL("RSA NOPAD test failed!\n", ret);
     else
@@ -35427,11 +35427,62 @@ done:
 }
 #endif
 
+#ifdef WOLFSSL_NO_RSA_SW
+/* WOLFSSL_NO_RSA_SW leaves out the software modular exponentiation, so the raw
+ * (unpadded) operation behind wc_RsaFunction()/wc_RsaDirect() has no provider:
+ * the hardware is driven from the padded entry points instead. Check it reports
+ * that rather than, say, running with an uninitialized result buffer. */
+static wc_test_ret_t rsa_no_sw_test(RsaKey* key)
+{
+    wc_test_ret_t ret;
+    int      keySz;
+    word32   outLen;
+    WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+    WC_ALLOC_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_rsa_no_sw);
+#endif
+
+    keySz = wc_RsaEncryptSize(key);
+    if (keySz <= 0 || keySz > (int)RSA_TEST_BYTES)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_no_sw);
+
+    XMEMSET(in, 1, (size_t)keySz);
+    XMEMSET(out, 0, (size_t)keySz);
+    outLen = (word32)keySz;
+
+    ret = (wc_test_ret_t)wc_RsaFunction(in, (word32)keySz, out, &outLen,
+                                        RSA_PUBLIC_ENCRYPT, key, NULL);
+    /* A registered crypto callback is consulted first, but the example one in
+     * this test has no software implementation behind it either: it returns
+     * NOT_COMPILED_IN, wc_CryptoCb_Rsa() turns that into CRYPTOCB_UNAVAILABLE
+     * and wc_RsaFunction_ex() then takes the same no-software exit. So the
+     * result is NOT_COMPILED_IN whichever way the call was routed. */
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_no_sw);
+
+    ret = 0;
+
+exit_rsa_no_sw:
+
+    WC_FREE_VAR(in, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_NO_RSA_SW */
+
 #if defined(WC_RSA_PSS) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_NO_RSA_SW) && \
 (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
 static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
@@ -35772,7 +35823,7 @@ exit_rsa_pss:
 #endif /* WC_RSA_PSS && (!HAVE_FIPS || FIPS_VERSION_GE(5,0)) && !WC_NO_RNG */
 
 
-#ifdef WC_RSA_NO_PADDING
+#if defined(WC_RSA_NO_PADDING) && !defined(WOLFSSL_NO_RSA_SW)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
 {
     WC_RNG rng;
@@ -38215,11 +38266,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 ta100_rsa_pss_only:
 #endif
 
+#ifdef WOLFSSL_NO_RSA_SW
+    ret = rsa_no_sw_test(key);
+    if (ret != 0)
+        goto exit_rsa;
+#endif
+
 #if defined(WC_RSA_PSS) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_NO_RSA_SW) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
     ret = rsa_pss_test(&rng, key);
     if (ret != 0)
@@ -48078,14 +48136,17 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     if (pubPoint == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     }
-#if !defined(WOLFSSL_CRYPTOCELL)
+/* WOLFSSL_NO_ECC_SW leaves out the software base-point multiply, so
+ * ecc_make_pub_ex() reports NOT_COMPILED_IN the same way it does for
+ * CryptoCell. The fresh key made below covers the rest of this test. */
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
     ret = wc_ecc_make_pub(key, pubPoint);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-#endif /* !WOLFSSL_CRYPTOCELL */
+#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_NO_ECC_SW */
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -49438,7 +49499,7 @@ done:
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP)
+    !defined(WOLFSSL_MICROCHIP) && !defined(WOLFSSL_NO_ECC_SW)
 static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
 {
     wc_test_ret_t ret;
@@ -49544,7 +49605,8 @@ done:
     defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_NO_ECC_SW)
 static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -49642,7 +49704,8 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
        !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-       !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP)
+       !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_MICROCHIP) && \
+       !defined(WOLFSSL_NO_ECC_SW)
     ret = ecc_ssh_test(key, rng);
     if (ret < 0)
         goto done;
@@ -49697,7 +49760,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP)
+    !defined(WOLFSSL_MICROCHIP) && !defined(WOLFSSL_NO_ECC_SW)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;
@@ -51902,11 +51965,103 @@ done:
 #endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && sign && verify &&
         * key export */
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_NO_ECC_SW) && \
+    defined(HAVE_ECC_DHE) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+/* WOLFSSL_NO_ECC_SW leaves out the software scalar multiplication, so ECDH can
+ * only be served for a private key that is resident in the hardware. A key
+ * imported into software (keyIdSet == 0, as when one is decoded from DER for
+ * PKCS#7 KARI) is the case the software fallback in wc_ecc_shared_secret()
+ * used to cover, and must now say it has no provider rather than return an
+ * uninitialized secret. Guarded to WOLFSSL_SE050 because that keyIdSet test,
+ * and so the NOT_COMPILED_IN below, is specific to the SE050 arm of
+ * wc_ecc_shared_secret(). NIST CAVS P-256 values, the key material is
+ * arbitrary here. */
+static wc_test_ret_t ecc_no_sw_test(void)
+{
+    wc_test_ret_t ret;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    ecc_key* privKey = (ecc_key*)XMALLOC(sizeof(*privKey), HEAP_HINT,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
+    ecc_key* pubKey  = (ecc_key*)XMALLOC(sizeof(*pubKey), HEAP_HINT,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ecc_key privKey[1];
+    ecc_key pubKey[1];
+#endif
+    int     privInit = 0, pubInit = 0;
+    byte    out[MAX_ECC_BYTES];
+    word32  outLen = (word32)sizeof(out);
+    WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
+        "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
+    WOLFSSL_SMALL_STACK_STATIC const char* QIUTx =
+        "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
+    WOLFSSL_SMALL_STACK_STATIC const char* QIUTy =
+        "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
+    WOLFSSL_SMALL_STACK_STATIC const char* QCAVSx =
+        "700c48f77f56584c5cc632ca65640db91b6bacce3a4df6b42ce7cc838833d287";
+    WOLFSSL_SMALL_STACK_STATIC const char* QCAVSy =
+        "db71e509e3fd9b060ddb20ba5c51dcc5948d46fbf640dfe0441782cab85fa4ac";
+
+    ret = 0;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if ((privKey == NULL) || (pubKey == NULL))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done);
+#endif
+
+    ret = wc_ecc_init_ex(privKey, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    privInit = 1;
+    ret = wc_ecc_init_ex(pubKey, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    pubInit = 1;
+
+    ret = wc_ecc_import_raw(privKey, QIUTx, QIUTy, dIUT, "SECP256R1");
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = wc_ecc_import_raw(pubKey, QCAVSx, QCAVSy, NULL, "SECP256R1");
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    ret = (wc_test_ret_t)wc_ecc_shared_secret(privKey, pubKey, out, &outLen);
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    ret = 0;
+
+done:
+
+    if (pubInit)
+        wc_ecc_free(pubKey);
+    if (privInit)
+        wc_ecc_free(privKey);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_NO_ECC_SW && HAVE_ECC_DHE && ECC256 && HAVE_ECC_KEY_IMPORT */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
     wc_test_ret_t ret;
     WC_RNG rng;
     WOLFSSL_ENTER("ecc_test");
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_NO_ECC_SW) && \
+    defined(HAVE_ECC_DHE) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+    ret = ecc_no_sw_test();
+    if (ret != 0)
+        return ret;
+#endif
 #if defined(ECC_MIN_KEY_SZ)
     WOLFSSL_MSG_EX("ecc_test ECC_MIN_KEY_SZ = %d\n", ECC_MIN_KEY_SZ);
 #else
@@ -76145,7 +76300,8 @@ static wc_test_ret_t pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
     defined(HAVE_ECC) && defined(WOLFSSL_SHA512) && \
-    defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF)
+    defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF) && \
+    !defined(WOLFSSL_NO_ECC_SW)
     byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
@@ -76254,7 +76410,10 @@ static wc_test_ret_t pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
 
         /* key agreement key encryption technique*/
-#if defined(HAVE_ECC) && defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF)
+/* KARI derives with a private key decoded from DER, so it needs the software
+ * ECDH that WOLFSSL_NO_ECC_SW leaves out. */
+#if defined(HAVE_ECC) && defined(HAVE_AES_KEYWRAP) && \
+    defined(HAVE_X963_KDF) && !defined(WOLFSSL_NO_ECC_SW)
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
         ADD_PKCS7ENVELOPEDVECTOR(
@@ -76767,7 +76926,8 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
         0x72,0x6c,0x64
     };
     byte senderNonce[PKCS7_NONCE_SZ + 2];
-#ifdef HAVE_ECC
+/* Only the KARI vectors below use these, and WOLFSSL_NO_ECC_SW drops them. */
+#if defined(HAVE_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
     defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF)
     #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
@@ -76786,7 +76946,8 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && defined(HAVE_ECC) && \
     defined(WOLFSSL_SHA512) && defined(HAVE_AESGCM) && \
-    defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF)
+    defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF) && \
+    !defined(WOLFSSL_NO_ECC_SW)
     WOLFSSL_SMALL_STACK_STATIC const byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
@@ -76900,7 +77061,8 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
 #endif
 
         /* key agreement key encryption technique*/
-#ifdef HAVE_ECC
+/* See the KARI note in pkcs7enveloped_test(). */
+#if defined(HAVE_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
     defined(HAVE_AES_KEYWRAP) && defined(HAVE_X963_KDF)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
@@ -90777,13 +90939,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         PRIVATE_KEY_LOCK();
     }
 #endif
+/* WOLFSSL_NO_ECC_SW is excluded: wc_CryptoCb_EccMakePub() is called from
+ * inside ecc_make_pub_ex()'s HAVE_ECC_MAKE_PUB arm, which that macro compiles
+ * out, so nothing can reach the make-pub callback for the counter to see. */
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_PKA) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(NO_ECC_SECP) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(NO_ECC256) && \
     defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(HAVE_FIPS)
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_NO_ECC_SW)
     if (ret == 0 && myCtx.eccMakePubCount == 0)
         ret = WC_TEST_RET_ENC_NC;
 #endif
