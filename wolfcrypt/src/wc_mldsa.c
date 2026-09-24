@@ -5905,8 +5905,11 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi,
     if (USE_INTEL_AVX512(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* Say "not valid" so a refused save cannot read as a pass. */
+            *valid = 0;
             return svr_ret;
+        }
         *valid = wc_mldsa_vec_check_low_avx512(a, l, hi);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -5915,8 +5918,11 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi,
     if (IS_INTEL_AVX2(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* Say "not valid" so a refused save cannot read as a pass. */
+            *valid = 0;
             return svr_ret;
+        }
         *valid = wc_mldsa_vec_check_low_avx2(a, l, hi);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -5985,8 +5991,11 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
     if (USE_INTEL_AVX512(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* Say "not valid" so a refused save cannot read as a pass. */
+            *valid = 0;
             return svr_ret;
+        }
         *valid = (wc_mldsa_make_hint_88_avx512(s, w1, PARAMS_ML_DSA_44_OMEGA,
             h, idxp) == 0);
         RESTORE_VECTOR_REGISTERS();
@@ -6076,8 +6085,11 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
     if (USE_INTEL_AVX512(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
 
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            /* Say "not valid" so a refused save cannot read as a pass. */
+            *valid = 0;
             return svr_ret;
+        }
         *valid = (wc_mldsa_make_hint_32_avx512(s, w1, omega, h, idxp) == 0);
         RESTORE_VECTOR_REGISTERS();
         return 0;
@@ -10677,7 +10689,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                                 &valid);
                             /* Alg 14, Step 10: Store count of hints for
                              *                  polynomial at end of list. */
-                            h[PARAMS_ML_DSA_44_OMEGA + r] = idx;
+                            if (ret == 0) {
+                                h[PARAMS_ML_DSA_44_OMEGA + r] = idx;
+                            }
                         }
                     #endif
                     #if !defined(WOLFSSL_NO_ML_DSA_65) || \
@@ -10688,7 +10702,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                                 params->omega, h, &idx, &valid);
                             /* Alg 14, Step 10: Store count of hints for
                              *                  polynomial at end of list. */
-                            h[params->omega + r] = idx;
+                            if (ret == 0) {
+                                h[params->omega + r] = idx;
+                            }
                         }
                     #endif
                     }
