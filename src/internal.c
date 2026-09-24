@@ -17569,6 +17569,28 @@ exit_req_v2:
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
+#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* Verify result for a failed revocation check, 0 for any other error. */
+static int RevocationVerifyErr(int err)
+{
+    switch (err) {
+        case WC_NO_ERR_TRACE(OCSP_CERT_REVOKED):
+        case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
+            return WOLFSSL_X509_V_ERR_CERT_REVOKED;
+        case WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN):
+        case WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL):
+        case WC_NO_ERR_TRACE(OCSP_NEED_URL):
+        case WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR):
+        case WC_NO_ERR_TRACE(CRL_MISSING):
+        case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
+            return WOLFSSL_X509_V_ERR_CERT_REJECTED;
+        default:
+            return 0;
+    }
+}
+#endif
+
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
 /* Perform OCSP/CRL revocation checking on the leaf (peer) certificate.
  * Stores the verification result in *pRet. Returns 1 if the caller should
@@ -19040,6 +19062,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         skipAddCA = 1;
                     }
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
+
+                #if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
+                    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+                    /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0)
+                        ssl->peerVerifyRet = RevocationVerifyErr(ret);
+                #endif
 
                     /* Do verify callback */
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);

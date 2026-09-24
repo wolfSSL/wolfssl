@@ -3518,6 +3518,10 @@ int test_ocsp_checkall_staple_missing_chain(void)
           "DTLS 1.2 ocsp_multi, leaf stapled only", 1, 1, 0, 0 },
 #endif
 #endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 no stapling", -1, 0, 0, 0 },
+#endif
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
         /* The Certificate spans several datagrams, so it is drained from the
          * receive list. */
@@ -3610,10 +3614,8 @@ int test_ocsp_checkall_staple_missing_chain(void)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 /* A rejected chain certificate must reach the compatibility
                  * verify result too, not just the handshake error. */
-                if (params[i].useV2 != -1) {
-                    ExpectIntNE(wolfSSL_get_verify_result(test_ctx.c_ssl),
-                        WOLFSSL_X509_V_OK);
-                }
+                ExpectIntEQ(wolfSSL_get_verify_result(test_ctx.c_ssl),
+                    WOLFSSL_X509_V_ERR_CERT_REJECTED);
 #endif
             }
             /* The unstapled intermediate was looked up, and so was the leaf
