@@ -7189,6 +7189,58 @@ int test_dtls12_seq_num_wrap(void)
     return EXPECT_RESULT();
 }
 
+/* A record from 2^32 - 4 records back must not pass the replay window once the
+ * expected sequence number has crossed into the next high word. */
+int test_dtls12_replay_window_hi_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char old_rec[256];
+    int old_rec_len = sizeof(old_rec);
+    byte buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* record 0000:0000000F, delivered and kept for replay */
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ssl_c->keys.dtls_sequence_number_hi = 0;
+        ssl_c->keys.dtls_sequence_number_lo = 0x0F;
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_c, "A", 1), 1);
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, old_rec, &old_rec_len,
+        0), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 1);
+
+    /* record 0001:0000000A, server now expects 0001:0000000B */
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ssl_c->keys.dtls_sequence_number_hi = 1;
+        ssl_c->keys.dtls_sequence_number_lo = 0x0A;
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_c, "B", 1), 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 1);
+
+    /* replay of 0000:0000000F must be dropped */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, old_rec, old_rec_len),
+        0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- dtls12_missing_finished (api.c lines 32007,32068) ---*/
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
     defined(WOLFSSL_SEND_HRR_COOKIE) && \

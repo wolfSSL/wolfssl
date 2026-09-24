@@ -2604,6 +2604,87 @@ int test_dtls13_plaintext_ack_after_handshake(void)
     return EXPECT_RESULT();
 }
 
+/* A plaintext ACK during the encrypted handshake must not release the server
+ * flight, nor be fatal if malformed. */
+int test_dtls13_plaintext_ack_during_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    /* ACK, epoch 0, seq 1001, record_numbers length past the end */
+    static const byte badAckRec[] = {
+        0x1a, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe9,
+        0x00, 0x02,
+        0x00, 0x10
+    };
+    /* ACK, epoch 0, seq 1000, with 12 record numbers filled in below */
+    byte ackRec[DTLS_RECORD_HEADER_SZ + OPAQUE16_LEN + 12 * DTLS13_RN_SIZE] = {
+        0x1a, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe8,
+        0x00, 0xc2,
+        0x00, 0xc0
+    };
+    byte* rn = ackRec + DTLS_RECORD_HEADER_SZ + OPAQUE16_LEN;
+    w64wrapper epoch, seq;
+    int i;
+
+    /* epoch 0 seq 0..3, then epoch 2 seq 0..7 */
+    for (i = 0; i < 12; i++, rn += DTLS13_RN_SIZE) {
+        epoch = w64From32(0, i < 4 ? 0 : DTLS13_EPOCH_HANDSHAKE);
+        seq = w64From32(0, (word32)(i < 4 ? i : i - 4));
+        c64toa(&epoch, rn);
+        c64toa(&seq, rn + OPAQUE64_LEN);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HRR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* SH ... FINISHED, lost */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_s), 1);
+
+    /* the server flight must stay in the retransmission buffer */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)ackRec,
+        (int)sizeof(ackRec)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_s), 1);
+
+    /* a malformed ACK must be dropped */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)badAckRec,
+        (int)sizeof(badAckRec)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_dtls13_has_pending_msg(ssl_s), 1);
+
+    /* the server retransmits its flight and the handshake completes */
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_s))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_msg_count, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* DtlsResetState() runs whenever a DTLS server abandons a ClientHello on the
  * stateless path - which includes the ordinary cookie exchange, since the
  * object goes back to awaiting the verified ClientHello after sending the
