@@ -21,6 +21,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace wolfSSL.CSharp.Fips
 {
@@ -76,12 +77,16 @@ namespace wolfSSL.CSharp.Fips
     {
         public const int CastCount = 15;
 
-        /* Holds the native delegate so the GC cannot collect it while the
-         * module still has it registered. */
-        private static Native.FipsCallback? nativeCallback;
-        private static FipsFailureCallback? userCallback;
-        private static FipsSeedCallback? customSeed;
+        /* Every delegate ever handed to the module, kept for the life of
+         * the process: native code may still hold (and call) a previously
+         * registered function pointer, for example if a later registration
+         * is refused or races with a DRBG reseed on another thread. */
+        private static readonly System.Collections.Generic.List<Delegate> registered = new();
         private static readonly object cbLock = new object();
+
+        /* True once SetSeedCallback registered a custom seed source;
+         * Initialize then leaves it in place. */
+        private static bool customSeed;
 
         /* Recommended startup call. Call before any other cryptographic use.
          *
@@ -91,15 +96,24 @@ namespace wolfSSL.CSharp.Fips
          * 3. Registers the DRBG seed source. The module has no entropy source
          *    of its own; in WC_RNG_SEED_CB builds nothing that needs the DRBG
          *    works until a seed source is registered (including the ECC
-         *    CASTs). Default: the library's OS entropy function.
+         *    CASTs). Default: the library's OS entropy function, unless a
+         *    custom source was already registered with SetSeedCallback, which
+         *    is kept (so SetSeedCallback may be called before or after
+         *    Initialize, and later Initialize calls do not replace it).
+         *    Pass useOsSeed: false to register no source here.
          * 4. Throws if the module is not operational. */
         public static void Initialize(FipsFailureCallback? onFailure = null,
                                       bool useOsSeed = true)
         {
             if (onFailure != null)
                 SetFailureCallback(onFailure);
-            if (useOsSeed)
-                UseOsSeed();
+            EnsureHelperMatchesModule();
+            if (useOsSeed) {
+                lock (cbLock) {
+                    if (!customSeed)
+                        RegisterOsSeed();
+                }
+            }
             int status = Native.wolfCrypt_GetStatus_fips();
             if (status != 0)
                 throw new WolfCryptFipsException("wolfCrypt_GetStatus_fips", status);
@@ -108,6 +122,67 @@ namespace wolfSSL.CSharp.Fips
                 throw new WolfCryptFipsException("wolfCrypt_GetMode_fips",
                     mode == FipsMode.Degraded ? FipsError.FIPS_DEGRADED_E
                                               : FipsError.FIPS_NOT_ALLOWED_E);
+        }
+
+        /* The size helper must be built from the same install as the module
+         * (struct sizes depend on the build). Compares the FIPS major.minor
+         * the helper was compiled for with the module's version string. The
+         * patch level is not compared: v5.2.3 drops stamp HAVE_FIPS_VERSION
+         * 5.2.1 in options.h. */
+        internal static void CheckHelperMatchesModule()
+        {
+            /* exact binary: the helper must have been built (build-native.sh)
+             * against the libwolfssl file that is actually loaded */
+            uint crc = (uint)Native.SizeOf((int)FipsStructType.LibCrc);
+            int size = Native.SizeOf((int)FipsStructType.LibSize);
+            string lib = NativeLoader.WolfsslPath;
+            if (crc == 0 || size <= 0)
+                throw new InvalidOperationException("size helper carries no library fingerprint; build it with build-native.sh");
+            byte[] bytes = System.IO.File.ReadAllBytes(lib);
+            if (bytes.Length != size || PosixCksum(bytes) != crc)
+                throw new InvalidOperationException("size helper was built for a different libwolfssl binary than " + lib +
+                    "; rebuild it with build-native.sh against this install");
+
+            int mm = Native.SizeOf((int)FipsStructType.FipsVersionMM);
+            var m = System.Text.RegularExpressions.Regex.Match(Version ?? "", @"v(\d+)\.(\d+)");
+            if (mm <= 0 || !m.Success)
+                throw new InvalidOperationException("cannot determine FIPS version of the size helper or the module");
+            int moduleMM = int.Parse(m.Groups[1].Value) * 100 + int.Parse(m.Groups[2].Value);
+            if (mm != moduleMM)
+                throw new InvalidOperationException("size helper was built for FIPS v" + mm / 100 + "." + mm % 100 +
+                    " but the loaded module is " + Version + "; rebuild it with build-native.sh against this install");
+        }
+
+        /* Verified once, before the first native structure is allocated. */
+        private static readonly Lazy<Exception?> helperCheck = new(() => {
+            try { CheckHelperMatchesModule(); return null; }
+            catch (Exception e) { return e; }
+        });
+
+        internal static void EnsureHelperMatchesModule()
+        {
+            Exception? e = helperCheck.Value;
+            if (e != null)
+                throw new InvalidOperationException(e.Message, e);
+        }
+
+        /* POSIX cksum: CRC-32 (poly 0x04C11DB7, MSB first) over the data and
+         * then the length, complemented. Build identity only, not a
+         * security function. */
+        internal static uint PosixCksum(byte[] data)
+        {
+            uint crc = 0;
+            void Add(byte b)
+            {
+                crc ^= (uint)b << 24;
+                for (int k = 0; k < 8; k++)
+                    crc = (crc & 0x80000000) != 0 ? (crc << 1) ^ 0x04C11DB7 : crc << 1;
+            }
+            foreach (byte b in data)
+                Add(b);
+            for (long n = data.LongLength; n != 0; n >>= 8)
+                Add((byte)(n & 0xff));
+            return ~crc;
         }
 
         /* 0 when the module is operational, otherwise the failing error. */
@@ -128,45 +203,96 @@ namespace wolfSSL.CSharp.Fips
         public static string? Version =>
             Marshal.PtrToStringAnsi(Native.wolfCrypt_GetVersion_fips());
 
-        /* Operator-initiated re-run of the in-core integrity test. */
-        public static int IntegrityTest() => Native.wolfCrypt_IntegrityTest_fips();
+        /* Operator-initiated re-run of the in-core integrity test. Returns
+         * the module status afterwards (0 when operational). The v5.2.x
+         * wolfCrypt_IntegrityTest_fips always returns 0; a failed re-run is
+         * visible only in the status and mode. */
+        public static int IntegrityTest()
+        {
+            Native.wolfCrypt_IntegrityTest_fips();
+            return Status;
+        }
 
         public static int RunAllCasts() => Native.wc_RunAllCast_fips();
 
-        public static int RunCast(FipsCast cast) => Native.wc_RunCast_fips((int)cast);
+        /* The module does not range-check the CAST id before writing its
+         * state array, so out-of-range values are refused here. */
+        public static int RunCast(FipsCast cast)
+        {
+            if ((int)cast < 0 || (int)cast >= CastCount)
+                throw new ArgumentOutOfRangeException(nameof(cast));
+            return Native.wc_RunCast_fips((int)cast);
+        }
 
-        public static FipsCastState GetCastState(FipsCast cast) =>
-            (FipsCastState)Native.wc_GetCastStatus_fips((int)cast);
+        private static long refusedFrees;
 
+        /* Number of wc_*Free_fips calls the module refused (FAILED state or
+         * failed CAST). Each one left module-allocated memory behind the
+         * structure unzeroized; see FipsHandle. */
+        public static long RefusedFreeCount => Interlocked.Read(ref refusedFrees);
+
+        internal static void NoteRefusedFree() => Interlocked.Increment(ref refusedFrees);
+
+        public static FipsCastState GetCastState(FipsCast cast)
+        {
+            if ((int)cast < 0 || (int)cast >= CastCount)
+                throw new ArgumentOutOfRangeException(nameof(cast));
+            return (FipsCastState)Native.wc_GetCastStatus_fips((int)cast);
+        }
+
+        /* The callback runs on the module's thread from inside native code;
+         * exceptions it throws are caught here (an exception crossing back
+         * into native code would terminate the process). */
         public static void SetFailureCallback(FipsFailureCallback cb)
         {
+            if (cb == null)
+                throw new ArgumentNullException(nameof(cb));
+            Native.FipsCallback native = (ok, err, hash) => {
+                try { cb(ok, err, Marshal.PtrToStringAnsi(hash)); }
+                catch { /* must not unwind into the module */ }
+            };
             lock (cbLock) {
-                userCallback = cb;
-                nativeCallback = (ok, err, hash) =>
-                    userCallback?.Invoke(ok, err, Marshal.PtrToStringAnsi(hash));
-                WolfCryptFipsException.Check("wolfCrypt_SetCb_fips",
-                    Native.wolfCrypt_SetCb_fips(nativeCallback));
+                registered.Add(native);
+                WolfCryptFipsException.Check("wolfCrypt_SetCb_fips", Native.wolfCrypt_SetCb_fips(native));
             }
         }
 
         /* Registers the library's OS entropy function (wc_GenerateSeed,
          * /dev/urandom on Linux) as the DRBG seed source. The function
          * pointer is passed straight to the module; no managed code is in
-         * the entropy path. */
+         * the entropy path. An explicit call replaces any custom source. */
         public static void UseOsSeed()
+        {
+            lock (cbLock) {
+                RegisterOsSeed();
+                customSeed = false;
+            }
+        }
+
+        private static void RegisterOsSeed()
         {
             IntPtr fn = NativeLibrary.GetExport(NativeLoader.WolfsslHandle(), Native.OS_SEED_EXPORT);
             WolfCryptFipsException.Check("wc_SetSeed_Cb_fips", Native.wc_SetSeed_Cb_fips(fn));
         }
 
         /* Registers a custom seed source (for example a hardware TRNG). The
-         * delegate is held for the life of the process. */
+         * delegate is held for the life of the process. Initialize does not
+         * replace it; UseOsSeed does. */
         public static void SetSeedCallback(FipsSeedCallback cb)
         {
+            if (cb == null)
+                throw new ArgumentNullException(nameof(cb));
+            /* an exception from cb is reported to the module as a seed
+             * failure (non-zero) instead of unwinding into native code */
+            FipsSeedCallback trampoline = (os, seed, sz) => {
+                try { return cb(os, seed, sz); }
+                catch { return -1; }
+            };
             lock (cbLock) {
-                customSeed = cb;
-                IntPtr fn = Marshal.GetFunctionPointerForDelegate(customSeed);
+                registered.Add(trampoline);
+                IntPtr fn = Marshal.GetFunctionPointerForDelegate(trampoline);
                 WolfCryptFipsException.Check("wc_SetSeed_Cb_fips", Native.wc_SetSeed_Cb_fips(fn));
+                customSeed = true;
             }
         }
 
@@ -176,9 +302,24 @@ namespace wolfSSL.CSharp.Fips
          * The gate is per thread: the module keeps it in thread-local
          * storage. Enable it and export on the same thread; with async code
          * do not await between the two. */
-        public static void SetPrivateKeyReadEnable(bool enable) =>
-            WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
-                Native.wolfCrypt_SetPrivateKeyReadEnable_fips(enable ? 1 : 0, 0));
+        /* The module keeps a per-thread nesting counter (so wolfSSL's own
+         * PRIVATE_KEY_UNLOCK/LOCK pairs can nest). This is an on/off switch
+         * over it: true opens the gate if closed; false closes it fully,
+         * however many times it was opened. */
+        public static void SetPrivateKeyReadEnable(bool enable)
+        {
+            if (enable) {
+                if (!PrivateKeyReadEnabled)
+                    WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
+                        Native.wolfCrypt_SetPrivateKeyReadEnable_fips(1, 0));
+                return;
+            }
+            for (int i = 0; i < 1024 && PrivateKeyReadEnabled; i++)
+                WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
+                    Native.wolfCrypt_SetPrivateKeyReadEnable_fips(0, 0));
+            if (PrivateKeyReadEnabled)
+                throw new InvalidOperationException("private key read gate could not be closed");
+        }
 
         public static bool PrivateKeyReadEnabled =>
             Native.wolfCrypt_GetPrivateKeyReadEnable_fips(0) != 0;

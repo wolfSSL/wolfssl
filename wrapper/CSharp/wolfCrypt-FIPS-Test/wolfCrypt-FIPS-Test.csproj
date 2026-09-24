@@ -6,6 +6,7 @@
     <AssemblyName>wolfCrypt-FIPS-Test</AssemblyName>
     <RootNamespace>wolfSSL.CSharp.Fips.Test</RootNamespace>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 

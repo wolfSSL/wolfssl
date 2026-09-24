@@ -6,6 +6,8 @@
 #   libwolfssl           optional shared library to check exports against
 #
 # Checks:
+#   0. P/Invoke only in Native.cs, every libwolfssl DllImport has an explicit
+#      EntryPoint, and NativeLibrary export lookups are on the allowlist
 #   1. every libwolfssl DllImport in Native.cs names a *_fips entry point
 #   2. every bound *_fips name is declared in fips.h or fips_test.h
 #   3. (with a library) every bound *_fips name is exported by the library
@@ -17,8 +19,7 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 NATIVE="$HERE/Native.cs"
 FIPS_H="$INC/wolfssl/wolfcrypt/fips.h"
 TEST_H="$INC/wolfssl/wolfcrypt/fips_test.h"
-TMP="${TMPDIR:-/tmp}/fips-bind-audit.$$"
-mkdir -p "$TMP"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/fips-bind-audit.XXXXXX")" || exit 1
 trap 'rm -rf "$TMP"' EXIT
 fail=0
 
@@ -28,6 +29,48 @@ fail=0
 grep -oE 'DllImport\(WOLFSSL, EntryPoint = "[A-Za-z0-9_]+"' "$NATIVE" |
     sed -E 's/.*EntryPoint = "([A-Za-z0-9_]+)"/\1/' | sort -u > "$TMP/bound"
 echo "bound libwolfssl entry points: $(wc -l < "$TMP/bound" | tr -d ' ')"
+
+# 0. binding forms the text checks below would not see. Import attributes
+#    are matched anywhere on a line (attribute lists, qualified names), and
+#    each one must be complete on its line in one of the two allowed forms,
+#    so a split or literal-library attribute is flagged. The runtime
+#    reflection test in ModuleTests.cs is the authoritative check.
+DIR="$HERE"
+IMPORT='(DllImport|LibraryImport)(Attribute)?[[:space:]]*\('
+outside=$(grep -lE "$IMPORT" "$DIR"/*.cs | grep -v '/Native.cs$' || true)
+if [ -n "$outside" ]; then
+    echo "FAIL: P/Invoke declared outside Native.cs:"; echo "$outside" | sed 's/^/  /'; fail=1
+else
+    echo "ok:   all P/Invoke declarations are in Native.cs"
+fi
+# every import attribute in Native.cs, whatever its library argument, must be
+# the size helper or WOLFSSL with an explicit _fips EntryPoint
+grep -nE "$IMPORT" "$NATIVE" > "$TMP/attrs"
+n_imports=$(grep -oE "$IMPORT" "$NATIVE" | wc -l | tr -d ' ')
+n_good=$(grep -oE '(^|[^A-Za-z0-9_.])DllImport\((SIZES, EntryPoint = "[A-Za-z0-9_]+"|WOLFSSL, EntryPoint = "[A-Za-z0-9_]+_fips")' "$NATIVE" | wc -l | tr -d ' ')
+grep -vE '(^|[^A-Za-z0-9_.])DllImport\((SIZES, EntryPoint = "[A-Za-z0-9_]+"|WOLFSSL, EntryPoint = "[A-Za-z0-9_]+_fips")' "$TMP/attrs" > "$TMP/badattrs" || true
+if [ -s "$TMP/badattrs" ] || [ "$n_imports" != "$n_good" ]; then
+    echo "FAIL: import attributes that are not SIZES or WOLFSSL with a _fips EntryPoint ($n_good of $n_imports allowed):"
+    sed 's/^/  /' "$TMP/badattrs"; fail=1
+else
+    echo "ok:   all $n_imports import attributes are SIZES or WOLFSSL with a _fips EntryPoint"
+fi
+# GetExport/TryGetExport allowlist, compared on the exact name argument:
+#   Native.OS_SEED_EXPORT     wc_GenerateSeed, seed source pointer handed to the module
+#   wolfCrypt_SetStatus_fips  forced-failure test hook
+#   wolfCrypt_GetVersion_fips address only, to find the loaded library file
+#   dladdr, GetModuleFileNameW OS calls that return a library's file path
+grep -q 'OS_SEED_EXPORT = "wc_GenerateSeed"' "$NATIVE" || { echo "FAIL: OS_SEED_EXPORT is not wc_GenerateSeed"; fail=1; }
+n_lookups=$(grep -oE 'GetExport[[:space:]]*\(' "$DIR"/*.cs | wc -l | tr -d ' ')
+grep -hoE 'GetExport[[:space:]]*\([^,()]*(\([^()]*\))?[^,()]*,[[:space:]]*[^,)]+' "$DIR"/*.cs |
+    sed -E 's/.*,[[:space:]]*//' > "$TMP/lookups"
+unlisted=$(grep -vxE 'Native\.OS_SEED_EXPORT|"wolfCrypt_SetStatus_fips"|"wolfCrypt_GetVersion_fips"|"dladdr"|"GetModuleFileNameW"' "$TMP/lookups" || true)
+if [ -n "$unlisted" ] || [ "$n_lookups" != "$(wc -l < "$TMP/lookups" | tr -d ' ')" ]; then
+    echo "FAIL: export lookups outside the allowlist (or not parseable on one line):"
+    echo "$unlisted" | sed 's/^/  /'; fail=1
+else
+    echo "ok:   all $n_lookups export lookups on the allowlist"
+fi
 
 # 1. only _fips entry points
 grep -v '_fips$' "$TMP/bound" > "$TMP/nonfips" || true

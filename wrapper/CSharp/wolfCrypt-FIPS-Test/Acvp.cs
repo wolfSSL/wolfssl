@@ -57,8 +57,29 @@ namespace wolfSSL.CSharp.Fips.Test
         public static string? Root =>
             Environment.GetEnvironmentVariable("WOLFACVP_VECTORS");
 
+        /* request file -> algorithm name, built once per run: each request
+         * file is parsed a single time to index it, and Load then parses
+         * only the files for its algorithm. */
+        private static Dictionary<string, List<string>>? index;
+
+        private static Dictionary<string, List<string>> Index(string reqDir)
+        {
+            if (index != null)
+                return index;
+            var map = new Dictionary<string, List<string>>();
+            foreach (string req in Directory.GetFiles(reqDir, "*-request.json").OrderBy(f => f)) {
+                using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(req));
+                string alg = doc.RootElement[1].GetProperty("algorithm").GetString() ?? "";
+                if (!map.TryGetValue(alg, out var files))
+                    map[alg] = files = new List<string>();
+                files.Add(req);
+            }
+            return index = map;
+        }
+
         /* All vector sets whose algorithm name matches exactly. Skips the
-         * calling test when the vectors are not available. */
+         * calling test only when WOLFACVP_VECTORS is unset; a path that is
+         * set but wrong fails, so an ACVP run cannot pass without vectors. */
         public static List<AcvpVectorSet> Load(string algorithm)
         {
             string? root = Root;
@@ -67,14 +88,14 @@ namespace wolfSSL.CSharp.Fips.Test
             string reqDir = Path.Combine(root!, RequestDir);
             string expDir = Path.Combine(root!, ExpectedDir);
             if (!Directory.Exists(reqDir) || !Directory.Exists(expDir))
-                T.Skip("aegisolve vectors not found under " + root);
+                throw new Exception("WOLFACVP_VECTORS is set but " + RequestDir + " / " + ExpectedDir +
+                                    " were not found under " + root);
 
             var sets = new List<AcvpVectorSet>();
-            foreach (string req in Directory.GetFiles(reqDir, "*-request.json").OrderBy(f => f)) {
-                JsonElement doc = JsonDocument.Parse(File.ReadAllText(req)).RootElement;
-                JsonElement body = doc[1];
-                if (body.GetProperty("algorithm").GetString() != algorithm)
-                    continue;
+            foreach (string req in Index(reqDir).GetValueOrDefault(algorithm) ?? new List<string>()) {
+                JsonElement body;
+                using (JsonDocument reqDoc = JsonDocument.Parse(File.ReadAllText(req)))
+                    body = reqDoc.RootElement[1].Clone();
                 string expName = Path.GetFileName(req).Replace("-request.json", "-expected.json");
                 string exp = Path.Combine(expDir, expName);
                 if (!File.Exists(exp))
@@ -85,7 +106,8 @@ namespace wolfSSL.CSharp.Fips.Test
                     File = Path.GetFileName(req),
                     Request = body
                 };
-                JsonElement expBody = JsonDocument.Parse(File.ReadAllText(exp)).RootElement[1];
+                using JsonDocument expDoc = JsonDocument.Parse(File.ReadAllText(exp));
+                JsonElement expBody = expDoc.RootElement[1].Clone();
                 foreach (JsonElement g in expBody.GetProperty("testGroups").EnumerateArray())
                     foreach (JsonElement t in g.GetProperty("tests").EnumerateArray())
                         set.Expected[(g.GetProperty("tgId").GetInt32(), t.GetProperty("tcId").GetInt32())] = t;

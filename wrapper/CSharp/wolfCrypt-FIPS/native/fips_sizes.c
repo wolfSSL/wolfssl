@@ -45,6 +45,16 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/cmac.h>
+#include <wolfssl/wolfcrypt/kdf.h>
+#include <stddef.h>
+
+/* user_settings.h FIPS builds may define only HAVE_FIPS_VERSION */
+#if !defined(HAVE_FIPS_VERSION_MAJOR) && defined(HAVE_FIPS_VERSION)
+    #define HAVE_FIPS_VERSION_MAJOR HAVE_FIPS_VERSION
+#endif
+#if !defined(HAVE_FIPS_VERSION_MINOR) && defined(HAVE_FIPS_VERSION)
+    #define HAVE_FIPS_VERSION_MINOR 0
+#endif
 
 #if defined(_WIN32)
     #define WC_CSHARP_FIPS_API __declspec(dllexport)
@@ -67,7 +77,25 @@ enum wc_csharp_fips_struct {
     WC_CSHARP_FIPS_SHA512  = 9,
     WC_CSHARP_FIPS_SHA3    = 10,
     WC_CSHARP_FIPS_HMAC    = 11,
-    WC_CSHARP_FIPS_CMAC    = 12
+    WC_CSHARP_FIPS_CMAC    = 12,
+    /* not a struct: capacity of the HkdfLabel buffer in
+     * wc_Tls13_HKDF_Expand_Label (MAX_TLS13_HKDF_LABEL_SZ) */
+    WC_CSHARP_FIPS_TLS13_LABEL_MAX = 13,
+    /* not a struct: FIPS version the helper was built for, as
+     * major * 100 + minor (build fingerprint) */
+    WC_CSHARP_FIPS_VERSION_MM = 14,
+    /* not a struct: POSIX cksum CRC and size of the libwolfssl file this
+     * helper was built for (set by build-native.sh; 0 if unknown) */
+    WC_CSHARP_FIPS_LIB_CRC  = 15,
+    WC_CSHARP_FIPS_LIB_SIZE = 16,
+    /* not a struct: offset of the devId member of Aes and Hmac, which
+     * exist only with WOLF_CRYPTO_CB (0 otherwise; devId is never the
+     * first member). The boundary has no wc_AesInit_fips or
+     * wc_HmacInit_fips, so the wrapper sets INVALID_DEVID there itself. */
+    WC_CSHARP_FIPS_AES_DEVID_OFFSET  = 17,
+    WC_CSHARP_FIPS_HMAC_DEVID_OFFSET = 18,
+    /* not a struct: RNG_MAX_BLOCK_LEN (largest single DRBG request) */
+    WC_CSHARP_FIPS_RNG_MAX_BLOCK_LEN = 19
 };
 
 /* Returns sizeof() of the requested structure, or 0 when the structure is
@@ -114,6 +142,31 @@ int wc_csharp_fips_sizeof(int type)
     #ifdef WOLFSSL_CMAC
         case WC_CSHARP_FIPS_CMAC:   return (int)sizeof(Cmac);
     #endif
+    #ifdef HAVE_HKDF
+        case WC_CSHARP_FIPS_TLS13_LABEL_MAX:
+            return (int)MAX_TLS13_HKDF_LABEL_SZ;
+    #endif
+    #if defined(HAVE_FIPS_VERSION_MAJOR) && defined(HAVE_FIPS_VERSION_MINOR)
+        case WC_CSHARP_FIPS_VERSION_MM:
+            return HAVE_FIPS_VERSION_MAJOR * 100 + HAVE_FIPS_VERSION_MINOR;
+    #endif
+    #if defined(WC_CSHARP_FIPS_BUILT_LIB_CRC) && \
+        defined(WC_CSHARP_FIPS_BUILT_LIB_SIZE)
+        case WC_CSHARP_FIPS_LIB_CRC:
+            return (int)(unsigned int)WC_CSHARP_FIPS_BUILT_LIB_CRC;
+        case WC_CSHARP_FIPS_LIB_SIZE:
+            return (int)WC_CSHARP_FIPS_BUILT_LIB_SIZE;
+    #endif
+    #if !defined(NO_AES) && defined(WOLF_CRYPTO_CB)
+        case WC_CSHARP_FIPS_AES_DEVID_OFFSET:
+            return (int)offsetof(Aes, devId);
+    #endif
+    #if !defined(NO_HMAC) && defined(WOLF_CRYPTO_CB)
+        case WC_CSHARP_FIPS_HMAC_DEVID_OFFSET:
+            return (int)offsetof(Hmac, devId);
+    #endif
+        case WC_CSHARP_FIPS_RNG_MAX_BLOCK_LEN:
+            return (int)RNG_MAX_BLOCK_LEN;
         default:                    return 0;
     }
 }

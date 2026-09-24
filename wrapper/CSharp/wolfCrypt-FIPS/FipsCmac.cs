@@ -38,8 +38,10 @@ namespace wolfSSL.CSharp.Fips
 
         public FipsCmac(byte[] key) : base(FipsStructType.Cmac)
         {
-            if (key == null)
+            if (key == null) {
+                Dispose();
                 throw new ArgumentNullException(nameof(key));
+            }
             int ret = Native.wc_InitCmac_fips(Handle, key, (uint)key.Length, WC_CMAC_AES, IntPtr.Zero);
             if (ret != 0) {
                 Dispose();
@@ -83,20 +85,20 @@ namespace wolfSSL.CSharp.Fips
             return c.Final(tagSize);
         }
 
-        /* Recomputes the tag and compares it in constant time. */
-        public static bool Verify(byte[] key, byte[] data, byte[] tag)
+        /* Recomputes the tag and compares it in constant time. tagSize is
+         * the tag length the receiver expects (8 to 16 bytes); a tag of any
+         * other length is refused, so a truncated tag cannot lower the
+         * forgery bound (SP 800-38B keeps the tag length fixed per key). */
+        public static bool Verify(byte[] key, byte[] data, byte[] tag, int tagSize = MaxTagSize)
         {
             if (tag == null)
                 throw new ArgumentNullException(nameof(tag));
-            if (tag.Length < MinTagSize || tag.Length > MaxTagSize)
-                throw new ArgumentOutOfRangeException(nameof(tag), "CMAC tag must be 8 to 16 bytes");
-            byte[] expected = Compute(key, data, tag.Length);
+            if (tagSize < MinTagSize || tagSize > MaxTagSize)
+                throw new ArgumentOutOfRangeException(nameof(tagSize), "CMAC tag must be 8 to 16 bytes");
+            if (tag.Length != tagSize)
+                throw new ArgumentException("tag must be " + tagSize + " bytes", nameof(tag));
+            byte[] expected = Compute(key, data, tagSize);
             return CryptographicOperations.FixedTimeEquals(expected, tag);
-        }
-
-        protected override void FreeNative()
-        {
-            /* no wc_CmacFree in the v5.2.3 boundary */
         }
     }
 }

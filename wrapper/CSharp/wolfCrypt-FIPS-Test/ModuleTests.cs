@@ -20,9 +20,13 @@
  */
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips.Test
 {
@@ -32,12 +36,17 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             T.Section("Binding audit");
 
-            T.Run("every libwolfssl binding targets a _fips entry point", () => {
-                Type native = typeof(FipsModule).Assembly.GetType("wolfSSL.CSharp.Fips.Native")!;
-                var bad = native.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-                    .Select(m => m.GetCustomAttribute<DllImportAttribute>())
-                    .Where(a => a != null && a.Value == "wolfssl" && !a.EntryPoint!.EndsWith("_fips"))
-                    .Select(a => a!.EntryPoint).ToList();
+            T.Run("every libwolfssl binding in the assembly targets a _fips entry point", () => {
+                var all = typeof(FipsModule).Assembly.GetTypes()
+                    .SelectMany(t => t.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public |
+                                                  BindingFlags.DeclaredOnly))
+                    .Select(m => (m, a: m.GetCustomAttribute<DllImportAttribute>()))
+                    .Where(x => x.a != null).ToList();
+                var bad = all.Where(x => x.a!.Value != "wolfssl_csharp_fips" &&
+                                         !(x.a.EntryPoint ?? x.m.Name).EndsWith("_fips"))
+                             .Select(x => x.m.DeclaringType!.Name + "." + x.m.Name).ToList();
+                T.True(all.Count > 100, "found " + all.Count + " P/Invoke methods");
+                T.True(all.All(x => x.m.DeclaringType!.Name == "Native"), "P/Invoke outside Native");
                 T.True(bad.Count == 0, "non-_fips bindings: " + string.Join(", ", bad));
             });
 
@@ -63,8 +72,12 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Equal("", FipsModule.CoreHash ?? "", "CoreHash");
             });
 
+            /* the native call always returns 0; IntegrityTest returns the
+             * status afterwards, so this can fail */
             T.Run("on-demand integrity test passes", () => {
-                T.Equal(0, FipsModule.IntegrityTest(), "IntegrityTest");
+                T.Equal(0, FipsModule.IntegrityTest(), "IntegrityTest (module status)");
+                T.Equal(FipsMode.Normal, FipsModule.Mode, "mode");
+                T.True(FipsModule.IsOperational, "operational");
             });
 
             T.Section("Conditional algorithm self-tests (CASTs)");
@@ -86,8 +99,25 @@ namespace wolfSSL.CSharp.Fips.Test
                 });
             }
 
-            T.Run("CAST enum covers all 15 v5.2.3 CASTs", () => {
-                T.Equal(FipsModule.CastCount, Enum.GetValues<FipsCast>().Length, "count");
+            /* wc_RunCast_fips writes its state array before checking the
+             * id, so these must never reach the module */
+            T.Run("RunCast and GetCastState refuse out-of-range CAST ids", () => {
+                foreach (int id in new[] { -1, FipsModule.CastCount, int.MinValue, int.MaxValue }) {
+                    bool threw = false, threwState = false;
+                    try { FipsModule.RunCast((FipsCast)id); } catch (ArgumentOutOfRangeException) { threw = true; }
+                    try { FipsModule.GetCastState((FipsCast)id); } catch (ArgumentOutOfRangeException) { threwState = true; }
+                    T.True(threw, "RunCast: CAST id " + id + " accepted");
+                    T.True(threwState, "GetCastState: CAST id " + id + " accepted");
+                }
+                T.True(FipsModule.IsOperational, "operational");
+            });
+
+            /* Asks the module: the last CAST id is valid and the next is out
+             * of range (wc_GetCastStatus_fips returns -1). */
+            T.Run("CAST enum matches the module's CAST count", () => {
+                T.True(Native.wc_GetCastStatus_fips(FipsModule.CastCount - 1) >= 0, "last CAST id rejected");
+                T.Equal(-1, Native.wc_GetCastStatus_fips(FipsModule.CastCount), "id past the end");
+                T.Equal(FipsModule.CastCount, Enum.GetValues<FipsCast>().Length, "enum size");
             });
 
             T.Section("Callbacks and key export gate");
@@ -101,11 +131,157 @@ namespace wolfSSL.CSharp.Fips.Test
                 FipsModule.UseOsSeed();
             });
 
+            T.Run("Initialize keeps a custom seed source registered earlier", () => {
+                int calls = 0;
+                FipsModule.SetSeedCallback((os, seed, sz) => {
+                    unsafe { RandomNumberGenerator.Fill(new Span<byte>((void*)seed, (int)sz)); }
+                    Interlocked.Increment(ref calls);
+                    return 0;
+                });
+                FipsModule.Initialize();   /* e.g. a second component starting up */
+                using (var r = new FipsRng()) r.Generate(16);
+                T.True(calls > 0, "Initialize replaced the custom seed source");
+                FipsModule.UseOsSeed();
+                int before = calls;
+                FipsModule.Initialize();
+                using (var r = new FipsRng()) r.Generate(16);
+                T.Equal(before, calls, "custom callback still registered after UseOsSeed");
+            });
+
+            /* WOLF_CRYPTO_CB builds: devId must read INVALID_DEVID in every new
+             * Aes and Hmac structure. Other builds have no devId (offset 0).
+             * MaxRequest is checked by behavior in the Hash_DRBG tests. */
+            T.Run("Aes/Hmac devId is INVALID_DEVID where the build has one", () => {
+                var cases = new (string Name, FipsStructType Offset, Func<FipsObject> Make)[] {
+                    ("FipsAes", FipsStructType.AesDevIdOffset, () => FipsAes.CreateEcb(new byte[16], true)),
+                    ("FipsAesGcm", FipsStructType.AesDevIdOffset, () => new FipsAesGcm(new byte[16])),
+                    ("FipsAesCcm", FipsStructType.AesDevIdOffset, () => new FipsAesCcm(new byte[16])),
+                    ("FipsHmac", FipsStructType.HmacDevIdOffset, () => new FipsHmac(FipsHashType.Sha256, new byte[32])),
+                };
+                int checkedCount = 0;
+                foreach (var (name, offType, make) in cases) {
+                    int off = Native.SizeOf((int)offType);
+                    if (off == 0)
+                        continue;   /* no WOLF_CRYPTO_CB: no devId member */
+                    using FipsObject o = make();
+                    int size = Native.SizeOf((int)(offType == FipsStructType.AesDevIdOffset ? FipsStructType.Aes : FipsStructType.Hmac));
+                    T.True(off > 0 && off <= size - sizeof(int), name + " devId offset inside the structure");
+                    T.Equal(FipsObject.INVALID_DEVID, Marshal.ReadInt32(o.Handle.DangerousGetHandle(), off), name + " devId");
+                    checkedCount++;
+                }
+                if (checkedCount == 0)
+                    Console.WriteLine("        no WOLF_CRYPTO_CB in this build: Aes/Hmac have no devId");
+            });
+
+            T.Run("custom seed callback is used, then the OS source restored", () => {
+                int calls = 0;
+                FipsModule.SetSeedCallback((os, seed, sz) => {
+                    unsafe { RandomNumberGenerator.Fill(new Span<byte>((void*)seed, (int)sz)); }
+                    Interlocked.Increment(ref calls);
+                    return 0;
+                });
+                using (var r = new FipsRng()) r.Generate(16);
+                T.True(calls > 0, "seed callback not called");
+                FipsModule.UseOsSeed();
+                int before = calls;
+                using (var r = new FipsRng()) r.Generate(16);
+                T.Equal(before, calls, "custom callback still registered");
+            });
+
+            /* Objects used only for their final call must stay alive while
+             * the module runs (SafeHandle); a GC with finalization runs in
+             * parallel to provoke early collection. */
+            T.Run("native state survives GC during calls on last-use objects", () => {
+                using var stop = new CancellationTokenSource();
+                var gc = Task.Run(() => {
+                    while (!stop.IsCancellationRequested) {
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                    }
+                });
+                try {
+                    byte[] key = new byte[16], iv = new byte[16], msg = new byte[4096];
+                    byte[] expected = FipsAes.CreateCbc(key, iv, true).Transform(msg);
+                    for (int i = 0; i < 2000; i++) {
+                        T.Equal(32, new FipsRng().Generate(32).Length, "rng");
+                        T.Bytes(expected, FipsAes.CreateCbc(key, iv, true).Transform(msg), "cbc");
+                        T.Equal(32, FipsHash.Compute(FipsHashType.Sha256, msg).Length, "sha");
+                    }
+                }
+                finally {
+                    stop.Cancel();
+                    gc.Wait();
+                }
+            });
+
+            T.Run("seed callback: null refused, replacement and a throwing callback are safe", () => {
+                bool threw = false;
+                try { FipsModule.SetSeedCallback(null!); } catch (ArgumentNullException) { threw = true; }
+                T.True(threw, "null accepted");
+                int a = 0, b = 0;
+                FipsModule.SetSeedCallback((os, seed, sz) => { Interlocked.Increment(ref a); unsafe { RandomNumberGenerator.Fill(new Span<byte>((void*)seed, (int)sz)); } return 0; });
+                FipsModule.SetSeedCallback((os, seed, sz) => { Interlocked.Increment(ref b); unsafe { RandomNumberGenerator.Fill(new Span<byte>((void*)seed, (int)sz)); } return 0; });
+                GC.Collect(); GC.WaitForPendingFinalizers();
+                using (var r = new FipsRng()) r.Generate(8);
+                T.True(b > 0 && a == 0, "replacement callback not used");
+                FipsModule.SetSeedCallback((os, seed, sz) => throw new InvalidOperationException("boom"));
+                bool failed = false;
+                try { new FipsRng().Dispose(); } catch (WolfCryptFipsException) { failed = true; }
+                T.True(failed, "DRBG instantiated from a throwing seed callback");
+                FipsModule.UseOsSeed();
+                using (var r = new FipsRng()) r.Generate(8);
+            });
+
+            T.Run("private key read gate: one disable closes a nested gate", () => {
+                /* raise the module's per-thread counter directly */
+                T.Equal(0, Native.wolfCrypt_SetPrivateKeyReadEnable_fips(1, 0), "native enable");
+                T.Equal(0, Native.wolfCrypt_SetPrivateKeyReadEnable_fips(1, 0), "native enable");
+                T.Equal(0, Native.wolfCrypt_SetPrivateKeyReadEnable_fips(1, 0), "native enable");
+                T.True(Native.wolfCrypt_GetPrivateKeyReadEnable_fips(0) > 1, "counter did not nest");
+                FipsModule.SetPrivateKeyReadEnable(false);
+                T.True(!FipsModule.PrivateKeyReadEnabled, "gate still open");
+            });
+
+            T.Run("WOLFSSL_FIPS_LIB_DIR pointing at a directory without the libraries fails loudly", () => {
+                string empty = Path.Combine(Path.GetTempPath(), "wolfcrypt-fips-empty-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(empty);
+                try {
+                    var psi = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) {
+                        RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+                    if (Path.GetFileNameWithoutExtension(Environment.ProcessPath!) == "dotnet")
+                        psi.ArgumentList.Add(typeof(ModuleTests).Assembly.Location);
+                    psi.ArgumentList.Add("--probe-load");
+                    psi.Environment["WOLFSSL_FIPS_LIB_DIR"] = empty;
+                    using var p = System.Diagnostics.Process.Start(psi)!;
+                    var o = p.StandardOutput.ReadToEndAsync(); var e = p.StandardError.ReadToEndAsync();
+                    if (!p.WaitForExit(120_000)) {
+                        p.Kill(entireProcessTree: true);
+                        p.WaitForExit();
+                        throw new Exception("probe-load child timed out");
+                    }
+                    string all = o.Result + e.Result;
+                    T.True(p.ExitCode != 0 && all.Contains("could not be loaded from"), "fell back or loaded: " + all.Trim());
+                }
+                finally { Directory.Delete(empty); }
+            });
+
             T.Run("private key read gate toggles", () => {
                 FipsModule.SetPrivateKeyReadEnable(true);
                 T.True(FipsModule.PrivateKeyReadEnabled, "enabled");
                 FipsModule.SetPrivateKeyReadEnable(false);
                 T.True(!FipsModule.PrivateKeyReadEnabled, "disabled");
+            });
+
+            T.Run("size helper is bound to the loaded libwolfssl binary", () => {
+                FipsModule.EnsureHelperMatchesModule();
+                Console.WriteLine("        libwolfssl: " + NativeLoader.WolfsslPath);
+                T.True(Native.SizeOf((int)FipsStructType.LibCrc) != 0, "no CRC fingerprint");
+            });
+
+            T.Run("POSIX cksum matches the cksum utility", () => {
+                T.Equal(930766865u, FipsModule.PosixCksum(System.Text.Encoding.ASCII.GetBytes("123456789")), "123456789");
+                T.Equal(4294967295u, FipsModule.PosixCksum(Array.Empty<byte>()), "empty");
+                T.Equal(2610763910u, FipsModule.PosixCksum(new byte[1000]), "1000 zeros");
             });
 
             T.Section("Native size helper");

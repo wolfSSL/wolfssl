@@ -30,19 +30,20 @@ namespace wolfSSL.CSharp.Fips
     {
         public FipsHashType Type { get; }
         public int MacSize => FipsHash.DigestSizeOf(Type);
-        private bool keyed;
 
         public FipsHmac(FipsHashType type, byte[] key) : base(FipsStructType.Hmac)
         {
-            if (key == null)
+            if (key == null) {
+                Dispose();
                 throw new ArgumentNullException(nameof(key));
+            }
             Type = type;
             int ret = Native.wc_HmacSetKey_fips(Handle, (int)type, key, (uint)key.Length);
             if (ret != 0) {
                 Dispose();
                 throw new WolfCryptFipsException("wc_HmacSetKey_fips", ret);
             }
-            keyed = true;
+            SetNativeFree(p => Native.wc_HmacFree_fips(p));
         }
 
         public void Update(byte[] data)
@@ -67,12 +68,6 @@ namespace wolfSSL.CSharp.Fips
             using var h = new FipsHmac(type, key);
             h.Update(data);
             return h.Final();
-        }
-
-        protected override void FreeNative()
-        {
-            if (keyed)
-                Native.wc_HmacFree_fips(Handle);
         }
     }
 }

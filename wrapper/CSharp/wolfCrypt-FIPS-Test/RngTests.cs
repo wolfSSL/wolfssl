@@ -44,6 +44,7 @@ namespace wolfSSL.CSharp.Fips.Test
                                "group parameters outside health-test service");
                         bool reseed = g.GetProperty("reSeed").GetBoolean();
                         int outLen = g.GetProperty("returnedBitsLen").GetInt32() / 8;
+                        T.Equal(FipsRng.HealthTestOutputSize, outLen, "returnedBitsLen outside health-test service");
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             byte[] seedA = Acvp.Hex(t, "entropyInput").Concat(Acvp.Hex(t, "nonce")).ToArray();
                             byte[]? seedB = null;
@@ -58,6 +59,19 @@ namespace wolfSSL.CSharp.Fips.Test
                     }
                 }
                 Console.WriteLine("        " + n + " vectors");
+            });
+
+            T.Run("HealthTest argument contract (128-byte output, seedB with reseed)", () => {
+                byte[] seed = new byte[48];
+                foreach (int len in new[] { 64, 127, 129, -1 }) {
+                    bool threw = false;
+                    try { FipsRng.HealthTest(false, seed, null, len); } catch (ArgumentOutOfRangeException) { threw = true; }
+                    T.True(threw, "outputLen " + len + " accepted");
+                }
+                bool threwB = false;
+                try { FipsRng.HealthTest(true, seed, null); } catch (ArgumentNullException) { threwB = true; }
+                T.True(threwB, "reseed without seedB accepted");
+                T.Equal(128, FipsRng.HealthTest(false, seed, null).Length, "default length");
             });
 
             T.Run("instantiate, generate, output is not constant", () => {

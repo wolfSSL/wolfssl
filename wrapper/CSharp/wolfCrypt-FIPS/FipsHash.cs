@@ -43,7 +43,6 @@ namespace wolfSSL.CSharp.Fips
      * After Final the object is reset and can hash a new message. */
     public sealed class FipsHash : FipsObject
     {
-        private const int INVALID_DEVID = -2;
 
         public FipsHashType Type { get; }
         public int DigestSize => DigestSizeOf(Type);
@@ -54,12 +53,10 @@ namespace wolfSSL.CSharp.Fips
             int ret = Init(type, Handle);
             if (ret != 0) {
                 Dispose();
-                throw new WolfCryptFipsException("wc_Init" + type + "_fips", ret);
+                throw new WolfCryptFipsException(type == FipsHashType.Sha1 ? "wc_InitSha_fips" : "wc_Init" + type + "_fips", ret);
             }
-            initialized = true;
+            SetNativeFree(FreeRoutine(type));
         }
-
-        private bool initialized;
 
         public void Update(byte[] data)
         {
@@ -106,7 +103,7 @@ namespace wolfSSL.CSharp.Fips
             _ => throw new ArgumentOutOfRangeException(nameof(type))
         };
 
-        private static int Init(FipsHashType t, IntPtr h)
+        private static int Init(FipsHashType t, FipsHandle h)
         {
             switch (t) {
                 case FipsHashType.Sha1: return Native.wc_InitSha_fips(h);
@@ -122,7 +119,7 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        private static int Update(FipsHashType t, IntPtr h, byte[] d, uint len)
+        private static int Update(FipsHashType t, FipsHandle h, byte[] d, uint len)
         {
             switch (t) {
                 case FipsHashType.Sha1: return Native.wc_ShaUpdate_fips(h, d, len);
@@ -138,7 +135,7 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        private static int Final(FipsHashType t, IntPtr h, byte[] o)
+        private static int Final(FipsHashType t, FipsHandle h, byte[] o)
         {
             switch (t) {
                 case FipsHashType.Sha1: return Native.wc_ShaFinal_fips(h, o);
@@ -154,22 +151,17 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        protected override void FreeNative()
-        {
-            if (!initialized)
-                return;
-            IntPtr h = Handle;
-            switch (Type) {
-                case FipsHashType.Sha1: Native.wc_ShaFree_fips(h); break;
-                case FipsHashType.Sha224: Native.wc_Sha224Free_fips(h); break;
-                case FipsHashType.Sha256: Native.wc_Sha256Free_fips(h); break;
-                case FipsHashType.Sha384: Native.wc_Sha384Free_fips(h); break;
-                case FipsHashType.Sha512: Native.wc_Sha512Free_fips(h); break;
-                case FipsHashType.Sha3_224: Native.wc_Sha3_224_Free_fips(h); break;
-                case FipsHashType.Sha3_256: Native.wc_Sha3_256_Free_fips(h); break;
-                case FipsHashType.Sha3_384: Native.wc_Sha3_384_Free_fips(h); break;
-                case FipsHashType.Sha3_512: Native.wc_Sha3_512_Free_fips(h); break;
-            }
-        }
+        private static Action<IntPtr> FreeRoutine(FipsHashType t) => t switch {
+            FipsHashType.Sha1 => p => Native.wc_ShaFree_fips(p),
+            FipsHashType.Sha224 => p => Native.wc_Sha224Free_fips(p),
+            FipsHashType.Sha256 => p => Native.wc_Sha256Free_fips(p),
+            FipsHashType.Sha384 => p => Native.wc_Sha384Free_fips(p),
+            FipsHashType.Sha512 => p => Native.wc_Sha512Free_fips(p),
+            FipsHashType.Sha3_224 => p => Native.wc_Sha3_224_Free_fips(p),
+            FipsHashType.Sha3_256 => p => Native.wc_Sha3_256_Free_fips(p),
+            FipsHashType.Sha3_384 => p => Native.wc_Sha3_384_Free_fips(p),
+            FipsHashType.Sha3_512 => p => Native.wc_Sha3_512_Free_fips(p),
+            _ => throw new ArgumentOutOfRangeException(nameof(t))
+        };
     }
 }

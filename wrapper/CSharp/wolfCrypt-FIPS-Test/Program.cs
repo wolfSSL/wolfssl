@@ -27,21 +27,40 @@ namespace wolfSSL.CSharp.Fips.Test
     {
         private static int Main(string[] args)
         {
+            if (args.Length == 1 && args[0] == "--probe-load") {
+                FipsModule.Initialize();   /* resolves both native libraries */
+                Console.WriteLine("loaded " + FipsModule.Version);
+                return 0;
+            }
             if (args.Length == 2 && args[0] == "--force")
                 return ForcedFailureTests.Child(int.Parse(args[1]));
 
             Console.WriteLine("wolfCrypt FIPS v5.2.3 C# wrapper tests");
             Console.WriteLine("runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription +
                               " (" + System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + ")");
-            ModuleTests.Run();
-            RngTests.Run();
-            MacHashTests.Run();
-            AesTests.Run();
-            RsaTests.Run();
-            EccDhTests.Run();
-            KdfTests.Run();
-            ForcedFailureTests.Run();
+            Section("Module", ModuleTests.Run);
+            Section("Known answers", KnownAnswerTests.Run);
+            Section("Hash_DRBG", RngTests.Run);
+            Section("MAC and hash", MacHashTests.Run);
+            Section("AES", AesTests.Run);
+            Section("RSA", RsaTests.Run);
+            Section("ECC and DH", EccDhTests.Run);
+            Section("KDF", KdfTests.Run);
+            Section("Forced failure", ForcedFailureTests.Run);
             return T.Summary();
+        }
+
+        /* A setup step that throws outside T.Run fails its section and the
+         * remaining sections still run. */
+        private static void Section(string name, Action run)
+        {
+            try {
+                run();
+            }
+            catch (Exception e) {
+                T.Run(name + " section setup", () =>
+                    throw new Exception("section aborted: " + e.GetType().Name + ": " + e.Message));
+            }
         }
     }
 }

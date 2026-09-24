@@ -45,19 +45,26 @@ namespace wolfSSL.CSharp.Fips
         public FipsAesMode Mode { get; }
         public bool Encrypting { get; }
 
-        /* IV (or initial counter block) the object was created with; null
-         * for ECB. */
-        public byte[]? IV { get; }
+        /* IV (or initial counter block) given at creation or by the last
+         * SetIV; not the chaining state after Transform. Null for ECB.
+         * Returns a copy. */
+        public byte[]? IV => iv == null ? null : (byte[])iv.Clone();
+        private byte[]? iv;
+        private bool drbgIV;
 
         private FipsAes(FipsAesMode mode, bool encrypt, byte[] key, byte[]? iv) : base(FipsStructType.Aes)
         {
-            if (key == null)
+            if (key == null) {
+                Dispose();
                 throw new ArgumentNullException(nameof(key));
-            if (mode != FipsAesMode.Ecb && (iv == null || iv.Length != BlockSize))
+            }
+            if (mode != FipsAesMode.Ecb && (iv == null || iv.Length != BlockSize)) {
+                Dispose();
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
+            }
             Mode = mode;
             Encrypting = encrypt;
-            IV = iv == null ? null : (byte[])iv.Clone();
+            this.iv = iv == null ? null : (byte[])iv.Clone();
             int ret;
             string fn;
             if (mode == FipsAesMode.Ctr) {
@@ -83,9 +90,15 @@ namespace wolfSSL.CSharp.Fips
          * the overloads taking an IV leave these conditions to the caller
          * and are intended for decryption and interoperability. */
         public static FipsAes CreateEcb(byte[] key, bool encrypt) => new FipsAes(FipsAesMode.Ecb, encrypt, key, null);
-        public static FipsAes CreateCbc(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng));
-        public static FipsAes CreateOfb(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng));
-        public static FipsAes CreateCtr(byte[] key, FipsRng rng) => new FipsAes(FipsAesMode.Ctr, true, key, NewIV(rng));
+        public static FipsAes CreateCbc(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng)));
+        public static FipsAes CreateOfb(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng)));
+        public static FipsAes CreateCtr(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ctr, true, key, NewIV(rng)));
+
+        private static FipsAes WithDrbgIV(FipsAes a)
+        {
+            a.drbgIV = true;
+            return a;
+        }
 
         private static byte[] NewIV(FipsRng rng)
         {
@@ -136,18 +149,22 @@ namespace wolfSSL.CSharp.Fips
             return output;
         }
 
-        /* Resets the IV / chaining value (CBC, OFB). */
+        /* Resets the CBC chaining value to iv. CBC only: for OFB and CTR the
+         * module keeps buffered keystream that wc_AesSetIV does not reset,
+         * so create a new object instead. Not allowed on encryptors created
+         * with a DRBG-generated IV, whose purpose is that the IV is not
+         * caller-chosen. */
         public void SetIV(byte[] iv)
         {
             if (iv == null || iv.Length != BlockSize)
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
             ThrowIfDisposed();
+            if (Mode != FipsAesMode.Cbc)
+                throw new InvalidOperationException("SetIV is supported for CBC only; create a new " + Mode + " object");
+            if (drbgIV)
+                throw new InvalidOperationException("the IV of a DRBG-IV encryptor cannot be replaced");
             WolfCryptFipsException.Check("wc_AesSetIV_fips", Native.wc_AesSetIV_fips(Handle, iv));
-        }
-
-        protected override void FreeNative()
-        {
-            /* no wc_AesFree in the v5.2.3 boundary */
+            this.iv = (byte[])iv.Clone();
         }
     }
 }

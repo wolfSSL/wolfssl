@@ -21,6 +21,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
@@ -62,7 +63,6 @@ namespace wolfSSL.CSharp.Fips
     public sealed class FipsRsaKey : FipsObject
     {
         public const long DefaultExponent = 65537;
-        private bool initialized;
 
         /* Modulus size in bytes (signature / ciphertext size). */
         public int Size { get; }
@@ -70,24 +70,50 @@ namespace wolfSSL.CSharp.Fips
 
         private FipsRsaKey(int bits, long exponent, FipsRng rng) : base(FipsStructType.Rsa)
         {
+            if (rng == null || rng.Handle.IsClosed) {
+                Dispose();
+                if (rng == null)
+                    throw new ArgumentNullException(nameof(rng));
+                throw new ObjectDisposedException(nameof(FipsRng));
+            }
             int ret = Native.wc_InitRsaKey_fips(Handle, IntPtr.Zero);
             if (ret != 0) {
                 Dispose();
                 throw new WolfCryptFipsException("wc_InitRsaKey_fips", ret);
             }
-            initialized = true;
-            rng.ThrowIfDisposed();
-            ret = Native.wc_MakeRsaKey_fips(Handle, bits, exponent, rng.Handle);
+            SetNativeFree(p => Native.wc_FreeRsaKey_fips(p));
+            ret = Native.wc_MakeRsaKey_fips(Handle, bits, new CLong(checked((nint)exponent)), rng.Handle);
             if (ret != 0) {
                 Dispose();
                 throw new WolfCryptFipsException("wc_MakeRsaKey_fips", ret);
             }
             Size = Native.wc_RsaEncryptSize_fips(Handle);
+            if (Size <= 0) {
+                /* gated like every RSA service: a module-state error here */
+                int err = Size;
+                Dispose();
+                throw new WolfCryptFipsException("wc_RsaEncryptSize_fips", err);
+            }
+            /* The module has no public-only export: capture n and e once,
+             * here, so the private components cross the boundary once per
+             * key rather than on every ExportPublic. */
+            try {
+                using FipsRsaKeyComponents c = FipsModule.WithPrivateKeyRead(() => Export());
+                publicKey = new FipsRsaPublicKey((byte[])c.N.Clone(), (byte[])c.E.Clone());
+            }
+            catch {
+                Dispose();
+                throw;
+            }
         }
+
+        private readonly FipsRsaPublicKey publicKey;
 
         /* Modulus sizes approved for key generation (FIPS 186-5,
          * SP 800-131A Rev. 2; cert #4718 Security Policy Table 7). */
-        public static readonly int[] ApprovedKeySizes = { 2048, 3072, 4096 };
+        private static readonly int[] approvedKeySizes = { 2048, 3072, 4096 };
+        public static System.Collections.Generic.IReadOnlyList<int> ApprovedKeySizes { get; } =
+            Array.AsReadOnly(approvedKeySizes);
 
         /* Generates a key pair (FIPS 186 key generation, includes the
          * module's pairwise consistency test).
@@ -98,13 +124,29 @@ namespace wolfSSL.CSharp.Fips
         {
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
-            if (Array.IndexOf(ApprovedKeySizes, bits) < 0)
+            if (Array.IndexOf(approvedKeySizes, bits) < 0)
                 throw new ArgumentException("RSA key size must be 2048, 3072 or 4096 bits", nameof(bits));
             /* FIPS 186-5 5.4(e): e odd, 2^16 < e < 2^256 (the module also
              * accepts e = 3). */
             if (exponent <= 65536 || (exponent & 1) == 0)
                 throw new ArgumentOutOfRangeException(nameof(exponent), "exponent must be odd and greater than 2^16");
-            return new FipsRsaKey(bits, exponent, rng);
+            /* the module takes a C long (32 bits on Windows and 32-bit
+             * platforms); refuse values it cannot represent rather than let
+             * them be truncated */
+            bool cLongIs32 = IntPtr.Size == 4 || OperatingSystem.IsWindows();
+            if (cLongIs32 && exponent > int.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(exponent), "exponent does not fit the platform's C long");
+            /* FIPS 186 prime generation stops after a bounded number of
+             * candidates and reports failure (PRIME_GEN_E); that is rare and
+             * the standard allows trying again with fresh random input. */
+            const int attempts = 3;
+            for (int i = 1; ; i++) {
+                try {
+                    return new FipsRsaKey(bits, exponent, rng);
+                }
+                catch (WolfCryptFipsException e) when (e.Code == FipsError.PRIME_GEN_E && i < attempts) {
+                }
+            }
         }
 
         /* Validates the key (wc_CheckRsaKey_fips). */
@@ -119,27 +161,30 @@ namespace wolfSSL.CSharp.Fips
         public FipsRsaKeyComponents Export()
         {
             ThrowIfDisposed();
-            byte[] e = new byte[8], n = new byte[Size], d = new byte[Size],
-                   p = new byte[Size], q = new byte[Size];
+            /* private temporaries are pinned so the GC cannot leave moved,
+             * unzeroed copies behind */
+            byte[] e = new byte[8], n = new byte[Size], d = GC.AllocateArray<byte>(Size, pinned: true),
+                   p = GC.AllocateArray<byte>(Size, pinned: true), q = GC.AllocateArray<byte>(Size, pinned: true);
             uint eSz = (uint)e.Length, nSz = (uint)n.Length, dSz = (uint)d.Length,
                  pSz = (uint)p.Length, qSz = (uint)q.Length;
-            WolfCryptFipsException.Check("wc_RsaExportKey_fips",
-                Native.wc_RsaExportKey_fips(Handle, e, ref eSz, n, ref nSz, d, ref dSz, p, ref pSz, q, ref qSz));
-            var result = new FipsRsaKeyComponents(e.Take((int)eSz).ToArray(), n.Take((int)nSz).ToArray(),
-                d.Take((int)dSz).ToArray(), p.Take((int)pSz).ToArray(), q.Take((int)qSz).ToArray());
-            CryptographicOperations.ZeroMemory(d);
-            CryptographicOperations.ZeroMemory(p);
-            CryptographicOperations.ZeroMemory(q);
-            return result;
+            try {
+                WolfCryptFipsException.Check("wc_RsaExportKey_fips",
+                    Native.wc_RsaExportKey_fips(Handle, e, ref eSz, n, ref nSz, d, ref dSz, p, ref pSz, q, ref qSz));
+                return new FipsRsaKeyComponents(e.Take((int)eSz).ToArray(), n.Take((int)nSz).ToArray(),
+                    PinnedCopy(d, dSz), PinnedCopy(p, pSz), PinnedCopy(q, qSz));
+            }
+            finally {
+                CryptographicOperations.ZeroMemory(d);
+                CryptographicOperations.ZeroMemory(p);
+                CryptographicOperations.ZeroMemory(q);
+            }
         }
 
-        /* Public components. The module exports the key as a whole, so this
-         * also requires the private key read gate on this thread; private
-         * components are zeroed immediately. */
+        /* Public components (captured when the key was generated). */
         public FipsRsaPublicKey ExportPublic()
         {
-            using FipsRsaKeyComponents c = Export();
-            return new FipsRsaPublicKey(c.N, c.E);
+            ThrowIfDisposed();
+            return new FipsRsaPublicKey((byte[])publicKey.Modulus.Clone(), (byte[])publicKey.Exponent.Clone());
         }
 
         /* ---- PKCS#1 v1.5 signatures (RSASSA-PKCS1-v1_5) ---- */
@@ -152,6 +197,8 @@ namespace wolfSSL.CSharp.Fips
             RejectSha1ForSigning(hash);
             byte[] di = DigestInfo(hash, digest);
             byte[] sig = new byte[Size];
+            if (rng == null)
+                throw new ArgumentNullException(nameof(rng));
             rng.ThrowIfDisposed();
             ThrowIfDisposed();
             int ret = Native.wc_RsaSSL_Sign_fips(di, (uint)di.Length, sig, (uint)sig.Length, Handle, rng.Handle);
@@ -182,7 +229,10 @@ namespace wolfSSL.CSharp.Fips
         {
             RejectSha1ForSigning(hash);
             CheckDigest(hash, digest);
+            CheckSaltLen(hash, saltLen);
             byte[] sig = new byte[Size];
+            if (rng == null)
+                throw new ArgumentNullException(nameof(rng));
             rng.ThrowIfDisposed();
             ThrowIfDisposed();
             int ret = Native.wc_RsaPSS_SignEx_fips(digest, (uint)digest.Length, sig, (uint)sig.Length,
@@ -197,6 +247,7 @@ namespace wolfSSL.CSharp.Fips
             if (signature == null)
                 throw new ArgumentNullException(nameof(signature));
             CheckDigest(hash, digest);
+            CheckSaltLen(hash, saltLen);
             ThrowIfDisposed();
             byte[] decoded = new byte[Size];
             int ret = Native.wc_RsaPSS_VerifyEx_fips((byte[])signature.Clone(), (uint)signature.Length,
@@ -222,6 +273,8 @@ namespace wolfSSL.CSharp.Fips
         {
             if (plaintext == null)
                 throw new ArgumentNullException(nameof(plaintext));
+            if (rng == null)
+                throw new ArgumentNullException(nameof(rng));
             rng.ThrowIfDisposed();
             ThrowIfDisposed();
             byte[] ct = new byte[Size];
@@ -239,15 +292,18 @@ namespace wolfSSL.CSharp.Fips
             if (ciphertext == null)
                 throw new ArgumentNullException(nameof(ciphertext));
             ThrowIfDisposed();
-            byte[] pt = new byte[Size];
+            byte[] pt = GC.AllocateArray<byte>(Size, pinned: true);
             int ret = Native.wc_RsaPrivateDecryptEx_fips(ciphertext, (uint)ciphertext.Length, pt, (uint)pt.Length,
                 Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
                 label, label == null ? 0u : (uint)label.Length);
-            if (ret < 0)
-                throw new WolfCryptFipsException("wc_RsaPrivateDecryptEx_fips", ret);
-            byte[] result = pt.Take(ret).ToArray();
-            CryptographicOperations.ZeroMemory(pt);
-            return result;
+            try {
+                if (ret < 0)
+                    throw new WolfCryptFipsException("wc_RsaPrivateDecryptEx_fips", ret);
+                return pt.Take(ret).ToArray();
+            }
+            finally {
+                CryptographicOperations.ZeroMemory(pt);
+            }
         }
 
         /* ---- helpers ---- */
@@ -259,6 +315,13 @@ namespace wolfSSL.CSharp.Fips
             if (FipsError.IsModuleStateError(ret))
                 throw new WolfCryptFipsException(fn, ret);
             return false;
+        }
+
+        private static byte[] PinnedCopy(byte[] src, uint len)
+        {
+            byte[] dst = GC.AllocateArray<byte>((int)len, pinned: true);
+            Array.Copy(src, dst, (int)len);
+            return dst;
         }
 
         /* SP 800-131A Rev. 2 section 9 and Security Policy rule 3b: SHA-1 is
@@ -279,6 +342,18 @@ namespace wolfSSL.CSharp.Fips
             FipsHashType.Sha512 => 3,
             _ => throw new NotSupportedException("MGF1 with " + h + " is not supported by this module")
         };
+
+        /* FIPS 186-5 5.4(g): 0 <= sLen <= hLen. Builds with RSA-PSS define
+         * WOLFSSL_PSS_LONG_SALT (configure adds it with TLS 1.3), which
+         * removes the module's own sLen <= hLen check, so it is enforced
+         * here for signing and verification. -1 selects sLen = hLen; salt
+         * discovery (-2) is not offered because it accepts any length. */
+        private static void CheckSaltLen(FipsHashType hash, int saltLen)
+        {
+            if (saltLen != -1 && (saltLen < 0 || saltLen > FipsHash.DigestSizeOf(hash)))
+                throw new ArgumentOutOfRangeException(nameof(saltLen),
+                    "PSS salt length must be -1 (digest length) or 0 to " + FipsHash.DigestSizeOf(hash) + " bytes");
+        }
 
         private static void CheckDigest(FipsHashType hash, byte[] digest)
         {
@@ -310,11 +385,5 @@ namespace wolfSSL.CSharp.Fips
         }
 
         private static byte[] Hex(string s) => Convert.FromHexString(s);
-
-        protected override void FreeNative()
-        {
-            if (initialized)
-                Native.wc_FreeRsaKey_fips(Handle);
-        }
     }
 }

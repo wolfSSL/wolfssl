@@ -30,8 +30,14 @@ namespace wolfSSL.CSharp.Fips
      * or lock externally. */
     public sealed class FipsRng : FipsObject
     {
-        /* Largest single request the DRBG accepts (RNG_MAX_BLOCK_LEN). */
-        public const int MaxRequest = 0x10000;
+        /* Largest single request the DRBG accepts (RNG_MAX_BLOCK_LEN of the
+         * loaded build, read from the size helper: 0x10000 by default,
+         * 0xFFFF with HAVE_INTEL_QA, or a build override). */
+        public static int MaxRequest => FipsObject.StructSize(FipsStructType.RngMaxBlockLen);
+
+        /* Output length of the module's DRBG health test
+         * (RNG_HEALTH_TEST_CHECK_SIZE in random.c: 4 SHA-256 blocks). */
+        public const int HealthTestOutputSize = 128;
 
         public FipsRng() : base(FipsStructType.Rng)
         {
@@ -41,13 +47,13 @@ namespace wolfSSL.CSharp.Fips
         /* Instantiate with a caller-supplied nonce. */
         public FipsRng(byte[] nonce) : base(FipsStructType.Rng)
         {
-            if (nonce == null)
+            if (nonce == null) {
+                Dispose();
                 throw new ArgumentNullException(nameof(nonce));
+            }
             Init(Native.wc_InitRngNonce_fips(Handle, nonce, (uint)nonce.Length),
                  "wc_InitRngNonce_fips");
         }
-
-        private bool initialized;
 
         private void Init(int ret, string fn)
         {
@@ -55,7 +61,7 @@ namespace wolfSSL.CSharp.Fips
                 Dispose();
                 throw new WolfCryptFipsException(fn, ret);
             }
-            initialized = true;
+            SetNativeFree(p => Native.wc_FreeRng_fips(p));
         }
 
         /* Fills buf with DRBG output. */
@@ -79,24 +85,25 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* DRBG known-answer health test. Instantiates a temporary DRBG with
-         * seedA, optionally reseeds with seedB (reseed = true), generates
-         * outputLen bytes twice and returns the second block, for
-         * comparison against SP 800-90A test vectors. */
-        public static byte[] HealthTest(bool reseed, byte[] seedA, byte[]? seedB, int outputLen)
+         * seedA, optionally reseeds with seedB (reseed = true, seedB then
+         * required), generates twice and returns the second block, for
+         * comparison against SP 800-90A test vectors. The module produces
+         * exactly HealthTestOutputSize (128) bytes; outputLen must be that. */
+        public static byte[] HealthTest(bool reseed, byte[] seedA, byte[]? seedB,
+                                        int outputLen = HealthTestOutputSize)
         {
             if (seedA == null)
                 throw new ArgumentNullException(nameof(seedA));
+            if (reseed && seedB == null)
+                throw new ArgumentNullException(nameof(seedB), "reseed requires seedB");
+            if (outputLen != HealthTestOutputSize)
+                throw new ArgumentOutOfRangeException(nameof(outputLen),
+                    "the module DRBG health test returns exactly " + HealthTestOutputSize + " bytes");
             byte[] output = new byte[outputLen];
             WolfCryptFipsException.Check("wc_RNG_HealthTest_fips",
                 Native.wc_RNG_HealthTest_fips(reseed ? 1 : 0, seedA, (uint)seedA.Length,
                     seedB, seedB == null ? 0u : (uint)seedB.Length, output, (uint)outputLen));
             return output;
-        }
-
-        protected override void FreeNative()
-        {
-            if (initialized)
-                Native.wc_FreeRng_fips(Handle);
         }
     }
 }

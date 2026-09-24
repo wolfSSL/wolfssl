@@ -92,8 +92,19 @@ namespace wolfSSL.CSharp.Fips.Test
                 try { FipsCmac.Compute(new byte[16], new byte[1], 4); } catch (ArgumentOutOfRangeException) { threw = true; }
                 T.True(threw, "4-byte tag generated");
                 threw = false;
-                try { FipsCmac.Verify(new byte[16], new byte[1], new byte[6]); } catch (ArgumentOutOfRangeException) { threw = true; }
+                try { FipsCmac.Verify(new byte[16], new byte[1], new byte[6], 6); } catch (ArgumentOutOfRangeException) { threw = true; }
                 T.True(threw, "6-byte tag verified");
+            });
+
+            T.Run("CMAC Verify refuses a tag shorter than the expected length", () => {
+                byte[] key = new byte[16], msg = { 1, 2, 3 };
+                byte[] tag = FipsCmac.Compute(key, msg);
+                for (int len = FipsCmac.MinTagSize; len < FipsCmac.MaxTagSize; len++) {
+                    bool threw = false;
+                    try { FipsCmac.Verify(key, msg, tag.Take(len).ToArray()); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, len + "-byte prefix of a valid tag accepted by default");
+                }
+                T.True(FipsCmac.Verify(key, msg, FipsCmac.Compute(key, msg, 8), 8), "explicit 8-byte tag size");
             });
 
             T.Run("CMAC is single use", () => {
@@ -108,7 +119,6 @@ namespace wolfSSL.CSharp.Fips.Test
         private static void HashVectors(string alg, FipsHashType type)
         {
             int n = 0;
-            int ds = FipsHash.DigestSizeOf(type);
             bool sha3 = alg.StartsWith("SHA3");
             foreach (AcvpVectorSet set in Acvp.Load(alg)) {
                 foreach (var g in set.Groups) {
@@ -147,7 +157,6 @@ namespace wolfSSL.CSharp.Fips.Test
                         else {
                             throw new Exception("unhandled test type " + tt);
                         }
-                        T.Equal(ds, FipsHash.DigestSizeOf(type), "digest size");
                         n++;
                     }
                 }
@@ -188,7 +197,7 @@ namespace wolfSSL.CSharp.Fips.Test
                             bool refused = false;
                             try {
                                 if (dir == "gen") FipsCmac.Compute(key, msg, macLen);
-                                else FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"));
+                                else FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"), macLen);
                             }
                             catch (ArgumentOutOfRangeException) { refused = true; }
                             T.True(refused, where + " short CMAC tag accepted");
@@ -201,7 +210,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         }
                         else {
                             T.Equal(exp.GetProperty("testPassed").GetBoolean(),
-                                    FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac")), where);
+                                    FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"), macLen), where);
                             ver++;
                         }
                     }

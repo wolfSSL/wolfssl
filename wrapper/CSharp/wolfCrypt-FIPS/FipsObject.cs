@@ -25,71 +25,68 @@ using System.Runtime.InteropServices;
 namespace wolfSSL.CSharp.Fips
 {
     /* Base class for wrapper objects that own a native wolfCrypt structure.
-     * Memory is allocated here at the size reported by the native size
-     * helper, zeroed, and handed to the module's _fips initializer by the
-     * derived class. Dispose calls the derived class free routine, then
-     * zeroes and releases the memory. */
+     * The memory is a FipsHandle (SafeHandle) sized by the native size
+     * helper. Derived classes register the module's free routine with
+     * SetNativeFree after a successful initialization; releasing the handle
+     * runs it, then zeroes and frees the structure's memory (see FipsHandle
+     * for what a refused free leaves behind). The SafeHandle keeps the
+     * structure alive across every P/Invoke that uses it. */
     public abstract class FipsObject : IDisposable
     {
-        private readonly int size;
-        private bool disposed;
-
-        internal IntPtr Handle { get; private set; }
+        internal FipsHandle Handle { get; }
 
         internal FipsObject(FipsStructType type)
         {
-            size = StructSize(type);
-            Handle = Marshal.AllocHGlobal(size);
-            Zero();
+            Handle = new FipsHandle(StructSize(type));
+            /* Aes and Hmac are keyed without an init call (the boundary has
+             * no wc_AesInit_fips / wc_HmacInit_fips). In WOLF_CRYPTO_CB
+             * builds their devId must be INVALID_DEVID, as those init
+             * routines would set it; zero-filled memory would route the
+             * operations to crypto callback device 0. */
+            FipsStructType devIdAt = type == FipsStructType.Aes ? FipsStructType.AesDevIdOffset
+                                   : type == FipsStructType.Hmac ? FipsStructType.HmacDevIdOffset
+                                   : (FipsStructType)(-1);
+            if ((int)devIdAt >= 0) {
+                int off = Native.SizeOf((int)devIdAt);
+                if (off > 0)
+                    Handle.WriteInt32(off, INVALID_DEVID);
+            }
         }
+
+        internal const int INVALID_DEVID = -2;
 
         internal static int StructSize(FipsStructType type)
         {
+            FipsModule.EnsureHelperMatchesModule();
             int sz = Native.SizeOf((int)type);
             if (sz <= 0)
                 throw new NotSupportedException(type + " is not available in this wolfSSL build");
             return sz;
         }
 
-        /* Called by Dispose to release native resources held inside the
-         * structure (the wc_*Free_fips routine). */
-        protected abstract void FreeNative();
+        /* Registers the wc_*Free_fips routine for the initialized structure. */
+        internal void SetNativeFree(Func<IntPtr, int> freeRoutine) => Handle.SetFree(freeRoutine);
+
+        /* Free routines that return void cannot be refused. */
+        internal void SetNativeFree(Action<IntPtr> freeRoutine) =>
+            Handle.SetFree(p => { freeRoutine(p); return 0; });
 
         internal void ThrowIfDisposed()
         {
-            if (disposed)
+            if (Handle.IsClosed)
                 throw new ObjectDisposedException(GetType().Name);
-        }
-
-        private void Zero()
-        {
-            unsafe { new Span<byte>((void*)Handle, size).Clear(); }
         }
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed)
-                return;
-            disposed = true;
-            try {
-                FreeNative();
-            }
-            finally {
-                Zero();
-                Marshal.FreeHGlobal(Handle);
-                Handle = IntPtr.Zero;
-            }
+            if (disposing)
+                Handle.Dispose();
         }
 
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
-        }
-
-        ~FipsObject()
-        {
-            Dispose(false);
         }
     }
 }

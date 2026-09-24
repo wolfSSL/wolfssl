@@ -20,8 +20,11 @@
  */
 
 using System;
+using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 
@@ -63,14 +66,25 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Throws(FipsError.FIPS_PRIVATE_KEY_LOCKED_E, () => key.Export(), "unlocked by another thread");
             });
 
-            RSA net = WithUnlocked(() => ToDotNet(key.Export()));
+            RSA net = WithUnlocked(() => {
+                using FipsRsaKeyComponents exported = key.Export();   /* zeroes D, P, Q, ... */
+                return ToDotNet(exported);
+            });
             RSA netPub = WithUnlocked(() => {
                 var pub = key.ExportPublic();
                 return RSA.Create(new RSAParameters { Modulus = pub.Modulus, Exponent = pub.Exponent });
             });
 
+            T.Run("ExportPublic works without unlocking the gate and leaves it locked", () => {
+                FipsModule.SetPrivateKeyReadEnable(false);
+                var pub = key.ExportPublic();
+                T.Equal(256, pub.Modulus.Length, "modulus");
+                T.True(!FipsModule.PrivateKeyReadEnabled, "gate left enabled");
+                T.Throws(FipsError.FIPS_PRIVATE_KEY_LOCKED_E, () => key.Export(), "full export still locked");
+            });
+
             T.Run("exported key is consistent (n = p*q)", () => {
-                var c = WithUnlocked(() => key.Export());
+                using var c = WithUnlocked(() => key.Export());
                 T.True(U(c.N) == U(c.P) * U(c.Q), "n != p*q");
             });
 
@@ -104,6 +118,39 @@ namespace wolfSSL.CSharp.Fips.Test
                 byte[] d = FipsHash.Compute(FipsHashType.Sha3_256, new byte[] { 4, 5, 6 });
                 T.True(key.VerifyPkcs1v15(FipsHashType.Sha3_256, d,
                     key.SignPkcs1v15(FipsHashType.Sha3_256, d, rng)), "verify");
+            });
+
+            /* The wrapper builds DigestInfo from its own DER prefixes. Decode
+             * each signature independently (s^e mod n, RFC 8017 9.2 padding,
+             * AsnReader) and compare the OID with its dotted form, so a wrong
+             * prefix byte fails even for hashes .NET cannot verify here. */
+            T.Run("PKCS#1 v1.5 DigestInfo decodes to the right OID for every hash", () => {
+                var pub = key.ExportPublic();
+                BigInteger n = U(pub.Modulus), e = U(pub.Exponent);
+                var oids = new (FipsHashType, string)[] {
+                    (FipsHashType.Sha224, "2.16.840.1.101.3.4.2.4"), (FipsHashType.Sha256, "2.16.840.1.101.3.4.2.1"),
+                    (FipsHashType.Sha384, "2.16.840.1.101.3.4.2.2"), (FipsHashType.Sha512, "2.16.840.1.101.3.4.2.3"),
+                    (FipsHashType.Sha3_224, "2.16.840.1.101.3.4.2.7"), (FipsHashType.Sha3_256, "2.16.840.1.101.3.4.2.8"),
+                    (FipsHashType.Sha3_384, "2.16.840.1.101.3.4.2.9"), (FipsHashType.Sha3_512, "2.16.840.1.101.3.4.2.10"),
+                };
+                foreach (var (h, oid) in oids) {
+                    byte[] d = FipsHash.Compute(h, new byte[] { 7, 7, (byte)h });
+                    byte[] sig = key.SignPkcs1v15(h, d, rng);
+                    byte[] em = BigInteger.ModPow(U(sig), e, n).ToByteArray(isUnsigned: true, isBigEndian: true);
+                    em = new byte[key.Size - em.Length].Concat(em).ToArray();
+                    int sep = Array.IndexOf(em, (byte)0, 2);
+                    T.True(em[0] == 0 && em[1] == 1 && sep >= 10 && em.Skip(2).Take(sep - 2).All(b => b == 0xFF),
+                           h + " EMSA-PKCS1-v1_5 padding");
+                    var outer = new AsnReader(em.AsMemory(sep + 1), AsnEncodingRules.DER);
+                    AsnReader info = outer.ReadSequence();
+                    AsnReader alg = info.ReadSequence();
+                    T.Equal(oid, alg.ReadObjectIdentifier(), h + " OID");
+                    alg.ReadNull();
+                    T.True(!alg.HasData, h + " algorithm parameters");
+                    T.Bytes(d, info.ReadOctetString(), h + " digest");
+                    T.True(!info.HasData && !outer.HasData, h + " trailing data");
+                    T.True(key.VerifyPkcs1v15(h, d, sig), h + " module verify");
+                }
             });
 
             T.Run("tampered signature or digest does not verify", () => {
@@ -168,12 +215,44 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(pt, key.Decrypt(key.Encrypt(pt, rng, FipsHashType.Sha384), FipsHashType.Sha384), "SHA-384");
             });
 
-            T.Run("OAEP decrypt with wrong label fails", () => {
+            T.Run("OAEP decrypt with wrong label fails with the padding error", () => {
                 byte[] ct = key.Encrypt(new byte[] { 1 }, rng, FipsHashType.Sha256, new byte[] { 1 });
+                T.Bytes(new byte[] { 1 }, key.Decrypt(ct, FipsHashType.Sha256, new byte[] { 1 }), "right label decrypts");
+                T.Throws(FipsError.RSA_BUFFER_E, () => key.Decrypt(ct, FipsHashType.Sha256, new byte[] { 2 }), "wrong label");
+            });
+
+            /* FIPS builds #undef WC_RSA_BLINDING (settings.h), so RsaKey has
+             * no rng member and private operations need no DRBG; the module
+             * never keeps the generation DRBG. No FipsRng is allocated after
+             * the generation DRBG is freed (.NET encrypts), so a dangling
+             * pointer could not land on a live DRBG, and the heap is churned
+             * between operations. */
+            T.Run("OAEP decrypt needs no DRBG after the generation DRBG is freed", () => {
+                FipsRsaKey k2;
+                using (var genRng = new FipsRng())
+                    k2 = FipsRsaKey.Generate(2048, genRng);
+                using (k2) {
+                    var pub = k2.ExportPublic();
+                    using var enc = RSA.Create(new RSAParameters { Modulus = pub.Modulus, Exponent = pub.Exponent });
+                    var churn = new List<byte[]>();
+                    for (int i = 0; i < 20; i++) {
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        byte[] m = { (byte)i, 5, 6 };
+                        T.Bytes(m, k2.Decrypt(enc.Encrypt(m, RSAEncryptionPadding.OaepSHA256)), "decrypt " + i);
+                        churn.Add(new byte[4096 * (i + 1)]);
+                        IntPtr p = Marshal.AllocHGlobal(1024);   /* reuse native blocks */
+                        Marshal.FreeHGlobal(p);
+                    }
+                }
+            });
+
+            T.Run("approved key size list cannot be modified", () => {
                 bool threw = false;
-                try { key.Decrypt(ct, FipsHashType.Sha256, new byte[] { 2 }); }
-                catch (WolfCryptFipsException) { threw = true; }
-                T.True(threw, "wrong label accepted");
+                try { ((System.Collections.Generic.IList<int>)FipsRsaKey.ApprovedKeySizes)[0] = 1024; }
+                catch (NotSupportedException) { threw = true; }
+                T.True(threw, "list modified");
+                T.True(FipsRsaKey.ApprovedKeySizes.SequenceEqual(new[] { 2048, 3072, 4096 }), "sizes");
             });
 
             T.Run("PKCS#1 v1.5 encryption is not offered (OAEP only)", () => {
@@ -189,6 +268,25 @@ namespace wolfSSL.CSharp.Fips.Test
                 threw = false;
                 try { key.SignPss(FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }
                 T.True(threw, "SHA-1 PSS signed");
+            });
+
+            /* WOLFSSL_PSS_LONG_SALT builds drop the module's sLen <= hLen
+             * check, so the wrapper enforces FIPS 186-5 5.4(g) */
+            T.Run("PSS salt length limited to the digest length (FIPS 186-5 5.4(g))", () => {
+                foreach (FipsHashType h in new[] { FipsHashType.Sha256, FipsHashType.Sha384, FipsHashType.Sha512 }) {
+                    int hLen = FipsHash.DigestSizeOf(h);
+                    byte[] d = FipsHash.Compute(h, new byte[] { 9 });
+                    foreach (int s in new[] { 0, hLen }) {
+                        byte[] sig = key.SignPss(h, d, rng, s);
+                        T.True(key.VerifyPss(h, d, sig, s), h + " salt " + s);
+                    }
+                    foreach (int s in new[] { hLen + 1, 222, -2, -3 }) {
+                        bool signThrew = false, verifyThrew = false;
+                        try { key.SignPss(h, d, rng, s); } catch (ArgumentOutOfRangeException) { signThrew = true; }
+                        try { key.VerifyPss(h, d, new byte[key.Size], s); } catch (ArgumentOutOfRangeException) { verifyThrew = true; }
+                        T.True(signThrew && verifyThrew, h + " salt " + s + " accepted");
+                    }
+                }
             });
 
             T.Run("public exponent must be odd and above 2^16 (FIPS 186-5 5.4(e))", () => {
