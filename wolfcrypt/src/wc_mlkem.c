@@ -956,6 +956,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
          * Alg 13: Steps 16-18.
          */
         ret = mlkem_keygen(s, t, e, a, k);
+    }
+    if (ret == 0) {
 #else
         /* Generate noise using PRF.
          * Alg 13: Steps 8-11: generate s
