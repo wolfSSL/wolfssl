@@ -4708,7 +4708,8 @@
     #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
 #endif
 
-/* These lanes have no C fallback, so a refused save is an error by design. */
+/* CPUID pins the lane in these files, so a refused save is an error and
+ * never a switch to the C code kept for CPUs without the feature. */
 #if (defined(_WC_BUILDING_SP_X86_64_C) || \
      defined(_WC_BUILDING_WC_MLKEM_POLY_C) || \
      defined(_WC_BUILDING_WC_MLDSA_C) || \
