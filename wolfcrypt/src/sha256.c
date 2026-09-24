@@ -2445,6 +2445,15 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             if (!SHA256_REV_BYTES(&sha256->ctx)) {
                 XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
             }
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+            else if (!IS_INTEL_MOVBE(cpuid_get_flags())) {
+                /* No MOVBE: reverse into aligned buffer, hash may be
+                 * unaligned. */
+                word32 buf[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+                ByteReverseWords(buf, sha256->digest, WC_SHA256_DIGEST_SIZE);
+                XMEMCPY(hash, buf, WC_SHA256_DIGEST_SIZE);
+            }
+        #endif
             else {
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
                 __asm__ __volatile__ (
