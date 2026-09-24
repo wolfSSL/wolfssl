@@ -71,7 +71,7 @@
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
-    !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
@@ -165,6 +165,22 @@
     typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
 #else
     #undef WC_RNG_HAVE_FREE_HOOK
+#endif
+
+#ifdef WC_RNG_NO_BANKREF_SUPPORT
+    #undef WC_RNG_WANT_BANKREF_SUPPORT
+#endif
+#ifdef WC_RNG_WANT_BANKREF_SUPPORT
+    #if defined(HAVE_FIPS) && \
+        !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+        #error HAVE_FIPS is incompatible with WC_RNG_WANT_BANKREF_SUPPORT.
+    #endif
+    #ifndef HAVE_WC_RNG_BANK
+        #error WC_RNG_WANT_BANKREF_SUPPORT requires HAVE_WC_RNG_BANK.
+    #endif
+    #define WC_HAVE_RNG_BANKREF
+#else
+    #undef WC_HAVE_RNG_BANKREF
 #endif
 
 /***** End setup for RNG extra features *****/

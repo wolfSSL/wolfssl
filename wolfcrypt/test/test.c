@@ -364,7 +364,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
-    #ifdef WC_RNG_BANK_SUPPORT
+    #ifdef HAVE_WC_RNG_BANK
         #include <wolfssl/wolfcrypt/rng_bank.h>
     #endif
 #endif
@@ -971,7 +971,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
 #ifdef WC_TEST_RNG_AUTOLOCK
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
 #ifdef WOLFSSL_NOISE_SRC
@@ -981,14 +981,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
-#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+#if defined(HAVE_WC_RNG_BANK) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
     !defined(HAVE_INTEL_RDRAND)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 #endif
 #if defined(WC_RNG_HAVE_RBGC) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0) || \
-     defined(WC_RNG_BANK_SUPPORT))
+     defined(HAVE_WC_RNG_BANK))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -2726,7 +2726,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("RNGTHRD  test passed!\n");
 #endif
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
     if ((ret = random_bank_test()) != 0)
         TEST_FAIL("RNGBANK  test failed!\n", ret);
     else
@@ -2745,7 +2745,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("RNGSVC   test passed!\n");
 #endif
-#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+#if defined(HAVE_WC_RNG_BANK) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
     !defined(HAVE_INTEL_RDRAND)
     if ((ret = rng_entropy_invalidate_test()) != 0)
@@ -2755,7 +2755,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #if defined(WC_RNG_HAVE_RBGC) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0) || \
-     defined(WC_RNG_BANK_SUPPORT))
+     defined(HAVE_WC_RNG_BANK))
     if ((ret = rng_drbg_rbgc_test()) != 0)
         TEST_FAIL("RNGRBGC  test failed!\n", ret);
     else
@@ -29635,7 +29635,7 @@ out_free:
 
 #endif /* WC_TEST_RNG_AUTOLOCK */
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
 
 static char *rng_bank_affinity_lock_lock;
 static int rng_bank_affinity_lock(void *arg) {
@@ -30579,7 +30579,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         if (WC_RNG_BANK_INST_TO_RNG(rng_inst) == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* take the instance out of service while holding it */
-        WC_RNG_BANK_INST_TO_RNG(rng_inst)->status = WC_DRBG_FAILED;
+        {
+            WC_RNG *inst_rng = WC_RNG_BANK_INST_TO_RNG(rng_inst);
+            if (inst_rng != NULL)
+                inst_rng->status = WC_DRBG_FAILED;
+        }
         ret = wc_rng_bank_inst_checkin(&rng_inst);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -30836,7 +30840,7 @@ out:
     return ret;
 }
 
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* HAVE_WC_RNG_BANK */
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
@@ -31096,7 +31100,7 @@ out:
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
        /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
 
-#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+#if defined(HAVE_WC_RNG_BANK) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
     !defined(HAVE_INTEL_RDRAND)
 
@@ -31687,7 +31691,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 
     return ret;
 }
-#endif /* WC_RNG_BANK_SUPPORT && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) && */
+#endif /* HAVE_WC_RNG_BANK && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) && */
        /* !HAVE_INTEL_RDRAND                                                */
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -32037,9 +32041,9 @@ out:
     return ret;
 }
 
-#elif defined(WC_RNG_BANK_SUPPORT)
+#elif defined(HAVE_WC_RNG_BANK)
 
-/* On old FIPS, WC_RNG_BANK_SUPPORT is needed for RNG-level compat shims. */
+/* On old FIPS, HAVE_WC_RNG_BANK is needed for RNG-level compat shims. */
 
 #ifndef WC_RNG_INIT_FLAG_NONE
     #define WC_RNG_INIT_FLAG_NONE 0
@@ -32227,7 +32231,7 @@ out:
     return ret;
 }
 
-#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) && WC_RNG_BANK_SUPPORT */
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) && HAVE_WC_RNG_BANK */
 
 #endif /* WC_RNG_HAVE_RBGC */
 
@@ -87312,7 +87316,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info->algo_type == WC_ALGO_TYPE_RNG) {
     #if defined(WOLF_CRYPTO_CB) && !defined(HAVE_HASHDRBG) && \
-        !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+        !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+        !defined(HAVE_INTEL_RDRAND)
         /* if RNG only supports crypto callback, just use seed */
         ret = wc_GenerateSeed(&info->rng.rng->seed,
             info->rng.out, info->rng.sz);

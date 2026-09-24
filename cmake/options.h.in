@@ -457,6 +457,9 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_SLHDSA
 #undef WOLFSSL_WC_SLHDSA
 #cmakedefine WOLFSSL_WC_SLHDSA
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#cmakedefine WOLFSSL_SLHDSA_VERIFY_ONLY
+#endif
 #undef WOLFSSL_PQC_HYBRIDS
 #cmakedefine WOLFSSL_PQC_HYBRIDS
 #undef WOLFSSL_EXTRA_PQC_HYBRIDS
@@ -603,8 +606,10 @@ extern "C" {
 #cmakedefine HAVE_CMAC_KDF
 #undef FP_ECC
 #cmakedefine FP_ECC
-#undef WC_RNG_BANK_SUPPORT
-#cmakedefine WC_RNG_BANK_SUPPORT
+#undef HAVE_WC_RNG_BANK
+#cmakedefine HAVE_WC_RNG_BANK
+#undef WC_RNG_WANT_BANKREF_SUPPORT
+#cmakedefine WC_RNG_WANT_BANKREF_SUPPORT
 #undef WC_RNG_NO_AUTO_LOCK
 #cmakedefine WC_RNG_NO_AUTO_LOCK
 #undef WC_RNG_AUTO_LOCK_DEFAULT_OFF

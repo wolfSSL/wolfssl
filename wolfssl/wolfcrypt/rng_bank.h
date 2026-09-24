@@ -34,10 +34,10 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
 
 #ifdef WC_NO_RNG
-    #error WC_RNG_BANK_SUPPORT requires RNG support.
+    #error HAVE_WC_RNG_BANK requires RNG support.
 #endif
 
 #if !defined(WOLFSSL_NO_ATOMICS) && !defined(WC_RNG_BANK_NO_DAEMON_SUPPORT)
@@ -251,11 +251,6 @@ WOLFSSL_API int wc_rng_bank_daemon_unregister(struct wc_rng_bank *bank,
 WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
                                            WC_ATOMIC_UINT_ARG magic);
 #endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
-
-#if defined(WC_DRBG_BANKREF) && !defined(WC_HAVE_RNG_BANKREF)
-    /* forward compat for FIPS v5.2.4 random.h */
-    #define WC_HAVE_RNG_BANKREF
-#endif
 
 #ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
@@ -536,6 +531,6 @@ WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot 
                                              struct wc_rng_bank *bank);
 #endif
 
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* HAVE_WC_RNG_BANK */
 
 #endif /* WOLF_CRYPT_RNG_BANK_H */

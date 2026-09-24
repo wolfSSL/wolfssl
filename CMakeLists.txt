@@ -1358,6 +1358,10 @@ add_option(WOLFSSL_SLHDSA
     "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_SLHDSAVERIFYONLY
+    "Enable the SLH-DSA verify-only implementation (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_SLHDSA)
     message(STATUS "Automatically set related requirements for SLH-DSA")
     add_definitions("-DWOLFSSL_HAVE_SLHDSA")
@@ -1367,6 +1371,13 @@ if (WOLFSSL_SLHDSA)
     set_wolfssl_definitions("WOLFSSL_HAVE_SLHDSA" RESULT)
     set_wolfssl_definitions("WOLFSSL_WC_SLHDSA"   RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"    RESULT)
+
+    if (WOLFSSL_SLHDSAVERIFYONLY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SLHDSA_VERIFY_ONLY")
+
+        set_wolfssl_definitions("WOLFSSL_SLHDSA_VERIFY_ONLY" RESULT)
+    endif()
+
     message(STATUS "Looking for WOLFSSL_SLHDSA - found")
 endif()
 
@@ -3823,7 +3834,10 @@ if(WOLFSSL_RNG_BANK)
     if(NOT WOLFSSL_RNG)
         message(FATAL_ERROR "WOLFSSL_RNG_BANK requires WOLFSSL_RNG.")
     endif()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_WC_RNG_BANK")
+    if(NOT WOLFSSL_FIPS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_WANT_BANKREF_SUPPORT")
+    endif()
 endif()
 
 # RNG lock (share one WC_RNG between threads)

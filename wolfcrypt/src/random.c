@@ -145,7 +145,8 @@ This library contains implementation for the random number generator.
     #include <errno.h>   /* for the fork handlers, whatever the seed source */
 #endif
 #ifdef WC_HAVE_RNG_BANKREF
-    #if defined(HAVE_FIPS) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+    #if defined(HAVE_FIPS) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS) && \
+        !defined(WOLFSSL_FIPS_DEV)
         #error WC_HAVE_RNG_BANKREF is unsupported in FIPS configurations.
     #endif
     #include <wolfssl/wolfcrypt/rng_bank.h>

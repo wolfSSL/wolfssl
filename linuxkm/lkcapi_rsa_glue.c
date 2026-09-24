@@ -633,14 +633,13 @@ out:
 }
 
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
-    switch (ctx->rng.status) {
-    case WC_DRBG_OK:
-#ifdef WC_HAVE_RNG_BANKREF
-    case WC_DRBG_BANKREF:
-#endif
+    if (ctx->rng.status == WC_DRBG_OK)
         return 0;
-    case WC_DRBG_NOT_INIT:
-    {
+#ifdef WC_RNG_FLAG_BANKREF
+    if (ctx->rng.flags & WC_RNG_FLAG_BANKREF)
+        return 0;
+#endif
+    if (ctx->rng.status == WC_DRBG_NOT_INIT) {
         int err = LKCAPI_INITRNG(&ctx->rng);
         if (err) {
             pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, err);
@@ -651,7 +650,7 @@ static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
         }
         return 0;
     }
-    default:
+    else {
         return -EINVAL;
     }
 }

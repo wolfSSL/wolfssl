@@ -287,7 +287,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
 #ifdef WC_TEST_RNG_AUTOLOCK
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef HAVE_WC_RNG_BANK
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \

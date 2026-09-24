@@ -2829,7 +2829,11 @@ if test "$ENABLED_RNG_BANK" = "yes"
 then
     AS_IF([test "$ENABLED_RNG" = "no"],
     AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
-    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_RNG_BANK"
+    if test "$ENABLED_FIPS" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_RNG_WANT_BANKREF_SUPPORT"
+    fi
 fi
 
 
@@ -13501,11 +13505,11 @@ then
         *) ENABLED_RNG_AUTOFORK_FLAGS=yes ;;
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
-       test "$ENABLED_ENTROPY_MEMUSE" != "no" || test "$ENABLED_RNG_BANK" = "yes" || \
+       test "$ENABLED_ENTROPY_MEMUSE" != "no" || \
        test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, static memory, netRandom, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_AUTOFORK_NEEDS"
     then

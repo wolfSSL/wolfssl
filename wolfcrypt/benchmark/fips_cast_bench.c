@@ -476,7 +476,7 @@ out:
 #endif /* WOLFSSL_HAVE_MLDSA */
 
 
-#ifdef WOLFSSL_HAVE_SLHDSA
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
 /* SLH-DSA elected the root recompute over sign and verify.  This times what
  * the module costs now, and the alternative it rejected, so the decision can
  * be rechecked rather than remembered. */
@@ -644,7 +644,7 @@ static int bench_pct_slhdsa(int iters)
     printf("\n");
     return failures;
 }
-#endif /* WOLFSSL_HAVE_SLHDSA */
+#endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 
 /* Returns the number of algorithms whose PCT measurement failed. */
@@ -699,7 +699,7 @@ static int bench_pct(int iters, const char* only)
         }
     }
 #endif
-#ifdef WOLFSSL_HAVE_SLHDSA
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
     if ((err == 0) && ((only == NULL) || (XSTRCMP(only, "slhdsa") == 0))) {
         rc = bench_pct_slhdsa(iters);
         if (rc < 0)
