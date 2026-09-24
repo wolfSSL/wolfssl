@@ -328,7 +328,8 @@ ECC Curve Sizes:
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
         !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB)
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_NO_ECC_SW)
     #undef  HAVE_ECC_MAKE_PUB
     #define HAVE_ECC_MAKE_PUB
 #endif
@@ -1555,7 +1556,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 
 #ifdef HAVE_COMP_KEY
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
 
 #ifndef WOLFSSL_SP_MATH
 #if !defined(SQRTMOD_USE_MOD_EXP)
@@ -2047,7 +2048,7 @@ static void alt_fp_init(mp_int* a)
 
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
 
@@ -4883,8 +4884,13 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    if (private_key->keyIdSet)
        err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
    else
+   #ifdef WOLFSSL_NO_ECC_SW
+       /* No software ECDH compiled in, so there is nothing to fall back to. */
+       err = NOT_COMPILED_IN;
+   #else
        err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out,
                                      outlen);
+   #endif
 #else
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */
@@ -4897,7 +4903,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
 
 int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
                                byte* out, word32* outlen)
@@ -5442,6 +5448,9 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
     !defined(WOLFSSL_CRYPTOCELL) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
+/* Deliberately not excluded under WOLFSSL_NO_ECC_SW: this is two mp_iszero()
+ * calls, not curve arithmetic, and the untrusted public key validation below
+ * needs it. */
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
 int wc_ecc_point_is_at_infinity(ecc_point* p)
 {
@@ -5797,8 +5806,16 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     err = NOT_COMPILED_IN;
 #endif /* HAVE_ECC_MAKE_PUB */
 
-    /* change key state if public part is cached */
-    if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
+    /* Change key state if the public part is cached. Only on success: a failed
+     * derivation (no software implementation compiled in, no device registered,
+     * or the point multiply itself failing) leaves key->pubkey empty, and
+     * marking the key ECC_PRIVATEKEY would have a later export or verify
+     * consume those empty ordinates. */
+    if ((err == MP_OKAY
+    #ifdef WOLFSSL_ASYNC_CRYPT
+         || err == WC_NO_ERR_TRACE(WC_PENDING_E)
+    #endif
+        ) && key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
         key->type = ECC_PRIVATEKEY;
     }
 
@@ -7275,7 +7292,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
 #elif !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
       !defined(WOLFSSL_MICROCHIP_TA100) && \
-      !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC)
+      !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
+      !defined(WOLFSSL_NO_ECC_SW)
 #ifndef WOLFSSL_SP_MATH
 static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
                             ecc_curve_spec* curve, mp_int* e, mp_int* r,
@@ -8700,6 +8718,7 @@ int wc_ecc_free(ecc_key* key)
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_NO_ECC_SW) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
 /* Set a point to the representation of infinity, (0, 0, 1). */
@@ -8885,7 +8904,7 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 #ifdef ECC_SHAMIR
 
@@ -10429,7 +10448,12 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         else
         #endif
     #endif
-    #if !defined(WOLFSSL_SP_MATH)
+    /* Recovering y needs mp_sqrtmod_prime(), which is only compiled in
+     * alongside the rest of the software ECC math. Ports that replace it fall
+     * to the #else below rather than calling a function that is not there. */
+    #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+        !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
         {
             int did_init = 0;
         #ifdef WOLFSSL_SMALL_STACK
@@ -11671,10 +11695,16 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
     }
 
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
-    #ifdef HAVE_COMP_KEY
-        compressed = 1;
-    #else
+    #ifndef HAVE_COMP_KEY
         err = NOT_COMPILED_IN;
+    #elif defined(WOLFSSL_CRYPTOCELL)
+        /* CRYS_ECPKI_BuildPublKeyFullCheck() below is handed the caller's own
+         * buffer together with the uncompressed length derived here, so a
+         * compressed point would have CRYS read past the end of a buffer that
+         * only holds the x ordinate. */
+        err = NOT_COMPILED_IN;
+    #else
+        compressed = 1;
     #endif
     }
 
@@ -11727,7 +11757,13 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
-#if !defined(WOLFSSL_SP_MATH)
+/* Recovering y needs mp_sqrtmod_prime(), which is only compiled in alongside
+ * the rest of the software ECC math. Ports that replace it use the SP
+ * uncompress helpers below, or fail with WC_KEY_SIZE_E when those are absent
+ * too. */
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
     #ifdef WOLFSSL_SMALL_STACK
         mp_int* t1 = NULL;
         mp_int* t2 = NULL;
@@ -11820,6 +11856,10 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         wc_ecc_curve_free(curve);
         FREE_CURVE_SPECS();
 #else
+    /* The SP helpers only exist when SP ECC is compiled in; without them (a
+     * hardware port with no software math and no SP) there is no way to
+     * recover y. */
+    #ifdef WOLFSSL_HAVE_SP_ECC
     #ifndef WOLFSSL_SP_NO_256
         if (key->dp->id == ECC_SECP256R1) {
             err = sp_ecc_uncompress_256(key->pubkey.x, pointType,
@@ -11847,6 +11887,7 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         }
         else
     #endif
+    #endif /* WOLFSSL_HAVE_SP_ECC */
         {
             err = WC_KEY_SIZE_E;
         }
@@ -11904,6 +11945,9 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY)
         err = wc_ecc_check_key(key);
 #endif
+/* Deliberately not excluded under WOLFSSL_NO_ECC_SW: both checks below are
+ * plain modular arithmetic that stays compiled in, so an untrusted peer key is
+ * still rejected on the host rather than relying on the hardware to do it. */
 #if (!defined(WOLFSSL_VALIDATE_ECC_IMPORT) || \
      !defined(HAVE_ECC_CHECK_PUBKEY_ORDER)) && \
      !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
@@ -16801,7 +16845,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifdef HAVE_COMP_KEY
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
 
 #ifndef WOLFSSL_SP_MATH
 #if !defined(SQRTMOD_USE_MOD_EXP)

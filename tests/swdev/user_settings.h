@@ -32,6 +32,10 @@
 #undef WOLF_CRYPTO_CB_ONLY_CURVE448
 #undef WOLF_CRYPTO_CB_ONLY_SLHDSA
 #undef WOLF_CRYPTO_CB_ONLY_MLKEM
+/* swdev is the software provider, so it needs the software implementations
+ * that these leave out of the library. */
+#undef WOLFSSL_NO_RSA_SW
+#undef WOLFSSL_NO_ECC_SW
 
 #ifndef WOLF_CRYPTO_CB
     #error "wc_swdev requires the main build to define WOLF_CRYPTO_CB"
