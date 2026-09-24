@@ -18516,16 +18516,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     tp = GetTrustedPeer(SSL_CM(ssl), args->dCert);
                     WOLFSSL_MSG("Checking for trusted peer cert");
 
-                    if (tp && MatchTrustedPeer(tp, args->dCert)) {
+                    if (tp) {
                         WOLFSSL_MSG("Found matching trusted peer cert");
                         args->haveTrustPeer = 1;
                     }
-                    else if (tp == NULL) {
+                    else {
                         /* no trusted peer cert */
                         WOLFSSL_MSG("No matching trusted peer cert. Checking CAs");
-                    }
-                    else {
-                        WOLFSSL_MSG("Trusted peer cert did not match!");
                     }
                     if (!args->haveTrustPeer)
                 #endif

@@ -7598,8 +7598,6 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         #define WC_MATCH_NAME 1
 
         WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert);
-        WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp,
-                                                             DecodedCert* cert);
     #endif
 
 

@@ -26157,23 +26157,7 @@ void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
     if (tp == NULL) {
         return;
     }
-
-    /* safe cast -- when .name is set in AddTrustedPeer() from cert->subjectCN,
-     * it inherits the allocation from ParseCert(), and cert->subjectCN is set
-     * to NULL.
-     */
-    XFREE((void *)(wc_ptr_t)tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
-
-    XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
-#ifndef IGNORE_NAME_CONSTRAINTS
-    if (tp->permittedNames)
-        FreeNameSubtrees(tp->permittedNames, heap);
-    if (tp->excludedNames)
-        FreeNameSubtrees(tp->excludedNames, heap);
-#endif
     XFREE(tp, heap, DYNAMIC_TYPE_CERT);
-
-    (void)heap;
 }
 
 /* Free the whole Trusted Peer linked list.
