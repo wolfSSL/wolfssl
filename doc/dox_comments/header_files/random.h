@@ -1393,6 +1393,8 @@ int wc_RNG_DRBG_NextSeedCurrent(WC_RNG* rng, WC_ATOMIC_INT_ARG* n);
     \return NOT_READY_E No bank is ready.
     \return BAD_FUNC_ARG rng is null.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
+    \return ENTROPY_RT_E or ENTROPY_APT_E A seed health test failed on
+    the reseed this performs; the instance is condemned.
 
     \param rng The RNG object to reseed.
 
@@ -1422,6 +1424,8 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     \return NOT_READY_E No bank is ready.
     \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
+    \return ENTROPY_RT_E or ENTROPY_APT_E A seed health test failed on
+    the reseed this performs; the instance is condemned.
     \return DRBG_CONT_FIPS_E The continuous test failed; the DRBG is out of
     service.
     \return RNG_FAILURE_E The DRBG is out of service.

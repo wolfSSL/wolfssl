@@ -2647,11 +2647,19 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
  * window is min(seedSz, WC_RNG_SEED_APT_WINDOW), so this catches only the
  * statically visible case; a cutoff above the seed size still goes unseen. */
 #ifndef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    /* The smallest window the module ever judges is its own reseed seed, and
+     * that size is a constant here, so bound the cutoff by it rather than by
+     * the 512 cap: a value between the two compiles but can never fire. */
+    #if (SEED_SZ + SEED_BLOCK_SZ) < WC_RNG_SEED_APT_WINDOW
+        #define WC_RNG_SEED_APT_MIN_WINDOW (SEED_SZ + SEED_BLOCK_SZ)
+    #else
+        #define WC_RNG_SEED_APT_MIN_WINDOW WC_RNG_SEED_APT_WINDOW
+    #endif
     #if WC_RNG_SEED_APT_CUTOFF < 2
         #error WC_RNG_SEED_APT_CUTOFF must be at least 2
     #endif
-    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_WINDOW
-        #error WC_RNG_SEED_APT_CUTOFF exceeds the window and can never fire
+    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_MIN_WINDOW
+        #error WC_RNG_SEED_APT_CUTOFF exceeds the seed size and can never fire
     #endif
 #endif
 
@@ -3699,7 +3707,7 @@ int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 /* Map a failed generate or reseed to the return code and rng->status.
  * A failed SP 800-90A health test returns DRBG_CONT_FIPS_E. */
-static int RngGenerateFailure(WC_RNG* rng, int ret)
+static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
 {
     if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         rng->status = DRBG_CONT_FAILED;
@@ -5079,9 +5087,12 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     else {
         wc_drbg_reseed_ctr_t ctr = WC_RESEED_INTERVAL;
         (void)wc_RNG_DRBG_GetReseedCtr(rng, &ctr);
-        if (ctr >= WC_RESEED_INTERVAL) {
-            /* The instance is out of generate runway -- condemn now, matching
-             * wc_RNG_GenerateBlock()'s behavior for mandatory reseeds. */
+        /* A seed verdict says the module's own source is bad, not that it is
+         * briefly busy, so it condemns whatever runway is left, as
+         * wc_RNG_GenerateBlock() and rng_pid_change_check() already do. */
+        if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+            (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)) ||
+            (ctr >= WC_RESEED_INTERVAL)) {
             rng->status = DRBG_FAILED;
         }
         if (ret > 0) {
