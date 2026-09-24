@@ -25,8 +25,15 @@ using System.Text;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* Key derivation functions from the FIPS module: TLS 1.2 PRF, HKDF,
-     * the TLS 1.3 HKDF primitives and the SSH KDF (SP 800-135, RFC 5869).
+    /* Key derivation functions from the FIPS module: the TLS 1.2 KDF
+     * (RFC 7627 extended master secret, key block), the TLS 1.3 KDF and the
+     * SSH KDF (SP 800-135 CVLs).
+     *
+     * Operator guidance (IG 2.4.B): the TLS v1.2 KDF, TLS v1.3 KDF and KDF
+     * SSH shall only be used within the TLS 1.2, TLS 1.3 and SSHv2
+     * protocols. They are not general-purpose KDFs. General HKDF
+     * (RFC 5869 / SP 800-56C) is not a validated service of the module and
+     * is not public.
      *
      * The module gates KDF output behind the per-thread private key read
      * enable; each call here enables it for the duration of the call and
@@ -76,7 +83,15 @@ namespace wolfSSL.CSharp.Fips
             if (outLen <= 0)
                 throw new ArgumentOutOfRangeException(nameof(outLen));
             byte[] output = new byte[outLen];
-            int ret = FipsModule.WithPrivateKeyRead(() => call(output));
+            int ret;
+            try {
+                ret = FipsModule.WithPrivateKeyRead(() => call(output));
+            }
+            catch {
+                /* e.g. the gate could not be closed after a successful call */
+                CryptographicOperations.ZeroMemory(output);
+                throw;
+            }
             if (ret != 0) {
                 CryptographicOperations.ZeroMemory(output);
                 throw new WolfCryptFipsException(fn, ret);
@@ -119,16 +134,26 @@ namespace wolfSSL.CSharp.Fips
             return label.Length >= ms.Length || seed.AsSpan().StartsWith(ms.Slice(label.Length));
         }
 
-        /* TLS 1.2 extended master secret (RFC 7627). */
-        public static byte[] Tls12ExtendedMasterSecret(FipsHashType hash, byte[] preMasterSecret, byte[] sessionHash) =>
-            Tls12Prf(hash, preMasterSecret, "extended master secret", sessionHash, 48);
+        /* TLS 1.2 extended master secret (RFC 7627). sessionHash is the
+         * PRF hash of the handshake messages through ClientKeyExchange, so
+         * its length must be the digest size of hash. */
+        public static byte[] Tls12ExtendedMasterSecret(FipsHashType hash, byte[] preMasterSecret, byte[] sessionHash)
+        {
+            if (preMasterSecret == null || sessionHash == null)
+                throw new ArgumentNullException(preMasterSecret == null ? nameof(preMasterSecret) : nameof(sessionHash));
+            MacTypeOf(hash);   /* SHA-256/384/512 only */
+            if (sessionHash.Length != FipsHash.DigestSizeOf(hash))
+                throw new ArgumentException("session hash must be a " + hash + " digest (RFC 7627 4)", nameof(sessionHash));
+            return Tls12Prf(hash, preMasterSecret, "extended master secret", sessionHash, 48);
+        }
 
         /* TLS 1.2 key block: PRF(master, "key expansion", server_random || client_random). */
         public static byte[] Tls12KeyBlock(FipsHashType hash, byte[] masterSecret, byte[] clientRandom,
                                            byte[] serverRandom, int length)
         {
-            if (clientRandom == null || serverRandom == null)
-                throw new ArgumentNullException(clientRandom == null ? nameof(clientRandom) : nameof(serverRandom));
+            if (masterSecret == null || clientRandom == null || serverRandom == null)
+                throw new ArgumentNullException(masterSecret == null ? nameof(masterSecret)
+                    : clientRandom == null ? nameof(clientRandom) : nameof(serverRandom));
             byte[] seed = new byte[serverRandom.Length + clientRandom.Length];
             serverRandom.CopyTo(seed, 0);
             clientRandom.CopyTo(seed, serverRandom.Length);
@@ -146,9 +171,14 @@ namespace wolfSSL.CSharp.Fips
                 secret, (uint)secret.Length, seed, (uint)seed.Length, MacTypeOf(hash), IntPtr.Zero, INVALID_DEVID));
         }
 
-        /* ---- HKDF (RFC 5869) ---- */
+        /* ---- HKDF (RFC 5869) ----
+         *
+         * Internal: the module has no CAVP validation for general HKDF
+         * (SP #4718 lists HKDF only inside the TLS v1.3 KDF CVL), so these
+         * are not approved services. Used by the tests to check the module's
+         * HMAC-based extract/expand against .NET. */
 
-        public static byte[] HkdfExtract(FipsHashType hash, byte[]? salt, byte[] ikm)
+        internal static byte[] HkdfExtract(FipsHashType hash, byte[]? salt, byte[] ikm)
         {
             if (ikm == null)
                 throw new ArgumentNullException(nameof(ikm));
@@ -157,7 +187,7 @@ namespace wolfSSL.CSharp.Fips
                 (int)hash, salt, salt == null ? 0u : (uint)salt.Length, ikm, (uint)ikm.Length, o));
         }
 
-        public static byte[] HkdfExpand(FipsHashType hash, byte[] prk, byte[]? info, int outLen)
+        internal static byte[] HkdfExpand(FipsHashType hash, byte[] prk, byte[]? info, int outLen)
         {
             if (prk == null)
                 throw new ArgumentNullException(nameof(prk));
@@ -165,7 +195,7 @@ namespace wolfSSL.CSharp.Fips
                 (int)hash, prk, (uint)prk.Length, info, info == null ? 0u : (uint)info.Length, o, (uint)o.Length));
         }
 
-        public static byte[] Hkdf(FipsHashType hash, byte[] ikm, byte[]? salt, byte[]? info, int outLen)
+        internal static byte[] Hkdf(FipsHashType hash, byte[] ikm, byte[]? salt, byte[]? info, int outLen)
         {
             if (ikm == null)
                 throw new ArgumentNullException(nameof(ikm));
@@ -201,14 +231,18 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* HKDF-Expand-Label(secret, label, context, length) with the
-         * "tls13 " protocol prefix. */
+         * "tls13 " protocol prefix, the only prefix the TLS v1.3 KDF CVL
+         * covers. label is non-empty (RFC 8446: opaque label<7..255>
+         * including the prefix). */
         public static byte[] Tls13ExpandLabel(FipsHashType hash, byte[] secret, string label, byte[] context,
-                                              int outLen, string protocol = "tls13 ")
+                                              int outLen)
         {
             if (secret == null || label == null || context == null)
                 throw new ArgumentNullException(secret == null ? nameof(secret) : label == null ? nameof(label) : nameof(context));
             RequireTls13Hash(hash);
-            byte[] proto = Ascii(protocol, nameof(protocol)), lab = Ascii(label, nameof(label));
+            byte[] proto = Tls13Protocol, lab = Ascii(label, nameof(label));
+            if (lab.Length == 0)
+                throw new ArgumentException("label must not be empty", nameof(label));
             /* The v5.2.x module builds the HkdfLabel in a fixed stack buffer
              * (MAX_TLS13_HKDF_LABEL_SZ) without a capacity check, and stores
              * the label and context lengths in single bytes. */
@@ -224,32 +258,26 @@ namespace wolfSSL.CSharp.Fips
                 lab, (uint)lab.Length, context, (uint)context.Length, (int)hash));
         }
 
+        private static readonly byte[] Tls13Protocol = Encoding.ASCII.GetBytes("tls13 ");
+
         /* ---- SSH (RFC 4253 section 7.2) ---- */
 
-        /* keyId is 'A' to 'F'. k is the shared secret as an unsigned
-         * big-endian integer (encoded as an mpint by the module); h is the
-         * exchange hash. */
+        /* keyId is 'A' to 'F'. k is the shared secret K as an unsigned
+         * big-endian integer in minimal form (no leading zero bytes, not
+         * zero): the module encodes it as an mpint but only adds the sign
+         * byte, so a redundant leading zero would change the derived keys
+         * (RFC 4251 5), and it refuses an empty K. Strip leading zeros of a
+         * fixed-width shared secret before calling. h is the exchange hash. */
         public static byte[] SshKdf(FipsHashType hash, char keyId, byte[] k, byte[] h, byte[] sessionId, int outLen)
         {
             if (k == null || h == null || sessionId == null)
                 throw new ArgumentNullException(k == null ? nameof(k) : h == null ? nameof(h) : nameof(sessionId));
             if (keyId < 'A' || keyId > 'F')
                 throw new ArgumentOutOfRangeException(nameof(keyId));
-            /* The module encodes k as an mpint but only adds the sign byte;
-             * it does not remove redundant leading zeros (RFC 4251 5), so
-             * strip them here (for example a fixed-width ECDH secret). */
-            int skip = 0;
-            while (skip < k.Length - 1 && k[skip] == 0)
-                skip++;
-            byte[] kNorm = skip > 0 ? k.AsSpan(skip).ToArray() : k;
-            try {
-                return Run("wc_SSH_KDF_fips", outLen, o => Native.wc_SSH_KDF_fips((byte)hash, (byte)keyId,
-                    o, (uint)o.Length, kNorm, (uint)kNorm.Length, h, (uint)h.Length, sessionId, (uint)sessionId.Length));
-            }
-            finally {
-                if (skip > 0)
-                    CryptographicOperations.ZeroMemory(kNorm);   /* our copy only, never the caller's */
-            }
+            if (k.Length == 0 || k[0] == 0)
+                throw new ArgumentException("K must be a non-zero integer without leading zero bytes (RFC 4251 5)", nameof(k));
+            return Run("wc_SSH_KDF_fips", outLen, o => Native.wc_SSH_KDF_fips((byte)hash, (byte)keyId,
+                o, (uint)o.Length, k, (uint)k.Length, h, (uint)h.Length, sessionId, (uint)sessionId.Length));
         }
 
         /* Labels are ASCII. Encoding.ASCII would replace other characters

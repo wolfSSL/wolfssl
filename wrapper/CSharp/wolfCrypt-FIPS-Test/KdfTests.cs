@@ -166,6 +166,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         ("derived", ctxAtMax + 1, "one byte over"),
                         (new string('a', 250), 0, "protocol + label over 255"),
                         ("x", 256, "context over 255"),
+                        ("", 0, "empty label"),
                         (new string('a', 128), 32, "128-byte label") }) {
                     bool threw = false;
                     try { FipsKdf.Tls13ExpandLabel(FipsHashType.Sha256, secret, label, new byte[ctx], 32); }
@@ -174,14 +175,14 @@ namespace wolfSSL.CSharp.Fips.Test
                 }
             });
 
-            T.Run("SSH KDF: leading zero bytes of K are not significant", () => {
-                using var rng = new FipsRng();
-                byte[] hh = rng.Generate(32), sid = rng.Generate(32);
-                byte[] k = rng.Generate(31); k[0] |= 0x01;
-                byte[] expected = SshReference(FipsHashType.Sha256, 'C', k, hh, sid, 40);
-                foreach (int zeros in new[] { 1, 3 }) {
-                    byte[] padded = new byte[zeros].Concat(k).ToArray();
-                    T.Bytes(expected, FipsKdf.SshKdf(FipsHashType.Sha256, 'C', padded, hh, sid, 40), zeros + " leading zeros");
+            /* the module keeps redundant leading zeros in the mpint (RFC 4251
+             * 5 requires minimal form), so K must be passed minimal */
+            T.Run("SSH KDF refuses K with leading zero bytes or zero", () => {
+                byte[] hh = new byte[32], sid = new byte[32];
+                foreach (byte[] k in new[] { new byte[] { 0, 5 }, new byte[] { 0, 0, 0x80 }, new byte[32], new byte[1], new byte[0] }) {
+                    bool threw = false;
+                    try { FipsKdf.SshKdf(FipsHashType.Sha256, 'C', k, hh, sid, 16); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, Convert.ToHexString(k) + " accepted");
                 }
             });
 
@@ -258,11 +259,42 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!FipsModule.PrivateKeyReadEnabled, "gate left enabled");
             });
 
-            T.Run("Tls12KeyBlock names a null random", () => {
-                bool threw = false;
-                try { FipsKdf.Tls12KeyBlock(FipsHashType.Sha256, new byte[48], null!, new byte[32], 40); }
-                catch (ArgumentNullException e) { threw = e.ParamName == "clientRandom"; }
-                T.True(threw, "null clientRandom not reported by name");
+            T.Run("TLS 1.2 helpers name null arguments by their public names", () => {
+                var cases = new (string Param, Action Call)[] {
+                    ("clientRandom", () => FipsKdf.Tls12KeyBlock(FipsHashType.Sha256, new byte[48], null!, new byte[32], 40)),
+                    ("masterSecret", () => FipsKdf.Tls12KeyBlock(FipsHashType.Sha256, null!, new byte[32], new byte[32], 40)),
+                    ("preMasterSecret", () => FipsKdf.Tls12ExtendedMasterSecret(FipsHashType.Sha256, null!, new byte[32])),
+                    ("sessionHash", () => FipsKdf.Tls12ExtendedMasterSecret(FipsHashType.Sha256, new byte[48], null!)),
+                };
+                foreach (var (param, call) in cases) {
+                    string? got = null;
+                    try { call(); } catch (ArgumentNullException e) { got = e.ParamName; }
+                    T.Equal(param, got, "ParamName");
+                }
+            });
+
+            T.Run("EMS session hash must be a digest of the PRF hash (RFC 7627 4)", () => {
+                foreach (var (h, len) in new[] { (FipsHashType.Sha256, 64), (FipsHashType.Sha256, 48), (FipsHashType.Sha384, 32) }) {
+                    bool threw = false;
+                    try { FipsKdf.Tls12ExtendedMasterSecret(h, new byte[48], new byte[len]); }
+                    catch (ArgumentException) { threw = true; }
+                    T.True(threw, h + " with a " + len + "-byte session hash accepted");
+                }
+            });
+
+            T.Run("SSH KDF partial output matches the reference", () => {
+                byte[] k = { 5, 6, 7 }, hh = new byte[32], sid = new byte[32];
+                foreach (int len in new[] { 1, 31, 33, 45 })
+                    T.Bytes(SshReference(FipsHashType.Sha256, 'B', new byte[] { 5, 6, 7 }, hh, sid, len),
+                            FipsKdf.SshKdf(FipsHashType.Sha256, 'B', k, hh, sid, len), len + " bytes");
+            });
+
+            T.Run("general HKDF is not public (no CAVP validation)", () => {
+                foreach (string m in new[] { "Hkdf", "HkdfExtract", "HkdfExpand", "PHash" }) {
+                    var mi = typeof(FipsKdf).GetMethod(m, System.Reflection.BindingFlags.Static |
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                    T.True(mi != null && !mi.IsPublic, m + " is public");
+                }
             });
 
             T.Run("KDF labels must be ASCII (no lossy '?' substitution)", () => {

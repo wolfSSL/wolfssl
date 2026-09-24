@@ -34,9 +34,9 @@ wrapper binds every entry point by its `_fips` name
 | `FipsRng.cs` | Hash_DRBG (SP 800-90A) |
 | `FipsHash.cs`, `FipsHmac.cs`, `FipsCmac.cs` | SHA-1/2/3, HMAC, CMAC-AES |
 | `FipsAes.cs`, `FipsAesGcm.cs` | AES ECB/CBC/CTR/OFB, GCM, GMAC, CCM |
-| `FipsRsa.cs` | RSA key generation, PKCS#1 v1.5 and PSS signatures, OAEP encryption |
-| `FipsEcc.cs`, `FipsDh.cs` | ECDSA, ECC CDH, finite field DH |
-| `FipsKdf.cs` | TLS 1.2 PRF, HKDF, TLS 1.3 HKDF, SSH KDF |
+| `FipsRsa.cs` | RSA key generation, PKCS#1 v1.5 and PSS signatures, RSA primitives with OAEP padding |
+| `FipsEcc.cs`, `FipsDh.cs`, `FfdheGroups.cs` | ECDSA, ECC CDH, finite field DH (RFC 7919 ffdhe2048) |
+| `FipsKdf.cs` | TLS 1.2 KDF (EMS), TLS 1.3 KDF, SSH KDF |
 | `native/fips_sizes.c` | Structure size helper (see below) |
 | `tools/fips-bind-audit.sh` | Binding audit |
 | `build-native.sh`, `run-tests.sh` | Build the helper; build and run the test suite |
@@ -57,7 +57,15 @@ nor freed, and the boundary offers no other way to reach it. The wrapper
 still zeroes the structure itself and counts each refusal in
 `FipsModule.RefusedFreeCount`.
 
-Objects are not thread-safe; use one per thread or lock. A generated
+`Dispose` (or `using`) is the zeroization procedure for keys and DRBG state
+held in native memory. An object that is not disposed is zeroized only when
+its finalizer runs, at a time the GC chooses, and .NET does not run
+finalizers at process exit.
+
+`FipsRng`, `FipsAes`, `FipsAesGcm` and `FipsAesCcm` serialize calls on one
+object, so a DRBG or cipher stream cannot be used by two threads at once
+(which would repeat output or keystream). Other objects are not thread-safe;
+use one per thread or lock. A generated
 `FipsEccKey` owns a private DRBG (bound to the native key for signing and CDH
 blinding), so the `FipsRng` passed to `Generate` may be disposed afterwards.
 `FipsRsaKey` needs no DRBG after generation: FIPS builds `#undef
@@ -95,7 +103,9 @@ wrapper/CSharp/wolfCrypt-FIPS/run-tests.sh <prefix>
 `run-tests.sh` builds `libwolfssl_csharp_fips` into `<prefix>/lib`, runs the
 binding audit, and builds and runs `wolfCrypt-FIPS-Test` for one target
 framework (default `net10.0`). Each build runs only on its matching runtime;
-there is no roll-forward, so a `net8.0` run needs a .NET 8 runtime.
+there is no roll-forward, so a `net8.0` run needs a .NET 8 runtime. Building
+either target needs the .NET 10 SDK (restore evaluates both target
+frameworks). .NET 8 support ends November 10, 2026.
 
 Environment:
 
@@ -132,6 +142,25 @@ custom source instead (for example a hardware TRNG). A custom source is
 kept: `Initialize` does not replace it, whether it is called before or
 after `SetSeedCallback` or more than once. Only an explicit
 `FipsModule.UseOsSeed()` switches back to the OS source.
+
+A custom seed source is outside the module boundary and must:
+- supply full-entropy bytes (the module credits 8 bits per byte and asks for
+  196 bytes, or 132 with a caller nonce, at each instantiation);
+- run its own SP 800-90B health tests and return non-zero on failure (the
+  module only rejects repeated 4-byte words);
+- write directly into the `seed` pointer, or zero any staging buffer.
+
+Certificate #4718 carries the caveat that there is no assurance of the
+minimum strength of generated keys; an ESV-validated entropy source is needed
+to remove it. The module's automatic reseed (after 1,000,000 requests) draws
+from `wc_GenerateSeed`, not from the callback (module behavior): the callback
+covers instantiation only. An application that needs every seed from its own
+source must dispose and recreate a `FipsRng` before 1,000,000 requests.
+
+`FipsRng` refuses to serve any service once the module's DRBG CAST has failed
+(`DRBG_KAT_FIPS_E`), including services the module itself would still run
+from an instance created before the failure. A caller nonce for
+`new FipsRng(nonce)` must be at least 16 bytes (SP 800-90A 8.6.7).
 
 `Initialize` also runs the size helper check described above (exact binary
 and FIPS major.minor), so a mismatch fails at startup.
@@ -174,14 +203,16 @@ not `await` between the two calls.
 
 ## IVs and nonces
 
-- AES-GCM and GMAC encryption use module-generated IVs of 12 or 16 bytes
-  (IG C.H Scenario 2, at least 96 bits). `UseInternalIV` may take a fixed
-  field for the leading IV bytes (pass null for none). The module takes a
-  fixed field of exactly 4 bytes, and the DRBG-generated part must still be
-  at least 12 bytes (SP 800-38D 8.2.2), so a fixed field is exactly 4 bytes
-  with a 16-byte IV. Encryption with a caller-supplied
-  IV is not public: the module Security Policy allows external IVs only for
-  TLS (IG C.H 1(a)).
+- AES-GCM and GMAC encryption use IVs of 12 or 16 bytes generated entirely
+  by the module DRBG (IG C.H Scenario 2). `UseInternalIV` is called once per
+  `FipsAesGcm` object. These are RBG-based IVs (SP 800-38D 8.2.2), so at most
+  2^32 encryptions are allowed per key (8.3): each object refuses the
+  2^32nd + 1, and across objects and `FipsGmac.Compute` calls with the same
+  key the application must stay within 2^32 in total. Encryption with a
+  caller-supplied IV is not public: the module Security Policy allows external
+  IVs only for TLS (IG C.H 1(a)).
+- `FipsAesGcm` decrypts on a second native context, so decryption (even of a
+  forged ciphertext with a chosen IV) never changes the encryption IV state.
 - AES-GCM decryption and GMAC verification take the expected tag size
   (12 to 16 bytes, default 16) and require the received tag to have exactly
   that length. The module accepts tags from 1 byte on these paths, so a
@@ -190,23 +221,34 @@ not `await` between the two calls.
   key or IV length, module state).
 - AES-GCM encryption and GMAC generation use 12 to 16-byte tags, the same
   range decryption and verification accept.
-- AES-CCM decryption and CMAC verification also take the expected tag size
-  (default 16) and refuse a tag of any other length.
+- AES-CCM decryption also takes the expected tag size (default 16) and
+  refuses a tag of any other length. The boundary has no HMAC or CMAC verify
+  service: recompute with `Compute` and compare with
+  `CryptographicOperations.FixedTimeEquals`, with one fixed tag length per
+  key.
 - AES-CCM: call `SetNonce` once per object (a second call is refused, since
   it would restart the nonce sequence under the same key); the module
   advances the nonce per encryption. `SetNonce(rng)` draws the initial nonce
-  from the module DRBG and is the default choice; with `SetNonce(nonce)` the
-  caller must keep nonces unique under the key (SP 800-38C).
+  (12 or 13 bytes) from the module DRBG and is the default choice; with
+  `SetNonce(nonce)` the caller must keep nonces unique under the key across
+  all objects (SP 800-38C 5.3).
   The payload must be shorter than 2^(8 x (15 - nonce length)) bytes (for a
   13-byte nonce, under 65,536 bytes); the v5.2.x module does not check this
   and longer input would wrap the counter.
-- AES-CBC, OFB and CTR: `CreateCbc(key, rng)`, `CreateOfb(key, rng)` and
-  `CreateCtr(key, rng)` draw a fresh IV / initial counter from the module
-  DRBG (read it from `IV`). The overloads that take an IV are for
-  decryption and interoperability; with them the caller must meet
-  SP 800-38A (CBC IV unpredictable, OFB IV unique per key, CTR counter
-  blocks unique per key). `SetIV` is CBC only (for OFB and CTR the module
-  keeps buffered keystream across it) and is refused on DRBG-IV encryptors.
+- AES-CBC, OFB and CTR encryption: `CreateCbc(key, rng)`, `CreateOfb(key,
+  rng)` and `CreateCtr(key, rng)` draw a fresh IV / initial counter from the
+  module DRBG (read it from `IV`). Use one encryptor per message: after a
+  message the chaining state is predictable.
+- CBC with a caller IV is decrypt-only (`CreateCbcDecryptor`); `SetIV` is for
+  CBC decryptors only. OFB and CTR encrypt and decrypt with the same
+  operation, so `CreateOfb(key, iv, ...)` and `CreateCtr(key, iv)` can
+  encrypt: the caller must then keep the OFB IV, and every CTR counter block,
+  unique under the key (SP 800-38A App. B). The CTR counter is the whole
+  16-byte block.
+- ECB is a building block (single blocks, testing), not a mode for general
+  data; the planned SP 800-38A revision is expected to limit its approval.
+- CMAC: use one tag length per key (SP 800-38B 5.5) and at most 2^48 messages
+  per key (Appendix B).
 
 ## Secret values outside the module
 
@@ -233,6 +275,15 @@ Only services in the v5.2.3 boundary are wrapped.
 |---|---|
 | RSA key import (DER or raw) | Decoders are outside the boundary (`asn.c`); RSA keys come from `FipsRsaKey.Generate` |
 | RSAES-PKCS1-v1_5 encryption | Disallowed for key transport after 2023 (SP 800-131A Rev. 2 Table 5); OAEP only |
+| RSA key transport (SP 800-56B KTS) | The Security Policy makes no key transport claim (RSAEP/RSADP primitives only); `Encrypt`/`Decrypt` are the RSA primitives with OAEP padding on the object's own key |
+| RSA PKCS#1 v1.5 signing with SHA-1 or SHA-3 | SHA-1 signing is disallowed (SP 800-131A); RSA SigGen is validated with SHA-2 only |
+| PKCS#1 v1.5 DigestInfo encoding and signature comparison | Done by the caller, outside the module (`wc_EncodeSignature` is in asn.c, not in the boundary), as in the module's CAVP testing. `SignPkcs1v15(digestInfo, rng)` signs a caller-built DigestInfo; `RecoverPkcs1v15(signature)` returns the recovered block, which the caller compares with `CryptographicOperations.FixedTimeEquals` |
+| General HKDF (RFC 5869 / SP 800-56C) | Not a validated service (HKDF appears only inside the TLS v1.3 KDF CVL); internal for testing |
+| Explicit FIPS 186-type DH domains | KAS-FFC-SSC is validated for a safe-prime group only; the RFC 5114 constructor is internal |
+| HMAC/CMAC verify, ECDSA r/s (DER, P1363) conversion, ECC import from separate X and Y | Not services of the boundary; the wrapper exposes only `_fips` functionality |
+| `WOLF_CRYPTO_CB` builds | The boundary has no `wc_AesInit_fips` / `wc_HmacInit_fips` and `wc_InitCmac_ex` leaves `devId` 0, so Aes, Hmac and Cmac operations are offered to crypto callback device 0; do not register a device 0 |
+| DH groups ffdhe3072 to ffdhe8192 | The #4718 Security Policy lists KAS-FFC-SSC with ffdhe2048 only; the module implements the others, but they are internal (ACVP testing only) |
+| ECC CDH on P-192 and P-224 | KAS-ECC-SSC is validated on P-256, P-384 and P-521 |
 | GCM encryption with a caller IV | External IVs are allowed only for TLS in the Security Policy |
 | ECC private key import | Not in the boundary; ECC public key import (X9.63) is provided |
 | DSA, Ed25519, Curve25519, ML-KEM, ML-DSA, ECIES, HPKE | Not approved services of the v5.2.3 module |
@@ -248,25 +299,30 @@ wrapper rejects them before calling the module:
 |---|---|
 | RSA key generation limited to 2048, 3072, 4096 bits | v5.2.1 and v5.2.3 also generate 1024-bit keys (bug 6367, `RsaSizeCheck`) |
 | RSA public exponent odd and greater than 2^16 (FIPS 186-5 5.4(e)) | Module accepts any odd e >= 3 |
+| `SignPkcs1v15` accepts only the exact DER DigestInfo of a SHA-224/256/384/512 digest (right OID, NULL parameters, digest length) | The module pads and signs any byte string, which would not be a FIPS 186-5 signature |
 | No SHA-1 for RSA or ECDSA signature generation (SP 800-131A Table 8; Security Policy rule 3b) | Module signs SHA-1 digests; SHA-1 verification stays available for legacy signatures |
-| `FipsEccKey.SignHash` takes the hash type and checks the digest length | ECDSA signs any digest |
+| `FipsEccKey.SignHash` and `VerifyHash` take the hash type and check the digest length | ECDSA signs any digest, and verification has no digest length bound, so a very short digest makes signatures forgeable (CVE-2026-5194 class) |
+| ECC public keys are fully validated on import (by the module with `WOLFSSL_VALIDATE_ECC_IMPORT`, reported by the size helper, else by an explicit `wc_ecc_check_key_fips`) | The CDH path does not check that the peer point is on the curve |
+| GCM: at most 2^32 encryptions per object (SP 800-38D 8.3); `UseInternalIV` once per object; decryption on a separate context | The module gives 12-byte RBG IVs a 2^64 counter |
+| DH public keys left-padded to len(p); `GeneratePublic` checks x in [1, q-1] first | The module returns minimal-length keys and does not range-check x in `wc_DhGeneratePublic` |
+| HMAC keys at most 128 bytes (validated range 112 to 1024 bits) | The module accepts any key length |
+| TLS 1.2 EMS session hash must be a digest of the PRF hash; TLS 1.3 Expand-Label uses the "tls13 " prefix only, with a non-empty label | The module derives from any input |
 | GCM and GMAC internal IVs of 12 or 16 bytes, with at least 12 DRBG-generated bytes after any fixed field (IG C.H Scenario 2, SP 800-38D 8.2.2) | Module also accepts 8-byte (64-bit) internal IVs and fills only the bytes after the fixed field from the DRBG |
 | GCM, GMAC, CCM and CMAC verification require a tag of exactly the expected length | The module takes the tag length from the received tag |
 | RSA-PSS salt length -1 (digest length) or 0 to hLen for signing and verification (FIPS 186-5 5.4(g)) | Builds with RSA-PSS define `WOLFSSL_PSS_LONG_SALT`, which removes the module's sLen <= hLen check |
 | TLS 1.2 PRF refuses the non-EMS `"master secret"` derivation (FIPS 140-3 IG D.Q), checked on label \|\| seed since the module hashes them as one string (so splitting the label does not get around it); use `Tls12ExtendedMasterSecret` and `Tls12KeyBlock`. Raw P_hash is not public | The module derives any label |
-| `Aes` and `Hmac` get `devId = INVALID_DEVID` before keying in `WOLF_CRYPTO_CB` builds (offset read from the size helper) | The boundary has no `wc_AesInit_fips` / `wc_HmacInit_fips`; a zero-filled `devId` would route operations to crypto callback device 0 |
 | KDF labels and the TLS 1.3 protocol prefix must be ASCII | `Encoding.ASCII` would map other characters to `?`, so distinct labels would derive the same keys |
 | CMAC and CCM tags of at least 64 bits (SP 800-38B A.2, SP 800-38C App. B) | Module accepts 32-bit tags |
-| Explicit DH domains only the RFC 5114 2048-bit groups (2.2: 2048/224, 2.3: 2048/256), compared byte for byte (SP 800-131A Table 4 sizes) | Module accepts any prime size and checks only that p is prime (not q, q dividing p-1, or g); use the FFDHE named groups where possible |
+| Internal explicit DH domains limited to the RFC 5114 2048-bit groups (2.2: 2048/224, 2.3: 2048/256), compared byte for byte | Module accepts any prime size and checks only that p is prime (not q, q dividing p-1, or g) |
 | AES ECB and CBC input must be a multiple of 16 bytes | Without `WOLFSSL_AES_CBC_LENGTH_CHECKS` the module processes only whole blocks, returns success and leaves the tail of the output unencrypted |
 | P-192 limited to public key import and verification | FIPS 186-5 disallows P-192 key generation and signing |
 | CCM payload shorter than 2^(8 x (15 - nonce length)) | Module wraps the counter (keystream reuse) for longer input |
-| DH peer keys fully validated (y^q = 1 against the known q of the explicit domain) before agreement | `wc_DhAgree` only range-checks the peer key, and the module runs the subgroup check only when q is passed explicitly |
+| DH peer keys checked with `wc_DhCheckPubKeyEx` before agreement (with q for the internal explicit domains, so y^q = 1 runs there) | `wc_DhAgree` only range-checks the peer key; for ffdhe2048 the module check is the range check (partial validation, allowed for ephemeral keys of a safe-prime group, SP 800-56A 5.6.2.2.2) |
 | An empty HKDF salt is passed as NULL | The module uses HashLen zeros for NULL but rejects a zero-length non-NULL salt as a 0-byte HMAC key |
 | An empty TLS 1.3 IKM is passed as HashLen zero bytes | For ikmLen 0 the module writes HashLen bytes into the IKM buffer |
 | TLS 1.3 HkdfLabel within the module's `MAX_TLS13_HKDF_LABEL_SZ` (read from the library) and 255-byte fields | The module copies protocol, label and context into a fixed stack buffer without a capacity check |
 | TLS 1.3 KDFs limited to SHA-256 and SHA-384 | SHA-512 is accepted only with `WOLFSSL_TLS13_SHA512` |
-| SSH KDF strips leading zero bytes of K | The module adds the mpint sign byte but keeps redundant leading zeros (RFC 4251 5) |
+| SSH KDF refuses K with leading zero bytes, or zero (strip them before calling) | The module adds the mpint sign byte but keeps redundant leading zeros (RFC 4251 5) |
 | RSA public exponent passed as the platform's C `long` (`CLong`) | The parameter is 32 bits on Windows and 32-bit platforms |
 | `FipsModule.RunCast` and `GetCastState` refuse CAST ids outside 0 to `CastCount` - 1 | `wc_RunCast_fips` writes the CAST state array before checking the id |
 | `FipsModule.IntegrityTest` returns the module status after the re-run | `wolfCrypt_IntegrityTest_fips` always returns 0; a failure shows only in the status |
@@ -274,8 +330,11 @@ wrapper rejects them before calling the module:
 
 Other module rules the wrapper passes through:
 
-- HMAC keys, and HKDF salts (the HMAC key of HKDF-Extract), must be at least
-  14 bytes (112 bits); shorter values fail with `HMAC_MIN_KEYLEN_E`.
+- HMAC keys must be at least 14 bytes (112 bits); shorter values fail with
+  `HMAC_MIN_KEYLEN_E`.
+- The TLS v1.2 KDF, TLS v1.3 KDF and KDF SSH are CVLs: they shall only be
+  used within the TLS 1.2, TLS 1.3 and SSHv2 protocols (IG 2.4.B). They are
+  not general-purpose KDFs.
 - The TLS 1.2 PRF takes TLS MAC algorithm ids (`sha256_mac` = 4) while HKDF,
   TLS 1.3 and SSH take `wc_HashType` (SHA-256 = 6). `FipsHashType` holds the
   v5 `wc_HashType` values and the wrapper maps them for the PRF. Note that
@@ -299,7 +358,9 @@ needed on target devices).
   the aegisolve directories they fail.
 - Independent checks with .NET's own implementations where vectors cannot be
   used: RSA signatures and OAEP in both directions, ECDSA signatures, ECDH
-  agreement, HKDF, and an RFC 4253 reference for the SSH KDF.
+  agreement, HKDF, TLS 1.2 PRF/EMS/key block and TLS 1.3 Expand-Label
+  references, BigInteger references for DH (RFC 7919 primes) and PKCS#1
+  v1.5 DigestInfo, and an RFC 4253 reference for the SSH KDF.
 - Skipped by design: ACVP RSA sigVer/keyGen/decryptionPrimitive and KAS-ECC
   VAL (they supply keys the boundary cannot import).
 - Forced failure (operational-test builds): each scenario runs in a child
@@ -317,7 +378,8 @@ needed on target devices).
 ### Observation from the forced-failure tests
 
 With the DRBG CAST failed (`DRBG_KAT_FIPS_E`), the module refuses DRBG
-instantiation and generation and RSA key generation, but GMAC with an
-internal IV, RSA signing and DH key pair generation still succeed using a DRBG
-instance created before the failure. This is module behavior, reported for
-review by the FIPS team.
+instantiation and generation and RSA key generation, but would still run GMAC
+with an internal IV, RSA signing and DH key pair generation from a DRBG
+instance created before the failure. The wrapper refuses those too (every
+DRBG use checks the DRBG CAST), and the -208 scenario requires it. The module
+behavior is reported for review by the FIPS team.

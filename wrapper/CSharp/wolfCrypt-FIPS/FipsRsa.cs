@@ -82,7 +82,14 @@ namespace wolfSSL.CSharp.Fips
                 throw new WolfCryptFipsException("wc_InitRsaKey_fips", ret);
             }
             SetNativeFree(p => Native.wc_FreeRsaKey_fips(p));
-            ret = Native.wc_MakeRsaKey_fips(Handle, bits, new CLong(checked((nint)exponent)), rng.Handle);
+            try {
+                using (rng.Use())
+                    ret = Native.wc_MakeRsaKey_fips(Handle, bits, new CLong(checked((nint)exponent)), rng.Handle);
+            }
+            catch {
+                Dispose();
+                throw;
+            }
             if (ret != 0) {
                 Dispose();
                 throw new WolfCryptFipsException("wc_MakeRsaKey_fips", ret);
@@ -189,36 +196,59 @@ namespace wolfSSL.CSharp.Fips
 
         /* ---- PKCS#1 v1.5 signatures (RSASSA-PKCS1-v1_5) ---- */
 
-        /* Signs a message digest. digest must be the hash of the message
-         * with the given algorithm; the DigestInfo encoding is added here.
-         * SHA-1 is refused (signature generation, SP 800-131A). */
-        public byte[] SignPkcs1v15(FipsHashType hash, byte[] digest, FipsRng rng)
+        /* Signs a DER DigestInfo (RFC 8017 9.2 step 2) built by the caller,
+         * e.g. with wolfSSL's wc_EncodeSignature. The module applies the
+         * PKCS#1 v1.5 type 1 padding and the RSA private operation; the
+         * DigestInfo encoding is outside the module boundary (asn.c), as it
+         * was in the module's CAVP testing.
+         *
+         * digestInfo must be exactly the canonical DigestInfo of a SHA-224,
+         * SHA-256, SHA-384 or SHA-512 digest (with the NULL parameters and
+         * the digest length of that hash); anything else is refused, so the
+         * module never signs arbitrary data. SHA-1 is refused (signature
+         * generation, SP 800-131A) and so is SHA-3 (RSA SigGen is validated
+         * with SHA-2 only). */
+        public byte[] SignPkcs1v15(byte[] digestInfo, FipsRng rng)
         {
-            RejectSha1ForSigning(hash);
-            byte[] di = DigestInfo(hash, digest);
-            byte[] sig = new byte[Size];
+            if (digestInfo == null)
+                throw new ArgumentNullException(nameof(digestInfo));
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
-            rng.ThrowIfDisposed();
+            FipsHashType hash = HashOfDigestInfo(digestInfo);
+            RejectSha1ForSigning(hash);
+            if (hash >= FipsHashType.Sha3_224)
+                throw new ArgumentException("SHA-3 is not in the validated RSA PKCS#1 v1.5 signature generation",
+                                            nameof(digestInfo));
+            byte[] sig = new byte[Size];
             ThrowIfDisposed();
-            int ret = Native.wc_RsaSSL_Sign_fips(di, (uint)di.Length, sig, (uint)sig.Length, Handle, rng.Handle);
+            int ret;
+            using (rng.Use())
+                ret = Native.wc_RsaSSL_Sign_fips(digestInfo, (uint)digestInfo.Length, sig, (uint)sig.Length,
+                                                 Handle, rng.Handle);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaSSL_Sign_fips", ret);
             return sig.Take(ret).ToArray();
         }
 
-        public bool VerifyPkcs1v15(FipsHashType hash, byte[] digest, byte[] signature)
+        /* RSA public operation and PKCS#1 v1.5 type 1 unpadding
+         * (wc_RsaSSL_Verify). Returns the recovered block, or null if the
+         * signature does not unpad; throws on a module-state error. The
+         * caller verifies by comparing the result, in constant time
+         * (CryptographicOperations.FixedTimeEquals), with the DigestInfo it
+         * expects, as the module's CAVP testing did. */
+        public byte[]? RecoverPkcs1v15(byte[] signature)
         {
             if (signature == null)
                 throw new ArgumentNullException(nameof(signature));
-            byte[] expected = DigestInfo(hash, digest);
             byte[] recovered = new byte[Size];
             ThrowIfDisposed();
             int ret = Native.wc_RsaSSL_Verify_fips(signature, (uint)signature.Length, recovered,
                                                    (uint)recovered.Length, Handle);
-            if (ret < 0)
-                return VerifyFailure("wc_RsaSSL_Verify_fips", ret);
-            return CryptographicOperations.FixedTimeEquals(expected, recovered.AsSpan(0, ret));
+            if (ret < 0) {
+                VerifyFailure("wc_RsaSSL_Verify_fips", ret);   /* throws on module-state errors */
+                return null;
+            }
+            return recovered.Take(ret).ToArray();
         }
 
         /* ---- PSS signatures (RSASSA-PSS) ---- */
@@ -233,10 +263,11 @@ namespace wolfSSL.CSharp.Fips
             byte[] sig = new byte[Size];
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
-            rng.ThrowIfDisposed();
             ThrowIfDisposed();
-            int ret = Native.wc_RsaPSS_SignEx_fips(digest, (uint)digest.Length, sig, (uint)sig.Length,
-                (int)hash, Mgf(hash), saltLen, Handle, rng.Handle);
+            int ret;
+            using (rng.Use())
+                ret = Native.wc_RsaPSS_SignEx_fips(digest, (uint)digest.Length, sig, (uint)sig.Length,
+                    (int)hash, Mgf(hash), saltLen, Handle, rng.Handle);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPSS_SignEx_fips", ret);
             return sig.Take(ret).ToArray();
@@ -261,10 +292,13 @@ namespace wolfSSL.CSharp.Fips
             return ret == 0;
         }
 
-        /* ---- encryption: RSAES-OAEP (SP 800-56B) ----
+        /* ---- RSA encryption primitives with OAEP padding ----
          *
-         * RSAES-PKCS1-v1_5 is not offered: SP 800-131A Rev. 2 disallows it
-         * for key transport after 2023. */
+         * The module implements the RSA primitives RSAEP and RSADP; its
+         * Security Policy makes no key transport (SP 800-56B KTS) claim, so
+         * this is not an approved key-transport service. With no RSA key
+         * import in the boundary, Encrypt can only target this object's own
+         * key. RSAES-PKCS1-v1_5 and raw RSA are not offered. */
 
         private const int WC_RSA_OAEP_PAD = 1;
 
@@ -275,12 +309,13 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(plaintext));
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
-            rng.ThrowIfDisposed();
             ThrowIfDisposed();
             byte[] ct = new byte[Size];
-            int ret = Native.wc_RsaPublicEncryptEx_fips(plaintext, (uint)plaintext.Length, ct, (uint)ct.Length,
-                Handle, rng.Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
-                label, label == null ? 0u : (uint)label.Length);
+            int ret;
+            using (rng.Use())
+                ret = Native.wc_RsaPublicEncryptEx_fips(plaintext, (uint)plaintext.Length, ct, (uint)ct.Length,
+                    Handle, rng.Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
+                    label, label == null ? 0u : (uint)label.Length);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPublicEncryptEx_fips", ret);
             return ct.Take(ret).ToArray();
@@ -363,25 +398,30 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentException("digest length does not match " + hash, nameof(digest));
         }
 
-        /* DER DigestInfo prefixes, RFC 8017 section 9.2 note 1 (SHA-3 OIDs
-         * 2.16.840.1.101.3.4.2.7-10). */
-        private static byte[] Prefix(FipsHashType h) => h switch {
-            FipsHashType.Sha1 => Hex("3021300906052b0e03021a05000414"),
-            FipsHashType.Sha224 => Hex("302d300d06096086480165030402040500041c"),
-            FipsHashType.Sha256 => Hex("3031300d060960864801650304020105000420"),
-            FipsHashType.Sha384 => Hex("3041300d060960864801650304020205000430"),
-            FipsHashType.Sha512 => Hex("3051300d060960864801650304020305000440"),
-            FipsHashType.Sha3_224 => Hex("302d300d06096086480165030402070500041c"),
-            FipsHashType.Sha3_256 => Hex("3031300d060960864801650304020805000420"),
-            FipsHashType.Sha3_384 => Hex("3041300d060960864801650304020905000430"),
-            FipsHashType.Sha3_512 => Hex("3051300d060960864801650304020a05000440"),
-            _ => throw new ArgumentOutOfRangeException(nameof(h))
+        /* Canonical DER DigestInfo prefixes, RFC 8017 9.2 note 1 (SHA-3
+         * OIDs 2.16.840.1.101.3.4.2.7-10). Used only to recognize the
+         * caller's DigestInfo, never to build one. */
+        private static readonly (FipsHashType Hash, byte[] Prefix)[] Prefixes = {
+            (FipsHashType.Sha1, Hex("3021300906052b0e03021a05000414")),
+            (FipsHashType.Sha224, Hex("302d300d06096086480165030402040500041c")),
+            (FipsHashType.Sha256, Hex("3031300d060960864801650304020105000420")),
+            (FipsHashType.Sha384, Hex("3041300d060960864801650304020205000430")),
+            (FipsHashType.Sha512, Hex("3051300d060960864801650304020305000440")),
+            (FipsHashType.Sha3_224, Hex("302d300d06096086480165030402070500041c")),
+            (FipsHashType.Sha3_256, Hex("3031300d060960864801650304020805000420")),
+            (FipsHashType.Sha3_384, Hex("3041300d060960864801650304020905000430")),
+            (FipsHashType.Sha3_512, Hex("3051300d060960864801650304020a05000440")),
         };
 
-        internal static byte[] DigestInfo(FipsHashType hash, byte[] digest)
+        /* Hash of a DigestInfo that is exactly prefix || digest of the right
+         * length for a known hash; ArgumentException otherwise. */
+        private static FipsHashType HashOfDigestInfo(byte[] di)
         {
-            CheckDigest(hash, digest);
-            return Prefix(hash).Concat(digest).ToArray();
+            foreach (var (hash, prefix) in Prefixes)
+                if (di.Length == prefix.Length + FipsHash.DigestSizeOf(hash) && di.AsSpan().StartsWith(prefix))
+                    return hash;
+            throw new ArgumentException("not the DER DigestInfo of a supported hash digest (RFC 8017 9.2)",
+                                        "digestInfo");
         }
 
         private static byte[] Hex(string s) => Convert.FromHexString(s);

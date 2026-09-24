@@ -170,7 +170,7 @@ namespace wolfSSL.CSharp.Fips.Test
             var hmacKey = new byte[32];
             var rsa = FipsRsaKey.Generate(2048, rng);
             byte[] d256 = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
-            byte[] rsaSig = rsa.SignPkcs1v15(FipsHashType.Sha256, d256, rng);
+            byte[] rsaSig = Pkcs1.Sign(rsa, FipsHashType.Sha256, d256, rng);
             var ecc = FipsEccKey.Generate(FipsEccCurve.P256, rng);
             var eccPeer = FipsEccKey.Generate(FipsEccCurve.P256, rng);
             byte[] eccPub = eccPeer.ExportPublic();
@@ -200,15 +200,15 @@ namespace wolfSSL.CSharp.Fips.Test
                 new() { Name = "AES-GCM decrypt (existing)", Casts = new[] { "AES_CBC", "AES_GCM" }, Run = () => gcm.Decrypt(gcmCt.IV, gcmCt.Ciphertext, gcmCt.Tag) },
                 new() { Name = "AES-CCM encrypt (existing)", Casts = new[] { "AES_CBC" }, Run = () => ccm.Encrypt(new byte[5]) },
                 new() { Name = "AES-CCM decrypt (existing)", Casts = new[] { "AES_CBC" }, Run = () => ccm.Decrypt(ccmCt.IV, ccmCt.Ciphertext, ccmCt.Tag) },
-                new() { Name = "RSA sign (existing key)", UsesDrbg = true, Casts = new[] { "RSA" }, Run = () => rsa.SignPkcs1v15(FipsHashType.Sha256, d256, rng) },
-                new() { Name = "RSA verify (existing key)", Casts = new[] { "RSA" }, Run = () => Require(rsa.VerifyPkcs1v15(FipsHashType.Sha256, d256, rsaSig)) },
+                new() { Name = "RSA sign (existing key)", UsesDrbg = true, Casts = new[] { "RSA" }, Run = () => Pkcs1.Sign(rsa, FipsHashType.Sha256, d256, rng) },
+                new() { Name = "RSA verify (existing key)", Casts = new[] { "RSA" }, Run = () => Require(Pkcs1.Verify(rsa, FipsHashType.Sha256, d256, rsaSig)) },
                 new() { Name = "RSA OAEP decrypt (existing key)", Casts = new[] { "RSA" }, Run = () => rsa.Decrypt(rsaCt) },
                 new() { Name = "RSA key generation", UsesDrbg = true, Casts = new[] { "RSA" }, Run = () => FipsRsaKey.Generate(2048, rng).Dispose() },
                 new() { Name = "ECDSA sign (existing key)", UsesDrbg = true, Casts = new[] { "ECDSA" }, Run = () => ecc.SignHash(FipsHashType.Sha256, d256) },
-                new() { Name = "ECDSA verify (existing key)", Casts = new[] { "ECDSA" }, Run = () => Require(ecc.VerifyHash(d256, eccSig)) },
+                new() { Name = "ECDSA verify (existing key)", Casts = new[] { "ECDSA" }, Run = () => Require(ecc.VerifyHash(FipsHashType.Sha256, d256, eccSig)) },
                 new() { Name = "ECC key generation", UsesDrbg = true, Casts = new[] { "ECDSA" }, Run = () => FipsEccKey.Generate(FipsEccCurve.P256, rng).Dispose() },
                 new() { Name = "ECC public import", Casts = new[] { "ECDSA" }, Run = () => FipsEccKey.ImportPublic(FipsEccCurve.P256, eccPub).Dispose() },
-                new() { Name = "ECDH shared secret (existing keys)", Casts = new[] { "ECC_PRIMITIVE_Z" }, Run = () => ecc.SharedSecret(eccPeer) },
+                new() { Name = "ECDH shared secret (existing keys)", UsesDrbg = true, Casts = new[] { "ECC_PRIMITIVE_Z" }, Run = () => ecc.SharedSecret(eccPeer) },
                 new() { Name = "DH agree (existing keys)", Casts = new[] { "DH" }, Run = () => dh.Agree(dhA.PrivateKey, dhB.PublicKey) },
                 new() { Name = "DH key pair generation", UsesDrbg = true, Casts = new[] { "DH" }, Run = () => dh.GenerateKeyPair(rng).Dispose() },
                 new() { Name = "DH public key check", Casts = new[] { "DH" }, Run = () => Require(dh.CheckPublicKey(dhB.PublicKey)) },
@@ -239,7 +239,6 @@ namespace wolfSSL.CSharp.Fips.Test
             bool failed = code == IN_CORE || code == DRBG_CONT;
             int pass = 0;
             var extra = new List<string>();
-            var drbgStillServed = new List<string>();
 
             /* module view of each CAST after injection */
             var castState = CastIds.ToDictionary(kv => kv.Key, kv => FipsModule.GetCastState(kv.Value));
@@ -274,7 +273,11 @@ namespace wolfSSL.CSharp.Fips.Test
             foreach (var op in ops) {
                 if (!failed && op.Casts.Any(unsettled.Contains) && !op.Casts.Any(degraded.Contains))
                     continue;   /* CAST neither passed nor failed: no expectation */
-                bool expectFail = failed || op.Casts.Any(degraded.Contains);
+                /* the wrapper refuses every DRBG consumer once the DRBG CAST
+                 * has failed, including those the module still serves from
+                 * an existing instance (module finding 14) */
+                bool expectFail = failed || op.Casts.Any(degraded.Contains) ||
+                                  (op.UsesDrbg && degraded.Contains("DRBG"));
                 bool ok = Try(op, out string err, out int errCode);
                 if (expectFail) {
                     Check(!ok, op.Name + ": succeeded, expected refusal");
@@ -296,8 +299,6 @@ namespace wolfSSL.CSharp.Fips.Test
                     else
                         Check(false, op.Name + ": unexpected failure: " + err);
                 }
-                if (!failed && degraded.Contains("DRBG") && op.UsesDrbg && ok)
-                    drbgStillServed.Add(op.Name);
             }
             /* failure callback delivery: FAILED and continuous-test refusals
              * report (0, code) from FipsAllowed; entering DEGRADED reports
@@ -310,6 +311,13 @@ namespace wolfSSL.CSharp.Fips.Test
                 Check(seen.Contains((1, FipsError.FIPS_DEGRADED_E)), "failure callback not delivered with (1, FIPS_DEGRADED_E)");
 
             if (failed) {
+                /* a refused Generate leaves nothing in the caller's buffer */
+                byte[] buf = Enumerable.Repeat((byte)0xAA, 64).ToArray();
+                try { rng.Generate(buf); } catch (WolfCryptFipsException) { }
+                Check(buf.All(b => b == 0), "refused Generate left data in the caller's buffer");
+            }
+
+            if (failed) {
                 /* the module refuses wc_FreeRng_fips here; the wrapper must
                  * report it rather than lose it */
                 long before = FipsModule.RefusedFreeCount;
@@ -319,10 +327,8 @@ namespace wolfSSL.CSharp.Fips.Test
             }
             if (extra.Count > 0)
                 Console.WriteLine("SUMMARY also refused by the module: " + string.Join(", ", extra));
-            if (drbgStillServed.Count > 0)
-                Console.WriteLine("SUMMARY DRBG CAST failed, still served from an existing DRBG: " +
-                                  string.Join(", ", drbgStillServed));
-            int refused = ops.Count(o => failed || o.Casts.Any(degraded.Contains)) + extra.Count;
+            int refused = ops.Count(o => failed || o.Casts.Any(degraded.Contains) ||
+                                         (o.UsesDrbg && degraded.Contains("DRBG"))) + extra.Count;
             Console.WriteLine("SUMMARY " + (ops.Count - refused) + " services still available, " + refused +
                               " refused, " + pass + " checks passed, " + bad + " failed");
             return bad == 0 ? 0 : 1;

@@ -95,15 +95,15 @@ namespace wolfSSL.CSharp.Fips.Test
                 if (fh == FipsHashType.Sha224) {
                     T.Run("PKCS#1 v1.5 SHA-224 sign/verify (module)", () => {
                         byte[] d = FipsHash.Compute(fh, new byte[] { 1, 2, 3 });
-                        T.True(key.VerifyPkcs1v15(fh, d, key.SignPkcs1v15(fh, d, rng)), "verify");
+                        T.True(Pkcs1.Verify(key, fh, d, Pkcs1.Sign(key, fh, d, rng)), "verify");
                     });
                     continue;
                 }
                 T.Run("PKCS#1 v1.5 " + fh + ": module signature verifies in .NET", () => {
                     byte[] msg = System.Text.Encoding.ASCII.GetBytes("wolfCrypt FIPS " + fh);
                     byte[] d = FipsHash.Compute(fh, msg);
-                    byte[] sig = key.SignPkcs1v15(fh, d, rng);
-                    T.True(key.VerifyPkcs1v15(fh, d, sig), "module verify");
+                    byte[] sig = Pkcs1.Sign(key, fh, d, rng);
+                    T.True(Pkcs1.Verify(key, fh, d, sig), "module verify");
                     T.True(netPub.VerifyHash(d, sig, nh, RSASignaturePadding.Pkcs1), ".NET verify");
                 });
                 T.Run("PSS " + fh + ": module signature verifies in .NET", () => {
@@ -114,10 +114,15 @@ namespace wolfSSL.CSharp.Fips.Test
                 });
             }
 
-            T.Run("PKCS#1 v1.5 SHA3-256 sign/verify (module)", () => {
-                byte[] d = FipsHash.Compute(FipsHashType.Sha3_256, new byte[] { 4, 5, 6 });
-                T.True(key.VerifyPkcs1v15(FipsHashType.Sha3_256, d,
-                    key.SignPkcs1v15(FipsHashType.Sha3_256, d, rng)), "verify");
+            /* RSA SigGen is validated for SHA-2 only; SHA-3 PKCS#1 v1.5
+             * signatures can still be verified (see the DigestInfo test) */
+            T.Run("PKCS#1 v1.5 signing with SHA-3 is refused", () => {
+                foreach (FipsHashType h in new[] { FipsHashType.Sha3_224, FipsHashType.Sha3_256,
+                                                   FipsHashType.Sha3_384, FipsHashType.Sha3_512 }) {
+                    bool threw = false;
+                    try { Pkcs1.Sign(key, h, FipsHash.Compute(h, new byte[] { 4 }), rng); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, h + " signed");
+                }
             });
 
             /* The wrapper builds DigestInfo from its own DER prefixes. Decode
@@ -133,9 +138,34 @@ namespace wolfSSL.CSharp.Fips.Test
                     (FipsHashType.Sha3_224, "2.16.840.1.101.3.4.2.7"), (FipsHashType.Sha3_256, "2.16.840.1.101.3.4.2.8"),
                     (FipsHashType.Sha3_384, "2.16.840.1.101.3.4.2.9"), (FipsHashType.Sha3_512, "2.16.840.1.101.3.4.2.10"),
                 };
+                using var comps = WithUnlocked(() => key.Export());
+                BigInteger dPriv = U(comps.D);
                 foreach (var (h, oid) in oids) {
                     byte[] d = FipsHash.Compute(h, new byte[] { 7, 7, (byte)h });
-                    byte[] sig = key.SignPkcs1v15(h, d, rng);
+                    if (h >= FipsHashType.Sha3_224) {
+                        /* SHA-3: signing is refused, so build the signature
+                         * here (independent DigestInfo, s = EM^d mod n) and
+                         * check the module verifies it with the wrapper's
+                         * prefix */
+                        var w = new AsnWriter(AsnEncodingRules.DER);
+                        using (w.PushSequence()) {
+                            using (w.PushSequence()) {
+                                w.WriteObjectIdentifier(oid);
+                                w.WriteNull();
+                            }
+                            w.WriteOctetString(d);
+                        }
+                        byte[] di = w.Encode();
+                        byte[] emOwn = new byte[key.Size];
+                        emOwn[1] = 1;
+                        for (int i = 2; i < key.Size - di.Length - 1; i++) emOwn[i] = 0xFF;
+                        di.CopyTo(emOwn, key.Size - di.Length);
+                        byte[] s3 = BigInteger.ModPow(U(emOwn), dPriv, n).ToByteArray(isUnsigned: true, isBigEndian: true);
+                        s3 = new byte[key.Size - s3.Length].Concat(s3).ToArray();
+                        T.True(Pkcs1.Verify(key, h, d, s3), h + " module verifies an independent signature");
+                        continue;
+                    }
+                    byte[] sig = Pkcs1.Sign(key, h, d, rng);
                     byte[] em = BigInteger.ModPow(U(sig), e, n).ToByteArray(isUnsigned: true, isBigEndian: true);
                     em = new byte[key.Size - em.Length].Concat(em).ToArray();
                     int sep = Array.IndexOf(em, (byte)0, 2);
@@ -149,19 +179,48 @@ namespace wolfSSL.CSharp.Fips.Test
                     T.True(!alg.HasData, h + " algorithm parameters");
                     T.Bytes(d, info.ReadOctetString(), h + " digest");
                     T.True(!info.HasData && !outer.HasData, h + " trailing data");
-                    T.True(key.VerifyPkcs1v15(h, d, sig), h + " module verify");
+                    T.True(Pkcs1.Verify(key, h, d, sig), h + " module verify");
                 }
+            });
+
+            /* the module signs any block; the wrapper accepts only the exact
+             * DER DigestInfo of a SHA-2 digest */
+            T.Run("SignPkcs1v15 refuses anything but a SHA-2 DigestInfo", () => {
+                byte[] d256 = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 3 });
+                byte[] good = Pkcs1.DigestInfo(FipsHashType.Sha256, d256);
+                byte[] noNull = new byte[] { 0x30, 0x2f, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+                                             0x04, 0x20 }.Concat(d256).ToArray();   /* parameters omitted */
+                var bad = new (byte[] Di, string What)[] {
+                    (d256, "raw digest"),
+                    (new byte[0], "empty"),
+                    (good.Concat(new byte[] { 0 }).ToArray(), "trailing byte"),
+                    (good.Take(good.Length - 1).ToArray(), "short digest"),
+                    (noNull, "non-canonical (no NULL parameters)"),
+                    (Pkcs1.DigestInfo(FipsHashType.Sha256, new byte[31]), "31-byte SHA-256 digest"),
+                    (Pkcs1.DigestInfo(FipsHashType.Sha1, new byte[20]), "SHA-1"),
+                    (Pkcs1.DigestInfo(FipsHashType.Sha3_256, new byte[32]), "SHA3-256"),
+                    (Enumerable.Repeat((byte)0x41, 51).ToArray(), "arbitrary 51 bytes"),
+                };
+                foreach (var (di, what) in bad) {
+                    bool threw = false;
+                    try { key.SignPkcs1v15(di, rng); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, what + " signed");
+                }
+                byte[] sig = key.SignPkcs1v15(good, rng);
+                T.Bytes(good, key.RecoverPkcs1v15(sig)!, "recovered block is the DigestInfo");
+                sig[0] ^= 1;
+                T.True(key.RecoverPkcs1v15(sig) == null || !key.RecoverPkcs1v15(sig)!.SequenceEqual(good), "tampered signature recovers the DigestInfo");
             });
 
             T.Run("tampered signature or digest does not verify", () => {
                 byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
-                byte[] sig = key.SignPkcs1v15(FipsHashType.Sha256, d, rng);
+                byte[] sig = Pkcs1.Sign(key, FipsHashType.Sha256, d, rng);
                 byte[] pss = key.SignPss(FipsHashType.Sha256, d, rng);
                 byte[] d2 = (byte[])d.Clone(); d2[0] ^= 1;
-                T.True(!key.VerifyPkcs1v15(FipsHashType.Sha256, d2, sig), "v1.5 wrong digest");
+                T.True(!Pkcs1.Verify(key, FipsHashType.Sha256, d2, sig), "v1.5 wrong digest");
                 T.True(!key.VerifyPss(FipsHashType.Sha256, d2, pss), "PSS wrong digest");
                 sig[10] ^= 1; pss[10] ^= 1;
-                T.True(!key.VerifyPkcs1v15(FipsHashType.Sha256, d, sig), "v1.5 tampered sig");
+                T.True(!Pkcs1.Verify(key, FipsHashType.Sha256, d, sig), "v1.5 tampered sig");
                 T.True(!key.VerifyPss(FipsHashType.Sha256, d, pss), "PSS tampered sig");
             });
 
@@ -185,7 +244,7 @@ namespace wolfSSL.CSharp.Fips.Test
                             byte[] d = FipsHash.Compute(ft, Acvp.Hex(t, "message"));
                             bool ok = sigType == "pss"
                                 ? netPub.VerifyHash(d, key.SignPss(ft, d, rng), nh, RSASignaturePadding.Pss)
-                                : netPub.VerifyHash(d, key.SignPkcs1v15(ft, d, rng), nh, RSASignaturePadding.Pkcs1);
+                                : netPub.VerifyHash(d, Pkcs1.Sign(key, ft, d, rng), nh, RSASignaturePadding.Pkcs1);
                             T.True(ok, set.File + " tcId " + t.GetProperty("tcId").GetInt32());
                             n++;
                         }
@@ -263,7 +322,7 @@ namespace wolfSSL.CSharp.Fips.Test
             T.Run("SHA-1 signature generation is refused (PKCS#1 v1.5 and PSS)", () => {
                 byte[] d = new byte[20];
                 bool threw = false;
-                try { key.SignPkcs1v15(FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }
+                try { Pkcs1.Sign(key, FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }
                 T.True(threw, "SHA-1 PKCS#1 v1.5 signed");
                 threw = false;
                 try { key.SignPss(FipsHashType.Sha1, d, rng); } catch (ArgumentException) { threw = true; }

@@ -29,6 +29,12 @@ namespace wolfSSL.CSharp.Fips.Test
      * bottom 64 bits, Fermat test. */
     internal static class Ffdhe
     {
+        /* module ids of the groups outside the validated KAS-FFC-SSC */
+        internal const FipsDhGroup Ffdhe3072 = (FipsDhGroup)257;
+        internal const FipsDhGroup Ffdhe4096 = (FipsDhGroup)258;
+        internal const FipsDhGroup Ffdhe6144 = (FipsDhGroup)259;
+        internal const FipsDhGroup Ffdhe8192 = (FipsDhGroup)260;
+
         public static readonly Dictionary<FipsDhGroup, byte[]> P = new() {
             [FipsDhGroup.Ffdhe2048] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
@@ -39,7 +45,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 "ae56ede76372bb190b07a7c8ee0a6d709e02fce1cdf7e2ecc03404cd28342f61" +
                 "9172fe9ce98583ff8e4f1232eef28183c3fe3b1b4c6fad733bb5fcbc2ec22005" +
                 "c58ef1837d1683b2c6f34a26c1b2effa886b423861285c97ffffffffffffffff"),
-            [FipsDhGroup.Ffdhe3072] = T.Hex(
+            [Ffdhe.Ffdhe3072] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
                 "a9e13641146433fbcc939dce249b3ef97d2fe363630c75d8f681b202aec4617a" +
                 "d3df1ed5d5fd65612433f51f5f066ed0856365553ded1af3b557135e7f57c935" +
@@ -52,7 +58,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 "aefe130985139270b4130c93bc437944f4fd4452e2d74dd364f2e21e71f54bff" +
                 "5cae82ab9c9df69ee86d2bc522363a0dabc521979b0deada1dbf9a42d5c4484e" +
                 "0abcd06bfa53ddef3c1b20ee3fd59d7c25e41d2b66c62e37ffffffffffffffff"),
-            [FipsDhGroup.Ffdhe4096] = T.Hex(
+            [Ffdhe.Ffdhe4096] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
                 "a9e13641146433fbcc939dce249b3ef97d2fe363630c75d8f681b202aec4617a" +
                 "d3df1ed5d5fd65612433f51f5f066ed0856365553ded1af3b557135e7f57c935" +
@@ -69,7 +75,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 "7135c886efb4318aed6a1e012d9e6832a907600a918130c46dc778f971ad0038" +
                 "092999a333cb8b7a1a1db93d7140003c2a4ecea9f98d0acc0a8291cdcec97dcf" +
                 "8ec9b55a7f88a46b4db5a851f44182e1c68a007e5e655f6affffffffffffffff"),
-            [FipsDhGroup.Ffdhe6144] = T.Hex(
+            [Ffdhe.Ffdhe6144] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
                 "a9e13641146433fbcc939dce249b3ef97d2fe363630c75d8f681b202aec4617a" +
                 "d3df1ed5d5fd65612433f51f5f066ed0856365553ded1af3b557135e7f57c935" +
@@ -94,7 +100,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 "d72b03746ae77f5e62292c311562a846505dc82db854338ae49f5235c95b9117" +
                 "8ccf2dd5cacef403ec9d1810c6272b045b3b71f9dc6b80d63fdd4a8e9adb1e69" +
                 "62a69526d43161c1a41d570d7938dad4a40e329cd0e40e65ffffffffffffffff"),
-            [FipsDhGroup.Ffdhe8192] = T.Hex(
+            [Ffdhe.Ffdhe8192] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
                 "a9e13641146433fbcc939dce249b3ef97d2fe363630c75d8f681b202aec4617a" +
                 "d3df1ed5d5fd65612433f51f5f066ed0856365553ded1af3b557135e7f57c935" +

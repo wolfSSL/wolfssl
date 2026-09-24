@@ -43,6 +43,7 @@ namespace wolfSSL.CSharp.Fips
      * After Final the object is reset and can hash a new message. */
     public sealed class FipsHash : FipsObject
     {
+        private const int INVALID_DEVID = -2;
 
         public FipsHashType Type { get; }
         public int DigestSize => DigestSizeOf(Type);

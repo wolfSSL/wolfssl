@@ -38,22 +38,7 @@ namespace wolfSSL.CSharp.Fips
         internal FipsObject(FipsStructType type)
         {
             Handle = new FipsHandle(StructSize(type));
-            /* Aes and Hmac are keyed without an init call (the boundary has
-             * no wc_AesInit_fips / wc_HmacInit_fips). In WOLF_CRYPTO_CB
-             * builds their devId must be INVALID_DEVID, as those init
-             * routines would set it; zero-filled memory would route the
-             * operations to crypto callback device 0. */
-            FipsStructType devIdAt = type == FipsStructType.Aes ? FipsStructType.AesDevIdOffset
-                                   : type == FipsStructType.Hmac ? FipsStructType.HmacDevIdOffset
-                                   : (FipsStructType)(-1);
-            if ((int)devIdAt >= 0) {
-                int off = Native.SizeOf((int)devIdAt);
-                if (off > 0)
-                    Handle.WriteInt32(off, INVALID_DEVID);
-            }
         }
-
-        internal const int INVALID_DEVID = -2;
 
         internal static int StructSize(FipsStructType type)
         {

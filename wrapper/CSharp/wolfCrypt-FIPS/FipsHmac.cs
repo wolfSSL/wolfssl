@@ -23,19 +23,28 @@ using System;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* HMAC (FIPS 198-1) from the FIPS module. The module enforces a minimum
-     * key length of 112 bits (HMAC_MIN_KEYLEN_E). After Final the object is
-     * reset to the keyed state and can authenticate a new message. */
+    /* HMAC (FIPS 198-1) from the FIPS module. Keys are 112 to 1024 bits
+     * (14 to 128 bytes): the module enforces the minimum
+     * (HMAC_MIN_KEYLEN_E), and the maximum is the range the module's HMAC
+     * validation tested (SP #4718, A4308). After Final the object is reset
+     * to the keyed state and can authenticate a new message. */
     public sealed class FipsHmac : FipsObject
     {
         public FipsHashType Type { get; }
         public int MacSize => FipsHash.DigestSizeOf(Type);
+
+        public const int MaxKeySize = 128;
 
         public FipsHmac(FipsHashType type, byte[] key) : base(FipsStructType.Hmac)
         {
             if (key == null) {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
+            }
+            if (key.Length > MaxKeySize) {
+                Dispose();
+                throw new ArgumentException("HMAC key must be at most " + MaxKeySize +
+                    " bytes (validated range 112 to 1024 bits)", nameof(key));
             }
             Type = type;
             int ret = Native.wc_HmacSetKey_fips(Handle, (int)type, key, (uint)key.Length);

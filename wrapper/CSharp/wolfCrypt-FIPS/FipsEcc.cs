@@ -78,11 +78,11 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(rng));
             if (curve == FipsEccCurve.P192)
                 throw new ArgumentException("P-192 key generation is not approved", nameof(curve));
-            rng.ThrowIfDisposed();
             var k = new FipsEccKey(curve, true);
             try {
-                WolfCryptFipsException.Check("wc_ecc_make_key_ex_fips",
-                    Native.wc_ecc_make_key_ex_fips(rng.Handle, FieldSizeOf(curve), k.Handle, (int)curve));
+                using (rng.Use())
+                    WolfCryptFipsException.Check("wc_ecc_make_key_ex_fips",
+                        Native.wc_ecc_make_key_ex_fips(rng.Handle, FieldSizeOf(curve), k.Handle, (int)curve));
                 var own = new FipsRng();
                 k.ownRng = own;
                 k.SetNativeFree(p => {
@@ -100,7 +100,11 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* Imports a public key (04 || X || Y). The curve is determined by
-         * the point size and must match curve. */
+         * the point size and must match curve. The key is fully validated
+         * (SP 800-56A 5.6.2.3.3: on the curve, in range, order n): by the
+         * module on import when it is built with WOLFSSL_VALIDATE_ECC_IMPORT,
+         * otherwise by an explicit wc_ecc_check_key_fips here, so an
+         * unvalidated point can never reach verification or CDH. */
         public static FipsEccKey ImportPublic(FipsEccCurve curve, byte[] x963)
         {
             if (x963 == null)
@@ -111,20 +115,14 @@ namespace wolfSSL.CSharp.Fips
             try {
                 WolfCryptFipsException.Check("wc_ecc_import_x963_fips",
                     Native.wc_ecc_import_x963_fips(x963, (uint)x963.Length, k.Handle));
+                if (Native.SizeOf((int)FipsStructType.ValidateEccImport) != 1)
+                    k.Check();
             }
             catch {
                 k.Dispose();
                 throw;
             }
             return k;
-        }
-
-        public static FipsEccKey ImportPublic(FipsEccCurve curve, byte[] x, byte[] y)
-        {
-            if (x == null || y == null)
-                throw new ArgumentNullException(x == null ? nameof(x) : nameof(y));
-            int n = FieldSizeOf(curve);
-            return ImportPublic(curve, new byte[] { 0x04 }.Concat(LeftPad(x, n)).Concat(LeftPad(y, n)).ToArray());
         }
 
         /* Full public key validation (wc_ecc_check_key_fips). Throws if
@@ -148,7 +146,7 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* ECDSA signature over a message digest made with hash; returns DER
-         * SEQUENCE { r, s } (see FipsEcdsaSignature for r/s conversion).
+         * SEQUENCE { r, s }, as the module returns it.
          * SHA-1 is refused (signature generation, SP 800-131A); the digest
          * length must match hash. */
         public byte[] SignHash(FipsHashType hash, byte[] digest)
@@ -161,18 +159,25 @@ namespace wolfSSL.CSharp.Fips
             RequirePrivate();
             if (Curve == FipsEccCurve.P192)
                 throw new InvalidOperationException("P-192 signing is not approved");
-            byte[] sig = new byte[FipsEcdsaSignature.MaxDerSize(FieldSize)];
+            byte[] sig = new byte[9 + 2 * (FieldSize + 1)];   /* max DER SEQUENCE { r, s } */
             uint len = (uint)sig.Length;
-            WolfCryptFipsException.Check("wc_ecc_sign_hash_fips",
-                Native.wc_ecc_sign_hash_fips(digest, (uint)digest.Length, sig, ref len, ownRng!.Handle, Handle));
+            using (ownRng!.Use())
+                WolfCryptFipsException.Check("wc_ecc_sign_hash_fips",
+                    Native.wc_ecc_sign_hash_fips(digest, (uint)digest.Length, sig, ref len, ownRng.Handle, Handle));
             return sig.Take((int)len).ToArray();
         }
 
-        /* Verifies a DER signature over a digest. */
-        public bool VerifyHash(byte[] digest, byte[] derSignature)
+        /* Verifies a DER signature over a digest made with hash. The digest
+         * length must match hash (FIPS 186-5 6.4.2): the v5.2.x module has no
+         * digest length bound, and a very short digest makes signatures
+         * forgeable (CVE-2026-5194). SHA-1 is accepted for legacy
+         * verification. */
+        public bool VerifyHash(FipsHashType hash, byte[] digest, byte[] derSignature)
         {
             if (digest == null || derSignature == null)
                 throw new ArgumentNullException(digest == null ? nameof(digest) : nameof(derSignature));
+            if (digest.Length != FipsHash.DigestSizeOf(hash))
+                throw new ArgumentException("digest length does not match " + hash, nameof(digest));
             ThrowIfDisposed();
             int ret = Native.wc_ecc_verify_hash_fips(derSignature, (uint)derSignature.Length,
                                                      digest, (uint)digest.Length, out int res, Handle);
@@ -181,21 +186,26 @@ namespace wolfSSL.CSharp.Fips
             return ret == 0 && res == 1;
         }
 
-        /* ECC CDH primitive: shared secret Z (x-coordinate, FieldSize
-         * bytes) with a peer's public key on the same curve. */
+        /* ECC CDH primitive (KAS-ECC-SSC): shared secret Z (x-coordinate,
+         * FieldSize bytes) with a peer's public key on the same curve.
+         * Approved on P-256, P-384 and P-521 only (the validated
+         * KAS-ECC-SSC domains, SP #4718); P-192 and P-224 are refused. */
         public byte[] SharedSecret(FipsEccKey peerPublic)
         {
             if (peerPublic == null)
                 throw new ArgumentNullException(nameof(peerPublic));
+            if (Curve == FipsEccCurve.P192 || Curve == FipsEccCurve.P224)
+                throw new InvalidOperationException("ECC CDH is approved on P-256, P-384 and P-521 only");
             RequirePrivate();
             peerPublic.ThrowIfDisposed();
             if (peerPublic.Curve != Curve)
                 throw new ArgumentException("curve mismatch", nameof(peerPublic));
-            byte[] z = new byte[FieldSize];
+            byte[] z = GC.AllocateArray<byte>(FieldSize, pinned: true);
             uint len = (uint)z.Length;
             try {
-                WolfCryptFipsException.Check("wc_ecc_shared_secret_fips", FipsModule.WithPrivateKeyRead(() =>
-                    Native.wc_ecc_shared_secret_fips(Handle, peerPublic.Handle, z, ref len)));
+                using (ownRng!.Use())
+                    WolfCryptFipsException.Check("wc_ecc_shared_secret_fips", FipsModule.WithPrivateKeyRead(() =>
+                        Native.wc_ecc_shared_secret_fips(Handle, peerPublic.Handle, z, ref len)));
                 return z.Take((int)len).ToArray();
             }
             finally {
@@ -217,91 +227,6 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             if (!HasPrivateKey)
                 throw new InvalidOperationException("operation requires a private key");
-        }
-
-        internal static byte[] LeftPad(byte[] v, int n)
-        {
-            if (v.Length > n) {
-                int skip = v.Length - n;
-                if (v.Take(skip).Any(b => b != 0))
-                    throw new ArgumentException("value too large for curve");
-                return v.Skip(skip).ToArray();
-            }
-            return new byte[n - v.Length].Concat(v).ToArray();
-        }
-    }
-
-    /* ECDSA signature encoding helpers: DER SEQUENCE { INTEGER r,
-     * INTEGER s } and fixed-width r || s (IEEE P1363). Formatting only. */
-    public static class FipsEcdsaSignature
-    {
-        internal static int MaxDerSize(int fieldSize) => 9 + 2 * (fieldSize + 1);
-
-        public static byte[] ToDer(byte[] r, byte[] s)
-        {
-            if (r == null || s == null)
-                throw new ArgumentNullException(r == null ? nameof(r) : nameof(s));
-            byte[] ri = DerInteger(r), si = DerInteger(s);
-            return new byte[] { 0x30 }.Concat(DerLength(ri.Length + si.Length)).Concat(ri).Concat(si).ToArray();
-        }
-
-        /* Fixed-width r || s, each fieldSize bytes. */
-        public static byte[] ToP1363(byte[] der, int fieldSize)
-        {
-            var (r, s) = FromDer(der);
-            return FipsEccKey.LeftPad(r, fieldSize).Concat(FipsEccKey.LeftPad(s, fieldSize)).ToArray();
-        }
-
-        public static byte[] FromP1363(byte[] rs)
-        {
-            if (rs == null || rs.Length % 2 != 0)
-                throw new ArgumentException("r || s must have even length", nameof(rs));
-            int n = rs.Length / 2;
-            return ToDer(rs.Take(n).ToArray(), rs.Skip(n).ToArray());
-        }
-
-        /* Strict DER decode of SEQUENCE { INTEGER r, INTEGER s }: rejects
-         * truncated or trailing data, non-minimal lengths and integers, and
-         * non-positive values. Throws FormatException on any violation. */
-        public static (byte[] r, byte[] s) FromDer(byte[] der)
-        {
-            if (der == null)
-                throw new ArgumentNullException(nameof(der));
-            try {
-                var outer = new AsnReader(der, AsnEncodingRules.DER);
-                AsnReader seq = outer.ReadSequence();
-                outer.ThrowIfNotEmpty();
-                byte[] r = ReadPositive(seq);
-                byte[] s = ReadPositive(seq);
-                seq.ThrowIfNotEmpty();
-                return (r, s);
-            }
-            catch (AsnContentException e) {
-                throw new FormatException("invalid DER ECDSA signature", e);
-            }
-        }
-
-        private static byte[] DerInteger(byte[] v)
-        {
-            byte[] t = v.SkipWhile(b => b == 0).ToArray();
-            if (t.Length == 0) t = new byte[] { 0 };
-            if ((t[0] & 0x80) != 0) t = new byte[] { 0 }.Concat(t).ToArray();
-            return new byte[] { 0x02 }.Concat(DerLength(t.Length)).Concat(t).ToArray();
-        }
-
-        private static byte[] DerLength(int len) =>
-            len < 0x80 ? new[] { (byte)len } : len <= 0xff ? new byte[] { 0x81, (byte)len }
-                                                            : new byte[] { 0x82, (byte)(len >> 8), (byte)len };
-
-        private static byte[] ReadPositive(AsnReader seq)
-        {
-            ReadOnlyMemory<byte> v = seq.ReadIntegerBytes();
-            ReadOnlySpan<byte> b = v.Span;
-            if ((b[0] & 0x80) != 0)
-                throw new FormatException("negative INTEGER in ECDSA signature");
-            if (b.Length == 1 && b[0] == 0)
-                throw new FormatException("zero INTEGER in ECDSA signature");
-            return (b[0] == 0 ? b.Slice(1) : b).ToArray();
         }
     }
 }

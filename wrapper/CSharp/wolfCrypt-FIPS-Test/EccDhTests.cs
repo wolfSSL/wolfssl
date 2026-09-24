@@ -45,7 +45,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             bool ok;
                             try {
-                                using var k = FipsEccKey.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
+                                using var k = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
                                 k.Check();
                                 ok = true;
                             }
@@ -70,8 +70,8 @@ namespace wolfSSL.CSharp.Fips.Test
                             byte[] der = FipsEcdsaSignature.ToDer(Acvp.Hex(t, "r"), Acvp.Hex(t, "s"));
                             bool ok;
                             try {
-                                using var k = FipsEccKey.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
-                                ok = k.VerifyHash(digest, der);
+                                using var k = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
+                                ok = k.VerifyHash(h, digest, der);
                             }
                             catch (Exception e) when (e is WolfCryptFipsException || e is ArgumentException) { ok = false; }
                             T.Equal(set.ExpectedFor(g, t).GetProperty("testPassed").GetBoolean(), ok,
@@ -97,7 +97,7 @@ namespace wolfSSL.CSharp.Fips.Test
                             byte[] digest = component ? msg : FipsHash.Compute(h, msg);
                             byte[] sig = key.SignHash(h, digest);
                             string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
-                            T.True(key.VerifyHash(digest, sig), where + " module verify");
+                            T.True(key.VerifyHash(h, digest, sig), where + " module verify");
                             if (dn != null) {
                                 T.True(dn.VerifyHash(digest, sig, DSASignatureFormat.Rfc3279DerSequence), where + " .NET verify");
                                 net++;
@@ -148,10 +148,23 @@ namespace wolfSSL.CSharp.Fips.Test
                 byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
                 byte[] sig = k.SignHash(FipsHashType.Sha256, d);
                 byte[] d2 = (byte[])d.Clone(); d2[0] ^= 1;
-                T.True(!k.VerifyHash(d2, sig), "wrong digest");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d2, sig), "wrong digest");
                 byte[] rs = FipsEcdsaSignature.ToP1363(sig, 32);
                 rs[5] ^= 1;
-                T.True(!k.VerifyHash(d, FipsEcdsaSignature.FromP1363(rs)), "tampered r");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, FipsEcdsaSignature.FromP1363(rs)), "tampered r");
+            });
+
+            /* CVE-2026-5194 class: the module has no digest length bound, so
+             * a short digest must never reach it */
+            T.Run("ECDSA verify requires the digest length of the stated hash", () => {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
+                byte[] sig = k.SignHash(FipsHashType.Sha256, new byte[32]);
+                foreach (int len in new[] { 0, 1, 16, 31, 33 }) {
+                    bool threw = false;
+                    try { k.VerifyHash(FipsHashType.Sha256, new byte[len], sig); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, len + "-byte digest accepted as SHA-256");
+                }
+                T.True(k.VerifyHash(FipsHashType.Sha256, new byte[32], sig), "32-byte digest verifies");
             });
 
             T.Run("public-only key cannot sign", () => {
@@ -170,7 +183,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 threw = false;
                 try { k.SignHash(FipsHashType.Sha384, new byte[32]); } catch (ArgumentException) { threw = true; }
                 T.True(threw, "32-byte digest accepted as SHA-384");
-                T.True(k.VerifyHash(new byte[32], k.SignHash(FipsHashType.Sha256, new byte[32])), "SHA-256 still signs");
+                T.True(k.VerifyHash(FipsHashType.Sha256, new byte[32], k.SignHash(FipsHashType.Sha256, new byte[32])), "SHA-256 still signs");
             });
 
             T.Run("key keeps working after the generation DRBG is disposed", () => {
@@ -185,7 +198,7 @@ namespace wolfSSL.CSharp.Fips.Test
                     k.Check();
                     T.Equal(48, k.SharedSecret(peer).Length, "shared secret");
                     byte[] d = new byte[48];
-                    T.True(k.VerifyHash(d, k.SignHash(FipsHashType.Sha384, d)), "sign/verify");
+                    T.True(k.VerifyHash(FipsHashType.Sha384, d, k.SignHash(FipsHashType.Sha384, d)), "sign/verify");
                 }
                 k.Dispose();
                 peer.Dispose();
@@ -200,7 +213,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 try { FipsEcdsaSignature.ToDer(r, null!); } catch (ArgumentNullException e) { param = e.ParamName; }
                 T.Equal("s", param, "null s reported by name");
                 param = null;
-                try { FipsEccKey.ImportPublic(FipsEccCurve.P256, null!, new byte[32]).Dispose(); }
+                try { EccTestHelpers.ImportPublic(FipsEccCurve.P256, null!, new byte[32]).Dispose(); }
                 catch (ArgumentNullException e) { param = e.ParamName; }
                 T.Equal("x", param, "null x reported by name");
                 foreach (var (bad, what) in new[] {
@@ -238,13 +251,33 @@ namespace wolfSSL.CSharp.Fips.Test
                     using var ours = FipsEccKey.Generate(curve, rng);
                     using var theirs = ECDiffieHellman.Create(NetCurve(curve));
                     var tp = theirs.ExportParameters(false);
-                    using var theirPub = FipsEccKey.ImportPublic(curve, tp.Q.X!, tp.Q.Y!);
+                    using var theirPub = EccTestHelpers.ImportPublic(curve, tp.Q.X!, tp.Q.Y!);
                     byte[] zModule = ours.SharedSecret(theirPub);
                     using var ourPubNet = ECDiffieHellman.Create(PublicParams(curve, ours.ExportPublic()));
                     byte[] zNet = theirs.DeriveRawSecretAgreement(ourPubNet.PublicKey);
                     T.Bytes(zNet, zModule, "Z");
                 });
             }
+
+            T.Run("ECC CDH refused on P-224 (not a validated KAS-ECC-SSC domain)", () => {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P224, rng);
+                using var peer = FipsEccKey.Generate(FipsEccCurve.P224, rng);
+                bool threw = false;
+                try { k.SharedSecret(peer); } catch (InvalidOperationException) { threw = true; }
+                T.True(threw, "P-224 CDH performed");
+            });
+
+            T.Run("off-curve peer points are refused at import, before any CDH", () => {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
+                byte[] pt = k.ExportPublic();
+                pt[^1] ^= 1;   /* y + 1: off the curve */
+                bool threw = false;
+                try { FipsEccKey.ImportPublic(FipsEccCurve.P256, pt).Dispose(); }
+                catch (WolfCryptFipsException) { threw = true; }
+                T.True(threw, "off-curve point imported");
+                T.Equal(1, Native.SizeOf((int)FipsStructType.ValidateEccImport),
+                        "WOLFSSL_VALIDATE_ECC_IMPORT (module validates on import)");
+            });
 
             T.Run("ACVP KAS-ECC-SSC AFT: Z with server keys", () => {
                 int n = 0;
@@ -253,7 +286,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         FipsEccCurve c = CurveOf(g.GetProperty("domainParameterGenerationMode").GetString()!);
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             using var ours = FipsEccKey.Generate(c, rng);
-                            using var server = FipsEccKey.ImportPublic(c, Acvp.Hex(t, "ephemeralPublicServerX"),
+                            using var server = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "ephemeralPublicServerX"),
                                                                            Acvp.Hex(t, "ephemeralPublicServerY"));
                             T.Equal(FipsEccKey.FieldSizeOf(c), ours.SharedSecret(server).Length, "Z length");
                             n++;
@@ -272,7 +305,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 int n = 0;
                 foreach (AcvpVectorSet set in Acvp.Load("KAS-FFC-SSC"))
                     foreach (var g in set.Groups.Where(x => x.GetProperty("testType").GetString() == "VAL")) {
-                        using var dh = new FipsDh(GroupOf(g.GetProperty("domainParameterGenerationMode").GetString()!));
+                        using var dh = FipsDh.AnyNamedGroup(GroupOf(g.GetProperty("domainParameterGenerationMode").GetString()!));
                         FipsHashType h = HashOf(g.GetProperty("hashFunctionZ").GetString()!);
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             bool ok;
@@ -295,7 +328,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 foreach (AcvpVectorSet set in Acvp.Load("KAS-FFC-SSC"))
                     foreach (var g in set.Groups.Where(x => x.GetProperty("testType").GetString() == "AFT")) {
                         FipsDhGroup grp = GroupOf(g.GetProperty("domainParameterGenerationMode").GetString()!);
-                        using var dh = new FipsDh(grp);
+                        using var dh = FipsDh.AnyNamedGroup(grp);
                         byte[] p = Ffdhe.P[grp];
                         foreach (var t in g.GetProperty("tests").EnumerateArray()) {
                             using var kp = dh.GenerateKeyPair(rng);
@@ -423,6 +456,46 @@ namespace wolfSSL.CSharp.Fips.Test
                 }
             });
 
+            /* SP 800-56A FE2OS: public keys are len(p) bytes even when y has
+             * a leading zero byte (the module returns the minimal length) */
+            T.Run("DH public keys are left-padded to the prime size", () => {
+                using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
+                byte[] p = Ffdhe.P[FipsDhGroup.Ffdhe2048];
+                bool seen = false;
+                for (int i = 0; i < 4096 && !seen; i++) {
+                    using var kp = dh.GenerateKeyPair(rng);
+                    T.Equal(256, kp.PublicKey.Length, "public key length");
+                    if (kp.PublicKey[0] == 0) {
+                        seen = true;
+                        T.Bytes(ModPow(new byte[] { 2 }, kp.PrivateKey, p), kp.PublicKey, "padded public key");
+                        T.True(dh.CheckPublicKey(kp.PublicKey), "padded key validates");
+                    }
+                }
+                T.True(seen, "no public key with a leading zero byte in 4096 key pairs");
+            });
+
+            T.Run("only ffdhe2048 is offered (validated KAS-FFC-SSC group)", () => {
+                foreach (FipsDhGroup g in new[] { Ffdhe.Ffdhe3072, Ffdhe.Ffdhe4096,
+                                                  Ffdhe.Ffdhe6144, Ffdhe.Ffdhe8192 }) {
+                    bool threw = false;
+                    try { new FipsDh(g).Dispose(); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, (int)g + " accepted by the public constructor");
+                }
+                T.Equal(1, Enum.GetValues<FipsDhGroup>().Length, "public group list");
+            });
+
+            T.Run("DH GeneratePublic refuses private keys outside [1, q-1]", () => {
+                using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
+                BigInteger qv = (new BigInteger(Ffdhe.P[FipsDhGroup.Ffdhe2048], isUnsigned: true, isBigEndian: true) - 1) / 2;
+                foreach (var (x, what) in new[] { (BigInteger.Zero, "0"), (qv, "q"), (qv + 1, "q + 1") }) {
+                    byte[] xb = x.IsZero ? new byte[1] : x.ToByteArray(isUnsigned: true, isBigEndian: true);
+                    bool threw = false;
+                    try { dh.GeneratePublic(xb); } catch (ArgumentException) { threw = true; }
+                    catch (NotSupportedException) { threw = false; }
+                    T.True(threw, "x = " + what + " accepted");
+                }
+            });
+
             T.Run("DH GeneratePublic matches generated key pair (v5.2.3+)", () => {
                 using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
                 using var kp = dh.GenerateKeyPair(rng);
@@ -497,9 +570,9 @@ namespace wolfSSL.CSharp.Fips.Test
         };
 
         private static FipsDhGroup GroupOf(string g) => g switch {
-            "ffdhe2048" => FipsDhGroup.Ffdhe2048, "ffdhe3072" => FipsDhGroup.Ffdhe3072,
-            "ffdhe4096" => FipsDhGroup.Ffdhe4096, "ffdhe6144" => FipsDhGroup.Ffdhe6144,
-            "ffdhe8192" => FipsDhGroup.Ffdhe8192, _ => throw new Exception("group " + g)
+            "ffdhe2048" => FipsDhGroup.Ffdhe2048, "ffdhe3072" => Ffdhe.Ffdhe3072,
+            "ffdhe4096" => Ffdhe.Ffdhe4096, "ffdhe6144" => Ffdhe.Ffdhe6144,
+            "ffdhe8192" => Ffdhe.Ffdhe8192, _ => throw new Exception("group " + g)
         };
 
         internal static FipsHashType HashOf(string h) => h switch {

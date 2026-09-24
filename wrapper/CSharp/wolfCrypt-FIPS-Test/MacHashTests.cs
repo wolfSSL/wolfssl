@@ -79,32 +79,21 @@ namespace wolfSSL.CSharp.Fips.Test
 
             T.Run("ACVP CMAC-AES (gen + ver)", CmacVectors);
 
-            T.Run("CMAC rejects a modified tag", () => {
-                byte[] key = new byte[16], msg = { 1, 2, 3, 4 };
-                byte[] tag = FipsCmac.Compute(key, msg);
-                T.True(FipsCmac.Verify(key, msg, tag), "valid tag");
-                tag[0] ^= 1;
-                T.True(!FipsCmac.Verify(key, msg, tag), "modified tag accepted");
-            });
-
             T.Run("CMAC tags below 64 bits are refused", () => {
                 bool threw = false;
                 try { FipsCmac.Compute(new byte[16], new byte[1], 4); } catch (ArgumentOutOfRangeException) { threw = true; }
                 T.True(threw, "4-byte tag generated");
-                threw = false;
-                try { FipsCmac.Verify(new byte[16], new byte[1], new byte[6], 6); } catch (ArgumentOutOfRangeException) { threw = true; }
-                T.True(threw, "6-byte tag verified");
             });
 
-            T.Run("CMAC Verify refuses a tag shorter than the expected length", () => {
-                byte[] key = new byte[16], msg = { 1, 2, 3 };
-                byte[] tag = FipsCmac.Compute(key, msg);
-                for (int len = FipsCmac.MinTagSize; len < FipsCmac.MaxTagSize; len++) {
-                    bool threw = false;
-                    try { FipsCmac.Verify(key, msg, tag.Take(len).ToArray()); } catch (ArgumentException) { threw = true; }
-                    T.True(threw, len + "-byte prefix of a valid tag accepted by default");
-                }
-                T.True(FipsCmac.Verify(key, msg, FipsCmac.Compute(key, msg, 8), 8), "explicit 8-byte tag size");
+            T.Run("HMAC keys at most 1024 bits; AES-CMAC key sizes", () => {
+                byte[] msg = { 1, 2, 3 };
+                T.Equal(32, FipsHmac.Compute(FipsHashType.Sha256, new byte[128], msg).Length, "128-byte key");
+                bool threw = false;
+                try { FipsHmac.Compute(FipsHashType.Sha256, new byte[129], msg); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "129-byte key accepted");
+                threw = false;
+                try { new FipsCmac(new byte[20]).Dispose(); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "20-byte CMAC key accepted");
             });
 
             T.Run("CMAC is single use", () => {
@@ -196,8 +185,7 @@ namespace wolfSSL.CSharp.Fips.Test
                             /* tags under 64 bits are not offered (SP 800-38B A.2) */
                             bool refused = false;
                             try {
-                                if (dir == "gen") FipsCmac.Compute(key, msg, macLen);
-                                else FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"), macLen);
+                                FipsCmac.Compute(key, msg, macLen);
                             }
                             catch (ArgumentOutOfRangeException) { refused = true; }
                             T.True(refused, where + " short CMAC tag accepted");
@@ -209,8 +197,9 @@ namespace wolfSSL.CSharp.Fips.Test
                             gen++;
                         }
                         else {
+                            /* verification: the boundary generates; the test compares */
                             T.Equal(exp.GetProperty("testPassed").GetBoolean(),
-                                    FipsCmac.Verify(key, msg, Acvp.Hex(t, "mac"), macLen), where);
+                                    FipsCmac.Compute(key, msg, macLen).SequenceEqual(Acvp.Hex(t, "mac")), where);
                             ver++;
                         }
                     }

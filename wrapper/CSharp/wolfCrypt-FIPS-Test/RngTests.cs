@@ -88,9 +88,22 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!r1.Generate(32).SequenceEqual(r2.Generate(32)), "same output");
             });
 
-            T.Run("instantiate with nonce", () => {
-                using var rng = new FipsRng(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+            T.Run("instantiate with nonce (at least 128 bits, SP 800-90A 8.6.7)", () => {
+                using var rng = new FipsRng(Enumerable.Range(1, 16).Select(i => (byte)i).ToArray());
                 T.Equal(48, rng.Generate(48).Length, "length");
+                bool threw = false;
+                try { new FipsRng(new byte[15]).Dispose(); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "15-byte nonce accepted");
+            });
+
+            T.Run("one instance shared by several threads", () => {
+                using var rng = new FipsRng();
+                var outs = new System.Collections.Concurrent.ConcurrentBag<string>();
+                System.Threading.Tasks.Parallel.For(0, 8, _ => {
+                    for (int i = 0; i < 200; i++)
+                        outs.Add(Convert.ToHexString(rng.Generate(32)));
+                });
+                T.Equal(1600, outs.Distinct().Count(), "distinct outputs");
             });
 
             T.Run("maximum request size succeeds", () => {

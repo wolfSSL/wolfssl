@@ -25,14 +25,13 @@ using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* RFC 7919 named groups; values are the module's WC_FFDHE_* ids. */
+    /* RFC 7919 named groups covered by the validated module; values are the
+     * module's WC_FFDHE_* ids. The #4718 Security Policy lists KAS-FFC-SSC
+     * (dhEphem) with ffdhe2048 only. The module also implements ffdhe3072
+     * to ffdhe8192 (WC_FFDHE_3072..8192), but they are not offered. */
     public enum FipsDhGroup
     {
-        Ffdhe2048 = 256,
-        Ffdhe3072 = 257,
-        Ffdhe4096 = 258,
-        Ffdhe6144 = 259,
-        Ffdhe8192 = 260
+        Ffdhe2048 = 256
     }
 
     public sealed class FipsDhKeyPair : IDisposable
@@ -53,21 +52,40 @@ namespace wolfSSL.CSharp.Fips
         /* Prime size in bytes. */
         public int PrimeSize { get; }
 
-        /* Subgroup order q for explicit domains. The module runs the
-         * SP 800-56A y^q = 1 check only when q is passed explicitly (not
-         * from the key), so it is kept here. Null for the RFC 7919 named
-         * groups: they are safe-prime groups, where the range check
-         * (y != 1, y != p-1) already excludes the only small subgroup. */
+        /* Subgroup order q for the internal explicit domains, passed to
+         * wc_DhCheckPubKeyEx (the module runs the y^q = 1 check only for a q
+         * passed explicitly). Null for the named group: the module's own
+         * check then validates the range 2 <= y <= p-2 (partial validation,
+         * SP 800-56A 5.6.2.3.2, which 5.6.2.2.2 allows for ephemeral keys
+         * of a safe-prime group). */
         private readonly byte[]? q;
 
-        public FipsDh(FipsDhGroup group) : base(FipsStructType.Dh)
+        /* RFC 7919 safe-prime group (KAS-FFC-SSC, dhEphem): ffdhe2048. */
+        public FipsDh(FipsDhGroup group) : this(group, validatedOnly: true)
         {
+        }
+
+        /* Any RFC 7919 group the module implements, including those outside
+         * the validated KAS-FFC-SSC. Internal: for ACVP known-answer tests. */
+        internal static FipsDh AnyNamedGroup(FipsDhGroup group) => new FipsDh(group, validatedOnly: false);
+
+        private FipsDh(FipsDhGroup group, bool validatedOnly) : base(FipsStructType.Dh)
+        {
+            if (validatedOnly && group != FipsDhGroup.Ffdhe2048) {
+                Dispose();
+                throw new ArgumentException("KAS-FFC-SSC is validated for ffdhe2048 only (SP #4718)", nameof(group));
+            }
             Init();
             Call("wc_DhSetNamedKey_fips", Native.wc_DhSetNamedKey_fips(Handle, (int)group));
             PrimeSize = (int)group switch { 256 => 256, 257 => 384, 258 => 512, 259 => 768, _ => 1024 };
         }
 
-        /* Explicit FIPS 186-type domain parameters p, g and q. SP 800-131A
+        /* Internal, not an approved service: the validated KAS-FFC-SSC
+         * (SP #4718) covers the RFC 7919 safe-prime groups only, and
+         * SP 800-56A 5.5.1.1 keeps FIPS 186-type domains for backward
+         * compatibility. Kept for testing the module's explicit-domain path.
+         *
+         * Explicit FIPS 186-type domain parameters p, g and q. SP 800-131A
          * Rev. 2 Table 4 allows only (len(p), len(q)) = (2048, 224) or
          * (2048, 256). The module checks only that p is prime: it does not
          * check that q is prime, that q divides p-1 or that g generates the
@@ -76,7 +94,7 @@ namespace wolfSSL.CSharp.Fips
          * y^q = 1 check. The domain must therefore be one of the published
          * RFC 5114 groups (2.2: 2048/224, 2.3: 2048/256), compared byte for
          * byte (leading zeros ignored). Prefer the named groups. */
-        public FipsDh(byte[] p, byte[] g, byte[] q) : base(FipsStructType.Dh)
+        internal FipsDh(byte[] p, byte[] g, byte[] q) : base(FipsStructType.Dh)
         {
             if (p == null || g == null || q == null) {
                 Dispose();
@@ -175,33 +193,48 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
+        /* Public key y as a fixed-length octet string, left-padded to the
+         * prime size (SP 800-56A FE2OS; the module returns the minimal
+         * length). */
+        private byte[] PadToPrime(byte[] v, uint len)
+        {
+            byte[] r = new byte[PrimeSize];
+            Buffer.BlockCopy(v, 0, r, PrimeSize - (int)len, (int)len);
+            return r;
+        }
+
         /* Generates a key pair (includes the module's pairwise consistency
-         * test). */
+         * test). The public key is PrimeSize bytes. */
         public FipsDhKeyPair GenerateKeyPair(FipsRng rng)
         {
             if (rng == null)
                 throw new ArgumentNullException(nameof(rng));
             ThrowIfDisposed();
-            rng.ThrowIfDisposed();
-            byte[] priv = new byte[PrimeSize], pub = new byte[PrimeSize];
+            byte[] priv = GC.AllocateArray<byte>(PrimeSize, pinned: true), pub = new byte[PrimeSize];
             uint privSz = (uint)priv.Length, pubSz = (uint)pub.Length;
             try {
-                WolfCryptFipsException.Check("wc_DhGenerateKeyPair_fips", FipsModule.WithPrivateKeyRead(() =>
-                    Native.wc_DhGenerateKeyPair_fips(Handle, rng.Handle, priv, ref privSz, pub, ref pubSz)));
-                return new FipsDhKeyPair(priv.Take((int)privSz).ToArray(), pub.Take((int)pubSz).ToArray());
+                using (rng.Use())
+                    WolfCryptFipsException.Check("wc_DhGenerateKeyPair_fips", FipsModule.WithPrivateKeyRead(() =>
+                        Native.wc_DhGenerateKeyPair_fips(Handle, rng.Handle, priv, ref privSz, pub, ref pubSz)));
+                return new FipsDhKeyPair(priv.Take((int)privSz).ToArray(), PadToPrime(pub, pubSz));
             }
             finally {
                 CryptographicOperations.ZeroMemory(priv);
             }
         }
 
-        /* Computes the public key for a private key. v5.2.3 and later only;
-         * throws NotSupportedException on a v5.2.1 module. */
+        /* Computes the public key (PrimeSize bytes) for a private key.
+         * v5.2.3 and later only; throws NotSupportedException on a v5.2.1
+         * module. The private key must be in [1, q-1] (SP 800-56A
+         * 5.6.2.1.2); the module does not check this here, so it is checked
+         * first (ArgumentException otherwise). */
         public byte[] GeneratePublic(byte[] privateKey)
         {
             if (privateKey == null)
                 throw new ArgumentNullException(nameof(privateKey));
             ThrowIfDisposed();
+            if (!CheckPrivateKey(privateKey))
+                throw new ArgumentException("private key is not in [1, q-1]", nameof(privateKey));
             byte[] pub = new byte[PrimeSize];
             uint pubSz = (uint)pub.Length;
             int ret;
@@ -212,7 +245,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new NotSupportedException("wc_DhGeneratePublic_fips requires FIPS v5.2.3 or later");
             }
             WolfCryptFipsException.Check("wc_DhGeneratePublic_fips", ret);
-            return pub.Take((int)pubSz).ToArray();
+            return PadToPrime(pub, pubSz);
         }
 
         /* Shared secret Z, left-padded to the prime size (SP 800-56A
@@ -223,9 +256,8 @@ namespace wolfSSL.CSharp.Fips
             if (privateKey == null || peerPublicKey == null)
                 throw new ArgumentNullException(privateKey == null ? nameof(privateKey) : nameof(peerPublicKey));
             ThrowIfDisposed();
-            /* wc_DhAgree only checks 2 <= y <= p-2 (partial validation). Run
-             * full SP 800-56A validation first, including the y^q = 1
-             * subgroup check for explicit domains. */
+            /* The module's public key check first (wc_DhCheckPubKeyEx; with
+             * q for explicit domains it includes y^q = 1). */
             int chk = Native.wc_DhCheckPubKeyEx_fips(Handle, peerPublicKey, (uint)peerPublicKey.Length,
                                                      q, q == null ? 0u : (uint)q.Length);
             if (chk != 0)
@@ -250,7 +282,8 @@ namespace wolfSSL.CSharp.Fips
 
         /* Key checks return false for an invalid key and throw when the
          * module is not in a state to perform the check. CheckPublicKey is
-         * full validation (range, plus y^q = 1 for explicit domains). */
+         * the module's public key check (range, plus y^q = 1 for explicit
+         * domains). */
         public bool CheckPublicKey(byte[] pub) => CheckArgs(pub, nameof(pub)) &&
             CheckResult("wc_DhCheckPubKeyEx_fips", Native.wc_DhCheckPubKeyEx_fips(Handle, pub, (uint)pub.Length,
                                                                                q, q == null ? 0u : (uint)q.Length));

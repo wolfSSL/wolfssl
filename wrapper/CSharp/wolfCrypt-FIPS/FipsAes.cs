@@ -27,7 +27,14 @@ namespace wolfSSL.CSharp.Fips
 
     /* AES block cipher modes (FIPS 197, SP 800-38A) from the FIPS module:
      * ECB, CBC, CTR and OFB. The object keeps chaining state between calls,
-     * so a message can be processed in pieces.
+     * so a message can be processed in pieces. An encryptor protects one
+     * message: after the first message the chaining state (CBC: the last
+     * ciphertext block) is predictable, so create a new object, with a new
+     * DRBG IV, for each message (SP 800-38A Appendix C). Calls on one
+     * object are serialized.
+     *
+     * ECB is a building block (single blocks, key wrapping inside other
+     * approved constructions, testing), not a mode for general data.
      *
      * ECB and CBC input must be a multiple of 16 bytes. This is enforced
      * here: unless the library is built with WOLFSSL_AES_CBC_LENGTH_CHECKS,
@@ -51,12 +58,17 @@ namespace wolfSSL.CSharp.Fips
         public byte[]? IV => iv == null ? null : (byte[])iv.Clone();
         private byte[]? iv;
         private bool drbgIV;
+        private readonly object sync = new object();
 
         private FipsAes(FipsAesMode mode, bool encrypt, byte[] key, byte[]? iv) : base(FipsStructType.Aes)
         {
             if (key == null) {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
+            }
+            if (key.Length != 16 && key.Length != 24 && key.Length != 32) {
+                Dispose();
+                throw new ArgumentException("AES key must be 16, 24 or 32 bytes", nameof(key));
             }
             if (mode != FipsAesMode.Ecb && (iv == null || iv.Length != BlockSize)) {
                 Dispose();
@@ -84,11 +96,18 @@ namespace wolfSSL.CSharp.Fips
         }
 
         /* IV requirements (SP 800-38A): the CBC IV must be unpredictable,
-         * the OFB IV unique per key, and CTR counter blocks unique per key.
-         * The overloads taking a FipsRng draw a fresh 16-byte IV / initial
-         * counter from the module DRBG for encryption (read it from IV);
-         * the overloads taking an IV leave these conditions to the caller
-         * and are intended for decryption and interoperability. */
+         * the OFB IV unique per key, and CTR counter blocks unique per key
+         * across all messages. The overloads taking a FipsRng draw a fresh
+         * 16-byte IV / initial counter from the module DRBG for encryption
+         * (read it from IV); these are the encryption paths.
+         *
+         * With a caller IV, CBC is decrypt-only (CreateCbcDecryptor). OFB and
+         * CTR encrypt and decrypt with the same operation, so an OFB or CTR
+         * object created with a caller IV can encrypt: the caller must then
+         * guarantee that the IV (OFB) or every counter block (CTR) is never
+         * used twice under the key. The CTR counter is the whole 16-byte
+         * block (m = 128): with a nonce || counter layout, keep each message
+         * under 2^m blocks for the counter width m you reserve. */
         public static FipsAes CreateEcb(byte[] key, bool encrypt) => new FipsAes(FipsAesMode.Ecb, encrypt, key, null);
         public static FipsAes CreateCbc(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng)));
         public static FipsAes CreateOfb(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng)));
@@ -106,7 +125,14 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(rng));
             return rng.Generate(BlockSize);
         }
-        public static FipsAes CreateCbc(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Cbc, encrypt, key, iv);
+
+        /* CBC decryption with the IV that came with the ciphertext. */
+        public static FipsAes CreateCbcDecryptor(byte[] key, byte[] iv) => new FipsAes(FipsAesMode.Cbc, false, key, iv);
+
+        /* CBC in either direction with a caller IV. Internal: encryption with
+         * a caller-chosen IV cannot guarantee an unpredictable IV; used for
+         * known-answer testing. */
+        internal static FipsAes CreateCbc(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Cbc, encrypt, key, iv);
         public static FipsAes CreateOfb(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Ofb, encrypt, key, iv);
         /* iv is the initial counter block. CTR encryption and decryption are
          * the same operation. */
@@ -124,6 +150,8 @@ namespace wolfSSL.CSharp.Fips
             uint sz = (uint)input.Length;
             int ret;
             string fn;
+            lock (sync) {
+            ThrowIfDisposed();
             switch (Mode) {
                 case FipsAesMode.Ecb:
                     fn = Encrypting ? "wc_AesEcbEncrypt_fips" : "wc_AesEcbDecrypt_fips";
@@ -145,15 +173,15 @@ namespace wolfSSL.CSharp.Fips
                     ret = Native.wc_AesCtrEncrypt_fips(Handle, output, input, sz);
                     break;
             }
+            }
             WolfCryptFipsException.Check(fn, ret);
             return output;
         }
 
-        /* Resets the CBC chaining value to iv. CBC only: for OFB and CTR the
-         * module keeps buffered keystream that wc_AesSetIV does not reset,
-         * so create a new object instead. Not allowed on encryptors created
-         * with a DRBG-generated IV, whose purpose is that the IV is not
-         * caller-chosen. */
+        /* Resets the CBC chaining value to iv, for decrypting the next message.
+         * CBC decryptors only: an encryptor's IV must not be caller-chosen
+         * (SP 800-38A Appendix C), and for OFB and CTR the module keeps
+         * buffered keystream that wc_AesSetIV does not reset. */
         public void SetIV(byte[] iv)
         {
             if (iv == null || iv.Length != BlockSize)
@@ -161,10 +189,14 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             if (Mode != FipsAesMode.Cbc)
                 throw new InvalidOperationException("SetIV is supported for CBC only; create a new " + Mode + " object");
-            if (drbgIV)
-                throw new InvalidOperationException("the IV of a DRBG-IV encryptor cannot be replaced");
-            WolfCryptFipsException.Check("wc_AesSetIV_fips", Native.wc_AesSetIV_fips(Handle, iv));
-            this.iv = (byte[])iv.Clone();
+            if (Encrypting || drbgIV)
+                throw new InvalidOperationException("the IV of a CBC encryptor cannot be replaced; " +
+                    "create a new encryptor (new DRBG IV) for each message");
+            lock (sync) {
+                ThrowIfDisposed();
+                WolfCryptFipsException.Check("wc_AesSetIV_fips", Native.wc_AesSetIV_fips(Handle, iv));
+                this.iv = (byte[])iv.Clone();
+            }
         }
     }
 }

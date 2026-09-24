@@ -66,7 +66,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
             T.Run("invalid key length is rejected", () => {
                 bool threw = false;
-                try { FipsAes.CreateEcb(new byte[15], true).Dispose(); } catch (WolfCryptFipsException) { threw = true; }
+                try { FipsAes.CreateEcb(new byte[15], true).Dispose(); } catch (ArgumentException) { threw = true; }
                 T.True(threw, "15-byte key accepted");
             });
 
@@ -77,7 +77,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 using var c2 = FipsAes.CreateCbc(key, rng);
                 T.True(!c1.IV!.SequenceEqual(c2.IV!), "IV repeated");
                 byte[] ct = c1.Transform(msg);
-                using var dec = FipsAes.CreateCbc(key, c1.IV!, false);
+                using var dec = FipsAes.CreateCbcDecryptor(key, c1.IV!);
                 T.Bytes(msg, dec.Transform(ct), "CBC round trip");
                 using var ctr = FipsAes.CreateCtr(key, rng);
                 using var ctrDec = FipsAes.CreateCtr(key, ctr.IV!);
@@ -87,25 +87,30 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(msg, ofbDec.Transform(ofb.Transform(msg)), "OFB round trip");
             });
 
-            T.Run("SetIV: CBC round trip updates IV; refused for OFB/CTR and DRBG-IV encryptors", () => {
+            T.Run("SetIV: CBC decryptors only; refused on encryptors, OFB and CTR", () => {
                 using var rng = new FipsRng();
-                byte[] key = new byte[16], iv2 = Enumerable.Repeat((byte)0x5a, 16).ToArray(), msg = new byte[32];
-                using var enc = FipsAes.CreateCbc(key, new byte[16], true);
-                enc.SetIV(iv2);
-                T.Bytes(iv2, enc.IV!, "IV property updated");
-                byte[] ct = enc.Transform(msg);
-                using var dec = FipsAes.CreateCbc(key, iv2, false);
-                T.Bytes(msg, dec.Transform(ct), "CBC after SetIV");
-                using var fresh = FipsAes.CreateCbc(key, iv2, true);
-                T.Bytes(fresh.Transform(msg), ct, "matches a fresh object");
+                byte[] key = new byte[16], iv1 = new byte[16], iv2 = Enumerable.Repeat((byte)0x5a, 16).ToArray();
+                byte[] msg = new byte[32];
+                byte[] ct1, ct2;
+                using (var e1 = FipsAes.CreateCbc(key, iv1, true)) ct1 = e1.Transform(msg);
+                using (var e2 = FipsAes.CreateCbc(key, iv2, true)) ct2 = e2.Transform(msg);
+                using var dec = FipsAes.CreateCbcDecryptor(key, iv1);
+                T.Bytes(msg, dec.Transform(ct1), "first message");
+                dec.SetIV(iv2);
+                T.Bytes(iv2, dec.IV!, "IV property updated");
+                T.Bytes(msg, dec.Transform(ct2), "second message after SetIV");
+                using var enc = FipsAes.CreateCbc(key, iv1, true);
                 using var ofb = FipsAes.CreateOfb(key, new byte[16], true);
                 using var ctr = FipsAes.CreateCtr(key, new byte[16]);
                 using var drbgCbc = FipsAes.CreateCbc(key, rng);
-                foreach (var a in new[] { ofb, ctr, drbgCbc }) {
+                foreach (var a in new[] { enc, ofb, ctr, drbgCbc }) {
                     bool threw = false;
                     try { a.SetIV(iv2); } catch (InvalidOperationException) { threw = true; }
-                    T.True(threw, a.Mode + " SetIV allowed");
+                    T.True(threw, a.Mode + (a.Encrypting ? " encryptor" : "") + " SetIV allowed");
                 }
+                bool badKey = false;
+                try { FipsAes.CreateCtr(new byte[20], new byte[16]).Dispose(); } catch (ArgumentException) { badKey = true; }
+                T.True(badKey, "20-byte CTR key accepted");
             });
 
             T.Section("AES-GCM / GMAC");
@@ -138,6 +143,43 @@ namespace wolfSSL.CSharp.Fips.Test
                 try { gcm.UseInternalIV(rng, 16, new byte[2]); } catch (ArgumentException) { }
                 T.Equal(16, gcm.Encrypt(new byte[1]).IV.Length, "still usable after a refused call");
             });
+            T.Run("GCM UseInternalIV is once per object", () => {
+                using var rng = new FipsRng();
+                using var gcm = new FipsAesGcm(new byte[16]);
+                gcm.UseInternalIV(rng);
+                bool threw = false;
+                try { gcm.UseInternalIV(rng, 16); } catch (InvalidOperationException) { threw = true; }
+                T.True(threw, "second UseInternalIV accepted (would restart the IV sequence)");
+            });
+
+            T.Run("GCM refuses encryption past 2^32 invocations (SP 800-38D 8.3)", () => {
+                using var rng = new FipsRng();
+                using var gcm = new FipsAesGcm(new byte[16]);
+                gcm.UseInternalIV(rng);
+                gcm.Invocations = FipsAesGcm.MaxInvocations - 1;
+                gcm.Encrypt(new byte[1]);   /* the 2^32nd */
+                bool threw = false;
+                try { gcm.Encrypt(new byte[1]); } catch (InvalidOperationException) { threw = true; }
+                T.True(threw, "encryption 2^32 + 1 accepted");
+            });
+
+            /* Decrypt runs on its own native context, so a chosen-IV
+             * ciphertext (even a forged one) cannot steer the next
+             * encryption IV. */
+            T.Run("GCM decryption never changes the encryption IV sequence", () => {
+                using var rng = new FipsRng();
+                using var gcm = new FipsAesGcm(new byte[16]);
+                gcm.UseInternalIV(rng);
+                var r1 = gcm.Encrypt(new byte[] { 1, 2, 3 });
+                T.Bytes(new byte[] { 1, 2, 3 }, gcm.Decrypt(r1.IV, r1.Ciphertext, r1.Tag), "round trip");
+                byte[] chosen = Enumerable.Repeat((byte)0x42, 12).ToArray();
+                try { gcm.Decrypt(chosen, new byte[3], new byte[16]); } catch (WolfCryptFipsException) { }
+                var r2 = gcm.Encrypt(new byte[] { 4, 5, 6 });
+                var r3 = gcm.Encrypt(new byte[] { 7 });
+                var ivs = new[] { r1.IV, r2.IV, r3.IV, chosen }.Select(Convert.ToHexString).ToList();
+                T.Equal(4, ivs.Distinct().Count(), "an IV repeated");
+            });
+
             T.Run("ACVP AES-GCM (external + internal IV, 8.2.1 + 8.2.2)", GcmVectors);
             T.Run("ACVP AES-GMAC (external + internal IV, 8.2.1 + 8.2.2)", GmacVectors);
 

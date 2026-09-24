@@ -148,31 +148,6 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Equal(before, calls, "custom callback still registered after UseOsSeed");
             });
 
-            /* WOLF_CRYPTO_CB builds: devId must read INVALID_DEVID in every new
-             * Aes and Hmac structure. Other builds have no devId (offset 0).
-             * MaxRequest is checked by behavior in the Hash_DRBG tests. */
-            T.Run("Aes/Hmac devId is INVALID_DEVID where the build has one", () => {
-                var cases = new (string Name, FipsStructType Offset, Func<FipsObject> Make)[] {
-                    ("FipsAes", FipsStructType.AesDevIdOffset, () => FipsAes.CreateEcb(new byte[16], true)),
-                    ("FipsAesGcm", FipsStructType.AesDevIdOffset, () => new FipsAesGcm(new byte[16])),
-                    ("FipsAesCcm", FipsStructType.AesDevIdOffset, () => new FipsAesCcm(new byte[16])),
-                    ("FipsHmac", FipsStructType.HmacDevIdOffset, () => new FipsHmac(FipsHashType.Sha256, new byte[32])),
-                };
-                int checkedCount = 0;
-                foreach (var (name, offType, make) in cases) {
-                    int off = Native.SizeOf((int)offType);
-                    if (off == 0)
-                        continue;   /* no WOLF_CRYPTO_CB: no devId member */
-                    using FipsObject o = make();
-                    int size = Native.SizeOf((int)(offType == FipsStructType.AesDevIdOffset ? FipsStructType.Aes : FipsStructType.Hmac));
-                    T.True(off > 0 && off <= size - sizeof(int), name + " devId offset inside the structure");
-                    T.Equal(FipsObject.INVALID_DEVID, Marshal.ReadInt32(o.Handle.DangerousGetHandle(), off), name + " devId");
-                    checkedCount++;
-                }
-                if (checkedCount == 0)
-                    Console.WriteLine("        no WOLF_CRYPTO_CB in this build: Aes/Hmac have no devId");
-            });
-
             T.Run("custom seed callback is used, then the OS source restored", () => {
                 int calls = 0;
                 FipsModule.SetSeedCallback((os, seed, sz) => {

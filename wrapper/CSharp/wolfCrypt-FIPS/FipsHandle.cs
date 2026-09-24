@@ -21,6 +21,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
@@ -59,18 +60,11 @@ namespace wolfSSL.CSharp.Fips
          * routines that return void). */
         internal void SetFree(Func<IntPtr, int> freeRoutine) => free = freeRoutine;
 
-        /* Writes a field of the structure before it is handed to the
-         * module (see FipsObject). */
-        internal void WriteInt32(int offset, int value)
-        {
-            if (offset < 0 || offset > size - sizeof(int))
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            Marshal.WriteInt32(handle, offset, value);
-        }
-
         private void Clear()
         {
-            unsafe { new Span<byte>((void*)handle, size).Clear(); }
+            /* ZeroMemory is not removed by the optimizer (Span.Clear has no
+             * such guarantee before the memory is freed) */
+            unsafe { CryptographicOperations.ZeroMemory(new Span<byte>((void*)handle, size)); }
         }
 
         protected override bool ReleaseHandle()

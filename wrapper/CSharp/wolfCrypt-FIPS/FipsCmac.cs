@@ -20,7 +20,6 @@
  */
 
 using System;
-using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
@@ -28,7 +27,11 @@ namespace wolfSSL.CSharp.Fips
      * tags under 64 bits need a separate risk analysis (SP 800-38B A.2) and
      * are not offered. Single use: create a new
      * instance per message. The v5.2.3 boundary has no CMAC free routine;
-     * the object's memory is zeroed and released on Dispose. */
+     * the object's memory is zeroed and released on Dispose.
+     *
+     * Caller obligations per key (SP 800-38B): use one tag length for
+     * every Compute/Final/Verify with a given key (5.5), and limit the key
+     * to 2^48 messages (Appendix B). */
     public sealed class FipsCmac : FipsObject
     {
         private const int WC_CMAC_AES = 1;
@@ -41,6 +44,10 @@ namespace wolfSSL.CSharp.Fips
             if (key == null) {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
+            }
+            if (key.Length != 16 && key.Length != 24 && key.Length != 32) {
+                Dispose();
+                throw new ArgumentException("AES key must be 16, 24 or 32 bytes", nameof(key));
             }
             int ret = Native.wc_InitCmac_fips(Handle, key, (uint)key.Length, WC_CMAC_AES, IntPtr.Zero);
             if (ret != 0) {
@@ -83,22 +90,6 @@ namespace wolfSSL.CSharp.Fips
             using var c = new FipsCmac(key);
             c.Update(data);
             return c.Final(tagSize);
-        }
-
-        /* Recomputes the tag and compares it in constant time. tagSize is
-         * the tag length the receiver expects (8 to 16 bytes); a tag of any
-         * other length is refused, so a truncated tag cannot lower the
-         * forgery bound (SP 800-38B keeps the tag length fixed per key). */
-        public static bool Verify(byte[] key, byte[] data, byte[] tag, int tagSize = MaxTagSize)
-        {
-            if (tag == null)
-                throw new ArgumentNullException(nameof(tag));
-            if (tagSize < MinTagSize || tagSize > MaxTagSize)
-                throw new ArgumentOutOfRangeException(nameof(tagSize), "CMAC tag must be 8 to 16 bytes");
-            if (tag.Length != tagSize)
-                throw new ArgumentException("tag must be " + tagSize + " bytes", nameof(tag));
-            byte[] expected = Compute(key, data, tagSize);
-            return CryptographicOperations.FixedTimeEquals(expected, tag);
         }
     }
 }

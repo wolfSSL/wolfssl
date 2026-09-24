@@ -35,9 +35,9 @@ namespace wolfSSL.CSharp.Fips
         FipsVersionMM = 14,  /* build fingerprint: FIPS major * 100 + minor */
         LibCrc = 15,         /* cksum CRC of the libwolfssl the helper was built for */
         LibSize = 16,        /* size of that libwolfssl file */
-        AesDevIdOffset = 17, /* offsetof(Aes, devId); 0 without WOLF_CRYPTO_CB */
-        HmacDevIdOffset = 18,/* offsetof(Hmac, devId); 0 without WOLF_CRYPTO_CB */
-        RngMaxBlockLen = 19  /* RNG_MAX_BLOCK_LEN */
+        /* 17, 18 and 20 retired (devId offsets); values are ABI, not reused */
+        RngMaxBlockLen = 19, /* RNG_MAX_BLOCK_LEN */
+        ValidateEccImport = 21 /* 1 if WOLFSSL_VALIDATE_ECC_IMPORT */
     }
 
     /* All native bindings for the FIPS wrapper.

@@ -46,7 +46,6 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/kdf.h>
-#include <stddef.h>
 
 /* user_settings.h FIPS builds may define only HAVE_FIPS_VERSION */
 #if !defined(HAVE_FIPS_VERSION_MAJOR) && defined(HAVE_FIPS_VERSION)
@@ -88,14 +87,12 @@ enum wc_csharp_fips_struct {
      * helper was built for (set by build-native.sh; 0 if unknown) */
     WC_CSHARP_FIPS_LIB_CRC  = 15,
     WC_CSHARP_FIPS_LIB_SIZE = 16,
-    /* not a struct: offset of the devId member of Aes and Hmac, which
-     * exist only with WOLF_CRYPTO_CB (0 otherwise; devId is never the
-     * first member). The boundary has no wc_AesInit_fips or
-     * wc_HmacInit_fips, so the wrapper sets INVALID_DEVID there itself. */
-    WC_CSHARP_FIPS_AES_DEVID_OFFSET  = 17,
-    WC_CSHARP_FIPS_HMAC_DEVID_OFFSET = 18,
+    /* 17, 18 and 20 are retired (devId offsets); not reused */
     /* not a struct: RNG_MAX_BLOCK_LEN (largest single DRBG request) */
-    WC_CSHARP_FIPS_RNG_MAX_BLOCK_LEN = 19
+    WC_CSHARP_FIPS_RNG_MAX_BLOCK_LEN = 19,
+    /* not a struct: 1 if WOLFSSL_VALIDATE_ECC_IMPORT is defined (ECC
+     * public keys fully validated on import), 0 otherwise */
+    WC_CSHARP_FIPS_VALIDATE_ECC_IMPORT = 21
 };
 
 /* Returns sizeof() of the requested structure, or 0 when the structure is
@@ -157,16 +154,14 @@ int wc_csharp_fips_sizeof(int type)
         case WC_CSHARP_FIPS_LIB_SIZE:
             return (int)WC_CSHARP_FIPS_BUILT_LIB_SIZE;
     #endif
-    #if !defined(NO_AES) && defined(WOLF_CRYPTO_CB)
-        case WC_CSHARP_FIPS_AES_DEVID_OFFSET:
-            return (int)offsetof(Aes, devId);
-    #endif
-    #if !defined(NO_HMAC) && defined(WOLF_CRYPTO_CB)
-        case WC_CSHARP_FIPS_HMAC_DEVID_OFFSET:
-            return (int)offsetof(Hmac, devId);
-    #endif
         case WC_CSHARP_FIPS_RNG_MAX_BLOCK_LEN:
             return (int)RNG_MAX_BLOCK_LEN;
+        case WC_CSHARP_FIPS_VALIDATE_ECC_IMPORT:
+    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+            return 1;
+    #else
+            return 0;
+    #endif
         default:                    return 0;
     }
 }
