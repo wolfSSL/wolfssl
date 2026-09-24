@@ -1618,8 +1618,9 @@ void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
  * @param [in]  ssl       SSL/TLS object.
  * @param [out] out       New secret. Left empty on failure.
  * @param [in]  secret    Secret data to copy, or NULL to generate one.
- * @param [in]  secretSz  Length of the secret in bytes. Never 0.
+ * @param [in]  secretSz  Length of the secret in bytes.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when secretSz is 0.
  * @return  MEMORY_ERROR on allocation failure.
  * @return  BAD_STATE_E when a secret must be generated without an RNG.
  * @return  A negative error code when the RNG fails.
@@ -1631,6 +1632,11 @@ static int NewCookieSecret(WOLFSSL* ssl, buffer* out, const byte* secret,
 
     out->buffer = NULL;
     out->length = 0;
+
+    if (secretSz == 0) {
+        WOLFSSL_MSG("Cookie secret must not be empty");
+        return BAD_FUNC_ARG;
+    }
 
     if (secret == NULL && ssl->rng == NULL) {
         WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
@@ -1665,8 +1671,8 @@ static int NewCookieSecret(WOLFSSL* ssl, buffer* out, const byte* secret,
  * @param [in, out] src   New secret. Left empty.
  * @param [in]      name  Name of dst, for the memory-zero check.
  */
-static void CommitCookieSecret(WOLFSSL* ssl, buffer* dst, buffer* src,
-                               const char* name)
+static void InstallCookieSecret(WOLFSSL* ssl, buffer* dst, buffer* src,
+                                const char* name)
 {
     FreeCookieSecret(ssl, dst);
     dst->buffer = src->buffer;
@@ -1707,7 +1713,7 @@ int SetCookieSecret(WOLFSSL* ssl, buffer* dst, const byte* secret,
         return ret;
 
     /* Swap: the old secret is only dropped once the new one is ready. */
-    CommitCookieSecret(ssl, dst, &newSecret, name);
+    InstallCookieSecret(ssl, dst, &newSecret, name);
     return 0;
 }
 
@@ -2115,17 +2121,17 @@ int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
     }
 #endif
 
-    /* Commit. Nothing below this point can fail. */
+    /* Install. Nothing below this point can fail. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (newTls13Secret.buffer != NULL) {
-        CommitCookieSecret(ssl, &ssl->buffers.tls13CookieSecret,
-                           &newTls13Secret, "tls13CookieSecret");
+        InstallCookieSecret(ssl, &ssl->buffers.tls13CookieSecret,
+                            &newTls13Secret, "tls13CookieSecret");
     }
 #endif
 #ifdef WOLFSSL_DTLS
     if (newDtlsSecret.buffer != NULL) {
-        CommitCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret,
-                           &newDtlsSecret, "dtlsCookieSecret");
+        InstallCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret,
+                            &newDtlsSecret, "dtlsCookieSecret");
     }
 #endif
     ssl->options.sendCookie = 1;

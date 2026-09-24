@@ -17697,9 +17697,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {
         ssl->options.dtls   = 1;
-        if (!ssl->options.sendCookie)
-            ssl->options.dtlsStateful = 1;
-        if (!IsDtlsNotSctpMode(ssl))
+        if (!IsDtlsNotSctpMode(ssl) || !ssl->options.sendCookie)
             ssl->options.dtlsStateful = 1;
     }
 #endif
