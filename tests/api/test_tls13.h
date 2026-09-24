@@ -171,6 +171,7 @@ int test_tls13_export_server_ticket_after_import(void);
 int test_tls13_export_client_ticket_after_import(void);
 int test_tls13_export_server_key_update(void);
 int test_tls13_export_client_key_update(void);
+int test_tls13_cks_hrr_reparse(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -320,6 +321,7 @@ int test_tls13_export_client_key_update(void);
     TEST_DECL_GROUP("tls13", test_tls13_export_server_ticket_after_import), \
     TEST_DECL_GROUP("tls13", test_tls13_export_client_ticket_after_import), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_key_update), \
-    TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update)
+    TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update), \
+    TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
