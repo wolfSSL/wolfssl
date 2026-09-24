@@ -2491,6 +2491,14 @@ int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
     Primary and secondary cookie secrets for the applicable protocols are
     securely erased and freed.
 
+    Without cookies a DTLS 1.3 server can process a first ClientHello that
+    arrives fragmented, but only when ClientHello fragment reassembly is
+    available: wolfSSL must be built with WOLFSSL_DTLS_CH_FRAG
+    (--enable-dtls-frag-ch, turned on automatically with ML-KEM and DTLS 1.3)
+    and it must be enabled on the object with wolfSSL_dtls13_allow_ch_frag(),
+    which is done by default only in builds with ML-KEM. Otherwise the
+    fragments are dropped and the handshake does not progress.
+
     The DTLS cookie mode is fixed once the handshake commits to stateful
     processing, which the accept functions do before the first read and
     stateless processing does when a cookie verifies. After that this call
@@ -2525,7 +2533,9 @@ int wolfSSL_disable_cookie(WOLFSSL* ssl);
     \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
     \return SIDE_ERROR if ssl is a client.
     \return BAD_STATE_E if the DTLS handshake already committed to stateful
-    processing, as for wolfSSL_disable_cookie().
+    processing, as for wolfSSL_disable_cookie(), or if a missing secret must
+    be generated and the session's RNG has been released (as happens when
+    its handshake resources are freed).
     \return MEMORY_ERROR if secret allocation fails, or another negative error
     if random secret generation fails. A failure is all or nothing: no secret
     is installed and the cookie policy is left as it was found, even when the
@@ -9522,16 +9532,20 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
     \return 0 returned if the function executed without an error.
     \return BAD_FUNC_ARG returned if there was an argument passed
     to the function with an unacceptable value.
-    \return COOKIE_SECRET_SZ returned if the secret size is 0.
     \return MEMORY_ERROR returned if there was a problem allocating
     memory for a new cookie secret.
+    \return BAD_STATE_E returned if secret is NULL and the session's RNG has
+    been released, so no secret can be generated.
     \return Another -ve value when a new secret could not be generated. The
     rotation does not happen and the secret already in use is kept, so the
     server carries on issuing and verifying cookies under it.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
-    \param secretSz the size of the buffer.
+    Passing NULL indicates to generate a new random secret.
+    \param secretSz the size of the buffer. Passing 0 with a NULL secret
+    generates a secret of the default size (COOKIE_SECRET_SZ); passing 0 with
+    a non-NULL secret returns BAD_FUNC_ARG.
 
     _Example_
     \code
@@ -14658,13 +14672,18 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \param [in] secret a pointer to a buffer holding the secret.
     Passing NULL indicates to generate a new random secret.
     \param [in] secretSz Size of the secret in bytes.
-    Passing 0 indicates to use the default size: WC_SHA256_DIGEST_SIZE (or WC_SHA_DIGEST_SIZE when SHA-256 not available).
+    Passing 0 indicates to use the default size: the digest size of the hash
+    the cookie MAC uses, WC_SHA256_DIGEST_SIZE, or when SHA-256 is not
+    available WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE or
+    WC_SM3_DIGEST_SIZE, in that order.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
     \return BAD_STATE_E if the DTLS handshake already committed to stateful
-    processing, as for wolfSSL_enable_cookie(). The installed secret is left
-    unchanged.
+    processing, as for wolfSSL_enable_cookie(), or if a secret must be
+    generated (secret is NULL, or a DTLS 1.3 server is missing its DTLS 1.2
+    secret) and the session's RNG has been released. The installed secret is
+    left unchanged.
     \return WOLFSSL_SUCCESS if successful.
     \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
     \return Another -ve value on internal error. Every failure is all or

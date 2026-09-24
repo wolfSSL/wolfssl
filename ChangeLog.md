@@ -263,7 +263,11 @@
   `wolfSSL_send_hrr_cookie()`, `wolfSSL_enable_cookie()`,
   `wolfSSL_DTLS_SetCookieSecret()` or either secondary-secret setter fails,
   the secrets and the cookie policy are left exactly as they were found
-  instead of the rotation half happening.
+  instead of the rotation half happening.  A DTLS 1.3 server with cookies
+  disabled can process a fragmented first ClientHello only when built with
+  `WOLFSSL_DTLS_CH_FRAG` (`--enable-dtls-frag-ch`, automatic with ML-KEM)
+  and with `wolfSSL_dtls13_allow_ch_frag()` on, which is the default only in
+  ML-KEM builds; otherwise the fragments are still dropped.
 
 ## New Features
 

@@ -1607,6 +1607,10 @@ void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
 {
     if (secret->buffer != NULL) {
         ForceZero(secret->buffer, secret->length);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Drop the entry InstallCookieSecret() added */
+        wc_MemZero_Check(secret->buffer, secret->length);
+#endif
         XFREE(secret->buffer, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
         secret->buffer = NULL;
         secret->length = 0;
@@ -1731,6 +1735,8 @@ int SetCookieSecret(WOLFSSL* ssl, buffer* dst, const byte* secret,
  * @param [in] secretSz  Length of secret in bytes, 0 to use the default.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or secret is set with size 0.
+ * @return  BAD_STATE_E when a secret must be generated and the RNG has been
+ *          released. The secret in use is unchanged.
  * @return  MEMORY_ERROR on allocation failure. The secret in use is unchanged.
  */
 int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
