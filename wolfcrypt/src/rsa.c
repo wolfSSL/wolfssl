@@ -116,6 +116,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
  * WOLFSSL_AFALG_XILINX_RSA: AF_ALG Xilinx RSA acceleration        default: off
  * WOLFSSL_SE050_NO_RSA:    Disable SE050 RSA                       default: off
  * WOLFSSL_XILINX_CRYPT:    Xilinx crypto RSA acceleration          default: off
+ * WOLFSSL_NO_RSA_SW:       No software RSA, hardware only          default: off
  */
 
 
@@ -137,6 +138,22 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     {
         return 0;
     }
+#endif
+
+/* The software padding generation (and with it the OAEP/PSS mask generation
+ * and un-padding helpers) is only reachable when an RSA operation can fall
+ * through to the software implementation. WOLFSSL_NO_RSA_SW removes that
+ * fall-through, so drop the padding layer too - apart from the PKCS#1 v1.5
+ * un-pad helper, which the SE050 verify path calls to hand the decoded
+ * DigestInfo back to the caller. (CryptoCell unpads inside CRYS and does not
+ * need it, but it is small and shared with every other build.)
+ *
+ * RSA-PSS is the exception: neither backend serves wolfCrypt's PSS interface,
+ * which hands over a pre-computed digest (the SE050 API hashes the input
+ * itself; the CryptoCell dispatch only does PKCS#1 v1.5), so a build that
+ * enables RSA-PSS keeps the whole padding layer. */
+#if defined(WOLFSSL_NO_RSA_SW) && !defined(WC_RSA_PSS)
+    #define WOLFSSL_NO_RSA_SW_PAD
 #endif
 
 enum {
@@ -1065,7 +1082,8 @@ int wc_CheckRsaKey(RsaKey* key)
 #endif /* WOLFSSL_RSA_KEY_CHECK */
 
 
-#if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
+#if (!defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)) && \
+    !defined(WOLFSSL_NO_RSA_SW_PAD)
 /* Uses MGF1 standard as a mask generation function
    hType: hash type used
    seed:  seed to use for generating mask
@@ -1361,11 +1379,11 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
 
     return ret;
 }
-#endif /* !WC_NO_RSA_OAEP || WC_RSA_PSS */
+#endif /* (!WC_NO_RSA_OAEP || WC_RSA_PSS) && !WOLFSSL_NO_RSA_SW_PAD */
 
 
 /* Padding */
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_NO_RSA_SW_PAD)
 #ifndef WC_NO_RNG
 #ifndef WC_NO_RSA_OAEP
 static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -1843,11 +1861,12 @@ int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     return ret;
 }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_NO_RSA_SW_PAD */
 
 
 /* UnPadding */
-#if !defined(WC_NO_RSA_OAEP) && !defined(NO_HASH_WRAPPER)
+#if !defined(WC_NO_RSA_OAEP) && !defined(NO_HASH_WRAPPER) && \
+    !defined(WOLFSSL_NO_RSA_SW_PAD)
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
@@ -2225,7 +2244,7 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
                            padValue);
             break;
 
-    #ifndef WC_NO_RSA_OAEP
+    #if !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD)
         case WC_RSA_OAEP_PAD:
             WOLFSSL_MSG("wolfSSL Using RSA OAEP un-padding");
             ret = RsaUnPad_OAEP((byte*)pkcsBlock, pkcsBlockLen, out,
@@ -2855,7 +2874,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 }
 
 #else
-#ifndef WOLF_CRYPTO_CB_ONLY_RSA
+#if !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_NO_RSA_SW)
 #ifdef WOLFSSL_HAVE_SP_RSA
 static int RsaFunction_SP(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng)
@@ -3340,7 +3359,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     return RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
 #endif /* WOLFSSL_SP_MATH */
 } /* wc_RsaFunctionSync */
-#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
+#endif /* !WOLF_CRYPTO_CB_ONLY_RSA && !WOLFSSL_NO_RSA_SW */
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
@@ -3615,7 +3634,7 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
 }
 #endif /* WOLFSSL_CRYPTOCELL */
 
-#ifndef WOLF_CRYPTO_CB_ONLY_RSA
+#if !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_NO_RSA_SW)
 #if !defined(NO_RSA_BOUNDS_CHECK)
 /* Check that 1 < in < n-1. (Requirement of 800-56B.) */
 int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
@@ -3664,13 +3683,15 @@ int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
     return ret;
 }
 #endif /* !NO_RSA_BOUNDS_CHECK */
-#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
+#endif /* !WOLF_CRYPTO_CB_ONLY_RSA && !WOLFSSL_NO_RSA_SW */
 
 static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
                              word32* outLen, int type, RsaKey* key, WC_RNG* rng,
                              int checkSmallCt)
 {
+#if !defined(WOLFSSL_NO_RSA_SW) || defined(WOLF_CRYPTO_CB)
     int ret = 0;
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     RsaPadding padding;
 #endif
@@ -3714,7 +3735,13 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-#ifdef WOLF_CRYPTO_CB_ONLY_RSA
+#ifdef WOLFSSL_NO_RSA_SW
+    /* No software modular exponentiation is compiled in. The hardware
+     * implementation is driven from RsaPublicEncryptEx()/RsaPrivateDecryptEx()
+     * with the padding it performs itself, so the raw operation offered by
+     * wc_RsaFunction()/wc_RsaDirect() has no provider here. */
+    return NOT_COMPILED_IN;
+#elif defined(WOLF_CRYPTO_CB_ONLY_RSA)
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_RSA */
 
@@ -3795,7 +3822,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
         wc_RsaCleanup(key);
     }
     return ret;
-#endif /* !WOLF_CRYPTO_CB_ONLY_RSA */
+#endif /* !WOLFSSL_NO_RSA_SW && !WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
@@ -3893,13 +3920,23 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             }
         }
     #elif defined(WOLFSSL_CRYPTOCELL)
+        /* CRYS does the padding itself and only implements PKCS#1 v1.5, so
+         * only a v1.5 request may be offloaded. OAEP, PSS and unpadded
+         * requests fall through to the software path - handing them to
+         * CRYS_RSA_PKCS1v15_* would apply v1.5 padding while the caller asked
+         * for something else. Note that a key generated by
+         * cc310_RSA_GenerateKeyPair() holds only the public part in software,
+         * so a private-key operation on such a key fails on the software path
+         * rather than silently producing v1.5 output. */
         if (rsa_type == RSA_PUBLIC_ENCRYPT &&
-                                            pad_value == RSA_BLOCK_TYPE_2) {
+                pad_value == RSA_BLOCK_TYPE_2 &&
+                pad_type == WC_RSA_PKCSV15_PAD) {
 
             return cc310_RsaPublicEncrypt(in, inLen, out, outLen, key);
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
-                                         pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type == WC_RSA_PKCSV15_PAD) {
             return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
                                   cc310_hashModeRSA(hash, 0));
         }
@@ -3946,6 +3983,22 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         }
         }
     #endif /* RSA CRYPTO HW */
+
+    #ifdef WOLFSSL_NO_RSA_SW_PAD
+        /* Hardware only build with no software padding compiled in: whatever
+         * the hardware dispatch above did not take has no provider here, the
+         * same way wc_RsaFunction() has none. Not every hardware arm consumes
+         * the padding arguments, so discard them all here. */
+        (void)pad_type;
+        (void)hash;
+        (void)mgf;
+        (void)label;
+        (void)labelSz;
+        (void)saltLen;
+        (void)rng;
+        ret = NOT_COMPILED_IN;
+        break;
+    #else
 
     #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
         if (key->devId != INVALID_DEVID) {
@@ -3995,6 +4048,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         }
 
         FALL_THROUGH;
+    #endif /* !WOLFSSL_NO_RSA_SW_PAD */
 
     case RSA_STATE_ENCRYPT_RES:
         ret = (int)key->dataLen;
@@ -4048,7 +4102,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                             WC_RNG* rng)
 {
     int ret = WC_NO_ERR_TRACE(RSA_WRONG_TYPE_E);
+#ifndef WOLFSSL_NO_RSA_SW_PAD
     byte* pad = NULL;
+#endif
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     RsaPadding padding;
 #endif
@@ -4083,15 +4139,18 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
         }
     #elif defined(WOLFSSL_CRYPTOCELL)
+        /* PKCS#1 v1.5 only - see the matching note in RsaPublicEncryptEx(). */
         if (rsa_type == RSA_PRIVATE_DECRYPT &&
-                                            pad_value == RSA_BLOCK_TYPE_2) {
+                pad_value == RSA_BLOCK_TYPE_2 &&
+                pad_type == WC_RSA_PKCSV15_PAD) {
             ret = cc310_RsaPublicDecrypt(in, inLen, out, outLen, key);
             if (outPtr != NULL)
                 *outPtr = out; /* for inline */
             return ret;
         }
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
-                                            pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type == WC_RSA_PKCSV15_PAD) {
             return cc310_RsaSSL_Verify(in, inLen, out, key,
                                        cc310_hashModeRSA(hash, 0));
         }
@@ -4144,6 +4203,21 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         }
     #endif /* RSA CRYPTO HW */
 
+    #ifdef WOLFSSL_NO_RSA_SW_PAD
+        /* Hardware only build with no software padding compiled in: whatever
+         * the hardware dispatch above did not take has no provider here, the
+         * same way wc_RsaFunction() has none. Not every hardware arm consumes
+         * the padding arguments, so discard them all here. */
+        (void)pad_type;
+        (void)hash;
+        (void)mgf;
+        (void)label;
+        (void)labelSz;
+        (void)saltLen;
+        (void)rng;
+        ret = NOT_COMPILED_IN;
+        break;
+    #else
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
     !defined(WOLFSSL_NO_MALLOC)
@@ -4298,6 +4372,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 
         key->state = RSA_STATE_DECRYPT_RES;
         FALL_THROUGH;
+    #endif /* !WOLFSSL_NO_RSA_SW_PAD */
 
     case RSA_STATE_DECRYPT_RES:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
@@ -5311,6 +5386,7 @@ int wc_RsaExportKey(const RsaKey* key,
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 
+#ifndef WOLFSSL_NO_RSA_SW
 /* Check that |p-q| > 2^((size/2)-100) */
 static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 {
@@ -5431,6 +5507,7 @@ static const byte lower_bound[] = {
     0x4D, 0x7C, 0x60, 0xA5, 0xE6, 0x33, 0xE3, 0xE1
 /* 4096 */
 };
+#endif /* !WOLFSSL_NO_RSA_SW */
 
 
 /* returns 1 on key size ok and 0 if not ok */
@@ -5470,6 +5547,7 @@ static WC_INLINE int RsaSizeCheck(int size)
 }
 
 
+#ifndef WOLFSSL_NO_RSA_SW
 static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
                                     int* isPrime, WC_RNG* rng)
 {
@@ -5686,6 +5764,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
     return wc_CheckProbablePrime_ex(pRaw, pRawSz, qRaw, qRawSz,
                           eRaw, eRawSz, nlen, isPrime, NULL);
 }
+#endif /* !WOLFSSL_NO_RSA_SW */
 
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
         defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
