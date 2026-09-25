@@ -1260,6 +1260,17 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
             err = 1;
         }
     }
+    /* A point that has never been set carries NULL ordinates. */
+    if ((!err) && ((point->X == NULL) || (point->Y == NULL) ||
+            (point->X->internal == NULL) || (point->Y->internal == NULL))) {
+        err = 1;
+    }
+    /* Ordinates wider than the curve would make the offsets below negative. */
+    if ((!err) &&
+            ((mp_unsigned_bin_size((mp_int*)point->X->internal) > sz) ||
+             (mp_unsigned_bin_size((mp_int*)point->Y->internal) > sz))) {
+        err = 1;
+    }
     if (!err) {
         /* <format byte> <x-ordinate> [<y-ordinate>] */
         len = sz + 1;

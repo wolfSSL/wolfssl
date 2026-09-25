@@ -45,6 +45,7 @@ int test_wolfSSL_ECDSA_SIG(void);
 int test_ECDSA_size_sign(void);
 int test_ECDH_compute_key(void);
 int test_d2i_ECPrivateKey_no_pubkey(void);
+int test_wolfSSL_EC_POINT_point2hex_oversized(void);
 
 
 #define TEST_OSSL_EC_DECLS                                                  \
@@ -66,7 +67,8 @@ int test_d2i_ECPrivateKey_no_pubkey(void);
     TEST_DECL_GROUP("ossl_ec", test_wolfSSL_ECDSA_SIG),                     \
     TEST_DECL_GROUP("ossl_ec", test_ECDSA_size_sign),                       \
     TEST_DECL_GROUP("ossl_ec", test_ECDH_compute_key),                      \
-    TEST_DECL_GROUP("ossl_ec", test_d2i_ECPrivateKey_no_pubkey)
+    TEST_DECL_GROUP("ossl_ec", test_d2i_ECPrivateKey_no_pubkey),            \
+    TEST_DECL_GROUP("ossl_ec", test_wolfSSL_EC_POINT_point2hex_oversized)
 
 #endif
 

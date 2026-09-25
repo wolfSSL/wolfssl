@@ -131,6 +131,8 @@
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* A guard that did not fire, as opposed to a row wb_fail marks as skipped. */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* Crafted-input driver shared with the SP host-backend white-boxes. The four
@@ -434,6 +436,17 @@ static void wb_run_mulmod_add_all(void)
  * mp_int inputs (no need for a valid key -- these functions only inspect
  * the ordinates handed to them).
  * ----------------------------------------------------------------------- */
+/* A row that targets a range or sign guard must be rejected by it; anything
+ * else means that guard was lost in a regeneration of the SP back end. */
+static void wb_expect_range(int ret, const char* what)
+{
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) {
+        printf("  [wb][FAIL] %s did not return ECC_OUT_OF_RANGE_E (got %d)\n",
+            what, ret);
+        wb_bad = 1;
+    }
+}
+
 static void wb_run_point_specials(int fieldBits, const char* label,
     int (*is_point)(const mp_int*, const mp_int*),
     int (*check_key)(const mp_int*, const mp_int*, const mp_int*, void*))
@@ -441,13 +454,23 @@ static void wb_run_point_specials(int fieldBits, const char* label,
     mp_int zero;
     mp_int small;
     mp_int big;
+    mp_int atMax;
+    mp_int neg;
+    int    haveNeg;
     byte   bigbuf[96];
+    byte   maxbuf[128];
     int    nbytes = fieldBits / 8 + 9; /* comfortably more bits than fieldBits */
+    int    maxbytes = (fieldBits + 7) / 8;
+    int    topbits = fieldBits - ((maxbytes - 1) * 8);
 
     if (nbytes > (int)sizeof(bigbuf)) {
         nbytes = (int)sizeof(bigbuf);
     }
     XMEMSET(bigbuf, 0xFF, sizeof(bigbuf));
+    /* Exactly fieldBits wide and all ones, so it is not less than any of the
+     * moduli here while still passing the bit-length guard. */
+    XMEMSET(maxbuf, 0xFF, sizeof(maxbuf));
+    maxbuf[0] = (byte)((1u << topbits) - 1u);
 
     if (mp_init(&zero) != MP_OKAY) {
         WB_NOTE("mp_init(zero) failed (point specials)");
@@ -467,21 +490,62 @@ static void wb_run_point_specials(int fieldBits, const char* label,
         mp_clear(&small);
         return;
     }
+    if (mp_init(&atMax) != MP_OKAY) {
+        WB_NOTE("mp_init(atMax) failed (point specials)");
+        wb_fail = 1;
+        mp_clear(&zero);
+        mp_clear(&small);
+        mp_clear(&big);
+        return;
+    }
+    if (mp_init(&neg) != MP_OKAY) {
+        WB_NOTE("mp_init(neg) failed (point specials)");
+        wb_fail = 1;
+        mp_clear(&zero);
+        mp_clear(&small);
+        mp_clear(&big);
+        mp_clear(&atMax);
+        return;
+    }
 
     mp_set(&small, 3);
-    if (mp_read_unsigned_bin(&big, bigbuf, (word32)nbytes) != MP_OKAY) {
-        WB_NOTE("mp_read_unsigned_bin(big) failed (point specials)");
+    /* mp_setneg() is a no-op unless the math back end was built with negative
+     * support, so ask the value itself rather than the build macros. */
+    mp_set(&neg, 3);
+    mp_setneg(&neg);
+    haveNeg = mp_isneg(&neg) ? 1 : 0;
+    if ((mp_read_unsigned_bin(&big, bigbuf, (word32)nbytes) != MP_OKAY) ||
+            (mp_read_unsigned_bin(&atMax, maxbuf, (word32)maxbytes)
+                != MP_OKAY)) {
+        WB_NOTE("mp_read_unsigned_bin failed (point specials)");
         wb_fail = 1;
     }
     else {
-        /* Point at infinity (x == 0 && y == 0). is_point() has no
-         * bit-length guard, so this only drives its general field math
-         * with a degenerate operand -- it is check_key() below that has
-         * the explicit "point at infinity" branch. */
+        /* Point at infinity (x == 0 && y == 0). is_point() has no explicit
+         * "point at infinity" branch, so this drives its general field math
+         * with a degenerate operand; check_key() below has that branch. */
         (void)is_point(&zero, &zero);
         /* A small, well-formed, off-curve pair: exercises the same field
          * math with a non-degenerate, non-infinity operand. */
         (void)is_point(&small, &small);
+        /* mp_count_bits(pX) > fieldBits, independently true. */
+        wb_expect_range(is_point(&big, &small), "is_point(big, small)");
+        /* mp_count_bits(pY) > fieldBits, independently true. */
+        wb_expect_range(is_point(&small, &big), "is_point(small, big)");
+        /* The bit-length guard passes, so only sp_<n>_cmp_<m>(pub->x, mod)
+         * >= 0 can reject: that arm independently true. */
+        wb_expect_range(is_point(&atMax, &small), "is_point(atMax, small)");
+        /* Same for the pub->y arm of that compare. */
+        wb_expect_range(is_point(&small, &atMax), "is_point(small, atMax)");
+        if (haveNeg) {
+            /* mp_isneg(pX), then mp_isneg(pY), independently true. */
+            wb_expect_range(is_point(&neg, &small), "is_point(neg, small)");
+            wb_expect_range(is_point(&small, &neg), "is_point(small, neg)");
+        }
+        else {
+            WB_NOTE("math back end has no negative support; sign rows "
+                    "skipped");
+        }
 
         if (check_key != NULL) {
             /* (sp_<n>_iszero_<n>(pub->x) != 0) &&
@@ -499,6 +563,13 @@ static void wb_run_point_specials(int fieldBits, const char* label,
              * not on the curve, so this reaches (and cleanly fails) that
              * logic without needing a real key. */
             (void)check_key(&small, &small, &small, NULL);
+            if (haveNeg) {
+                /* mp_isneg(pX), then mp_isneg(pY), independently true. */
+                wb_expect_range(check_key(&neg, &small, NULL, NULL),
+                    "check_key(neg, small)");
+                wb_expect_range(check_key(&small, &neg, NULL, NULL),
+                    "check_key(small, neg)");
+            }
         }
         else {
             WB_NOTE("check_key needs HAVE_ECC_CHECK_KEY || "
@@ -506,6 +577,8 @@ static void wb_run_point_specials(int fieldBits, const char* label,
         }
     }
 
+    mp_clear(&neg);
+    mp_clear(&atMax);
     mp_clear(&big);
     mp_clear(&small);
     mp_clear(&zero);
@@ -1565,10 +1638,12 @@ int main(void)
     wb_run_mod_inv();
     wb_spc_all();
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
+    (void)wb_bad;
     return 0;
 }

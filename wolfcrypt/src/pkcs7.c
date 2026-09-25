@@ -16232,7 +16232,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
-                return ret;
+                break;
             }
 
             length = (int)pkcs7->stream->expected;
@@ -16286,7 +16286,7 @@ authenv_atrbend:
         #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                     pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
-                return ret;
+                break;
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
@@ -16295,6 +16295,8 @@ authenv_atrbend:
                 encodedAttribs  = pkcs7->stream->aad;
             }
             macSz = (int)pkcs7->stream->icvSz;
+            /* restore encOID for the authTag size gates below */
+            wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
         #endif
 
 
@@ -16350,42 +16352,35 @@ authenv_atrbend:
             }
 
         #ifndef NO_PKCS7_STREAM
-            /* there might not be enough data for the auth tag too */
-            if (ret == 0) {
-                if ((authTagSz + (localIdx - idx)) > pkcs7->stream->expected &&
-                    (authTagSz + (localIdx - idx)) > pkiMsgSz) {
-                        pkcs7->stream->expected = authTagSz +
-                            (localIdx - idx);
-                        if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
-                            pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
-                            return ret;
-                        }
+            /* measure the tag against what is left after the OCTET STRING
+             * header, not against the size of the whole buffer */
+            if (ret == 0 &&
+                    (localIdx > pkiMsgSz || authTagSz > pkiMsgSz - localIdx)) {
+                word32 ofsetIdx = localIdx - idx;
+
+                pkcs7->stream->expected = authTagSz + ofsetIdx;
+                if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                        pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                    break;
                 }
+                localIdx = idx + ofsetIdx;
+                pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
+                    inSz;
             }
         #endif
             idx = localIdx;
-
-        #ifdef NO_PKCS7_STREAM
-            if (ret == 0 && authTagSz > (word32)(pkiMsgSz - idx)) {
-                ret = BUFFER_E;
-            }
-        #endif
 
             if (ret == 0 && authTagSz > (word32)sizeof(authTag)) {
                 WOLFSSL_MSG("AuthEnvelopedData authTag too large for buffer");
                 ret = ASN_PARSE_E;
             }
 
-        #ifdef NO_PKCS7_STREAM
-            /* In the streaming build the block above re-buffers enough data for
-             * the auth tag. Without streaming, verify the tag fits within the
-             * provided input before copying. */
+            /* verify the tag fits in the available input before copying */
             if (ret == 0 &&
                     (idx > pkiMsgSz || authTagSz > pkiMsgSz - idx)) {
                 WOLFSSL_MSG("AuthEnvelopedData authTag exceeds input buffer");
                 ret = BUFFER_E;
             }
-        #endif
 
             if (ret == 0) {
                 XMEMCPY(authTag, &pkiMsg[idx], authTagSz);

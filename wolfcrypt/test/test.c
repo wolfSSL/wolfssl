@@ -40286,16 +40286,18 @@ static wc_test_ret_t openssl_aes_cbc_test(void)
             return WC_TEST_RET_ENC_NC;
         total += outlen;
 
+        /* the completed block is output as soon as more input follows it */
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen,
                     (byte*)&cipher[6], 12) == 0)
             return WC_TEST_RET_ENC_NC;
-        if (outlen != 0)
+        if (outlen != 16)
+            return WC_TEST_RET_ENC_NC;
         total += outlen;
 
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen,
                     (byte*)&cipher[6+12], 14) == 0)
             return WC_TEST_RET_ENC_NC;
-        if (outlen != 16)
+        if (outlen != 0)
             return WC_TEST_RET_ENC_NC;
         total += outlen;
 
@@ -42142,16 +42144,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 
+        /* the completed block is output as soon as more input follows it */
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen,
                                                     (byte*)&cipher[6], 12) == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if(outlen != 0)
+        if(outlen != 16)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen,
                                                 (byte*)&cipher[6+12], 14) == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if(outlen != 16)
+        if(outlen != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 
@@ -42208,14 +42212,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 
+        /* the completed block is output as soon as more input follows it */
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen, (byte*)&cipher[6], 12) == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if(outlen != 0)
+        if(outlen != 16)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 
         if (wolfSSL_EVP_CipherUpdate(de, (byte*)&plain[total], &outlen, (byte*)&cipher[6+12], 14) == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if(outlen != 16)
+        if(outlen != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         total += outlen;
 

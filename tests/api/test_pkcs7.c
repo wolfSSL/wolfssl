@@ -3766,18 +3766,29 @@ int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet() */
 
 
-/* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
- * is truncated must return BUFFER_E rather than reading past pkiMsg. */
+/* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag is
+ * truncated must reject it rather than reading past pkiMsg. */
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
-    !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(NO_PKCS7_STREAM)
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
     PKCS7* pkcs7 = NULL;
     byte   enveloped[2048];
     byte   decoded[256];
     byte   data[] = "truncated authEnvelopedData test";
+    byte*  exact = NULL;
+    word32 inSz = 0;
     int    encSz = 0;
+    int    i;
+    /* 32 stops inside encryptedContent, which starves the stream before the
+     * tag; 1, 5 and 11 cut into the 16 byte tag itself */
+    static const int truncBy[] = { 32, 1, 5, 11 };
+#ifdef NO_PKCS7_STREAM
+    int    truncErr = WC_NO_ERR_TRACE(BUFFER_E);
+#else
+    int    truncErr = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+#endif
 
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
@@ -3788,13 +3799,13 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->contentOID = DATA;
         pkcs7->encryptOID = AES128GCMb;
     }
-    /* >32 so the encSz-32 / encSz-1 truncations below can't underflow */
+    /* >32 so the truncations below can't underflow */
     ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
         sizeof(enveloped)), 32);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
-    /* Truncate inside encryptedContent (encryptedContentSz check). */
+    /* the untruncated message still decodes */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
         sizeof_client_cert_der_2048), 0);
@@ -3803,12 +3814,37 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->privateKeySz = sizeof_client_key_der_2048;
     }
     ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
-        (word32)encSz - 32, decoded, sizeof(decoded)),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        (word32)encSz, decoded, sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
-    /* Truncate one byte off the auth tag (authTagSz check). */
+    /* exact sized copies, so that an over-read leaves the allocation */
+    for (i = 0; i < (int)(sizeof(truncBy) / sizeof(truncBy[0])); i++) {
+        inSz = (word32)(encSz - truncBy[i]);
+
+        ExpectNotNull(exact = (byte*)XMALLOC(inSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (exact != NULL) {
+            XMEMCPY(exact, enveloped, inSz);
+        }
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = (byte*)client_key_der_2048;
+            pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        }
+        ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, exact, inSz,
+            decoded, sizeof(decoded)), truncErr);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        XFREE(exact, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        exact = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* a read boundary inside the tag must ask for the rest, then decode */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
         sizeof_client_cert_der_2048), 0);
@@ -3817,8 +3853,13 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->privateKeySz = sizeof_client_key_der_2048;
     }
     ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
-        (word32)encSz - 1, decoded, sizeof(decoded)),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        (word32)encSz - 11, decoded, sizeof(decoded)),
+        WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+        enveloped + encSz - 11, 11, decoded, sizeof(decoded)),
+        (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+#endif
 
     wc_PKCS7_Free(pkcs7);
 #endif
