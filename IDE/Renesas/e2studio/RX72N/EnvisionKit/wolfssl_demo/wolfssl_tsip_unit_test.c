@@ -982,6 +982,122 @@ static void tskAes128_Gcm_Test(void *pvParam)
     vTaskDelete(NULL);
 }
 #endif /* FREERTOS */
+
+/* Regression test for zero-length payload/AAD handling in
+ * wc_tsip_AesGcmEncrypt()/wc_tsip_AesGcmDecrypt() (renesas_tsip_aes.c): a
+ * payload or AAD length of 0 is a legal AES-GCM input, but those functions
+ * used to XMALLOC(0, ...) a same-sized scratch buffer for it and treat a
+ * NULL result as an allocation failure -- whether that happened depended on
+ * the platform allocator's handling of a zero-byte request, not on the
+ * actual GCM inputs.
+ */
+static int tsip_aesgcm_zerolen_test(int prnt, int devId)
+{
+    Aes enc[1];
+    Aes dec[1];
+
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC const byte aad[] =
+    {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC const byte plain[] =
+    {
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f
+    };
+
+    byte resultT[WC_AES_BLOCK_SIZE];
+    byte resultC[sizeof(plain) + WC_AES_BLOCK_SIZE];
+    byte resultP[sizeof(plain) + WC_AES_BLOCK_SIZE];
+    int  ret;
+
+    if (prnt) {
+        printf(" tsip_aesgcm_zerolen_test() ");
+    }
+
+    if (wc_AesInit(enc, NULL, devId) != 0) {
+        ret = -1;
+        goto out;
+    }
+    if (wc_AesInit(dec, NULL, devId) != 0) {
+        ret = -2;
+        goto out;
+    }
+    wc_AesGcmSetKey(enc, key, sizeof(key));
+    wc_AesGcmSetKey(dec, key, sizeof(key));
+
+    /* (a) empty payload, non-empty AAD -- used to fail because plainBuf was
+     * XMALLOC(0, ...)'d in wc_tsip_AesGcmEncrypt(). TSIP rejects a
+     * zero-length decrypt by design (unrelated to this fix), so this case
+     * is encrypt-only. */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret != 0) {
+        ret = -3;
+        goto out;
+    }
+
+    /* (b) non-empty payload, empty AAD -- used to fail the same way via
+     * aadBuf, in both wc_tsip_AesGcmEncrypt() and wc_tsip_AesGcmDecrypt().
+     * A non-zero sz decrypt is fully supported by TSIP, so round-trip
+     * through both. */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+    ret = wc_AesGcmEncrypt(enc, resultC, plain, sizeof(plain), iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -4;
+        goto out;
+    }
+    ret = wc_AesGcmDecrypt(dec, resultP, resultC, sizeof(plain), iv,
+                            sizeof(iv), resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -5;
+        goto out;
+    }
+    if (XMEMCMP(plain, resultP, sizeof(plain))) {
+        ret = -6;
+        goto out;
+    }
+
+    /* (c) empty payload and empty AAD together -- both skip paths in
+     * wc_tsip_AesGcmEncrypt() exercised in the same call. */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -7;
+        goto out;
+    }
+
+    ret = 0;
+
+  out:
+    wc_AesFree(enc);
+    wc_AesFree(dec);
+
+    if (prnt) {
+        RESULT_STR(ret)
+    }
+
+    return ret;
+}
 #endif
 
 
@@ -1754,6 +1870,14 @@ int tsip_crypt_test(void)
             if (ret == 0)
                 ret = tsip_aesgcm256_test(1, devId);
         }
+    #if defined(WOLFSSL_AES_128)
+        if (ret == 0) {
+            Clr_CallbackCtx(&userContext);
+            ret = TSIP_AesKeyGeneration(&userContext, 16);
+            if (ret == 0)
+                ret = tsip_aesgcm_zerolen_test(1, devId);
+        }
+    #endif
     #endif
 
     #if defined(WOLFSSL_AES_COUNTER) &&\
