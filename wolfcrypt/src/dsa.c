@@ -1216,8 +1216,10 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
             break;
         }
 
+        /* sig holds r||s as 2 * |q| bytes and carries no length, so bound |q|
+         * to keep the read within DSA_MAX_SIG_SIZE. */
         qSz = mp_unsigned_bin_size(&key->q);
-        if (qSz <= 0) {
+        if (qSz <= 0 || qSz > DSA_MAX_HALF_SIZE) {
             ret = BAD_FUNC_ARG;
             break;
         }
