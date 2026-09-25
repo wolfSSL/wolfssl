@@ -528,7 +528,7 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
         if (hashes_copied >= 3)
             HmacKeyFreeHash(src->macType, &dst->o_hash);
 #endif
-        XMEMSET(dst, 0, sizeof(*dst));
+        ForceZero(dst, sizeof(*dst));
     }
     return ret;
 }
@@ -1747,7 +1747,7 @@ void wc_HmacFree(Hmac* hmac)
         byte finalHash[WC_HMAC_BLOCK_SIZE];
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
         (void)ret; /* must ignore return code here */
-        (void)finalHash;
+        ForceZero(finalHash, sizeof(finalHash));
     }
 #endif
 

@@ -1529,6 +1529,8 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SEED_LEN);
 #endif
+    /* digest holds the last output block (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -2195,6 +2197,8 @@ static WARN_UNUSED_RESULT int Hash512_gen(DRBG_SHA512_internal* drbg,
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SHA512_SEED_LEN);
 #endif
+    /* See Hash_gen. */
+    ForceZero(digest, WC_SHA512_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -2667,6 +2671,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Accumulate failure flag - once set, stays set */
             rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
         }
+        ForceZero(&prevByte, sizeof(prevByte));
     }
 
     /* SP800-90B 4.4.2 - Adaptive Proportion Test (APT)
@@ -2724,6 +2729,8 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                           WC_RNG_SEED_APT_CUTOFF);
         }
 
+        /* Histogram of the live seed (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(byteCounts, MAX_ENTROPY_BITS * sizeof(word16));
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         XFREE(byteCounts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -7664,7 +7671,7 @@ void wc_NoiseSrc_Free(wc_NoiseSrc* src)
     if (src->work != NULL && src->workSz > 0) {
         ForceZero(src->work, src->workSz);
     }
-    XMEMSET(src->health, 0, sizeof(src->health));
+    ForceZero(src->health, sizeof(src->health));
     src->chunkCtr = 0;
     src->failed   = 0;
     src->degraded = 0;
