@@ -12,6 +12,11 @@ New features:
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
 
+Fixes and improvements:
+
+- Validate PBKDF2 and scrypt password hash output length against the PHC
+  minimum before running the KDF
+
 ## v2.2.0
 
 New features:
