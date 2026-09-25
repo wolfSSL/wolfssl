@@ -14,7 +14,11 @@
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
 #              ("" leaves CC entirely to configure / the environment)
-#   cflags     CFLAGS for make, overriding --cflags
+#   cflags     CFLAGS for make, replacing the ones configure chose and
+#              overriding --cflags
+#   extra_cflags  CFLAGS added to the ones configure chose rather than
+#              replacing them, overriding --extra-cflags ("" opts out of
+#              the --extra-cflags default)
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
@@ -104,16 +108,20 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NoReturn
 
-# cflags/ldflags are applied at make time only (never to ./configure) so
+# The flags below are applied at make time only (never to ./configure) so
 # autoconf feature detection is not poisoned by benign warnings in
 # conftest probes. They are omitted entirely when empty so a plain config
-# keeps the configure-chosen defaults.
+# keeps the configure-chosen defaults. "cflags" replaces what configure
+# chose, which drops wolfSSL's own warning set (configure puts -Wall
+# -Wextra and the rest in CFLAGS); "extra_cflags" adds to it instead,
+# since Makefile.am appends EXTRA_CFLAGS to AM_CFLAGS.
 @dataclass
 class Config:
     name: str
     configure: list[str] = field(default_factory=list)
     cc: str = ""
     cflags: str = ""
+    extra_cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
     user_settings: str = ""
@@ -191,9 +199,9 @@ def nproc() -> int:
 
 
 # Every recognized config key (and every key allowed inside "base").
-CONFIG_KEYS = {"name", "configure", "cc", "cflags", "ldflags", "minutes",
-               "user_settings", "check", "prepare", "run", "comment",
-               "build", "netns", "shards"}
+CONFIG_KEYS = {"name", "configure", "cc", "cflags", "extra_cflags",
+               "ldflags", "minutes", "user_settings", "check", "prepare",
+               "run", "comment", "build", "netns", "shards"}
 # List-valued keys are concatenated (base first) when merging "base" into a
 # config; every other key is a default the config overrides.
 MERGE_LIST_KEYS = ("configure", "prepare", "run")
@@ -270,7 +278,7 @@ def load_configs(opts: argparse.Namespace,
                 and all(isinstance(a, str) for a in configure)):
             error(f"{opts.json}: \"configure\" must be a list of argument "
                   f"strings in {name!r}")
-        for key in ("cflags", "ldflags"):
+        for key in ("cflags", "extra_cflags", "ldflags"):
             if not isinstance(entry.get(key, ""), str):
                 error(f"{opts.json}: \"{key}\" must be a string in {name!r}")
         minutes = entry.get("minutes", 1.0)
@@ -304,6 +312,7 @@ def load_configs(opts: argparse.Namespace,
                       f"in {name!r}")
         configs.append(Config(name, list(configure), cc,
                               entry.get("cflags", opts.cflags),
+                              entry.get("extra_cflags", opts.extra_cflags),
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
                               list(entry.get("prepare", [])),
@@ -402,6 +411,7 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     if cfg.cc:
         configure.append(f"CC={cfg.cc}")
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
+    flags += [f"EXTRA_CFLAGS={cfg.extra_cflags}"] if cfg.extra_cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
     # No -j here: wolfSSL's configure enables make's jobserver by default
     # (AX_AM_JOBSERVER adds AM_MAKEFLAGS += -j<nproc+1>), and that explicit
@@ -612,6 +622,11 @@ def main() -> int:
                         "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",
                    help="CFLAGS for configs that do not set their own")
+    p.add_argument("--extra-cflags", default="",
+                   help="CFLAGS added to the ones configure chose, for "
+                        "configs that do not set their own "
+                        "\"extra_cflags\": keeps wolfSSL's warning set in "
+                        "force instead of replacing it like --cflags")
     p.add_argument("--ldflags", default="",
                    help="LDFLAGS for configs that do not set their own")
     p.add_argument("--private-dir", action="append", default=[],

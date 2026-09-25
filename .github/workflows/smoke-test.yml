@@ -132,9 +132,20 @@ jobs:
       # days); leantls-extra, dtls-suite and integration target the top
       # failure modes (-Werror unused-function / implicit-decl / link
       # errors). Every config builds with -Werror unless it sets its own
-      # cflags: sanitize-asan replaces it with AddressSanitizer flags (UBSAN
-      # excluded - current master has known left-shift UB in auto-generated
-      # SP math). --private-dir=certs gives every build dir its own certs/
+      # extra_cflags: the ASan configs opt out, since AddressSanitizer finds
+      # what the warning set would already have errored on (UBSAN excluded -
+      # current master has known left-shift UB in auto-generated SP math).
+      # --extra-cflags passes these as EXTRA_CFLAGS, which Makefile.am
+      # appends to AM_CFLAGS, so wolfSSL's own warning set (-Wall -Wextra
+      # -Wmaybe-uninitialized ...) stays in force alongside them. A make-time
+      # CFLAGS= would replace that set instead and silently drop it, and most
+      # of what the Jenkins PRB catches are exactly those warnings.
+      # -Wdeclaration-after-statement catches the C89 breaks that otherwise
+      # surface only in the MSVC and clang-tidy PRB jobs. enable-all adds
+      # -pedantic (PRB's medium-runtime list builds it that way), and the
+      # two build-only configs at the end, all-Og and savesession, are the
+      # PRB single-flag entries behind the September 2026 misses.
+      # --private-dir=certs gives every build dir its own certs/
       # copy: crl-gen-openssl.test writes generated CRLs under certs/crl/,
       # which would race through the shared VPATH certs symlink.
       #
@@ -149,7 +160,8 @@ jobs:
       - name: Build and make check all configs (parallel, out-of-tree)
         if: steps.merge_check.outputs.skip != 'true'
         run: |
-          .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} --cflags=-Werror \
+          .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --extra-cflags="-Werror -Wdeclaration-after-statement" \
             --private-dir=certs .github/configs/smoke-test.json
 
       # Seed (master pushes + the weekday cron) writes the master-scoped
