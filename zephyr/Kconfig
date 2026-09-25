@@ -111,9 +111,10 @@ config WOLFCRYPT_FIPS_V7
 config WOLFCRYPT_FIPS_READY
 	bool "FIPS Ready (in-tree, uncertified)"
 	help
-	  FIPS-Ready in-tree sources, feature locked (version 8.0.0 - kept one ahead
-	  of the latest submission). Carries the newest in-boundary algorithms but is
-	  not yet NIST-certified; use it for pre-certification integration.
+	  FIPS-Ready in-tree sources, feature locked (version 7.0.0 - kept one major
+	  ahead of the latest tagged release, as configure.ac does). Carries the
+	  newest in-boundary algorithms but is not yet NIST-certified; use it for
+	  pre-certification integration.
 
 endchoice
 
