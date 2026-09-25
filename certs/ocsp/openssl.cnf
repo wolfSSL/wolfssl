@@ -26,6 +26,13 @@ authorityKeyIdentifier = keyid:always,issuer:always
 keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
 authorityInfoAccess    = OCSP;URI:http://127.0.0.1:22223
 
+# Extensions to add to a certificate request (intermediate4-ca)
+[ v3_req4 ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
+
 # Extensions for a typical CA
 [ v3_ca ]
 basicConstraints       = CA:true
@@ -33,6 +40,13 @@ subjectKeyIdentifier   = hash
 authorityKeyIdentifier = keyid:always,issuer:always
 keyUsage               = keyCertSign, cRLSign
 authorityInfoAccess    = OCSP;URI:http://127.0.0.1:22220
+
+# Extensions for a CA that names no OCSP responder
+[ v3_ca_noaia ]
+basicConstraints       = CA:true
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage               = keyCertSign, cRLSign
 
 # OCSP extensions.
 [ v3_ocsp ]
