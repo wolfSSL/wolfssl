@@ -383,6 +383,7 @@ void sce_test(void)
     #endif
     int i = 0;
     int ret = 0;
+    (void)ret;
 
     wc_SetTimeCb(build_time_cb);
 
@@ -414,7 +415,7 @@ void sce_test(void)
 
             printf(" %s connecting to %d port\n", info[j].name, info[j].port);
 
-            xReturned = xTaskCreate(wolfSSL_TLS_client_do, info[j].name,
+            xReturned = xTaskCreate((void (*)(void *))wolfSSL_TLS_client_do, info[j].name,
                                     THREAD_STACK_SIZE, &info[j], 2, NULL);
             if (xReturned != pdPASS) {
                  printf("Failed to create task\n");

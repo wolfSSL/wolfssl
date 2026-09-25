@@ -82,7 +82,15 @@ typedef struct tagTestInfo
 void sce_test();
 void TCPInit();
 void wolfSSL_TLS_client_init();
+/* TLS_MULTITHREAD_TEST passes this directly to xTaskCreate(), whose
+ * TaskFunction_t is "void (*)(void*)" -- it must return void there (the task
+ * always ends itself via vTaskDelete(NULL) instead of returning a value). The
+ * non-multithread caller invokes it directly and uses the int return code. */
+#if defined(TLS_MULTITHREAD_TEST)
+void wolfSSL_TLS_client_do(void *pvParam);
+#else
 int wolfSSL_TLS_client_do(void *pvParam);
+#endif
 void wolfSSL_TLS_cleanup();
 extern WOLFSSL_CTX *client_ctx;
 

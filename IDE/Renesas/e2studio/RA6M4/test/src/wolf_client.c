@@ -131,7 +131,11 @@ void wolfSSL_TLS_client_init()
     #endif
 }
 
+#if defined(TLS_MULTITHREAD_TEST)
+void wolfSSL_TLS_client_do(void *pvParam)
+#else
 int wolfSSL_TLS_client_do(void *pvParam)
+#endif
 {
 
     int ret;
@@ -276,8 +280,9 @@ int wolfSSL_TLS_client_do(void *pvParam)
 #ifdef TLS_MULTITHREAD_TEST
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
-#endif
+#else
     return ret;
+#endif
 }
 
 void wolfSSL_TLS_cleanup()
