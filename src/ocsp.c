@@ -730,10 +730,15 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (status != NULL)
         *status = single->status->status;
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
-    if (thisupd != NULL)
-        *thisupd = &single->status->thisDateParsed;
-    if (nextupd != NULL)
-        *nextupd = &single->status->nextDateParsed;
+    /* NULL when the response has no such field, as with OpenSSL. */
+    if (thisupd != NULL) {
+        *thisupd = (single->status->thisDateParsed.length > 0) ?
+            &single->status->thisDateParsed : NULL;
+    }
+    if (nextupd != NULL) {
+        *nextupd = (single->status->nextDateParsed.length > 0) ?
+            &single->status->nextDateParsed : NULL;
+    }
 #else
     if (thisupd != NULL)
         *thisupd = NULL;
@@ -1636,10 +1641,15 @@ int wolfSSL_OCSP_single_get0_status(WOLFSSL_OCSP_SINGLERESP *single,
         return -1;
 
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
-    if (thisupd != NULL)
-        *thisupd = &single->status->thisDateParsed;
-    if (nextupd != NULL)
-        *nextupd = &single->status->nextDateParsed;
+    /* NULL when the response has no such field, as with OpenSSL. */
+    if (thisupd != NULL) {
+        *thisupd = (single->status->thisDateParsed.length > 0) ?
+            &single->status->thisDateParsed : NULL;
+    }
+    if (nextupd != NULL) {
+        *nextupd = (single->status->nextDateParsed.length > 0) ?
+            &single->status->nextDateParsed : NULL;
+    }
 #else
     if (thisupd != NULL)
         *thisupd = NULL;

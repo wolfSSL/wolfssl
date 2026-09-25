@@ -490,6 +490,16 @@ static int twcase_cache_intOn_extOn_noTicket(WOLFSSL_CTX* ctx)
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
     return TEST_SUCCESS;
 }
+#ifdef WOLFSSL_EARLY_DATA
+/* Early data on: ticket resumption consults the external cache. */
+static int twcase_cache_intOn_extOn_earlyData(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(twcase_cache_intOn_extOn(ctx), TEST_SUCCESS);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx, MAX_EARLY_DATA_SZ), 0);
+    return EXPECT_RESULT();
+}
+#endif
 static int twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -575,6 +585,20 @@ static int twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
 #endif
     return EXPECT_RESULT();
 }
+/* Client asks for a ticket so TLS 1.2 also resumes with one. */
+static int twcase_client_use_ticket(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(twcase_cache_intOff_extOff(ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+static int twcase_resume_on_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_session_reused(ssl), 1);
+    return EXPECT_RESULT();
+}
 static int twcase_client_set_sess_ssl_ready(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -602,6 +626,14 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
     EXPECT_DECLS;
     /* Test the default 33 sessions */
     int j;
+    int tls13 = XSTRSTR(param->tls_version, "TLSv1_3") != NULL;
+    int dtls = XSTRSTR(param->tls_version, "DTLS") != NULL;
+#ifdef WOLFSSL_EARLY_DATA
+    /* Case 6 enables early data, which is TLS 1.3 only. */
+    const int cases = tls13 ? 7 : 6;
+#else
+    const int cases = 6;
+#endif
 
     /* Clear cache before starting */
     wolfSSL_CTX_flush_sessions(NULL, -1);
@@ -612,15 +644,13 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
     server_sessionCache.capacity = SESSION_CACHE_SIZE;
 
     fprintf(stderr, "\tBegin %s\n", param->tls_version);
-    for (j = 0; j < 5; j++) {
-        int tls13 = XSTRSTR(param->tls_version, "TLSv1_3") != NULL;
-        int dtls = XSTRSTR(param->tls_version, "DTLS") != NULL;
+    for (j = 0; j < cases; j++) {
         test_ssl_cbf client_cb;
         test_ssl_cbf server_cb;
 
         (void)dtls;
 
-        /* Test five cache configurations */
+        /* Test the cache configurations */
         twcase_client_first_session_ptr = NULL;
         twcase_server_first_session_ptr = NULL;
         twcase_server_current_ctx_ptr = NULL;
@@ -657,8 +687,20 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
             case 4:
                 server_cb.ctx_ready = twcase_cache_intOff_extOff;
                 break;
+            case 5:
+                /* ticket resumption for all versions */
+                server_cb.ctx_ready = twcase_cache_intOn_extOn;
+                break;
+#ifdef WOLFSSL_EARLY_DATA
+            case 6:
+                server_cb.ctx_ready = twcase_cache_intOn_extOn_earlyData;
+                break;
+#endif
         }
-        client_cb.ctx_ready = twcase_cache_intOff_extOff;
+        if (j == 5)
+            client_cb.ctx_ready = twcase_client_use_ticket;
+        else
+            client_cb.ctx_ready = twcase_cache_intOff_extOff;
 
         /* Add session to internal cache and save SSL session for testing */
         server_cb.on_result = twcase_server_sess_ctx_pre_shutdown;
@@ -684,6 +726,8 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
             case 0:
             case 1:
             case 2:
+            case 5:
+            case 6:
                 /* cache cannot be searched with out a connection */
                 /* Add a new session */
                 ExpectIntEQ(twcase_new_session_called, 1);
@@ -705,8 +749,8 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
         twcase_new_session_called    = 0;
         twcase_remove_session_called = 0;
         twcase_get_session_called    = 0;
-        server_cb.on_result = 0;
-        client_cb.on_result = 0;
+        server_cb.on_result = twcase_resume_on_result;
+        client_cb.on_result = twcase_resume_on_result;
         server_cb.ticNoInit = 1; /* Use default builtin */
 
         server_cb.ctx = twcase_server_current_ctx_ptr;
@@ -754,8 +798,9 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
             case 1:
                 if (tls13) {
                     /* (D)TLSv1.3 case */
-                    /* cache hit */
-                    ExpectIntEQ(twcase_get_session_called, 1);
+                    /* Ticket resumption. The external cache is not
+                     * consulted, as in OpenSSL. */
+                    ExpectIntEQ(twcase_get_session_called, 0);
                     /* (D)TLSv1.3 creates a new ticket,
                      * updates both internal and external cache */
                     ExpectIntEQ(twcase_new_session_called, 1);
@@ -764,7 +809,7 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
                     ExpectIntEQ(twcase_remove_session_called, 1);
                 }
                 else {
-                    /* non (D)TLSv1.3 case */
+                    /* non (D)TLSv1.3 case, session ID resumption */
                     /* cache hit */
                     /* DTLS accesses cache once for stateless parsing and
                      * once for stateful parsing */
@@ -782,8 +827,9 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
             case 2:
                 if (tls13) {
                     /* (D)TLSv1.3 case */
-                    /* cache hit */
-                    ExpectIntEQ(twcase_get_session_called, 1);
+                    /* Ticket resumption. The external cache is not
+                     * consulted, as in OpenSSL. */
+                    ExpectIntEQ(twcase_get_session_called, 0);
                     /* (D)TLSv1.3 creates a new ticket,
                      * updates both internal and external cache */
                     ExpectIntEQ(twcase_new_session_called, 1);
@@ -792,7 +838,7 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
                     ExpectIntEQ(twcase_remove_session_called, 1);
                 }
                 else {
-                    /* non (D)TLSv1.3 case */
+                    /* non (D)TLSv1.3 case, session ID resumption */
                     /* cache hit */
                     /* DTLS accesses cache once for stateless parsing and
                      * once for stateful parsing */
@@ -814,6 +860,29 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
                 ExpectIntEQ(twcase_new_session_called, 0);
                 ExpectIntEQ(twcase_remove_session_called, 0);
                 break;
+            case 5:
+                /* Ticket resumption. The external cache is not consulted,
+                 * as in OpenSSL. */
+                ExpectIntEQ(twcase_get_session_called, 0);
+                if (tls13) {
+                    ExpectIntEQ(twcase_new_session_called, 1);
+                    ExpectIntEQ(twcase_remove_session_called, 1);
+                }
+                else {
+                    /* The ticket is reused, no new session */
+                    ExpectIntEQ(twcase_new_session_called, 0);
+                    ExpectIntEQ(twcase_remove_session_called, 1);
+                }
+                break;
+#ifdef WOLFSSL_EARLY_DATA
+            case 6:
+                /* Ticket resumption with early data on. The external cache
+                 * takes part in anti-replay, so it is consulted. */
+                ExpectIntEQ(twcase_get_session_called, 1);
+                ExpectIntEQ(twcase_new_session_called, 1);
+                ExpectIntEQ(twcase_remove_session_called, 1);
+                break;
+#endif
         }
         wolfSSL_SESSION_free(twcase_client_first_session_ptr);
         wolfSSL_SESSION_free(twcase_server_first_session_ptr);

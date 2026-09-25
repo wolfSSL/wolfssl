@@ -43931,9 +43931,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
             ssl->session->sessionIDSz= bogusIDSz;
         }
-#ifdef WOLFSSL_TICKET_HAVE_ID
+#if defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE)
         else {
-            if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
+            int found;
+            /* The external cache takes part in the 0-RTT anti-replay
+             * eviction, so it is only skipped when early data is off. */
+#ifdef WOLFSSL_EARLY_DATA
+            if (ssl->options.maxEarlyDataSz > 0)
+                found = wolfSSL_GetSessionFromCache(ssl, ssl->session);
+            else
+#endif
+                found = wolfSSL_GetSessionFromInternalCache(ssl, ssl->session);
+            if (found == WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Found session matching the session id"
                             " found in the ticket");
             }

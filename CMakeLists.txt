@@ -3925,6 +3925,13 @@ if(NOT WOLFSSL_CONTEXT_EXTRA_USER_DATA STREQUAL "no")
     endif()
 endif()
 
+# nginx 1.31 and the OpenResty Lua modules need six ex_data slots per object.
+if((WOLFSSL_NGINX OR WOLFSSL_OPENRESTY) AND
+   (WOLFSSL_CONTEXT_EXTRA_USER_DATA STREQUAL "no" OR
+    WOLFSSL_CONTEXT_EXTRA_USER_DATA STREQUAL "yes"))
+    list(APPEND WOLFSSL_DEFINITIONS "-DMAX_EX_DATA=10")
+endif()
+
 # ECC minimum key size (bits)
 if(WOLFSSL_FIPS)
     set(WOLFSSL_ECC_MIN_KEY_SZ_DEFAULT "192")

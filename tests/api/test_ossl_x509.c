@@ -640,6 +640,50 @@ int test_wolfSSL_X509(void)
     X509_free(x509);
     BIO_free(bio);
     bio = NULL;
+
+    /* d2i_X509_bio reads one certificate per call and leaves the rest. */
+    {
+        byte  chain[4096];
+        int   svrSz = 0;
+        int   caSz = 0;
+        X509* x509b = NULL;
+
+        ExpectTrue((fp = XFOPEN("certs/server-cert.der", "rb")) != XBADFILE);
+        if (fp != XBADFILE) {
+            svrSz = (int)XFREAD(chain, 1, sizeof(chain), fp);
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+        ExpectIntGT(svrSz, 0);
+        ExpectTrue((fp = XFOPEN(der, "rb")) != XBADFILE);
+        if (fp != XBADFILE && svrSz > 0) {
+            caSz = (int)XFREAD(chain + svrSz, 1, sizeof(chain) - svrSz, fp);
+        }
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+        ExpectIntGT(caSz, 0);
+
+        ExpectNotNull(bio = BIO_new_mem_buf(chain, svrSz + caSz));
+        ExpectNotNull(x509 = d2i_X509_bio(bio, NULL));
+        ExpectIntEQ(BIO_pending(bio), caSz);
+        ExpectNotNull(x509b = d2i_X509_bio(bio, NULL));
+        ExpectIntEQ(BIO_pending(bio), 0);
+        ExpectNull(d2i_X509_bio(bio, NULL));
+        ExpectIntNE(X509_cmp(x509, x509b), 0);
+        X509_free(x509);
+        x509 = NULL;
+        X509_free(x509b);
+        BIO_free(bio);
+        bio = NULL;
+
+        /* Truncated DER is rejected. */
+        ExpectNotNull(bio = BIO_new_mem_buf(chain, svrSz - 1));
+        ExpectNull(d2i_X509_bio(bio, NULL));
+        BIO_free(bio);
+        bio = NULL;
+    }
 #endif
 
     /* X509_up_ref test */
