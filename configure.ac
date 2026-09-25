@@ -1760,8 +1760,14 @@ then
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 7
     then
         test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-        test "$enable_cshake" = "" && enable_cshake=yes
-        test "$enable_kmac" = "" && enable_kmac=yes
+        # KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary,
+        # so only non-FIPS and the dev/ready prep builds turn them on here.
+        if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS_DEV" = "yes" \
+            || test "$ENABLED_FIPS_READY" = "yes"
+        then
+            test "$enable_cshake" = "" && enable_cshake=yes
+            test "$enable_kmac" = "" && enable_kmac=yes
+        fi
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
