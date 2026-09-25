@@ -175,9 +175,10 @@
 #endif
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
-    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM)
-    /* The one arm32 block is NEON (port/arm/armv8-32-sha3-asm.S, d0-d15), so
-     * it always needs the registers; Thumb2's block is integer-only. */
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON)
+    /* armv8-32-sha3-asm.S has a NEON block (vpush d8-d15) and an integer-only
+     * one under WOLFSSL_ARMASM_NO_NEON; only the NEON block needs a claim. */
     #define SHA3_BLOCK_VREGS(f) 1
     #define SHA3_NEEDS_VREG_CLAIM
 #endif
