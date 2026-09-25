@@ -86216,6 +86216,11 @@ typedef struct {
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
     int cmacFreeCount;    /* CMAC free callback invocations */
 #endif
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+    int shakeAbsorbCount;  /* SHAKE absorb callback invocations */
+    int shakeSqueezeCount; /* SHAKE squeeze callback invocations */
+    int shakeXofDecline;   /* when set, decline SHAKE absorb and squeeze */
+#endif
 #ifdef WOLF_CRYPTO_CB_COPY
     int hashCopyType;     /* hash type seen by last hash copy dispatch */
 #endif
@@ -89092,17 +89097,40 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* set devId to invalid, so software is used */
             info->hash.sha3->devId = INVALID_DEVID;
 
-            if (info->hash.in != NULL) {
-                ret = wc_Shake128_Update(
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+            if (myCtx->shakeXofDecline &&
+                    info->hash.shakeOp != WC_SHAKE_OP_NONE) {
+                ret = CRYPTOCB_UNAVAILABLE;
+            }
+            else if (info->hash.shakeOp == WC_SHAKE_OP_ABSORB) {
+                ret = wc_Shake128_Absorb(
                     info->hash.sha3,
                     info->hash.in,
                     info->hash.inSz);
+                myCtx->shakeAbsorbCount++;
             }
-            if (info->hash.digest != NULL) {
-                ret = wc_Shake128_Final(
+            else if (info->hash.shakeOp == WC_SHAKE_OP_SQUEEZE) {
+                ret = wc_Shake128_SqueezeBlocks(
                     info->hash.sha3,
                     info->hash.digest,
-                    info->hash.outSz);
+                    info->hash.outSz / WC_SHA3_128_BLOCK_SIZE);
+                myCtx->shakeSqueezeCount++;
+            }
+            else
+#endif
+            {
+                if (info->hash.in != NULL) {
+                    ret = wc_Shake128_Update(
+                        info->hash.sha3,
+                        info->hash.in,
+                        info->hash.inSz);
+                }
+                if (info->hash.digest != NULL) {
+                    ret = wc_Shake128_Final(
+                        info->hash.sha3,
+                        info->hash.digest,
+                        info->hash.outSz);
+                }
             }
 
             /* reset devId */
@@ -89117,17 +89145,40 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* set devId to invalid, so software is used */
             info->hash.sha3->devId = INVALID_DEVID;
 
-            if (info->hash.in != NULL) {
-                ret = wc_Shake256_Update(
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+            if (myCtx->shakeXofDecline &&
+                    info->hash.shakeOp != WC_SHAKE_OP_NONE) {
+                ret = CRYPTOCB_UNAVAILABLE;
+            }
+            else if (info->hash.shakeOp == WC_SHAKE_OP_ABSORB) {
+                ret = wc_Shake256_Absorb(
                     info->hash.sha3,
                     info->hash.in,
                     info->hash.inSz);
+                myCtx->shakeAbsorbCount++;
             }
-            if (info->hash.digest != NULL) {
-                ret = wc_Shake256_Final(
+            else if (info->hash.shakeOp == WC_SHAKE_OP_SQUEEZE) {
+                ret = wc_Shake256_SqueezeBlocks(
                     info->hash.sha3,
                     info->hash.digest,
-                    info->hash.outSz);
+                    info->hash.outSz / WC_SHA3_256_BLOCK_SIZE);
+                myCtx->shakeSqueezeCount++;
+            }
+            else
+#endif
+            {
+                if (info->hash.in != NULL) {
+                    ret = wc_Shake256_Update(
+                        info->hash.sha3,
+                        info->hash.in,
+                        info->hash.inSz);
+                }
+                if (info->hash.digest != NULL) {
+                    ret = wc_Shake256_Final(
+                        info->hash.sha3,
+                        info->hash.digest,
+                        info->hash.outSz);
+                }
             }
 
             /* reset devId */
@@ -90167,6 +90218,66 @@ static int myCryptoCbFind(int currentId, int algoType)
 }
 #endif /* WOLF_CRYPTO_CB_FIND */
 
+#if defined(WOLFSSL_SHA3) && defined(WOLF_CRYPTO_CB_SHAKE_XOF) && \
+    (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
+    !defined(HAVE_FIPS)
+#define SHAKE_CB_XOF_BLOCKS 2
+static wc_test_ret_t shake_cb_xof_test(myCryptoDevCtx* myCtx, int decline,
+    int (*initFn)(wc_Shake*, void*, int),
+    int (*absorbFn)(wc_Shake*, const byte*, word32),
+    int (*squeezeFn)(wc_Shake*, byte*, word32),
+    void (*freeFn)(wc_Shake*))
+{
+    wc_test_ret_t ret = 0;
+    int i;
+    const int expectCount = decline ? 0 : 1;
+    byte shakeIn[32];
+    byte cbOut[SHAKE_CB_XOF_BLOCKS * WC_SHA3_128_BLOCK_SIZE];
+    byte swOut[SHAKE_CB_XOF_BLOCKS * WC_SHA3_128_BLOCK_SIZE];
+    WC_DECLARE_VAR(shake, wc_Shake, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR_EX(shake, wc_Shake, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+    XMEMSET(shakeIn, 0x5a, sizeof(shakeIn));
+    XMEMSET(cbOut, 0, sizeof(cbOut));
+    XMEMSET(swOut, 0, sizeof(swOut));
+    myCtx->shakeAbsorbCount = 0;
+    myCtx->shakeSqueezeCount = 0;
+    myCtx->shakeXofDecline = decline;
+
+    /* First pass uses the callback, second pass uses software. */
+    for (i = 0; i < 2 && ret == 0; i++) {
+        byte* out = (i == 0) ? cbOut : swOut;
+
+        ret = initFn(shake, HEAP_HINT, (i == 0) ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        ret = absorbFn(shake, shakeIn, (word32)sizeof(shakeIn));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        if (ret == 0) {
+            ret = squeezeFn(shake, out, SHAKE_CB_XOF_BLOCKS);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        freeFn(shake);
+    }
+    myCtx->shakeXofDecline = 0;
+
+    if (ret == 0 && (myCtx->shakeAbsorbCount != expectCount ||
+            myCtx->shakeSqueezeCount != expectCount))
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0 && XMEMCMP(cbOut, swOut, sizeof(cbOut)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+
+    WC_FREE_VAR_EX(shake, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* WOLFSSL_SHA3 && WOLF_CRYPTO_CB_SHAKE_XOF && !HAVE_FIPS */
+
 #if defined(WOLFSSL_SHA3) && \
     (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
     (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
@@ -90693,6 +90804,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
+#endif
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+    myCtx.shakeAbsorbCount = 0;
+    myCtx.shakeSqueezeCount = 0;
+    myCtx.shakeXofDecline = 0;
 #endif
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
     /* myCtx is uninitialized stack: a garbage arm would inject
@@ -91332,6 +91448,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             wc_Shake256_Copy, wc_Shake256_Free);
 #endif
 #endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) */
+
+#if defined(WOLFSSL_SHA3) && defined(WOLF_CRYPTO_CB_SHAKE_XOF) && \
+    !defined(HAVE_FIPS)
+    {
+        int decline;
+
+        /* Second round covers the software fallback. */
+        for (decline = 0; decline <= 1 && ret == 0; decline++) {
+#ifdef WOLFSSL_SHAKE128
+            ret = shake_cb_xof_test(&myCtx, decline, wc_InitShake128,
+                wc_Shake128_Absorb, wc_Shake128_SqueezeBlocks,
+                wc_Shake128_Free);
+#endif
+#ifdef WOLFSSL_SHAKE256
+            if (ret == 0)
+                ret = shake_cb_xof_test(&myCtx, decline, wc_InitShake256,
+                    wc_Shake256_Absorb, wc_Shake256_SqueezeBlocks,
+                    wc_Shake256_Free);
+#endif
+        }
+    }
+#endif /* WOLFSSL_SHA3 && WOLF_CRYPTO_CB_SHAKE_XOF && !HAVE_FIPS */
 
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
     !defined(NO_RSA) && !defined(WC_NO_RNG) && defined(WOLFSSL_KEY_GEN) && \

@@ -816,7 +816,7 @@ int main(void)
 #else
             WC_HASH_TYPE_SHAKE256,
 #endif
-            in, sizeof(in), out, outLen));
+            in, sizeof(in), out, outLen, WC_SHAKE_OP_NONE));
         WB_NOTE("SHAKE: Shake dev&&dev->cb driven");
 #endif
     }

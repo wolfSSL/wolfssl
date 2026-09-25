@@ -66,6 +66,10 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
+ * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
+ *                      as well as update and final. Off by
+ *                      default because a callback that predates
+ *                      hash.shakeOp would misread them.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -3216,10 +3220,14 @@ int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 
 #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
 int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
-    word32 inSz, byte* out, word32 outSz)
+    word32 inSz, byte* out, word32 outSz, int shakeOp)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
+
+#ifndef WOLF_CRYPTO_CB_SHAKE_XOF
+    (void)shakeOp;
+#endif
 
     /* locate registered callback */
     if (shake) {
@@ -3240,6 +3248,9 @@ int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
         cryptoInfo.hash.inSz = inSz;
         cryptoInfo.hash.digest = out;
         cryptoInfo.hash.outSz = outSz;
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+        cryptoInfo.hash.shakeOp = shakeOp;
+#endif
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

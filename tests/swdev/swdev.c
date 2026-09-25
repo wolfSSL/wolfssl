@@ -650,6 +650,117 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
 }
 #endif /* WOLFSSL_HAVE_SLHDSA */
 
+
+#if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+/* Copy sponge state between the caller's wc_Shake and swdev's shadow */
+static void swdev_shake_copy_state(wc_Shake* dst, const wc_Shake* src)
+{
+    XMEMCPY(dst->s, src->s, sizeof(dst->s));
+    XMEMCPY(dst->t, src->t, sizeof(dst->t));
+    dst->i = src->i;
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags = src->flags;
+#endif
+}
+
+static int swdev_shake_op(const wc_CryptoInfo* info)
+{
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+    return info->hash.shakeOp;
+#else
+    (void)info;
+    return WC_SHAKE_OP_NONE;
+#endif
+}
+
+typedef struct swdev_shake_funcs {
+    int    type;
+    word32 rate;
+    int    (*initFn)(wc_Shake*, void*, int);
+    int    (*updateFn)(wc_Shake*, const byte*, word32);
+    int    (*finalFn)(wc_Shake*, byte*, word32);
+    int    (*absorbFn)(wc_Shake*, const byte*, word32);
+    int    (*squeezeFn)(wc_Shake*, byte*, word32);
+    void   (*freeFn)(wc_Shake*);
+} swdev_shake_funcs;
+
+static const swdev_shake_funcs swdev_shake_table[] = {
+#ifdef WOLFSSL_SHAKE128
+    { WC_HASH_TYPE_SHAKE128, WC_SHA3_128_COUNT * 8U, wc_InitShake128,
+      wc_Shake128_Update, wc_Shake128_Final, wc_Shake128_Absorb,
+      wc_Shake128_SqueezeBlocks, wc_Shake128_Free },
+#endif
+#ifdef WOLFSSL_SHAKE256
+    { WC_HASH_TYPE_SHAKE256, WC_SHA3_256_COUNT * 8U, wc_InitShake256,
+      wc_Shake256_Update, wc_Shake256_Final, wc_Shake256_Absorb,
+      wc_Shake256_SqueezeBlocks, wc_Shake256_Free },
+#endif
+};
+
+/* SHAKE handler. When shakeOp is WC_SHAKE_OP_NONE, update and final operations
+ * are determined by hash.digest. Otherwise hash.shakeOp selects the op. */
+static int swdev_shake(wc_CryptoInfo* info)
+{
+    wc_Shake* shake = info->hash.sha3;
+    wc_Shake  shadow;
+    const swdev_shake_funcs* f = NULL;
+    size_t    idx;
+    int       ret;
+
+    if (shake == NULL)
+        return BAD_FUNC_ARG;
+
+    for (idx = 0; idx < sizeof(swdev_shake_table) /
+            sizeof(swdev_shake_table[0]); idx++) {
+        if (swdev_shake_table[idx].type == info->hash.type) {
+            f = &swdev_shake_table[idx];
+            break;
+        }
+    }
+    if (f == NULL)
+        return CRYPTOCB_UNAVAILABLE;
+
+    ret = f->initFn(&shadow, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
+    swdev_shake_copy_state(&shadow, shake);
+
+    switch (swdev_shake_op(info)) {
+    case WC_SHAKE_OP_ABSORB:
+        ret = f->absorbFn(&shadow, info->hash.in, info->hash.inSz);
+        break;
+
+    case WC_SHAKE_OP_SQUEEZE:
+        /* outSz is the byte count; the API takes whole blocks. */
+        if ((info->hash.outSz % f->rate) != 0) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+        ret = f->squeezeFn(&shadow, info->hash.digest,
+            info->hash.outSz / f->rate);
+        break;
+
+    default:
+        if (info->hash.in != NULL) {
+            ret = f->updateFn(&shadow, info->hash.in, info->hash.inSz);
+        }
+        if ((ret == 0) && (info->hash.digest != NULL)) {
+            ret = f->finalFn(&shadow, info->hash.digest, info->hash.outSz);
+        }
+        break;
+    }
+
+    if (ret == 0) {
+        swdev_shake_copy_state(shake, &shadow);
+    }
+
+    f->freeFn(&shadow);
+
+    return ret;
+}
+#endif /* WOLFSSL_SHAKE128 || WOLFSSL_SHAKE256 */
+
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
  * admin fields (heap, devId, devCtx, W, async, HW ctx) per-side. */
@@ -1399,7 +1510,9 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return CRYPTOCB_UNAVAILABLE;
         }
 #endif
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) || \
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHAKE128) || \
+    defined(WOLFSSL_SHAKE256)
     case WC_ALGO_TYPE_HASH:
         switch (info->hash.type) {
     #ifndef NO_SHA256
@@ -1428,6 +1541,15 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
         case WC_HASH_TYPE_SHA384:
             return swdev_sha384(info);
+    #endif
+    #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+        #ifdef WOLFSSL_SHAKE128
+        case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #ifdef WOLFSSL_SHAKE256
+        case WC_HASH_TYPE_SHAKE256:
+        #endif
+            return swdev_shake(info);
     #endif
         default:
             return CRYPTOCB_UNAVAILABLE;
