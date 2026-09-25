@@ -113,6 +113,8 @@ int  wc_FreeNetRandom(void);
     MAX_REQUEST_LEN
     \return DRBG_CONT_FIPS_E wc_RNG_GenerateBlock: Hash_gen returned
     DRBG_CONT_FAILURE
+    \return ENTROPY_RT_E or ENTROPY_APT_E wc_InitRng: the SP 800-90B seed
+    health test rejected the entropy gathered to instantiate
     \return RNG_FAILURE_E wc_RNG_GenerateBlock: Default error.  rng’s
     status originally not ok, or set to DRBG_FAILED
     \return BAD_MUTEX_E the lock that lets threads share this rng could not
@@ -157,6 +159,8 @@ int  wc_InitRng(WC_RNG* rng);
     \return 0 on success
     \return BAD_FUNC_ARG an input is null or sz exceeds MAX_REQUEST_LEN
     \return DRBG_CONT_FIPS_E Hash_gen returned DRBG_CONT_FAILURE
+    \return ENTROPY_RT_E or ENTROPY_APT_E the SP 800-90B seed health test
+    rejected the entropy gathered for a reseed
     \return RNG_FAILURE_E Default error. rng’s status originally not
     ok, or set to DRBG_FAILED
     \return BAD_MUTEX_E the rng's lock could not be taken
@@ -544,7 +548,6 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz);
     \return BAD_FUNC_ARG If seed is NULL
     \return ENTROPY_RT_E || ENTROPY_APT_E  Validation failed
     \return ENTROPY_APT_E The adaptive proportion test failed.
-    \return MEMORY_E Allocation failed.
 
     \param seed Seed to test
     \param seedSz Seed size
@@ -1303,7 +1306,8 @@ int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng);
 
     \return 0 Bytes were banked (bank may or may not yet be complete).
     \return ALREADY_E The bank is ready or being consumed.
-    \return NOT_READY_E The health test could not run; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG rng is null or n is 0.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
 
@@ -1334,7 +1338,8 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n);
 
     \return 0 Bytes were banked.
     \return ALREADY_E The bank is ready or being consumed.
-    \return NOT_READY_E The health test could not run; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG rng or root is null, or n is 0.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
     \return SEQ_OVERFLOW_E root's stratum is at the representable maximum.
@@ -1388,6 +1393,8 @@ int wc_RNG_DRBG_NextSeedCurrent(WC_RNG* rng, WC_ATOMIC_INT_ARG* n);
     \return NOT_READY_E No bank is ready.
     \return BAD_FUNC_ARG rng is null.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
+    \return ENTROPY_RT_E or ENTROPY_APT_E A seed health test failed on
+    the reseed this performs; the instance is condemned.
 
     \param rng The RNG object to reseed.
 
@@ -1417,6 +1424,8 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     \return NOT_READY_E No bank is ready.
     \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
+    \return ENTROPY_RT_E or ENTROPY_APT_E A seed health test failed on
+    the reseed this performs; the instance is condemned.
     \return DRBG_CONT_FIPS_E The continuous test failed; the DRBG is out of
     service.
     \return RNG_FAILURE_E The DRBG is out of service.

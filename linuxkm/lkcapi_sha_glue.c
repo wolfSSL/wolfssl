@@ -2747,10 +2747,6 @@ static void wc_linuxkm_vmgenid_poll_teardown(
  * draining nextSeeds as fast as it can.  Per-turn classification of
  * wc_rng_bank_next_seed_generate() returns:
  *   0        gathered/published -- progress;
- *   NOT_READY_E  transient (incl. a burned bank, which is refill-eligible
- *            now, and an environmental TestSeed miss with the aperture
- *            preserved) -- progress, so a forced burn can never induce
- *            a nap;
  *   ALREADY_E  ready or consuming -- no work on this instance;
  *   BUSY_E   instance-op gate held by a reinit -- no progress here,
  *            but the gate holder is making it;
@@ -3219,7 +3215,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
             ret = wc_rng_bank_next_seed_generate(
                 bank, i, WC_LINUXKM_ENTROPY_DAEMON_GRANULE);
-            if ((ret == 0) || (ret == WC_NO_ERR_TRACE(NOT_READY_E))) {
+            if (ret == 0) {
                 progress = 1;
             }
             else if ((ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
@@ -3729,6 +3725,12 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
     #define WC_LINUXKM_DRBG_SMALL_LIMIT 8
 #endif
 
+/* Reinstantiations attempted when a generate keeps failing.  Each one gathers
+ * a fresh seed and health tests it, so this never re-judges rejected data. */
+#ifndef WC_LINUXKM_DRBG_REINIT_TRIES
+    #define WC_LINUXKM_DRBG_REINIT_TRIES 3
+#endif
+
 #ifdef WC_RNG_HAVE_POOL
 wc_static_assert(WC_LINUXKM_DRBG_SMALL_LIMIT <= WC_LINUXKM_RNG_POOL_SIZE);
 #endif
@@ -3956,13 +3958,18 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         if (ret == 0)
             continue;
 
-        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
+        /* A seed health-test alarm now arrives as its own SP 800-90B code;
+         * it is the same recoverable condition as RNG_FAILURE_E. */
+        if (unlikely((ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) ||
+                     (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+                     (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))))
+        {
             if (slen > 0)
                 break;
 
-            if (retried)
+            if (retried >= WC_LINUXKM_DRBG_REINIT_TRIES)
                 break;
-            retried = 1;
+            ++retried;
 
             if (! can_wait)
                 break;
@@ -4035,13 +4042,13 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
             if (ret == 0) {
                 pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after "
-                                    "RNG_FAILURE_E from wc_RNG_GenerateBlock().\n",
+                                    "a seed health or RNG failure from wc_RNG_GenerateBlock().\n",
                                     wc_rng_bank_get_inst_id(drbg));
                 continue;
             }
             else {
                 pr_err_ratelimited("ERROR: reinitialization of DRBG #%d after "
-                                   "RNG_FAILURE_E failed with ret %d.\n",
+                                   "a seed health or RNG failure failed with ret %d.\n",
                                    wc_rng_bank_get_inst_id(drbg), ret);
                 break;
             }
