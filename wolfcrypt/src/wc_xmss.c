@@ -794,6 +794,8 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -1292,6 +1294,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -1314,6 +1318,14 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         key->pubSet = 1;
     }
 
+    /* Zeroize the secret seed (SK_seed || SK_PRF) before freeing the buffer. */
+#ifdef WOLFSSL_SMALL_STACK
+    if (seed != NULL) {
+        ForceZero(seed, 3U * key->params->n);
+    }
+#else
+    ForceZero(seed, sizeof(seed));
+#endif
     WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
@@ -2074,6 +2086,8 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
