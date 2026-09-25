@@ -8433,6 +8433,19 @@ fi
 # clear configure error rather than a confusing compile-time #error. KMAC
 # implies cSHAKE (ENABLED_CSHAKE was set above), so the SHAKE check on the
 # cSHAKE branch also covers KMAC.
+# An explicit --enable-kmac/--enable-cshake against a validated module version
+# fails here, with the clear configure error this file's convention calls for,
+# rather than building a module that silently excludes them (SP 800-185).
+if test "$ENABLED_FIPS" != "no" && test -n "$HAVE_FIPS_VERSION" \
+    && test "$HAVE_FIPS_VERSION" -ge 7 && test "$ENABLED_FIPS_DEV" != "yes" \
+    && test "$ENABLED_FIPS_READY" != "yes"
+then
+    if test "$ENABLED_CSHAKE" != "no" || test "$ENABLED_KMAC" != "no"
+    then
+        AC_MSG_ERROR([cshake and kmac are not part of the FIPS module boundary for this version])
+    fi
+fi
+
 if test "$ENABLED_CSHAKE" != "no"
 then
     if test "$ENABLED_SHAKE128" = "no" && test "$ENABLED_SHAKE256" = "no"
