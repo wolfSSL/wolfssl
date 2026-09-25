@@ -3725,6 +3725,12 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
     #define WC_LINUXKM_DRBG_SMALL_LIMIT 8
 #endif
 
+/* Reinstantiations attempted when a generate keeps failing.  Each one gathers
+ * a fresh seed and health tests it, so this never re-judges rejected data. */
+#ifndef WC_LINUXKM_DRBG_REINIT_TRIES
+    #define WC_LINUXKM_DRBG_REINIT_TRIES 3
+#endif
+
 #ifdef WC_RNG_HAVE_POOL
 wc_static_assert(WC_LINUXKM_DRBG_SMALL_LIMIT <= WC_LINUXKM_RNG_POOL_SIZE);
 #endif
@@ -3961,9 +3967,9 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             if (slen > 0)
                 break;
 
-            if (retried)
+            if (retried >= WC_LINUXKM_DRBG_REINIT_TRIES)
                 break;
-            retried = 1;
+            ++retried;
 
             if (! can_wait)
                 break;
