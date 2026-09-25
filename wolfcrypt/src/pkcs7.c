@@ -577,6 +577,12 @@ static int wc_PKCS7_StreamResyncRecipient(wc_PKCS7* pkcs7, word32* idx,
         }
     }
 
+    /* an indefinite-length message only has an estimated end, and the
+     * rejected recipient's lookahead may already have read past it */
+    if (ret == 0 && pkcs7->stream->totalRd > pkcs7->stream->maxLen) {
+        pkcs7->stream->maxLen = pkcs7->stream->totalRd;
+    }
+
     return ret;
 }
 #endif /* NO_PKCS7_STREAM */
