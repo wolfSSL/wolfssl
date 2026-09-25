@@ -1525,6 +1525,179 @@ int test_wolfSSL_ticket_keys(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(SINGLE_THREADED)
+
+#define TEST_TICKET_KEYS_ROUNDS     20000
+#define TEST_TICKET_KEYS_WRITER_MAX 1000000
+#define TEST_TICKET_KEYS_BURST      256
+#define TEST_TICKET_KEYS_WAIT_TRIES 200
+#define TEST_TICKET_KEYS_WAIT_MS    1
+
+static WOLFSSL_CTX* ticket_keys_ctx = NULL;
+static byte ticket_keys_a[WOLFSSL_TICKET_KEYS_SZ];
+static byte ticket_keys_b[WOLFSSL_TICKET_KEYS_SZ];
+static int  ticket_keys_set_err = 0;
+
+/* Guards the fields below, which both threads touch while running. */
+static wolfSSL_Mutex ticket_keys_lock;
+static int  ticket_keys_writer_started = 0;
+static int  ticket_keys_reader_done = 0;
+
+static THREAD_RETURN WOLFSSL_THREAD test_ticket_keys_writer(void* args)
+{
+    int  done = 0;
+    int  i;
+    long rounds = 0;
+
+    (void)args;
+
+    if (wc_LockMutex(&ticket_keys_lock) == 0) {
+        ticket_keys_writer_started = 1;
+        wc_UnLockMutex(&ticket_keys_lock);
+    }
+
+    /* Keep rotating until the reader is done so the loops overlap. The
+     * rotations run in bursts to keep the bookkeeping out of the loop. */
+    while ((!done) && (rounds < TEST_TICKET_KEYS_WRITER_MAX)) {
+        for (i = 0; i < TEST_TICKET_KEYS_BURST; i++) {
+            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+                    ticket_keys_a, WOLFSSL_TICKET_KEYS_SZ)
+                    != WOLFSSL_SUCCESS) {
+                ticket_keys_set_err = 1;
+            }
+            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+                    ticket_keys_b, WOLFSSL_TICKET_KEYS_SZ)
+                    != WOLFSSL_SUCCESS) {
+                ticket_keys_set_err = 1;
+            }
+        }
+        rounds += TEST_TICKET_KEYS_BURST;
+
+        if (wc_LockMutex(&ticket_keys_lock) == 0) {
+            done = ticket_keys_reader_done;
+            wc_UnLockMutex(&ticket_keys_lock);
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* Read the keys once and record which key set came back. */
+static int test_ticket_keys_read(int* sawA, int* sawB, int* mixed)
+{
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+    int ret = 0;
+
+    if (wolfSSL_CTX_get_tlsext_ticket_keys(ticket_keys_ctx, keys,
+            WOLFSSL_TICKET_KEYS_SZ) != WOLFSSL_SUCCESS) {
+        ret = -1;
+    }
+    else if (XMEMCMP(keys, ticket_keys_a, sizeof(keys)) == 0) {
+        *sawA = 1;
+    }
+    else if (XMEMCMP(keys, ticket_keys_b, sizeof(keys)) == 0) {
+        *sawB = 1;
+    }
+    /* Every read returns one key set whole, never part of each. */
+    else {
+        *mixed = 1;
+    }
+
+    return ret;
+}
+#endif
+
+int test_wolfSSL_ticket_keys_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(SINGLE_THREADED)
+    THREAD_TYPE thread;
+    func_args args;
+    int lockInit = 0;
+    int started = 0;
+    int sawA = 0;
+    int sawB = 0;
+    int getErr = 0;
+    int mixed = 0;
+    int i;
+
+    XMEMSET(&args, 0, sizeof(args));
+    XMEMSET(ticket_keys_a, 0xa5, sizeof(ticket_keys_a));
+    XMEMSET(ticket_keys_b, 0x5c, sizeof(ticket_keys_b));
+    ticket_keys_writer_started = 0;
+    ticket_keys_reader_done = 0;
+    ticket_keys_set_err = 0;
+
+    if (wc_InitMutex(&ticket_keys_lock) == 0) {
+        lockInit = 1;
+    }
+    ExpectIntEQ(lockInit, 1);
+    ExpectNotNull(ticket_keys_ctx =
+        wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+        ticket_keys_a, WOLFSSL_TICKET_KEYS_SZ), WOLFSSL_SUCCESS);
+
+    if ((lockInit == 1) && (ticket_keys_ctx != NULL)) {
+        start_thread(test_ticket_keys_writer, &args, &thread);
+
+        /* Start the reads only once the writer is rotating keys. Sleep
+         * rather than spin so the writer gets scheduled on one core. */
+        for (i = 0; (i < TEST_TICKET_KEYS_WAIT_TRIES) && (!started); i++) {
+            if (wc_LockMutex(&ticket_keys_lock) == 0) {
+                started = ticket_keys_writer_started;
+                wc_UnLockMutex(&ticket_keys_lock);
+            }
+            if (!started) {
+                XSLEEP_MS(TEST_TICKET_KEYS_WAIT_MS);
+            }
+        }
+
+        for (i = 0; i < TEST_TICKET_KEYS_ROUNDS; i++) {
+            if (test_ticket_keys_read(&sawA, &sawB, &mixed) != 0) {
+                getErr = 1;
+                break;
+            }
+            if (mixed) {
+                break;
+            }
+        }
+
+        /* Top up until both key sets have been seen, so a clean run
+         * above cannot be one where the loops never overlapped. */
+        for (i = 0; (i < TEST_TICKET_KEYS_WAIT_TRIES) && (!getErr) &&
+                (!mixed) && ((!sawA) || (!sawB)); i++) {
+            XSLEEP_MS(TEST_TICKET_KEYS_WAIT_MS);
+            if (test_ticket_keys_read(&sawA, &sawB, &mixed) != 0) {
+                getErr = 1;
+            }
+        }
+
+        if (wc_LockMutex(&ticket_keys_lock) == 0) {
+            ticket_keys_reader_done = 1;
+            wc_UnLockMutex(&ticket_keys_lock);
+        }
+        join_thread(thread);
+    }
+
+    ExpectIntEQ(getErr, 0);
+    ExpectIntEQ(mixed, 0);
+    ExpectIntEQ(ticket_keys_set_err, 0);
+
+    ExpectIntEQ(started, 1);
+    ExpectIntEQ(sawA, 1);
+    ExpectIntEQ(sawB, 1);
+
+    wolfSSL_CTX_free(ticket_keys_ctx);
+    ticket_keys_ctx = NULL;
+    if (lockInit == 1) {
+        wc_FreeMutex(&ticket_keys_lock);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*/
 /* SESSION ex_data new index                                                  */
 /*----------------------------------------------------------------------------*/
