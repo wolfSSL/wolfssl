@@ -4125,11 +4125,8 @@ int test_tls13_rpk_handshake_no_negotiation(void)
     return EXPECT_RESULT();
 }
 
-/* A server using WOLFSSL_VERIFY_POST_HANDSHAKE must complete the initial
- * handshake without a client certificate and still be able to request one
- * afterwards: the deferred-verification exemption holds while handShakeDone is
- * 0. Driving the exchange to completion is not asserted here - whether the peer
- * chain ends up populated depends on unrelated build options. */
+/* Post-handshake auth with the client identity loaded on the SSL, after an
+ * initial handshake with and without client auth: every round must get it. */
 int test_tls13_pha(void)
 {
     EXPECT_DECLS;
@@ -4141,38 +4138,58 @@ int test_tls13_pha(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     WOLFSSL_X509_CHAIN* chain = NULL;
+    char msg[] = "hello wolfssl!";
+    char buf[sizeof(msg)];
+    int mutual, round;
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    for (mutual = 0; mutual < 2 && EXPECT_SUCCESS(); mutual++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
 
-    /* Server: trust the (self-signed) client certificate and defer
-     * verification to post-handshake. */
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
-        WOLFSSL_SUCCESS);
-    wolfSSL_set_verify(ssl_s,
-        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile,
+            NULL), WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER | (mutual ?
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT :
+            WOLFSSL_VERIFY_POST_HANDSHAKE), NULL);
 
-    /* Client: load a cert/key and advertise post-handshake auth. */
-    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
 
-    /* Initial handshake completes with no client cert: still in-handshake, so
-     * the exemption applies. */
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
-    ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+        ExpectIntEQ(wolfSSL_get_chain_count(chain), mutual);
 
-    /* And the server can issue a post-handshake certificate request. */
-    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+        for (round = 0; round < 2 && EXPECT_SUCCESS(); round++) {
+            wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+            ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
+            ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+                (int)sizeof(msg) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+                (int)sizeof(msg) - 1);
+            ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+                (int)sizeof(msg) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1),
+                (int)sizeof(msg) - 1);
+
+            ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+            ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+        }
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -4231,9 +4248,7 @@ int test_tls13_ctx_dh_rotation(void)
     return EXPECT_RESULT();
 }
 
-/* Post-handshake auth over a resumed (ticket-PSK) connection. Client
- * credentials go on the CTX: FreeHandshakeResources() unloads SSL-owned
- * certificates, leaving nothing to answer a later request with. */
+/* Post-handshake auth over a resumed (ticket-PSK) connection. */
 int test_tls13_pha_resumption(void)
 {
     EXPECT_DECLS;
