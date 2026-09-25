@@ -533,5 +533,8 @@
   "--disable-oldtls", "--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_TLS12"]},
 {"name": "tls13-sha512-runtime", "minutes": 1.6,
  "comment": "--enable-tls13-sha512 with TLS 1.2 left in, so the examples and unit tests build and run with WOLFSSL_HS_HASH_SHA512 set. No cipher suite sets mac_algorithm to sha512_mac, so the sha512_mac arms in src/tls13.c stay unreached; what this entry proves is that the option does not break an otherwise ordinary build, which the two compile-only entries above cannot show.",
- "configure": ["--enable-tls13", "--enable-tls13-sha512", "--enable-sha512"]}
+ "configure": ["--enable-tls13", "--enable-tls13-sha512", "--enable-sha512"]},
+{"name": "postauth-no-compat",
+ "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]}
 ]
