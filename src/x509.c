@@ -10540,8 +10540,13 @@ int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     if (param != NULL) {
-        param->flags |= flags;
-        ret = WOLFSSL_SUCCESS;
+        if ((flags & WOLFSSL_VPARAM_UNSUPPORTED_FLAGS) != 0) {
+            WOLFSSL_MSG("Unsupported X509_V_FLAG requested");
+        }
+        else {
+            param->flags |= flags;
+            ret = WOLFSSL_SUCCESS;
+        }
     }
 
     return ret;

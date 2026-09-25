@@ -764,7 +764,10 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
 
 #define X509_V_FLAG_PARTIAL_CHAIN WOLFSSL_PARTIAL_CHAIN
-#define X509_V_FLAG_TRUSTED_FIRST 0 /* dummy value needed for gRPC port */
+/* Accepted and recorded, but chain building does not reorder on it.
+ * wolfSSL already prefers the trust store, which is what the flag asks
+ * for, so a caller setting it is not misled. */
+#define X509_V_FLAG_TRUSTED_FIRST WOLFSSL_TRUSTED_FIRST
 
 #define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
