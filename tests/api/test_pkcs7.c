@@ -3766,6 +3766,85 @@ int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet() */
 
 
+/* RFC 5652 6.1 sets the EnvelopedData version from every RecipientInfo in the
+ * set, so a KTRI reader must open a message that also carries a PWRI. */
+int test_wc_PKCS7_DecodeEnvelopedData_version(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_PWDBASED) && !defined(NO_SHA)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    byte   data[] = "EnvelopedData version test";
+#ifndef HAVE_FIPS
+    byte   password[] = "password";
+#else
+    byte   password[] = "passwordFIPS_MODE";
+#endif
+    byte   salt[] = { 0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12 };
+    int    envelopedSz = 0;
+    word32 idx = 0;
+    word32 len = 0;
+    word32 lenValOff = 0;
+    word32 lenValWidth = 0;
+    byte   tag = 0;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, client_cert_der_2048,
+        sizeof_client_cert_der_2048, 0), 0);
+    ExpectIntGT(wc_PKCS7_AddRecipient_PWRI(pkcs7, password,
+        (word32)XSTRLEN((char*)password), salt, (word32)sizeof(salt),
+        PBKDF2_OID, WC_SHA, 5, AES256CBCb, 0), 0);
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* ContentInfo, contentType, [0], EnvelopedData, then the version */
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    idx += len;
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(tag, ASN_INTEGER);
+    ExpectIntEQ(len, 1);
+    ExpectIntEQ(enveloped[idx], 3);
+
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+    if (EXPECT_SUCCESS()) {
+        enveloped[idx] = 4;
+    }
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), (int)sizeof(data));
+
+    /* 1 is not a CMSVersion EnvelopedData can carry */
+    if (EXPECT_SUCCESS()) {
+        enveloped[idx] = 1;
+    }
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), WC_NO_ERR_TRACE(ASN_VERSION_E));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_version() */
+
+
 /* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
  * is truncated must return BUFFER_E rather than reading past pkiMsg. */
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)

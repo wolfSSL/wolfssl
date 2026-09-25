@@ -14217,14 +14217,10 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
         #endif
 
             if (type == ENVELOPED_DATA) {
-                /* TODO :: make this more accurate */
-                if ((pkcs7->publicKeyOID == RSAk &&
-                     (version != 0 && version != 2))
-                #ifdef HAVE_ECC
-                        || (pkcs7->publicKeyOID == ECDSAk &&
-                            (version != 0 && version != 2 && version != 3))
-                #endif
-                        ) {
+                /* RFC 5652 6.1: the version follows every RecipientInfo in
+                 * the set, not the reader's own, so any of these is valid */
+                if (version != 0 && version != 2 && version != 3 &&
+                        version != 4) {
                     WOLFSSL_MSG("PKCS#7 envelopedData version incorrect");
                     ret = ASN_VERSION_E;
                 }

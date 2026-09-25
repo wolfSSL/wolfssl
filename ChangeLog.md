@@ -420,6 +420,15 @@
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
 
+* **Fix (EnvelopedData version 3 or 4 rejected by an RSA or ECC reader)**:
+  RFC 5652, Section 6.1 derives the EnvelopedData version from every
+  RecipientInfo in the set, so a message that also carries a password or
+  `OtherRecipientInfo` recipient is version 3.  `wc_PKCS7_DecodeEnvelopedData()`
+  checked the version against the reader's own key type, allowing only 0 and 2
+  for RSA and 0, 2 and 3 for ECC, so a KTRI recipient could not open a message
+  addressed to a PWRI or ML-KEM recipient as well and got `ASN_VERSION_E`.
+  Any CMSVersion valid for EnvelopedData (0, 2, 3 or 4) is now accepted.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA
