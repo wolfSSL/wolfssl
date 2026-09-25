@@ -396,8 +396,8 @@ namespace wolfSSL.CSharp.Fips.Test
             byte[] eexp = L(early, "e exp master", H(hcr));
             byte[] salt = L(early, "derived", H());
             byte[] hs = FipsKdf.Tls13Extract(h, salt, dhe.Length > 0 ? dhe : new byte[n]);
-            byte[] chs = L(hs, "c hs traffic", H(hcr, hsr));
-            byte[] shs = L(hs, "s hs traffic", H(hcr, hsr));
+            byte[] chts = L(hs, "c hs traffic", H(hcr, hsr));
+            byte[] shts = L(hs, "s hs traffic", H(hcr, hsr));
             salt = L(hs, "derived", H());
             byte[] ms = FipsKdf.Tls13Extract(h, salt, new byte[n]);
             byte[] cap = L(ms, "c ap traffic", H(hcr, hsr, fsr));
@@ -406,7 +406,7 @@ namespace wolfSSL.CSharp.Fips.Test
             byte[] res = L(ms, "res master", H(hcr, hsr, fsr, fcr));
             return new[] {
                 ("clientEarlyTrafficSecret", ce), ("earlyExporterMasterSecret", eexp),
-                ("clientHandshakeTrafficSecret", chs), ("serverHandshakeTrafficSecret", shs),
+                ("clientHandshakeTrafficSecret", chts), ("serverHandshakeTrafficSecret", shts),
                 ("clientApplicationTrafficSecret", cap), ("serverApplicationTrafficSecret", sap),
                 ("exporterMasterSecret", exp), ("resumptionMasterSecret", res)
             };
