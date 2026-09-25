@@ -2856,6 +2856,7 @@ int wc_Sha512Drbg_IsDisabled(void)
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
+                    const byte* fixedSeed, word32 fixedSeedSz,
                     void* heap, int devId, WC_RNG* seedRng, word32 flags)
 {
     int ret = 0;
@@ -2879,6 +2880,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     /* seedRng is consumed only in the seed-acquisition arm; cast for
      * configurations that compile that arm out. */
     (void)seedRng;
+    (void)fixedSeed;
+    (void)fixedSeedSz;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
@@ -3221,6 +3224,14 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #endif
     }
     else {
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Fixed seed from wc_InitRngFixedSeed(), which checks its size. */
+        if (fixedSeed != NULL) {
+            XMEMCPY(seed, fixedSeed, fixedSeedSz);
+            seedSz = fixedSeedSz;
+        }
+        else
+#endif
         if (seedRng != NULL) {
             /* RBGC spawn: draw the seed material from the parent DRBG's
              * generate function in place of the module's seed source -- the SP
@@ -3487,7 +3498,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, NULL, 0, heap, devId, NULL,
                    WC_RNG_INIT_FLAG_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
@@ -3511,45 +3522,77 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG)
+/* Start a WC_RNG from a fixed seed so a known answer test gets the same answer
+ * every time.  Library internal; the FIPS self tests are the only caller. */
+int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    int ret;
+
+    /* The first SEED_BLOCK_SZ bytes are the seed test block, not DRBG input. */
+    if ((rng == NULL) || (seed == NULL) || (seedSz <= SEED_BLOCK_SZ) ||
+        (seedSz > MAX_SEED_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = _InitRng(rng, NULL, 0, NULL, 0, seed, seedSz, NULL, INVALID_DEVID,
+                   NULL, WC_RNG_INIT_FLAG_NONE);
+    /* Some builds, RDRAND for one, return 0 with no DRBG and would then
+     * generate without the seed. */
+    if ((ret == 0) && !wc_RNG_DRBG_Present(rng)) {
+        (void)wc_FreeRng(rng);
+        ret = BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_RBGC
+    /* Not seeded by the entropy source, so label it the way the caller seed
+     * reseed path does. */
+    if (ret == 0)
+        rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
+#endif
+
+    return ret;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) && HAVE_HASHDRBG */
+
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
-                    WC_RNG_INIT_FLAG_NONE);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, 0, NULL, INVALID_DEVID,
+                    NULL, WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL, flags);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL, flags);
 }
 
 int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                         const byte *perso, word32 persoSz,
                         void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, nonce, nonceSz, perso, persoSz,
+    return _InitRng(rng, nonce, nonceSz, perso, persoSz, NULL, 0,
                     heap, devId, NULL, flags);
 }
 
@@ -4599,7 +4642,7 @@ static WARN_UNUSED_RESULT int SpawnRngRBGC(
         child = *new_child_heap;
     }
 
-    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, parent->heap,
+    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, NULL, 0, parent->heap,
     #if defined(WOLF_CRYPTO_CB)
                    parent->devId,
     #else
