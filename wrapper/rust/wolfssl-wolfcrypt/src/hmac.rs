@@ -26,11 +26,22 @@ functionality.
 #![cfg(hmac)]
 
 use crate::sys;
+use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 
 /// Rust wrapper for wolfSSL `Hmac` object.
+///
+/// The wolfSSL context is held in an `UnsafeCell` because `wc_HmacCopy()`
+/// takes its source argument by non-const pointer and genuinely may write
+/// through it: it forwards `&src->hash` to the per-digest copy routines
+/// (e.g. `wc_Sha256Copy()`, which calls `wc_MAXQ10XX_Sha256Copy(src)` on
+/// MAXQ10XX), and under `WOLF_CRYPTO_CB` + `WOLF_CRYPTO_CB_COPY` it hands
+/// `src` to the device callback as a writable pointer.  `Clone` therefore
+/// needs a pointer that may be written to while only holding a `&self`,
+/// which is sound only through `UnsafeCell`.  `UnsafeCell` is also `!Sync`,
+/// so no other thread can be touching the context at the same time.
 pub struct HMAC {
-    wc_hmac: sys::Hmac,
+    wc_hmac: UnsafeCell<sys::Hmac>,
 }
 
 impl HMAC {
@@ -130,9 +141,9 @@ impl HMAC {
             return Err(rc);
         }
         let wc_hmac = unsafe { wc_hmac.assume_init() };
-        let mut hmac = HMAC { wc_hmac };
+        let mut hmac = HMAC { wc_hmac: UnsafeCell::new(wc_hmac) };
         let rc = unsafe {
-            sys::wc_HmacSetKey(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size)
+            sys::wc_HmacSetKey(hmac.wc_hmac.get_mut(), typ, key.as_ptr(), key_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -208,9 +219,9 @@ impl HMAC {
             return Err(rc);
         }
         let wc_hmac = unsafe { wc_hmac.assume_init() };
-        let mut hmac = HMAC { wc_hmac };
+        let mut hmac = HMAC { wc_hmac: UnsafeCell::new(wc_hmac) };
         let rc = unsafe {
-            sys::wc_HmacSetKey_ex(&mut hmac.wc_hmac, typ, key.as_ptr(), key_size, 1)
+            sys::wc_HmacSetKey_ex(hmac.wc_hmac.get_mut(), typ, key.as_ptr(), key_size, 1)
         };
         if rc != 0 {
             return Err(rc);
@@ -243,7 +254,7 @@ impl HMAC {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
-            sys::wc_HmacUpdate(&mut self.wc_hmac, data.as_ptr(), data_size)
+            sys::wc_HmacUpdate(self.wc_hmac.get_mut(), data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -277,7 +288,7 @@ impl HMAC {
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         // Check the output buffer size since wc_HmacFinal() does not accept
         // a length parameter.
-        let typ = self.wc_hmac.macType as i32;
+        let typ = self.wc_hmac.get_mut().macType as i32;
         let rc = unsafe { sys::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
@@ -287,7 +298,7 @@ impl HMAC {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            sys::wc_HmacFinal(&mut self.wc_hmac, hash.as_mut_ptr())
+            sys::wc_HmacFinal(self.wc_hmac.get_mut(), hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -314,7 +325,9 @@ impl HMAC {
     /// hmac.finalize(&mut hash).expect("Error with finalize()");
     /// ```
     pub fn get_hmac_size(&self) -> Result<usize, i32> {
-        let typ = self.wc_hmac.macType as u32 as i32;
+        /* Read-only access to the cell contents; HMAC is !Sync, so nothing
+         * else can be mutating the context while this &self is held. */
+        let typ = unsafe { (*self.wc_hmac.get()).macType } as u32 as i32;
         let rc = unsafe { sys::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
@@ -325,26 +338,74 @@ impl HMAC {
 }
 
 impl HMAC {
+    /// Copy the HMAC state into a new independent instance via
+    /// `wc_HmacCopy()`.
+    ///
+    /// Allows the same in-progress authentication to be continued
+    /// independently from the same point.
+    ///
+    /// This is the fallible equivalent of `clone()`, which panics on failure.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the new HMAC struct instance or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl_wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 16];
+    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
+    /// hmac.update(b"prefix").expect("Error with update()");
+    /// let mut forked = hmac.copy().expect("Error with copy()");
+    /// forked.update(b"suffix").expect("Error with update()");
+    /// ```
+    pub fn copy(&mut self) -> Result<Self, i32> {
+        /* &mut self, so a writable pointer to the context is available
+         * directly. */
+        unsafe { Self::copy_from(self.wc_hmac.get_mut()) }
+    }
+
+    /// Deep-copy the HMAC context pointed to by `src` into a new instance.
+    ///
+    /// # Safety
+    ///
+    /// `src` must point to an initialized `Hmac` context that nothing else is
+    /// accessing for the duration of the call; `wc_HmacCopy()` may write
+    /// through it.
+    unsafe fn copy_from(src: *mut sys::Hmac) -> Result<Self, i32> {
+        /* wc_HmacCopy() fills dst with XMEMCPY() before touching it, so an
+         * uninitialized destination is fine here (unlike wc_Sha256Copy(),
+         * which frees dst first). */
+        let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
+        let rc = unsafe { sys::wc_HmacCopy(src, wc_hmac.as_mut_ptr()) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let wc_hmac = unsafe { wc_hmac.assume_init() };
+        Ok(HMAC { wc_hmac: UnsafeCell::new(wc_hmac) })
+    }
+
     fn zeroize(&mut self) {
-        unsafe { crate::zeroize_raw(&mut self.wc_hmac); }
+        unsafe { crate::zeroize_raw(self.wc_hmac.get_mut()); }
     }
 }
 
 impl Clone for HMAC {
     /// Deep-copy the HMAC state via `wc_HmacCopy()`.
     ///
-    /// Panics if the underlying wolfSSL copy fails.
+    /// Panics if the underlying wolfSSL copy fails.  Use `copy()` instead to
+    /// get the error code back.
     fn clone(&self) -> Self {
-        let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
-        let rc = unsafe {
-            sys::wc_HmacCopy(&self.wc_hmac as *const _ as *mut _,
-                wc_hmac.as_mut_ptr())
-        };
-        if rc != 0 {
-            panic!("wc_HmacCopy() failed: {}", rc);
+        /* wc_HmacCopy() may write through its src pointer, so the writable
+         * pointer must come from the UnsafeCell rather than from a cast of
+         * &self.  HMAC is !Sync, and no other borrow of the context is live
+         * for the duration of the call. */
+        match unsafe { Self::copy_from(self.wc_hmac.get()) } {
+            Ok(hmac) => hmac,
+            Err(rc) => panic!("wc_HmacCopy() failed: {}", rc),
         }
-        let wc_hmac = unsafe { wc_hmac.assume_init() };
-        HMAC { wc_hmac }
     }
 }
 
@@ -357,7 +418,7 @@ impl Drop for HMAC {
     /// HMAC struct instance goes out of scope, automatically cleaning up
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { sys::wc_HmacFree(&mut self.wc_hmac); }
+        unsafe { sys::wc_HmacFree(self.wc_hmac.get_mut()); }
         self.zeroize();
     }
 }
