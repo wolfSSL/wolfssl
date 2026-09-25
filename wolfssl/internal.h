@@ -5963,6 +5963,11 @@ struct WOLFSSL_X509 {
     byte             certPolicySet;
     byte             certPolicyCrit;
 #endif /* WOLFSSL_SEP */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Public key owned by this certificate and returned by the get0 form,
+     * which the caller must not free. Built on first use. */
+    WOLFSSL_EVP_PKEY* pubKeyCache;
+#endif
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
     WOLFSSL_STACK* ext_sk_full; /* Store X509_EXTENSIONS from wolfSSL_X509_get0_extensions */

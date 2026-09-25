@@ -2157,3 +2157,37 @@ int test_wolfSSL_X509_cmp(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* X509_get0_pubkey returns a key the certificate owns, so the caller does
+ * not free it and repeated calls return the same pointer. Returning a
+ * freshly allocated key each time leaks one per call, because nothing is
+ * left to free it: the caller must not, and the certificate never knew
+ * about it. */
+int test_wolfSSL_X509_get0_pubkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_CERTS)
+    X509* x509 = NULL;
+    EVP_PKEY* first = NULL;
+    EVP_PKEY* second = NULL;
+    int i;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectNotNull(first = X509_get0_pubkey(x509));
+    ExpectNotNull(second = X509_get0_pubkey(x509));
+    /* the certificate owns it, so the same object comes back each time */
+    ExpectPtrEq(first, second);
+
+    /* repeated use must not accumulate allocations */
+    for (i = 0; i < 100; i++) {
+        ExpectPtrEq(X509_get0_pubkey(x509), first);
+    }
+
+    /* freeing the certificate releases the key; the caller frees nothing */
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
