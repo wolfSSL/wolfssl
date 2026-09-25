@@ -1598,29 +1598,49 @@ static int Transform_Sha512_Len_C(wc_Sha512* sha512, const byte* data,
 /* The SHA-512 crypto instructions operate on SIMD registers, so the assembly
  * only defines these when NEON is available - see armv8-sha512-asm.S and the
  * prototype guard in sha512.h. */
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha512-asm.S), so a kernel module must bracket them. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA512_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA512_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA512_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA512_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if defined(WOLFSSL_ARMASM_CRYPTO_SHA512) && !defined(WOLFSSL_ARMASM_NO_NEON)
 static int Transform_Sha512_crypto_aarch64(wc_Sha512* sha512, const byte* data)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_crypto(sha512, data, WC_SHA512_BLOCK_SIZE);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 static int Transform_Sha512_Len_crypto_aarch64(wc_Sha512* sha512,
     const byte* data, word32 len)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_crypto(sha512, data, len);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 #endif
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static int Transform_Sha512_neon_aarch64(wc_Sha512* sha512, const byte* data)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_neon(sha512, data, WC_SHA512_BLOCK_SIZE);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 static int Transform_Sha512_Len_neon_aarch64(wc_Sha512* sha512,
     const byte* data, word32 len)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_neon(sha512, data, len);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -2759,8 +2779,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
     ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
-    Transform_Sha512(sha, (const byte*)buffer);
-    ret = 0;
+    ret = Transform_Sha512(sha, (const byte*)buffer);
 #elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
     /* PPC assembly uses the (sha, data) form and reads the block directly
      * (big-endian native - any little-endian reversal was done above). */
