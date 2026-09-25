@@ -2291,8 +2291,16 @@ int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
             if (der != NULL) {
                 ecc_key* key = (ecc_key*)keyPtr;
                 WOLFSSL_MSG("Using static ECDH key");
-                ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
-                    der->length);
+                /* Derive public point for TLSX_KeyShare_GenEccKey export.
+                 * Attach RNG first for projective-coordinate blinding. */
+            #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+                !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)) && \
+                !defined(HAVE_SELFTEST)
+                ret = wc_ecc_set_rng(key, ssl->rng);
+                if (ret == 0)
+            #endif
+                    ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
             }
             break;
     #endif
@@ -2371,7 +2379,9 @@ static int DetectStaticEphemeralKeyType(const byte* keyBuf, unsigned int keySz,
             ret = wc_ecc_init_ex(eccKey, heap, INVALID_DEVID);
         }
         if (ret == 0) {
-            ret = wc_EccPrivateKeyDecode(keyBuf, &idx, eccKey, keySz);
+            /* Skip public point derivation since this is purely a type probe;
+             * the key is freed below. */
+            ret = EccPrivateKeyDecodeEx(keyBuf, &idx, eccKey, keySz, 0);
             if (ret == 0) {
                 *keyAlgo = WC_PK_TYPE_ECDH;
             }
