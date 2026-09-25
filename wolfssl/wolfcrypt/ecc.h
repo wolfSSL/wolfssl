@@ -55,7 +55,7 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
+#ifdef WOLFSSL_SILABS_SE_TYPES
     #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 #endif
 
@@ -202,7 +202,7 @@ enum {
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
 #elif defined(PLUTON_CRYPTO_ECC)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+#elif defined(WOLFSSL_SILABS_SE_TYPES)
     #if defined(_SILICON_LABS_SECURITY_FEATURE) && \
             (_SILICON_LABS_SECURITY_FEATURE == \
              _SILICON_LABS_SECURITY_FEATURE_VAULT) && \
@@ -587,7 +587,7 @@ struct ecc_key {
     void* devCtx;
     int devId;
 #endif
-#ifdef WOLFSSL_SILABS_SE_ACCEL
+#ifdef WOLFSSL_SILABS_SE_TYPES
     sl_se_command_context_t  cmd_ctx;
     sl_se_key_descriptor_t   key;
     /* Used for SiLabs "plaintext" with public X, public Y, and
@@ -595,6 +595,10 @@ struct ecc_key {
      * offset `keysize`, and offset `2 * keysize`.
      */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
+    /* Non-zero once wc_SilabsSe_EccUseWrappedKey() or
+     * wc_SilabsSe_EccUseBuiltInKey() has bound a device-resident key, so the
+     * crypto callback port does not overwrite the descriptor from key_raw. */
+    byte silabsKeySet;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     maxq_ecc_t maxq_ctx;
