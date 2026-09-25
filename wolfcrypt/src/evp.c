@@ -3613,6 +3613,12 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
 #ifndef NO_DSA
      case WC_EVP_PKEY_DSA: {
         int dsacheck = 0;
+        int bytes;
+        if (!ctx->pkey->dsa || tbslen < WC_SHA_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
+        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
+        if (bytes <= 0 || siglen < (size_t)bytes * 2)
+            return WOLFSSL_FAILURE;
         if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
             &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;

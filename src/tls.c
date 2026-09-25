@@ -12023,6 +12023,13 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return 0;
     }
 
+    /* sigSpec may point at the previous copy. */
+    if (ssl->sigSpec == ssl->peerSigSpec) {
+        ssl->sigSpec = NULL;
+        ssl->sigSpecSz = 0;
+    }
+    XFREE(ssl->peerSigSpec, ssl->heap, DYNAMIC_TYPE_TLSX);
+
     /* Copy as the lifetime of input seems to be ephemeral. */
     ssl->peerSigSpec = (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_TLSX);
     if (ssl->peerSigSpec == NULL) {
