@@ -8021,6 +8021,10 @@ exit:
         wc_Sha3_256_Free(&ksha);
         if (ret != WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
             return WC_TEST_RET_ENC_EC(ret);
+        /* The refusal must not depend on the caller having a context. */
+        ret = wc_Sha3_SetFlags(NULL, WC_HASH_SHA3_KECCAK256);
+        if (ret != WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+            return WC_TEST_RET_ENC_EC(ret);
         ret = 0;
     }
 #else
@@ -8250,9 +8254,9 @@ static wc_test_ret_t sha3_256_claim_retry_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    wc_debug_vector_registers_retval = WC_ACCEL_INHIBIT_E;
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E));
     ret = wc_Sha3_256_Final(&sha, got);
-    wc_debug_vector_registers_retval = 0;
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (ret != WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E))
@@ -8266,7 +8270,7 @@ static wc_test_ret_t sha3_256_claim_retry_test(void)
     ret = 0;
 
 out:
-    wc_debug_vector_registers_retval = 0;
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (inited)
         wc_Sha3_256_Free(&sha);
     return ret;
