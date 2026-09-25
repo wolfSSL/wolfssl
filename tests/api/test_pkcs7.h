@@ -77,6 +77,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void);
 int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void);
 int test_wc_PKCS7_DecodeEnvelopedData_version(void);
 int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void);
+int test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented(void);
 int test_wc_PKCS7_DecodeOpenSslStream(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void);
 int test_wc_PKCS7_AuthEnvelopedData_stream_leak(void);
@@ -177,6 +178,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_version), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_fragmented), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeOpenSslStream), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_truncated), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_AuthEnvelopedData_stream_leak)

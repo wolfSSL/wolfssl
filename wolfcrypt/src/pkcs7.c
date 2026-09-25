@@ -193,6 +193,8 @@ struct PKCS7State {
     WC_BITFIELD noContent:1;/* indicates content isn't included in bundle */
     WC_BITFIELD degenerate:1;
     WC_BITFIELD indefLen:1; /* flag to indicate indef-length encoding used */
+    WC_BITFIELD indefEci:1;     /* EncryptedContentInfo is indefinite */
+    WC_BITFIELD indefContent:1; /* encryptedContent is fragmented */
 };
 
 
@@ -10443,6 +10445,9 @@ static int wc_PKCS7_DecryptContent(wc_PKCS7* pkcs7, word32 encryptOID,
 }
 
 
+/* the next fragment header, or both end-of-contents and the header after */
+#define WC_PKCS7_FRAG_LOOKAHEAD (MAX_OCTET_STR_SZ * 2 + ASN_INDEF_END_SZ)
+
 /* Grow *buf to hold at least need bytes, at least doubling it and keeping the
  * first used bytes. returns 0 on success */
 static int wc_PKCS7_GrowContent(wc_PKCS7* pkcs7, byte** buf, word32 used,
@@ -15904,6 +15909,14 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     int encryptedAllocSz = 0;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
+    int indefEci = 0;
+    int indefContent = 0;
+    int fragSz = 0;
+#ifndef NO_PKCS7_STREAM
+    word32 fragStart = 0;
+#endif
+    word32 contentCap = 0;
+    word32 need = 0;
 
     byte* encodedAttribs = NULL;
     word32 encodedAttribIdx = 0, encodedAttribSz = 0;
@@ -16017,6 +16030,28 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     < 0) {
                 ret = ASN_PARSE_E;
             }
+            if (ret == 0 && length == 0 &&
+                    pkiMsg[idx - 1] == ASN_INDEF_LENGTH) {
+                indefEci = 1;
+            }
+
+        #ifndef NO_PKCS7_STREAM
+            /* no length to size by, so buffer the worst case up to the
+             * parameters tag; that puts idx back at the header */
+            if (ret == 0 && indefEci) {
+                pkcs7->stream->expected = MAX_SEQ_SZ + MAX_OID_SZ +
+                    MAX_ALGO_SZ + ASN_TAG_SZ;
+                if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                        pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                    break;
+                }
+                pkiMsgSz = (pkcs7->stream->length > 0) ?
+                    pkcs7->stream->length : inSz;
+                if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz, 0) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+        #endif
 
         #ifndef NO_PKCS7_STREAM
             /* check that the expected size was accurate */
@@ -16084,6 +16119,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
             wc_PKCS7_StreamStoreVar(pkcs7, encOID, blockKeySz, 0);
+            pkcs7->stream->indefEci = (indefEci != 0);
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_AUTHENV_4);
             FALL_THROUGH;
@@ -16191,11 +16227,18 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
             if (ret == 0 && GetLength_ex(pkiMsg, &idx, &encryptedContentSz,
-                        pkiMsgSz, 0) <= 0) {
+                        pkiMsgSz, 0) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0 && explicitOctet && encryptedContentSz == 0 &&
+                    pkiMsg[idx - 1] == ASN_INDEF_LENGTH) {
+                indefContent = 1;
+            }
+            else if (ret == 0 && encryptedContentSz == 0) {
                 ret = ASN_PARSE_E;
             }
 
-            if (explicitOctet) {
+            if (explicitOctet && !indefContent) {
                 if (ret == 0 && GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz) < 0) {
                     ret = ASN_PARSE_E;
                 }
@@ -16239,7 +16282,12 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
             pkcs7->stream->expected = (word32)encryptedContentSz +
-                    MAX_LENGTH_SZ + ASN_TAG_SZ + ASN_TAG_SZ;
+                    MAX_LENGTH_SZ + ASN_TAG_SZ + ASN_TAG_SZ + ASN_INDEF_END_SZ;
+            if (indefContent) {
+                pkcs7->stream->expected = WC_PKCS7_FRAG_LOOKAHEAD;
+            }
+            pkcs7->stream->indefContent = (indefContent != 0);
+            pkcs7->stream->contentCap = 0;
             wc_PKCS7_StreamStoreVar(pkcs7, encOID, blockKeySz,
                     encryptedContentSz);
         #endif
@@ -16257,6 +16305,10 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
             wc_PKCS7_StreamGetVar(pkcs7, &encOID, &blockKeySz,
                 &encryptedContentSz);
+            indefEci = pkcs7->stream->indefEci;
+            indefContent = pkcs7->stream->indefContent;
+            contentCap = pkcs7->stream->contentCap;
+            encryptedContent = pkcs7->stream->bufferPt;
         #else
             pkiMsgSz = inSz;
         #endif
@@ -16276,35 +16328,133 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
             }
 
-            /* AES-GCM/CCM does NOT require padding for plaintext content or
-             * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
-             * full blocks to ensure crypto only gets full blocks */
-            encryptedAllocSz = (encryptedContentSz % expBlockSz) ?
-                                   encryptedContentSz + expBlockSz -
-                                   (encryptedContentSz % expBlockSz) :
-                                   encryptedContentSz;
-            encryptedContent = (byte*)XMALLOC((word32)encryptedAllocSz,
-                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            if (ret == 0 && encryptedContent == NULL) {
-                ret = MEMORY_E;
-            }
-
-            if (ret == 0) {
-                word32 tmpSum;
-                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz,
-                                        tmpSum) ||
-                    tmpSum > pkiMsgSz) {
+            /* the AEAD needs the whole ciphertext, so join the fragments */
+            while (indefContent && ret == 0) {
+            #ifndef NO_PKCS7_STREAM
+                if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                        pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                    break;
+                }
+                pkiMsgSz = (pkcs7->stream->length > 0) ?
+                    pkcs7->stream->length : inSz;
+                fragStart = idx;
+            #endif
+                if (idx + ASN_INDEF_END_SZ > pkiMsgSz) {
                     ret = BUFFER_E;
                     break;
-                } else {
-                    XMEMCPY(encryptedContent, &pkiMsg[idx],
-                                                    (word32)encryptedContentSz);
-                    idx += (word32)encryptedContentSz;
                 }
+                if (pkiMsg[idx] == ASN_EOC && pkiMsg[idx + 1] == ASN_EOC) {
+                    idx += ASN_INDEF_END_SZ;
+                    break;
+                }
+                if (pkiMsg[idx++] != ASN_OCTET_STRING ||
+                        GetLength_ex(pkiMsg, &idx, &fragSz, pkiMsgSz, 0) <= 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+            #ifndef NO_PKCS7_STREAM
+                if ((word32)fragSz > pkiMsgSz - idx) {
+                    localIdx = idx - fragStart;
+                    pkcs7->stream->expected = localIdx + (word32)fragSz +
+                        WC_PKCS7_FRAG_LOOKAHEAD;
+                    if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                            pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                        break;
+                    }
+                    pkiMsgSz = (pkcs7->stream->length > 0) ?
+                        pkcs7->stream->length : inSz;
+                    fragStart = idx;
+                    idx += localIdx;
+                }
+            #endif
+                /* the plaintext is as long as this, so it has to fit output */
+                if ((word32)fragSz > pkiMsgSz - idx ||
+                        (word32)fragSz > (WOLFSSL_MAX_32BIT >> 1) -
+                            WC_AES_BLOCK_SIZE - (word32)encryptedContentSz ||
+                        (word32)encryptedContentSz + (word32)fragSz >
+                            outputSz) {
+                    ret = BUFFER_E;
+                    break;
+                }
+                /* keep whole blocks allocated, as for definite content */
+                need = (word32)encryptedContentSz + (word32)fragSz;
+                need += (WC_AES_BLOCK_SIZE - need % WC_AES_BLOCK_SIZE) %
+                        WC_AES_BLOCK_SIZE;
+                ret = wc_PKCS7_GrowContent(pkcs7, &encryptedContent,
+                    (word32)encryptedContentSz, need, &contentCap);
+            #ifndef NO_PKCS7_STREAM
+                pkcs7->stream->bufferPt = encryptedContent;
+                pkcs7->stream->contentCap = contentCap;
+            #endif
+                if (ret != 0) {
+                    break;
+                }
+                XMEMCPY(encryptedContent + encryptedContentSz, &pkiMsg[idx],
+                    (word32)fragSz);
+                encryptedContentSz += fragSz;
+                idx += (word32)fragSz;
+            #ifndef NO_PKCS7_STREAM
+                wc_PKCS7_StreamStoreVar(pkcs7, encOID, blockKeySz,
+                    encryptedContentSz);
+                pkcs7->stream->expected = WC_PKCS7_FRAG_LOOKAHEAD;
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &fragStart, &idx))
+                        != 0) {
+                    break;
+                }
+            #endif
+            }
+            if (ret == 0 && indefContent && encryptedContentSz == 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret != 0) {
+                break;
             }
         #ifndef NO_PKCS7_STREAM
-            pkcs7->stream->bufferPt = encryptedContent;
+            if (indefContent) {
+                tmpIdx = fragStart;
+            }
         #endif
+
+            if (!indefContent) {
+                /* AES-GCM/CCM does NOT require padding for plaintext content
+                 * or AAD inputs RFC 5084 section 3.1 and 3.2, but we must
+                 * alloc full blocks to ensure crypto only gets full blocks */
+                encryptedAllocSz = (encryptedContentSz % expBlockSz) ?
+                                       encryptedContentSz + expBlockSz -
+                                       (encryptedContentSz % expBlockSz) :
+                                       encryptedContentSz;
+                encryptedContent = (byte*)XMALLOC((word32)encryptedAllocSz,
+                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                if (ret == 0 && encryptedContent == NULL) {
+                    ret = MEMORY_E;
+                }
+
+                if (ret == 0) {
+                    word32 tmpSum;
+                    if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz,
+                                            tmpSum) ||
+                        tmpSum > pkiMsgSz) {
+                        ret = BUFFER_E;
+                        break;
+                    } else {
+                        XMEMCPY(encryptedContent, &pkiMsg[idx],
+                                                    (word32)encryptedContentSz);
+                        idx += (word32)encryptedContentSz;
+                    }
+                }
+            #ifndef NO_PKCS7_STREAM
+                pkcs7->stream->bufferPt = encryptedContent;
+            #endif
+            }
+
+            if (ret == 0 && indefEci) {
+                if (idx + ASN_INDEF_END_SZ > pkiMsgSz ||
+                        pkiMsg[idx] != ASN_EOC || pkiMsg[idx + 1] != ASN_EOC) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                idx += ASN_INDEF_END_SZ;
+            }
 
             /* may have IMPLICIT [1] authenticatedAttributes */
             localIdx = idx;
@@ -16537,8 +16687,12 @@ authenv_atrbend:
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
                 break;
             }
-            pkcs7->stream->expected = (pkcs7->stream->maxLen -
-                pkcs7->stream->totalRd) + pkcs7->stream->length;
+            /* an indefinite-length message has read past maxLen by now */
+            pkcs7->stream->expected = pkcs7->stream->length;
+            if (pkcs7->stream->maxLen > pkcs7->stream->totalRd) {
+                pkcs7->stream->expected += pkcs7->stream->maxLen -
+                    pkcs7->stream->totalRd;
+            }
 
 
             /* store tag for later */

@@ -442,6 +442,18 @@
   longer loses its place after a small fragment, and a build with
   `NO_PKCS7_STREAM` now sets up the cipher for fragmented content at all.
 
+* **Fix (indefinite-length AuthEnvelopedData rejected)**:
+  `wc_PKCS7_DecodeAuthEnvelopedData()` failed with `ASN_PARSE_E` on the
+  output of `openssl cms -encrypt -aes-256-gcm -stream`.  It read at most one
+  OCTET STRING of a constructed encryptedContent, could not take an
+  indefinite length there, and expected the authenticated attributes or the
+  tag straight after the content, where BER puts the end-of-contents of the
+  content and of the EncryptedContentInfo.  Fed in chunks it also stalled:
+  the EncryptedContentInfo was not buffered far enough to parse, and the
+  bytes still expected after the tag were computed as a negative number.
+  The fragments are now joined before the AEAD runs, and both
+  end-of-contents are consumed.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA

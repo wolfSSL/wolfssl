@@ -3912,7 +3912,7 @@ static int pkcs7_berFragment(const byte* in, word32 inSz, byte* out,
     ctStart = algEnd;
     if (pkcs7_der_readHdr(in, inSz, &ctStart, &tag, &ctSz, &lenValOff,
             &lenValWidth) != 0 || tag != (ASN_CONTEXT_SPECIFIC | 0) ||
-            trim >= ctSz || envEnd > inSz) {
+            trim > ctSz || envEnd > inSz) {
         return -1;
     }
     if (inSz + 32 + (ctSz / fragSz + 1) * 6 > outCap) {
@@ -4148,6 +4148,107 @@ int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_fragmented() */
 
 
+/* Indefinite-length AuthEnvelopedData with fragmented encryptedContent, with
+ * and without authenticated attributes after it. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(ASN_BER_TO_DER)
+    PKCS7*      pkcs7 = NULL;
+    byte        enveloped[FOURK_BUF];
+    byte        ber[FOURK_BUF];
+    byte        decoded[FOURK_BUF];
+    byte        data[200];
+    word32      fragSz[] = { 16, 7, 1, 33, 4096 };
+    int         envelopedSz = 0;
+    word32      berSz = 0;
+    int         withAttr;
+    size_t      i;
+#ifndef NO_PKCS7_STREAM
+    word32      chunkSz[] = { 1, 13 };
+    size_t      j;
+    word32      fed = 0;
+#endif
+    PKCS7Attrib attrib;
+    static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    static const byte value[] = { 0x04, 0x01, 0x00 };
+
+    XMEMSET(&attrib, 0, sizeof(attrib));
+    attrib.oid     = oid;
+    attrib.oidSz   = (word32)sizeof(oid);
+    attrib.value   = value;
+    attrib.valueSz = (word32)sizeof(value);
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+
+    for (withAttr = 0; withAttr < 2; withAttr++) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = data;
+            pkcs7->contentSz  = (word32)sizeof(data);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256GCMb;
+            if (withAttr) {
+                pkcs7->authAttribs   = &attrib;
+                pkcs7->authAttribsSz = 1;
+            }
+        }
+        ExpectIntGT(envelopedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+            enveloped, (word32)sizeof(enveloped)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; i < sizeof(fragSz) / sizeof(fragSz[0]); i++) {
+            ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+                (word32)sizeof(ber), &berSz, fragSz[i], 0), 0);
+
+            XMEMSET(decoded, 0xAA, sizeof(decoded));
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+                (word32)sizeof(decoded), NULL), (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+        #ifndef NO_PKCS7_STREAM
+            for (j = 0; j < sizeof(chunkSz) / sizeof(chunkSz[0]); j++) {
+                XMEMSET(decoded, 0xAA, sizeof(decoded));
+                ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 1,
+                    decoded, (word32)sizeof(decoded), NULL),
+                    (int)sizeof(data));
+                ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+            }
+        #endif
+
+            /* the tag sits just before the three closing end-of-contents */
+            if (EXPECT_SUCCESS()) {
+                ber[berSz - 7] ^= 0x01;
+            }
+            ExpectIntLT(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+                (word32)sizeof(decoded), NULL), 0);
+        }
+
+        /* an indefinite [0] with no content at all */
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, 16, (word32)sizeof(data)), 0);
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+            (word32)sizeof(decoded), NULL), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    #ifndef NO_PKCS7_STREAM
+        /* too small an output stops the join once the content outgrows it */
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, 16, 0), 0);
+        ExpectIntEQ(pkcs7_decodeFeed(ber, berSz, 13, 1, decoded, 16, NULL,
+            &fed), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntLT(fed, berSz - 64);
+    #endif
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented() */
+
+
 /* Messages written by openssl cms -encrypt -stream, see certs/renewcerts.sh */
 int test_wc_PKCS7_DecodeOpenSslStream(void)
 {
@@ -4160,6 +4261,9 @@ int test_wc_PKCS7_DecodeOpenSslStream(void)
         int         auth;
     } vectors[] = {
         { "./certs/test-stream-dec-aes256.p7b", 0 },
+    #ifdef HAVE_AESGCM
+        { "./certs/test-stream-dec-aes256gcm.p7b", 1 },
+    #endif
     };
     XFILE  f = XBADFILE;
     byte*  msg = NULL;
