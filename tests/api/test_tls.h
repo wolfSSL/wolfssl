@@ -45,6 +45,7 @@ int test_tls12_no_null_compression(void);
 int test_tls12_ec_point_formats_no_uncompressed(void);
 int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void);
 int test_tls_fallback_scsv(void);
+int test_dhe_psk_max_premaster(void);
 int test_dtls_fallback_scsv(void);
 int test_dtls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade(void);
@@ -130,6 +131,7 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
         TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),               \
-        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique)
+        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique),         \
+        TEST_DECL_GROUP("tls", test_dhe_psk_max_premaster)
 
 #endif /* TESTS_API_TEST_TLS_H */
