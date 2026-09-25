@@ -454,6 +454,15 @@
   The fragments are now joined before the AEAD runs, and both
   end-of-contents are consumed.
 
+* **Fix (chunked (Auth)EnvelopedData failed inside the EncryptedContentInfo)**:
+  `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()`
+  returned `ASN_PARSE_E` when a call ended inside the EncryptedContentInfo
+  header.  The check for whether enough input was left compared against the
+  size of the whole input rather than what follows the current position, and
+  after moving to the stream buffer the decoder lost the SEQUENCE header it
+  had already read.  AuthEnvelopedData fed in fixed-size chunks failed at
+  most sizes from 60 bytes up.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA

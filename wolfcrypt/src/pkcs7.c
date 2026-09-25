@@ -14609,6 +14609,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 return ret;
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+            localIdx = idx;
         #else
             ret = 0;
         #endif
@@ -14632,24 +14633,35 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                           MAX_VERSION_SZ +/* version */
                                           ASN_TAG_SZ +    /* tag */
                                           MAX_LENGTH_SZ;  /* length */
+                /* that can run past a short message; when the fields read
+                 * below are all here, size by them instead */
+                peekIdx = idx;
+                if (wc_GetContentType(pkiMsg, &peekIdx, &contentType,
+                            pkiMsgSz) == 0 &&
+                        GetAlgoId(pkiMsg, &peekIdx, &encOID, oidBlkType,
+                            pkiMsgSz) == 0 &&
+                        GetASNHeader(pkiMsg, ASN_OCTET_STRING, &peekIdx,
+                            &innerSz, pkiMsgSz) >= 0) {
+                    pkcs7->stream->expected = peekIdx - idx;
+                }
             }
             else {
                 /* revize expected size if known */
-                pkcs7->stream->expected = (word32)length + ASN_TAG_SZ;
+                pkcs7->stream->expected = (word32)length;
             }
 
             /* Did we get enough for the expected length? */
-            if (pkcs7->stream->expected > pkiMsgSz) {
-                localIdx = idx;
+            if (ret == 0 && pkcs7->stream->expected > pkiMsgSz - idx) {
+                /* the SEQUENCE header is already parsed; skip it again */
+                localIdx = idx - localIdx;
+                pkcs7->stream->expected += localIdx;
                 if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                         pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                     return ret;
                 }
                 pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
                                                         inSz;
-                if (pkcs7->stream->length > 0) {
-                    idx = localIdx; /* account for byte used with seq read */
-                }
+                idx += localIdx;
             }
         #endif
 
@@ -16023,6 +16035,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+            localIdx = idx;
         #endif
 
             /* remove EncryptedContentInfo */
@@ -16056,13 +16069,18 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             /* check that the expected size was accurate */
             if (ret == 0) {
-                if (length > (int)pkcs7->stream->expected && length >
-                        (int)pkiMsgSz) {
-                    pkcs7->stream->expected = (word32)length + 1;
+                if (length > (int)pkcs7->stream->expected &&
+                        (word32)length > pkiMsgSz - idx) {
+                    /* the SEQUENCE header is already parsed; skip it again */
+                    localIdx = idx - localIdx;
+                    pkcs7->stream->expected = (word32)length + localIdx;
                     if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                         break;
                     }
+                    pkiMsgSz = (pkcs7->stream->length > 0) ?
+                        pkcs7->stream->length : inSz;
+                    idx += localIdx;
                 }
             }
         #endif

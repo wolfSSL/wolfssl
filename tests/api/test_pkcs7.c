@@ -4143,6 +4143,29 @@ int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void)
     ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
         (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BUFFER_E));
 #endif
+#if defined(ASN_BER_TO_DER) && !defined(NO_DES3)
+    /* short enough to end before the worst-case EncryptedContentInfo header
+     * that an indefinite length is sized by */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = 1;
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = DES3b;
+    }
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 16, 0), 0);
+    XMEMSET(decoded, 0xAA, sizeof(decoded));
+    ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+        (word32)sizeof(decoded)), 1);
+    ExpectIntEQ(decoded[0], data[0]);
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeEnvelopedData_fragmented() */
@@ -4326,6 +4349,98 @@ int test_wc_PKCS7_DecodeOpenSslStream(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeOpenSslStream() */
+
+
+/* (Auth)EnvelopedData fed in two calls, so the second call can start inside
+ * the EncryptedContentInfo header. */
+int test_wc_PKCS7_DecodeEnvelopedData_split(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_PKCS7_STREAM)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   decoded[64];
+    byte   data[20];
+    int    envelopedSz = 0;
+    int    ret = 0;
+    int    auth;
+    word32 first;
+    word32 split;
+    size_t i;
+
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+
+    for (auth = 0; auth < 2; auth++) {
+    #ifndef HAVE_AESGCM
+        if (auth)
+            break;
+    #endif
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = data;
+            pkcs7->contentSz  = (word32)sizeof(data);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256CBCb;
+        }
+    #ifdef HAVE_AESGCM
+        if (auth) {
+            if (pkcs7 != NULL) {
+                pkcs7->encryptOID = AES256GCMb;
+            }
+            ExpectIntGT(envelopedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+                enveloped, (word32)sizeof(enveloped)), 0);
+        }
+        else
+    #endif
+        {
+            ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+                enveloped, (word32)sizeof(enveloped)), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* the second call carries the last split bytes */
+        for (split = 1; split <= 128 && split < (word32)envelopedSz; split++) {
+            if (EXPECT_FAIL())
+                break;
+            first = (word32)envelopedSz - split;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7,
+                (byte*)client_cert_der_2048, sizeof_client_cert_der_2048), 0);
+            ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+                sizeof_client_key_der_2048), 0);
+            if (EXPECT_SUCCESS()) {
+                XMEMSET(decoded, 0xAA, sizeof(decoded));
+                ret = auth ? wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                                 enveloped, first, decoded, sizeof(decoded))
+                           : wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped,
+                                 first, decoded, sizeof(decoded));
+            }
+            if (EXPECT_SUCCESS() &&
+                    ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                ret = auth ? wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                                 enveloped + first, split, decoded,
+                                 sizeof(decoded))
+                           : wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                                 enveloped + first, split, decoded,
+                                 sizeof(decoded));
+            }
+            ExpectIntEQ(ret, (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_split() */
 
 
 /* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
