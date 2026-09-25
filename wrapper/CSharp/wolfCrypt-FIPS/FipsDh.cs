@@ -25,10 +25,8 @@ using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* RFC 7919 named groups covered by the validated module; values are the
-     * module's WC_FFDHE_* ids. The #4718 Security Policy lists KAS-FFC-SSC
-     * (dhEphem) with ffdhe2048 only. The module also implements ffdhe3072
-     * to ffdhe8192 (WC_FFDHE_3072..8192), but they are not offered. */
+    /* RFC 7919 groups as the module's WC_FFDHE_* ids. The #4718 Security Policy lists
+     * KAS-FFC-SSC (dhEphem) with ffdhe2048 only; the module's ffdhe3072..8192 are not offered. */
     public enum FipsDhGroup
     {
         Ffdhe2048 = 256
@@ -52,12 +50,9 @@ namespace wolfSSL.CSharp.Fips
         /* Prime size in bytes. */
         public int PrimeSize { get; }
 
-        /* Subgroup order q for the internal explicit domains, passed to
-         * wc_DhCheckPubKeyEx (the module runs the y^q = 1 check only for a q
-         * passed explicitly). Null for the named group: the module's own
-         * check then validates the range 2 <= y <= p-2 (partial validation,
-         * SP 800-56A 5.6.2.3.2, which 5.6.2.2.2 allows for ephemeral keys
-         * of a safe-prime group). */
+        /* Subgroup order q for explicit domains; the module checks y^q = 1 only for a q passed in.
+         * Null for the named group: range check 2 <= y <= p-2 only (partial validation, SP 800-56A
+         * 5.6.2.3.2, allowed by 5.6.2.2.2 for ephemeral keys of a safe-prime group). */
         private readonly byte[]? q;
 
         /* RFC 7919 safe-prime group (KAS-FFC-SSC, dhEphem): ffdhe2048. */
@@ -80,20 +75,9 @@ namespace wolfSSL.CSharp.Fips
             PrimeSize = (int)group switch { 256 => 256, 257 => 384, 258 => 512, 259 => 768, _ => 1024 };
         }
 
-        /* Internal, not an approved service: the validated KAS-FFC-SSC
-         * (SP #4718) covers the RFC 7919 safe-prime groups only, and
-         * SP 800-56A 5.5.1.1 keeps FIPS 186-type domains for backward
-         * compatibility. Kept for testing the module's explicit-domain path.
-         *
-         * Explicit FIPS 186-type domain parameters p, g and q. SP 800-131A
-         * Rev. 2 Table 4 allows only (len(p), len(q)) = (2048, 224) or
-         * (2048, 256). The module checks only that p is prime: it does not
-         * check that q is prime, that q divides p-1 or that g generates the
-         * order-q subgroup, and the boundary has no primality test to do so
-         * here. A composite q would let small-order peer keys pass the
-         * y^q = 1 check. The domain must therefore be one of the published
-         * RFC 5114 groups (2.2: 2048/224, 2.3: 2048/256), compared byte for
-         * byte (leading zeros ignored). Prefer the named groups. */
+        /* Internal, for testing explicit FIPS 186-type domains; not an approved service (the
+         * validated KAS-FFC-SSC, SP #4718, covers RFC 7919 groups only). SP 800-131A Rev. 2
+         * Table 4 allows only (len(p), len(q)) = (2048, 224) or (2048, 256). */
         internal FipsDh(byte[] p, byte[] g, byte[] q) : base(FipsStructType.Dh)
         {
             if (p == null || g == null || q == null) {
@@ -105,6 +89,8 @@ namespace wolfSSL.CSharp.Fips
                 Dispose();
                 throw new ArgumentException("DH domain parameters must be (len(p), len(q)) = (2048, 224) or (2048, 256)");
             }
+            /* The module only checks that p is prime; a composite q would let small-order keys
+             * pass y^q = 1, so only the published RFC 5114 2.2 and 2.3 groups are accepted. */
             if (!KnownDomains.Any(d => SameValue(d.P, p) && SameValue(d.G, g) && SameValue(d.Q, q))) {
                 Dispose();
                 throw new ArgumentException("explicit DH domain parameters must be an RFC 5114 2048-bit group " +
@@ -223,31 +209,6 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Computes the public key (PrimeSize bytes) for a private key.
-         * v5.2.3 and later only; throws NotSupportedException on a v5.2.1
-         * module. The private key must be in [1, q-1] (SP 800-56A
-         * 5.6.2.1.2); the module does not check this here, so it is checked
-         * first (ArgumentException otherwise). */
-        public byte[] GeneratePublic(byte[] privateKey)
-        {
-            if (privateKey == null)
-                throw new ArgumentNullException(nameof(privateKey));
-            ThrowIfDisposed();
-            if (!CheckPrivateKey(privateKey))
-                throw new ArgumentException("private key is not in [1, q-1]", nameof(privateKey));
-            byte[] pub = new byte[PrimeSize];
-            uint pubSz = (uint)pub.Length;
-            int ret;
-            try {
-                ret = Native.wc_DhGeneratePublic_fips(Handle, privateKey, (uint)privateKey.Length, pub, ref pubSz);
-            }
-            catch (EntryPointNotFoundException) {
-                throw new NotSupportedException("wc_DhGeneratePublic_fips requires FIPS v5.2.3 or later");
-            }
-            WolfCryptFipsException.Check("wc_DhGeneratePublic_fips", ret);
-            return PadToPrime(pub, pubSz);
-        }
-
         /* Shared secret Z, left-padded to the prime size (SP 800-56A
          * fixed-length representation). The module validates the peer
          * public key. */
@@ -280,10 +241,8 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Key checks return false for an invalid key and throw when the
-         * module is not in a state to perform the check. CheckPublicKey is
-         * the module's public key check (range, plus y^q = 1 for explicit
-         * domains). */
+        /* Key checks return false for an invalid key and throw on module-state errors.
+         * CheckPublicKey: the module's range check, plus y^q = 1 for explicit domains. */
         public bool CheckPublicKey(byte[] pub) => CheckArgs(pub, nameof(pub)) &&
             CheckResult("wc_DhCheckPubKeyEx_fips", Native.wc_DhCheckPubKeyEx_fips(Handle, pub, (uint)pub.Length,
                                                                                q, q == null ? 0u : (uint)q.Length));

@@ -23,9 +23,7 @@ using System;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* Error codes returned by wolfCrypt FIPS v5.2.3: the FIPS state and
-     * self-test codes, plus the common argument, math and algorithm codes
-     * the bound services return. Values copied from
+    /* wolfCrypt FIPS v5.2.1 error codes used by the bound services, copied from
      * wolfssl/wolfcrypt/error-crypt.h of the v5.2.x module. */
     public static class FipsError
     {
@@ -98,10 +96,8 @@ namespace wolfSSL.CSharp.Fips
         public const int DH_CHECK_PRIV_E           = -263;
         public const int MISSING_KEY               = -278;
 
-        /* True for errors that report the module's state (failed, degraded,
-         * or a self-test failure) rather than a bad input. Verification
-         * APIs throw on these instead of returning false, so a degraded
-         * module is never mistaken for an invalid signature or tag. */
+        /* Module state errors (not bad input): verify APIs throw on these rather than
+         * return false, so a degraded module is never mistaken for a bad signature. */
         public static bool IsModuleStateError(int code) =>
             code == FIPS_NOT_ALLOWED_E || code == FIPS_DEGRADED_E || code == IN_CORE_FIPS_E ||
             code == AES_KAT_FIPS_E || code == DES3_KAT_FIPS_E || code == HMAC_KAT_FIPS_E ||

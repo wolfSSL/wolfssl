@@ -38,19 +38,13 @@ namespace wolfSSL.CSharp.Fips
         P521 = 16
     }
 
-    /* ECC key from the FIPS module: key generation, ECDSA sign/verify and
-     * ECC CDH shared secret (SP 800-56A).
-     *
-     * Keys come from Generate, or ImportPublic for a peer's public key
-     * (X9.63 uncompressed point, 04 || X || Y). The v5.2.3 boundary has no
-     * ECC private key import. */
+    /* FIPS module ECC key: key generation, ECDSA sign/verify and ECC CDH (SP 800-56A).
+     * Keys come from Generate, or ImportPublic for a peer's public key (04 || X || Y);
+     * the v5.2.1 boundary has no ECC private key import. */
     public sealed class FipsEccKey : FipsObject
     {
-        /* DRBG owned by this key. The native ecc_key keeps a pointer to it
-         * (signing nonces, CDH blinding, private key checks), so it is never
-         * shared with or disposable by the caller; it is released only after
-         * wc_ecc_free_fips, in this key's release routine. A key is not
-         * thread-safe. */
+        /* Key-owned DRBG: the native ecc_key keeps a pointer to it, so it is never exposed
+         * to the caller and is freed only after wc_ecc_free_fips. A key is not thread-safe. */
         private FipsRng? ownRng;
 
         public FipsEccCurve Curve { get; }
@@ -69,9 +63,8 @@ namespace wolfSSL.CSharp.Fips
             SetNativeFree(p => Native.wc_ecc_free_fips(p));
         }
 
-        /* Generates a key pair (includes the module's pairwise consistency
-         * test) using rng. The key then binds its own private DRBG for
-         * signing and CDH blinding, so rng may be disposed afterwards. */
+        /* Generates a key pair (with the module's pairwise consistency test). The key then
+         * binds its own DRBG for signing and CDH blinding, so rng may be disposed afterwards. */
         public static FipsEccKey Generate(FipsEccCurve curve, FipsRng rng)
         {
             if (rng == null)
@@ -99,12 +92,9 @@ namespace wolfSSL.CSharp.Fips
             return k;
         }
 
-        /* Imports a public key (04 || X || Y). The curve is determined by
-         * the point size and must match curve. The key is fully validated
-         * (SP 800-56A 5.6.2.3.3: on the curve, in range, order n): by the
-         * module on import when it is built with WOLFSSL_VALIDATE_ECC_IMPORT,
-         * otherwise by an explicit wc_ecc_check_key_fips here, so an
-         * unvalidated point can never reach verification or CDH. */
+        /* Imports a public key (04 || X || Y), fully validated per SP 800-56A 5.6.2.3.3: by
+         * the module on import if built with WOLFSSL_VALIDATE_ECC_IMPORT, else by Check here,
+         * so an unvalidated point never reaches verification or CDH. */
         public static FipsEccKey ImportPublic(FipsEccCurve curve, byte[] x963)
         {
             if (x963 == null)
@@ -145,10 +135,8 @@ namespace wolfSSL.CSharp.Fips
             return buf.Take((int)len).ToArray();
         }
 
-        /* ECDSA signature over a message digest made with hash; returns DER
-         * SEQUENCE { r, s }, as the module returns it.
-         * SHA-1 is refused (signature generation, SP 800-131A); the digest
-         * length must match hash. */
+        /* ECDSA signature over a digest made with hash, as DER SEQUENCE { r, s }.
+         * SHA-1 is refused for signing (SP 800-131A); the digest length must match hash. */
         public byte[] SignHash(FipsHashType hash, byte[] digest)
         {
             if (digest == null)
@@ -167,11 +155,9 @@ namespace wolfSSL.CSharp.Fips
             return sig.Take((int)len).ToArray();
         }
 
-        /* Verifies a DER signature over a digest made with hash. The digest
-         * length must match hash (FIPS 186-5 6.4.2): the v5.2.x module has no
-         * digest length bound, and a very short digest makes signatures
-         * forgeable (CVE-2026-5194). SHA-1 is accepted for legacy
-         * verification. */
+        /* Verifies a DER signature. The digest length must match hash (FIPS 186-5 6.4.2): the
+         * v5.2.x module has no bound, and a very short digest makes signatures forgeable
+         * (CVE-2026-5194). SHA-1 is accepted for legacy verification. */
         public bool VerifyHash(FipsHashType hash, byte[] digest, byte[] derSignature)
         {
             if (digest == null || derSignature == null)
@@ -186,10 +172,9 @@ namespace wolfSSL.CSharp.Fips
             return ret == 0 && res == 1;
         }
 
-        /* ECC CDH primitive (KAS-ECC-SSC): shared secret Z (x-coordinate,
-         * FieldSize bytes) with a peer's public key on the same curve.
-         * Approved on P-256, P-384 and P-521 only (the validated
-         * KAS-ECC-SSC domains, SP #4718); P-192 and P-224 are refused. */
+        /* ECC CDH (KAS-ECC-SSC): shared secret Z (x-coordinate, FieldSize bytes) with a peer's
+         * public key on the same curve. Approved on P-256, P-384 and P-521 only (validated
+         * domains, SP #4718); P-192 and P-224 are refused. */
         public byte[] SharedSecret(FipsEccKey peerPublic)
         {
             if (peerPublic == null)

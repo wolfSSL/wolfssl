@@ -30,7 +30,7 @@ using System.Threading;
 
 namespace wolfSSL.CSharp.Fips.Test
 {
-    /* RSA tests. The v5.2.3 boundary has no RSA key import, so ACVP vectors
+    /* RSA tests. The v5.2.1 boundary has no RSA key import, so ACVP vectors
      * that supply a key (keyGen, sigVer, decryptionPrimitive) cannot be run
      * through the module. Instead, module output is checked independently
      * with .NET's RSA implementation (test code only). */
@@ -255,7 +255,7 @@ namespace wolfSSL.CSharp.Fips.Test
             });
 
             T.Run("ACVP RSA sigVer / keyGen / decryptionPrimitive", () =>
-                T.Skip("need RSA key import; the v5.2.3 boundary has none (key decode is in asn.c)"));
+                T.Skip("need RSA key import; the v5.2.1 boundary has none (key decode is in asn.c)"));
 
             T.Run("OAEP SHA-256: .NET encrypts to module public key, module decrypts", () => {
                 byte[] pt = { 1, 2, 3, 4, 5, 6, 7, 8 };

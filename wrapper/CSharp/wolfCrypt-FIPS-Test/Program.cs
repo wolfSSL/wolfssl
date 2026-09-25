@@ -35,7 +35,7 @@ namespace wolfSSL.CSharp.Fips.Test
             if (args.Length == 2 && args[0] == "--force")
                 return ForcedFailureTests.Child(int.Parse(args[1]));
 
-            Console.WriteLine("wolfCrypt FIPS v5.2.3 C# wrapper tests");
+            Console.WriteLine("wolfCrypt FIPS v5.2.1 C# wrapper tests");
             Console.WriteLine("runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription +
                               " (" + System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + ")");
             Section("Module", ModuleTests.Run);

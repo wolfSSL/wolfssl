@@ -40,25 +40,9 @@ namespace wolfSSL.CSharp.Fips
         }
     }
 
-    /* AES-GCM (SP 800-38D) from the FIPS module.
-     *
-     * Encryption, approved IV handling (IG C.H Scenario 2): call
-     * UseInternalIV once, then Encrypt. The module draws the whole IV
-     * (12 or 16 bytes) from its DRBG and advances it on every encryption;
-     * the IV used is returned in the result. Encryption with a
-     * caller-supplied IV is not offered: the module Security Policy permits
-     * external IVs only for TLS (IG C.H 1(a)).
-     *
-     * Invocation limit (SP 800-38D 8.3): these IVs are RBG-based (8.2.2),
-     * so at most 2^32 encryptions are allowed per key. The object refuses
-     * encryption 2^32 + 1; the module does not enforce it for 12-byte IVs. The limit
-     * is per key: encryptions under the same key in other FipsAesGcm
-     * objects or FipsGmac.Compute calls count too, and staying within it
-     * across objects is the application's responsibility.
-     *
-     * Decryption always takes the IV explicitly, runs on a separate native
-     * context (so it can never change the encryption IV state) and throws
-     * WolfCryptFipsException with AES_GCM_AUTH_E on tag mismatch. */
+    /* AES-GCM (SP 800-38D). Call UseInternalIV once, then Encrypt: the module draws each IV from
+     * its DRBG (IG C.H Scenario 2) and returns it. Caller IVs are not offered: the Security
+     * Policy permits them only for TLS (IG C.H 1(a)). Decrypt takes the IV explicitly. */
     public sealed class FipsAesGcm : FipsObject
     {
         public const int DefaultIVSize = 12;
@@ -67,7 +51,9 @@ namespace wolfSSL.CSharp.Fips
         /* Fixed field length the module accepts (AES_IV_FIXED_SZ). */
         public const int FixedFieldSize = 4;
         public const int MaxTagSize = 16;
-        /* SP 800-38D 8.3: invocations allowed per key with RBG-based IVs. */
+        /* SP 800-38D 8.3: at most 2^32 encryptions per key with RBG-based IVs. Enforced per object
+         * (the module does not for 12-byte IVs); other objects and FipsGmac.Compute under the same
+         * key count too, which the application must track. */
         public const ulong MaxInvocations = 1UL << 32;
 
         private int internalIvSize;
@@ -76,7 +62,7 @@ namespace wolfSSL.CSharp.Fips
         private readonly GcmContext decryptor;
         private readonly object sync = new object();
 
-        /* Second keyed Aes context used only for decryption. */
+        /* Second keyed context for decryption only, so it never changes the encryption IV state. */
         private sealed class GcmContext : FipsObject
         {
             internal GcmContext(byte[] key) : base(FipsStructType.Aes)
@@ -123,10 +109,9 @@ namespace wolfSSL.CSharp.Fips
             set { lock (sync) invocations = value; }
         }
 
-        /* Selects module-generated IVs of ivSize bytes (12 or 16), drawn
-         * entirely from rng (IG C.H Scenario 2). Once per object: the IV
-         * construction and its invocation count are fixed for the object's
-         * life (SP 800-38D 8.2.2, 8.3). */
+        /* Selects module-generated IVs of ivSize bytes (12 or 16) drawn from rng (IG C.H
+         * Scenario 2). Once per object: the IV construction and its invocation count are fixed
+         * for the object's life (SP 800-38D 8.2.2, 8.3). */
         public void UseInternalIV(FipsRng rng, int ivSize = DefaultIVSize) => SelectIV(rng, ivSize, null);
 
         /* SP 800-38D 8.2.1-style fixed field (exactly 4 bytes, 16-byte IV so
@@ -193,9 +178,8 @@ namespace wolfSSL.CSharp.Fips
                     "internally generated GCM IVs must be 12 or 16 bytes (at least 96 bits)");
         }
 
-        /* Encrypts with a caller-supplied IV (wc_AesGcmSetExtIV_fips).
-         * Internal: used for known-answer testing only. The object cannot
-         * switch to internal IVs afterwards. */
+        /* Encrypts with a caller IV (wc_AesGcmSetExtIV_fips). Internal, for known-answer testing
+         * only; the object cannot switch to internal IVs afterwards. */
         internal FipsAeadResult EncryptWithIV(byte[] iv, byte[] plaintext, byte[]? aad = null,
                                             int tagSize = MaxTagSize)
         {
@@ -228,11 +212,8 @@ namespace wolfSSL.CSharp.Fips
             return new FipsAeadResult(ivOut, ct, tag);
         }
 
-        /* Returns the plaintext; throws (AES_GCM_AUTH_E) if the tag does not
-         * verify. tagSize is the tag length the protocol expects (12 to 16
-         * bytes, default 16); the received tag must have exactly that length.
-         * The module itself accepts tags of any length from 1 byte on
-         * decrypt, so a truncated tag would otherwise weaken the check. */
+        /* Throws (AES_GCM_AUTH_E) if the tag does not verify. The tag must be exactly tagSize
+         * (12 to 16) bytes: the module accepts truncated tags down to 1 byte on decrypt. */
         public byte[] Decrypt(byte[] iv, byte[] ciphertext, byte[] tag, byte[]? aad = null, int tagSize = MaxTagSize)
         {
             if (iv == null || ciphertext == null || tag == null)
@@ -279,10 +260,8 @@ namespace wolfSSL.CSharp.Fips
             return new FipsAeadResult(iv, Array.Empty<byte>(), tag);
         }
 
-        /* True if tag is a valid GMAC of aad under key and iv. tagSize is the
-         * expected tag length (12 to 16 bytes, default 16); a tag of any
-         * other length is refused, since the module accepts truncated tags
-         * on verification. */
+        /* True if tag is a valid GMAC of aad under key and iv. The tag must be exactly tagSize
+         * (12 to 16) bytes, since the module accepts truncated tags on verification. */
         public static bool Verify(byte[] key, byte[] iv, byte[] aad, byte[] tag, int tagSize = FipsAesGcm.MaxTagSize)
         {
             if (key == null || iv == null || aad == null || tag == null)
@@ -303,18 +282,9 @@ namespace wolfSSL.CSharp.Fips
         }
     }
 
-    /* AES-CCM (SP 800-38C) from the FIPS module. Tags are 8 to 16 bytes:
-     * 32 and 48-bit tags need a separate risk analysis (SP 800-38C App. B)
-     * and are not offered.
-     *
-     * Encryption: SetNonce once per object (a second call is refused, since
-     * it would restart the module's nonce sequence), then Encrypt. The
-     * module uses the nonce and increments it after each encryption; the
-     * nonce used is returned in the result. SetNonce(rng) draws the initial
-     * nonce from the module DRBG and is the default choice; SetNonce(nonce)
-     * leaves nonce uniqueness under the key (SP 800-38C) to the caller.
-     * Decryption takes the nonce explicitly and throws (AES_CCM_AUTH_E) on
-     * tag mismatch. */
+    /* AES-CCM (SP 800-38C). Tags are 8 to 16 bytes: 32 and 48-bit tags need a risk analysis
+     * (SP 800-38C App. B). SetNonce once per object (again would restart the module's nonce
+     * sequence), then Encrypt; the module increments the nonce and returns the one used. */
     public sealed class FipsAesCcm : FipsObject
     {
         private int activeNonceSize;   /* 0 until SetNonce succeeds */
@@ -336,10 +306,9 @@ namespace wolfSSL.CSharp.Fips
         public const int DefaultNonceSize = 12;
         public const int MinRandomNonceSize = 12;
 
-        /* Draws the initial nonce from the module DRBG. At least 12 bytes, so
-         * random nonces of independent objects under one key collide only
-         * after about 2^48 objects (SP 800-38C 5.3); 12 bytes limit each
-         * payload to 2^24 - 1 bytes, 13 to 65,535. */
+        /* Initial nonce from the DRBG (the default choice). At least 12 bytes, so random nonces
+         * under one key collide only after about 2^48 objects (SP 800-38C 5.3); 12 bytes limit
+         * each payload to 2^24 - 1 bytes, 13 to 65,535. */
         public void SetNonce(FipsRng rng, int nonceSize = DefaultNonceSize)
         {
             if (rng == null)
@@ -353,7 +322,7 @@ namespace wolfSSL.CSharp.Fips
             SetNonce(nonce);
         }
 
-        /* nonce: 7 to 13 bytes, unique under this key. */
+        /* nonce: 7 to 13 bytes; its uniqueness under this key is the caller's responsibility. */
         public void SetNonce(byte[] nonce)
         {
             if (nonce == null)
@@ -382,11 +351,9 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentOutOfRangeException(nameof(tagSize), "CCM tag must be 8, 10, 12, 14 or 16 bytes");
         }
 
-        /* CCM encodes the payload length in 15 - nonceSize bytes and uses the
-         * same bytes as the block counter (SP 800-38C A.1), so the payload
-         * must be shorter than 2^(8*(15-nonceSize)) bytes. The v5.2.x module
-         * does not check this (longer inputs wrap the counter and reuse
-         * keystream). */
+        /* The 15 - nonceSize length bytes are also the block counter (SP 800-38C A.1): payload
+         * must be under 2^(8*(15-nonceSize)) bytes. The v5.2.x module does not check this
+         * (longer inputs wrap the counter and reuse keystream). */
         private static void CheckPayloadLength(int payloadLen, int nonceLen)
         {
             int lenBytes = 15 - nonceLen;
@@ -419,9 +386,8 @@ namespace wolfSSL.CSharp.Fips
             return new FipsAeadResult(nonce, ct, tag);
         }
 
-        /* tagSize is the tag length the receiver expects; a tag of any
-         * other length is refused (as for GCM), so a shorter tag cannot
-         * lower the forgery bound. */
+        /* Throws (AES_CCM_AUTH_E) on tag mismatch. A tag of any length other than tagSize is
+         * refused (as for GCM), so a shorter tag cannot lower the forgery bound. */
         public byte[] Decrypt(byte[] nonce, byte[] ciphertext, byte[] tag, byte[]? aad = null, int tagSize = 16)
         {
             if (nonce == null || ciphertext == null || tag == null)

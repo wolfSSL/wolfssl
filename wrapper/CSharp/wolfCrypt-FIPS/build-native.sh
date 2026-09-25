@@ -1,12 +1,6 @@
 #!/bin/sh
-# Build the wolfssl_csharp_fips size helper against an installed wolfSSL FIPS
-# library and place it next to libwolfssl. The helper is bound to that exact
-# libwolfssl binary and must be rebuilt whenever the library is reinstalled.
-#
+# Builds the size helper beside an installed FIPS libwolfssl, from its headers; rebuild on reinstall
 # Usage: build-native.sh <wolfssl-install-prefix>   (default: /usr/local)
-#
-# The helper must be compiled against the same installed headers
-# (wolfssl/options.h) as the FIPS library it will be used with.
 set -e
 PREFIX="${1:-/usr/local}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -34,9 +28,8 @@ if [ ! -f "$LIB" ]; then
     echo "error: $LIB not found (install the FIPS library first)" >&2
     exit 1
 fi
-# Bind the helper to this exact library build: struct sizes depend on the
-# library's configure options, so the wrapper refuses to use the helper with
-# any other libwolfssl binary. POSIX cksum (CRC + size) of the file.
+# Struct sizes depend on configure options, so the helper is bound to this exact
+# libwolfssl binary by its POSIX cksum (CRC + size); the wrapper refuses any other.
 set -- $(cksum < "$LIB")
 LIB_CRC="$1"; LIB_SIZE="$2"
 

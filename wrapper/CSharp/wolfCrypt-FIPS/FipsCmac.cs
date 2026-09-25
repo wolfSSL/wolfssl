@@ -23,15 +23,9 @@ using System;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* CMAC-AES (SP 800-38B) from the FIPS module. Tags are 8 to 16 bytes:
-     * tags under 64 bits need a separate risk analysis (SP 800-38B A.2) and
-     * are not offered. Single use: create a new
-     * instance per message. The v5.2.3 boundary has no CMAC free routine;
-     * the object's memory is zeroed and released on Dispose.
-     *
-     * Caller obligations per key (SP 800-38B): use one tag length for
-     * every Compute/Final/Verify with a given key (5.5), and limit the key
-     * to 2^48 messages (Appendix B). */
+    /* CMAC-AES (SP 800-38B). Tags are 8 to 16 bytes (shorter needs a risk analysis,
+     * A.2). Per key the caller must use one tag length (5.5) and at most 2^48 messages
+     * (App. B). Single use; no module CMAC free, so Dispose zeroes the memory. */
     public sealed class FipsCmac : FipsObject
     {
         private const int WC_CMAC_AES = 1;

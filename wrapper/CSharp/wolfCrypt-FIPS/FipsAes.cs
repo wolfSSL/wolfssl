@@ -25,24 +25,9 @@ namespace wolfSSL.CSharp.Fips
 {
     public enum FipsAesMode { Ecb, Cbc, Ctr, Ofb }
 
-    /* AES block cipher modes (FIPS 197, SP 800-38A) from the FIPS module:
-     * ECB, CBC, CTR and OFB. The object keeps chaining state between calls,
-     * so a message can be processed in pieces. An encryptor protects one
-     * message: after the first message the chaining state (CBC: the last
-     * ciphertext block) is predictable, so create a new object, with a new
-     * DRBG IV, for each message (SP 800-38A Appendix C). Calls on one
-     * object are serialized.
-     *
-     * ECB is a building block (single blocks, key wrapping inside other
-     * approved constructions, testing), not a mode for general data.
-     *
-     * ECB and CBC input must be a multiple of 16 bytes. This is enforced
-     * here: unless the library is built with WOLFSSL_AES_CBC_LENGTH_CHECKS,
-     * the module processes only the whole blocks of a partial input and
-     * returns success, leaving the tail of the output unencrypted (zero).
-     *
-     * The v5.2.3 boundary has no AES free routine; key material in the
-     * object is zeroed and released on Dispose. */
+    /* AES ECB/CBC/CTR/OFB (FIPS 197, SP 800-38A). One encryptor per message: after it the CBC
+     * chaining state is predictable, so use a new object and DRBG IV (SP 800-38A App. C).
+     * ECB is a building block only. v5.2.1 has no AES free; the key is zeroed on Dispose. */
     public sealed class FipsAes : FipsObject
     {
         public const int BlockSize = 16;
@@ -52,9 +37,8 @@ namespace wolfSSL.CSharp.Fips
         public FipsAesMode Mode { get; }
         public bool Encrypting { get; }
 
-        /* IV (or initial counter block) given at creation or by the last
-         * SetIV; not the chaining state after Transform. Null for ECB.
-         * Returns a copy. */
+        /* IV (initial counter block) from creation or the last SetIV, not the chaining state
+         * after Transform. Null for ECB; returns a copy. */
         public byte[]? IV => iv == null ? null : (byte[])iv.Clone();
         private byte[]? iv;
         private bool drbgIV;
@@ -95,19 +79,9 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* IV requirements (SP 800-38A): the CBC IV must be unpredictable,
-         * the OFB IV unique per key, and CTR counter blocks unique per key
-         * across all messages. The overloads taking a FipsRng draw a fresh
-         * 16-byte IV / initial counter from the module DRBG for encryption
-         * (read it from IV); these are the encryption paths.
-         *
-         * With a caller IV, CBC is decrypt-only (CreateCbcDecryptor). OFB and
-         * CTR encrypt and decrypt with the same operation, so an OFB or CTR
-         * object created with a caller IV can encrypt: the caller must then
-         * guarantee that the IV (OFB) or every counter block (CTR) is never
-         * used twice under the key. The CTR counter is the whole 16-byte
-         * block (m = 128): with a nonce || counter layout, keep each message
-         * under 2^m blocks for the counter width m you reserve. */
+        /* SP 800-38A: CBC IV unpredictable, OFB IV and CTR counter blocks unique per key. The
+         * FipsRng overloads draw the IV from the DRBG (read it from IV) and are the encryption
+         * paths; with a caller IV, CBC only decrypts and OFB/CTR uniqueness is the caller's job. */
         public static FipsAes CreateEcb(byte[] key, bool encrypt) => new FipsAes(FipsAesMode.Ecb, encrypt, key, null);
         public static FipsAes CreateCbc(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng)));
         public static FipsAes CreateOfb(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng)));
@@ -129,13 +103,12 @@ namespace wolfSSL.CSharp.Fips
         /* CBC decryption with the IV that came with the ciphertext. */
         public static FipsAes CreateCbcDecryptor(byte[] key, byte[] iv) => new FipsAes(FipsAesMode.Cbc, false, key, iv);
 
-        /* CBC in either direction with a caller IV. Internal: encryption with
-         * a caller-chosen IV cannot guarantee an unpredictable IV; used for
-         * known-answer testing. */
+        /* CBC with a caller IV in either direction. Internal, for known-answer testing: a
+         * caller-chosen IV cannot be guaranteed unpredictable for encryption. */
         internal static FipsAes CreateCbc(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Cbc, encrypt, key, iv);
         public static FipsAes CreateOfb(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Ofb, encrypt, key, iv);
-        /* iv is the initial counter block. CTR encryption and decryption are
-         * the same operation. */
+        /* iv is the initial counter block, the whole 16 bytes (m = 128); with a nonce || counter
+         * layout keep each message under 2^m blocks for the counter width m you reserve. */
         public static FipsAes CreateCtr(byte[] key, byte[] iv) => new FipsAes(FipsAesMode.Ctr, true, key, iv);
 
         /* Processes input and returns output of the same length. */
@@ -144,6 +117,8 @@ namespace wolfSSL.CSharp.Fips
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
             ThrowIfDisposed();
+            /* without WOLFSSL_AES_CBC_LENGTH_CHECKS the module processes only whole blocks,
+             * returns success and leaves the tail of the output zero */
             if ((Mode == FipsAesMode.Ecb || Mode == FipsAesMode.Cbc) && input.Length % BlockSize != 0)
                 throw new ArgumentException(Mode + " input must be a multiple of 16 bytes", nameof(input));
             byte[] output = new byte[input.Length];
@@ -178,9 +153,8 @@ namespace wolfSSL.CSharp.Fips
             return output;
         }
 
-        /* Resets the CBC chaining value to iv, for decrypting the next message.
-         * CBC decryptors only: an encryptor's IV must not be caller-chosen
-         * (SP 800-38A Appendix C), and for OFB and CTR the module keeps
+        /* Resets the CBC chaining value to iv, for decrypting the next message. CBC decryptors
+         * only: an encryptor IV must not be caller-chosen (SP 800-38A App. C), and OFB/CTR keep
          * buffered keystream that wc_AesSetIV does not reset. */
         public void SetIV(byte[] iv)
         {

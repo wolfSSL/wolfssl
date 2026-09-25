@@ -23,9 +23,8 @@ using System;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* Approved hash algorithms in the v5.2.3 module. Values are the module's
-     * wc_HashType values (v5 numbering, wolfssl/wolfcrypt/types.h), which
-     * are also the HMAC type identifiers. */
+    /* Approved hashes in the v5.2.1 module. Values are its wc_HashType values (v5
+     * numbering, types.h), which are also the HMAC type identifiers. */
     public enum FipsHashType
     {
         Sha1 = 4,

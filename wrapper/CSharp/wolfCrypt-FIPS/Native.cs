@@ -40,17 +40,8 @@ namespace wolfSSL.CSharp.Fips
         ValidateEccImport = 21 /* 1 if WOLFSSL_VALIDATE_ECC_IMPORT */
     }
 
-    /* All native bindings for the FIPS wrapper.
-     *
-     * Every cryptographic binding in this file targets an in-boundary
-     * wolfCrypt FIPS v5.2.3 entry point by its exported _fips name. The
-     * plain wc_* names are never bound: a C# DllImport resolves names at
-     * runtime and does not see the fips.h #define redirection, so binding the
-     * plain name would call the implementation directly and bypass the FIPS
-     * service layer (status and CAST gating).
-     *
-     * tools/fips-bind-audit.sh checks that every EntryPoint in this file
-     * ends in _fips, except for the size helper. */
+    /* Bind only _fips names: DllImport skips the fips.h redirection, so plain wc_*
+     * would bypass status and CAST gating. tools/fips-bind-audit.sh checks this. */
     internal static class Native
     {
         internal const string WOLFSSL = "wolfssl";
@@ -97,16 +88,13 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wolfCrypt_GetPrivateKeyReadEnable_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wolfCrypt_GetPrivateKeyReadEnable_fips(int keyType);
 
-        /* DRBG seed source registration (WC_RNG_SEED_CB builds). cb is a
-         * native function pointer of type wc_RngSeed_Cb:
+        /* DRBG seed source (WC_RNG_SEED_CB builds). cb is a native wc_RngSeed_Cb:
          * int (*)(OS_Seed* os, byte* seed, word32 sz). */
         [DllImport(WOLFSSL, EntryPoint = "wc_SetSeed_Cb_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_SetSeed_Cb_fips(IntPtr cb);
 
-        /* Name of the library's OS entropy function (/dev/urandom on Linux).
-         * Looked up with NativeLibrary.GetExport and passed to
-         * wc_SetSeed_Cb_fips as a function pointer; it is never called from
-         * C#, so it is not declared as a DllImport. */
+        /* OS entropy export, found with NativeLibrary.GetExport and passed to
+         * wc_SetSeed_Cb_fips as a pointer; never called from C#. */
         internal const string OS_SEED_EXPORT = "wc_GenerateSeed";
 
         /* ---- Hash_DRBG (SP 800-90A) ---- */
@@ -420,10 +408,6 @@ namespace wolfSSL.CSharp.Fips
 
         [DllImport(WOLFSSL, EntryPoint = "wc_DhAgree_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_DhAgree_fips(FipsHandle key, byte[] agree, ref uint agreeSz, byte[] priv, uint privSz, byte[] otherPub, uint pubSz);
-
-        /* v5.2.3 only (not in the v5.2.1 boundary) */
-        [DllImport(WOLFSSL, EntryPoint = "wc_DhGeneratePublic_fips", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int wc_DhGeneratePublic_fips(FipsHandle key, byte[] priv, uint privSz, byte[] pub, ref uint pubSz);
 
         /* ---- KDFs (SP 800-135, SP 800-56C, RFC 5869) ---- */
         [DllImport(WOLFSSL, EntryPoint = "wc_PRF_fips", CallingConvention = CallingConvention.Cdecl)]

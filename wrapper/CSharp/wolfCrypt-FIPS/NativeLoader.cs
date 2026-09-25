@@ -27,14 +27,8 @@ using System.Runtime.InteropServices;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* Resolves the native libraries.
-     *
-     * Default: the runtime probes "wolfssl" as libwolfssl.so (Linux),
-     * libwolfssl.dylib (macOS) or wolfssl.dll (Windows) on the normal search
-     * path, e.g. /usr/local/lib after "make install".
-     *
-     * Override: set WOLFSSL_FIPS_LIB_DIR to a directory that contains the
-     * FIPS libwolfssl and the wolfssl_csharp_fips size helper. */
+    /* Resolves the native libraries from the normal search path, or from
+     * WOLFSSL_FIPS_LIB_DIR (FIPS libwolfssl plus the size helper) when set. */
     internal static class NativeLoader
     {
         /* A module initializer is required here: the resolver must be
@@ -51,10 +45,8 @@ namespace wolfSSL.CSharp.Fips
         private static IntPtr wolfssl;
         private static string? wolfsslPath;
 
-        /* libwolfssl: from WOLFSSL_FIPS_LIB_DIR when set (no fallback),
-         * otherwise default probing. The size helper is always loaded from
-         * the directory the libwolfssl file was loaded from, so the two
-         * cannot come from different installs. */
+        /* WOLFSSL_FIPS_LIB_DIR has no fallback. The size helper always loads from
+         * libwolfssl's directory, so the two cannot come from different installs. */
         private static IntPtr Resolve(string name, Assembly asm, DllImportSearchPath? path)
         {
             if (name == Native.WOLFSSL)

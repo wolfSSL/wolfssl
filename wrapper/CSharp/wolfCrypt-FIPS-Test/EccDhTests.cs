@@ -297,7 +297,7 @@ namespace wolfSSL.CSharp.Fips.Test
             });
 
             T.Run("ACVP KAS-ECC-SSC VAL", () =>
-                T.Skip("VAL supplies the IUT private key; the v5.2.3 boundary has no ECC private key import"));
+                T.Skip("VAL supplies the IUT private key; the v5.2.1 boundary has no ECC private key import"));
 
             T.Section("Finite field DH (KAS-FFC-SSC)");
 
@@ -482,29 +482,6 @@ namespace wolfSSL.CSharp.Fips.Test
                     T.True(threw, (int)g + " accepted by the public constructor");
                 }
                 T.Equal(1, Enum.GetValues<FipsDhGroup>().Length, "public group list");
-            });
-
-            T.Run("DH GeneratePublic refuses private keys outside [1, q-1]", () => {
-                using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
-                BigInteger qv = (new BigInteger(Ffdhe.P[FipsDhGroup.Ffdhe2048], isUnsigned: true, isBigEndian: true) - 1) / 2;
-                foreach (var (x, what) in new[] { (BigInteger.Zero, "0"), (qv, "q"), (qv + 1, "q + 1") }) {
-                    byte[] xb = x.IsZero ? new byte[1] : x.ToByteArray(isUnsigned: true, isBigEndian: true);
-                    bool threw = false;
-                    try { dh.GeneratePublic(xb); } catch (ArgumentException) { threw = true; }
-                    catch (NotSupportedException) { threw = false; }
-                    T.True(threw, "x = " + what + " accepted");
-                }
-            });
-
-            T.Run("DH GeneratePublic matches generated key pair (v5.2.3+)", () => {
-                using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
-                using var kp = dh.GenerateKeyPair(rng);
-                try {
-                    byte[] y = dh.GeneratePublic(kp.PrivateKey);
-                    T.Bytes(kp.PublicKey, y, "public key");
-                    T.Bytes(ModPow(new byte[] { 2 }, kp.PrivateKey, Ffdhe.P[FipsDhGroup.Ffdhe2048]), y, "2^x mod p");
-                }
-                catch (NotSupportedException e) { T.Skip(e.Message); }
             });
         }
 

@@ -25,7 +25,7 @@ using System.Threading;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* enum FipsModeId, fips_test.h (v5.2.3) */
+    /* enum FipsModeId, fips_test.h (v5.2.1) */
     public enum FipsMode
     {
         Init = 0,
@@ -34,7 +34,7 @@ namespace wolfSSL.CSharp.Fips
         Failed = 3
     }
 
-    /* enum FipsCastId, fips_test.h (v5.2.3). 15 CASTs. */
+    /* enum FipsCastId, fips_test.h (v5.2.1). 15 CASTs. */
     public enum FipsCast
     {
         AesCbc = 0,
@@ -54,7 +54,7 @@ namespace wolfSSL.CSharp.Fips
         KdfSsh = 14
     }
 
-    /* enum FipsCastStateId, fips_test.h (v5.2.3) */
+    /* enum FipsCastStateId, fips_test.h (v5.2.1) */
     public enum FipsCastState
     {
         Init = 0,
@@ -77,10 +77,8 @@ namespace wolfSSL.CSharp.Fips
     {
         public const int CastCount = 15;
 
-        /* Every delegate ever handed to the module, kept for the life of
-         * the process: native code may still hold (and call) a previously
-         * registered function pointer, for example if a later registration
-         * is refused or races with a DRBG reseed on another thread. */
+        /* Every delegate handed to the module, kept for the process lifetime: native code
+         * may still call an earlier pointer (e.g. refused re-registration, racing reseed). */
         private static readonly System.Collections.Generic.List<Delegate> registered = new();
         private static readonly object cbLock = new object();
 
@@ -88,26 +86,16 @@ namespace wolfSSL.CSharp.Fips
          * Initialize then leaves it in place. */
         private static bool customSeed;
 
-        /* Recommended startup call. Call before any other cryptographic use.
-         *
-         * 1. Loads the native library, which runs the power-on self-tests and
-         *    in-core integrity check in the library constructor.
-         * 2. Optionally registers a failure callback.
-         * 3. Registers the DRBG seed source. The module has no entropy source
-         *    of its own; in WC_RNG_SEED_CB builds nothing that needs the DRBG
-         *    works until a seed source is registered (including the ECC
-         *    CASTs). Default: the library's OS entropy function, unless a
-         *    custom source was already registered with SetSeedCallback, which
-         *    is kept (so SetSeedCallback may be called before or after
-         *    Initialize, and later Initialize calls do not replace it).
-         *    Pass useOsSeed: false to register no source here.
-         * 4. Throws if the module is not operational. */
+        /* Call before any other crypto use. Loading the library runs the power-on self-tests;
+         * this registers callbacks and the seed source, then throws unless operational. */
         public static void Initialize(FipsFailureCallback? onFailure = null,
                                       bool useOsSeed = true)
         {
             if (onFailure != null)
                 SetFailureCallback(onFailure);
             EnsureHelperMatchesModule();
+            /* The module has no entropy source: nothing using the DRBG (incl. ECC CASTs) works
+             * until one is registered. A SetSeedCallback source is kept, before or after. */
             if (useOsSeed) {
                 lock (cbLock) {
                     if (!customSeed)
@@ -124,11 +112,8 @@ namespace wolfSSL.CSharp.Fips
                                               : FipsError.FIPS_NOT_ALLOWED_E);
         }
 
-        /* The size helper must be built from the same install as the module
-         * (struct sizes depend on the build). Compares the FIPS major.minor
-         * the helper was compiled for with the module's version string. The
-         * patch level is not compared: v5.2.3 drops stamp HAVE_FIPS_VERSION
-         * 5.2.1 in options.h. */
+        /* Struct sizes depend on the build, so the size helper must match the loaded module
+         * (exact binary, and FIPS major.minor; the patch level is not compared). */
         internal static void CheckHelperMatchesModule()
         {
             /* exact binary: the helper must have been built (build-native.sh)
@@ -166,9 +151,8 @@ namespace wolfSSL.CSharp.Fips
                 throw new InvalidOperationException(e.Message, e);
         }
 
-        /* POSIX cksum: CRC-32 (poly 0x04C11DB7, MSB first) over the data and
-         * then the length, complemented. Build identity only, not a
-         * security function. */
+        /* POSIX cksum (CRC-32 over data then length, complemented).
+         * Build identity only, not a security function. */
         internal static uint PosixCksum(byte[] data)
         {
             uint crc = 0;
@@ -192,21 +176,17 @@ namespace wolfSSL.CSharp.Fips
 
         public static bool IsOperational => Status == 0 && Mode == FipsMode.Normal;
 
-        /* In-core hash computed by the power-on self-test. The module keeps
-         * it only when the integrity check fails (it is cleared after a
-         * successful check), so this is empty on an operational module. On
-         * failure it is the value to place in verifyCore[]. */
+        /* In-core hash from the power-on self-test; kept only when the integrity check fails
+         * (empty when operational). On failure it is the value to place in verifyCore[]. */
         public static string? CoreHash =>
             Marshal.PtrToStringAnsi(Native.wolfCrypt_GetCoreHash_fips());
 
-        /* Module version string, e.g. "v5.2.3". */
+        /* Module version string, e.g. "v5.2.1". */
         public static string? Version =>
             Marshal.PtrToStringAnsi(Native.wolfCrypt_GetVersion_fips());
 
-        /* Operator-initiated re-run of the in-core integrity test. Returns
-         * the module status afterwards (0 when operational). The v5.2.x
-         * wolfCrypt_IntegrityTest_fips always returns 0; a failed re-run is
-         * visible only in the status and mode. */
+        /* Re-runs the in-core integrity test and returns the status (0 when operational).
+         * v5.2.x always returns 0 here; a failure shows only in status and mode. */
         public static int IntegrityTest()
         {
             Native.wolfCrypt_IntegrityTest_fips();
@@ -226,9 +206,8 @@ namespace wolfSSL.CSharp.Fips
 
         private static long refusedFrees;
 
-        /* Number of wc_*Free_fips calls the module refused (FAILED state or
-         * failed CAST). Each one left module-allocated memory behind the
-         * structure unzeroized; see FipsHandle. */
+        /* wc_*Free_fips calls refused by the module (FAILED state or failed CAST); each left
+         * module-allocated memory unzeroized. See FipsHandle. */
         public static long RefusedFreeCount => Interlocked.Read(ref refusedFrees);
 
         internal static void NoteRefusedFree() => Interlocked.Increment(ref refusedFrees);
@@ -240,9 +219,8 @@ namespace wolfSSL.CSharp.Fips
             return (FipsCastState)Native.wc_GetCastStatus_fips((int)cast);
         }
 
-        /* The callback runs on the module's thread from inside native code;
-         * exceptions it throws are caught here (an exception crossing back
-         * into native code would terminate the process). */
+        /* The callback runs inside native code; its exceptions are caught here, since one
+         * unwinding into native code would terminate the process. */
         public static void SetFailureCallback(FipsFailureCallback cb)
         {
             if (cb == null)
@@ -257,10 +235,8 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Registers the library's OS entropy function (wc_GenerateSeed,
-         * /dev/urandom on Linux) as the DRBG seed source. The function
-         * pointer is passed straight to the module; no managed code is in
-         * the entropy path. An explicit call replaces any custom source. */
+        /* Registers wc_GenerateSeed (OS entropy) directly, so no managed code is in the
+         * entropy path. An explicit call replaces any custom source. */
         public static void UseOsSeed()
         {
             lock (cbLock) {
@@ -275,15 +251,13 @@ namespace wolfSSL.CSharp.Fips
             WolfCryptFipsException.Check("wc_SetSeed_Cb_fips", Native.wc_SetSeed_Cb_fips(fn));
         }
 
-        /* Registers a custom seed source (for example a hardware TRNG). The
-         * delegate is held for the life of the process. Initialize does not
-         * replace it; UseOsSeed does. */
+        /* Registers a custom seed source (e.g. a hardware TRNG), held for the process
+         * lifetime. Initialize does not replace it; UseOsSeed does. */
         public static void SetSeedCallback(FipsSeedCallback cb)
         {
             if (cb == null)
                 throw new ArgumentNullException(nameof(cb));
-            /* an exception from cb is reported to the module as a seed
-             * failure (non-zero) instead of unwinding into native code */
+            /* an exception from cb becomes a seed failure, not a native unwind */
             FipsSeedCallback trampoline = (os, seed, sz) => {
                 try { return cb(os, seed, sz); }
                 catch { return -1; }
@@ -296,16 +270,10 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Private key export gate (WC_KEYTYPE_ALL). Export of private keys
-         * is locked by default in the module.
-         *
-         * The gate is per thread: the module keeps it in thread-local
-         * storage. Enable it and export on the same thread; with async code
-         * do not await between the two. */
-        /* The module keeps a per-thread nesting counter (so wolfSSL's own
-         * PRIVATE_KEY_UNLOCK/LOCK pairs can nest). This is an on/off switch
-         * over it: true opens the gate if closed; false closes it fully,
-         * however many times it was opened. */
+        /* Private key export gate (locked by default) is thread-local: enable and export on
+         * the same thread, with no await in between. */
+        /* On/off switch over the module's per-thread nesting counter: true opens the gate if
+         * closed; false closes it fully, however many times it was opened. */
         public static void SetPrivateKeyReadEnable(bool enable)
         {
             if (enable) {
@@ -324,21 +292,15 @@ namespace wolfSSL.CSharp.Fips
         public static bool PrivateKeyReadEnabled =>
             Native.wolfCrypt_GetPrivateKeyReadEnable_fips(0) != 0;
 
-        /* Failure injection for operational testing. Only libraries built
-         * with HAVE_FORCE_FIPS_FAILURE export wolfCrypt_SetStatus_fips.
+        /* Failure injection for tests; needs a HAVE_FORCE_FIPS_FAILURE build.
          * Internal: exposed to the test assembly only. */
         internal static bool CanInjectFailure =>
             NativeLibrary.TryGetExport(NativeLoader.WolfsslHandle(), "wolfCrypt_SetStatus_fips", out _);
 
         internal static int InjectFailure(int code) => Native.wolfCrypt_SetStatus_fips(code);
 
-        /* Runs an operation whose purpose is to return an SSP-bearing value
-         * (shared secret, generated key pair, derived key) with the private
-         * key read gate enabled on this thread, then restores the previous
-         * state. Mirrors wolfSSL's own PRIVATE_KEY_UNLOCK()/LOCK() use around
-         * these calls. The operation must be synchronous (the gate is per
-         * thread). Bulk private key export (FipsRsaKey.Export) does not use
-         * this and stays under explicit caller control. */
+        /* Runs a synchronous op returning an SSP (shared secret, key pair, derived key) with
+         * the read gate open, like PRIVATE_KEY_UNLOCK/LOCK. Not used by FipsRsaKey.Export. */
         internal static TR WithPrivateKeyRead<TR>(Func<TR> op)
         {
             bool prev = PrivateKeyReadEnabled;

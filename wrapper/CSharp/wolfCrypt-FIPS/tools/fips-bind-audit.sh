@@ -1,17 +1,6 @@
 #!/bin/sh
-# Audits the C# FIPS wrapper bindings (Native.cs) against a FIPS module.
-#
-# Usage: fips-bind-audit.sh <wolfssl-include-dir> [libwolfssl]
-#   wolfssl-include-dir  directory containing wolfssl/wolfcrypt/fips.h
-#   libwolfssl           optional shared library to check exports against
-#
-# Checks:
-#   0. P/Invoke only in Native.cs, every libwolfssl DllImport has an explicit
-#      EntryPoint, and NativeLibrary export lookups are on the allowlist
-#   1. every libwolfssl DllImport in Native.cs names a *_fips entry point
-#   2. every bound *_fips name is declared in fips.h or fips_test.h
-#   3. (with a library) every bound *_fips name is exported by the library
-# Exits 1 on any failure.
+# Audits Native.cs: bindings are *_fips entry points declared in the module headers (and exported).
+# Usage: fips-bind-audit.sh <wolfssl-include-dir> [libwolfssl]   (exits 1 on any failure)
 set -u
 INC="${1:?usage: fips-bind-audit.sh <wolfssl-include-dir> [libwolfssl]}"
 LIB="${2:-}"
@@ -30,11 +19,8 @@ grep -oE 'DllImport\(WOLFSSL, EntryPoint = "[A-Za-z0-9_]+"' "$NATIVE" |
     sed -E 's/.*EntryPoint = "([A-Za-z0-9_]+)"/\1/' | sort -u > "$TMP/bound"
 echo "bound libwolfssl entry points: $(wc -l < "$TMP/bound" | tr -d ' ')"
 
-# 0. binding forms the text checks below would not see. Import attributes
-#    are matched anywhere on a line (attribute lists, qualified names), and
-#    each one must be complete on its line in one of the two allowed forms,
-#    so a split or literal-library attribute is flagged. The runtime
-#    reflection test in ModuleTests.cs is the authoritative check.
+# 0. P/Invoke only in Native.cs; each import attribute complete on one line in an allowed form.
+#    The runtime reflection test in ModuleTests.cs is the authoritative check.
 DIR="$HERE"
 IMPORT='(DllImport|LibraryImport)(Attribute)?[[:space:]]*\('
 outside=$(grep -lE "$IMPORT" "$DIR"/*.cs | grep -v '/Native.cs$' || true)
@@ -55,11 +41,8 @@ if [ -s "$TMP/badattrs" ] || [ "$n_imports" != "$n_good" ]; then
 else
     echo "ok:   all $n_imports import attributes are SIZES or WOLFSSL with a _fips EntryPoint"
 fi
-# GetExport/TryGetExport allowlist, compared on the exact name argument:
-#   Native.OS_SEED_EXPORT     wc_GenerateSeed, seed source pointer handed to the module
-#   wolfCrypt_SetStatus_fips  forced-failure test hook
-#   wolfCrypt_GetVersion_fips address only, to find the loaded library file
-#   dladdr, GetModuleFileNameW OS calls that return a library's file path
+# GetExport allowlist (exact name): wc_GenerateSeed seed source, SetStatus test hook,
+# GetVersion address (to find the library file), dladdr/GetModuleFileNameW path lookups.
 grep -q 'OS_SEED_EXPORT = "wc_GenerateSeed"' "$NATIVE" || { echo "FAIL: OS_SEED_EXPORT is not wc_GenerateSeed"; fail=1; }
 n_lookups=$(grep -oE 'GetExport[[:space:]]*\(' "$DIR"/*.cs | wc -l | tr -d ' ')
 grep -hoE 'GetExport[[:space:]]*\([^,()]*(\([^()]*\))?[^,()]*,[[:space:]]*[^,)]+' "$DIR"/*.cs |
@@ -83,15 +66,11 @@ fi
 # 2. declared by the module headers
 cat "$FIPS_H" "$TEST_H" 2>/dev/null | grep -oE '[A-Za-z0-9_]+_fips *\(' | sed -E 's/ *\($//' | sort -u > "$TMP/declared"
 comm -23 "$TMP/bound" "$TMP/declared" > "$TMP/undeclared"
-# wc_DhGeneratePublic_fips is v5.2.3+; report rather than fail when absent
-grep -v '^wc_DhGeneratePublic_fips$' "$TMP/undeclared" > "$TMP/undeclared.hard" || true
-if [ -s "$TMP/undeclared.hard" ]; then
-    echo "FAIL: bound but not declared in fips.h / fips_test.h:"; sed 's/^/  /' "$TMP/undeclared.hard"; fail=1
+if [ -s "$TMP/undeclared" ]; then
+    echo "FAIL: bound but not declared in fips.h / fips_test.h:"; sed 's/^/  /' "$TMP/undeclared"; fail=1
 else
     echo "ok:   all bindings declared by the module headers"
 fi
-grep -q '^wc_DhGeneratePublic_fips$' "$TMP/undeclared" &&
-    echo "note: wc_DhGeneratePublic_fips not declared (pre-v5.2.3 module); wrapper reports it unsupported"
 
 # 3. exported by the library
 if [ -n "$LIB" ]; then
@@ -101,7 +80,7 @@ if [ -n "$LIB" ]; then
         nm -D --defined-only "$LIB" | awk '{print $NF}' | sort -u > "$TMP/exported"
     fi
     comm -23 "$TMP/bound" "$TMP/exported" > "$TMP/missing"
-    grep -v -e '^wolfCrypt_SetStatus_fips$' -e '^wc_DhGeneratePublic_fips$' "$TMP/missing" > "$TMP/missing.hard" || true
+    grep -v -e '^wolfCrypt_SetStatus_fips$' "$TMP/missing" > "$TMP/missing.hard" || true
     if [ -s "$TMP/missing.hard" ]; then
         echo "FAIL: bound but not exported by $LIB:"; sed 's/^/  /' "$TMP/missing.hard"; fail=1
     else

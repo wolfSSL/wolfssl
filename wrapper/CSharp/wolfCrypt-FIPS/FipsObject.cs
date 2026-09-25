@@ -24,13 +24,8 @@ using System.Runtime.InteropServices;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* Base class for wrapper objects that own a native wolfCrypt structure.
-     * The memory is a FipsHandle (SafeHandle) sized by the native size
-     * helper. Derived classes register the module's free routine with
-     * SetNativeFree after a successful initialization; releasing the handle
-     * runs it, then zeroes and frees the structure's memory (see FipsHandle
-     * for what a refused free leaves behind). The SafeHandle keeps the
-     * structure alive across every P/Invoke that uses it. */
+    /* Base for objects owning a native structure (FipsHandle sized by the size helper).
+     * Derived classes call SetNativeFree after a successful init. */
     public abstract class FipsObject : IDisposable
     {
         internal FipsHandle Handle { get; }

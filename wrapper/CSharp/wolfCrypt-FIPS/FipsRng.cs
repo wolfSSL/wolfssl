@@ -25,31 +25,13 @@ using System.Threading;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* SHA-256 Hash_DRBG (SP 800-90A) instance from the FIPS module.
-     *
-     * Requires a seed source; FipsModule.Initialize() registers the OS
-     * source by default. Every use, directly (Generate) or by another
-     * service that is handed this DRBG (key generation, signing, IV
-     * generation), takes the instance lock, so an instance may be shared
-     * between threads.
-     *
-     * Every use also checks the module's DRBG CAST: once it has failed the
-     * wrapper refuses the DRBG (DRBG_KAT_FIPS_E) even for services the
-     * module itself would still serve from an existing instance.
-     *
-     * Custom seed sources: the module's automatic reseed (after 1,000,000
-     * requests) takes entropy from wc_GenerateSeed, not from a callback
-     * registered with FipsModule.SetSeedCallback (module behavior; see the
-     * README). The callback covers instantiation only.
-     *
-     * Dispose is the zeroization procedure for the DRBG state (V, C): an
-     * instance that is not disposed is zeroized only when the finalizer
-     * runs, which .NET does not do at process exit. */
+    /* SHA-256 Hash_DRBG (SP 800-90A) from the FIPS module; needs a seed source.
+     * Dispose zeroizes the DRBG state (V, C); otherwise only the finalizer does,
+     * and .NET does not run it at process exit. */
     public sealed class FipsRng : FipsObject
     {
-        /* Largest single request the DRBG accepts (RNG_MAX_BLOCK_LEN of the
-         * loaded build, read from the size helper: 0x10000 by default,
-         * 0xFFFF with HAVE_INTEL_QA, or a build override). */
+        /* Largest single DRBG request: RNG_MAX_BLOCK_LEN of the loaded build,
+         * read from the size helper. */
         public static int MaxRequest => FipsObject.StructSize(FipsStructType.RngMaxBlockLen);
 
         /* Output length of the module's DRBG health test
@@ -62,6 +44,8 @@ namespace wolfSSL.CSharp.Fips
 
         private readonly object sync = new object();
 
+        /* Module auto-reseed (after 1,000,000 requests) uses wc_GenerateSeed, not a
+         * SetSeedCallback source; the callback covers instantiation only. */
         public FipsRng() : base(FipsStructType.Rng)
         {
             Init(Native.wc_InitRng_fips(Handle), "wc_InitRng_fips");
@@ -106,8 +90,8 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Takes the lock and refuses a disposed instance or a failed DRBG
-         * CAST. */
+        /* Every use of this DRBG takes the lock, so instances may be shared across threads.
+         * Refuses a failed DRBG CAST even where the module would still serve the instance. */
         internal Lease Use()
         {
             Monitor.Enter(sync);
@@ -123,10 +107,8 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Fills buf with DRBG output. On any failure buf is cleared: the
-         * module copies each block out as it is generated, so a continuous
-         * test failure (DRBG_CONT_FIPS_E) would otherwise leave the blocks
-         * produced before it in buf. */
+        /* On failure buf is cleared: the module copies blocks out as generated, so a
+         * continuous test failure would leave earlier blocks in buf. */
         public void Generate(byte[] buf)
         {
             if (buf == null)
@@ -156,13 +138,8 @@ namespace wolfSSL.CSharp.Fips
             return buf;
         }
 
-        /* DRBG known-answer health test (self-test service). Instantiates a
-         * temporary DRBG with seedA, optionally reseeds with seedB
-         * (reseed = true, seedB then required), generates twice and returns
-         * the second block, for comparison against SP 800-90A test vectors.
-         * The output is fully determined by the inputs: it is test output,
-         * never random or key material, so this is internal. The module
-         * produces exactly HealthTestOutputSize (128) bytes. */
+        /* DRBG KAT: seeds with seedA (reseeds with seedB), returns the second block for
+         * SP 800-90A vectors. Deterministic test output, never key material, so internal. */
         internal static byte[] HealthTest(bool reseed, byte[] seedA, byte[]? seedB,
                                           int outputLen = HealthTestOutputSize)
         {

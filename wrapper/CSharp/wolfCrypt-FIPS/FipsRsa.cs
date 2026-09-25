@@ -53,13 +53,8 @@ namespace wolfSSL.CSharp.Fips
         { E = e; N = n; D = d; P = p; Q = q; }
     }
 
-    /* RSA key pair generated inside the FIPS module, with signature and
-     * encryption services.
-     *
-     * The v5.2.3 boundary has no RSA key import, so keys can only be created
-     * with Generate. Export (wc_RsaExportKey_fips) returns all components
-     * and is gated by FipsModule.SetPrivateKeyReadEnable on the calling
-     * thread. */
+    /* RSA key pair generated in the FIPS module; the v5.2.1 boundary has no RSA key import.
+     * Export returns all components and is gated by the private key read enable. */
     public sealed class FipsRsaKey : FipsObject
     {
         public const long DefaultExponent = 65537;
@@ -101,9 +96,8 @@ namespace wolfSSL.CSharp.Fips
                 Dispose();
                 throw new WolfCryptFipsException("wc_RsaEncryptSize_fips", err);
             }
-            /* The module has no public-only export: capture n and e once,
-             * here, so the private components cross the boundary once per
-             * key rather than on every ExportPublic. */
+            /* No public-only export in the module: capture n and e once here, so private
+             * components cross the boundary once per key, not on every ExportPublic. */
             try {
                 using FipsRsaKeyComponents c = FipsModule.WithPrivateKeyRead(() => Export());
                 publicKey = new FipsRsaPublicKey((byte[])c.N.Clone(), (byte[])c.E.Clone());
@@ -116,11 +110,8 @@ namespace wolfSSL.CSharp.Fips
 
         private readonly FipsRsaPublicKey publicKey;
 
-        /* Serializes every module call on this key: the module keeps a
-         * per-key working buffer (RsaKey.data) during private and public
-         * operations, and a concurrent call on the same key would find it in
-         * use (BAD_STATE_E) and free it under the other call. Taken before a
-         * FipsRng lease, never after. */
+        /* Serializes module calls on this key: a concurrent call would free the per-key
+         * buffer (RsaKey.data) under another. Taken before a FipsRng lease, never after. */
         private readonly object sync = new object();
 
         /* Modulus sizes approved for key generation (FIPS 186-5,
@@ -129,11 +120,9 @@ namespace wolfSSL.CSharp.Fips
         public static System.Collections.Generic.IReadOnlyList<int> ApprovedKeySizes { get; } =
             Array.AsReadOnly(approvedKeySizes);
 
-        /* Generates a key pair (FIPS 186 key generation, includes the
-         * module's pairwise consistency test).
-         *
-         * The size is checked here: the v5.2.1 and v5.2.3 modules also
-         * accept 1024 (bug 6367, RsaSizeCheck), which is disallowed. */
+        /* FIPS 186 key generation, including the module's pairwise consistency test. The
+         * size is checked here: the v5.2.1 module also accepts 1024 (bug 6367), which is
+         * disallowed. */
         public static FipsRsaKey Generate(int bits, FipsRng rng, long exponent = DefaultExponent)
         {
             if (rng == null)
@@ -144,9 +133,8 @@ namespace wolfSSL.CSharp.Fips
              * accepts e = 3). */
             if (exponent <= 65536 || (exponent & 1) == 0)
                 throw new ArgumentOutOfRangeException(nameof(exponent), "exponent must be odd and greater than 2^16");
-            /* the module takes a C long (32 bits on Windows and 32-bit
-             * platforms); refuse values it cannot represent rather than let
-             * them be truncated */
+            /* the module takes a C long (32 bits on Windows and 32-bit platforms);
+             * refuse values it cannot represent rather than truncate them */
             bool cLongIs32 = IntPtr.Size == 4 || OperatingSystem.IsWindows();
             if (cLongIs32 && exponent > int.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(exponent), "exponent does not fit the platform's C long");
@@ -205,18 +193,9 @@ namespace wolfSSL.CSharp.Fips
 
         /* ---- PKCS#1 v1.5 signatures (RSASSA-PKCS1-v1_5) ---- */
 
-        /* Signs a DER DigestInfo (RFC 8017 9.2 step 2) built by the caller,
-         * e.g. with wolfSSL's wc_EncodeSignature. The module applies the
-         * PKCS#1 v1.5 type 1 padding and the RSA private operation; the
-         * DigestInfo encoding is outside the module boundary (asn.c), as it
-         * was in the module's CAVP testing.
-         *
-         * digestInfo must be exactly the canonical DigestInfo of a SHA-224,
-         * SHA-256, SHA-384 or SHA-512 digest (with the NULL parameters and
-         * the digest length of that hash); anything else is refused, so the
-         * module never signs arbitrary data. SHA-1 is refused (signature
-         * generation, SP 800-131A) and so is SHA-3 (RSA SigGen is validated
-         * with SHA-2 only). */
+        /* Signs a caller-built DER DigestInfo (RFC 8017 9.2); its encoding is outside the
+         * boundary, as in CAVP testing. Only a canonical SHA-2 DigestInfo is accepted: SHA-1 is
+         * disallowed for signing (SP 800-131A) and RSA SigGen is not validated with SHA-3. */
         public byte[] SignPkcs1v15(byte[] digestInfo, FipsRng rng)
         {
             if (digestInfo == null)
@@ -240,12 +219,9 @@ namespace wolfSSL.CSharp.Fips
             return sig.Take(ret).ToArray();
         }
 
-        /* RSA public operation and PKCS#1 v1.5 type 1 unpadding
-         * (wc_RsaSSL_Verify). Returns the recovered block, or null if the
-         * signature does not unpad; throws on a module-state error. The
-         * caller verifies by comparing the result, in constant time
-         * (CryptographicOperations.FixedTimeEquals), with the DigestInfo it
-         * expects, as the module's CAVP testing did. */
+        /* RSA public operation and PKCS#1 v1.5 unpadding: the recovered block, or null if it
+         * does not unpad. The caller compares it in constant time (FixedTimeEquals) with the
+         * expected DigestInfo, as the module's CAVP testing did. */
         public byte[]? RecoverPkcs1v15(byte[] signature)
         {
             if (signature == null)
@@ -307,13 +283,9 @@ namespace wolfSSL.CSharp.Fips
             return ret == 0;
         }
 
-        /* ---- RSA encryption primitives with OAEP padding ----
-         *
-         * The module implements the RSA primitives RSAEP and RSADP; its
-         * Security Policy makes no key transport (SP 800-56B KTS) claim, so
-         * this is not an approved key-transport service. With no RSA key
-         * import in the boundary, Encrypt can only target this object's own
-         * key. RSAES-PKCS1-v1_5 and raw RSA are not offered. */
+        /* ---- RSA encryption primitives (RSAEP/RSADP) with OAEP padding ----
+         * No SP 800-56B KTS claim in the Security Policy: not an approved key-transport service.
+         * Encrypt targets only this key (no key import); PKCS#1 v1.5 and raw RSA not offered. */
 
         private const int WC_RSA_OAEP_PAD = 1;
 
@@ -396,11 +368,9 @@ namespace wolfSSL.CSharp.Fips
             _ => throw new NotSupportedException("MGF1 with " + h + " is not supported by this module")
         };
 
-        /* FIPS 186-5 5.4(g): 0 <= sLen <= hLen. Builds with RSA-PSS define
-         * WOLFSSL_PSS_LONG_SALT (configure adds it with TLS 1.3), which
-         * removes the module's own sLen <= hLen check, so it is enforced
-         * here for signing and verification. -1 selects sLen = hLen; salt
-         * discovery (-2) is not offered because it accepts any length. */
+        /* FIPS 186-5 5.4(g): 0 <= sLen <= hLen, enforced here because WOLFSSL_PSS_LONG_SALT
+         * (configure adds it with TLS 1.3) removes the module's own check. -1 selects
+         * sLen = hLen; salt discovery (-2) is not offered because it accepts any length. */
         private static void CheckSaltLen(FipsHashType hash, int saltLen)
         {
             if (saltLen != -1 && (saltLen < 0 || saltLen > FipsHash.DigestSizeOf(hash)))
@@ -416,9 +386,8 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentException("digest length does not match " + hash, nameof(digest));
         }
 
-        /* Canonical DER DigestInfo prefixes, RFC 8017 9.2 note 1 (SHA-3
-         * OIDs 2.16.840.1.101.3.4.2.7-10). Used only to recognize the
-         * caller's DigestInfo, never to build one. */
+        /* Canonical DER DigestInfo prefixes (RFC 8017 9.2 note 1), used only to recognize
+         * the caller's DigestInfo, never to build one. */
         private static readonly (FipsHashType Hash, byte[] Prefix)[] Prefixes = {
             (FipsHashType.Sha1, Hex("3021300906052b0e03021a05000414")),
             (FipsHashType.Sha224, Hex("302d300d06096086480165030402040500041c")),

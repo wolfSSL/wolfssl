@@ -23,11 +23,9 @@ using System;
 
 namespace wolfSSL.CSharp.Fips
 {
-    /* HMAC (FIPS 198-1) from the FIPS module. Keys are 112 to 1024 bits
-     * (14 to 128 bytes): the module enforces the minimum
-     * (HMAC_MIN_KEYLEN_E), and the maximum is the range the module's HMAC
-     * validation tested (SP #4718, A4308). After Final the object is reset
-     * to the keyed state and can authenticate a new message. */
+    /* HMAC (FIPS 198-1). Keys are 14 to 128 bytes: the module enforces the minimum,
+     * the maximum is the validated range (SP #4718, A4308). After Final the object is
+     * reset to the keyed state and can authenticate a new message. */
     public sealed class FipsHmac : FipsObject
     {
         public FipsHashType Type { get; }

@@ -1,9 +1,9 @@
 # wolfCrypt FIPS C# wrapper
 
-A .NET wrapper for the wolfCrypt FIPS 140-3 module (v5.2.3 boundary;
-tested against v5.2.1, certificate #4718, and v5.2.3). It binds only the
-module's `*_fips` entry points and contains no cryptographic code of its
-own: every operation runs inside the validated C library.
+A .NET wrapper for the wolfCrypt FIPS 140-3 module v5.2.1 (certificate
+#4718). It binds only the module's `*_fips` entry points and contains no
+cryptographic code of its own: every operation runs inside the validated C
+library.
 
 - Targets .NET 10 (LTS) and .NET 8 (LTS, supported through November 10, 2026).
 - Runs on Linux and macOS (Windows is not supported yet).
@@ -25,7 +25,7 @@ own: every operation runs inside the validated C library.
 
 | What | Version / notes |
 |---|---|
-| wolfSSL FIPS library | wolfCrypt FIPS v5 (v5.2.1 or v5.2.3), built as a shared library per the Operational Environment user guide |
+| wolfSSL FIPS library | wolfCrypt FIPS v5.2.1 (certificate #4718), built as a shared library per the Operational Environment user guide |
 | Build option | `WC_RNG_SEED_CB` must be defined. It is by default with `--enable-fips=v5`; it is not set with `--enable-kcapi-ecc` or in `user_settings.h` builds that omit it |
 | .NET SDK | .NET 10 SDK to build (restore evaluates both target frameworks) |
 | .NET runtime | .NET 10 or .NET 8 runtime to run the matching build |
@@ -364,7 +364,7 @@ The suite (a dependency-free console runner) covers:
 
 ## Scope
 
-Only services inside the v5.2.3 module boundary are wrapped. Not provided:
+Only services inside the v5.2.1 module boundary are wrapped. Not provided:
 
 | Not provided | Reason |
 |---|---|
@@ -380,7 +380,7 @@ Only services inside the v5.2.3 module boundary are wrapped. Not provided:
 | P-192 key generation and signing | Disallowed by FIPS 186-5 (P-192 import and verification are allowed) |
 | GCM encryption with a caller IV | External IVs are allowed only for TLS in the Security Policy |
 | MGF1 with SHA-3 (PSS, OAEP), PSS salt discovery | Not supported by the module / accepts any salt length |
-| DSA, Ed25519, Curve25519, ML-KEM, ML-DSA, ECIES, HPKE | Not approved services of the v5.2.3 module |
+| DSA, Ed25519, Curve25519, ML-KEM, ML-DSA, ECIES, HPKE | Not approved services of the v5.2.1 module |
 | `WOLF_CRYPTO_CB` builds | The boundary cannot set `devId` on Aes, Hmac or Cmac, so their operations go to crypto callback device 0 first; do not register a device 0 |
 
 ## Checks enforced by the wrapper
@@ -402,7 +402,7 @@ input; they add no functionality.
 | CMAC and CCM tags of at least 64 bits | The module accepts 32-bit tags |
 | CCM payload shorter than 2^(8 x (15 - nonce length)) bytes | The module wraps the counter (keystream reuse) for longer input |
 | AES ECB and CBC input a multiple of 16 bytes | The module otherwise leaves the tail of the output unencrypted |
-| DH peer keys checked with `wc_DhCheckPubKeyEx` before agreement; public keys left-padded to the prime size; `GeneratePublic` checks the private key range first | `wc_DhAgree` alone checks less; the module returns minimal-length keys |
+| DH peer keys checked with `wc_DhCheckPubKeyEx` before agreement; public keys left-padded to the prime size | `wc_DhAgree` alone checks less; the module returns minimal-length keys |
 | HMAC keys at most 128 bytes | The validated key range is 112 to 1024 bits |
 | TLS 1.2: the non-EMS "master secret" derivation is refused; the EMS session hash must be a digest of the PRF hash | FIPS 140-3 IG D.Q allows the TLS 1.2 KDF only with the extended master secret |
 | TLS 1.3: SHA-256/384 only, "tls13 " prefix, non-empty ASCII label, HkdfLabel within the module's buffer | The module copies the label into a fixed stack buffer without a capacity check |

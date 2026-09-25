@@ -19,18 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Size helper for the C# FIPS wrapper.
- *
- * The v5.2.3 FIPS boundary exposes only initializers that operate on
- * caller-allocated structures (wc_InitRng_fips, wc_InitRsaKey_fips, ...).
- * C# cannot know those structure sizes, and they depend on the configure
- * options of the library build. This file is compiled against the same
- * installed headers (including wolfssl/options.h) as the FIPS library and
- * reports sizeof() for each structure the wrapper allocates.
- *
- * This code is outside the FIPS module boundary. It contains no
- * cryptographic functionality and does not link against libwolfssl, so it
- * has no effect on the module or its in-core integrity hash. */
+/* Reports sizeof() of caller-allocated FIPS structs, built with the library's
+ * options.h. Outside the module boundary; no crypto, no libwolfssl link. */
 
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
