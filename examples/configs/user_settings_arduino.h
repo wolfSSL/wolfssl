@@ -78,7 +78,7 @@
 
     #define NO_MAIN_DRIVER
     #define WOLFSSL_NO_SP
-    #define WOLFSSL_NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
     #define TFM_TIMING_RESISTANT
 
     #undef WOLFSSL_DTLS
