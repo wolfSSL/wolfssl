@@ -87,8 +87,10 @@ namespace wolfSSL.CSharp.Fips
 
             byte[] tag = new byte[tagSize];
             uint sz = (uint)tagSize;
-            WolfCryptFipsException.Check("wc_CmacFinal_fips", Native.wc_CmacFinal_fips(Handle, tag, ref sz));
+            int ret = Native.wc_CmacFinal_fips(Handle, tag, ref sz);
+            /* single use whatever the result: the module may have cleared the state */
             finished = true;
+            WolfCryptFipsException.Check("wc_CmacFinal_fips", ret);
             if (sz != tag.Length)
             {
                 Array.Resize(ref tag, (int)sz);

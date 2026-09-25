@@ -199,6 +199,8 @@ namespace wolfSSL.CSharp.Fips.Test
             var ccm = new FipsAesCcm(aesKey);
             ccm.SetNonce(new byte[12]);
             var hmacKey = new byte[32];
+            var cmacPending = new FipsCmac(aesKey);   /* finalized only after injection */
+            cmacPending.Update(new byte[3]);
             var rsa = FipsRsaKey.Generate(2048, rng);
             byte[] d256 = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
             byte[] rsaSig = Pkcs1.Sign(rsa, FipsHashType.Sha256, d256, rng);
@@ -383,6 +385,12 @@ namespace wolfSSL.CSharp.Fips.Test
                 byte[] buf = Enumerable.Repeat((byte)0xAA, 64).ToArray();
                 try { rng.Generate(buf); } catch (WolfCryptFipsException) { }
                 Check(buf.All(b => b == 0), "refused Generate left data in the caller's buffer");
+
+                /* a refused CMAC Final still ends the object */
+                bool cmacRefused = false, ended = false;
+                try { cmacPending.Final(); } catch (WolfCryptFipsException) { cmacRefused = true; }
+                try { cmacPending.Update(new byte[1]); } catch (InvalidOperationException) { ended = true; }
+                Check(cmacRefused && ended, "CMAC usable after a refused Final");
             }
 
             if (failed)
