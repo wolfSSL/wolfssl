@@ -7017,8 +7017,10 @@ void bench_aesxts(void)
                     printf("wc_AesXtsEncryptInit failed, ret = %d\n", ret);
                     goto exit;
                 }
+                /* Stop a block short: Update()/Final() reject sz < 16. */
                 for (off = 0;
-                     off + chunk < (word32)bench_size;
+                     off + chunk + (word32)WC_AES_BLOCK_SIZE <=
+                         (word32)bench_size;
                      off += chunk) {
                     if ((ret = wc_AesXtsEncryptUpdate(aes, bench_cipher + off,
                                     bench_plain + off, chunk,
@@ -7096,8 +7098,10 @@ void bench_aesxts(void)
                     printf("wc_AesXtsDecryptInit failed, ret = %d\n", ret);
                     goto exit;
                 }
+                /* Stop a block short: Update()/Final() reject sz < 16. */
                 for (off = 0;
-                     off + chunk < (word32)bench_size;
+                     off + chunk + (word32)WC_AES_BLOCK_SIZE <=
+                         (word32)bench_size;
                      off += chunk) {
                     if ((ret = wc_AesXtsDecryptUpdate(aes, bench_plain + off,
                                     bench_cipher + off, chunk,
