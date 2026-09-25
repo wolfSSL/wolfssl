@@ -44,6 +44,10 @@
 
 
 /* GENERIC INCLUDE SECTION */
+#ifndef NO_STDDEF_H
+    #include <stddef.h> /* for size_t, used by wc_ForceZero() below */
+#endif
+
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
@@ -2012,9 +2016,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    #ifndef NO_STDDEF_H
-        #include <stddef.h> /* for size_t */
-    #endif /* NO_STDDEF_H */
+    /* size_t comes from the <stddef.h> at the top of this file. */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -2055,15 +2057,42 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-#ifdef WOLF_C99
+/* NOLINTBEGIN(bugprone-macro-parentheses) */
+/* IAR/KEIL are checked before WOLF_C99: both accept -std=c99, but neither
+ * spells inline asm __asm__.  Both get __asm; IAR also has asm(), but only
+ * __asm survives --strict. */
+#if defined(__IAR_SYSTEMS_ICC__)
+    /* IAR's __asm() accepts a GNU-style clobber list. */
+    #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(__KEIL__)
+    /* KEIL's __asm() accepts a "memory" clobber. */
+    #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(WOLF_C99)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_VOLATILE(a) __asm__ volatile(a)
-#elif defined(__IAR_SYSTEMS_ICC__)
-    #define XASM_VOLATILE(a) asm volatile(a)
-#elif defined(__KEIL__)
-    #define XASM_VOLATILE(a) __asm volatile(a)
 #else
+    /* GNU extended-asm syntax supports clobber list. */
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
+#endif
+
+/* XASM_VOLATILE() + a "memory" clobber: orders the code generator as well as
+ * the CPU.  Extended asm templates are scanned for operand substitution, so
+ * all in-tree XFENCE() strings must be percent-free.
+ *
+ * Porting hook: define XASM_VOLATILE_NO_CLOBBER if your assembler dialect
+ * rejects a clobber list.  Doing so drops the code-generator ordering, so
+ * supply your own XFENCE() or WC_BARRIER_DATA() if you need it back. */
+#ifdef XASM_VOLATILE_NO_CLOBBER
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a)
+#else
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a ::: "memory")
+#endif
+/* NOLINTEND(bugprone-macro-parentheses) */
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+    /* Implementation detail of XFENCE() under BARRIER_DETECT.  Plain
+     * WOLFSSL_API: application TUs that expand XFENCE() read it. */
+    WOLFSSL_API extern int wc_aarch64_use_sb;
 #endif
 
 #ifndef WOLFSSL_NO_FENCE
@@ -2085,33 +2114,37 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #elif defined(WOLFSSL_NO_ASM)
         #define XFENCE() WC_DO_NOTHING
     #elif defined (__i386__) || defined(__x86_64__)
-        #define XFENCE() XASM_VOLATILE("lfence")
+        #define XFENCE() XASM_VOLATILE_MB("lfence")
     #elif defined (__arm__) && (__ARM_ARCH > 6)
-        #define XFENCE() XASM_VOLATILE("isb")
+        #define XFENCE() XASM_VOLATILE_MB("isb")
     #elif defined(_MSC_VER) && defined(_M_ARM64)
-        /* MSVC on ARM64 has no __asm__; use the ISB intrinsic barrier. */
+        /* MSVC on ARM64 has no __asm__.  __isb() is a hardware-only fence
+         * with no compiler-barrier semantics of its own, so bracket it with
+         * _ReadWriteBarrier() to match the clobber the asm arms get. */
         #include <intrin.h>
-        #define XFENCE() __isb(_ARM64_BARRIER_SY)
+        #define XFENCE() do { _ReadWriteBarrier();             \
+                              __isb(_ARM64_BARRIER_SY);        \
+                              _ReadWriteBarrier(); } while (0)
     #elif defined(__aarch64__)
         /* Change ".inst 0xd50330ff" to "sb" when compilers support it. */
         #ifdef WOLFSSL_ARMASM_BARRIER_SB
-            #define XFENCE() XASM_VOLATILE(".inst 0xd50330ff")
+            #define XFENCE() XASM_VOLATILE_MB(".inst 0xd50330ff")
         #elif defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-            extern int aarch64_use_sb;
-            #define XFENCE()                                \
-                do {                                        \
-                    if (aarch64_use_sb)                     \
-                        XASM_VOLATILE(".inst 0xd50330ff");  \
-                    else                                    \
-                        XASM_VOLATILE("isb");               \
+            /* wc_aarch64_use_sb is declared above. */
+            #define XFENCE()                                        \
+                do {                                                \
+                    if (wc_aarch64_use_sb)                          \
+                        XASM_VOLATILE_MB(".inst 0xd50330ff");       \
+                    else                                            \
+                        XASM_VOLATILE_MB("isb");                    \
                 } while (0)
         #else
-            #define XFENCE() XASM_VOLATILE("isb")
+            #define XFENCE() XASM_VOLATILE_MB("isb")
         #endif
     #elif defined(__riscv)
-        #define XFENCE() XASM_VOLATILE("fence")
+        #define XFENCE() XASM_VOLATILE_MB("fence")
     #elif defined(__PPC__) || defined(__POWERPC__)
-        #define XFENCE() XASM_VOLATILE("isync; sync")
+        #define XFENCE() XASM_VOLATILE_MB("isync; sync")
     #else
         #define XFENCE() WC_DO_NOTHING
     #endif
@@ -2131,17 +2164,47 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         } while(0)
 #endif
 
-/* Compiler barrier that also treats the memory at ptr as read, so a wipe of
- * that memory cannot be dropped as a dead store. The GNU form emits no CPU
- * fence; cross-thread ordering is the caller's job. Without GNU asm (other
- * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+/* Defined in wc_port.c. */
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Zero len bytes at mem. mem may be NULL when len is 0. */
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+#endif
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* Compare length bytes of a and b in constant time.  Returns 0 when equal,
+ * positive otherwise.  A length of 0 or less compares nothing and returns 0,
+ * so callers must validate length before reading 0 as "equal".
+ * unsigned char: byte is not yet typedef'd when this header is included. */
+WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length);
+#endif
+
+/* Compiler barrier that also treats the memory at p as read, so a wipe of
+ * that memory cannot be dropped as a dead store.  Emits no CPU fence;
+ * cross-thread ordering is the caller's job.
+ *
+ * Both arms work by making the *address* escape to code the optimizer cannot
+ * see through.  A bare "memory" clobber is not enough: for a stack local whose
+ * address never leaves the frame, the compiler knows no opaque code can reach
+ * it and drops the wipe anyway. */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
-    #define WC_BARRIER_DATA(ptr) \
-        __asm__ __volatile__("" : : "r"(ptr) : "memory")
+    /* p escapes as an asm input operand. */
+    #define WC_BARRIER_DATA(p) \
+        do { __asm__ __volatile__("" :: "r"((p)) : "memory"); } while (0)
 #else
-    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+    /* Portable C89 fallback: p escapes as an argument to an out-of-line call
+     * the optimizer must assume reads through it. */
+    #define WC_BARRIER_DATA_USES_SINK
+
+    /* Internal to WC_BARRIER_DATA(); call wc_ForceZero() instead.  p is
+     * never dereferenced and may be NULL.  Not const: GCC treats a const
+     * pointer argument as a read and warns when wiping an uninitialized
+     * buffer. */
+    WOLFSSL_API void wc_BarrierDataSink(void* p);
+
+    #define WC_BARRIER_DATA(p) do { wc_BarrierDataSink((p)); } while (0)
 #endif
 
 

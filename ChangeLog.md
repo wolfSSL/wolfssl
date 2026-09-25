@@ -58,6 +58,24 @@ Fixed in PR 11500
 Without NO_SESSION_CACHE_REF, wolfSSL_get_session() does not return a session object but a ClientSession reference of the form {row, index, hash(sessionID)} into the process-global SessionCache, and ClientSessionToSession() validates it against that hash alone. Because the TLS 1.2 session ID is chosen by the server and sent in clear, AddSessionToCache() matches any other server's session on the same ID and overwrites the client-side entry with that server's master secret, cipher suite and version, while the handle continues to resolve; nothing on the write path compares the peer, the application's server ID or the WOLFSSL_CTX. Resuming through the handle then produces an abbreviated handshake in which no Certificate message is sent, so neither chain verification nor wolfSSL_check_domain_name() runs, and the attacker is accepted as the original server for the whole of that connection. Affected builds are those leaving NO_SESSION_CACHE_REF, NO_SESSION_CACHE, NO_CLIENT_CACHE and TITAN_SESSION_CACHE all undefined, which includes a plain ./configure, --enable-opensslextra and --enable-opensslall; fifteen integration options define NO_SESSION_CACHE_REF and are therefore not affected, among them --enable-all, --enable-distro, --enable-curl, --enable-nginx, --enable-haproxy, --enable-stunnel, --enable-wpas and the rest of the OPENSSL_COMPATIBLE_DEFAULTS family, and --enable-leanpsk, --enable-leantls, --enable-lowresource and --enable-tinytls13 disable the cache outright. The application must use the legacy reference flow, wolfSSL_get_session() or SSL_get_session() followed by wolfSSL_set_session(); wolfSSL_get1_session() returns the session object itself and is not affected, nor are wolfSSL_SetServerID() lookups. Only TLS 1.2 and below and DTLS 1.2 and below are reachable, since TLS 1.3 and ticket resumption with an empty ServerHello session ID both use a client-chosen cache key. The poisoned entry lives in the process-global cache, so it crosses WOLFSSL_CTX boundaries and persists until the entry is evicted or the session times out, 500 seconds by default. Releases v5.3.0 through v5.9.2 are affected; the fix adds a per-write generation counter to the cache and raises WOLFSSL_CACHE_VERSION from 2 to 3, so a cache persisted by an older build is rejected by a fixed one. Found via the Anthropic OSS program.
 Fixed in PR 11500
 
+
+* **API (new internal symbol `wc_BarrierDataSink()`)**: exists only on the
+  portable `WC_BARRIER_DATA()` arm - every compiler without `__GNUC__` (MSVC,
+  IAR, Keil armcc5, most embedded toolchains) and GCC or clang with
+  `WOLFSSL_NO_ASM`.  Test `WC_BARRIER_DATA_USES_SINK` to detect it.  On those
+  targets each `ForceZero()` costs two out-of-line calls.  A replacement
+  `WC_BARRIER_DATA()` must still pass the pointer to code the optimizer cannot
+  see into; a bare compiler barrier brings the dead store back.
+
+* **API (`aarch64_use_sb` renamed to `wc_aarch64_use_sb`)**: an implementation
+  detail of `XFENCE()` under `WOLFSSL_ARMASM_BARRIER_DETECT`.  Affects only code
+  that names the symbol directly.
+
+* **API (`XFENCE()` now clobbers `"memory"`)**: every inline-asm arm appends a
+  `"memory"` clobber.  Define `XASM_VOLATILE_NO_CLOBBER` if your toolchain
+  rejects a clobber list.  A user-supplied `XFENCE()` is unaffected.  Note the
+  clobber makes this extended asm, so a `%` in a template must be written `%%`.
+
 ## New Features
 
 * Added `make sbom` (SPDX 2.3 + CycloneDX 1.6) and `make bomsh` (OmniBOR build provenance) targets for EU Cyber Resilience Act compliance. by @MarkAtwood (PR 10343)
@@ -434,6 +452,33 @@ Fixed in PR 11500
 * Added cross-library compile checks for wolfSSH, wolfCLU, wolfTPM, wolfMQTT, wolfPKCS11 and wolfProvider. by @night1rider (PR 10853) and @dgarske (PR 11124)
 * Added a software CryptoCb API test, SM2 identical-point verify test, and Wycheproof-driven negative tests. by @AlexLanzano (PR 10604), @padelsbach (PR 10992) and @Frauschi (PR 10958)
 * Benchmark: HMAC-SHA3, AES IV/CCM nonce and key wrap sweeps, RSA padding sweep, AArch64 cycle counter under MSVC, numBlocks clamp, guards, a leak fix and zeroing the ML-KEM key objects before the first free; tls_bench now uses `CLOCK_MONOTONIC` and reports MiB/s. by @night1rider (PR 10946, PR 10947, PR 10887, PR 11249), @rizlik (PR 11090) and @dgarske (PR 11176, PR 11505)
+
+* **Fix (`XASM_VOLATILE()` on IAR and KEIL in C99 mode)**: the `WOLF_C99` arm
+  was checked first and handed both compilers `__asm__`, which their assembler
+  dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
+  the spelling IAR keeps available under `--strict`.
+
+* **Fix (`ForceZero()` could be optimized away)**: on the portable
+  `WC_BARRIER_DATA()` arm - no GNU inline asm, or `WOLFSSL_NO_ASM` - the buffer
+  address never escaped, so the compiler could drop the wipe as a dead store.
+  A fence does not prevent that, so builds with a working `XFENCE()` were
+  affected too; GCC and clang without `WOLFSSL_NO_ASM` were not.  That arm no
+  longer emits `XFENCE()` (two `__isb()` per `ForceZero()` on MSVC ARM64), so
+  callers needing cross-thread ordering must call it themselves.
+
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: both lived in `memory.c`, which `--disable-memory`,
+  `--enable-leanpsk` and `--enable-leantls` all exclude, so for example
+  `--disable-memory --enable-falcon` failed to link.  They now live in
+  `wc_port.c`, which is always compiled, and their declarations moved from
+  `memory.h` to `wc_port.h`.  No caller change and no ABI change.
+
+* **Fix (`WOLFSSL_NO_FORCE_ZERO` auto-defined for BLAKE2 and Argon2)**: the
+  `settings.h` heuristic that defines it for very small `WOLFCRYPT_ONLY`
+  configurations did not exclude BLAKE2 or Argon2, which call `ForceZero()`,
+  so those builds failed to link unless the integrator supplied one.  BLAKE2
+  also drops the static `secure_zero_memory()` from the installed
+  `blake2-impl.h`; callers of that helper should use `wc_ForceZero()`.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

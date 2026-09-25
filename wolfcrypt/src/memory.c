@@ -28,6 +28,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+/* Not for memory.c itself: linuxkm/linuxkm_memory.c, included at the bottom
+ * of this file, calls min() in wc_fips_generate_hash(), and misc.c is its only
+ * provider - the kernel's own min() is #undef'd by linuxkm_wc_port.h, and
+ * userspace has none.  Do not drop this as unused. */
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -1726,23 +1730,6 @@ void __attribute__((no_instrument_function))
     register void* sp asm("sp");
     fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(wc_ptr_t)func, sp);
     (void)caller;
-}
-#endif
-
-#ifndef WOLFSSL_NO_FORCE_ZERO
-/* Exported version of ForceZero(). */
-void wc_ForceZero(void *mem, size_t len)
-{
-    ForceZero(mem, len);
-}
-#endif
-
-#ifndef WOLFSSL_NO_CONST_CMP
-/* Exported version of ConstantCompare(). */
-int wc_ConstantCompare(const byte* a, const byte* b, int length)
-
-{
-    return ConstantCompare(a, b, length);
 }
 #endif
 

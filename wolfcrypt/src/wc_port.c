@@ -185,6 +185,13 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -427,7 +434,7 @@ int wc_local_InitDownDone(wc_init_state_t *s)
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-int aarch64_use_sb = 0;
+int wc_aarch64_use_sb = 0;
 #endif
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
@@ -752,6 +759,49 @@ WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
 }
 #endif
 
+/* Only compiled when using the portable WC_BARRIER_DATA() arm. */
+#ifdef WC_BARRIER_DATA_USES_SINK
+
+/* No-op callee for the portable WC_BARRIER_DATA() fallback. */
+static void wc_BarrierDataSinkImpl(void* p)
+{
+    (void)p;
+}
+/* const -> read-only section; do NOT add volatile (breaks placement). */
+static void (* const wc_BarrierDataSinkPtr)(void*) =
+    wc_BarrierDataSinkImpl;
+
+/* WC_NO_INLINE: if LTO ever does see through the indirection below, the body
+ * becomes empty, and an empty body inlined into ForceZero() takes the escape
+ * of the buffer address with it. */
+WC_NO_INLINE
+void wc_BarrierDataSink(void* p)
+{
+    /* Volatile load defeats LTO devirtualization. */
+    void (*fn)(void*) =
+        *(void (* const volatile *)(void*))&wc_BarrierDataSinkPtr;
+    fn(p);
+}
+
+#endif /* WC_BARRIER_DATA_USES_SINK */
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Exported ForceZero(). Lives here because always compiled. */
+void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
+}
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* Exported ConstantCompare(). Lives here because always compiled. */
+int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length)
+{
+    return ConstantCompare(a, b, length);
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
@@ -793,7 +843,7 @@ int wolfCrypt_Init(void)
 #endif
 
     #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-        aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
+        wc_aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
     #endif
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
