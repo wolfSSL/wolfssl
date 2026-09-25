@@ -124,6 +124,9 @@
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
+    /* The dispatch lives in the object, so every caller needs its own local
+     * copy of it; SHA3_FUNC_PTR call sites dereference that local. */
+    #define SHA3_BLOCK_LOCAL_PTR
 #else
     void (*sha3_block)(word64 *s) = NULL;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
@@ -992,7 +995,13 @@ static int InitSha3(wc_Sha3* sha3)
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 void BlockSha3(word64* s)
 {
+#ifdef SHA3_BLOCK_LOCAL_PTR
+    /* These callers hold no wc_Sha3, so there is no per-object dispatch to read
+     * and no vector-register claim in scope; BlockSha3_base needs neither. */
+    BlockSha3_base(s);
+#else
     (*SHA3_BLOCK)(s);
+#endif
 }
 #endif
 
@@ -1013,13 +1022,11 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     word32 check = 0;
     word32 total_check = 0;
 #endif
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s) = SHA3_BLOCK;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c) = SHA3_BLOCK_N;
 #endif
-#endif /* USE_INTEL_SPEEDUP */
 
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
         return BAD_STATE_E;
@@ -1192,7 +1199,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 #ifdef WC_SHA3_FAULT_HARDEN
     word32 check = 0;
 #endif
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s) = SHA3_BLOCK;
 #endif
 
@@ -2358,7 +2365,7 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s);
 #endif
 
@@ -2366,11 +2373,11 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     sha3_block = SHA3_BLOCK;
 #endif
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
@@ -2675,7 +2682,7 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s);
 #endif
 
@@ -2683,11 +2690,11 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     sha3_block = SHA3_BLOCK;
 #endif
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
