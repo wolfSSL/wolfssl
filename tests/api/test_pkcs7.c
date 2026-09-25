@@ -4995,6 +4995,74 @@ int test_wc_PKCS7_MultipleRecipients(void)
     #endif /* !NO_PKCS7_STREAM */
     }
 
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* Indefinite length gives the decoder only an estimate of where the
+     * message ends; reading as cert2 walks past cert1 beyond that estimate. */
+    if (!EXPECT_FAIL()) {
+        wc_PKCS7* pkcs7 = NULL;
+        int first;
+        int eciOff = 0;
+        /* id-data, the EncryptedContentInfo's contentType */
+        WOLFSSL_SMALL_STACK_STATIC const byte dataOid[] = {
+            0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x07,0x01
+        };
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = (byte*)content;
+            pkcs7->contentSz  = (word32)sizeof(content);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256CBCb;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz, 0), 0);
+        ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert2, cert2Sz, 0), 0);
+        ExpectIntGT(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, out,
+            (word32)outSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* the last id-data is the EncryptedContentInfo's; splitting its
+         * header is a different case */
+        for (i = 0; i + (int)sizeof(dataOid) <= encodedSz; i++) {
+            if (XMEMCMP(out + i, dataOid, sizeof(dataOid)) == 0)
+                eciOff = i;
+        }
+        ExpectIntGT(eciOff, 0);
+
+        /* two calls, the first ending inside the RecipientInfo set */
+        for (first = 1; first < eciOff; first += 11) {
+            int decSz;
+
+            if (EXPECT_FAIL())
+                break;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert2, cert2Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key2;
+                pkcs7->privateKeySz = key2Sz;
+            }
+            XMEMSET(decoded, 0, sizeof(decoded));
+            decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out, (word32)first,
+                decoded, sizeof(decoded));
+            if (decSz == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out + first,
+                    (word32)(encodedSz - first), decoded, sizeof(decoded));
+            }
+            ExpectIntEQ(decSz, (int)sizeof(content));
+            ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+#endif
+
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(out3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(cert1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
