@@ -481,7 +481,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
             }
             #endif
             WOLFSSL_MSG("ProcessReply...");
-            if ((ssl->error = ProcessReply(ssl)) < 0) {
+            if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -562,7 +562,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
 
             /* get response */
             while (ssl->options.serverState < neededState) {
-                if ((ssl->error = ProcessReply(ssl)) < 0) {
+                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -683,7 +683,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
     case FINISHED_DONE :
         /* get response */
         while (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
-            if ((ssl->error = ProcessReply(ssl)) < 0) {
+            if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -946,7 +946,7 @@ int wolfSSL_accept(WOLFSSL* ssl)
         #endif
         /* get response */
         while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-            if ((ssl->error = ProcessReply(ssl)) < 0) {
+            if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -1067,7 +1067,7 @@ int wolfSSL_accept(WOLFSSL* ssl)
     case SERVER_HELLO_DONE :
         if (!ssl->options.resuming) {
             while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
-                if ((ssl->error = ProcessReply(ssl)) < 0) {
+                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -1139,7 +1139,7 @@ int wolfSSL_accept(WOLFSSL* ssl)
     case ACCEPT_FINISHED_DONE :
         if (ssl->options.resuming) {
             while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
-                if ((ssl->error = ProcessReply(ssl)) < 0) {
+                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }

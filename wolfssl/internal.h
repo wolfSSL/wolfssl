@@ -7473,6 +7473,7 @@ WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);
 WOLFSSL_LOCAL int SendFatalAlertOnly(WOLFSSL *ssl, int error);
 WOLFSSL_LOCAL int ProcessReply(WOLFSSL* ssl);
 WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr);
+WOLFSSL_LOCAL int ProcessReplyHandshake(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL const char* AlertTypeToString(int type);
 
