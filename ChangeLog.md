@@ -262,6 +262,15 @@
 
 ## Fixes
 
+* **Fix (PKCS#7/CMS message with more than one recipient)**:
+  `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()`
+  failed on a message addressed to more than one recipient, and
+  AuthEnvelopedData never supported it at all.  A message carrying no
+  recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse
+  error.  Streaming an AuthEnvelopedData now buffers the whole RecipientInfo
+  set, as the EnvelopedData decoder already did, so peak memory rises by the
+  size of that set.
+
 * **Fix (sniffer could not decrypt Encrypt-Then-MAC or X25519 sessions)**: the
   sniffer never handled the `encrypt_then_mac` extension (RFC 7366) in the
   ServerHello, so for a CBC suite it passed the trailing MAC to the block
