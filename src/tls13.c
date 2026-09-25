@@ -17488,6 +17488,9 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
     ssl->options.havePeerVerify = 0;
 
     ret = SendTls13CertificateRequest(ssl, &certReqCtx->ctx, certReqCtx->len);
+    /* Nothing follows a post-handshake request, so flush it even if grouped. */
+    if (ret == 0 && ssl->options.groupMessages)
+        ret = SendBuffered(ssl);
     if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
