@@ -420,6 +420,49 @@
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
 
+* **Fix (EnvelopedData version 3 or 4 rejected by an RSA or ECC reader)**:
+  RFC 5652, Section 6.1 derives the EnvelopedData version from every
+  RecipientInfo in the set, so a message that also carries a password or
+  `OtherRecipientInfo` recipient is version 3.  `wc_PKCS7_DecodeEnvelopedData()`
+  checked the version against the reader's own key type, allowing only 0 and 2
+  for RSA and 0, 2 and 3 for ECC, so a KTRI recipient could not open a message
+  addressed to a PWRI or ML-KEM recipient as well and got `ASN_VERSION_E`.
+  Any CMSVersion valid for EnvelopedData (0, 2, 3 or 4) is now accepted.
+
+* **Fix (indefinite-length EnvelopedData decrypted to the wrong plaintext)**:
+  when the encryptedContent of an EnvelopedData is split into several OCTET
+  STRINGs, as `openssl cms -encrypt -stream` writes it,
+  `wc_PKCS7_DecodeEnvelopedData()` handed every fragment but the last only to
+  the stream output callback.  Without one set, the fragments were dropped
+  and just the last one was copied to the start of `output`, while the return
+  value still counted the whole content, so the caller got a success code and
+  a buffer holding one block of plaintext followed by whatever it contained
+  before.  Every fragment is now decrypted into the output.  Fragments no
+  longer have to be a whole number of cipher blocks, a chunked stream no
+  longer loses its place after a small fragment, and a build with
+  `NO_PKCS7_STREAM` now sets up the cipher for fragmented content at all.
+
+* **Fix (indefinite-length AuthEnvelopedData rejected)**:
+  `wc_PKCS7_DecodeAuthEnvelopedData()` failed with `ASN_PARSE_E` on the
+  output of `openssl cms -encrypt -aes-256-gcm -stream`.  It read at most one
+  OCTET STRING of a constructed encryptedContent, could not take an
+  indefinite length there, and expected the authenticated attributes or the
+  tag straight after the content, where BER puts the end-of-contents of the
+  content and of the EncryptedContentInfo.  Fed in chunks it also stalled:
+  the EncryptedContentInfo was not buffered far enough to parse, and the
+  bytes still expected after the tag were computed as a negative number.
+  The fragments are now joined before the AEAD runs, and both
+  end-of-contents are consumed.
+
+* **Fix (chunked (Auth)EnvelopedData failed inside the EncryptedContentInfo)**:
+  `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()`
+  returned `ASN_PARSE_E` when a call ended inside the EncryptedContentInfo
+  header.  The check for whether enough input was left compared against the
+  size of the whole input rather than what follows the current position, and
+  after moving to the stream buffer the decoder lost the SEQUENCE header it
+  had already read.  AuthEnvelopedData fed in fixed-size chunks failed at
+  most sizes from 60 bytes up.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA
