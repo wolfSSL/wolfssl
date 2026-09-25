@@ -528,7 +528,9 @@ int test_TLSX_TCA_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client side, response direction, trusted_ca_keys never requested:
      * unsupported extension. */
@@ -545,7 +547,9 @@ int test_TLSX_TCA_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 #endif
     return EXPECT_RESULT();
@@ -598,7 +602,9 @@ int test_TLSX_certtype_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -687,7 +693,9 @@ int test_TLSX_EncryptThenMac_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -716,7 +724,9 @@ int test_TLSX_MFL_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client requested MFL_2_9: a mismatching echo is rejected, the same
      * value is accepted. */
@@ -739,7 +749,9 @@ int test_TLSX_MFL_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -777,7 +789,9 @@ int test_TLSX_THM_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -951,7 +965,9 @@ int test_TLSX_SecureRenegotiation_parse(void)
         (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client side response direction: *input == 2*TLS_FINISHED_SZ, but the
      * declared extension length disagrees with it -- length is the
@@ -985,7 +1001,9 @@ int test_TLSX_SecureRenegotiation_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1040,7 +1058,9 @@ int test_TLSX_SupportedVersions_parse(void)
                     &found), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* An over-long list also fails on its own: odd total length (so the
      * parity check already passes) but still over MAX_SV_EXT_LEN. */
@@ -1064,7 +1084,9 @@ int test_TLSX_SupportedVersions_parse(void)
                     &found), WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* server_hello / hello_retry_request direction, client side. */
     ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
@@ -1103,7 +1125,9 @@ int test_TLSX_SupportedVersions_parse(void)
                     WC_NO_ERR_TRACE(SANITY_MSG_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Downgrade bookkeeping: ssl->options.downgrade set and the connection
      * already sitting at TLS 1.2 minor -- vs. either being false. */
@@ -1138,7 +1162,9 @@ int test_TLSX_SupportedVersions_parse(void)
                     &found), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1183,7 +1209,9 @@ int test_TLSX_SignatureAlgorithms_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #if !defined(NO_RSA) && defined(HAVE_TLS_EXTENSIONS) && defined(WOLFSSL_TLS13)
     /* SignatureAlgorithmsCert: same length checks, separate extension.
@@ -1218,7 +1246,9 @@ int test_TLSX_SignatureAlgorithms_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_SignatureAlgorithms_MapPss(): rsa_pss_sa_algo entries whose
      * second byte is within [pss_sha256, pss_sha512] vs. just above it,
@@ -1246,7 +1276,9 @@ int test_TLSX_SignatureAlgorithms_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 #endif
 #endif
@@ -1302,7 +1334,9 @@ int test_TLSX_CSR_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     /* Client side, TLS 1.3 certificate direction (RFC 8446 4.4.2): the OCSP
@@ -1509,7 +1543,9 @@ int test_TLSX_PointFormat_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
@@ -1713,7 +1749,9 @@ int test_TLSX_SNI_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifndef NO_WOLFSSL_CLIENT
     /* Client side response direction: SNI configured (extension and its
@@ -1739,7 +1777,9 @@ int test_TLSX_SNI_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client side, SNI not requested at all: response is an unsupported
      * extension. */
@@ -1754,7 +1794,9 @@ int test_TLSX_SNI_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_WOLFSSL_CLIENT */
 #endif
     return EXPECT_RESULT();
@@ -1960,7 +2002,9 @@ int test_TLSX_ValidateSupportedCurves(void)
                     1);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1996,7 +2040,9 @@ int test_TLSX_SupportedGroups_parse(void)
         ExpectNull(extensions);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* server_hello direction, TLS 1.3: the version half of the guard no
      * longer applies, so parsing proceeds. */
@@ -2023,7 +2069,9 @@ int test_TLSX_SupportedGroups_parse(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* client_hello direction is never checked against the version; a TLS
      * 1.2 connection reaches the same body parsing as above. Also the
@@ -2101,7 +2149,9 @@ int test_TLSX_SupportedGroups_parse(void)
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Second shape: a local restriction is already configured (as if from
      * wolfSSL_CTX_set1_groups_list()), so parsing intersects the peer's
@@ -2193,7 +2243,9 @@ int test_TLSX_SupportedGroups_parse(void)
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same restriction shape, response direction: needs a TLS 1.3
      * connection to get past the version guard tested first (a TLS 1.2
@@ -2215,7 +2267,9 @@ int test_TLSX_SupportedGroups_parse(void)
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2252,7 +2306,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     &searched), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2267,7 +2323,9 @@ int test_TLSX_KeyShare_negotiate(void)
         ExpectNull(kse);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Choose(): extension->resp == 1 means a server key share
      * was already chosen (e.g. after a HelloRetryRequest) -- outside of
@@ -2298,7 +2356,9 @@ int test_TLSX_KeyShare_negotiate(void)
         ExpectIntEQ(searched, 1);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef WOLFSSL_HAVE_MLKEM
     /* TLSX_KeyShare_Choose(): a client-offered group above WOLFSSL_ECC_MAX
@@ -2334,7 +2394,9 @@ int test_TLSX_KeyShare_negotiate(void)
                 ExpectIntEQ(searched, 1);
             }
             wolfSSL_free(ssl);
+            ssl = NULL;
             wolfSSL_CTX_free(ctx);
+            ctx = NULL;
         }
     }
 #endif /* WOLFSSL_HAVE_MLKEM */
@@ -2350,7 +2412,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2361,7 +2425,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_STATE_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Parse_ClientHello(): the list-length prefix and the
      * MAX_EXT_DATA_LEN bound. Both are checked against the 'length'
@@ -2396,7 +2462,9 @@ int test_TLSX_KeyShare_negotiate(void)
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Parse(), server_hello direction: "not in the list sent
      * if there isn't a private key". A group that was offered (both
@@ -2430,7 +2498,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but the client's entry already has a (fully initialised,
      * so freeing it later is safe) DH key object -- key != NULL alone is
@@ -2468,7 +2538,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(PEER_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but the client's entry already has a private key (as a
      * real one would by the time a ServerHello arrives): the gate passes
@@ -2507,7 +2579,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(PEER_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 #endif
     return EXPECT_RESULT();
@@ -2631,7 +2705,9 @@ int test_TLSX_KeyShare_gen(void)
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 
 #ifdef HAVE_CURVE25519
@@ -2672,7 +2748,9 @@ int test_TLSX_KeyShare_gen(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_CURVE448
@@ -2708,7 +2786,9 @@ int test_TLSX_KeyShare_gen(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE448 */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
@@ -2736,7 +2816,9 @@ int test_TLSX_KeyShare_gen(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 #endif
     return EXPECT_RESULT();
@@ -2790,7 +2872,9 @@ int test_TLSX_KeyShare_freesizewrite(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_GetSize() / TLSX_KeyShare_Write(): "!isRequest &&
      * pubKey == NULL" -- a request-direction (client_hello) list always
@@ -2882,7 +2966,9 @@ int test_TLSX_KeyShare_freesizewrite(void)
         ExpectIntGT(respOff, 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
