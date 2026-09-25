@@ -709,6 +709,7 @@ struct WOLFSSL_X509_STORE_CTX {
 #endif
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
     int depth;                   /* used in X509_STORE_CTX_*_depth */
+    WC_BITFIELD depthSet:1;      /* depth set via set_depth() */
 #endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
