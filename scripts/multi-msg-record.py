@@ -222,6 +222,18 @@ def _run_wolf_client(port, version, cipher, extra=()):
     return subprocess.run(cmd, capture_output=True, timeout=15)
 
 
+def _describe_failure(proc, result):
+    """Render the client's and the server's side of a failed connection."""
+    client = proc.stderr.decode("utf-8", errors="replace").strip()
+    server = result["error"].strip()
+    parts = ["client rc={}".format(proc.returncode)]
+    if client:
+        parts.append("client: " + client[-400:])
+    if server:
+        parts.append("server: " + server[-400:])
+    return "; ".join(parts)
+
+
 class _SendRecordTrace:
     """Context manager that wraps RecordLayer.sendRecord to log every record."""
 
@@ -357,6 +369,9 @@ def run_tls12_test(cipher_wolf, cert_chain, priv_key, label,
     orig_getExt = HelloMessage.getExtension
 
     def patched_getExt(self, ext_type):
+        # tlslite-ng 0.8.0b1 promises a session ticket it never sends (-390).
+        if ext_type == ExtensionType.session_ticket:
+            return None
         ext = orig_getExt(self, ext_type)
         if (ext_type == ExtensionType.renegotiation_info
                 and ext is not None and reneg_active[0]):
@@ -445,8 +460,7 @@ def run_tls12_test(cipher_wolf, cert_chain, priv_key, label,
     st.join(timeout=5)
 
     if proc.returncode != 0 or not result["ok"]:
-        err = (result["error"]
-               or proc.stderr.decode("utf-8", errors="replace")[:400])
+        err = _describe_failure(proc, result)
         failed(f"{label}: connection failed ({err})")
         return False
 
@@ -516,7 +530,7 @@ def run_tls13_test(cipher_wolf, cert_chain, priv_key, label):
         st.join(timeout=5)
 
     if proc.returncode != 0 or not result["ok"]:
-        err = result["error"] or proc.stderr.decode("utf-8", errors="replace")[:200]
+        err = _describe_failure(proc, result)
         failed(f"{label}: handshake failed ({err})")
         return False
 
@@ -531,6 +545,74 @@ def run_tls13_test(cipher_wolf, cert_chain, priv_key, label):
         failed(f"{label}: no multi-message encrypted records")
         return False
     return True
+
+
+def run_tls12_ticket_expect_test(cert_chain, priv_key, label):
+    """Expect SESSION_TICKET_EXPECT_E when a promised ticket never arrives."""
+    srv, port = _listen_socket()
+
+    result = {"ok": False, "error": ""}
+    offered = [None]
+
+    orig_getExt = HelloMessage.getExtension
+    orig_send_tickets = TLSConnection._serverSendTickets
+
+    def patched_getExt(self, ext_type):
+        ext = orig_getExt(self, ext_type)
+        if ext_type == ExtensionType.session_ticket and offered[0] is None:
+            offered[0] = ext is not None
+        return ext
+
+    def no_tickets(self, settings):
+        # The ServerHello still promises a ticket; this sends none.
+        return iter(())
+
+    def server():
+        try:
+            HelloMessage.getExtension = patched_getExt
+            TLSConnection._serverSendTickets = no_tickets
+
+            conn, _ = srv.accept()
+            conn.settimeout(15)
+            tls = TLSConnection(conn)
+            settings = HandshakeSettings()
+            settings.minVersion = (3, 3)
+            settings.maxVersion = (3, 3)
+            # Releases from 0.8.0-beta2 on only echo the extension when
+            # ticket keys are configured.
+            settings.ticketKeys = [bytearray(32)]
+            settings.ticket_count = 1
+
+            tls.handshakeServer(certChain=cert_chain, privateKey=priv_key,
+                                settings=settings)
+            tls.close()
+            result["ok"] = True
+        except Exception:
+            import traceback
+            result["error"] = traceback.format_exc()
+        finally:
+            HelloMessage.getExtension = orig_getExt
+            TLSConnection._serverSendTickets = orig_send_tickets
+            srv.close()
+
+    st = threading.Thread(target=server, daemon=True)
+    st.start()
+    time.sleep(0.1)
+
+    proc = _run_wolf_client(port, "3", None)
+    st.join(timeout=5)
+
+    if offered[0] is False:
+        skipped(f"{label} (build has no HAVE_SESSION_TICKET)")
+        return True
+
+    err = proc.stderr.decode("utf-8", errors="replace")
+    if offered[0] and proc.returncode != 0 and "-390" in err:
+        passed(f"{label}: client rejected the missing NewSessionTicket")
+        return True
+
+    failed(f"{label}: expected -390, got {_describe_failure(proc, result)}")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -613,6 +695,9 @@ def main():
         if not feats["secure_reneg"]:
             skipped("TLS1.2 encrypted multi-msg record "
                     "(requires HAVE_SECURE_RENEGOTIATION)")
+
+        run_tls12_ticket_expect_test(
+            rsa_chain, rsa_key, "TLS1.2 promised session ticket never sent")
     else:
         skipped(f"TLS 1.2 tests ({len(tls12_suites)} suites) - "
                 "wolfSSL built without TLS 1.2")
