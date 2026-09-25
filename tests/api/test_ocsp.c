@@ -4261,6 +4261,89 @@ int test_tls13_nonblock_ocsp_low_mfl(void)
 }
 #endif
 
+#if defined(HAVE_OCSP) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_NONBLOCK_OCSP) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
+static int test_dtls13_nonblock_ocsp_block;
+static int test_dtls13_nonblock_ocsp_cnt;
+
+static int test_dtls13_nonblock_ocsp_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* request, int requestSz,
+    unsigned char** response)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+
+    if (test_dtls13_nonblock_ocsp_block > 0) {
+        test_dtls13_nonblock_ocsp_block--;
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    test_dtls13_nonblock_ocsp_cnt++;
+    *response = (unsigned char*)resp_server1_cert;
+    return (int)sizeof(resp_server1_cert);
+}
+
+static int test_dtls13_nonblock_ocsp_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_URL_OVERRIDE |
+        WOLFSSL_OCSP_NO_NONCE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_dtls13_nonblock_ocsp_io_cb,
+        NULL, NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_nonblock_ocsp_unfragmented_cert(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+    int blocking;
+
+    /* The leaf alone fits one record, so the client processes the Certificate
+     * directly instead of from its reassembly buffer. */
+    for (blocking = 0; blocking <= TEST_OCSP_NONBLOCK_MAX && !EXPECT_FAIL();
+            blocking++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_dtls13_nonblock_ocsp_block = blocking;
+        test_dtls13_nonblock_ocsp_cnt = 0;
+        test_ctx.c_cb.method = wolfDTLSv1_3_client_method;
+        test_ctx.s_cb.method = wolfDTLSv1_3_server_method;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-leaf.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready = test_dtls13_nonblock_ocsp_ctx_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_dtls13_nonblock_ocsp_cnt, 1);
+        ExpectIntEQ(test_dtls13_nonblock_ocsp_block, 0);
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "block %d, client error %d\n", blocking,
+                wolfSSL_get_error(test_ctx.c_ssl, 0));
+        }
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+int test_dtls13_nonblock_ocsp_unfragmented_cert(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own copy of
  * the CTX certificate, which sets ssl->buffers.weOwnCert and takes the CTX
  * request cache out of play entirely - there is nothing to test in that
