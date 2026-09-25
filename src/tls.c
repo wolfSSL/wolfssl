@@ -1196,8 +1196,13 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
+/* A cryptocb device that services HMAC SETKEY owns the key: wc_HmacSetKey()
+ * leaves keyRaw NULL and never derives the software ipad/opad the raw-hash path
+ * reads. Only WOLF_CRYPTO_CB_SETKEY builds reach that (incl. a find-mapped
+ * device with no devId). */
 #if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
-    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B)
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B) || \
+    (defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY))
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1467,6 +1472,17 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         if (verify && padSz >= 0) {
 #if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+            /* keyRaw NULL: a device owns the key, so the raw-hash state is
+             * empty -- use update/final, which keeps the dummy-block padding
+             * equalization. Software-keyed HMACs (keyRaw set, incl. PK-only
+             * offload) keep the raw-hash path below. */
+            if (hmac->keyRaw == NULL) {
+                ret = Hmac_UpdateFinal(hmac, digest, in,
+                        totalSz, myInner, innerSz);
+            }
+            else
+    #endif
     #ifdef HAVE_BLAKE2B
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(hmac, digest, in,
