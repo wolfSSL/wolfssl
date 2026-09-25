@@ -18117,7 +18117,8 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             total = 0;
             for (ci = 0; ci < (size_t)nchunk; ci++)
                 total += chunk[ci];
-            /* Each of plain/ref/buf is one XTS_STREAM_SZ slice of large_input. */
+            /* plain, ref and buf are each one XTS_STREAM_SZ slice of
+             * large_input. */
             if (total > (word32)XTS_STREAM_SZ)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 

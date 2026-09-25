@@ -1013,7 +1013,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     if (sha3->i > 0) {
         byte *t;
