@@ -6,11 +6,20 @@ Breaking changes:
 
 - Curve25519Key::generate() now takes ownership of the RNG instead of borrowing
   it; the key holds the RNG for its lifetime
+- Ed25519 and Ed448 no longer implement the signature crate's Keypair trait;
+  use the new SigningKey types instead
 
 New features:
 
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
+- Add ed25519::SigningKey and ed448::SigningKey, which always carry a public
+  key and so implement Keypair::verifying_key() without it being able to fail
+
+Fixes and improvements:
+
+- Fix a panic in Keypair::verifying_key() for Ed25519 and Ed448 keys with no
+  public key, such as after new() or import_private_only()
 
 ## v2.2.0
 
