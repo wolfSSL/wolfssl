@@ -375,7 +375,10 @@ struct wc_PKCS7 {
     word32 pkcs7DigestSz;
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-    wc_UnknownExtCallback unknownExtCallback;
+    /* The word32 callback receives untruncated OID arcs, so it takes
+     * precedence: when both are set only unknownExtCallback32 is invoked. */
+    wc_UnknownExtCallback   unknownExtCallback;
+    wc_UnknownExtCallback32 unknownExtCallback32;
 #endif
 
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
@@ -430,6 +433,8 @@ WOLFSSL_API wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     WOLFSSL_API void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7,
         wc_UnknownExtCallback cb);
+    WOLFSSL_API void wc_PKCS7_SetUnknownExtCallback32(wc_PKCS7* pkcs7,
+        wc_UnknownExtCallback32 cb);
 #endif
 WOLFSSL_API int  wc_PKCS7_Init(wc_PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* der, word32 derSz);
