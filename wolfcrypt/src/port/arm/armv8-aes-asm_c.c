@@ -43571,6 +43571,7 @@ void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out, word32 sz,
     byte* key, byte* tweak, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+    ".arch_extension crypto\n\t"
         "ld1	{v4.16b}, [%x[tweak]]\n\t"
         "mov	x9, v4.d[0]\n\t"
         "mov	x10, v4.d[1]\n\t"
@@ -44514,6 +44515,7 @@ void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out, word32 sz,
     byte* key, byte* tweak, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+    ".arch_extension crypto\n\t"
         "ld1	{v4.16b}, [%x[tweak]]\n\t"
         "mov	x9, v4.d[0]\n\t"
         "mov	x10, v4.d[1]\n\t"
