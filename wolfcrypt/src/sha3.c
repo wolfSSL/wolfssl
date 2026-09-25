@@ -174,6 +174,14 @@
     #define SHA3_NEEDS_VREG_CLAIM
 #endif
 
+/* A certifiable build carries one Keccak permutation, so a refused claim is an
+ * error there instead of a switch to the C block; dev builds keep the switch.
+ * WOLFSSL_FIPS_DEV covers both dev and dev-no-post. */
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !(FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV))
+    #define SHA3_CLAIM_FALLBACK
+#endif
+
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
     !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM) && \
     !defined(WOLFSSL_ARMASM_NO_NEON)
@@ -1036,7 +1044,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
             ret = 0;
@@ -1213,7 +1221,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2382,7 +2390,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2699,7 +2707,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
 #else
             return ret;
