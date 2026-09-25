@@ -848,6 +848,12 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
 
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
         if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
+            if ((curr->verified > 0) && (crle->verified == 0)) {
+                WOLFSSL_MSG("Unverified CRL cannot replace a verified entry");
+                wc_UnLockRwLock(&crl->crlLock);
+                return DUPE_ENTRY_E;
+            }
+
             ret = CompareCRLnumber(crle, curr);
             /* Error out if the CRL we're attempting to add isn't more
              * authoritative than the existing entry */
