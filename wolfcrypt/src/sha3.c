@@ -137,24 +137,16 @@
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
-    /* Block-function selection when USE_INTEL_SPEEDUP: AVX2 on Intel, else
-     * BMI2, else the C block.  Measured single-instance Keccak-f[1600]
-     * (Ethereum "Optimizing Keccak"; OpenSSL keccak1600-x86_64.pl): AVX2 is
-     * ~13-17% faster than BMI2 on Intel Haswell..Skylake, tied on Ice Lake,
-     * but ~2x SLOWER on AMD Zen, so AVX2 is Intel-only.  (Single-stream
+    /* Block-function selection when USE_INTEL_SPEEDUP: BMI2, then AVX2, then
+     * the C block.  BMI2 is preferred because its block uses general
+     * registers only and so needs no vector-register claim; AVX2 goes first
+     * only when WOLFSSL_SHA3_AVX2 explicitly asks for it.  (Single-stream
      * AVX-512 is vpermt2q-bound and slower than BMI2 everywhere measured, so
      * it is not built - see scripts sha3_avx512.rb.)
-     * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
+     * Overrides: WOLFSSL_SHA3_AVX2 puts AVX2 ahead of BMI2;
      *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
-    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA. */
-
-    /* True only when AVX2 was explicitly asked for; it then wins over BMI2,
-     * which is otherwise tried first (see the selection order below). */
-#if !defined(WOLFSSL_SHA3_NO_AVX2) && defined(WOLFSSL_SHA3_AVX2)
-    #define SHA3_FORCE_AVX2(f) IS_INTEL_AVX2(f)
-#else
-    #define SHA3_FORCE_AVX2(f) 0
-#endif
+    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA, which still
+     * selects AVX2 first; only SHA-3's own order changed here. */
 
     /* True when the selected block function uses vector registers and so
      * needs the caller to save/restore them.  BMI2 and the C block use only
@@ -183,8 +175,7 @@
 #endif
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
-    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM) && \
-    !defined(WOLFSSL_ARMASM_NO_NEON)
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
     /* armv8-32-sha3-asm.S has a NEON block (vpush d8-d15) and an integer-only
      * one under WOLFSSL_ARMASM_NO_NEON; only the NEON block needs a claim. */
     #define SHA3_BLOCK_VREGS(f) 1
@@ -956,13 +947,17 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
 #endif
-        /* BMI2 first: measured 1.25x AVX2 here, and it uses only general
-         * registers, so in-kernel it needs no vector-register save. */
-        if (SHA3_FORCE_AVX2(cpuid_flags)) {
+#if defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
+        /* WOLFSSL_SHA3_AVX2 asks for AVX2 ahead of BMI2. */
+        if (SHA3_USE_AVX2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
-        else if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+        else
+#endif
+        /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
+         * it needs no vector-register claim. */
+        if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
         }
@@ -2113,15 +2108,15 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Keccak-256 is a different hash from SHA3-256, so refuse the request
+     * instead of accepting it and hashing with the other one (FIPS 202 6.1).
+     * Checked first, so the answer does not depend on having a context. */
+    if ((flags & WC_HASH_SHA3_KECCAK256) != 0) {
+        return FIPS_NOT_ALLOWED_E;
+    }
+#endif
     if (sha3) {
-    #if FIPS_VERSION3_GE(7,0,0)
-        /* Keccak-256 is a different hash from SHA3-256, so refuse the request
-         * instead of accepting it and hashing with the other one
-         * (FIPS 202 6.1). */
-        if ((flags & WC_HASH_SHA3_KECCAK256) != 0) {
-            return FIPS_NOT_ALLOWED_E;
-        }
-    #endif
         sha3->flags = flags;
     }
     return 0;
