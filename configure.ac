@@ -11900,6 +11900,12 @@ then
     if test "$ENABLED_SLHDSA" != "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_SLHDSA"
     fi
+    if test "$ENABLED_LMS" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_LMS"
+    fi
+    if test "$ENABLED_XMSS" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_XMSS"
+    fi
 fi
 
 if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"

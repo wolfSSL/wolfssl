@@ -478,6 +478,7 @@ WOLFSSL_API int  wc_XmssKey_ImportPubRaw_ex(XmssKey* key, const byte* in,
 WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
     const byte* msg, int msgSz);
 
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 WOLFSSL_LOCAL int wc_xmssmt_keygen(XmssState *state, const unsigned char* seed,
     unsigned char *sk, unsigned char *pk);
 WOLFSSL_LOCAL int wc_xmss_keygen(XmssState *state, const unsigned char* seed,
@@ -492,6 +493,7 @@ WOLFSSL_LOCAL int wc_xmss_sigsleft(const XmssParams* params, unsigned char* sk);
 
 WOLFSSL_LOCAL int wc_xmssmt_verify(XmssState *state, const unsigned char *m,
     word32 mlen, const unsigned char *sm, const unsigned char *pk);
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 
 #ifdef __cplusplus
 } /* extern "C" */

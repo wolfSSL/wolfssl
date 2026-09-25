@@ -56,6 +56,7 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 /***************************
  * DIGEST init and free.
  ***************************/
@@ -165,6 +166,7 @@ static WC_INLINE void wc_xmss_state_free(XmssState* state)
 {
     wc_xmss_digest_free(state);
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 
 
 /***************************
@@ -685,6 +687,7 @@ static int wc_xmssmt_str_to_params(const char *s, word32* oid,
  * @return  BAD_FUNC_ARG when private key already allocated.
  * @return  MEMORY_E when allocating dynamic memory fails.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 static int wc_xmsskey_alloc_sk(XmssKey* key)
 {
     int ret = 0;
@@ -821,6 +824,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 #endif /* !WOLFSSL_XMSS_VERIFY_ONLY */
 
 /***************************
@@ -1058,6 +1062,17 @@ void wc_XmssKey_Free(XmssKey* key)
 {
     /* Validate parameter. */
     if (key != NULL) {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN,
+                                   WC_PQC_STATEFUL_SIG_TYPE_XMSS, (void*)key);
+            /* always continue to software cleanup */
+        }
+#endif
     #ifndef WOLFSSL_XMSS_VERIFY_ONLY
         if (key->sk != NULL) {
             /* Zeroize private key. */
@@ -1203,12 +1218,14 @@ int wc_XmssKey_SetContext(XmssKey* key, void* context)
 int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 {
     int            ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     enum wc_XmssRc cb_rc = WC_XMSS_RC_NONE;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* seed = NULL;
 #else
     unsigned char  seed[3 * WC_XMSS_MAX_N];
 #endif
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 
     /* Validate parameters */
     if ((key == NULL) || (rng == NULL)) {
@@ -1223,7 +1240,12 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigKeyGen(WC_PQC_STATEFUL_SIG_TYPE_XMSS,
             key, rng);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
@@ -1239,6 +1261,11 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Ensure write callback available. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: XmssKey write callback is not set");
@@ -1315,6 +1342,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     }
 
     WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
+
     return ret;
 }
 
@@ -1354,7 +1383,9 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 int wc_XmssKey_Reload(XmssKey* key)
 {
     int            ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     enum wc_XmssRc cb_rc = WC_XMSS_RC_NONE;
+#endif
 
     /* Validate parameter. */
     if (key == NULL) {
@@ -1379,6 +1410,12 @@ int wc_XmssKey_Reload(XmssKey* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    /* The device owns the state, so there is nothing to reload. */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Ensure read and write callbacks are available. */
     if ((ret == 0) && ((key->write_private_key == NULL) ||
             (key->read_private_key == NULL))) {
@@ -1407,6 +1444,7 @@ int wc_XmssKey_Reload(XmssKey* key)
     if (ret == 0) {
         key->state = WC_XMSS_STATE_OK;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }
@@ -1509,7 +1547,12 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigSign(msg, (word32)msgLen, sig, sigLen,
             WC_PQC_STATEFUL_SIG_TYPE_XMSS, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -1518,6 +1561,11 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Check read and write callbacks available. */
     if ((ret == 0) && ((key->write_private_key == NULL) ||
             (key->read_private_key == NULL))) {
@@ -1530,6 +1578,7 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
         /* Finally, sign and update the secret key. */
         ret = wc_xmsskey_signupdate(key, sig, msg, msgLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }
@@ -1549,7 +1598,10 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         return 0;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+#endif
+    {
         word32 sigsLeft = 0;
         int cbRet = wc_CryptoCb_PqcStatefulSigSigsLeft(
             WC_PQC_STATEFUL_SIG_TYPE_XMSS, key, &sigsLeft);
@@ -1569,6 +1621,7 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
     }
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     /* Validate state. */
     if (key->state == WC_XMSS_STATE_NOSIGS) {
         WOLFSSL_MSG("error: XMSS signatures exhausted");
@@ -1588,6 +1641,7 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         /* Ask implementation to check index in private key. */
         ret = wc_xmss_sigsleft(key->params, key->sk);
     }
+#endif
 
     return ret;
 }
@@ -2039,7 +2093,12 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         int res = 0;
         ret = wc_CryptoCb_PqcStatefulSigVerify(sig, sigLen, m, (word32)mLen,
             &res, WC_PQC_STATEFUL_SIG_TYPE_XMSS, key);
@@ -2052,10 +2111,13 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     }
 #endif
 
-    /* Only the software verifier needs the public key locally; a device
-     * holds its own copy. */
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if ((ret == 0) && (!key->pubSet)) {
-        WOLFSSL_MSG("error: XMSS key holds no public key");
+        WOLFSSL_MSG("error: XMSS key contains no public key");
         ret = BAD_STATE_E;
     }
 
@@ -2077,6 +2139,7 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }

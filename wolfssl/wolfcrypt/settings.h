@@ -5957,6 +5957,24 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(WOLF_CRYPTO_CB_ONLY_SLHDSA) && !defined(WOLFSSL_HAVE_SLHDSA)
     #error "WOLF_CRYPTO_CB_ONLY_SLHDSA requires WOLFSSL_HAVE_SLHDSA"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_LMS requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLFSSL_HAVE_LMS)
+    #error "WOLF_CRYPTO_CB_ONLY_LMS requires WOLFSSL_HAVE_LMS"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_LMS is incompatible with FIPS builds"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_XMSS requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLFSSL_HAVE_XMSS)
+    #error "WOLF_CRYPTO_CB_ONLY_XMSS requires WOLFSSL_HAVE_XMSS"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_XMSS is incompatible with FIPS builds"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
