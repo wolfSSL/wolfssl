@@ -38,6 +38,7 @@ EXTRA_DIST += \
         certs/ocsp/server1-cert.pem \
         certs/ocsp/server1-cert.der \
         certs/ocsp/server1-chain-noroot.pem \
+        certs/ocsp/server1-leaf.pem \
         certs/ocsp/server2-key.pem \
         certs/ocsp/server2-key.der \
         certs/ocsp/server2-cert.pem \

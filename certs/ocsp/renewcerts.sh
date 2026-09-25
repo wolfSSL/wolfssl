@@ -148,6 +148,9 @@ update_cert server5          "www5.wolfssl.com"                intermediate3-ca 
 # (used by tests that need a chain where the root is not sent by the server)
 head -n "$(grep -n 'END CERTIFICATE' server1-cert.pem | head -2 | tail -1 | cut -d: -f1)" server1-cert.pem > server1-chain-noroot.pem
 check_result $? ""
+# server1-leaf.pem: server1 alone, small enough for one DTLS 1.3 record
+head -n "$(grep -n 'END CERTIFICATE' server1-cert.pem | head -1 | cut -d: -f1)" server1-cert.pem > server1-leaf.pem
+check_result $? ""
 
 # Create response DER buffer for test
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -partial_chain &

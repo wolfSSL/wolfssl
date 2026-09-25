@@ -17321,6 +17321,10 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
             prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
         ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
                 ca->serialHash, NULL, 0, NULL);
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+        if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+            break;
+    #endif
         if (ret != 0)
             DoCrlCallback(cm, ssl, args, &ret);
         if (ret != 0){
@@ -17796,6 +17800,12 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
         /* Check the entire cert chain */
         if (args->dCert->ca != NULL) {
             ret = ProcessPeerCertsChainCRLCheck(ssl, args);
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+                *pRet = ret;
+                return 1;
+            }
+        #endif
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
                 WOLFSSL_MSG("\tCRL chain check not ok");
@@ -18937,6 +18947,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                         args->certIdx == args->totalCerts-1) {
                                     ret = ProcessPeerCertsChainCRLCheck(ssl,
                                             args);
+                                #ifdef WOLFSSL_NONBLOCK_OCSP
+                                    if (ret == WC_NO_ERR_TRACE(
+                                            OCSP_WANT_READ)) {
+                                        args->lastErr = ret;
+                                        goto exit_ppc;
+                                    }
+                                #endif
                                     if (ret != 0) {
                                         WOLFSSL_ERROR_VERBOSE(ret);
                                         WOLFSSL_MSG("\tCRL chain check not ok");
@@ -44318,6 +44335,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
                     ret = CheckCertCRL(SSL_CM(ssl)->crl, dCert);
+                #ifdef WOLFSSL_NONBLOCK_OCSP
+                    /* Nothing retries this check, so a fetch that would
+                     * block leaves the CRL missing. */
+                    if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+                        ret = CRL_MISSING;
+                #endif
                 }
             #endif
                 if (ret == 0) {
