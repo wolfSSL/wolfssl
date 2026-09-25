@@ -142,7 +142,7 @@ For incremental input, create `FipsHash`, `FipsHmac` or `FipsCmac` and call
 
 ```csharp
 using var gcm = new FipsAesGcm(key);          // 16, 24 or 32-byte key
-gcm.UseInternalIV(rng);                       // once per object: 12-byte IVs from the DRBG
+gcm.UseInternalIV(rng);                       // once per object: first IV from the DRBG
 
 FipsAeadResult r = gcm.Encrypt(plaintext, aad);
 // send r.IV, r.Ciphertext and r.Tag
@@ -199,8 +199,10 @@ byte[] pt = key.Decrypt(ct);
 static byte[] DigestInfoSha256(byte[] digest)
 {
     var w = new System.Formats.Asn1.AsnWriter(System.Formats.Asn1.AsnEncodingRules.DER);
-    using (w.PushSequence()) {
-        using (w.PushSequence()) {
+    using (w.PushSequence())
+    {
+        using (w.PushSequence())
+        {
             w.WriteObjectIdentifier("2.16.840.1.101.3.4.2.1");   // SHA-256
             w.WriteNull();
         }
@@ -286,8 +288,9 @@ opens the gate for that one call and closes it again. `FipsRsaKey.Export()`
 `false` when done, without an `await` in between.
 
 **IVs and nonces.**
-- AES-GCM: `UseInternalIV` once per object (12 or 16-byte IVs, all from the
-  DRBG). At most 2^32 encryptions per key (SP 800-38D 8.3): each object
+- AES-GCM: `UseInternalIV` once per object. It draws the first IV (12 or 16
+  bytes) from the DRBG, and each encryption uses the previous IV plus one
+  (SP 800-38D 8.2.2). At most 2^32 encryptions per key (8.3): each object
   refuses encryption 2^32 + 1, and across objects and `FipsGmac.Compute`
   calls with the same key the application must stay within 2^32.
   Encryption with a caller-chosen IV is not offered.
@@ -305,10 +308,11 @@ CMAC tags 8 to 16. Decryption and GMAC verification take the expected tag
 size and refuse a tag of any other length. Use one tag length per key.
 
 **Secrets returned to you.** DH private keys, shared secrets, KDF output,
-decrypted plaintext and exported RSA components are returned as `byte[]`.
-`FipsDhKeyPair` and `FipsRsaKeyComponents` zero their private parts on
-`Dispose`; zero other buffers with `CryptographicOperations.ZeroMemory` when
-done.
+decrypted plaintext (RSA and AES) and exported RSA private components are
+returned as pinned `byte[]` arrays, so the GC does not leave moved copies. `FipsDhKeyPair` and
+`FipsRsaKeyComponents` zero their private parts on `Dispose`; zero other
+buffers with `CryptographicOperations.ZeroMemory` when done. Copies you make
+yourself are ordinary arrays that the GC can move.
 
 **Dispose.** `Dispose` (or `using`) is how keys and DRBG state in native
 memory are zeroized. An object that is not disposed is zeroized only when its
@@ -404,7 +408,7 @@ input; they add no functionality.
 | AES ECB and CBC input a multiple of 16 bytes | The module otherwise leaves the tail of the output unencrypted |
 | DH peer keys checked with `wc_DhCheckPubKeyEx` before agreement; public keys left-padded to the prime size | `wc_DhAgree` alone checks less; the module returns minimal-length keys |
 | HMAC keys at most 128 bytes | The validated key range is 112 to 1024 bits |
-| TLS 1.2: the non-EMS "master secret" derivation is refused; the EMS session hash must be a digest of the PRF hash | FIPS 140-3 IG D.Q allows the TLS 1.2 KDF only with the extended master secret |
+| TLS 1.2: master secrets only through `Tls12ExtendedMasterSecret`, whose session hash must be a digest of the PRF hash (`Tls12Prf` refuses the "master secret" and "extended master secret" labels, also split across label and seed) | FIPS 140-3 IG D.Q allows the TLS 1.2 KDF only with the extended master secret |
 | TLS 1.3: SHA-256/384 only, "tls13 " prefix, non-empty ASCII label, HkdfLabel within the module's buffer | The module copies the label into a fixed stack buffer without a capacity check |
 | SSH KDF: K must be non-zero and without leading zero bytes | The module keeps redundant leading zeros in the mpint encoding |
 | `RunCast` and `GetCastState` refuse CAST ids outside 0 to 14; `IntegrityTest` returns the status | The module writes its CAST array before checking the id, and its integrity test always returns 0 |
@@ -432,8 +436,10 @@ directory `libwolfssl` was loaded from.
 cannot be freed while the module is using it. Releasing it runs the module's
 free routine, then zeroes and frees the memory. In the FAILED state, or after
 the algorithm's CAST failed, the module refuses its RNG, RSA, ECC and DH free
-routines; the wrapper still zeroes the structure and counts the refusal in
-`FipsModule.RefusedFreeCount`.
+routines. The wrapper still zeroes the structure and counts the refusal in
+`FipsModule.RefusedFreeCount`, but state the module allocated behind it (such
+as the DRBG's V and C) stays in memory unzeroized; after a module failure,
+end the process.
 
 **Files.**
 

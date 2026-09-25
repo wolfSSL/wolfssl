@@ -31,7 +31,8 @@ namespace wolfSSL.CSharp.Fips.Test
      * AsnWriter from the dotted OIDs, independently of the wrapper. */
     internal static class Pkcs1
     {
-        internal static string Oid(FipsHashType h) => h switch {
+        internal static string Oid(FipsHashType h) => h switch
+        {
             FipsHashType.Sha1 => "1.3.14.3.2.26",
             FipsHashType.Sha224 => "2.16.840.1.101.3.4.2.4",
             FipsHashType.Sha256 => "2.16.840.1.101.3.4.2.1",
@@ -46,8 +47,10 @@ namespace wolfSSL.CSharp.Fips.Test
         internal static byte[] DigestInfo(FipsHashType h, byte[] digest)
         {
             var w = new AsnWriter(AsnEncodingRules.DER);
-            using (w.PushSequence()) {
-                using (w.PushSequence()) {
+            using (w.PushSequence())
+            {
+                using (w.PushSequence())
+                {
                     w.WriteObjectIdentifier(Oid(h));
                     w.WriteNull();
                 }

@@ -20,7 +20,6 @@
  */
 
 using System;
-using System.Runtime.InteropServices;
 
 namespace wolfSSL.CSharp.Fips
 {
@@ -40,8 +39,20 @@ namespace wolfSSL.CSharp.Fips
             FipsModule.EnsureHelperMatchesModule();
             int sz = Native.SizeOf((int)type);
             if (sz <= 0)
+            {
                 throw new NotSupportedException(type + " is not available in this wolfSSL build");
+            }
+
             return sz;
+        }
+
+        /* Secrets returned to callers are pinned, so the GC cannot leave moved,
+         * unzeroed copies before the caller zeroes them. */
+        internal static byte[] PinnedCopy(byte[] src, int offset, int len)
+        {
+            byte[] dst = GC.AllocateArray<byte>(len, pinned: true);
+            Array.Copy(src, offset, dst, 0, len);
+            return dst;
         }
 
         /* Registers the wc_*Free_fips routine for the initialized structure. */
@@ -54,13 +65,17 @@ namespace wolfSSL.CSharp.Fips
         internal void ThrowIfDisposed()
         {
             if (Handle.IsClosed)
+            {
                 throw new ObjectDisposedException(GetType().Name);
+            }
         }
 
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
+            {
                 Handle.Dispose();
+            }
         }
 
         public void Dispose()

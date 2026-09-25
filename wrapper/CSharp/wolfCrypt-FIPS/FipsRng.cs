@@ -56,11 +56,13 @@ namespace wolfSSL.CSharp.Fips
          * draws the nonce from the seed source. */
         public FipsRng(byte[] nonce) : base(FipsStructType.Rng)
         {
-            if (nonce == null) {
+            if (nonce == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(nonce));
             }
-            if (nonce.Length < MinNonceSize) {
+            if (nonce.Length < MinNonceSize)
+            {
                 Dispose();
                 throw new ArgumentException("DRBG nonce must be at least " + MinNonceSize +
                     " bytes (SP 800-90A 8.6.7)", nameof(nonce));
@@ -71,7 +73,8 @@ namespace wolfSSL.CSharp.Fips
 
         private void Init(int ret, string fn)
         {
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException(fn, ret);
             }
@@ -86,7 +89,9 @@ namespace wolfSSL.CSharp.Fips
             public void Dispose()
             {
                 if (held != null)
+                {
                     Monitor.Exit(held);
+                }
             }
         }
 
@@ -95,13 +100,18 @@ namespace wolfSSL.CSharp.Fips
         internal Lease Use()
         {
             Monitor.Enter(sync);
-            try {
+            try
+            {
                 ThrowIfDisposed();
                 if (FipsModule.GetCastState(FipsCast.Drbg) == FipsCastState.Failure)
+                {
                     throw new WolfCryptFipsException("DRBG CAST", FipsError.DRBG_KAT_FIPS_E);
+                }
+
                 return new Lease(sync);
             }
-            catch {
+            catch
+            {
                 Monitor.Exit(sync);
                 throw;
             }
@@ -112,17 +122,25 @@ namespace wolfSSL.CSharp.Fips
         public void Generate(byte[] buf)
         {
             if (buf == null)
+            {
                 throw new ArgumentNullException(nameof(buf));
-            int ret;
-            try {
-                using (Use())
-                    ret = Native.wc_RNG_GenerateBlock_fips(Handle, buf, (uint)buf.Length);
             }
-            catch {
+
+            int ret;
+            try
+            {
+                using (Use())
+                {
+                    ret = Native.wc_RNG_GenerateBlock_fips(Handle, buf, (uint)buf.Length);
+                }
+            }
+            catch
+            {
                 CryptographicOperations.ZeroMemory(buf);
                 throw;
             }
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 CryptographicOperations.ZeroMemory(buf);
                 throw new WolfCryptFipsException("wc_RNG_GenerateBlock_fips", ret);
             }
@@ -132,7 +150,10 @@ namespace wolfSSL.CSharp.Fips
         public byte[] Generate(int count)
         {
             if (count < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
             byte[] buf = new byte[count];
             Generate(buf);
             return buf;
@@ -144,12 +165,21 @@ namespace wolfSSL.CSharp.Fips
                                           int outputLen = HealthTestOutputSize)
         {
             if (seedA == null)
+            {
                 throw new ArgumentNullException(nameof(seedA));
+            }
+
             if (reseed && seedB == null)
+            {
                 throw new ArgumentNullException(nameof(seedB), "reseed requires seedB");
+            }
+
             if (outputLen != HealthTestOutputSize)
+            {
                 throw new ArgumentOutOfRangeException(nameof(outputLen),
                     "the module DRBG health test returns exactly " + HealthTestOutputSize + " bytes");
+            }
+
             byte[] output = new byte[outputLen];
             WolfCryptFipsException.Check("wc_RNG_HealthTest_fips",
                 Native.wc_RNG_HealthTest_fips(reseed ? 1 : 0, seedA, (uint)seedA.Length,

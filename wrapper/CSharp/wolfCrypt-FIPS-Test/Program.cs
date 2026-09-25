@@ -27,13 +27,16 @@ namespace wolfSSL.CSharp.Fips.Test
     {
         private static int Main(string[] args)
         {
-            if (args.Length == 1 && args[0] == "--probe-load") {
+            if (args.Length == 1 && args[0] == "--probe-load")
+            {
                 FipsModule.Initialize();   /* resolves both native libraries */
                 Console.WriteLine("loaded " + FipsModule.Version);
                 return 0;
             }
             if (args.Length == 2 && args[0] == "--force")
+            {
                 return ForcedFailureTests.Child(int.Parse(args[1]));
+            }
 
             Console.WriteLine("wolfCrypt FIPS v5.2.1 C# wrapper tests");
             Console.WriteLine("runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription +
@@ -54,10 +57,12 @@ namespace wolfSSL.CSharp.Fips.Test
          * remaining sections still run. */
         private static void Section(string name, Action run)
         {
-            try {
+            try
+            {
                 run();
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 T.Run(name + " section setup", () =>
                     throw new Exception("section aborted: " + e.GetType().Name + ": " + e.Message));
             }

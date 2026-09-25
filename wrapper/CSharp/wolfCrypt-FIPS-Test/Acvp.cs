@@ -65,13 +65,20 @@ namespace wolfSSL.CSharp.Fips.Test
         private static Dictionary<string, List<string>> Index(string reqDir)
         {
             if (index != null)
+            {
                 return index;
+            }
+
             var map = new Dictionary<string, List<string>>();
-            foreach (string req in Directory.GetFiles(reqDir, "*-request.json").OrderBy(f => f)) {
+            foreach (string req in Directory.GetFiles(reqDir, "*-request.json").OrderBy(f => f))
+            {
                 using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(req));
                 string alg = doc.RootElement[1].GetProperty("algorithm").GetString() ?? "";
                 if (!map.TryGetValue(alg, out var files))
+                {
                     map[alg] = files = new List<string>();
+                }
+
                 files.Add(req);
             }
             return index = map;
@@ -84,24 +91,36 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             string? root = Root;
             if (string.IsNullOrEmpty(root))
+            {
                 T.Skip("WOLFACVP_VECTORS not set (path to fips/wolfACVP)");
+            }
+
             string reqDir = Path.Combine(root!, RequestDir);
             string expDir = Path.Combine(root!, ExpectedDir);
             if (!Directory.Exists(reqDir) || !Directory.Exists(expDir))
+            {
                 throw new Exception("WOLFACVP_VECTORS is set but " + RequestDir + " / " + ExpectedDir +
                                     " were not found under " + root);
+            }
 
             var sets = new List<AcvpVectorSet>();
-            foreach (string req in Index(reqDir).GetValueOrDefault(algorithm) ?? new List<string>()) {
+            foreach (string req in Index(reqDir).GetValueOrDefault(algorithm) ?? new List<string>())
+            {
                 JsonElement body;
                 using (JsonDocument reqDoc = JsonDocument.Parse(File.ReadAllText(req)))
+                {
                     body = reqDoc.RootElement[1].Clone();
+                }
+
                 string expName = Path.GetFileName(req).Replace("-request.json", "-expected.json");
                 string exp = Path.Combine(expDir, expName);
                 if (!File.Exists(exp))
+                {
                     throw new Exception("missing expected file " + expName);
+                }
 
-                var set = new AcvpVectorSet {
+                var set = new AcvpVectorSet
+                {
                     Algorithm = algorithm,
                     File = Path.GetFileName(req),
                     Request = body
@@ -109,12 +128,20 @@ namespace wolfSSL.CSharp.Fips.Test
                 using JsonDocument expDoc = JsonDocument.Parse(File.ReadAllText(exp));
                 JsonElement expBody = expDoc.RootElement[1].Clone();
                 foreach (JsonElement g in expBody.GetProperty("testGroups").EnumerateArray())
+                {
                     foreach (JsonElement t in g.GetProperty("tests").EnumerateArray())
+                    {
                         set.Expected[(g.GetProperty("tgId").GetInt32(), t.GetProperty("tcId").GetInt32())] = t;
+                    }
+                }
+
                 sets.Add(set);
             }
             if (sets.Count == 0)
+            {
                 throw new Exception("no ACVP vector sets for " + algorithm);
+            }
+
             return sets;
         }
 

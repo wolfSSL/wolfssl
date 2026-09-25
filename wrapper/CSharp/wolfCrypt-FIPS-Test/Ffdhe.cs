@@ -35,7 +35,8 @@ namespace wolfSSL.CSharp.Fips.Test
         internal const FipsDhGroup Ffdhe6144 = (FipsDhGroup)259;
         internal const FipsDhGroup Ffdhe8192 = (FipsDhGroup)260;
 
-        public static readonly Dictionary<FipsDhGroup, byte[]> P = new() {
+        public static readonly Dictionary<FipsDhGroup, byte[]> P = new()
+        {
             [FipsDhGroup.Ffdhe2048] = T.Hex(
                 "ffffffffffffffffadf85458a2bb4a9aafdc5620273d3cf1d8b9c583ce2d3695" +
                 "a9e13641146433fbcc939dce249b3ef97d2fe363630c75d8f681b202aec4617a" +

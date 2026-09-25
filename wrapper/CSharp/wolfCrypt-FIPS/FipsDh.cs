@@ -66,7 +66,8 @@ namespace wolfSSL.CSharp.Fips
 
         private FipsDh(FipsDhGroup group, bool validatedOnly) : base(FipsStructType.Dh)
         {
-            if (validatedOnly && group != FipsDhGroup.Ffdhe2048) {
+            if (validatedOnly && group != FipsDhGroup.Ffdhe2048)
+            {
                 Dispose();
                 throw new ArgumentException("KAS-FFC-SSC is validated for ffdhe2048 only (SP #4718)", nameof(group));
             }
@@ -80,18 +81,21 @@ namespace wolfSSL.CSharp.Fips
          * Table 4 allows only (len(p), len(q)) = (2048, 224) or (2048, 256). */
         internal FipsDh(byte[] p, byte[] g, byte[] q) : base(FipsStructType.Dh)
         {
-            if (p == null || g == null || q == null) {
+            if (p == null || g == null || q == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(p == null ? nameof(p) : g == null ? nameof(g) : nameof(q));
             }
             int pBits = BitLength(p), qBits = BitLength(q);
-            if (pBits != 2048 || (qBits != 224 && qBits != 256)) {
+            if (pBits != 2048 || (qBits != 224 && qBits != 256))
+            {
                 Dispose();
                 throw new ArgumentException("DH domain parameters must be (len(p), len(q)) = (2048, 224) or (2048, 256)");
             }
             /* The module only checks that p is prime; a composite q would let small-order keys
              * pass y^q = 1, so only the published RFC 5114 2.2 and 2.3 groups are accepted. */
-            if (!KnownDomains.Any(d => SameValue(d.P, p) && SameValue(d.G, g) && SameValue(d.Q, q))) {
+            if (!KnownDomains.Any(d => SameValue(d.P, p) && SameValue(d.G, g) && SameValue(d.Q, q)))
+            {
                 Dispose();
                 throw new ArgumentException("explicit DH domain parameters must be an RFC 5114 2048-bit group " +
                     "(section 2.2 or 2.3); the module cannot validate other domains");
@@ -154,8 +158,16 @@ namespace wolfSSL.CSharp.Fips
         private static int BitLength(byte[] v)
         {
             int i = 0;
-            while (i < v.Length && v[i] == 0) i++;
-            if (i == v.Length) return 0;
+            while (i < v.Length && v[i] == 0)
+            {
+                i++;
+            }
+
+            if (i == v.Length)
+            {
+                return 0;
+            }
+
             int bits = (v.Length - i - 1) * 8, b = v[i];
             while (b != 0) { bits++; b >>= 1; }
             return bits;
@@ -164,7 +176,8 @@ namespace wolfSSL.CSharp.Fips
         private void Init()
         {
             int ret = Native.wc_InitDhKey_fips(Handle);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_InitDhKey_fips", ret);
             }
@@ -173,7 +186,8 @@ namespace wolfSSL.CSharp.Fips
 
         private void Call(string fn, int ret)
         {
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException(fn, ret);
             }
@@ -194,17 +208,25 @@ namespace wolfSSL.CSharp.Fips
         public FipsDhKeyPair GenerateKeyPair(FipsRng rng)
         {
             if (rng == null)
+            {
                 throw new ArgumentNullException(nameof(rng));
+            }
+
             ThrowIfDisposed();
             byte[] priv = GC.AllocateArray<byte>(PrimeSize, pinned: true), pub = new byte[PrimeSize];
             uint privSz = (uint)priv.Length, pubSz = (uint)pub.Length;
-            try {
+            try
+            {
                 using (rng.Use())
+                {
                     WolfCryptFipsException.Check("wc_DhGenerateKeyPair_fips", FipsModule.WithPrivateKeyRead(() =>
                         Native.wc_DhGenerateKeyPair_fips(Handle, rng.Handle, priv, ref privSz, pub, ref pubSz)));
-                return new FipsDhKeyPair(priv.Take((int)privSz).ToArray(), PadToPrime(pub, pubSz));
+                }
+
+                return new FipsDhKeyPair(PinnedCopy(priv, 0, (int)privSz), PadToPrime(pub, pubSz));
             }
-            finally {
+            finally
+            {
                 CryptographicOperations.ZeroMemory(priv);
             }
         }
@@ -215,28 +237,35 @@ namespace wolfSSL.CSharp.Fips
         public byte[] Agree(byte[] privateKey, byte[] peerPublicKey)
         {
             if (privateKey == null || peerPublicKey == null)
+            {
                 throw new ArgumentNullException(privateKey == null ? nameof(privateKey) : nameof(peerPublicKey));
+            }
+
             ThrowIfDisposed();
             /* The module's public key check first (wc_DhCheckPubKeyEx; with
              * q for explicit domains it includes y^q = 1). */
             int chk = Native.wc_DhCheckPubKeyEx_fips(Handle, peerPublicKey, (uint)peerPublicKey.Length,
                                                      q, q == null ? 0u : (uint)q.Length);
             if (chk != 0)
+            {
                 throw new WolfCryptFipsException("wc_DhCheckPubKeyEx_fips", chk);
+            }
             /* pinned and zeroed on every exit, including a failure to
-             * close the private key read gate after a successful agree */
+* close the private key read gate after a successful agree */
             byte[] z = GC.AllocateArray<byte>(PrimeSize, pinned: true);
-            try {
+            try
+            {
                 uint zSz = (uint)z.Length;
                 WolfCryptFipsException.Check("wc_DhAgree_fips", FipsModule.WithPrivateKeyRead(() =>
                     Native.wc_DhAgree_fips(Handle, z, ref zSz, privateKey, (uint)privateKey.Length,
                                            peerPublicKey, (uint)peerPublicKey.Length)));
                 /* left-pad Z to the length of p (SP 800-56A 5.7.1.1) */
-                byte[] result = new byte[PrimeSize];
+                byte[] result = GC.AllocateArray<byte>(PrimeSize, pinned: true);
                 Buffer.BlockCopy(z, 0, result, PrimeSize - (int)zSz, (int)zSz);
                 return result;
             }
-            finally {
+            finally
+            {
                 CryptographicOperations.ZeroMemory(z);
             }
         }
@@ -257,7 +286,10 @@ namespace wolfSSL.CSharp.Fips
         private bool CheckArgs(byte[] v, string name)
         {
             if (v == null)
+            {
                 throw new ArgumentNullException(name);
+            }
+
             ThrowIfDisposed();
             return true;
         }
@@ -265,7 +297,10 @@ namespace wolfSSL.CSharp.Fips
         private static bool CheckResult(string fn, int ret)
         {
             if (FipsError.IsModuleStateError(ret))
+            {
                 throw new WolfCryptFipsException(fn, ret);
+            }
+
             return ret == 0;
         }
     }

@@ -37,12 +37,9 @@
 #include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/kdf.h>
 
-/* user_settings.h FIPS builds may define only HAVE_FIPS_VERSION */
-#if !defined(HAVE_FIPS_VERSION_MAJOR) && defined(HAVE_FIPS_VERSION)
-    #define HAVE_FIPS_VERSION_MAJOR HAVE_FIPS_VERSION
-#endif
-#if !defined(HAVE_FIPS_VERSION_MINOR) && defined(HAVE_FIPS_VERSION)
-    #define HAVE_FIPS_VERSION_MINOR 0
+/* The wrapper compares FIPS major.minor with the module's version string */
+#if !defined(HAVE_FIPS_VERSION_MAJOR) || !defined(HAVE_FIPS_VERSION_MINOR)
+    #error "FIPS major/minor version unknown: build against wolfssl/options.h"
 #endif
 
 #if defined(_WIN32)

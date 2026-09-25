@@ -92,24 +92,36 @@ namespace wolfSSL.CSharp.Fips
                                       bool useOsSeed = true)
         {
             if (onFailure != null)
+            {
                 SetFailureCallback(onFailure);
+            }
+
             EnsureHelperMatchesModule();
             /* The module has no entropy source: nothing using the DRBG (incl. ECC CASTs) works
              * until one is registered. A SetSeedCallback source is kept, before or after. */
-            if (useOsSeed) {
-                lock (cbLock) {
+            if (useOsSeed)
+            {
+                lock (cbLock)
+                {
                     if (!customSeed)
+                    {
                         RegisterOsSeed();
+                    }
                 }
             }
             int status = Native.wolfCrypt_GetStatus_fips();
             if (status != 0)
+            {
                 throw new WolfCryptFipsException("wolfCrypt_GetStatus_fips", status);
+            }
+
             FipsMode mode = Mode;
             if (mode != FipsMode.Normal)
+            {
                 throw new WolfCryptFipsException("wolfCrypt_GetMode_fips",
                     mode == FipsMode.Degraded ? FipsError.FIPS_DEGRADED_E
                                               : FipsError.FIPS_NOT_ALLOWED_E);
+            }
         }
 
         /* Struct sizes depend on the build, so the size helper must match the loaded module
@@ -122,24 +134,35 @@ namespace wolfSSL.CSharp.Fips
             int size = Native.SizeOf((int)FipsStructType.LibSize);
             string lib = NativeLoader.WolfsslPath;
             if (crc == 0 || size <= 0)
+            {
                 throw new InvalidOperationException("size helper carries no library fingerprint; build it with build-native.sh");
+            }
+
             byte[] bytes = System.IO.File.ReadAllBytes(lib);
             if (bytes.Length != size || PosixCksum(bytes) != crc)
+            {
                 throw new InvalidOperationException("size helper was built for a different libwolfssl binary than " + lib +
                     "; rebuild it with build-native.sh against this install");
+            }
 
             int mm = Native.SizeOf((int)FipsStructType.FipsVersionMM);
             var m = System.Text.RegularExpressions.Regex.Match(Version ?? "", @"v(\d+)\.(\d+)");
             if (mm <= 0 || !m.Success)
+            {
                 throw new InvalidOperationException("cannot determine FIPS version of the size helper or the module");
+            }
+
             int moduleMM = int.Parse(m.Groups[1].Value) * 100 + int.Parse(m.Groups[2].Value);
             if (mm != moduleMM)
+            {
                 throw new InvalidOperationException("size helper was built for FIPS v" + mm / 100 + "." + mm % 100 +
                     " but the loaded module is " + Version + "; rebuild it with build-native.sh against this install");
+            }
         }
 
         /* Verified once, before the first native structure is allocated. */
-        private static readonly Lazy<Exception?> helperCheck = new(() => {
+        private static readonly Lazy<Exception?> helperCheck = new(() =>
+        {
             try { CheckHelperMatchesModule(); return null; }
             catch (Exception e) { return e; }
         });
@@ -148,7 +171,9 @@ namespace wolfSSL.CSharp.Fips
         {
             Exception? e = helperCheck.Value;
             if (e != null)
+            {
                 throw new InvalidOperationException(e.Message, e);
+            }
         }
 
         /* POSIX cksum (CRC-32 over data then length, complemented).
@@ -160,12 +185,20 @@ namespace wolfSSL.CSharp.Fips
             {
                 crc ^= (uint)b << 24;
                 for (int k = 0; k < 8; k++)
+                {
                     crc = (crc & 0x80000000) != 0 ? (crc << 1) ^ 0x04C11DB7 : crc << 1;
+                }
             }
             foreach (byte b in data)
+            {
                 Add(b);
+            }
+
             for (long n = data.LongLength; n != 0; n >>= 8)
+            {
                 Add((byte)(n & 0xff));
+            }
+
             return ~crc;
         }
 
@@ -200,7 +233,10 @@ namespace wolfSSL.CSharp.Fips
         public static int RunCast(FipsCast cast)
         {
             if ((int)cast < 0 || (int)cast >= CastCount)
+            {
                 throw new ArgumentOutOfRangeException(nameof(cast));
+            }
+
             return Native.wc_RunCast_fips((int)cast);
         }
 
@@ -215,7 +251,10 @@ namespace wolfSSL.CSharp.Fips
         public static FipsCastState GetCastState(FipsCast cast)
         {
             if ((int)cast < 0 || (int)cast >= CastCount)
+            {
                 throw new ArgumentOutOfRangeException(nameof(cast));
+            }
+
             return (FipsCastState)Native.wc_GetCastStatus_fips((int)cast);
         }
 
@@ -224,12 +263,17 @@ namespace wolfSSL.CSharp.Fips
         public static void SetFailureCallback(FipsFailureCallback cb)
         {
             if (cb == null)
+            {
                 throw new ArgumentNullException(nameof(cb));
-            Native.FipsCallback native = (ok, err, hash) => {
+            }
+
+            Native.FipsCallback native = (ok, err, hash) =>
+            {
                 try { cb(ok, err, Marshal.PtrToStringAnsi(hash)); }
                 catch { /* must not unwind into the module */ }
             };
-            lock (cbLock) {
+            lock (cbLock)
+            {
                 registered.Add(native);
                 WolfCryptFipsException.Check("wolfCrypt_SetCb_fips", Native.wolfCrypt_SetCb_fips(native));
             }
@@ -239,7 +283,8 @@ namespace wolfSSL.CSharp.Fips
          * entropy path. An explicit call replaces any custom source. */
         public static void UseOsSeed()
         {
-            lock (cbLock) {
+            lock (cbLock)
+            {
                 RegisterOsSeed();
                 customSeed = false;
             }
@@ -256,13 +301,17 @@ namespace wolfSSL.CSharp.Fips
         public static void SetSeedCallback(FipsSeedCallback cb)
         {
             if (cb == null)
+            {
                 throw new ArgumentNullException(nameof(cb));
+            }
             /* an exception from cb becomes a seed failure, not a native unwind */
-            FipsSeedCallback trampoline = (os, seed, sz) => {
+            FipsSeedCallback trampoline = (os, seed, sz) =>
+            {
                 try { return cb(os, seed, sz); }
                 catch { return -1; }
             };
-            lock (cbLock) {
+            lock (cbLock)
+            {
                 registered.Add(trampoline);
                 IntPtr fn = Marshal.GetFunctionPointerForDelegate(trampoline);
                 WolfCryptFipsException.Check("wc_SetSeed_Cb_fips", Native.wc_SetSeed_Cb_fips(fn));
@@ -276,17 +325,26 @@ namespace wolfSSL.CSharp.Fips
          * closed; false closes it fully, however many times it was opened. */
         public static void SetPrivateKeyReadEnable(bool enable)
         {
-            if (enable) {
+            if (enable)
+            {
                 if (!PrivateKeyReadEnabled)
+                {
                     WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
                         Native.wolfCrypt_SetPrivateKeyReadEnable_fips(1, 0));
+                }
+
                 return;
             }
             for (int i = 0; i < 1024 && PrivateKeyReadEnabled; i++)
+            {
                 WolfCryptFipsException.Check("wolfCrypt_SetPrivateKeyReadEnable_fips",
                     Native.wolfCrypt_SetPrivateKeyReadEnable_fips(0, 0));
+            }
+
             if (PrivateKeyReadEnabled)
+            {
                 throw new InvalidOperationException("private key read gate could not be closed");
+            }
         }
 
         public static bool PrivateKeyReadEnabled =>
@@ -305,13 +363,20 @@ namespace wolfSSL.CSharp.Fips
         {
             bool prev = PrivateKeyReadEnabled;
             if (!prev)
+            {
                 SetPrivateKeyReadEnable(true);
-            try {
+            }
+
+            try
+            {
                 return op();
             }
-            finally {
+            finally
+            {
                 if (!prev)
+                {
                     SetPrivateKeyReadEnable(false);
+                }
             }
         }
     }

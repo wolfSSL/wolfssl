@@ -50,14 +50,21 @@ namespace wolfSSL.CSharp.Fips
         private static IntPtr Resolve(string name, Assembly asm, DllImportSearchPath? path)
         {
             if (name == Native.WOLFSSL)
+            {
                 return LoadWolfssl(asm, path);
-            if (name == Native.SIZES) {
+            }
+
+            if (name == Native.SIZES)
+            {
                 LoadWolfssl(asm, path);
                 string dir = Path.GetDirectoryName(wolfsslPath!)!;
-                foreach (string file in Candidates(name)) {
+                foreach (string file in Candidates(name))
+                {
                     string full = Path.Combine(dir, file);
                     if (File.Exists(full) && NativeLibrary.TryLoad(full, out IntPtr h))
+                    {
                         return h;
+                    }
                 }
                 throw new DllNotFoundException("size helper " + string.Join(" / ", Candidates(name)) +
                     " not found next to " + wolfsslPath + " (build it with build-native.sh)");
@@ -67,24 +74,35 @@ namespace wolfSSL.CSharp.Fips
 
         private static IntPtr LoadWolfssl(Assembly asm, DllImportSearchPath? path)
         {
-            lock (loadLock) {
+            lock (loadLock)
+            {
                 if (wolfssl != IntPtr.Zero)
+                {
                     return wolfssl;
+                }
+
                 string? dir = Environment.GetEnvironmentVariable("WOLFSSL_FIPS_LIB_DIR");
                 IntPtr h = IntPtr.Zero;
-                if (!string.IsNullOrEmpty(dir)) {
-                    foreach (string file in Candidates(Native.WOLFSSL)) {
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    foreach (string file in Candidates(Native.WOLFSSL))
+                    {
                         string full = Path.Combine(dir, file);
                         if (File.Exists(full) && NativeLibrary.TryLoad(full, out h))
+                        {
                             break;
+                        }
                     }
                     /* no fallback to default probing: the module must come
                      * from the directory that was asked for */
                     if (h == IntPtr.Zero)
+                    {
                         throw new DllNotFoundException("WOLFSSL_FIPS_LIB_DIR is set but " +
                             string.Join(" / ", Candidates(Native.WOLFSSL)) + " could not be loaded from " + dir);
+                    }
                 }
-                else {
+                else
+                {
                     /* NativeLibrary.Load does not re-enter this resolver */
                     h = NativeLibrary.Load(Native.WOLFSSL, asm, path);
                 }
@@ -115,14 +133,21 @@ namespace wolfSSL.CSharp.Fips
         private static unsafe string? LoadedPath(IntPtr lib)
         {
             /* OS lookups by function pointer (no P/Invoke outside Native.cs) */
-            if (OperatingSystem.IsWindows()) {
+            if (OperatingSystem.IsWindows())
+            {
                 if (!NativeLibrary.TryLoad("kernel32.dll", out IntPtr k32) ||
                     !NativeLibrary.TryGetExport(k32, "GetModuleFileNameW", out IntPtr gmfn))
+                {
                     return null;
+                }
+
                 char[] buf = new char[32768];
                 uint n;
                 fixed (char* pbuf = buf)
+                {
                     n = ((delegate* unmanaged[Stdcall]<IntPtr, char*, uint, uint>)gmfn)(lib, pbuf, (uint)buf.Length);
+                }
+
                 return n == 0 ? null : new string(buf, 0, (int)n);
             }
             /* any libwolfssl export works as an address inside the library;
@@ -131,29 +156,47 @@ namespace wolfSSL.CSharp.Fips
             IntPtr dladdr = IntPtr.Zero;
             foreach (string c in OperatingSystem.IsMacOS()
                          ? new[] { "/usr/lib/libSystem.B.dylib" }
-                         : new[] { "libc.so.6", "libdl.so.2" }) {
+                         : new[] { "libc.so.6", "libdl.so.2" })
+            {
                 if (NativeLibrary.TryLoad(c, out IntPtr libc) && NativeLibrary.TryGetExport(libc, "dladdr", out dladdr))
+                {
                     break;
+                }
             }
             /* musl (e.g. Alpine) has neither glibc name; the process's
              * global symbol scope resolves dladdr there */
             if (dladdr == IntPtr.Zero)
+            {
                 NativeLibrary.TryGetExport(NativeLibrary.GetMainProgramHandle(), "dladdr", out dladdr);
+            }
+
             if (dladdr == IntPtr.Zero)
+            {
                 return null;
+            }
+
             DlInfo info;
             int ok = ((delegate* unmanaged[Cdecl]<IntPtr, DlInfo*, int>)dladdr)(sym, &info);
             if (ok == 0 || info.dli_fname == IntPtr.Zero)
+            {
                 return null;
+            }
+
             return Path.GetFullPath(Marshal.PtrToStringUTF8(info.dli_fname)!);
         }
 
         private static string[] Candidates(string name)
         {
             if (OperatingSystem.IsWindows())
+            {
                 return new[] { name + ".dll" };
+            }
+
             if (OperatingSystem.IsMacOS())
+            {
                 return new[] { "lib" + name + ".dylib" };
+            }
+
             return new[] { "lib" + name + ".so" };
         }
     }

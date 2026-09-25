@@ -46,15 +46,18 @@ namespace wolfSSL.CSharp.Fips
 
         private FipsAes(FipsAesMode mode, bool encrypt, byte[] key, byte[]? iv) : base(FipsStructType.Aes)
         {
-            if (key == null) {
+            if (key == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
             }
-            if (key.Length != 16 && key.Length != 24 && key.Length != 32) {
+            if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            {
                 Dispose();
                 throw new ArgumentException("AES key must be 16, 24 or 32 bytes", nameof(key));
             }
-            if (mode != FipsAesMode.Ecb && (iv == null || iv.Length != BlockSize)) {
+            if (mode != FipsAesMode.Ecb && (iv == null || iv.Length != BlockSize))
+            {
                 Dispose();
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
             }
@@ -63,17 +66,20 @@ namespace wolfSSL.CSharp.Fips
             this.iv = iv == null ? null : (byte[])iv.Clone();
             int ret;
             string fn;
-            if (mode == FipsAesMode.Ctr) {
+            if (mode == FipsAesMode.Ctr)
+            {
                 /* CTR (and OFB) use the forward cipher in both directions */
                 fn = "wc_AesCtrSetKey_fips";
                 ret = Native.wc_AesCtrSetKey_fips(Handle, key, (uint)key.Length, iv, AES_ENCRYPTION);
             }
-            else {
+            else
+            {
                 fn = "wc_AesSetKey_fips";
                 int dir = (mode == FipsAesMode.Ofb || encrypt) ? AES_ENCRYPTION : AES_DECRYPTION;
                 ret = Native.wc_AesSetKey_fips(Handle, key, (uint)key.Length, iv, dir);
             }
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException(fn, ret);
             }
@@ -96,7 +102,10 @@ namespace wolfSSL.CSharp.Fips
         private static byte[] NewIV(FipsRng rng)
         {
             if (rng == null)
+            {
                 throw new ArgumentNullException(nameof(rng));
+            }
+
             return rng.Generate(BlockSize);
         }
 
@@ -115,39 +124,47 @@ namespace wolfSSL.CSharp.Fips
         public byte[] Transform(byte[] input)
         {
             if (input == null)
+            {
                 throw new ArgumentNullException(nameof(input));
+            }
+
             ThrowIfDisposed();
             /* without WOLFSSL_AES_CBC_LENGTH_CHECKS the module processes only whole blocks,
              * returns success and leaves the tail of the output zero */
             if ((Mode == FipsAesMode.Ecb || Mode == FipsAesMode.Cbc) && input.Length % BlockSize != 0)
+            {
                 throw new ArgumentException(Mode + " input must be a multiple of 16 bytes", nameof(input));
-            byte[] output = new byte[input.Length];
+            }
+
+            byte[] output = GC.AllocateArray<byte>(input.Length, pinned: true);   /* may be plaintext */
             uint sz = (uint)input.Length;
             int ret;
             string fn;
-            lock (sync) {
-            ThrowIfDisposed();
-            switch (Mode) {
-                case FipsAesMode.Ecb:
-                    fn = Encrypting ? "wc_AesEcbEncrypt_fips" : "wc_AesEcbDecrypt_fips";
-                    ret = Encrypting ? Native.wc_AesEcbEncrypt_fips(Handle, output, input, sz)
-                                     : Native.wc_AesEcbDecrypt_fips(Handle, output, input, sz);
-                    break;
-                case FipsAesMode.Cbc:
-                    fn = Encrypting ? "wc_AesCbcEncrypt_fips" : "wc_AesCbcDecrypt_fips";
-                    ret = Encrypting ? Native.wc_AesCbcEncrypt_fips(Handle, output, input, sz)
-                                     : Native.wc_AesCbcDecrypt_fips(Handle, output, input, sz);
-                    break;
-                case FipsAesMode.Ofb:
-                    fn = Encrypting ? "wc_AesOfbEncrypt_fips" : "wc_AesOfbDecrypt_fips";
-                    ret = Encrypting ? Native.wc_AesOfbEncrypt_fips(Handle, output, input, sz)
-                                     : Native.wc_AesOfbDecrypt_fips(Handle, output, input, sz);
-                    break;
-                default:
-                    fn = "wc_AesCtrEncrypt_fips";
-                    ret = Native.wc_AesCtrEncrypt_fips(Handle, output, input, sz);
-                    break;
-            }
+            lock (sync)
+            {
+                ThrowIfDisposed();
+                switch (Mode)
+                {
+                    case FipsAesMode.Ecb:
+                        fn = Encrypting ? "wc_AesEcbEncrypt_fips" : "wc_AesEcbDecrypt_fips";
+                        ret = Encrypting ? Native.wc_AesEcbEncrypt_fips(Handle, output, input, sz)
+                                         : Native.wc_AesEcbDecrypt_fips(Handle, output, input, sz);
+                        break;
+                    case FipsAesMode.Cbc:
+                        fn = Encrypting ? "wc_AesCbcEncrypt_fips" : "wc_AesCbcDecrypt_fips";
+                        ret = Encrypting ? Native.wc_AesCbcEncrypt_fips(Handle, output, input, sz)
+                                         : Native.wc_AesCbcDecrypt_fips(Handle, output, input, sz);
+                        break;
+                    case FipsAesMode.Ofb:
+                        fn = Encrypting ? "wc_AesOfbEncrypt_fips" : "wc_AesOfbDecrypt_fips";
+                        ret = Encrypting ? Native.wc_AesOfbEncrypt_fips(Handle, output, input, sz)
+                                         : Native.wc_AesOfbDecrypt_fips(Handle, output, input, sz);
+                        break;
+                    default:
+                        fn = "wc_AesCtrEncrypt_fips";
+                        ret = Native.wc_AesCtrEncrypt_fips(Handle, output, input, sz);
+                        break;
+                }
             }
             WolfCryptFipsException.Check(fn, ret);
             return output;
@@ -159,14 +176,24 @@ namespace wolfSSL.CSharp.Fips
         public void SetIV(byte[] iv)
         {
             if (iv == null || iv.Length != BlockSize)
+            {
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
+            }
+
             ThrowIfDisposed();
             if (Mode != FipsAesMode.Cbc)
+            {
                 throw new InvalidOperationException("SetIV is supported for CBC only; create a new " + Mode + " object");
+            }
+
             if (Encrypting || drbgIV)
+            {
                 throw new InvalidOperationException("the IV of a CBC encryptor cannot be replaced; " +
                     "create a new encryptor (new DRBG IV) for each message");
-            lock (sync) {
+            }
+
+            lock (sync)
+            {
                 ThrowIfDisposed();
                 WolfCryptFipsException.Check("wc_AesSetIV_fips", Native.wc_AesSetIV_fips(Handle, iv));
                 this.iv = (byte[])iv.Clone();

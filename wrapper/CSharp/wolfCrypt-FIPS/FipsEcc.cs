@@ -20,7 +20,6 @@
  */
 
 using System;
-using System.Formats.Asn1;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -56,7 +55,8 @@ namespace wolfSSL.CSharp.Fips
             Curve = curve;
             HasPrivateKey = priv;
             int ret = Native.wc_ecc_init_fips(Handle);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_ecc_init_fips", ret);
             }
@@ -68,24 +68,36 @@ namespace wolfSSL.CSharp.Fips
         public static FipsEccKey Generate(FipsEccCurve curve, FipsRng rng)
         {
             if (rng == null)
+            {
                 throw new ArgumentNullException(nameof(rng));
+            }
+
             if (curve == FipsEccCurve.P192)
+            {
                 throw new ArgumentException("P-192 key generation is not approved", nameof(curve));
+            }
+
             var k = new FipsEccKey(curve, true);
-            try {
+            try
+            {
                 using (rng.Use())
+                {
                     WolfCryptFipsException.Check("wc_ecc_make_key_ex_fips",
                         Native.wc_ecc_make_key_ex_fips(rng.Handle, FieldSizeOf(curve), k.Handle, (int)curve));
+                }
+
                 var own = new FipsRng();
                 k.ownRng = own;
-                k.SetNativeFree(p => {
+                k.SetNativeFree(p =>
+                {
                     int ret = Native.wc_ecc_free_fips(p);
                     own.Dispose();
                     return ret;
                 });
                 WolfCryptFipsException.Check("wc_ecc_set_rng_fips", Native.wc_ecc_set_rng_fips(k.Handle, own.Handle));
             }
-            catch {
+            catch
+            {
                 k.Dispose();
                 throw;
             }
@@ -98,17 +110,27 @@ namespace wolfSSL.CSharp.Fips
         public static FipsEccKey ImportPublic(FipsEccCurve curve, byte[] x963)
         {
             if (x963 == null)
+            {
                 throw new ArgumentNullException(nameof(x963));
+            }
+
             if (x963.Length != 1 + 2 * FieldSizeOf(curve) || x963[0] != 0x04)
+            {
                 throw new ArgumentException("expected an uncompressed " + curve + " point", nameof(x963));
+            }
+
             var k = new FipsEccKey(curve, false);
-            try {
+            try
+            {
                 WolfCryptFipsException.Check("wc_ecc_import_x963_fips",
                     Native.wc_ecc_import_x963_fips(x963, (uint)x963.Length, k.Handle));
                 if (Native.SizeOf((int)FipsStructType.ValidateEccImport) != 1)
+                {
                     k.Check();
+                }
             }
-            catch {
+            catch
+            {
                 k.Dispose();
                 throw;
             }
@@ -140,18 +162,30 @@ namespace wolfSSL.CSharp.Fips
         public byte[] SignHash(FipsHashType hash, byte[] digest)
         {
             if (digest == null)
+            {
                 throw new ArgumentNullException(nameof(digest));
+            }
+
             FipsRsaKey.RejectSha1ForSigning(hash);
             if (digest.Length != FipsHash.DigestSizeOf(hash))
+            {
                 throw new ArgumentException("digest length does not match " + hash, nameof(digest));
+            }
+
             RequirePrivate();
             if (Curve == FipsEccCurve.P192)
+            {
                 throw new InvalidOperationException("P-192 signing is not approved");
+            }
+
             byte[] sig = new byte[9 + 2 * (FieldSize + 1)];   /* max DER SEQUENCE { r, s } */
             uint len = (uint)sig.Length;
             using (ownRng!.Use())
+            {
                 WolfCryptFipsException.Check("wc_ecc_sign_hash_fips",
                     Native.wc_ecc_sign_hash_fips(digest, (uint)digest.Length, sig, ref len, ownRng.Handle, Handle));
+            }
+
             return sig.Take((int)len).ToArray();
         }
 
@@ -161,14 +195,23 @@ namespace wolfSSL.CSharp.Fips
         public bool VerifyHash(FipsHashType hash, byte[] digest, byte[] derSignature)
         {
             if (digest == null || derSignature == null)
+            {
                 throw new ArgumentNullException(digest == null ? nameof(digest) : nameof(derSignature));
+            }
+
             if (digest.Length != FipsHash.DigestSizeOf(hash))
+            {
                 throw new ArgumentException("digest length does not match " + hash, nameof(digest));
+            }
+
             ThrowIfDisposed();
             int ret = Native.wc_ecc_verify_hash_fips(derSignature, (uint)derSignature.Length,
                                                      digest, (uint)digest.Length, out int res, Handle);
             if (FipsError.IsModuleStateError(ret))
+            {
                 throw new WolfCryptFipsException("wc_ecc_verify_hash_fips", ret);
+            }
+
             return ret == 0 && res == 1;
         }
 
@@ -178,27 +221,42 @@ namespace wolfSSL.CSharp.Fips
         public byte[] SharedSecret(FipsEccKey peerPublic)
         {
             if (peerPublic == null)
+            {
                 throw new ArgumentNullException(nameof(peerPublic));
+            }
+
             if (Curve == FipsEccCurve.P192 || Curve == FipsEccCurve.P224)
+            {
                 throw new InvalidOperationException("ECC CDH is approved on P-256, P-384 and P-521 only");
+            }
+
             RequirePrivate();
             peerPublic.ThrowIfDisposed();
             if (peerPublic.Curve != Curve)
+            {
                 throw new ArgumentException("curve mismatch", nameof(peerPublic));
+            }
+
             byte[] z = GC.AllocateArray<byte>(FieldSize, pinned: true);
             uint len = (uint)z.Length;
-            try {
+            try
+            {
                 using (ownRng!.Use())
+                {
                     WolfCryptFipsException.Check("wc_ecc_shared_secret_fips", FipsModule.WithPrivateKeyRead(() =>
                         Native.wc_ecc_shared_secret_fips(Handle, peerPublic.Handle, z, ref len)));
-                return z.Take((int)len).ToArray();
+                }
+
+                return PinnedCopy(z, 0, (int)len);
             }
-            finally {
+            finally
+            {
                 CryptographicOperations.ZeroMemory(z);
             }
         }
 
-        public static int FieldSizeOf(FipsEccCurve c) => c switch {
+        public static int FieldSizeOf(FipsEccCurve c) => c switch
+        {
             FipsEccCurve.P192 => 24,
             FipsEccCurve.P224 => 28,
             FipsEccCurve.P256 => 32,
@@ -211,7 +269,9 @@ namespace wolfSSL.CSharp.Fips
         {
             ThrowIfDisposed();
             if (!HasPrivateKey)
+            {
                 throw new InvalidOperationException("operation requires a private key");
+            }
         }
     }
 }

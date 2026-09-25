@@ -54,15 +54,20 @@ namespace wolfSSL.CSharp.Fips
 
         protected override bool ReleaseHandle()
         {
-            try {
+            try
+            {
                 int ret = free?.Invoke(handle) ?? 0;
                 if (ret != 0)
+                {
                     FipsModule.NoteRefusedFree();
+                }
             }
-            catch {
+            catch
+            {
                 /* never throw from release; memory is still zeroed below */
             }
-            finally {
+            finally
+            {
                 Clear();
                 Marshal.FreeHGlobal(handle);
             }

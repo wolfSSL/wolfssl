@@ -51,7 +51,8 @@ namespace wolfSSL.CSharp.Fips
         {
             Type = type;
             int ret = Init(type, Handle);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException(type == FipsHashType.Sha1 ? "wc_InitSha_fips" : "wc_Init" + type + "_fips", ret);
             }
@@ -61,7 +62,10 @@ namespace wolfSSL.CSharp.Fips
         public void Update(byte[] data)
         {
             if (data == null)
+            {
                 throw new ArgumentNullException(nameof(data));
+            }
+
             ThrowIfDisposed();
             WolfCryptFipsException.Check(Type + " update", Update(Type, Handle, data, (uint)data.Length));
         }
@@ -83,7 +87,8 @@ namespace wolfSSL.CSharp.Fips
             return h.Final();
         }
 
-        public static int DigestSizeOf(FipsHashType type) => type switch {
+        public static int DigestSizeOf(FipsHashType type) => type switch
+        {
             FipsHashType.Sha1 => 20,
             FipsHashType.Sha224 or FipsHashType.Sha3_224 => 28,
             FipsHashType.Sha256 or FipsHashType.Sha3_256 => 32,
@@ -92,7 +97,8 @@ namespace wolfSSL.CSharp.Fips
             _ => throw new ArgumentOutOfRangeException(nameof(type))
         };
 
-        private static FipsStructType StructOf(FipsHashType type) => type switch {
+        private static FipsStructType StructOf(FipsHashType type) => type switch
+        {
             FipsHashType.Sha1 => FipsStructType.Sha,
             FipsHashType.Sha224 => FipsStructType.Sha224,
             FipsHashType.Sha256 => FipsStructType.Sha256,
@@ -105,7 +111,8 @@ namespace wolfSSL.CSharp.Fips
 
         private static int Init(FipsHashType t, FipsHandle h)
         {
-            switch (t) {
+            switch (t)
+            {
                 case FipsHashType.Sha1: return Native.wc_InitSha_fips(h);
                 case FipsHashType.Sha224: return Native.wc_InitSha224_fips(h);
                 case FipsHashType.Sha256: return Native.wc_InitSha256_fips(h);
@@ -121,7 +128,8 @@ namespace wolfSSL.CSharp.Fips
 
         private static int Update(FipsHashType t, FipsHandle h, byte[] d, uint len)
         {
-            switch (t) {
+            switch (t)
+            {
                 case FipsHashType.Sha1: return Native.wc_ShaUpdate_fips(h, d, len);
                 case FipsHashType.Sha224: return Native.wc_Sha224Update_fips(h, d, len);
                 case FipsHashType.Sha256: return Native.wc_Sha256Update_fips(h, d, len);
@@ -137,7 +145,8 @@ namespace wolfSSL.CSharp.Fips
 
         private static int Final(FipsHashType t, FipsHandle h, byte[] o)
         {
-            switch (t) {
+            switch (t)
+            {
                 case FipsHashType.Sha1: return Native.wc_ShaFinal_fips(h, o);
                 case FipsHashType.Sha224: return Native.wc_Sha224Final_fips(h, o);
                 case FipsHashType.Sha256: return Native.wc_Sha256Final_fips(h, o);
@@ -151,7 +160,8 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        private static Action<IntPtr> FreeRoutine(FipsHashType t) => t switch {
+        private static Action<IntPtr> FreeRoutine(FipsHashType t) => t switch
+        {
             FipsHashType.Sha1 => p => Native.wc_ShaFree_fips(p),
             FipsHashType.Sha224 => p => Native.wc_Sha224Free_fips(p),
             FipsHashType.Sha256 => p => Native.wc_Sha256Free_fips(p),

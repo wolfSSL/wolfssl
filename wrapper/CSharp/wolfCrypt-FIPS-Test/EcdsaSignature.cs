@@ -32,17 +32,24 @@ namespace wolfSSL.CSharp.Fips.Test
         internal static FipsEccKey ImportPublic(FipsEccCurve curve, byte[] x, byte[] y)
         {
             if (x == null || y == null)
+            {
                 throw new ArgumentNullException(x == null ? nameof(x) : nameof(y));
+            }
+
             int n = FipsEccKey.FieldSizeOf(curve);
             return FipsEccKey.ImportPublic(curve, new byte[] { 0x04 }.Concat(LeftPad(x, n)).Concat(LeftPad(y, n)).ToArray());
         }
 
         internal static byte[] LeftPad(byte[] v, int n)
         {
-            if (v.Length > n) {
+            if (v.Length > n)
+            {
                 int skip = v.Length - n;
                 if (v.Take(skip).Any(b => b != 0))
+                {
                     throw new ArgumentException("value too large for curve");
+                }
+
                 return v.Skip(skip).ToArray();
             }
             return new byte[n - v.Length].Concat(v).ToArray();
@@ -58,7 +65,10 @@ namespace wolfSSL.CSharp.Fips.Test
         public static byte[] ToDer(byte[] r, byte[] s)
         {
             if (r == null || s == null)
+            {
                 throw new ArgumentNullException(r == null ? nameof(r) : nameof(s));
+            }
+
             byte[] ri = DerInteger(r), si = DerInteger(s);
             return new byte[] { 0x30 }.Concat(DerLength(ri.Length + si.Length)).Concat(ri).Concat(si).ToArray();
         }
@@ -73,9 +83,15 @@ namespace wolfSSL.CSharp.Fips.Test
         public static byte[] FromP1363(byte[] rs)
         {
             if (rs == null)
+            {
                 throw new ArgumentNullException(nameof(rs));
+            }
+
             if (rs.Length % 2 != 0)
+            {
                 throw new ArgumentException("r || s must have even length", nameof(rs));
+            }
+
             int n = rs.Length / 2;
             return ToDer(rs.Take(n).ToArray(), rs.Skip(n).ToArray());
         }
@@ -86,8 +102,12 @@ namespace wolfSSL.CSharp.Fips.Test
         public static (byte[] r, byte[] s) FromDer(byte[] der)
         {
             if (der == null)
+            {
                 throw new ArgumentNullException(nameof(der));
-            try {
+            }
+
+            try
+            {
                 var outer = new AsnReader(der, AsnEncodingRules.DER);
                 AsnReader seq = outer.ReadSequence();
                 outer.ThrowIfNotEmpty();
@@ -96,7 +116,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 seq.ThrowIfNotEmpty();
                 return (r, s);
             }
-            catch (AsnContentException e) {
+            catch (AsnContentException e)
+            {
                 throw new FormatException("invalid DER ECDSA signature", e);
             }
         }
@@ -104,8 +125,16 @@ namespace wolfSSL.CSharp.Fips.Test
         private static byte[] DerInteger(byte[] v)
         {
             byte[] t = v.SkipWhile(b => b == 0).ToArray();
-            if (t.Length == 0) t = new byte[] { 0 };
-            if ((t[0] & 0x80) != 0) t = new byte[] { 0 }.Concat(t).ToArray();
+            if (t.Length == 0)
+            {
+                t = new byte[] { 0 };
+            }
+
+            if ((t[0] & 0x80) != 0)
+            {
+                t = new byte[] { 0 }.Concat(t).ToArray();
+            }
+
             return new byte[] { 0x02 }.Concat(DerLength(t.Length)).Concat(t).ToArray();
         }
 
@@ -118,9 +147,15 @@ namespace wolfSSL.CSharp.Fips.Test
             ReadOnlyMemory<byte> v = seq.ReadIntegerBytes();
             ReadOnlySpan<byte> b = v.Span;
             if ((b[0] & 0x80) != 0)
+            {
                 throw new FormatException("negative INTEGER in ECDSA signature");
+            }
+
             if (b.Length == 1 && b[0] == 0)
+            {
                 throw new FormatException("zero INTEGER in ECDSA signature");
+            }
+
             return (b[0] == 0 ? b.Slice(1) : b).ToArray();
         }
     }

@@ -40,9 +40,9 @@ namespace wolfSSL.CSharp.Fips
         }
     }
 
-    /* AES-GCM (SP 800-38D). Call UseInternalIV once, then Encrypt: the module draws each IV from
-     * its DRBG (IG C.H Scenario 2) and returns it. Caller IVs are not offered: the Security
-     * Policy permits them only for TLS (IG C.H 1(a)). Decrypt takes the IV explicitly. */
+    /* AES-GCM (SP 800-38D 8.2.2). UseInternalIV draws the first IV from the DRBG; each Encrypt
+     * uses the previous IV plus one and returns it (IG C.H Scenario 2). Caller IVs are not
+     * offered (Security Policy: TLS only, IG C.H 1(a)). Decrypt takes the IV explicitly. */
     public sealed class FipsAesGcm : FipsObject
     {
         public const int DefaultIVSize = 12;
@@ -68,7 +68,8 @@ namespace wolfSSL.CSharp.Fips
             internal GcmContext(byte[] key) : base(FipsStructType.Aes)
             {
                 int ret = Native.wc_AesGcmSetKey_fips(Handle, key, (uint)key.Length);
-                if (ret != 0) {
+                if (ret != 0)
+                {
                     Dispose();
                     throw new WolfCryptFipsException("wc_AesGcmSetKey_fips", ret);
                 }
@@ -77,19 +78,23 @@ namespace wolfSSL.CSharp.Fips
 
         public FipsAesGcm(byte[] key) : base(FipsStructType.Aes)
         {
-            if (key == null) {
+            if (key == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
             }
             int ret = Native.wc_AesGcmSetKey_fips(Handle, key, (uint)key.Length);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_AesGcmSetKey_fips", ret);
             }
-            try {
+            try
+            {
                 decryptor = new GcmContext(key);
             }
-            catch {
+            catch
+            {
                 Dispose();
                 throw;
             }
@@ -98,15 +103,30 @@ namespace wolfSSL.CSharp.Fips
         protected override void Dispose(bool disposing)
         {
             if (disposing)
+            {
                 decryptor?.Dispose();
+            }
+
             base.Dispose(disposing);
         }
 
         /* Encryptions made by this object (test hook for the 8.3 limit). */
         internal ulong Invocations
         {
-            get { lock (sync) return invocations; }
-            set { lock (sync) invocations = value; }
+            get
+            {
+                lock (sync)
+                {
+                    return invocations;
+                }
+            }
+            set
+            {
+                lock (sync)
+                {
+                    invocations = value;
+                }
+            }
         }
 
         /* Selects module-generated IVs of ivSize bytes (12 or 16) drawn from rng (IG C.H
@@ -122,20 +142,33 @@ namespace wolfSSL.CSharp.Fips
         private void SelectIV(FipsRng rng, int ivSize, byte[]? fixedField)
         {
             if (rng == null)
+            {
                 throw new ArgumentNullException(nameof(rng));
+            }
+
             CheckInternalIVSize(ivSize);
             if (fixedField != null && (fixedField.Length != FixedFieldSize || ivSize - fixedField.Length < MinRandomIVSize))
+            {
                 throw new ArgumentException("a GCM internal-IV fixed field must be exactly " + FixedFieldSize +
                     " bytes with a 16-byte IV (at least 12 random bytes); pass null for none", nameof(fixedField));
-            lock (sync) {
+            }
+
+            lock (sync)
+            {
                 ThrowIfDisposed();
                 if (ivSelected)
+                {
                     throw new InvalidOperationException("UseInternalIV may be called once per FipsAesGcm; " +
                         "create a new object to start a new IV sequence");
+                }
+
                 using (rng.Use())
+                {
                     WolfCryptFipsException.Check("wc_AesGcmSetIV_fips",
                         Native.wc_AesGcmSetIV_fips(Handle, (uint)ivSize, fixedField,
                             fixedField == null ? 0u : (uint)fixedField.Length, rng.Handle));
+                }
+
                 internalIvSize = ivSize;
                 ivSelected = true;
             }
@@ -144,13 +177,30 @@ namespace wolfSSL.CSharp.Fips
         /* Encrypts with the next module-generated IV (see UseInternalIV). */
         public FipsAeadResult Encrypt(byte[] plaintext, byte[]? aad = null, int tagSize = MaxTagSize)
         {
-            lock (sync) {
+            lock (sync)
+            {
                 if (internalIvSize == 0)
+                {
                     throw new InvalidOperationException("call UseInternalIV before Encrypt");
+                }
+
                 if (invocations >= MaxInvocations)
+                {
                     throw new InvalidOperationException("2^32 GCM encryptions reached for this key " +
                         "(SP 800-38D 8.3); use a new key");
-                /* counted before the call: an attempt may consume an IV */
+                }
+
+                if (plaintext == null)
+                {
+                    throw new ArgumentNullException(nameof(plaintext));
+                }
+
+                ThrowIfDisposed();
+                if (tagSize < MinTagSize || tagSize > MaxTagSize)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(tagSize), "GCM tag size must be 12 to 16 bytes");
+                }
+                /* counted only for calls that reach the module */
                 invocations++;
                 return EncryptCurrent(plaintext, aad, tagSize, internalIvSize);
             }
@@ -163,9 +213,14 @@ namespace wolfSSL.CSharp.Fips
         internal static void CheckTag(byte[] tag, int tagSize)
         {
             if (tagSize < MinTagSize || tagSize > MaxTagSize)
+            {
                 throw new ArgumentOutOfRangeException(nameof(tagSize), "GCM tag size must be 12 to 16 bytes");
+            }
+
             if (tag.Length != tagSize)
+            {
                 throw new ArgumentException("tag must be " + tagSize + " bytes", nameof(tag));
+            }
         }
 
         /* IG C.H Scenario 2: an internally generated random IV shall be at
@@ -174,8 +229,10 @@ namespace wolfSSL.CSharp.Fips
         internal static void CheckInternalIVSize(int ivSize)
         {
             if (ivSize != 12 && ivSize != 16)
+            {
                 throw new ArgumentOutOfRangeException(nameof(ivSize),
                     "internally generated GCM IVs must be 12 or 16 bytes (at least 96 bits)");
+            }
         }
 
         /* Encrypts with a caller IV (wc_AesGcmSetExtIV_fips). Internal, for known-answer testing
@@ -184,8 +241,12 @@ namespace wolfSSL.CSharp.Fips
                                             int tagSize = MaxTagSize)
         {
             if (iv == null)
+            {
                 throw new ArgumentNullException(nameof(iv));
-            lock (sync) {
+            }
+
+            lock (sync)
+            {
                 ThrowIfDisposed();
                 WolfCryptFipsException.Check("wc_AesGcmSetExtIV_fips",
                     Native.wc_AesGcmSetExtIV_fips(Handle, iv, (uint)iv.Length));
@@ -198,10 +259,16 @@ namespace wolfSSL.CSharp.Fips
         private FipsAeadResult EncryptCurrent(byte[] plaintext, byte[]? aad, int tagSize, int ivSize)
         {
             if (plaintext == null)
+            {
                 throw new ArgumentNullException(nameof(plaintext));
+            }
+
             ThrowIfDisposed();
             if (tagSize < MinTagSize || tagSize > MaxTagSize)
+            {
                 throw new ArgumentOutOfRangeException(nameof(tagSize), "GCM tag size must be 12 to 16 bytes");
+            }
+
             aad ??= Array.Empty<byte>();
             byte[] ct = new byte[plaintext.Length];
             byte[] ivOut = new byte[ivSize];
@@ -217,18 +284,23 @@ namespace wolfSSL.CSharp.Fips
         public byte[] Decrypt(byte[] iv, byte[] ciphertext, byte[] tag, byte[]? aad = null, int tagSize = MaxTagSize)
         {
             if (iv == null || ciphertext == null || tag == null)
+            {
                 throw new ArgumentNullException(iv == null ? nameof(iv) : ciphertext == null ? nameof(ciphertext) : nameof(tag));
+            }
+
             CheckTag(tag, tagSize);
             ThrowIfDisposed();
             aad ??= Array.Empty<byte>();
-            byte[] pt = new byte[ciphertext.Length];
+            byte[] pt = GC.AllocateArray<byte>(ciphertext.Length, pinned: true);
             int ret;
-            lock (sync) {
+            lock (sync)
+            {
                 decryptor.ThrowIfDisposed();
                 ret = Native.wc_AesGcmDecrypt_fips(decryptor.Handle, pt, ciphertext, (uint)ciphertext.Length,
                     iv, (uint)iv.Length, tag, (uint)tag.Length, aad, (uint)aad.Length);
             }
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 /* some module paths decrypt before checking the tag */
                 CryptographicOperations.ZeroMemory(pt);
                 throw new WolfCryptFipsException("wc_AesGcmDecrypt_fips", ret);
@@ -247,16 +319,25 @@ namespace wolfSSL.CSharp.Fips
                                              int tagSize = FipsAesGcm.MaxTagSize)
         {
             if (key == null || aad == null || rng == null)
+            {
                 throw new ArgumentNullException(key == null ? nameof(key) : aad == null ? nameof(aad) : nameof(rng));
+            }
+
             FipsAesGcm.CheckInternalIVSize(ivSize);
             if (tagSize < FipsAesGcm.MinTagSize || tagSize > FipsAesGcm.MaxTagSize)
+            {
                 throw new ArgumentOutOfRangeException(nameof(tagSize), "GMAC tag size must be 12 to 16 bytes");
+            }
+
             byte[] iv = new byte[ivSize];
             byte[] tag = new byte[tagSize];
             using (rng.Use())
+            {
                 WolfCryptFipsException.Check("wc_Gmac_fips",
                     Native.wc_Gmac_fips(key, (uint)key.Length, iv, (uint)iv.Length, aad, (uint)aad.Length,
                         tag, (uint)tag.Length, rng.Handle));
+            }
+
             return new FipsAeadResult(iv, Array.Empty<byte>(), tag);
         }
 
@@ -265,18 +346,30 @@ namespace wolfSSL.CSharp.Fips
         public static bool Verify(byte[] key, byte[] iv, byte[] aad, byte[] tag, int tagSize = FipsAesGcm.MaxTagSize)
         {
             if (key == null || iv == null || aad == null || tag == null)
+            {
                 throw new ArgumentNullException(key == null ? nameof(key) : iv == null ? nameof(iv) : aad == null ? nameof(aad) : nameof(tag));
+            }
+
             FipsAesGcm.CheckTag(tag, tagSize);
             if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            {
                 throw new ArgumentException("AES key must be 16, 24 or 32 bytes", nameof(key));
+            }
+
             if (iv.Length == 0)
+            {
                 throw new ArgumentException("IV must not be empty", nameof(iv));
+            }
+
             int ret = Native.wc_GmacVerify_fips(key, (uint)key.Length, iv, (uint)iv.Length,
                 aad, (uint)aad.Length, tag, (uint)tag.Length);
             /* only a tag mismatch is "does not verify"; anything else
              * (module state, bad arguments) throws */
             if (ret == FipsError.AES_GCM_AUTH_E)
+            {
                 return false;
+            }
+
             WolfCryptFipsException.Check("wc_GmacVerify_fips", ret);
             return true;
         }
@@ -292,12 +385,14 @@ namespace wolfSSL.CSharp.Fips
 
         public FipsAesCcm(byte[] key) : base(FipsStructType.Aes)
         {
-            if (key == null) {
+            if (key == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
             }
             int ret = Native.wc_AesCcmSetKey_fips(Handle, key, (uint)key.Length);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_AesCcmSetKey_fips", ret);
             }
@@ -312,9 +407,14 @@ namespace wolfSSL.CSharp.Fips
         public void SetNonce(FipsRng rng, int nonceSize = DefaultNonceSize)
         {
             if (rng == null)
+            {
                 throw new ArgumentNullException(nameof(rng));
+            }
+
             if (nonceSize < MinRandomNonceSize || nonceSize > 13)
+            {
                 throw new ArgumentOutOfRangeException(nameof(nonceSize), "a DRBG CCM nonce must be 12 or 13 bytes");
+            }
             /* state checks first, so a refused call draws no DRBG output */
             ThrowIfDisposed();
             ThrowIfNonceSet();
@@ -326,9 +426,13 @@ namespace wolfSSL.CSharp.Fips
         public void SetNonce(byte[] nonce)
         {
             if (nonce == null)
+            {
                 throw new ArgumentNullException(nameof(nonce));
+            }
+
             ThrowIfDisposed();
-            lock (sync) {
+            lock (sync)
+            {
                 ThrowIfNonceSet();
                 WolfCryptFipsException.Check("wc_AesCcmSetNonce_fips",
                     Native.wc_AesCcmSetNonce_fips(Handle, nonce, (uint)nonce.Length));
@@ -339,8 +443,10 @@ namespace wolfSSL.CSharp.Fips
         private void ThrowIfNonceSet()
         {
             if (activeNonceSize != 0)
+            {
                 throw new InvalidOperationException("SetNonce may be called once per FipsAesCcm; " +
                     "create a new object to start a new nonce sequence");
+            }
         }
 
         public const int MinTagSize = 8;
@@ -348,7 +454,9 @@ namespace wolfSSL.CSharp.Fips
         private static void CheckTagSize(int tagSize)
         {
             if (tagSize < MinTagSize || tagSize > 16 || tagSize % 2 != 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(tagSize), "CCM tag must be 8, 10, 12, 14 or 16 bytes");
+            }
         }
 
         /* The 15 - nonceSize length bytes are also the block counter (SP 800-38C A.1): payload
@@ -358,14 +466,19 @@ namespace wolfSSL.CSharp.Fips
         {
             int lenBytes = 15 - nonceLen;
             if (lenBytes < 4 && (long)payloadLen >= (1L << (8 * lenBytes)))
+            {
                 throw new ArgumentException("CCM payload too long for a " + nonceLen + "-byte nonce (limit " +
                     ((1L << (8 * lenBytes)) - 1) + " bytes)");
+            }
         }
 
         public FipsAeadResult Encrypt(byte[] plaintext, byte[]? aad = null, int tagSize = 16)
         {
             if (plaintext == null)
+            {
                 throw new ArgumentNullException(nameof(plaintext));
+            }
+
             CheckTagSize(tagSize);
             aad ??= Array.Empty<byte>();
             byte[] ct = new byte[plaintext.Length];
@@ -373,10 +486,14 @@ namespace wolfSSL.CSharp.Fips
             byte[] nonce;
             /* the module advances the nonce: one encryption at a time, with
              * the nonce state read under the same lock */
-            lock (sync) {
+            lock (sync)
+            {
                 ThrowIfDisposed();
                 if (activeNonceSize == 0)
+                {
                     throw new InvalidOperationException("call SetNonce before Encrypt");
+                }
+
                 CheckPayloadLength(plaintext.Length, activeNonceSize);
                 nonce = new byte[activeNonceSize];
                 WolfCryptFipsException.Check("wc_AesCcmEncrypt_fips",
@@ -391,21 +508,34 @@ namespace wolfSSL.CSharp.Fips
         public byte[] Decrypt(byte[] nonce, byte[] ciphertext, byte[] tag, byte[]? aad = null, int tagSize = 16)
         {
             if (nonce == null || ciphertext == null || tag == null)
+            {
                 throw new ArgumentNullException(nonce == null ? nameof(nonce) : ciphertext == null ? nameof(ciphertext) : nameof(tag));
+            }
+
             CheckTagSize(tagSize);
             if (tag.Length != tagSize)
+            {
                 throw new ArgumentException("tag must be " + tagSize + " bytes", nameof(tag));
+            }
+
             if (nonce.Length < 7 || nonce.Length > 13)
+            {
                 throw new ArgumentException("CCM nonce must be 7 to 13 bytes", nameof(nonce));
+            }
+
             CheckPayloadLength(ciphertext.Length, nonce.Length);
             ThrowIfDisposed();
             aad ??= Array.Empty<byte>();
-            byte[] pt = new byte[ciphertext.Length];
+            byte[] pt = GC.AllocateArray<byte>(ciphertext.Length, pinned: true);
             int ret;
             lock (sync)   /* same native context as encryption: calls are serialized */
+            {
                 ret = Native.wc_AesCcmDecrypt_fips(Handle, pt, ciphertext, (uint)ciphertext.Length,
                     nonce, (uint)nonce.Length, tag, (uint)tag.Length, aad, (uint)aad.Length);
-            if (ret != 0) {
+            }
+
+            if (ret != 0)
+            {
                 CryptographicOperations.ZeroMemory(pt);
                 throw new WolfCryptFipsException("wc_AesCcmDecrypt_fips", ret);
             }

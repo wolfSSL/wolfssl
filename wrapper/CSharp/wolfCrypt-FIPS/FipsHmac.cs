@@ -35,18 +35,21 @@ namespace wolfSSL.CSharp.Fips
 
         public FipsHmac(FipsHashType type, byte[] key) : base(FipsStructType.Hmac)
         {
-            if (key == null) {
+            if (key == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
             }
-            if (key.Length > MaxKeySize) {
+            if (key.Length > MaxKeySize)
+            {
                 Dispose();
                 throw new ArgumentException("HMAC key must be at most " + MaxKeySize +
                     " bytes (validated range 112 to 1024 bits)", nameof(key));
             }
             Type = type;
             int ret = Native.wc_HmacSetKey_fips(Handle, (int)type, key, (uint)key.Length);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_HmacSetKey_fips", ret);
             }
@@ -56,7 +59,10 @@ namespace wolfSSL.CSharp.Fips
         public void Update(byte[] data)
         {
             if (data == null)
+            {
                 throw new ArgumentNullException(nameof(data));
+            }
+
             ThrowIfDisposed();
             WolfCryptFipsException.Check("wc_HmacUpdate_fips",
                 Native.wc_HmacUpdate_fips(Handle, data, (uint)data.Length));

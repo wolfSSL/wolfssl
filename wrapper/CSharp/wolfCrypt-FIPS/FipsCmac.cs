@@ -35,16 +35,19 @@ namespace wolfSSL.CSharp.Fips
 
         public FipsCmac(byte[] key) : base(FipsStructType.Cmac)
         {
-            if (key == null) {
+            if (key == null)
+            {
                 Dispose();
                 throw new ArgumentNullException(nameof(key));
             }
-            if (key.Length != 16 && key.Length != 24 && key.Length != 32) {
+            if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            {
                 Dispose();
                 throw new ArgumentException("AES key must be 16, 24 or 32 bytes", nameof(key));
             }
             int ret = Native.wc_InitCmac_fips(Handle, key, (uint)key.Length, WC_CMAC_AES, IntPtr.Zero);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Dispose();
                 throw new WolfCryptFipsException("wc_InitCmac_fips", ret);
             }
@@ -53,10 +56,16 @@ namespace wolfSSL.CSharp.Fips
         public void Update(byte[] data)
         {
             if (data == null)
+            {
                 throw new ArgumentNullException(nameof(data));
+            }
+
             ThrowIfDisposed();
             if (finished)
+            {
                 throw new InvalidOperationException("CMAC already finalized");
+            }
+
             WolfCryptFipsException.Check("wc_CmacUpdate_fips",
                 Native.wc_CmacUpdate_fips(Handle, data, (uint)data.Length));
         }
@@ -67,15 +76,24 @@ namespace wolfSSL.CSharp.Fips
         {
             ThrowIfDisposed();
             if (finished)
+            {
                 throw new InvalidOperationException("CMAC already finalized");
+            }
+
             if (tagSize < MinTagSize || tagSize > MaxTagSize)
+            {
                 throw new ArgumentOutOfRangeException(nameof(tagSize));
+            }
+
             byte[] tag = new byte[tagSize];
             uint sz = (uint)tagSize;
             WolfCryptFipsException.Check("wc_CmacFinal_fips", Native.wc_CmacFinal_fips(Handle, tag, ref sz));
             finished = true;
             if (sz != tag.Length)
+            {
                 Array.Resize(ref tag, (int)sz);
+            }
+
             return tag;
         }
 

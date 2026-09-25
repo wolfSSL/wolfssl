@@ -56,7 +56,8 @@ namespace wolfSSL.CSharp.Fips.Test
         private const int DRBG_CONT = -209;
 
         /* Code -> CASTs it degrades (wolfCrypt_SetStatus_fips, v5.2.x). */
-        private static readonly Dictionary<int, string[]> Degrades = new() {
+        private static readonly Dictionary<int, string[]> Degrades = new()
+        {
             [-204] = new[] { "AES_GCM", "AES_CBC" },
             [-206] = new[] { "HMAC_SHA1", "HMAC_SHA2_256", "HMAC_SHA2_512", "HMAC_SHA3_256" },
             [-207] = new[] { "RSA" },
@@ -80,14 +81,22 @@ namespace wolfSSL.CSharp.Fips.Test
         };
 
         /* CAST names used above -> module CAST ids */
-        private static readonly Dictionary<string, FipsCast> CastIds = new() {
-            ["AES_CBC"] = FipsCast.AesCbc, ["AES_GCM"] = FipsCast.AesGcm,
-            ["HMAC_SHA1"] = FipsCast.HmacSha1, ["HMAC_SHA2_256"] = FipsCast.HmacSha2_256,
-            ["HMAC_SHA2_512"] = FipsCast.HmacSha2_512, ["HMAC_SHA3_256"] = FipsCast.HmacSha3_256,
-            ["DRBG"] = FipsCast.Drbg, ["RSA"] = FipsCast.RsaSignPkcs1v15,
-            ["ECC_PRIMITIVE_Z"] = FipsCast.EccPrimitiveZ, ["ECDSA"] = FipsCast.Ecdsa,
-            ["DH"] = FipsCast.DhPrimitiveZ, ["KDF_TLS12"] = FipsCast.KdfTls12,
-            ["KDF_TLS13"] = FipsCast.KdfTls13, ["KDF_SSH"] = FipsCast.KdfSsh,
+        private static readonly Dictionary<string, FipsCast> CastIds = new()
+        {
+            ["AES_CBC"] = FipsCast.AesCbc,
+            ["AES_GCM"] = FipsCast.AesGcm,
+            ["HMAC_SHA1"] = FipsCast.HmacSha1,
+            ["HMAC_SHA2_256"] = FipsCast.HmacSha2_256,
+            ["HMAC_SHA2_512"] = FipsCast.HmacSha2_512,
+            ["HMAC_SHA3_256"] = FipsCast.HmacSha3_256,
+            ["DRBG"] = FipsCast.Drbg,
+            ["RSA"] = FipsCast.RsaSignPkcs1v15,
+            ["ECC_PRIMITIVE_Z"] = FipsCast.EccPrimitiveZ,
+            ["ECDSA"] = FipsCast.Ecdsa,
+            ["DH"] = FipsCast.DhPrimitiveZ,
+            ["KDF_TLS12"] = FipsCast.KdfTls12,
+            ["KDF_TLS13"] = FipsCast.KdfTls13,
+            ["KDF_SSH"] = FipsCast.KdfSsh,
             ["ECC_CDH"] = FipsCast.EccCdh,
         };
 
@@ -96,12 +105,14 @@ namespace wolfSSL.CSharp.Fips.Test
         public static void Run()
         {
             T.Section("Forced failure (FAILED and DEGRADED modes)");
-            if (!FipsModule.CanInjectFailure) {
+            if (!FipsModule.CanInjectFailure)
+            {
                 T.Run("forced failure scenarios", () =>
                     T.Skip("library not built with HAVE_FORCE_FIPS_FAILURE (use the optest build)"));
                 return;
             }
-            foreach (int code in new[] { IN_CORE, DRBG_CONT }.Concat(Degrades.Keys)) {
+            foreach (int code in new[] { IN_CORE, DRBG_CONT }.Concat(Degrades.Keys))
+            {
                 int c = code;
                 string label = code == IN_CORE ? "FAILED" : code == DRBG_CONT ? "CONTINUOUS TEST" : "DEGRADED";
                 T.Run(label + " " + FipsError.Name(c) + " (" + c + ")", () => RunChild(c));
@@ -111,11 +122,17 @@ namespace wolfSSL.CSharp.Fips.Test
         private static void RunChild(int code)
         {
             string exe = Environment.ProcessPath!;
-            var psi = new ProcessStartInfo(exe) {
-                RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false
+            var psi = new ProcessStartInfo(exe)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
             };
             if (Path.GetFileNameWithoutExtension(exe).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+            {
                 psi.ArgumentList.Add(typeof(ForcedFailureTests).Assembly.Location);
+            }
+
             psi.ArgumentList.Add("--force");
             psi.ArgumentList.Add(code.ToString());
             using var p = Process.Start(psi)!;
@@ -123,7 +140,8 @@ namespace wolfSSL.CSharp.Fips.Test
              * block the child, and so the timeout below can fire */
             var outTask = p.StandardOutput.ReadToEndAsync();
             var errTask = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(600_000)) {
+            if (!p.WaitForExit(600_000))
+            {
                 p.Kill(entireProcessTree: true);
                 p.WaitForExit();
                 throw new Exception("child timed out");
@@ -132,11 +150,19 @@ namespace wolfSSL.CSharp.Fips.Test
             string stderr = errTask.GetAwaiter().GetResult();
             var results = stdout.Split('\n').Where(l => l.StartsWith("RESULT ")).ToList();
             foreach (var l in results.Where(l => l.StartsWith("RESULT FAIL")))
+            {
                 Console.WriteLine("        " + l);
+            }
+
             foreach (var s in stdout.Split('\n').Where(l => l.StartsWith("SUMMARY ")))
+            {
                 Console.WriteLine("        " + s.Substring(8).Trim());
+            }
+
             if (p.ExitCode != 0)
+            {
                 throw new Exception("child exit " + p.ExitCode + (results.Count == 0 ? ": " + stderr.Trim() : ""));
+            }
         }
 
         /* ---- child ---- */
@@ -155,8 +181,13 @@ namespace wolfSSL.CSharp.Fips.Test
              * wrapper's trampoline must swallow it (an exception unwinding
              * into the module would terminate the process). */
             var callbacks = new List<(int Ok, int Err)>();
-            FipsModule.Initialize(onFailure: (ok, err, hash) => {
-                lock (callbacks) callbacks.Add((ok, err));
+            FipsModule.Initialize(onFailure: (ok, err, hash) =>
+            {
+                lock (callbacks)
+                {
+                    callbacks.Add((ok, err));
+                }
+
                 throw new InvalidOperationException("failure callback throws on purpose");
             });
             var rng = new FipsRng();
@@ -221,15 +252,22 @@ namespace wolfSSL.CSharp.Fips.Test
             /* sanity: everything works before the failure is injected */
             int bad = 0;
             foreach (var op in ops)
-                if (!Try(op, out string err)) {
+            {
+                if (!Try(op, out string err))
+                {
                     Console.WriteLine("RESULT FAIL pre-injection " + op.Name + ": " + err);
                     bad++;
                 }
+            }
+
             if (bad > 0)
+            {
                 return 2;
+            }
 
             int ret = FipsModule.InjectFailure(code);
-            if (ret != 0) {
+            if (ret != 0)
+            {
                 Console.WriteLine("RESULT FAIL wolfCrypt_SetStatus_fips returned " + ret);
                 return 3;
             }
@@ -248,13 +286,20 @@ namespace wolfSSL.CSharp.Fips.Test
 
             void Check(bool ok, string what)
             {
-                if (ok) pass++;
+                if (ok)
+                {
+                    pass++;
+                }
                 else { bad++; Console.WriteLine("RESULT FAIL " + what); }
             }
 
-            if (!failed) {
+            if (!failed)
+            {
                 foreach (string c in Degrades[code])
+                {
                     Check(degraded.Contains(c), "injected CAST " + c + " is not in the FAILURE state");
+                }
+
                 var cascade = degraded.Except(Degrades[code]).OrderBy(x => x).ToList();
                 Console.WriteLine("SUMMARY injected: " + string.Join(", ", Degrades[code]) +
                                   (cascade.Count > 0 ? "; cascade on re-run: " + string.Join(", ", cascade) : "; no cascade"));
@@ -264,60 +309,84 @@ namespace wolfSSL.CSharp.Fips.Test
             FipsMode expectMode = code == IN_CORE ? FipsMode.Failed : code == DRBG_CONT ? FipsMode.Normal : FipsMode.Degraded;
             Check(mode == expectMode, "mode is " + mode + ", expected " + expectMode);
             if (failed)
+            {
                 Check(FipsModule.Status == code, "status is " + FipsModule.Status);
+            }
+
             Check(!FipsModule.IsOperational, "IsOperational after injection");
             bool initThrew = false;
             try { FipsModule.Initialize(useOsSeed: false); } catch (WolfCryptFipsException) { initThrew = true; }
             Check(initThrew, "Initialize accepted a non-operational module");
 
-            foreach (var op in ops) {
+            foreach (var op in ops)
+            {
                 if (!failed && op.Casts.Any(unsettled.Contains) && !op.Casts.Any(degraded.Contains))
+                {
                     continue;   /* CAST neither passed nor failed: no expectation */
+                }
                 /* the wrapper refuses every DRBG consumer once the DRBG CAST
-                 * has failed, including those the module still serves from
-                 * an existing instance (module finding 14) */
+* has failed, including those the module still serves from
+* an existing instance (module finding 14) */
                 bool expectFail = failed || op.Casts.Any(degraded.Contains) ||
                                   (op.UsesDrbg && degraded.Contains("DRBG"));
                 bool ok = Try(op, out string err, out int errCode);
-                if (expectFail) {
+                if (expectFail)
+                {
                     Check(!ok, op.Name + ": succeeded, expected refusal");
                     if (failed && !ok)
+                    {
                         Check(errCode == FipsError.FIPS_NOT_ALLOWED_E,
                               op.Name + ": expected FIPS_NOT_ALLOWED_E, got " + err);
+                    }
                     /* a refusal must be a module-state error, never a plain
-                     * "verification returned false" */
+* "verification returned false" */
                     if (!failed && !ok)
+                    {
                         Check(FipsError.IsModuleStateError(errCode),
                               op.Name + ": refused without a module-state error: " + err);
+                    }
                 }
-                else if (!ok) {
+                else if (!ok)
+                {
                     /* only a module-state refusal is the module's own
                      * stricter decision; anything else (a managed
                      * exception, a verification returning false) is a bug */
                     if (FipsError.IsModuleStateError(errCode))
+                    {
                         extra.Add(op.Name + " (" + err + ")");
+                    }
                     else
+                    {
                         Check(false, op.Name + ": unexpected failure: " + err);
+                    }
                 }
             }
             /* failure callback delivery: FAILED and continuous-test refusals
              * report (0, code) from FipsAllowed; entering DEGRADED reports
              * (0, code) then (1, FIPS_DEGRADED_E) */
             List<(int Ok, int Err)> seen;
-            lock (callbacks) seen = new List<(int, int)>(callbacks);
+            lock (callbacks)
+            {
+                seen = new List<(int, int)>(callbacks);
+            }
+
             Check(seen.Contains((0, code)), "failure callback not delivered with (0, " + code + "); got " +
                   string.Join(" ", seen.Select(c => "(" + c.Ok + "," + c.Err + ")")));
             if (!failed)
+            {
                 Check(seen.Contains((1, FipsError.FIPS_DEGRADED_E)), "failure callback not delivered with (1, FIPS_DEGRADED_E)");
+            }
 
-            if (failed) {
+            if (failed)
+            {
                 /* a refused Generate leaves nothing in the caller's buffer */
                 byte[] buf = Enumerable.Repeat((byte)0xAA, 64).ToArray();
                 try { rng.Generate(buf); } catch (WolfCryptFipsException) { }
                 Check(buf.All(b => b == 0), "refused Generate left data in the caller's buffer");
             }
 
-            if (failed) {
+            if (failed)
+            {
                 /* the module refuses wc_FreeRng_fips here; the wrapper must
                  * report it rather than lose it */
                 long before = FipsModule.RefusedFreeCount;
@@ -326,7 +395,10 @@ namespace wolfSSL.CSharp.Fips.Test
                       "refused wc_FreeRng_fips not counted (" + before + " -> " + FipsModule.RefusedFreeCount + ")");
             }
             if (extra.Count > 0)
+            {
                 Console.WriteLine("SUMMARY also refused by the module: " + string.Join(", ", extra));
+            }
+
             int refused = ops.Count(o => failed || o.Casts.Any(degraded.Contains) ||
                                          (o.UsesDrbg && degraded.Contains("DRBG"))) + extra.Count;
             Console.WriteLine("SUMMARY " + (ops.Count - refused) + " services still available, " + refused +
@@ -336,14 +408,18 @@ namespace wolfSSL.CSharp.Fips.Test
 
         private static void Require(bool ok)
         {
-            if (!ok) throw new Exception("verification returned false");
+            if (!ok)
+            {
+                throw new Exception("verification returned false");
+            }
         }
 
         private static bool Try(Op op, out string err) => Try(op, out err, out _);
 
         private static bool Try(Op op, out string err, out int code)
         {
-            try {
+            try
+            {
                 op.Run();
                 err = ""; code = 0;
                 return true;

@@ -33,10 +33,13 @@ namespace wolfSSL.CSharp.Fips.Test
             /* ACVP hashDRBG (aegisolve). The module's health-test service
              * runs the SP 800-90A instantiate / reseed / generate / generate
              * sequence the vectors describe, returning the second generate. */
-            T.Run("ACVP hashDRBG vectors", () => {
+            T.Run("ACVP hashDRBG vectors", () =>
+            {
                 int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("hashDRBG")) {
-                    foreach (var g in set.Groups) {
+                foreach (AcvpVectorSet set in Acvp.Load("hashDRBG"))
+                {
+                    foreach (var g in set.Groups)
+                    {
                         T.Equal("SHA2-256", g.GetProperty("mode").GetString(), "mode");
                         T.True(g.GetProperty("persoStringLen").GetInt32() == 0 &&
                                g.GetProperty("additionalInputLen").GetInt32() == 0 &&
@@ -45,12 +48,18 @@ namespace wolfSSL.CSharp.Fips.Test
                         bool reseed = g.GetProperty("reSeed").GetBoolean();
                         int outLen = g.GetProperty("returnedBitsLen").GetInt32() / 8;
                         T.Equal(FipsRng.HealthTestOutputSize, outLen, "returnedBitsLen outside health-test service");
-                        foreach (var t in g.GetProperty("tests").EnumerateArray()) {
+                        foreach (var t in g.GetProperty("tests").EnumerateArray())
+                        {
                             byte[] seedA = Acvp.Hex(t, "entropyInput").Concat(Acvp.Hex(t, "nonce")).ToArray();
                             byte[]? seedB = null;
                             foreach (var oi in t.GetProperty("otherInput").EnumerateArray())
+                            {
                                 if (oi.GetProperty("intendedUse").GetString() == "reSeed")
+                                {
                                     seedB = Acvp.Hex(oi, "entropyInput");
+                                }
+                            }
+
                             byte[] got = FipsRng.HealthTest(reseed, seedA, seedB, outLen);
                             T.Bytes(Acvp.Hex(set.ExpectedFor(g, t), "returnedBits"), got,
                                     set.File + " tcId " + t.GetProperty("tcId").GetInt32());
@@ -61,9 +70,11 @@ namespace wolfSSL.CSharp.Fips.Test
                 Console.WriteLine("        " + n + " vectors");
             });
 
-            T.Run("HealthTest argument contract (128-byte output, seedB with reseed)", () => {
+            T.Run("HealthTest argument contract (128-byte output, seedB with reseed)", () =>
+            {
                 byte[] seed = new byte[48];
-                foreach (int len in new[] { 64, 127, 129, -1 }) {
+                foreach (int len in new[] { 64, 127, 129, -1 })
+                {
                     bool threw = false;
                     try { FipsRng.HealthTest(false, seed, null, len); } catch (ArgumentOutOfRangeException) { threw = true; }
                     T.True(threw, "outputLen " + len + " accepted");
@@ -74,7 +85,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Equal(128, FipsRng.HealthTest(false, seed, null).Length, "default length");
             });
 
-            T.Run("instantiate, generate, output is not constant", () => {
+            T.Run("instantiate, generate, output is not constant", () =>
+            {
                 using var rng = new FipsRng();
                 byte[] a = rng.Generate(64);
                 byte[] b = rng.Generate(64);
@@ -82,13 +94,15 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!a.SequenceEqual(b), "repeated output");
             });
 
-            T.Run("independent instances produce different output", () => {
+            T.Run("independent instances produce different output", () =>
+            {
                 using var r1 = new FipsRng();
                 using var r2 = new FipsRng();
                 T.True(!r1.Generate(32).SequenceEqual(r2.Generate(32)), "same output");
             });
 
-            T.Run("instantiate with nonce (at least 128 bits, SP 800-90A 8.6.7)", () => {
+            T.Run("instantiate with nonce (at least 128 bits, SP 800-90A 8.6.7)", () =>
+            {
                 using var rng = new FipsRng(Enumerable.Range(1, 16).Select(i => (byte)i).ToArray());
                 T.Equal(48, rng.Generate(48).Length, "length");
                 bool threw = false;
@@ -96,22 +110,28 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(threw, "15-byte nonce accepted");
             });
 
-            T.Run("one instance shared by several threads", () => {
+            T.Run("one instance shared by several threads", () =>
+            {
                 using var rng = new FipsRng();
                 var outs = new System.Collections.Concurrent.ConcurrentBag<string>();
-                System.Threading.Tasks.Parallel.For(0, 8, _ => {
+                System.Threading.Tasks.Parallel.For(0, 8, _ =>
+                {
                     for (int i = 0; i < 200; i++)
+                    {
                         outs.Add(Convert.ToHexString(rng.Generate(32)));
+                    }
                 });
                 T.Equal(1600, outs.Distinct().Count(), "distinct outputs");
             });
 
-            T.Run("maximum request size succeeds", () => {
+            T.Run("maximum request size succeeds", () =>
+            {
                 using var rng = new FipsRng();
                 T.Equal(FipsRng.MaxRequest, rng.Generate(FipsRng.MaxRequest).Length, "length");
             });
 
-            T.Run("request above maximum is rejected by the module", () => {
+            T.Run("request above maximum is rejected by the module", () =>
+            {
                 using var rng = new FipsRng();
                 bool threw = false;
                 try { rng.Generate(FipsRng.MaxRequest + 1); }
@@ -119,13 +139,17 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(threw, "oversized request accepted");
             });
 
-            T.Run("many sequential generates", () => {
+            T.Run("many sequential generates", () =>
+            {
                 using var rng = new FipsRng();
                 for (int i = 0; i < 1000; i++)
+                {
                     rng.Generate(32);
+                }
             });
 
-            T.Run("use after Dispose throws ObjectDisposedException", () => {
+            T.Run("use after Dispose throws ObjectDisposedException", () =>
+            {
                 var rng = new FipsRng();
                 rng.Dispose();
                 bool threw = false;

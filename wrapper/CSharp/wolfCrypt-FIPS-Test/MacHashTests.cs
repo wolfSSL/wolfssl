@@ -40,11 +40,15 @@ namespace wolfSSL.CSharp.Fips.Test
             T.Section("SHA-1 / SHA-2 / SHA-3");
 
             foreach (var (acvp, type) in Hashes)
+            {
                 T.Run("ACVP " + acvp + " (AFT + MCT)", () => HashVectors(acvp, type));
+            }
 
-            T.Run("incremental update equals one-shot, object reusable after Final", () => {
+            T.Run("incremental update equals one-shot, object reusable after Final", () =>
+            {
                 byte[] msg = Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog");
-                foreach (var (_, type) in Hashes) {
+                foreach (var (_, type) in Hashes)
+                {
                     using var h = new FipsHash(type);
                     h.Update(msg.Take(10).ToArray());
                     h.Update(msg.Skip(10).ToArray());
@@ -58,15 +62,19 @@ namespace wolfSSL.CSharp.Fips.Test
             T.Section("HMAC");
 
             foreach (var (acvp, type) in Hashes)
+            {
                 T.Run("ACVP HMAC-" + acvp, () => HmacVectors("HMAC-" + acvp, type));
+            }
 
-            T.Run("HMAC key below 112 bits is rejected (HMAC_MIN_KEYLEN_E)", () => {
+            T.Run("HMAC key below 112 bits is rejected (HMAC_MIN_KEYLEN_E)", () =>
+            {
                 T.Throws(FipsError.HMAC_MIN_KEYLEN_E,
                     () => FipsHmac.Compute(FipsHashType.Sha256, new byte[13], new byte[] { 1 }),
                     "13-byte key");
             });
 
-            T.Run("HMAC object reusable after Final", () => {
+            T.Run("HMAC object reusable after Final", () =>
+            {
                 byte[] key = new byte[32];
                 using var h = new FipsHmac(FipsHashType.Sha256, key);
                 h.Update(new byte[] { 1, 2, 3 });
@@ -79,13 +87,15 @@ namespace wolfSSL.CSharp.Fips.Test
 
             T.Run("ACVP CMAC-AES (gen + ver)", CmacVectors);
 
-            T.Run("CMAC tags below 64 bits are refused", () => {
+            T.Run("CMAC tags below 64 bits are refused", () =>
+            {
                 bool threw = false;
                 try { FipsCmac.Compute(new byte[16], new byte[1], 4); } catch (ArgumentOutOfRangeException) { threw = true; }
                 T.True(threw, "4-byte tag generated");
             });
 
-            T.Run("HMAC keys at most 1024 bits; AES-CMAC key sizes", () => {
+            T.Run("HMAC keys at most 1024 bits; AES-CMAC key sizes", () =>
+            {
                 byte[] msg = { 1, 2, 3 };
                 T.Equal(32, FipsHmac.Compute(FipsHashType.Sha256, new byte[128], msg).Length, "128-byte key");
                 bool threw = false;
@@ -96,7 +106,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(threw, "20-byte CMAC key accepted");
             });
 
-            T.Run("CMAC is single use", () => {
+            T.Run("CMAC is single use", () =>
+            {
                 using var c = new FipsCmac(new byte[16]);
                 c.Final();
                 bool threw = false;
@@ -109,32 +120,42 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             int n = 0;
             bool sha3 = alg.StartsWith("SHA3");
-            foreach (AcvpVectorSet set in Acvp.Load(alg)) {
-                foreach (var g in set.Groups) {
+            foreach (AcvpVectorSet set in Acvp.Load(alg))
+            {
+                foreach (var g in set.Groups)
+                {
                     string tt = g.GetProperty("testType").GetString()!;
-                    foreach (var t in g.GetProperty("tests").EnumerateArray()) {
+                    foreach (var t in g.GetProperty("tests").EnumerateArray())
+                    {
                         var exp = set.ExpectedFor(g, t);
                         string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
                         byte[] msg = Acvp.Hex(t, "msg");
-                        if (tt == "AFT") {
+                        if (tt == "AFT")
+                        {
                             T.Bytes(Acvp.Hex(exp, "md"), FipsHash.Compute(type, msg), where);
                         }
-                        else if (tt == "MCT") {
+                        else if (tt == "MCT")
+                        {
                             var results = exp.GetProperty("resultsArray").EnumerateArray().ToList();
                             byte[] seed = msg;
                             using var h = new FipsHash(type);
-                            for (int j = 0; j < 100; j++) {
-                                if (sha3) {
+                            for (int j = 0; j < 100; j++)
+                            {
+                                if (sha3)
+                                {
                                     /* SHA-3 MCT: MD(i) = SHA3(MD(i-1)), 1000 times */
-                                    for (int i = 0; i < 1000; i++) {
+                                    for (int i = 0; i < 1000; i++)
+                                    {
                                         h.Update(seed);
                                         seed = h.Final();
                                     }
                                 }
-                                else {
+                                else
+                                {
                                     /* SHA-1/2 MCT: M(i) = MD(i-3)||MD(i-2)||MD(i-1) */
                                     byte[] a = seed, b = seed, c = seed;
-                                    for (int i = 3; i < 1003; i++) {
+                                    for (int i = 3; i < 1003; i++)
+                                    {
                                         h.Update(c.Concat(b).Concat(a).ToArray());
                                         c = b; b = a; a = h.Final();
                                     }
@@ -143,7 +164,8 @@ namespace wolfSSL.CSharp.Fips.Test
                                 T.Bytes(Acvp.Hex(results[j], "md"), seed, where + " MCT j=" + j);
                             }
                         }
-                        else {
+                        else
+                        {
                             throw new Exception("unhandled test type " + tt);
                         }
                         n++;
@@ -156,10 +178,13 @@ namespace wolfSSL.CSharp.Fips.Test
         private static void HmacVectors(string alg, FipsHashType type)
         {
             int n = 0;
-            foreach (AcvpVectorSet set in Acvp.Load(alg)) {
-                foreach (var g in set.Groups) {
+            foreach (AcvpVectorSet set in Acvp.Load(alg))
+            {
+                foreach (var g in set.Groups)
+                {
                     int macLen = g.GetProperty("macLen").GetInt32() / 8;
-                    foreach (var t in g.GetProperty("tests").EnumerateArray()) {
+                    foreach (var t in g.GetProperty("tests").EnumerateArray())
+                    {
                         byte[] mac = FipsHmac.Compute(type, Acvp.Hex(t, "key"), Acvp.Hex(t, "msg"));
                         T.Bytes(Acvp.Hex(set.ExpectedFor(g, t), "mac"), mac.Take(macLen).ToArray(),
                                 set.File + " tcId " + t.GetProperty("tcId").GetInt32());
@@ -173,18 +198,23 @@ namespace wolfSSL.CSharp.Fips.Test
         private static void CmacVectors()
         {
             int gen = 0, ver = 0, shortTag = 0;
-            foreach (AcvpVectorSet set in Acvp.Load("CMAC-AES")) {
-                foreach (var g in set.Groups) {
+            foreach (AcvpVectorSet set in Acvp.Load("CMAC-AES"))
+            {
+                foreach (var g in set.Groups)
+                {
                     int macLen = g.GetProperty("macLen").GetInt32() / 8;
                     string dir = g.GetProperty("direction").GetString()!;
-                    foreach (var t in g.GetProperty("tests").EnumerateArray()) {
+                    foreach (var t in g.GetProperty("tests").EnumerateArray())
+                    {
                         var exp = set.ExpectedFor(g, t);
                         string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
                         byte[] key = Acvp.Hex(t, "key"), msg = Acvp.Hex(t, "message");
-                        if (macLen < FipsCmac.MinTagSize) {
+                        if (macLen < FipsCmac.MinTagSize)
+                        {
                             /* tags under 64 bits are not offered (SP 800-38B A.2) */
                             bool refused = false;
-                            try {
+                            try
+                            {
                                 FipsCmac.Compute(key, msg, macLen);
                             }
                             catch (ArgumentOutOfRangeException) { refused = true; }
@@ -192,11 +222,13 @@ namespace wolfSSL.CSharp.Fips.Test
                             shortTag++;
                             continue;
                         }
-                        if (dir == "gen") {
+                        if (dir == "gen")
+                        {
                             T.Bytes(Acvp.Hex(exp, "mac"), FipsCmac.Compute(key, msg, macLen), where);
                             gen++;
                         }
-                        else {
+                        else
+                        {
                             /* verification: the boundary generates; the test compares */
                             T.Equal(exp.GetProperty("testPassed").GetBoolean(),
                                     FipsCmac.Compute(key, msg, macLen).SequenceEqual(Acvp.Hex(t, "mac")), where);

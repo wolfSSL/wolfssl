@@ -43,7 +43,8 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             T.Section("Embedded known answers (no ACVP vectors needed)");
 
-            T.Run("SHA-1/2/3 of \"abc\" (FIPS 180-4, FIPS 202)", () => {
+            T.Run("SHA-1/2/3 of \"abc\" (FIPS 180-4, FIPS 202)", () =>
+            {
                 byte[] abc = Encoding.ASCII.GetBytes("abc");
                 var expected = new (FipsHashType, string)[] {
                     (FipsHashType.Sha1, "a9993e364706816aba3e25717850c26c9cd0d89d"),
@@ -61,10 +62,13 @@ namespace wolfSSL.CSharp.Fips.Test
                                             "10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0"),
                 };
                 foreach (var (type, hex) in expected)
+                {
                     T.Bytes(T.Hex(hex), FipsHash.Compute(type, abc), type.ToString());
+                }
             });
 
-            T.Run("HMAC (RFC 4231 test case 1) and .NET cross-check", () => {
+            T.Run("HMAC (RFC 4231 test case 1) and .NET cross-check", () =>
+            {
                 byte[] key = Enumerable.Repeat((byte)0x0b, 20).ToArray();
                 byte[] msg = Encoding.ASCII.GetBytes("Hi There");
                 var expected = new (FipsHashType, string)[] {
@@ -78,14 +82,18 @@ namespace wolfSSL.CSharp.Fips.Test
                     (FipsHashType.Sha3_256, "ba85192310dffa96e2a3a40e69774351140bb7185e1202cdcc917589f95e16bb"),
                 };
                 foreach (var (type, hex) in expected)
+                {
                     T.Bytes(T.Hex(hex), FipsHmac.Compute(type, key, msg), "HMAC-" + type);
+                }
+
                 byte[] k32 = Enumerable.Range(1, 32).Select(i => (byte)i).ToArray();
                 byte[] data = Enumerable.Range(0, 300).Select(i => (byte)(i * 7)).ToArray();
                 T.Bytes(HMACSHA256.HashData(k32, data), FipsHmac.Compute(FipsHashType.Sha256, k32, data), ".NET HMAC-SHA-256");
                 T.Bytes(HMACSHA512.HashData(k32, data), FipsHmac.Compute(FipsHashType.Sha512, k32, data), ".NET HMAC-SHA-512");
             });
 
-            T.Run("AES-128 ECB/CBC/OFB/CTR (SP 800-38A F.1-F.5), both directions", () => {
+            T.Run("AES-128 ECB/CBC/OFB/CTR (SP 800-38A F.1-F.5), both directions", () =>
+            {
                 var cases = new (string Mode, byte[] Ct, Func<bool, FipsAes> Make)[] {
                     ("ECB", T.Hex("3ad77bb40d7a3660a89ecaf32466ef97f5d3d58503b9699de785895a96fdbaaf"),
                         enc => FipsAes.CreateEcb(Key38A, enc)),
@@ -96,11 +104,17 @@ namespace wolfSSL.CSharp.Fips.Test
                     ("CTR", T.Hex("874d6191b620e3261bef6864990db6ce9806f66b7970fdff8617187bb9fffdff"),
                         _ => FipsAes.CreateCtr(Key38A, T.Hex("f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"))),
                 };
-                foreach (var (mode, ct, make) in cases) {
+                foreach (var (mode, ct, make) in cases)
+                {
                     using (var e = make(true))
+                    {
                         T.Bytes(ct, e.Transform(Pt38A), mode + " encrypt");
+                    }
+
                     using (var d = make(false))
+                    {
                         T.Bytes(Pt38A, d.Transform(ct), mode + " decrypt");
+                    }
                 }
                 /* .NET cross-check with an independent key, IV and length */
                 byte[] key = Enumerable.Range(0, 32).Select(i => (byte)(i * 3 + 1)).ToArray();
@@ -114,18 +128,21 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(net.EncryptEcb(pt, PaddingMode.None), ecb.Transform(pt), ".NET AES-256-ECB");
             });
 
-            T.Run("CMAC-AES-128 (RFC 4493 example 2)", () => {
+            T.Run("CMAC-AES-128 (RFC 4493 example 2)", () =>
+            {
                 T.Bytes(T.Hex("070a16b46b4d4144f79bdd9dd04a287c"),
                         FipsCmac.Compute(Key38A, Pt38A.Take(16).ToArray()), "tag");
             });
 
-            T.Run("AES-GCM (test case 2, external IV) and .NET cross-check", () => {
+            T.Run("AES-GCM (test case 2, external IV) and .NET cross-check", () =>
+            {
                 using var gcm = new FipsAesGcm(new byte[16]);
                 var r = gcm.EncryptWithIV(new byte[12], new byte[16]);
                 T.Bytes(T.Hex("0388dace60b6a392f328c2b971b2fe78"), r.Ciphertext, "ciphertext");
                 T.Bytes(T.Hex("ab6e47d42cec13bdf53a67b21257bddf"), r.Tag, "tag");
                 T.Bytes(new byte[16], gcm.Decrypt(r.IV, r.Ciphertext, r.Tag), "decrypt");
-                if (!AesGcm.IsSupported) {
+                if (!AesGcm.IsSupported)
+                {
                     Console.WriteLine("        .NET AesGcm not supported on this platform; cross-check skipped");
                     return;
                 }
@@ -135,7 +152,10 @@ namespace wolfSSL.CSharp.Fips.Test
                 byte[] aad = { 1, 2, 3, 4, 5 };
                 byte[] nct = new byte[pt.Length], ntag = new byte[16];
                 using (var n = new AesGcm(key, 16))
+                {
                     n.Encrypt(iv, pt, nct, ntag, aad);
+                }
+
                 using var g2 = new FipsAesGcm(key);
                 var r2 = g2.EncryptWithIV(iv, pt, aad);
                 T.Bytes(nct, r2.Ciphertext, ".NET ciphertext");
@@ -143,7 +163,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(pt, g2.Decrypt(iv, nct, ntag, aad), "decrypt .NET output");
             });
 
-            T.Run("AES-CCM (RFC 3610 packet vector 1) and .NET cross-check", () => {
+            T.Run("AES-CCM (RFC 3610 packet vector 1) and .NET cross-check", () =>
+            {
                 byte[] key = T.Hex("c0c1c2c3c4c5c6c7c8c9cacbcccdcecf");
                 byte[] nonce = T.Hex("00000003020100a0a1a2a3a4a5");
                 byte[] aad = T.Hex("0001020304050607");
@@ -154,7 +175,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(T.Hex("588c979a61c663d2f066d0c2c0f989806d5f6b61dac384"), r.Ciphertext, "ciphertext");
                 T.Bytes(T.Hex("17e8d12cfdf926e0"), r.Tag, "tag");
                 T.Bytes(pt, ccm.Decrypt(nonce, r.Ciphertext, r.Tag, aad, 8), "decrypt");
-                if (!AesCcm.IsSupported) {
+                if (!AesCcm.IsSupported)
+                {
                     Console.WriteLine("        .NET AesCcm not supported on this platform; cross-check skipped");
                     return;
                 }
@@ -163,7 +185,10 @@ namespace wolfSSL.CSharp.Fips.Test
                 byte[] p2 = Enumerable.Range(0, 40).Select(i => (byte)i).ToArray();
                 byte[] nct = new byte[p2.Length], ntag = new byte[16];
                 using (var n = new AesCcm(k2))
+                {
                     n.Encrypt(n2, p2, nct, ntag, aad);
+                }
+
                 using var c2 = new FipsAesCcm(k2);
                 c2.SetNonce(n2);
                 var r2 = c2.Encrypt(p2, aad);
@@ -171,7 +196,8 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(ntag, r2.Tag, ".NET tag");
             });
 
-            T.Run("Hash_DRBG SHA-256 (CAVS, no reseed) via the health-test service", () => {
+            T.Run("Hash_DRBG SHA-256 (CAVS, no reseed) via the health-test service", () =>
+            {
                 byte[] entropyNonce = T.Hex("a65ad0f345db4e0effe875c3a2e71f42c7129d620ff5c119a9ef55f05185e0fb" +
                                             "8581f9317517276e06e9607ddbcbcc2e");
                 byte[] expected = T.Hex("d3e160c35b99f340b2628264d1751060e0045da383ff57a57d73a673d2b8d80d" +
