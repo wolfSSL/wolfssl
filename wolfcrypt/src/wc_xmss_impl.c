@@ -36,6 +36,9 @@
 
 #if defined(WOLFSSL_HAVE_XMSS)
 
+/* The whole native core goes when operations are callback-only. */
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
+
 #if FIPS_VERSION3_GE(7,0,0)
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$nh")
@@ -4469,5 +4472,7 @@ int wc_xmssmt_verify(XmssState* state, const unsigned char* m, word32 mlen,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
+
 #endif /* WOLFSSL_HAVE_XMSS */
 

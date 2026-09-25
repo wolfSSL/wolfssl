@@ -66,8 +66,15 @@ static int swdev_ensure_init(void)
     return 0;
 }
 
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+static void swdev_stateful_cleanup(void);
+#endif
+
 WC_SWDEV_EXPORT void wc_SwDev_InternalCleanup(void)
 {
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+    swdev_stateful_cleanup();
+#endif
     if (swdev_initialized) {
         wolfCrypt_Cleanup();
         swdev_initialized = 0;
@@ -649,6 +656,548 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
     }
 }
 #endif /* WOLFSSL_HAVE_SLHDSA */
+
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+
+#if (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY))
+    #define SWDEV_STATEFUL_SIGN
+#endif
+
+/* Signing key to model a device-resident key */
+typedef struct swdev_stateful_key {
+    struct swdev_stateful_key* next;
+    int    type;
+    byte*  priv;
+    word32 privSz;
+#ifdef WOLFSSL_HAVE_LMS
+    LmsKey  lms;
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    XmssKey xmss;
+#endif
+} swdev_stateful_key;
+
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+static int swdev_lms_write(const byte* priv, word32 privSz, void* context)
+{
+    swdev_stateful_key* dev = (swdev_stateful_key*)context;
+
+    if ((dev == NULL) || (priv == NULL))
+        return WC_LMS_RC_BAD_ARG;
+    if (privSz > dev->privSz)
+        return WC_LMS_RC_WRITE_FAIL;
+
+    XMEMCPY(dev->priv, priv, privSz);
+    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static int swdev_lms_read(byte* priv, word32 privSz, void* context)
+{
+    swdev_stateful_key* dev = (swdev_stateful_key*)context;
+
+    if ((dev == NULL) || (priv == NULL))
+        return WC_LMS_RC_BAD_ARG;
+    if (privSz > dev->privSz)
+        return WC_LMS_RC_READ_FAIL;
+
+    XMEMCPY(priv, dev->priv, privSz);
+    return WC_LMS_RC_READ_TO_MEMORY;
+}
+#endif
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+static enum wc_XmssRc swdev_xmss_write(const byte* priv, word32 privSz,
+    void* context)
+{
+    swdev_stateful_key* dev = (swdev_stateful_key*)context;
+
+    if ((dev == NULL) || (priv == NULL) || (privSz > dev->privSz))
+        return WC_XMSS_RC_WRITE_FAIL;
+
+    XMEMCPY(dev->priv, priv, privSz);
+    return WC_XMSS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static enum wc_XmssRc swdev_xmss_read(byte* priv, word32 privSz, void* context)
+{
+    swdev_stateful_key* dev = (swdev_stateful_key*)context;
+
+    if ((dev == NULL) || (priv == NULL) || (privSz > dev->privSz))
+        return WC_XMSS_RC_READ_FAIL;
+
+    XMEMCPY(priv, dev->priv, privSz);
+    return WC_XMSS_RC_READ_TO_MEMORY;
+}
+#endif
+
+/* Track freed keys and sweep at cleanup to avoid sanitizer issues. */
+static swdev_stateful_key* swdev_stateful_list = NULL;
+
+static void swdev_stateful_untrack(swdev_stateful_key* dev)
+{
+    swdev_stateful_key** p = &swdev_stateful_list;
+
+    while (*p != NULL) {
+        if (*p == dev) {
+            *p = dev->next;
+            return;
+        }
+        p = &(*p)->next;
+    }
+}
+
+static void swdev_stateful_free(swdev_stateful_key* dev);
+
+static void swdev_stateful_cleanup(void)
+{
+    while (swdev_stateful_list != NULL) {
+        swdev_stateful_free(swdev_stateful_list);
+    }
+}
+
+static void swdev_stateful_free(swdev_stateful_key* dev)
+{
+    if (dev == NULL)
+        return;
+
+    swdev_stateful_untrack(dev);
+
+    switch (dev->type) {
+#ifdef WOLFSSL_HAVE_LMS
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        wc_LmsKey_Free(&dev->lms);
+        break;
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        wc_XmssKey_Free(&dev->xmss);
+        break;
+#endif
+    default:
+        break;
+    }
+
+    if (dev->priv != NULL) {
+        wc_ForceZero(dev->priv, dev->privSz);
+        XFREE(dev->priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    wc_ForceZero(dev, sizeof(*dev));
+    XFREE(dev, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+
+#if defined(SWDEV_STATEFUL_SIGN) || defined(WOLF_CRYPTO_CB_FREE)
+static swdev_stateful_key* swdev_stateful_get(int type, void* key)
+{
+    switch (type) {
+#ifdef WOLFSSL_HAVE_LMS
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        return (swdev_stateful_key*)((LmsKey*)key)->devCtx;
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        return (swdev_stateful_key*)((XmssKey*)key)->devCtx;
+#endif
+    default:
+        return NULL;
+    }
+}
+#endif /* SWDEV_STATEFUL_SIGN || WOLF_CRYPTO_CB_FREE */
+
+/* Clear the key's devId so the public API takes its software path instead of
+ * dispatching straight back here. */
+static int swdev_stateful_take(int type, void* key, int* devId)
+{
+    int ret = 0;
+
+    *devId = INVALID_DEVID;
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (type) {
+#ifdef WOLFSSL_HAVE_LMS
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        *devId = ((LmsKey*)key)->devId;
+        ((LmsKey*)key)->devId = INVALID_DEVID;
+        break;
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        *devId = ((XmssKey*)key)->devId;
+        ((XmssKey*)key)->devId = INVALID_DEVID;
+        break;
+#endif
+    default:
+        ret = CRYPTOCB_UNAVAILABLE;
+        break;
+    }
+
+    return ret;
+}
+
+static void swdev_stateful_give_back(int type, void* key, int devId)
+{
+    if (key == NULL)
+        return;
+
+    switch (type) {
+#ifdef WOLFSSL_HAVE_LMS
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        ((LmsKey*)key)->devId = devId;
+        break;
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        ((XmssKey*)key)->devId = devId;
+        break;
+#endif
+    default:
+        break;
+    }
+}
+
+#ifdef SWDEV_STATEFUL_SIGN
+/* Generate a key that stays on the device. Only the public half is copied
+ * back, so the caller can perform export and verify. */
+static int swdev_stateful_keygen(wc_CryptoInfo* info)
+{
+    int                 type = info->pk.pqc_stateful_sig_kg.type;
+    void*               key  = info->pk.pqc_stateful_sig_kg.key;
+    swdev_stateful_key* dev;
+    word32              privSz = 0;
+    int                 ret;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = (swdev_stateful_key*)XMALLOC(sizeof(*dev), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (dev == NULL)
+        return MEMORY_E;
+    XMEMSET(dev, 0, sizeof(*dev));
+    dev->type = type;
+
+    switch (type) {
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS: {
+        const LmsKey* src = (const LmsKey*)key;
+        int levels = 0, height = 0, winternitz = 0, hash = 0;
+
+        ret = wc_LmsKey_Init(&dev->lms, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_LmsKey_GetParameters_ex(src, &levels, &height,
+                &winternitz, &hash);
+        }
+        if (ret == 0) {
+            ret = wc_LmsKey_SetParameters_ex(&dev->lms, levels, height,
+                winternitz, hash);
+        }
+        if (ret == 0) {
+            ret = wc_LmsKey_GetPrivLen(&dev->lms, &privSz);
+        }
+    #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        /* The write callback receives the traversal state as well. */
+        if (ret == 0) {
+            privSz += LMS_PRIV_DATA_LEN(dev->lms.params->levels,
+                dev->lms.params->height, dev->lms.params->p,
+                dev->lms.params->rootLevels, dev->lms.params->cacheBits,
+                dev->lms.params->hash_len);
+        }
+    #endif
+        break;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS: {
+        const XmssKey* src = (const XmssKey*)key;
+
+        ret = wc_XmssKey_Init(&dev->xmss, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            /* Mirror the caller's parameter set. */
+            dev->xmss.oid = src->oid;
+            dev->xmss.params = src->params;
+            dev->xmss.sk_len = src->sk_len;
+            dev->xmss.is_xmssmt = src->is_xmssmt;
+            dev->xmss.state = WC_XMSS_STATE_PARMSET;
+            ret = wc_XmssKey_GetPrivLen(&dev->xmss, &privSz);
+        }
+        break;
+    }
+#endif
+    default:
+        ret = CRYPTOCB_UNAVAILABLE;
+        break;
+    }
+
+    /* Stands in for the device's nonvolatile storage. */
+    if (ret == 0) {
+        dev->privSz = privSz;
+        dev->priv = (byte*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dev->priv == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(dev->priv, 0, privSz);
+        }
+    }
+
+    switch ((ret == 0) ? type : WC_PQC_STATEFUL_SIG_TYPE_NONE) {
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        {
+            const LmsKey* src = (const LmsKey*)key;
+            /* Persist where the caller asked, or in the device otherwise. */
+            if (src->write_private_key != NULL) {
+                ret = wc_LmsKey_SetWriteCb(&dev->lms, src->write_private_key);
+                if ((ret == 0) && (src->read_private_key != NULL)) {
+                    ret = wc_LmsKey_SetReadCb(&dev->lms,
+                        src->read_private_key);
+                }
+                if (ret == 0) {
+                    ret = wc_LmsKey_SetContext(&dev->lms, src->context);
+                }
+            }
+            else {
+                ret = wc_LmsKey_SetWriteCb(&dev->lms, swdev_lms_write);
+                if (ret == 0) {
+                    ret = wc_LmsKey_SetReadCb(&dev->lms, swdev_lms_read);
+                }
+                if (ret == 0) {
+                    ret = wc_LmsKey_SetContext(&dev->lms, dev);
+                }
+            }
+        }
+        if (ret == 0) {
+            ret = wc_LmsKey_MakeKey(&dev->lms,
+                info->pk.pqc_stateful_sig_kg.rng);
+        }
+        if (ret == 0) {
+            LmsKey* dst = (LmsKey*)key;
+            XMEMCPY(dst->pub, dev->lms.pub, sizeof(dst->pub));
+            dst->devCtx = dev;
+        }
+        break;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        {
+            const XmssKey* src = (const XmssKey*)key;
+            /* Persist where the caller asked, or in the device otherwise. */
+            if (src->write_private_key != NULL) {
+                ret = wc_XmssKey_SetWriteCb(&dev->xmss,
+                    src->write_private_key);
+                if ((ret == 0) && (src->read_private_key != NULL)) {
+                    ret = wc_XmssKey_SetReadCb(&dev->xmss,
+                        src->read_private_key);
+                }
+                if (ret == 0) {
+                    ret = wc_XmssKey_SetContext(&dev->xmss, src->context);
+                }
+            }
+            else {
+                ret = wc_XmssKey_SetWriteCb(&dev->xmss, swdev_xmss_write);
+                if (ret == 0) {
+                    ret = wc_XmssKey_SetReadCb(&dev->xmss, swdev_xmss_read);
+                }
+                if (ret == 0) {
+                    ret = wc_XmssKey_SetContext(&dev->xmss, dev);
+                }
+            }
+        }
+        if (ret == 0) {
+            ret = wc_XmssKey_MakeKey(&dev->xmss,
+                info->pk.pqc_stateful_sig_kg.rng);
+        }
+        if (ret == 0) {
+            XmssKey* dst = (XmssKey*)key;
+            XMEMCPY(dst->pk, dev->xmss.pk, sizeof(dst->pk));
+            dst->devCtx = dev;
+        }
+        break;
+#endif
+    default:
+        break;
+    }
+
+    if (ret != 0) {
+        swdev_stateful_free(dev);
+    }
+    else {
+        dev->next = swdev_stateful_list;
+        swdev_stateful_list = dev;
+    }
+
+    return ret;
+}
+
+static int swdev_stateful_sign(wc_CryptoInfo* info)
+{
+    int                 type = info->pk.pqc_stateful_sig_sign.type;
+    swdev_stateful_key* dev;
+    int                 ret;
+
+    dev = swdev_stateful_get(type, info->pk.pqc_stateful_sig_sign.key);
+    if (dev == NULL)
+        return CRYPTOCB_UNAVAILABLE;
+
+    switch (type) {
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        ret = wc_LmsKey_Sign(&dev->lms, info->pk.pqc_stateful_sig_sign.out,
+            info->pk.pqc_stateful_sig_sign.outSz,
+            info->pk.pqc_stateful_sig_sign.msg,
+            (int)info->pk.pqc_stateful_sig_sign.msgSz);
+        break;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        ret = wc_XmssKey_Sign(&dev->xmss, info->pk.pqc_stateful_sig_sign.out,
+            info->pk.pqc_stateful_sig_sign.outSz,
+            info->pk.pqc_stateful_sig_sign.msg,
+            (int)info->pk.pqc_stateful_sig_sign.msgSz);
+        break;
+#endif
+    default:
+        ret = CRYPTOCB_UNAVAILABLE;
+        break;
+    }
+
+    return ret;
+}
+
+static int swdev_stateful_sigsleft(wc_CryptoInfo* info)
+{
+    int                 type = info->pk.pqc_stateful_sig_sigs_left.type;
+    swdev_stateful_key* dev;
+    int                 ret = 0;
+
+    if (info->pk.pqc_stateful_sig_sigs_left.sigsLeft == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = swdev_stateful_get(type, info->pk.pqc_stateful_sig_sigs_left.key);
+    if (dev == NULL)
+        return CRYPTOCB_UNAVAILABLE;
+
+    switch (type) {
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+        *info->pk.pqc_stateful_sig_sigs_left.sigsLeft =
+            (word32)wc_LmsKey_SigsLeft(&dev->lms);
+        break;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+        *info->pk.pqc_stateful_sig_sigs_left.sigsLeft =
+            (word32)wc_XmssKey_SigsLeft(&dev->xmss);
+        break;
+#endif
+    default:
+        ret = CRYPTOCB_UNAVAILABLE;
+        break;
+    }
+
+    return ret;
+}
+#endif /* SWDEV_STATEFUL_SIGN */
+
+static int swdev_stateful_verify(wc_CryptoInfo* info)
+{
+    int   type = info->pk.pqc_stateful_sig_verify.type;
+    void* key  = info->pk.pqc_stateful_sig_verify.key;
+    int*  res  = info->pk.pqc_stateful_sig_verify.res;
+    int   devId;
+    int   ret;
+
+    ret = swdev_stateful_take(type, key, &devId);
+    if (ret == 0) {
+        switch (type) {
+    #ifdef WOLFSSL_HAVE_LMS
+        case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+            ret = wc_LmsKey_Verify((LmsKey*)key,
+                info->pk.pqc_stateful_sig_verify.sig,
+                info->pk.pqc_stateful_sig_verify.sigSz,
+                info->pk.pqc_stateful_sig_verify.msg,
+                (int)info->pk.pqc_stateful_sig_verify.msgSz);
+            break;
+    #endif
+    #ifdef WOLFSSL_HAVE_XMSS
+        case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+            ret = wc_XmssKey_Verify((XmssKey*)key,
+                info->pk.pqc_stateful_sig_verify.sig,
+                info->pk.pqc_stateful_sig_verify.sigSz,
+                info->pk.pqc_stateful_sig_verify.msg,
+                (int)info->pk.pqc_stateful_sig_verify.msgSz);
+            break;
+    #endif
+        default:
+            ret = CRYPTOCB_UNAVAILABLE;
+            break;
+        }
+        swdev_stateful_give_back(type, key, devId);
+    }
+
+    /* Only a bad signature is a verdict; every other failure propagates. */
+    if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+        if (res != NULL) {
+            *res = 0;
+        }
+        ret = 0;
+    }
+    else if ((ret == 0) && (res != NULL)) {
+        *res = 1;
+    }
+
+    return ret;
+}
+
+#if defined(WOLF_CRYPTO_CB_FREE)
+/* Release the device-resident key the caller is done with. */
+static int swdev_stateful_free_cb(wc_CryptoInfo* info)
+{
+    swdev_stateful_key* dev = swdev_stateful_get(info->free.subType,
+        info->free.obj);
+
+    if (dev != NULL) {
+        swdev_stateful_free(dev);
+        switch (info->free.subType) {
+    #ifdef WOLFSSL_HAVE_LMS
+        case WC_PQC_STATEFUL_SIG_TYPE_LMS:
+            ((LmsKey*)info->free.obj)->devCtx = NULL;
+            break;
+    #endif
+    #ifdef WOLFSSL_HAVE_XMSS
+        case WC_PQC_STATEFUL_SIG_TYPE_XMSS:
+            ((XmssKey*)info->free.obj)->devCtx = NULL;
+            break;
+    #endif
+        default:
+            break;
+        }
+    }
+
+    return 0;
+}
+#endif /* WOLF_CRYPTO_CB_FREE */
+
+static int swdev_pqc_stateful_sig(wc_CryptoInfo* info, int pkType)
+{
+    switch (pkType) {
+#ifdef SWDEV_STATEFUL_SIGN
+    case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+        return swdev_stateful_keygen(info);
+    case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+        return swdev_stateful_sign(info);
+    case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+        return swdev_stateful_sigsleft(info);
+#endif
+    case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+        return swdev_stateful_verify(info);
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+#endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -1303,7 +1852,17 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     switch (info->algo_type) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
-    defined(WOLFSSL_HAVE_SLHDSA)
+    defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
+    defined(WOLFSSL_HAVE_XMSS)
+#if defined(WOLF_CRYPTO_CB_FREE) && \
+    (defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS))
+    case WC_ALGO_TYPE_FREE:
+        if ((info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN)) {
+            return swdev_stateful_free_cb(info);
+        }
+        return CRYPTOCB_UNAVAILABLE;
+#endif
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -1395,6 +1954,13 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
             return swdev_pqc_sig(info, info->pk.pqc_verify.type, info->pk.type);
     #endif /* WOLFSSL_HAVE_SLHDSA */
+    #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+            return swdev_pqc_stateful_sig(info, info->pk.type);
+    #endif
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

@@ -44,6 +44,9 @@
 
 #ifdef WOLFSSL_HAVE_LMS
 
+/* The whole native core goes when operations are callback-only. */
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
+
 #if FIPS_VERSION3_GE(7,0,0)
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$nf")
@@ -4210,6 +4213,8 @@ int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
 
     return ret;
 }
+
+#endif /* !WOLF_CRYPTO_CB_ONLY_LMS */
 
 #endif /* WOLFSSL_HAVE_LMS */
 

@@ -281,8 +281,9 @@ int test_wc_LmsKey_write_fail(void)
 int test_wc_LmsKey_reload_cache(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    (!defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10))
+#if !defined(WOLF_CRYPTO_CB_ONLY_LMS) && \
+    (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+     (!defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)))
     LmsKey  key;
     LmsKey  vkey;
     WC_RNG  rng;
@@ -364,9 +365,10 @@ int test_wc_LmsKey_reload_cache(void)
  * no caller and -Wunused-function fails the build. */
 #if defined(WOLF_CRYPTO_CB) && \
     ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-      !defined(NO_FILESYSTEM)) || \
+      !defined(NO_FILESYSTEM) && !defined(WOLF_CRYPTO_CB_ONLY_LMS)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-      !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)))
+      !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE) && \
+      !defined(WOLF_CRYPTO_CB_ONLY_XMSS)))
 
 /* An accelerator with no stateful hash-based signature support: declines
  * everything, so the software implementation is used. */
@@ -418,8 +420,9 @@ static int test_lms_xmss_verify_cryptocb(int devIdArg, wc_CryptoInfo* info,
 int test_wc_LmsKey_reload_devid(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM)
+#if !defined(WOLF_CRYPTO_CB_ONLY_LMS) && \
+    (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+     defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM))
     LmsKey  key;
     LmsKey  vkey;
     LmsKey  hsmKey;
@@ -497,8 +500,9 @@ int test_wc_LmsKey_reload_devid(void)
 int test_wc_LmsKey_reload_no_pub(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    !defined(NO_FILESYSTEM)
+#if !defined(WOLF_CRYPTO_CB_ONLY_LMS) && \
+    (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+     !defined(NO_FILESYSTEM))
     LmsKey  key;
     LmsKey  dst;
     WC_RNG  rng;
@@ -595,8 +599,57 @@ int test_wc_LmsKey_reload_devid_verify(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB)
+/* An accelerator that generates LMS keys but cannot report signatures left. */
+static int test_lms_keygen_cryptocb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)ctx;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN)) {
+        return 0;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+/*
+ * Test that an LMS key generated on a device without SIGS_LEFT support is
+ * usable, as the device declining the query does not mean no signatures.
+ */
+int test_wc_LmsKey_keygen_no_sigsleft(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB)
+    LmsKey key;
+    WC_RNG rng;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_keygen_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(key.state, WC_LMS_STATE_OK);
+
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-    !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)
+    !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_XMSS)
 /* Per-process temp file so parallel unit.test runs sharing a working
  * directory do not clobber each other's stateful XMSS private key. */
 static const char* xmss_devid_priv_key_file(void)
@@ -667,9 +720,10 @@ static int test_xmss_init_key_ex(XmssKey* key, int devId)
 int test_wc_XmssKey_reload_devid(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM) && \
-    defined(TEST_XMSS_H10_AVAILABLE)
+#if !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && \
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+     defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM) && \
+     defined(TEST_XMSS_H10_AVAILABLE))
     XmssKey key;
     XmssKey vkey;
     XmssKey hsmKey;
@@ -737,8 +791,9 @@ int test_wc_XmssKey_reload_devid(void)
 int test_wc_XmssKey_reload_no_pub(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-    !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)
+#if !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && \
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+     !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE))
     XmssKey key;
     XmssKey dst;
     WC_RNG  rng;
@@ -2153,6 +2208,25 @@ int test_wc_LmsFeatureCoverage(void)
         wc_LmsKey_Free(&key);
     }
 #endif
+
+    /* Keygen and sign need only the write callback. */
+    {
+        LmsKey key;
+        byte   msg[] = "lms write-only message";
+        byte   sig[8192];
+        word32 sigSz = sizeof(sig);
+
+        XMEMSET(&key, 0, sizeof(key));
+        lms_mc_privSz = 0;
+        ExpectIntEQ(wc_LmsKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+        ExpectIntEQ(wc_LmsKey_SetWriteCb(&key, lms_mc_write_key), 0);
+        ExpectIntEQ(wc_LmsKey_SetContext(&key, (void*)lms_mc_priv), 0);
+        ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+        ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        wc_LmsKey_Free(&key);
+    }
 
     wc_FreeRng(&rng);
 #endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
