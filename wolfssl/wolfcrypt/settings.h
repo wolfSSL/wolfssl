@@ -6034,6 +6034,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
 #endif
 
+/* KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary, so a
+ * validated build drops them however they were requested; the dev and ready
+ * prep builds keep them. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV) && \
+    !defined(WOLFSSL_FIPS_READY)
+    #undef WOLFSSL_KMAC
+    #undef WOLFSSL_CSHAKE
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH

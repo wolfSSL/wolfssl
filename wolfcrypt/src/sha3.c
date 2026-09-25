@@ -53,6 +53,9 @@
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
+    #undef WOLFSSL_PPC64_ASM
+    #undef WOLFSSL_PPC64_ASM_POWER8
+    #undef WOLFSSL_PPC32_ASM
 #endif
 #ifdef WOLFSSL_X86_BUILD
     #undef USE_INTEL_SPEEDUP
@@ -121,6 +124,9 @@
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
+    /* The dispatch lives in the object, so every caller needs its own local
+     * copy of it; SHA3_FUNC_PTR call sites dereference that local. */
+    #define SHA3_BLOCK_LOCAL_PTR
 #else
     void (*sha3_block)(word64 *s) = NULL;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
@@ -131,25 +137,49 @@
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
-    /* Block-function selection when USE_INTEL_SPEEDUP: AVX2 on Intel, else
-     * BMI2, else the C block.  Measured single-instance Keccak-f[1600]
-     * (Ethereum "Optimizing Keccak"; OpenSSL keccak1600-x86_64.pl): AVX2 is
-     * ~13-17% faster than BMI2 on Intel Haswell..Skylake, tied on Ice Lake,
-     * but ~2x SLOWER on AMD Zen, so AVX2 is Intel-only.  (Single-stream
+    /* Block-function selection when USE_INTEL_SPEEDUP: BMI2, then AVX2, then
+     * the C block.  BMI2 is preferred because its block uses general
+     * registers only and so needs no vector-register claim; AVX2 goes first
+     * only when WOLFSSL_SHA3_AVX2 explicitly asks for it.  (Single-stream
      * AVX-512 is vpermt2q-bound and slower than BMI2 everywhere measured, so
      * it is not built - see scripts sha3_avx512.rb.)
-     * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
+     * Overrides: WOLFSSL_SHA3_AVX2 puts AVX2 ahead of BMI2;
      *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
-    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA. */
+    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA, which still
+     * selects AVX2 first; only SHA-3's own order changed here. */
 
     /* True when the selected block function uses vector registers and so
      * needs the caller to save/restore them.  BMI2 and the C block use only
      * general registers. */
-#ifdef WOLFSSL_SHA3_NO_AVX2
+#if defined(WOLFSSL_SHA3_NO_AVX2)
     #define SHA3_BLOCK_VREGS(f) 0
 #else
     #define SHA3_BLOCK_VREGS(f) ((f) == sha3_block_avx2)
 #endif
+#endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
+    /* BlockSha3_crypto is the ARMv8.2 crypto-extension permutation and writes
+     * v0-v31, so the caller must hold the vector registers for it. */
+    #define SHA3_BLOCK_VREGS(f) ((f) == BlockSha3_crypto)
+    #define SHA3_NEEDS_VREG_CLAIM
+#endif
+
+/* A certifiable build carries one Keccak permutation, so a refused claim is an
+ * error there instead of a switch to the C block; dev builds keep the switch.
+ * WOLFSSL_FIPS_DEV covers both dev and dev-no-post. */
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !(FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV))
+    #define SHA3_CLAIM_FALLBACK
+#endif
+
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+    /* armv8-32-sha3-asm.S has a NEON block (vpush d8-d15) and an integer-only
+     * one under WOLFSSL_ARMASM_NO_NEON; only the NEON block needs a claim. */
+    #define SHA3_BLOCK_VREGS(f) 1
+    #define SHA3_NEEDS_VREG_CLAIM
 #endif
 
 #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
@@ -902,7 +932,7 @@ static int InitSha3(wc_Sha3* sha3)
     sha3->hashType = WC_HASH_TYPE_NONE;
 #endif
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP)
     {
         int cpuid_flags_were_updated = cpuid_get_flags_ex(&cpuid_flags);
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -917,14 +947,23 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
 #endif
-        /* See the selection comment above: AVX2 on Intel, otherwise BMI2. */
+#if defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
+        /* WOLFSSL_SHA3_AVX2 asks for AVX2 ahead of BMI2. */
         if (SHA3_USE_AVX2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
-        else if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+        else
+#endif
+        /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
+         * it needs no vector-register claim. */
+        if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
+        }
+        else if (SHA3_USE_AVX2(cpuid_flags)) {
+            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK_N = sha3_block_n_avx2;
         }
         else {
             SHA3_BLOCK = BlockSha3;
@@ -960,7 +999,13 @@ static int InitSha3(wc_Sha3* sha3)
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 void BlockSha3(word64* s)
 {
+#ifdef SHA3_BLOCK_LOCAL_PTR
+    /* These callers hold no wc_Sha3, so there is no per-object dispatch to read
+     * and no vector-register claim in scope; BlockSha3_base needs neither. */
+    BlockSha3_base(s);
+#else
     (*SHA3_BLOCK)(s);
+#endif
 }
 #endif
 
@@ -981,22 +1026,20 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     word32 check = 0;
     word32 total_check = 0;
 #endif
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s) = SHA3_BLOCK;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c) = SHA3_BLOCK_N;
 #endif
-#endif /* USE_INTEL_SPEEDUP */
 
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
         return BAD_STATE_E;
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
             ret = 0;
@@ -1005,7 +1048,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     if (sha3->i > 0) {
         byte *t;
@@ -1111,7 +1154,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 
 out:
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
@@ -1160,7 +1203,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 #ifdef WC_SHA3_FAULT_HARDEN
     word32 check = 0;
 #endif
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s) = SHA3_BLOCK;
 #endif
 
@@ -1169,10 +1212,25 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (sha3->i >= rate)
         return BAD_STATE_E;
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
+        int ret = SAVE_VECTOR_REGISTERS2();
+        if (ret != 0) {
+#ifdef SHA3_CLAIM_FALLBACK
+            sha3_block = BlockSha3;
+#else
+            return ret;
+#endif
+        }
+    }
+#endif
+
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
     !defined(WOLFSSL_WIDE_BYTE)
     xorbuf(sha3->s, sha3->t, sha3->i);
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1181,7 +1239,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     ((byte*)sha3->s)[rate - 1] ^= 0x80;
 #else
     sha3->t[rate - 1]  = 0x00;
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1199,22 +1259,14 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != p) {
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+        if (SHA3_BLOCK_VREGS(sha3_block)) {
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         return BAD_COND_E;
     }
 #endif
-#endif
-
-#ifdef USE_INTEL_SPEEDUP
-    if (SHA3_BLOCK_VREGS(sha3_block)) {
-        int ret = SAVE_VECTOR_REGISTERS2();
-        if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-            sha3_block = BlockSha3;
-#else
-            return ret;
-#endif
-        }
-    }
 #endif
 
     for (j = 0; l - j >= rate; j += rate) {
@@ -1246,7 +1298,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
         XMEMCPY(hash + j, sha3->s, l - j);
     #endif
     }
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2069,6 +2121,14 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Keccak-256 is a different hash from SHA3-256, so refuse the request
+     * instead of accepting it and hashing with the other one (FIPS 202 6.1).
+     * Checked first, so the answer does not depend on having a context. */
+    if ((flags & WC_HASH_SHA3_KECCAK256) != 0) {
+        return FIPS_NOT_ALLOWED_E;
+    }
+#endif
     if (sha3) {
         sha3->flags = flags;
     }
@@ -2322,7 +2382,7 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s);
 #endif
 
@@ -2330,22 +2390,22 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_BLOCK_LOCAL_PTR
     sha3_block = SHA3_BLOCK;
 #endif
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
 #else
             return ret;
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2363,7 +2423,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_128_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
@@ -2639,7 +2699,7 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
+#ifdef SHA3_BLOCK_LOCAL_PTR
     void (*sha3_block)(word64 *s);
 #endif
 
@@ -2647,22 +2707,22 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_BLOCK_LOCAL_PTR
     sha3_block = SHA3_BLOCK;
 #endif
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_CLAIM_FALLBACK
             sha3_block = BlockSha3;
 #else
             return ret;
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2680,7 +2740,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_256_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
@@ -2725,6 +2785,15 @@ int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
 
 #if (defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)) && \
     defined(WC_SHA3_SW_KECCAK)
+
+#if FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_READY)
+    /* KMAC and cSHAKE (SP 800-185) have no CAST and no service-layer gate, so
+     * they are not approved services and stay out of the validated module.
+     * The dev and ready prep builds still exercise them. */
+    #error "KMAC/cSHAKE (SP 800-185) are not part of the FIPS module boundary"
+#endif
+
 /* cSHAKE and KMAC - NIST SP 800-185.
  *
  * cSHAKE is a customizable SHAKE; KMAC is cSHAKE keyed with the function name

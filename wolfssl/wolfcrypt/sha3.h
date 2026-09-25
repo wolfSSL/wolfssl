@@ -412,6 +412,8 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
      * than BMI2 everywhere measured, so it is not built.)
      * Every caller of sha3_block_avx2()/sha3_block_n_avx2() must select with
      * this and not with IS_INTEL_AVX2() alone.
+     * sha3.c puts BMI2 ahead of AVX2 because the BMI2 block needs no
+     * vector-register claim; ML-DSA still selects AVX2 first.
      * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
      *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
 #if defined(WOLFSSL_SHA3_NO_AVX2)
