@@ -2598,7 +2598,10 @@
             defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32C5) || \
             defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32G4) || \
             defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U0)
-            #define NO_AES_192 /* TinyAES IP does not support 192-bit */
+            #ifndef NO_AES_192
+                #define NO_AES_192 /* TinyAES IP does not support 192-bit */
+                #define WC_STM32_AES_192_OFF_BY_HW
+            #endif
         #endif
         /* STM32N6's default AES instance is the older "fat" CRYP, which DOES
          * support AES-192. Only the BARE port that routes AES through the SAES
@@ -2801,6 +2804,22 @@
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
+
+    /* L4 sub-variants differ (AES on L48x/L4Ax, HASH on L4Ax only), so drop
+     * what this device's CMSIS header says it lacks. */
+    #if defined(WOLFSSL_STM32L4) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+        #if defined(STM32_CRYPTO) && !defined(RCC_AHB2ENR_AESEN)
+            #undef STM32_CRYPTO
+            #ifdef WC_STM32_AES_192_OFF_BY_HW
+                #undef NO_AES_192
+            #endif
+        #endif
+        #if defined(STM32_HASH) && !defined(RCC_AHB2ENR_HASHEN)
+            #undef STM32_HASH
+            #undef STM32_HMAC
+        #endif
+    #endif
 #endif /* WOLFSSL_STM32* */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>

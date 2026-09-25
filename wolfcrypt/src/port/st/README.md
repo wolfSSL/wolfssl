@@ -13,7 +13,7 @@ Support for STM32 on-chip crypto hardware acceleration across the following fami
 | `WOLFSSL_STM32H5`     | H5xx (HASH / RNG / SAES / V2 PKA / DHUK on H573)                    |
 | `WOLFSSL_STM32H7`     | H7xx classic (CRYP / HASH / RNG); H7Ax/H7Bx + H72x are RNG-only     |
 | `WOLFSSL_STM32H7S`    | H7Sx (SAES / HASH / RNG / V2 PKA)                                   |
-| `WOLFSSL_STM32L4`     | L4xx (TinyAES variants / HASH / RNG / V1 PKA on L4-rev)             |
+| `WOLFSSL_STM32L4`     | L4xx (RNG; TinyAES on L48x/L4Ax; HASH on L4Ax; V1 PKA on L4-rev)    |
 | `WOLFSSL_STM32L5`     | L5xx (HASH / RNG / V1 PKA; TinyAES + SAES on L562)                  |
 | `WOLFSSL_STM32U0`     | U0xx (TinyAES / RNG only)                                           |
 | `WOLFSSL_STM32U3`     | U3xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                  |
@@ -79,6 +79,8 @@ You can selectively disable parts of the HW acceleration:
 If your chip simply does not have an IP block (e.g. H7Ax has no CRYP/HASH; F207 has no CRYP/HASH) the family arm sets the appropriate `NO_STM32_*` defines for you.
 
 The TinyAES IP exposes a single key-size bit (128/256 only), so wolfSSL auto-defines `NO_AES_192` on those families (C5/H5/G4/G0/U0/L4/L5/U3/U5/WB/WBA/WL). AES-192 is therefore unavailable under HW crypto on these parts (there is no software fallback when `NO_STM32_CRYPTO` is not set); the CRYP-IP families are unaffected.
+
+The STM32L4 family is not uniform: every part has the RNG, the AES block is on L48x/L4Ax only (an L476 has none), and the HASH block is on L4Ax only. wolfSSL resolves this from the CMSIS device header -- `STM32_CRYPTO` and `STM32_HASH` are dropped automatically for a part that does not carry the block -- so an STM32L486 build keeps HW AES and RNG and falls back to software SHA with no extra defines. The L48x/L4Ax AES has no `NPBLB` field, so an AES-GCM call with a partial trailing block runs a software GHASH over HW AES-ECB blocks; whole-block payloads stay entirely on the HW GCM engine.
 
 ### SAES instance routing
 
@@ -381,6 +383,7 @@ The following table summarizes which IP blocks the BARE path drives on each fami
 | H7 RNG   | STM32H723/H7A3   | -          | -    | HW   | -   | -    | -    |
 | H7S      | STM32H7S3L8      | SAES       | HW   | HW   | V2  | HW   | -    |
 | L4       | STM32L4A6ZG      | TinyAES    | HW   | HW   | -   | -    | -    |
+| L4 (no HASH) | STM32L486RG *| TinyAES    | -    | HW   | -   | -    | -    |
 | L5 (552) | STM32L552ZE-Q    | -          | HW   | HW   | V1  | -    | -    |
 | L5 (562) | STM32L562E-DK    | TinyAES    | HW   | HW   | V1  | HW   | -    |
 | N6       | STM32N657X0-Q    | TinyAES    | HW   | HW   | V2  | HW   | HW   |
@@ -392,6 +395,8 @@ The following table summarizes which IP blocks the BARE path drives on each fami
 | WL       | STM32WL55JC      | TinyAES    | -    | HW   | V1  | -    | -    |
 | C0       | STM32C031C6      | -          | -    | -    | -   | -    | -    |
 | C5       | STM32C5A3ZG      | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+
+`*` = IP set taken from the CMSIS device header; not part of the on-target board matrix.
 
 ### Reference example
 
