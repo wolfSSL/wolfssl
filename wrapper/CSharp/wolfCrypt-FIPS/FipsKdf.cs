@@ -1,0 +1,346 @@
+/* FipsKdf.cs
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+using System;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace wolfSSL.CSharp.Fips
+{
+    /* TLS 1.2 (RFC 7627 EMS), TLS 1.3 and SSH KDFs (SP 800-135 CVLs). IG 2.4.B: use only
+     * within TLS 1.2, TLS 1.3 and SSHv2. General HKDF (RFC 5869 / SP 800-56C) is not a
+     * validated service, so it is not public. */
+    public static class FipsKdf
+    {
+        private const int INVALID_DEVID = -2;
+
+        /* The PRF functions take the TLS MAC algorithm ids (hash.h:
+         * sha256_mac = 4, sha384_mac = 5, sha512_mac = 6), not wc_HashType. */
+        private static int MacTypeOf(FipsHashType h) => h switch
+        {
+            FipsHashType.Sha256 => 4,
+            FipsHashType.Sha384 => 5,
+            FipsHashType.Sha512 => 6,
+            _ => throw new NotSupportedException("TLS PRF supports SHA-256, SHA-384 and SHA-512")
+        };
+
+        /* TLS 1.3 cipher suites use SHA-256 and SHA-384; the module accepts
+         * SHA-512 only when built with WOLFSSL_TLS13_SHA512. */
+        private static void RequireTls13Hash(FipsHashType h)
+        {
+            if (h != FipsHashType.Sha256 && h != FipsHashType.Sha384)
+            {
+                throw new NotSupportedException("TLS 1.3 KDFs support SHA-256 and SHA-384");
+            }
+        }
+
+        /* Empty salt is passed as NULL (HashLen zeros, RFC 5869): the module refuses a
+         * non-NULL zero-length salt as a zero-length HMAC key (HMAC_MIN_KEYLEN_E). */
+        private static byte[]? Salt(byte[]? salt) => salt == null || salt.Length == 0 ? null : salt;
+
+        /* MAX_TLS13_HKDF_LABEL_SZ of the loaded library (47 + its
+         * WC_MAX_DIGEST_SIZE), from the size helper. */
+        private static int tls13LabelMax;
+        internal static int Tls13LabelMax
+        {
+            get
+            {
+                if (tls13LabelMax == 0)
+                {
+                    tls13LabelMax = FipsObject.StructSize(FipsStructType.Tls13LabelMax);
+                }
+
+                return tls13LabelMax;
+            }
+        }
+
+        /* KDF output is gated by the per-thread private key read enable;
+         * FipsModule.WithPrivateKeyRead enables it for the call and restores it. */
+        private static byte[] Run(string fn, int outLen, Func<byte[], int> call)
+        {
+            if (outLen <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(outLen));
+            }
+
+            byte[] output = GC.AllocateArray<byte>(outLen, pinned: true);
+            int ret;
+            try
+            {
+                ret = FipsModule.WithPrivateKeyRead(() => call(output));
+            }
+            catch
+            {
+                /* e.g. the gate could not be closed after a successful call */
+                CryptographicOperations.ZeroMemory(output);
+                throw;
+            }
+            if (ret != 0)
+            {
+                CryptographicOperations.ZeroMemory(output);
+                throw new WolfCryptFipsException(fn, ret);
+            }
+            return output;
+        }
+
+        /* ---- TLS 1.2 ---- */
+
+        /* TLS 1.2 PRF (RFC 5246 5). Master secrets are refused here (IG D.Q, RFC 7627):
+         * use Tls12ExtendedMasterSecret, which checks the session hash, and Tls12KeyBlock. */
+        public static byte[] Tls12Prf(FipsHashType hash, byte[] secret, string label, byte[] seed, int outLen)
+        {
+            if (secret == null || label == null || seed == null)
+            {
+                throw new ArgumentNullException(secret == null ? nameof(secret) : label == null ? nameof(label) : nameof(seed));
+            }
+
+            byte[] lab = Ascii(label, nameof(label));
+            if (StartsWith(lab, seed, "master secret"u8) || StartsWith(lab, seed, "extended master secret"u8))
+            {
+                throw new ArgumentException("derive TLS 1.2 master secrets with Tls12ExtendedMasterSecret " +
+                    "(IG D.Q)", nameof(label));
+            }
+
+            return Prf(hash, secret, lab, seed, outLen);
+        }
+
+        private static byte[] Prf(FipsHashType hash, byte[] secret, byte[] lab, byte[] seed, int outLen) =>
+            Run("wc_PRF_TLSv12_fips", outLen, o => Native.wc_PRF_TLSv12_fips(o, (uint)o.Length,
+                secret, (uint)secret.Length, lab, (uint)lab.Length, seed, (uint)seed.Length,
+                1, MacTypeOf(hash), IntPtr.Zero, INVALID_DEVID));
+
+        /* The PRF hashes label || seed as one string, so check the concatenation: a
+         * prefix split across label and seed derives the same secret. */
+        private static bool StartsWith(byte[] label, byte[] seed, ReadOnlySpan<byte> prefix)
+        {
+            int n = Math.Min(prefix.Length, label.Length);
+            if (!label.AsSpan(0, n).SequenceEqual(prefix.Slice(0, n)))
+            {
+                return false;
+            }
+
+            return label.Length >= prefix.Length || seed.AsSpan().StartsWith(prefix.Slice(label.Length));
+        }
+
+        /* TLS 1.2 extended master secret (RFC 7627). sessionHash is the PRF hash of the
+         * handshake through ClientKeyExchange, so it is a digest of hash. */
+        public static byte[] Tls12ExtendedMasterSecret(FipsHashType hash, byte[] preMasterSecret, byte[] sessionHash)
+        {
+            if (preMasterSecret == null || sessionHash == null)
+            {
+                throw new ArgumentNullException(preMasterSecret == null ? nameof(preMasterSecret) : nameof(sessionHash));
+            }
+
+            MacTypeOf(hash);   /* SHA-256/384/512 only */
+            if (sessionHash.Length != FipsHash.DigestSizeOf(hash))
+            {
+                throw new ArgumentException("session hash must be a " + hash + " digest (RFC 7627 4)", nameof(sessionHash));
+            }
+
+            return Prf(hash, preMasterSecret, "extended master secret"u8.ToArray(), sessionHash, 48);
+        }
+
+        /* TLS 1.2 key block: PRF(master, "key expansion", server_random || client_random). */
+        public static byte[] Tls12KeyBlock(FipsHashType hash, byte[] masterSecret, byte[] clientRandom,
+                                           byte[] serverRandom, int length)
+        {
+            if (masterSecret == null || clientRandom == null || serverRandom == null)
+            {
+                throw new ArgumentNullException(masterSecret == null ? nameof(masterSecret)
+                    : clientRandom == null ? nameof(clientRandom) : nameof(serverRandom));
+            }
+
+            byte[] seed = new byte[serverRandom.Length + clientRandom.Length];
+            serverRandom.CopyTo(seed, 0);
+            clientRandom.CopyTo(seed, serverRandom.Length);
+            return Tls12Prf(hash, masterSecret, "key expansion", seed, length);
+        }
+
+        /* P_hash without a label (wc_PRF). Internal: it can build the non-approved
+         * non-EMS master secret; used by the tests to check the PRF core. */
+        internal static byte[] PHash(FipsHashType hash, byte[] secret, byte[] seed, int outLen)
+        {
+            if (secret == null || seed == null)
+            {
+                throw new ArgumentNullException(secret == null ? nameof(secret) : nameof(seed));
+            }
+
+            return Run("wc_PRF_fips", outLen, o => Native.wc_PRF_fips(o, (uint)o.Length,
+                secret, (uint)secret.Length, seed, (uint)seed.Length, MacTypeOf(hash), IntPtr.Zero, INVALID_DEVID));
+        }
+
+        /* ---- HKDF (RFC 5869) ---- Internal, not approved: SP #4718 lists HKDF only
+         * inside the TLS v1.3 KDF CVL (no CAVP for general HKDF). For tests against .NET.
+         */
+
+        internal static byte[] HkdfExtract(FipsHashType hash, byte[]? salt, byte[] ikm)
+        {
+            if (ikm == null)
+            {
+                throw new ArgumentNullException(nameof(ikm));
+            }
+
+            salt = Salt(salt);
+            return Run("wc_HKDF_Extract_fips", FipsHash.DigestSizeOf(hash), o => Native.wc_HKDF_Extract_fips(
+                (int)hash, salt, salt == null ? 0u : (uint)salt.Length, ikm, (uint)ikm.Length, o));
+        }
+
+        internal static byte[] HkdfExpand(FipsHashType hash, byte[] prk, byte[]? info, int outLen)
+        {
+            if (prk == null)
+            {
+                throw new ArgumentNullException(nameof(prk));
+            }
+
+            return Run("wc_HKDF_Expand_fips", outLen, o => Native.wc_HKDF_Expand_fips(
+                (int)hash, prk, (uint)prk.Length, info, info == null ? 0u : (uint)info.Length, o, (uint)o.Length));
+        }
+
+        internal static byte[] Hkdf(FipsHashType hash, byte[] ikm, byte[]? salt, byte[]? info, int outLen)
+        {
+            if (ikm == null)
+            {
+                throw new ArgumentNullException(nameof(ikm));
+            }
+
+            salt = Salt(salt);
+            return Run("wc_HKDF_fips", outLen, o => Native.wc_HKDF_fips((int)hash, ikm, (uint)ikm.Length,
+                salt, salt == null ? 0u : (uint)salt.Length, info, info == null ? 0u : (uint)info.Length,
+                o, (uint)o.Length));
+        }
+
+        /* ---- TLS 1.3 (RFC 8446 section 7.1) ---- */
+
+        /* TLS 1.3 HKDF-Extract. Empty ikm means HashLen zeros (RFC 8446 7.1), passed
+         * explicitly: for ikmLen 0 the v5.2.x module writes HashLen zeros into ikm. */
+        public static byte[] Tls13Extract(FipsHashType hash, byte[]? salt, byte[] ikm)
+        {
+            if (ikm == null)
+            {
+                throw new ArgumentNullException(nameof(ikm));
+            }
+
+            RequireTls13Hash(hash);
+            salt = Salt(salt);
+            int n = FipsHash.DigestSizeOf(hash);
+            /* native parameter is non-const: never hand it the caller's array */
+            byte[] ikmCopy = ikm.Length == 0 ? GC.AllocateArray<byte>(n, pinned: true)
+                                             : FipsObject.PinnedCopy(ikm, 0, ikm.Length);
+            try
+            {
+                return Run("wc_Tls13_HKDF_Extract_fips", n, o =>
+                    Native.wc_Tls13_HKDF_Extract_fips(o, salt, salt == null ? 0 : salt.Length,
+                        ikmCopy, ikmCopy.Length, (int)hash));
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(ikmCopy);
+            }
+        }
+
+        /* HKDF-Expand-Label with the "tls13 " prefix, the only one the TLS v1.3 KDF CVL
+         * covers. label is non-empty (RFC 8446: opaque label<7..255> with prefix). */
+        public static byte[] Tls13ExpandLabel(FipsHashType hash, byte[] secret, string label, byte[] context,
+                                              int outLen)
+        {
+            if (secret == null || label == null || context == null)
+            {
+                throw new ArgumentNullException(secret == null ? nameof(secret) : label == null ? nameof(label) : nameof(context));
+            }
+
+            RequireTls13Hash(hash);
+            byte[] proto = Tls13Protocol, lab = Ascii(label, nameof(label));
+            if (lab.Length == 0)
+            {
+                throw new ArgumentException("label must not be empty", nameof(label));
+            }
+            /* v5.2.x builds HkdfLabel in a MAX_TLS13_HKDF_LABEL_SZ stack buffer with no
+* capacity check, and stores label and context lengths in single bytes. */
+            if (proto.Length + lab.Length > 255)
+            {
+                throw new ArgumentException("protocol + label must be at most 255 bytes", nameof(label));
+            }
+
+            if (context.Length > 255)
+            {
+                throw new ArgumentException("context must be at most 255 bytes", nameof(context));
+            }
+
+            if (4 + proto.Length + lab.Length + context.Length > Tls13LabelMax)
+            {
+                throw new ArgumentException("HkdfLabel would exceed the module's " + Tls13LabelMax +
+                                            "-byte buffer", nameof(context));
+            }
+
+            return Run("wc_Tls13_HKDF_Expand_Label_fips", outLen, o => Native.wc_Tls13_HKDF_Expand_Label_fips(
+                o, (uint)o.Length, secret, (uint)secret.Length, proto, (uint)proto.Length,
+                lab, (uint)lab.Length, context, (uint)context.Length, (int)hash));
+        }
+
+        private static readonly byte[] Tls13Protocol = Encoding.ASCII.GetBytes("tls13 ");
+
+        /* ---- SSH (RFC 4253 section 7.2) ---- */
+
+        /* k is non-empty K, big-endian with no leading zero bytes: the module only adds
+         * the mpint sign byte, so a leading zero changes the keys (RFC 4251 5). Strip
+         * leading zeros of a fixed-width shared secret before calling. */
+        public static byte[] SshKdf(FipsHashType hash, char keyId, byte[] k, byte[] h, byte[] sessionId, int outLen)
+        {
+            if (k == null || h == null || sessionId == null)
+            {
+                throw new ArgumentNullException(k == null ? nameof(k) : h == null ? nameof(h) : nameof(sessionId));
+            }
+
+            if (keyId < 'A' || keyId > 'F')
+            {
+                throw new ArgumentOutOfRangeException(nameof(keyId));
+            }
+
+            if (k.Length == 0 || k[0] == 0)
+            {
+                throw new ArgumentException("K must be a non-zero integer without leading zero bytes (RFC 4251 5)", nameof(k));
+            }
+
+            return Run("wc_SSH_KDF_fips", outLen, o => Native.wc_SSH_KDF_fips((byte)hash, (byte)keyId,
+                o, (uint)o.Length, k, (uint)k.Length, h, (uint)h.Length, sessionId, (uint)sessionId.Length));
+        }
+
+        /* Encoding.ASCII maps non-ASCII to '?', so distinct labels could derive the
+         * same keys; refuse them instead. */
+        private static byte[] Ascii(string s, string name)
+        {
+            if (s == null)
+            {
+                throw new ArgumentNullException(name);
+            }
+
+            foreach (char c in s)
+            {
+                if (c > 0x7F)
+                {
+                    throw new ArgumentException(name + " must be ASCII", name);
+                }
+            }
+
+            return Encoding.ASCII.GetBytes(s);
+        }
+    }
+}
