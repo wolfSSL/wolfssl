@@ -215,7 +215,17 @@ enum wc_KeyWrapFormat {
 #define WC_KEYSTORE_ATTR_PERSISTENT   0x0004 /* survives reset, if supported */
 #endif /* WOLF_CRYPTO_CB_KEYSTORE */
 
-/* Crypto Information Structure for callbacks */
+/* SHAKE ops in hash.shakeOp. WC_SHAKE_OP_NONE is an update (hash.in set)
+ * and/or final (hash.digest set). A device must keep the wc_Shake state
+ * current, as software continues from it when the device returns
+ * CRYPTOCB_UNAVAILABLE or a request is too large to dispatch. Without
+ * software a decline is an error, so split large requests in the device. */
+enum wc_ShakeOp {
+    WC_SHAKE_OP_NONE    = 0,
+    WC_SHAKE_OP_ABSORB  = 1,
+    WC_SHAKE_OP_SQUEEZE = 2
+};
+
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
@@ -695,6 +705,9 @@ typedef struct wc_CryptoInfo {
         word32 inSz;
         byte* digest;
         word32 outSz; /* SHAKE extendable output length (0 for fixed hashes) */
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+        int shakeOp;  /* enum wc_ShakeOp; 0 for update and final */
+#endif
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
@@ -1310,7 +1323,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 /* SHAKE is an extendable output function: out/outSz carry the requested output
  * on the final call (in/inSz carry message data on update calls). */
 WOLFSSL_LOCAL int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
-    word32 inSz, byte* out, word32 outSz);
+    word32 inSz, byte* out, word32 outSz, int shakeOp);
 #endif
 #endif
 
