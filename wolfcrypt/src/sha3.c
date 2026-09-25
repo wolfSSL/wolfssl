@@ -1638,6 +1638,19 @@ static int wc_Sha3Reset(wc_Sha3* sha3)
 
 #if !defined(WOLFSSL_HASH_KEEP) && !defined(STM32_HASH_SHA3) && \
     !defined(PSOC6_HASH_SHA3)
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha3() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha3->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha3->heap;
+        int devId = sha3->devId;
+        wc_Sha3Free(sha3);
+        return wc_InitSha3(sha3, heap, devId);
+    }
+#endif
     /* InitSha3() reinitializes the sponge and block-dispatch state in place,
      * touching neither the heap hint nor the device association. */
     return InitSha3(sha3);

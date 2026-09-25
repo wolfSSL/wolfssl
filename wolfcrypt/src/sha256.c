@@ -365,6 +365,19 @@ static int InitSha256(wc_Sha256* sha256)
 int wc_Sha256Reset(wc_Sha256* sha256) {
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha256() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha256->heap;
+        int devId = sha256->devId;
+        wc_Sha256Free(sha256);
+        return wc_InitSha256_ex(sha256, heap, devId);
+    }
+#endif
     return InitSha256(sha256);
 }
 #define WC_SHA256RESET_DEFINED
@@ -2786,6 +2799,19 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 int wc_Sha224Reset(wc_Sha224* sha224) {
     if (sha224 == NULL)
         return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha224() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha224->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha224->heap;
+        int devId = sha224->devId;
+        wc_Sha224Free(sha224);
+        return wc_InitSha224_ex(sha224, heap, devId);
+    }
+#endif
     return InitSha224(sha224);
 }
 #define WC_SHA224RESET_DEFINED
