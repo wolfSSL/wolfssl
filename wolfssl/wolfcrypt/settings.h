@@ -3161,7 +3161,13 @@
     #define USE_FLAT_BENCHMARK_H
     #define USE_FLAT_TEST_H
     #define EXIT_FAILURE 1
-    #define MAIN_NO_ARGS
+    /* A Zephyr application normally has no argv to hand the test or benchmark
+     * entry points. One that does - it may build its own argument list to pick
+     * an algorithm subset - can define WOLFSSL_ZEPHYR_MAIN_ARGS to keep the
+     * option parsing compiled in. */
+    #ifndef WOLFSSL_ZEPHYR_MAIN_ARGS
+        #define MAIN_NO_ARGS
+    #endif
 
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
