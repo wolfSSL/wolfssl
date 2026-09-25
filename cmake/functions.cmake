@@ -488,6 +488,16 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_SHA)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+                if(BUILD_ARMASM AND BUILD_FIPS_READY)
+                    if(BUILD_ARMASM_INLINE)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                    else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                    endif()
+                endif()
             endif()
 
             if(BUILD_ARMASM AND BUILD_FIPS_READY)
@@ -770,6 +780,16 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA)
             list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+            if(BUILD_ARMASM)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                endif()
+            endif()
         endif()
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA512)
