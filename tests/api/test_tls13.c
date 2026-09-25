@@ -11293,6 +11293,12 @@ int test_tls13_serverhello_legacy_version(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+    /* Expect skips the next wolfSSL_new when this block's allocation failed,
+     * so the pointers still name the objects just freed. */
+    ssl_c = NULL;
+    ctx_c = NULL;
+    ssl_s = NULL;
+    ctx_s = NULL;
 
     /* supported_versions on a ServerHello negotiating below TLS 1.3 is
      * refused whatever version it names (RFC 8446 Section 4.2.1). Hand the

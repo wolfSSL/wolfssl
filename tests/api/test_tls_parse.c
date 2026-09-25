@@ -198,11 +198,36 @@ TEST_TLS_PARSE_UNUSED
 static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 {
     TLSX* extensions = NULL;
+    void* heap;
+
     if (kse == NULL)
         return;
-    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) != 0)
+    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) == 0) {
+        TLSX_FreeAll(extensions, ssl->heap);
         return;
-    TLSX_FreeAll(extensions, ssl->heap);
+    }
+
+    /* TLSX_Push allocates the list node. After the mem-fail count is hit,
+     * that allocation fails and every later one fails too, so FreeAll never
+     * runs. The entry is still ours. */
+    heap = ssl->heap;
+    if (kse->group == WOLFSSL_ECC_X25519) {
+#ifdef HAVE_CURVE25519
+        wc_curve25519_free((curve25519_key*)kse->key);
+#endif
+    }
+#ifdef HAVE_ECC
+    else {
+        wc_ecc_free((ecc_key*)kse->key);
+    }
+#endif
+    XFREE(kse->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
+    XFREE(kse->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#endif
+    XFREE(kse->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse, heap, DYNAMIC_TYPE_TLSX);
 }
 #endif /* WOLFSSL_TEST_STATIC_BUILD && WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
