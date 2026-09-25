@@ -467,7 +467,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     int ret;
 #endif
 #ifdef HAVE_EXT_CACHE
-    int copy;
+    int copy = 1;
 #endif
     *resume = FALSE;
 
@@ -481,6 +481,10 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
         WOLFSSL_SESSION* extSess =
             ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
                                   &copy);
+        if (extSess != NULL && copy &&
+                wolfSSL_SESSION_up_ref(extSess) != WOLFSSL_SUCCESS) {
+            extSess = NULL;
+        }
         if (extSess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                            defined(HAVE_SESSION_TICKET))
@@ -489,8 +493,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
             if (!IsAtLeastTLSv1_3(extSess->version))
 #endif
                 *resume = TRUE;
-            if (!copy)
-                wolfSSL_FreeSession(ssl->ctx, extSess);
+            wolfSSL_FreeSession(ssl->ctx, extSess);
             if (*resume)
                 return 0;
         }
