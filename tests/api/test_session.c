@@ -1616,6 +1616,90 @@ int test_wolfSSL_SESSION_get_ex_new_index(void)
 #endif
 
 /*----------------------------------------------------------------------------*/
+/* wolfSSL_SESSION_dup                                                        */
+/*----------------------------------------------------------------------------*/
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+static int session_dup_fail_x509_alloc = 0;
+
+static void* session_dup_fail_malloc(size_t size)
+{
+    if (session_dup_fail_x509_alloc && size == sizeof(WOLFSSL_X509))
+        return NULL;
+    return malloc(size);
+}
+
+static void session_dup_fail_free(void* ptr)
+{
+    free(ptr);
+}
+
+static void* session_dup_fail_realloc(void* ptr, size_t size)
+{
+    return realloc(ptr, size);
+}
+
+/* wolfSSL_SESSION_dup must fail, not return a copy without the peer
+ * certificate, when copying the source session's peer certificate fails. */
+int test_wolfSSL_SESSION_dup_peer_fail(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (sess != NULL) {
+        ExpectNotNull(sess->peer = wolfSSL_X509_load_certificate_file(
+            svrCertFile, CERT_FILETYPE));
+    }
+#ifdef HAVE_SESSION_TICKET
+    /* Long ticket so the failed copy must not free sess's buffer. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(sess->ticket = (byte*)XMALLOC(SESSION_TICKET_LEN + 1,
+            NULL, DYNAMIC_TYPE_SESSION_TICK));
+        if (sess->ticket == NULL)
+            sess->ticket = sess->staticTicket;
+    }
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(sess->ticket, 0xC3, SESSION_TICKET_LEN + 1);
+        sess->ticketLen = SESSION_TICKET_LEN + 1;
+        sess->ticketLenAlloc = SESSION_TICKET_LEN + 1;
+    }
+#endif
+    if (EXPECT_SUCCESS()) {
+        /* Take the deep-copy branch, which allocates a new certificate. */
+        sess->peer->dynamicMemory = 0;
+
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        ExpectIntEQ(wolfSSL_SetAllocators(session_dup_fail_malloc,
+                    session_dup_fail_free, session_dup_fail_realloc), 0);
+        session_dup_fail_x509_alloc = 1;
+        dup = wolfSSL_SESSION_dup(sess);
+        session_dup_fail_x509_alloc = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+        ExpectNull(dup);
+        sess->peer->dynamicMemory = 1;
+    }
+
+    wolfSSL_SESSION_free(dup);
+    wolfSSL_SESSION_free(sess);
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfSSL_SESSION_dup_peer_fail(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+/*----------------------------------------------------------------------------*/
 /* wolfSSL_GetSessionAtIndex                                                  */
 /*----------------------------------------------------------------------------*/
 
@@ -1730,9 +1814,55 @@ int test_wolfSSL_GetSessionAtIndex(void)
     return EXPECT_RESULT();
 }
 
+/* A short ticket cached over a slot that kept a long ticket's buffer must be
+ * read back as the short ticket, not the long ticket's leftover bytes. */
+int test_wolfSSL_session_cache_short_ticket_reuse(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* copy = NULL;
+    byte id[ID_LEN];
+    word16 shortLen = 32;
+    int idx = -1;
+
+    XMEMSET(id, 0x5A, sizeof(id));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(test_session_at_index_add(ctx, id,
+        (word16)(SESSION_TICKET_LEN + 128), 0xA1, NULL), TEST_SUCCESS);
+
+    /* Same ID, short ticket in the session's static buffer. */
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(sess->sessionID, id, ID_LEN);
+        sess->sessionIDSz = ID_LEN;
+        sess->side = WOLFSSL_CLIENT_END;
+        sess->isSetup = 1;
+        XMEMSET(sess->staticTicket, 0xB2, shortLen);
+        sess->ticketLen = shortLen;
+    }
+    ExpectIntEQ(AddSessionToCache(ctx, sess, id, ID_LEN, &idx,
+        WOLFSSL_CLIENT_END, 1, NULL), 0);
+    ExpectIntGE(idx, 0);
+
+    ExpectNotNull(copy = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_GetSessionAtIndex(idx, copy), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy, shortLen, 0xB2), 1);
+
+    wolfSSL_SESSION_free(copy);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+
 #else
 
 int test_wolfSSL_GetSessionAtIndex(void)
+{
+    return TEST_SKIPPED;
+}
+
+int test_wolfSSL_session_cache_short_ticket_reuse(void)
 {
     return TEST_SKIPPED;
 }
