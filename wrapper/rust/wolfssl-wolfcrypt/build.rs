@@ -492,6 +492,9 @@ fn scan_cfg() -> Result<()> {
     /* curve25519 */
     check_cfg(&binding, "wc_curve25519_make_pub", "curve25519");
     check_cfg(&binding, "wc_curve25519_make_pub_blind", "curve25519_blinding");
+    check_cfg(&binding, "wc_curve25519_shared_secret", "curve25519_shared_secret");
+    check_cfg(&binding, "wc_curve25519_import_public", "curve25519_import");
+    check_cfg(&binding, "wc_curve25519_export_public", "curve25519_export");
 
     /* dh */
     check_cfg(&binding, "wc_InitDhKey", "dh");
