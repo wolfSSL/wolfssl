@@ -3,6 +3,9 @@
 # All paths should be given relative to the root
 
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/build.bat
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/debug_run.bat
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/set_demo_mode.ps1
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/wolfssl/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/wolfssl/.project
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/.cproject
@@ -19,5 +22,6 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/common/wolfssl_demo.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/common/user_settings.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/tools/README.md
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/tools/example_keys/generate_SignedCA.sh
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/tools/example_keys/generate_SignedCA.bat
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/tools/example_keys/rsa_private.pem
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/tools/example_keys/rsa_public.pem
