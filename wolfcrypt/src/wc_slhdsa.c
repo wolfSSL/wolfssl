@@ -7733,8 +7733,8 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte slhdsa_empty_msg = 0;
-        msg = &slhdsa_empty_msg;
+        static const byte slhdsa_empty_msg[] = {0};
+        msg = slhdsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8011,8 +8011,8 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte slhdsa_empty_msg = 0;
-        msg = &slhdsa_empty_msg;
+        static const byte slhdsa_empty_msg[] = {0};
+        msg = slhdsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB

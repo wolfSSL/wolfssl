@@ -301,6 +301,8 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (*out != NULL) {
         heap = (*out)->heap;
+    } else if (prePopulated) {
+        return 0;
     }
 
     edKey = wolfSSL_ED25519_new(heap, INVALID_DEVID);
@@ -385,6 +387,10 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (*out != NULL) {
         heap = (*out)->heap;
+    }
+    else if (prePopulated) {
+        /* Caller promised a pre-populated object but supplied none. */
+        return 0;
     }
 
     edKey = wolfSSL_ED448_new(heap, INVALID_DEVID);

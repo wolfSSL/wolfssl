@@ -1484,8 +1484,8 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte xmss_empty_msg = 0;
-        msg = &xmss_empty_msg;
+        static const byte xmss_empty_msg[] = {0};
+        msg = xmss_empty_msg;
     }
     /* Validate state. */
     if ((ret == 0) && (key->state == WC_XMSS_STATE_NOSIGS)) {
@@ -2020,8 +2020,8 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (m == NULL)) {
-        static const byte xmss_empty_msg = 0;
-        m = &xmss_empty_msg;
+        static const byte xmss_empty_msg[] = {0};
+        m = xmss_empty_msg;
     }
     /* Validate state. */
     if ((ret == 0) && (key->state != WC_XMSS_STATE_OK) &&
