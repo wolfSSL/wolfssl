@@ -9,6 +9,15 @@ BUILD_PROFILE ?= debug
 CONFIG_NAME ?= $(PLATFORM)-$(BUILD_PROFILE)
 OUTPUT_DIR = build/$(CONFIG_NAME)
 TARGET = $(OUTPUT_DIR)/$(ARTIFACT)
+AES_TEST_TARGET = $(OUTPUT_DIR)/test_aes_request_length
+HOST_TEST_TARGET = $(OUTPUT_DIR)/test_aes_request_length_host
+HOST_CC ?= cc
+
+ifeq ($(shell uname -s),Darwin)
+HOST_TEST_LDFLAGS = -Wl,-dead_strip
+else
+HOST_TEST_LDFLAGS = -Wl,--gc-sections
+endif
 
 #Compiler definitions
 
@@ -66,6 +75,30 @@ $(TARGET):$(OBJS)
 
 #Rules section for default compilation and linking
 all: $(TARGET)
+
+.PHONY: test host-test
+test: $(AES_TEST_TARGET) host-test
+
+host-test: $(HOST_TEST_TARGET)
+	$(HOST_TEST_TARGET)
+
+$(AES_TEST_TARGET): test_aes_request_length.c \
+        ../../../wolfcrypt/src/port/caam/caam_qnx.c \
+        ../../../wolfssl/wolfcrypt/port/caam/caam_driver.h
+	@mkdir -p $(dir $@)
+	$(CC) -ffunction-sections -fdata-sections -o $@ $(INCLUDES) \
+		$(CCFLAGS_all) $(CCFLAGS) $< $(LDFLAGS_all) $(LDFLAGS) \
+		-Wl,--gc-sections $(LIBS_all) $(LIBS)
+
+$(HOST_TEST_TARGET): test_aes_request_length.c \
+        ../../../wolfcrypt/src/port/caam/caam_qnx.c \
+        ../../../wolfssl/wolfcrypt/port/caam/caam_driver.h \
+        test_support/qnx_test_stubs.h
+	@mkdir -p $(dir $@)
+	$(HOST_CC) -D__QNXNTO__ -DCAAM_QNX_TEST_HOST \
+		-ffunction-sections -fdata-sections -o $@ -Itest_support \
+		$(INCLUDES) $(CCFLAGS_all) $(CCFLAGS) $< \
+		$(HOST_TEST_LDFLAGS) -pthread
 
 clean:
 	rm -fr $(OUTPUT_DIR)
