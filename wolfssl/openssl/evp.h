@@ -495,6 +495,10 @@ enum {
 
 #define WOLFSSL_EVP_PKEY_PRINT_INDENT_MAX    128
 
+/* wolfSSL decodes RSA-PSS keys as WC_EVP_PKEY_RSA. This id is only for
+ * applications that switch on it alongside WC_EVP_PKEY_RSA. */
+#define WC_EVP_PKEY_RSA_PSS WC_NID_rsassaPss
+
 #define WC_EVP_PKEY_OP_SIGN    (1 << 3)
 #define WC_EVP_PKEY_OP_VERIFY  (1 << 5)
 #define WC_EVP_PKEY_OP_ENCRYPT (1 << 6)
@@ -520,6 +524,7 @@ enum {
 #define ARC4_TYPE WC_ARC4_TYPE
 #define NULL_CIPHER_TYPE WC_NULL_CIPHER_TYPE
 #define EVP_PKEY_RSA WC_EVP_PKEY_RSA
+#define EVP_PKEY_RSA_PSS WC_EVP_PKEY_RSA_PSS
 #define EVP_PKEY_DSA WC_EVP_PKEY_DSA
 #define EVP_PKEY_EC WC_EVP_PKEY_EC
 #define AES_128_GCM_TYPE WC_AES_128_GCM_TYPE
@@ -1026,6 +1031,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to, const WOLFSSL_EVP_PKEY *from);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b);
 WOLFSSL_API int wolfSSL_EVP_PKEY_type(int type);
@@ -1444,6 +1450,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_new_raw_private_key   wolfSSL_EVP_PKEY_new_raw_private_key
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
 #define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
+#define EVP_PKEY_dup                   wolfSSL_EVP_PKEY_dup
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
 #define EVP_PKEY_copy_parameters       wolfSSL_EVP_PKEY_copy_parameters
 #define EVP_PKEY_missing_parameters    wolfSSL_EVP_PKEY_missing_parameters

@@ -3239,6 +3239,124 @@ void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
 #endif /* !NO_WOLFSSL_STUB */
 
 #ifdef OPENSSL_EXTRA
+static const char* wolfssl_x509v3_skip_ws(const char* s)
+{
+    while (*s == ' ' || *s == '\t')
+        s++;
+    return s;
+}
+
+/* Check for a leading "critical," in an extension value. Whitespace is
+ * allowed around the keyword and the comma. Advances value past the prefix
+ * and any leading whitespace.
+ *
+ * @return  1 when the value is critical.
+ * @return  0 otherwise.
+ */
+static int wolfssl_x509v3_check_critical(const char** value)
+{
+    const char* s = wolfssl_x509v3_skip_ws(*value);
+    int crit = 0;
+
+    if (XSTRNCMP(s, "critical", 8) == 0) {
+        const char* p = wolfssl_x509v3_skip_ws(s + 8);
+        if (*p == ',') {
+            s = wolfssl_x509v3_skip_ws(p + 1);
+            crit = 1;
+        }
+    }
+
+    *value = s;
+    return crit;
+}
+
+/* Set the basicConstraints extension value from an OpenSSL style string.
+ * Format: "CA:TRUE|FALSE[,pathlen:N]". Spaces and tabs around a token are
+ * ignored. CA is required. Each token may appear only once.
+ *
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on bad value or allocation error.
+ */
+static int wolfssl_ext_bc_from_str(WOLFSSL_X509_EXTENSION* ext,
+    const char* value)
+{
+    const char* s = value;
+    int isCa = 0;
+    int caSet = 0;
+    int pathLen = 0;
+    int pathLenSet = 0;
+
+    ext->obj = wolfSSL_OBJ_nid2obj(WC_NID_basic_constraints);
+    if (ext->obj == NULL) {
+        WOLFSSL_MSG("wolfSSL_OBJ_nid2obj failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (;;) {
+        const char* tok;
+        const char* end;
+        const char* next;
+        size_t len;
+
+        tok = wolfssl_x509v3_skip_ws(s);
+        end = tok;
+        while ((*end != '\0') && (*end != ','))
+            end++;
+        next = end;
+        while ((end > tok) && ((end[-1] == ' ') || (end[-1] == '\t')))
+            end--;
+        len = (size_t)(end - tok);
+
+        if ((len == 7) && (XSTRNCASECMP(tok, "CA:TRUE", 7) == 0)) {
+            if (caSet)
+                return WOLFSSL_FAILURE;
+            isCa = 1;
+            caSet = 1;
+        }
+        else if ((len == 8) && (XSTRNCASECMP(tok, "CA:FALSE", 8) == 0)) {
+            if (caSet)
+                return WOLFSSL_FAILURE;
+            caSet = 1;
+        }
+        else if ((len > 8) && (XSTRNCASECMP(tok, "pathlen:", 8) == 0)) {
+            const char* num;
+
+            if (pathLenSet)
+                return WOLFSSL_FAILURE;
+            for (num = tok + 8; num < end; num++) {
+                if ((*num < '0') || (*num > '9'))
+                    return WOLFSSL_FAILURE;
+                pathLen = (pathLen * 10) + (*num - '0');
+                if (pathLen > WOLFSSL_MAX_PATH_LEN)
+                    return WOLFSSL_FAILURE;
+            }
+            pathLenSet = 1;
+        }
+        else {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (*next != ',')
+            break;
+        s = next + 1;
+    }
+
+    if (!caSet) {
+        WOLFSSL_MSG("basicConstraints value missing CA");
+        return WOLFSSL_FAILURE;
+    }
+
+    ext->obj->ca = isCa;
+    if (pathLenSet) {
+        ext->obj->pathlen = wolfSSL_ASN1_INTEGER_new();
+        if (ext->obj->pathlen == NULL)
+            return WOLFSSL_FAILURE;
+        ext->obj->pathlen->length = pathLen;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
 {
     WOLFSSL_X509_EXTENSION* ext;
@@ -3249,6 +3367,7 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
         return NULL;
     }
     ext->value.nid = nid;
+    ext->crit = wolfssl_x509v3_check_critical(&value);
 
     switch (nid) {
         case WC_NID_subject_key_identifier:
@@ -3314,6 +3433,12 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
                 goto err_cleanup;
             }
             ext->value.type = EXT_KEY_USAGE_OID;
+            break;
+        case WC_NID_basic_constraints:
+            if (wolfssl_ext_bc_from_str(ext, value) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfssl_ext_bc_from_str error");
+                goto err_cleanup;
+            }
             break;
         default:
             WOLFSSL_MSG("invalid or unsupported NID");
@@ -3814,6 +3939,11 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
         const WOLFSSL_EVP_MD *digest, unsigned char* buf, unsigned int* len)
 {
     int ret;
+    const byte* key;
+    word32 sz;
+    word32 idx = 0;
+    int keySz;
+    int len2 = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_pubkey_digest");
 
@@ -3827,8 +3957,23 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
         return WOLFSSL_FAILURE;
     }
 
-    ret = wolfSSL_EVP_Digest(x509->pubKey.buffer, x509->pubKey.length, buf,
-                              len, digest, NULL);
+    key = x509->pubKey.buffer;
+    sz = x509->pubKey.length;
+    keySz = (int)sz;
+
+    /* OpenSSL digests the subjectPublicKey. Decoded certificates keep the
+     * key alone but wolfSSL_X509_set_pubkey stores a SubjectPublicKeyInfo,
+     * so step over that wrapper when it is present. */
+    if ((GetSequence(key, &idx, &len2, sz) >= 0) &&
+            (GetSequence(key, &idx, &len2, sz) >= 0)) {
+        idx += (word32)len2;
+        if (CheckBitString(key, &idx, &len2, sz, 1, NULL) >= 0) {
+            key += idx;
+            keySz = len2;
+        }
+    }
+
+    ret = wolfSSL_EVP_Digest(key, keySz, buf, len, digest, NULL);
     WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
     return ret;
 }
@@ -4921,14 +5066,13 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_free(WOLFSSL_STACK* sk)
 }
 
 
-/* AUTHORITY_INFO_ACCESS object is a stack of ACCESS_DESCRIPTION objects,
- * to free the stack the WOLFSSL_ACCESS_DESCRIPTION stack free function is
- * used */
+/* AUTHORITY_INFO_ACCESS object is a stack of ACCESS_DESCRIPTION objects.
+ * Free the entries and the stack, as OpenSSL does. */
 void wolfSSL_AUTHORITY_INFO_ACCESS_free(
         WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk)
 {
     WOLFSSL_ENTER("wolfSSL_AUTHORITY_INFO_ACCESS_free");
-    wolfSSL_sk_ACCESS_DESCRIPTION_free(sk);
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk, wolfSSL_ACCESS_DESCRIPTION_free);
 }
 
 void wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(
@@ -6450,6 +6594,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             }
             XMEMCPY(key->pkey.ptr, x509->pubKey.buffer, x509->pubKey.length);
             key->pkey_sz = (int)x509->pubKey.length;
+            key->isPriv = 0;
 
             #ifdef HAVE_ECC
                 key->pkey_curve = (int)x509->pkCurveOID;
@@ -10758,6 +10903,15 @@ void wolfSSL_X509_VERIFY_PARAM_set_hostflags(WOLFSSL_X509_VERIFY_PARAM* param,
     if (param != NULL) {
         param->hostFlags = flags;
     }
+}
+
+unsigned int wolfSSL_X509_VERIFY_PARAM_get_hostflags(
+    const WOLFSSL_X509_VERIFY_PARAM* param)
+{
+    if (param == NULL) {
+        return 0;
+    }
+    return param->hostFlags;
 }
 
 /* Sets the expected IP address to ipasc.
@@ -17101,53 +17255,23 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
         WOLFSSL_X509* subject, WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
         int flag)
 {
-    int ret = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
-    if (!ctx) {
-        ret = WOLFSSL_FAILURE;
+    if (ctx == NULL) {
         WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called with null ctx.");
+        return;
     }
 
-    if (ret == WOLFSSL_SUCCESS && (ctx->x509 != NULL)) {
-        ret = WOLFSSL_FAILURE;
-        WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called "
-                    "with ctx->x509 already allocated.");
-    }
+    ctx->issuer = issuer;
+    ctx->subject = subject;
 
-    if (ret == WOLFSSL_SUCCESS) {
-        ctx->x509 = wolfSSL_X509_new_ex(
-            (issuer && issuer->heap) ? issuer->heap :
-            (subject && subject->heap) ? subject->heap :
-            (req && req->heap) ? req->heap :
-            NULL);
-        if (!ctx->x509) {
-            ret = WOLFSSL_FAILURE;
-            WOLFSSL_MSG("wolfSSL_X509_new_ex() failed "
-                        "in wolfSSL_X509V3_set_ctx().");
-        }
-    }
-
-    /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
-    if (ret == WOLFSSL_SUCCESS && issuer)
-        ret = wolfSSL_X509_set_issuer_name(ctx->x509, &issuer->issuer);
-
-    if (ret == WOLFSSL_SUCCESS && subject)
-        ret = wolfSSL_X509_set_subject_name(ctx->x509, &subject->subject);
-
-    if (ret == WOLFSSL_SUCCESS && req) {
+    if (req != NULL) {
         WOLFSSL_MSG("req not implemented.");
     }
-
-    if (ret == WOLFSSL_SUCCESS && crl) {
+    if (crl != NULL) {
         WOLFSSL_MSG("crl not implemented.");
     }
-
-    if (ret == WOLFSSL_SUCCESS && flag) {
+    if (flag != 0) {
         WOLFSSL_MSG("flag not implemented.");
-    }
-
-    if (ret != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Error setting WOLFSSL_X509V3_CTX parameters.");
     }
 }
 

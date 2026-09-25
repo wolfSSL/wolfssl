@@ -524,7 +524,8 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 };
 
 struct WOLFSSL_X509V3_CTX {
-    WOLFSSL_X509* x509;
+    WOLFSSL_X509* issuer;
+    WOLFSSL_X509* subject;
 };
 
 struct WOLFSSL_ASN1_OBJECT {
@@ -645,6 +646,7 @@ struct WOLFSSL_EVP_PKEY {
     word16 pkcs8HeaderSz;
 
     /* option bits */
+    WC_BITFIELD isPriv:1; /* key holds private material, 0 means public only */
     WC_BITFIELD ownDh:1;  /* if struct owns DH  and should free it */
     WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
     WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */
@@ -2577,6 +2579,8 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM 
         unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
                 WOLFSSL_X509_VERIFY_PARAM* param, unsigned int flags);
+WOLFSSL_API unsigned int wolfSSL_X509_VERIFY_PARAM_get_hostflags(
+                const WOLFSSL_X509_VERIFY_PARAM* param);
 WOLFSSL_API int wolfSSL_set1_host(WOLFSSL* ssl, const char * name);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                                     const char* name,
@@ -3449,6 +3453,8 @@ WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int
 
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error(void);
 WOLFSSL_API void          wolfSSL_ERR_clear_error(void);
+WOLFSSL_API int           wolfSSL_ERR_set_mark(void);
+WOLFSSL_API int           wolfSSL_ERR_pop_to_mark(void);
 
 
 WOLFSSL_API int  wolfSSL_RAND_status(void);

@@ -2901,8 +2901,8 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 
     WOLFSSL_ENTER("wolfSSL_DH_dup");
 
-    /* Validate parameters. */
-    if (dh == NULL) {
+    /* Validate parameters. Duplicating needs the full parameter set. */
+    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
         WOLFSSL_ERROR_MSG("Bad parameter");
         err = 1;
     }
@@ -3672,7 +3672,7 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
     int err = 0;
 
     /* Validate parameters. */
-    if (dh == NULL) {
+    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
         WOLFSSL_ERROR_MSG("Bad parameters");
         err = 1;
     }
@@ -3716,7 +3716,7 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
     WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
 
     /* Validate parameters. */
-    if (dh == NULL) {
+    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
         WOLFSSL_ERROR_MSG("Bad parameters");
         len = 0;
     }
@@ -3993,8 +3993,13 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 
     (void)heap;
 
+    /* Validate parameters. */
+    if ((dh->p == NULL) || (dh->g == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad parameters");
+        err = 1;
+    }
     /* Set internal parameters based on external parameters. */
-    if ((dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
+    if ((!err) && (dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
         WOLFSSL_ERROR_MSG("Unable to set internal DH structure");
         err = 1;
     }
@@ -4197,8 +4202,8 @@ int SetDhInternal(WOLFSSL_DH* dh)
 
     WOLFSSL_ENTER("SetDhInternal");
 
-    /* Validate parameters. */
-    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
+    /* Validate parameters. g is optional: key agreement only needs p. */
+    if ((dh == NULL) || (dh->p == NULL)) {
         WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -4218,8 +4223,8 @@ int SetDhInternal(WOLFSSL_DH* dh)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
-    if (ret == 1) {
-        /* Transfer generator. */
+    /* Transfer generator if available. */
+    if ((ret == 1) && (dh->g != NULL)) {
         if (wolfssl_bn_get_value(dh->g, &key->g) != 1) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -4250,8 +4255,10 @@ int SetDhInternal(WOLFSSL_DH* dh)
 #endif /* WOLFSSL_DH_EXTRA */
 
     if (ret == 1) {
-        /* On success record that the internal values have been set. */
-        dh->inSet = 1;
+        /* Record that the internal values have been set. Without a generator
+         * the internal key is incomplete, so keep it unset to force a
+         * re-sync when the generator is added later. */
+        dh->inSet = (dh->g != NULL);
     }
 
     return ret;

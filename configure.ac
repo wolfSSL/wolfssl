@@ -9155,7 +9155,7 @@ if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || \
    test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" ||  \
    test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
    test "x$ENABLED_KRB" = "xyes" || test "x$ENABLED_STRONGSWAN" = "xyes" || \
-   test "x$ENABLED_MOSQUITTO" = "xyes"
+   test "x$ENABLED_MOSQUITTO" = "xyes" || test "x$ENABLED_OPENLDAP" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -10656,6 +10656,11 @@ then
     if test "$ENABLED_DES3" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5)
     then
         ENABLED_DES3="yes"
+    fi
+
+    if test "x$ENABLED_MD5" = "xno"
+    then
+        ENABLED_MD5="yes"
     fi
 fi
 

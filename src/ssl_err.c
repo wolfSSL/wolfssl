@@ -693,6 +693,37 @@ void wolfSSL_ERR_remove_state(unsigned long id)
         WOLFSSL_MSG("Error with removing the state");
     }
 }
+
+/* Mark the newest entry in the error queue.
+ *
+ * @return  1 on success.
+ * @return  0 when the queue is empty or there is no error queue.
+ */
+int wolfSSL_ERR_set_mark(void)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_set_mark");
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    return wc_SetErrorMark();
+#else
+    return 0;
+#endif
+}
+
+/* Remove entries newer than the last mark and clear that mark.
+ *
+ * @return  1 when a mark was found.
+ * @return  0 when no mark was found and the queue is now empty, or there is
+ *          no error queue.
+ */
+int wolfSSL_ERR_pop_to_mark(void)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_pop_to_mark");
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    return wc_PopErrorMark();
+#else
+    return 0;
+#endif
+}
 #endif
 
 #endif /* !WOLFCRYPT_ONLY */

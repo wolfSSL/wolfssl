@@ -55,8 +55,6 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     int prevSz = 0;
     int ret = 1;
 
-    (void)priv;
-
     /* Get or create the EVP PKEY object. */
     if (*out != NULL) {
         pkey = *out;
@@ -120,6 +118,7 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     if (ret == 1) {
         /* Set key type passed in and return object. */
         pkey->type = type;
+        pkey->isPriv = (priv != 0);
         *out = pkey;
     }
     if ((ret == 0) && (*out == NULL)) {
@@ -575,6 +574,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
     }
     XMEMCPY(pkey->pkey.ptr, pub, len);
     pkey->pkey_sz = (int)len;
+    pkey->isPriv = 0;
 
     return pkey;
 }
@@ -590,6 +590,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
 
     (void)e;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_raw_private_key");
+
+    #ifdef OPENSSL_EXTRA
+    /* HMAC keys are raw octets, same as EVP_PKEY_new_mac_key. */
+    if (type == WC_EVP_PKEY_HMAC) {
+        if (len > (size_t)INT_MAX) {
+            return NULL;
+        }
+        return wolfSSL_EVP_PKEY_new_mac_key(type, e, priv, (int)len);
+    }
+    #endif /* OPENSSL_EXTRA */
 
     if (priv == NULL || len == 0) {
         return NULL;
@@ -735,6 +745,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     }
     XMEMCPY(pkey->pkey.ptr, priv, len);
     pkey->pkey_sz = (int)len;
+    pkey->isPriv = 1;
 
     return pkey;
 }
@@ -1539,6 +1550,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
     local->type          = type;
     local->pkey_sz       = (int)inSz;
     local->pkcs8HeaderSz = pkcs8HeaderSz;
+    local->isPriv        = (priv != 0);
     local->pkey.ptr      = (char*)XMALLOC((size_t)inSz, NULL,
                                           DYNAMIC_TYPE_PUBLIC_KEY);
     if (local->pkey.ptr == NULL) {
@@ -1702,6 +1714,49 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 
     return d2i_evp_pkey(type, out, in, inSz, 1);
+}
+
+/* Deep copy of a key by re-decoding its cached DER.
+ *
+ * @param [in] pkey  Key to copy.
+ * @return  New WOLFSSL_EVP_PKEY on success.
+ * @return  NULL when pkey is NULL, holds no DER or decoding fails.
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey)
+{
+    WOLFSSL_EVP_PKEY* dup = NULL;
+    const unsigned char* der;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_dup");
+
+    /* An HMAC key is raw octets, so an empty one is still a key. XMALLOC(0)
+     * is allowed to return NULL, so an empty key carries no buffer either. */
+    if ((pkey == NULL) || (pkey->pkey_sz < 0) ||
+            ((pkey->pkey_sz == 0) ? (pkey->type != WC_EVP_PKEY_HMAC)
+                                  : (pkey->pkey.ptr == NULL))) {
+        WOLFSSL_MSG("No key data to duplicate");
+        return NULL;
+    }
+
+    der = (const unsigned char*)pkey->pkey.ptr;
+    if (pkey->type == WC_EVP_PKEY_HMAC) {
+        dup = wolfSSL_EVP_PKEY_new_mac_key(WC_EVP_PKEY_HMAC, NULL, der,
+            pkey->pkey_sz);
+    }
+    else {
+        /* Every path that caches DER records whether it is private, so the
+         * encoding is decoded the same way it was made. */
+        dup = d2i_evp_pkey(pkey->type, NULL, &der, pkey->pkey_sz,
+            pkey->isPriv);
+        if (dup != NULL) {
+        #ifdef HAVE_ECC
+            dup->pkey_curve = pkey->pkey_curve;
+        #endif
+            dup->save_type = pkey->save_type;
+        }
+    }
+
+    return dup;
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -2079,6 +2134,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
         /* Copy in DER data and size. */
         XMEMCPY(pkcs8->pkey.ptr, rawDer.buffer, rawDer.length);
         pkcs8->pkey_sz = (int)rawDer.length;
+        pkcs8->isPriv = 1;
     }
 
     /* Dispose of PKCS#8 DER data - raw DER reference data in pkcs8Der. */
@@ -2176,6 +2232,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
     local->type          = type;
     local->pkey_sz       = 0;
     local->pkcs8HeaderSz = 0;
+    local->isPriv        = 1;
 
     switch (type) {
 #ifndef NO_RSA
