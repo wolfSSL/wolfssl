@@ -575,10 +575,16 @@ int wc_curve448_import_public_ex(const byte* in, word32 inLen,
  * pubSz   [in]  Size of public key in bytes.
  * endian  [in]  Public key bytes passed in as big-endian or little-endian.
  * returns BAD_FUNC_ARGS when pub is NULL,
- *         ECC_BAD_ARG_E when key length is not 56 bytes, public key value is
- *         zero or one;
+ *         ECC_BAD_ARG_E when key length is not 56 bytes, or the public key
+ *         value is a cheaply detectable low-order point: 0, 1, p-1 (u = -1)
+ *         or the non-canonical encodings p and p+1 (p = 2^448 - 2^224 - 1);
  *         BUFFER_E when size of public key is zero;
  *         0 otherwise.
+ *
+ * RFC 7748 Section 5 requires the non-canonical range [p, 2^448-1] to be
+ * accepted and processed as if reduced modulo p, so p+2 .. 2^448-1 are valid
+ * inputs (the field arithmetic performs the reduction) and are not rejected
+ * here.
  */
 int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
 {
@@ -611,16 +617,31 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
             if ((i == 0) && (pub[0] == 0 || pub[0] == 1)) {
                 return ECC_BAD_ARG_E;
             }
-            /* Check for order-1 or higher */
+            /* Check for p-1, p and p+1, p = 2^448 - 2^224 - 1. Little-endian:
+             *   p-1 = fe ff[27] fe ff[27]  (the low-order point u = -1)
+             *   p   = ff[28]    fe ff[27]  (non-canonical encoding of 0)
+             *   p+1 = 00[28]    ff ff[27]  (non-canonical encoding of 1)
+             * The other non-canonical values, p+2 .. 2^448-1, must be accepted
+             * and processed as if reduced modulo p (RFC 7748 Section 5); the
+             * field arithmetic performs the reduction. */
             for (i = CURVE448_PUB_KEY_SIZE - 1; i > 28; i--) {
                 if (pub[i] != 0xff) {
                     break;
                 }
             }
             if ((i == 28) && (pub[i] == 0xff)) {
-                return ECC_BAD_ARG_E;
+                /* p+1: bytes 27..0 all zero. */
+                for (--i; i > 0; i--) {
+                    if (pub[i] != 0x00) {
+                        break;
+                    }
+                }
+                if ((i == 0) && (pub[i] == 0x00)) {
+                    return ECC_BAD_ARG_E;
+                }
             }
-            if ((i == 28) && (pub[i] == 0xfe)) {
+            else if ((i == 28) && (pub[i] == 0xfe)) {
+                /* p-1 and p: bytes 27..1 all 0xff, byte 0 is 0xfe or 0xff. */
                 for (--i; i > 0; i--) {
                     if (pub[i] != 0xff) {
                         break;
@@ -642,16 +663,25 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
                 (pub[i] == 0 || pub[i] == 1)) {
                 ret = ECC_BAD_ARG_E;
             }
-            /* Check for order-1 or higher */
+            /* Check for p-1, p and p+1 (see the little-endian case above). */
             for (i = 0; i < 27; i++) {
                 if (pub[i] != 0xff) {
                     break;
                 }
             }
             if ((i == 27) && (pub[i] == 0xff)) {
-                return ECC_BAD_ARG_E;
+                /* p+1: bytes 28..55 all zero. */
+                for (++i; i < CURVE448_PUB_KEY_SIZE - 1; i++) {
+                    if (pub[i] != 0x00) {
+                        break;
+                    }
+                }
+                if ((i == CURVE448_PUB_KEY_SIZE - 1) && (pub[i] == 0x00)) {
+                    return ECC_BAD_ARG_E;
+                }
             }
-            if ((i == 27) && (pub[i] == 0xfe)) {
+            else if ((i == 27) && (pub[i] == 0xfe)) {
+                /* p-1 and p: bytes 28..54 all 0xff, byte 55 is 0xfe or 0xff. */
                 for (++i; i < CURVE448_PUB_KEY_SIZE - 1; i++) {
                     if (pub[i] != 0xff) {
                         break;
