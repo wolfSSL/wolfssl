@@ -3567,12 +3567,172 @@ int test_ocsp_unstapled_chain_crl_would_block(void)
     return EXPECT_RESULT();
 }
 
+static byte test_ocsp_no_url_staple[4096];
+static int  test_ocsp_no_url_stapleSz;
+static struct {
+    const char* crlFile;
+    int failIfNotSupported;
+} test_ocsp_no_url_opts;
+
+/* server6's own response; intermediate4 is left unstapled. */
+static int test_ocsp_no_url_status_cb(WOLFSSL* ssl, void* arg)
+{
+    byte* staple;
+
+    (void)arg;
+    staple = (byte*)XMALLOC((size_t)test_ocsp_no_url_stapleSz, NULL, 0);
+    if (staple == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    XMEMCPY(staple, test_ocsp_no_url_staple, (size_t)test_ocsp_no_url_stapleSz);
+    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, staple,
+            test_ocsp_no_url_stapleSz, 0) != WOLFSSL_SUCCESS) {
+        XFREE(staple, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    }
+
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+static int test_ocsp_no_url_srv_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
+            test_ocsp_no_url_status_cb), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_no_url_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    int options = WOLFSSL_OCSP_CHECKALL | WOLFSSL_OCSP_NO_NONCE;
+
+    if (test_ocsp_no_url_opts.failIfNotSupported)
+        options |= WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, options), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    if (test_ocsp_no_url_opts.crlFile != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, test_ocsp_no_url_opts.crlFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+
+    return EXPECT_RESULT();
+}
+
+/* intermediate4-ca names no OCSP responder, so the fallback for it cannot ask
+ * OCSP. The no-URL policy decides whether that fails it or leaves it to the
+ * CRL, and a soft pass must not count as an answer that skips the CRL. */
+int test_ocsp_unstapled_chain_no_url(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    XFILE f = XBADFILE;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* desc;
+        int useV2;
+        int failIfNotSupported;
+        const char* crlFile;
+        int expected;
+    } params[] = {
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, no CRL either", 0, 0, NULL,
+          WC_NO_ERR_TRACE(CRL_MISSING) },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, a CRL covers it", 0, 0, "./certs/ocsp/root-ca-crl.pem",
+          0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, OCSP required for every certificate", 0, 1,
+          "./certs/ocsp/root-ca-crl.pem", WC_NO_ERR_TRACE(OCSP_NEED_URL) },
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, no CRL either", 1, 0, NULL,
+          WC_NO_ERR_TRACE(CRL_MISSING) },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, a CRL covers it", 1, 0,
+          "./certs/ocsp/root-ca-crl.pem", 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, OCSP required for every certificate", 1, 1,
+          "./certs/ocsp/root-ca-crl.pem", WC_NO_ERR_TRACE(OCSP_NEED_URL) },
+#endif
+    };
+
+    ExpectTrue((f = XFOPEN("./certs/ocsp/test-server6-response.der", "rb"))
+        != XBADFILE);
+    if (f != XBADFILE) {
+        test_ocsp_no_url_stapleSz = (int)XFREAD(test_ocsp_no_url_staple, 1,
+            sizeof(test_ocsp_no_url_staple), f);
+        XFCLOSE(f);
+    }
+    ExpectIntGT(test_ocsp_no_url_stapleSz, 0);
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_ssl_memio_ctx test_ctx;
+
+        test_ocsp_no_url_opts.crlFile = params[i].crlFile;
+        test_ocsp_no_url_opts.failIfNotSupported =
+            params[i].failIfNotSupported;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.s_cb.method = params[i].server_meth;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server6-chain-noroot.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server6-key.pem";
+        test_ctx.s_cb.ctx_ready = test_ocsp_no_url_srv_ctx_ready;
+        test_ctx.c_cb.method = params[i].client_meth;
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready = test_ocsp_no_url_ctx_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        if (params[i].useV2) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+#endif
+        }
+        else {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+#endif
+        }
+
+        if (params[i].expected == 0) {
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_SUCCESS);
+        }
+        else {
+            ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                params[i].expected);
+        }
+        if (EXPECT_FAIL())
+            fprintf(stderr, "case: %s\n", params[i].desc);
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
 #else
 int test_ocsp_unstapled_chain_crl(void)
 {
     return TEST_SKIPPED;
 }
 int test_ocsp_unstapled_chain_crl_would_block(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_unstapled_chain_no_url(void)
 {
     return TEST_SKIPPED;
 }

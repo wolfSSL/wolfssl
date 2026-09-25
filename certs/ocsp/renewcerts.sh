@@ -128,6 +128,7 @@ update_cert() {
 update_cert intermediate1-ca "wolfSSL intermediate CA 1"       root-ca          v3_ca   01
 update_cert intermediate2-ca "wolfSSL intermediate CA 2"       root-ca          v3_ca   02
 update_cert intermediate3-ca "wolfSSL REVOKED intermediate CA" root-ca          v3_ca   03 # REVOKED
+update_cert intermediate4-ca "wolfSSL intermediate CA 4"       root-ca          v3_ca_noaia 11
 
 update_cert ocsp-responder   "wolfSSL OCSP Responder"          root-ca          v3_ocsp 04
 
@@ -143,6 +144,7 @@ update_cert server2          "www2.wolfssl.com"                intermediate1-ca 
 update_cert server3          "www3.wolfssl.com"                intermediate2-ca v3_req2 07
 update_cert server4          "www4.wolfssl.com"                intermediate2-ca v3_req2 08 # REVOKED
 update_cert server5          "www5.wolfssl.com"                intermediate3-ca v3_req3 09
+update_cert server6          "www6.wolfssl.com"                intermediate4-ca v3_req4 12
 
 # server1-chain-noroot.pem: server1 + intermediate1 without root-ca
 # (used by tests that need a chain where the root is not sent by the server)
@@ -150,6 +152,8 @@ head -n "$(grep -n 'END CERTIFICATE' server1-cert.pem | head -2 | tail -1 | cut 
 check_result $? ""
 # server1-leaf.pem: server1 alone, small enough for one DTLS 1.3 record
 head -n "$(grep -n 'END CERTIFICATE' server1-cert.pem | head -1 | cut -d: -f1)" server1-cert.pem > server1-leaf.pem
+check_result $? ""
+head -n "$(grep -n 'END CERTIFICATE' server6-cert.pem | head -2 | tail -1 | cut -d: -f1)" server6-cert.pem > server6-chain-noroot.pem
 check_result $? ""
 
 # Create response DER buffer for test
@@ -175,6 +179,17 @@ sleep 1 # Make sure server is ready
 openssl ocsp -issuer ./intermediate1-ca-cert.pem -cert ./server1-cert.pem -url http://localhost:22221/ -respout test-leaf-response.der -noverify
 kill $PID
 wait $PID
+
+# intermediate4-ca names no OCSP responder, so it answers for server6 itself.
+openssl ocsp -issuer ./intermediate4-ca-cert.pem -cert ./server6-cert.pem \
+-no_nonce -reqout server6-request.der
+check_result $? ""
+openssl ocsp -index ./index-intermediate4-ca-issued-certs.txt \
+-rsigner intermediate4-ca-cert.pem -rkey intermediate4-ca-key.pem \
+-CA intermediate4-ca-cert.pem -reqin server6-request.der \
+-respout test-server6-response.der -ndays 1000
+check_result $? ""
+rm server6-request.der
 
 # now start up a responder that signs using rsa-pss
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -rsigopt rsa_padding_mode:pss &

@@ -11,6 +11,8 @@ EXTRA_DIST += \
         certs/ocsp/index-intermediate2-ca-issued-certs.txt.attr \
         certs/ocsp/index-intermediate3-ca-issued-certs.txt \
         certs/ocsp/index-intermediate3-ca-issued-certs.txt.attr \
+        certs/ocsp/index-intermediate4-ca-issued-certs.txt \
+        certs/ocsp/index-intermediate4-ca-issued-certs.txt.attr \
         certs/ocsp/openssl.cnf \
         certs/ocsp/renewcerts-for-test.sh \
         certs/ocsp/intermediate1-ca-key.pem \
@@ -25,6 +27,10 @@ EXTRA_DIST += \
         certs/ocsp/intermediate3-ca-key.der \
         certs/ocsp/intermediate3-ca-cert.pem \
         certs/ocsp/intermediate3-ca-cert.der \
+        certs/ocsp/intermediate4-ca-key.pem \
+        certs/ocsp/intermediate4-ca-key.der \
+        certs/ocsp/intermediate4-ca-cert.pem \
+        certs/ocsp/intermediate4-ca-cert.der \
         certs/ocsp/ocsp-responder-key.pem \
         certs/ocsp/ocsp-responder-key.der \
         certs/ocsp/ocsp-responder-cert.pem \
@@ -55,6 +61,11 @@ EXTRA_DIST += \
         certs/ocsp/server5-key.der \
         certs/ocsp/server5-cert.pem \
         certs/ocsp/server5-cert.der \
+        certs/ocsp/server6-key.pem \
+        certs/ocsp/server6-key.der \
+        certs/ocsp/server6-cert.pem \
+        certs/ocsp/server6-cert.der \
+        certs/ocsp/server6-chain-noroot.pem \
         certs/ocsp/root-ca-key.pem \
         certs/ocsp/root-ca-key.der \
         certs/ocsp/root-ca-cert.pem \
@@ -71,4 +82,5 @@ EXTRA_DIST += \
         certs/ocsp/test-response-rsapss.der \
         certs/ocsp/test-response-nointern.der \
         certs/ocsp/test-multi-response.der \
-        certs/ocsp/test-leaf-response.der
+        certs/ocsp/test-leaf-response.der \
+        certs/ocsp/test-server6-response.der

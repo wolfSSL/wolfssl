@@ -43392,6 +43392,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_acked_no_leaf_staple_ocsp),
     TEST_DECL_GROUP("ocsp", test_ocsp_unstapled_chain_crl),
     TEST_DECL_GROUP("ocsp", test_ocsp_unstapled_chain_crl_would_block),
+    TEST_DECL_GROUP("ocsp", test_ocsp_unstapled_chain_no_url),
     TEST_DECL_GROUP("ocsp", test_ocsp_checkall_staple_missing_chain),
     TEST_DECL_GROUP("ocsp", test_ocsp_must_staple_acked_no_status),
     TEST_DECL_GROUP("ocsp", test_tls13_nonblock_ocsp_low_mfl),
