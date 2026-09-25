@@ -70,9 +70,9 @@ impl Curve25519Key {
     ///
     /// # Parameters
     ///
-    /// * `rng`: Random number generator struct to use for key generation and
-    ///   blinding operation. Ownership of the `RNG` instance is transferred to
-    ///   the `Curve25519Key` instance constructed here.
+    /// * `rng`: Random number generator struct to use for key generation (and
+    ///   saved for later blinding operations). Ownership of the `RNG` instance
+    ///   is transferred to the `Curve25519Key` instance constructed here.
     ///
     /// # Returns
     ///
@@ -107,9 +107,9 @@ impl Curve25519Key {
     ///
     /// # Parameters
     ///
-    /// * `rng`: Random number generator struct to use for key generation and
-    ///   blinding operation. The `Curve25519Key` instance created here shares
-    ///   the same `RNG` instance via `Rc`.
+    /// * `rng`: Random number generator struct to use for key generation (and
+    ///   saved for later blinding operations). The `Curve25519Key` instance
+    ///   created here shares the same `RNG` instance via `Rc`.
     ///
     /// # Returns
     ///
@@ -144,7 +144,7 @@ impl Curve25519Key {
     ///
     /// # Parameters
     ///
-    /// * `rng`: Random number generator struct to use for blinding operation.
+    /// * `rng`: Random number generator struct to use for key generation.
     ///
     /// # Returns
     ///
