@@ -2871,8 +2871,176 @@ int test_ocsp_staple_crl_policy(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_CRL_IO
+static int test_ocsp_leaf_staple_crl_io_calls;
+static int test_ocsp_leaf_staple_crl_io_block;
+
+/* Never finds a CRL; with block set, each fetch first reports would-block. */
+static int test_ocsp_leaf_staple_crl_io_cb(WOLFSSL_CRL* crl, const char* url,
+    int urlSz)
+{
+    (void)crl;
+    (void)url;
+    (void)urlSz;
+
+    test_ocsp_leaf_staple_crl_io_calls++;
+    if (test_ocsp_leaf_staple_crl_io_block &&
+            (test_ocsp_leaf_staple_crl_io_calls % 2) == 1) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    return -1;
+}
+
+static int test_ocsp_leaf_staple_crl_io_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(ctx, test_ocsp_leaf_staple_crl_io_cb),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_crl_io_ancestor_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/ocsp/intermediate1-ca-crl.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(ctx, test_ocsp_leaf_staple_crl_io_cb),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_crl_io_nostaple_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(ctx, test_ocsp_leaf_staple_crl_io_cb),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The leaf's CRL is fetched after its staple verified; a fetch that first
+ * blocks must not cost the must-staple client that staple on the retry. */
+int test_ocsp_leaf_staple_crl_would_block(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CRL_IO
+    struct test_ssl_memio_ctx test_ctx;
+    int blocking;
+#ifndef NO_FILESYSTEM
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte der[2048];
+    int derSz = 0;
+    XFILE f = XBADFILE;
+#endif
+
+    for (blocking = 0; blocking <= 1 && !EXPECT_FAIL(); blocking++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ocsp_leaf_staple_crl_io_calls = 0;
+        test_ocsp_leaf_staple_crl_io_block = blocking;
+        test_ocsp_staple_crl_policy_leaf = 1;
+        test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+        test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+        test_ctx.s_cb.ctx_ready = test_ocsp_staple_crl_policy_srv_ctx_ready;
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready = test_ocsp_leaf_staple_crl_io_ctx_ready;
+        test_ctx.c_cb.ssl_ready = test_ocsp_staple_crl_policy_ssl_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+            TEST_SUCCESS);
+        /* The fetch ran, and ran again after it blocked; a blocking build
+         * takes the would-block as a missing CRL instead. */
+        ExpectIntEQ(test_ocsp_leaf_staple_crl_io_calls,
+            1 + blocking * TEST_OCSP_NONBLOCK_MAX);
+        if (EXPECT_FAIL())
+            fprintf(stderr, "block %d\n", blocking);
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    /* With nothing stapled the CRL decides, and a fetch that never finds one
+     * is a missing CRL whether or not it first blocked. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ocsp_leaf_staple_crl_io_calls = 0;
+    test_ocsp_leaf_staple_crl_io_block = 1;
+    test_ctx.c_cb.ctx_ready = test_ocsp_crl_io_nostaple_ctx_ready;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(test_ocsp_leaf_staple_crl_io_calls,
+        1 + TEST_OCSP_NONBLOCK_MAX);
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* Only the leaf arrives, so the walk over the CAs above it fetches the
+     * root's CRL, which first blocks and is then missing. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ocsp_leaf_staple_crl_io_calls = 0;
+    test_ocsp_leaf_staple_crl_io_block = 1;
+    test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-leaf.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+    test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+    test_ctx.c_cb.ctx_ready = test_ocsp_crl_io_ancestor_ctx_ready;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(test_ocsp_leaf_staple_crl_io_calls,
+        1 + TEST_OCSP_NONBLOCK_MAX);
+    test_ssl_memio_cleanup(&test_ctx);
+
+#ifndef NO_FILESYSTEM
+    /* A synchronous check has nothing to retry, so the same fetch reports
+     * the CRL missing. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm,
+            test_ocsp_leaf_staple_crl_io_cb), WOLFSSL_SUCCESS);
+    test_ocsp_leaf_staple_crl_io_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, "./certs/server-cert.pem",
+            WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    test_ocsp_leaf_staple_crl_io_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, der, derSz),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    wolfSSL_CertManagerFree(cm);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 #else
 int test_ocsp_staple_crl_policy(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_leaf_staple_crl_would_block(void)
 {
     return TEST_SKIPPED;
 }
@@ -3276,8 +3444,135 @@ int test_ocsp_unstapled_chain_crl(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_CRL_IO
+static int test_ocsp_unstapled_chain_crl_io_calls;
+static int test_ocsp_unstapled_chain_crl_io_block;
+
+/* Never finds a CRL; with block set, each fetch first reports would-block. */
+static int test_ocsp_unstapled_chain_crl_fetch_cb(WOLFSSL_CRL* crl,
+    const char* url, int urlSz)
+{
+    (void)crl;
+    (void)url;
+    (void)urlSz;
+
+    test_ocsp_unstapled_chain_crl_io_calls++;
+    if (test_ocsp_unstapled_chain_crl_io_block &&
+            (test_ocsp_unstapled_chain_crl_io_calls % 2) == 1) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    return -1;
+}
+
+static int test_ocsp_unstapled_chain_crl_fetch_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_ocsp_unstapled_chain_crl_io_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(ctx,
+            test_ocsp_unstapled_chain_crl_fetch_cb), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* No CRL is held for either certificate, so both fetches run. When they first
+ * block, the retries must leave the staple indices where they were, or the
+ * intermediate the responder does not know is judged by another's verdict. */
+int test_ocsp_unstapled_chain_crl_would_block(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CRL_IO
+    size_t i;
+    int blocking;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* desc;
+        int useV2;
+        int fetches;
+    } params[] = {
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3 status_request, the fallback fails before the leaf's",
+          0, 1 },
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, both before CertificateStatus", 1, 2 },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        for (blocking = 0; blocking <= TEST_OCSP_NONBLOCK_MAX && !EXPECT_FAIL();
+                blocking++) {
+            struct test_ssl_memio_ctx test_ctx;
+
+            XMEMSET(&test_ocsp_unstapled_chain_crl_opts, 0,
+                sizeof(test_ocsp_unstapled_chain_crl_opts));
+            test_ocsp_unstapled_chain_crl_opts.staple = 1;
+            test_ocsp_unstapled_chain_crl_io_calls = 0;
+            test_ocsp_unstapled_chain_crl_io_block = blocking;
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            test_ctx.s_cb.method = params[i].server_meth;
+            test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+            test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+            test_ctx.s_cb.ctx_ready =
+                test_ocsp_unstapled_chain_crl_srv_ctx_ready;
+            test_ctx.c_cb.method = params[i].client_meth;
+            test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+            test_ctx.c_cb.ctx_ready =
+                test_ocsp_unstapled_chain_crl_fetch_ctx_ready;
+            ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+            if (params[i].useV2) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                    WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+#endif
+            }
+            else {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                    WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+#endif
+            }
+
+            ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+                TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                WC_NO_ERR_TRACE(CRL_MISSING));
+            /* Each fetch ran once more after it blocked. */
+            ExpectIntEQ(test_ocsp_unstapled_chain_crl_io_calls,
+                params[i].fetches * (1 + blocking));
+            if (EXPECT_FAIL()) {
+                fprintf(stderr, "case: %s, block %d\n", params[i].desc,
+                    blocking);
+            }
+
+            test_ssl_memio_cleanup(&test_ctx);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 #else
 int test_ocsp_unstapled_chain_crl(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_unstapled_chain_crl_would_block(void)
 {
     return TEST_SKIPPED;
 }

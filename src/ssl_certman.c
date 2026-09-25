@@ -860,6 +860,11 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         int crlRet;
 
         crlRet = CheckCertCRL(cm->crl, cert);
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+        /* A synchronous caller cannot retry a fetch that would block. */
+        if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+            crlRet = CRL_MISSING;
+    #endif
         if ((ret == 0) || (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))) {
             ret = crlRet;
         }
@@ -2002,6 +2007,10 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
                 int crlRet;
 
                 crlRet = CheckCertCRL(cm->crl, cert);
+            #ifdef WOLFSSL_NONBLOCK_OCSP
+                if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+                    crlRet = CRL_MISSING;
+            #endif
                 if (crlRet != 0) {
                     WOLFSSL_MSG("CheckCertCRL failed");
                 }
