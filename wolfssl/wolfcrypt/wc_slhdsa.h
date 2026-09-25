@@ -49,6 +49,16 @@
 #endif
 
 /* ======== SHAKE parameter guards ======== */
+#ifdef USE_INTEL_SPEEDUP
+/* AVX-512 assembly for SLH-DSA is built (and dispatched at run time on
+ * capable CPUs) whenever the Intel speedups are enabled and AVX-512 is not
+ * opted out.  Matches the HAVE_INTEL_AVX512 guard around the generated
+ * assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+#endif
+#endif
+
 #ifdef WOLFSSL_SLHDSA_NO_SHAKE
 
     #define WOLFSSL_SLHDSA_PARAM_NO_128S

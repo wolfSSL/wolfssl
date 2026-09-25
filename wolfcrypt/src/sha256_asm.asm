@@ -23462,6 +23462,15428 @@ L_sha256_len_avx2_rorx_done:
         ret
 Transform_Sha256_AVX2_RORX_Len ENDP
 _TEXT ENDS
+wc_masm_cond_0 = 0
+IFDEF WOLFSSL_HAVE_LMS
+wc_masm_cond_0 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_XMSS
+wc_masm_cond_0 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_SLHDSA
+wc_masm_cond_0 = 1
+ENDIF
+IF wc_masm_cond_0
+_DATA SEGMENT
+ALIGN 16
+L_avx2_sha256_x8_flip_mask QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+        QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+ptr_L_avx2_sha256_x8_flip_mask QWORD L_avx2_sha256_x8_flip_mask
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx2_sha256_x8_k DWORD 428a2f98h, 428a2f98h, 428a2f98h, 428a2f98h
+        DWORD 428a2f98h, 428a2f98h, 428a2f98h, 428a2f98h
+        DWORD 71374491h, 71374491h, 71374491h, 71374491h
+        DWORD 71374491h, 71374491h, 71374491h, 71374491h
+        DWORD 0b5c0fbcfh, 0b5c0fbcfh, 0b5c0fbcfh, 0b5c0fbcfh
+        DWORD 0b5c0fbcfh, 0b5c0fbcfh, 0b5c0fbcfh, 0b5c0fbcfh
+        DWORD 0e9b5dba5h, 0e9b5dba5h, 0e9b5dba5h, 0e9b5dba5h
+        DWORD 0e9b5dba5h, 0e9b5dba5h, 0e9b5dba5h, 0e9b5dba5h
+        DWORD 3956c25bh, 3956c25bh, 3956c25bh, 3956c25bh
+        DWORD 3956c25bh, 3956c25bh, 3956c25bh, 3956c25bh
+        DWORD 59f111f1h, 59f111f1h, 59f111f1h, 59f111f1h
+        DWORD 59f111f1h, 59f111f1h, 59f111f1h, 59f111f1h
+        DWORD 923f82a4h, 923f82a4h, 923f82a4h, 923f82a4h
+        DWORD 923f82a4h, 923f82a4h, 923f82a4h, 923f82a4h
+        DWORD 0ab1c5ed5h, 0ab1c5ed5h, 0ab1c5ed5h, 0ab1c5ed5h
+        DWORD 0ab1c5ed5h, 0ab1c5ed5h, 0ab1c5ed5h, 0ab1c5ed5h
+        DWORD 0d807aa98h, 0d807aa98h, 0d807aa98h, 0d807aa98h
+        DWORD 0d807aa98h, 0d807aa98h, 0d807aa98h, 0d807aa98h
+        DWORD 12835b01h, 12835b01h, 12835b01h, 12835b01h
+        DWORD 12835b01h, 12835b01h, 12835b01h, 12835b01h
+        DWORD 243185beh, 243185beh, 243185beh, 243185beh
+        DWORD 243185beh, 243185beh, 243185beh, 243185beh
+        DWORD 550c7dc3h, 550c7dc3h, 550c7dc3h, 550c7dc3h
+        DWORD 550c7dc3h, 550c7dc3h, 550c7dc3h, 550c7dc3h
+        DWORD 72be5d74h, 72be5d74h, 72be5d74h, 72be5d74h
+        DWORD 72be5d74h, 72be5d74h, 72be5d74h, 72be5d74h
+        DWORD 80deb1feh, 80deb1feh, 80deb1feh, 80deb1feh
+        DWORD 80deb1feh, 80deb1feh, 80deb1feh, 80deb1feh
+        DWORD 9bdc06a7h, 9bdc06a7h, 9bdc06a7h, 9bdc06a7h
+        DWORD 9bdc06a7h, 9bdc06a7h, 9bdc06a7h, 9bdc06a7h
+        DWORD 0c19bf174h, 0c19bf174h, 0c19bf174h, 0c19bf174h
+        DWORD 0c19bf174h, 0c19bf174h, 0c19bf174h, 0c19bf174h
+        DWORD 0e49b69c1h, 0e49b69c1h, 0e49b69c1h, 0e49b69c1h
+        DWORD 0e49b69c1h, 0e49b69c1h, 0e49b69c1h, 0e49b69c1h
+        DWORD 0efbe4786h, 0efbe4786h, 0efbe4786h, 0efbe4786h
+        DWORD 0efbe4786h, 0efbe4786h, 0efbe4786h, 0efbe4786h
+        DWORD 0fc19dc6h, 0fc19dc6h, 0fc19dc6h, 0fc19dc6h
+        DWORD 0fc19dc6h, 0fc19dc6h, 0fc19dc6h, 0fc19dc6h
+        DWORD 240ca1cch, 240ca1cch, 240ca1cch, 240ca1cch
+        DWORD 240ca1cch, 240ca1cch, 240ca1cch, 240ca1cch
+        DWORD 2de92c6fh, 2de92c6fh, 2de92c6fh, 2de92c6fh
+        DWORD 2de92c6fh, 2de92c6fh, 2de92c6fh, 2de92c6fh
+        DWORD 4a7484aah, 4a7484aah, 4a7484aah, 4a7484aah
+        DWORD 4a7484aah, 4a7484aah, 4a7484aah, 4a7484aah
+        DWORD 5cb0a9dch, 5cb0a9dch, 5cb0a9dch, 5cb0a9dch
+        DWORD 5cb0a9dch, 5cb0a9dch, 5cb0a9dch, 5cb0a9dch
+        DWORD 76f988dah, 76f988dah, 76f988dah, 76f988dah
+        DWORD 76f988dah, 76f988dah, 76f988dah, 76f988dah
+        DWORD 983e5152h, 983e5152h, 983e5152h, 983e5152h
+        DWORD 983e5152h, 983e5152h, 983e5152h, 983e5152h
+        DWORD 0a831c66dh, 0a831c66dh, 0a831c66dh, 0a831c66dh
+        DWORD 0a831c66dh, 0a831c66dh, 0a831c66dh, 0a831c66dh
+        DWORD 0b00327c8h, 0b00327c8h, 0b00327c8h, 0b00327c8h
+        DWORD 0b00327c8h, 0b00327c8h, 0b00327c8h, 0b00327c8h
+        DWORD 0bf597fc7h, 0bf597fc7h, 0bf597fc7h, 0bf597fc7h
+        DWORD 0bf597fc7h, 0bf597fc7h, 0bf597fc7h, 0bf597fc7h
+        DWORD 0c6e00bf3h, 0c6e00bf3h, 0c6e00bf3h, 0c6e00bf3h
+        DWORD 0c6e00bf3h, 0c6e00bf3h, 0c6e00bf3h, 0c6e00bf3h
+        DWORD 0d5a79147h, 0d5a79147h, 0d5a79147h, 0d5a79147h
+        DWORD 0d5a79147h, 0d5a79147h, 0d5a79147h, 0d5a79147h
+        DWORD 06ca6351h, 06ca6351h, 06ca6351h, 06ca6351h
+        DWORD 06ca6351h, 06ca6351h, 06ca6351h, 06ca6351h
+        DWORD 14292967h, 14292967h, 14292967h, 14292967h
+        DWORD 14292967h, 14292967h, 14292967h, 14292967h
+        DWORD 27b70a85h, 27b70a85h, 27b70a85h, 27b70a85h
+        DWORD 27b70a85h, 27b70a85h, 27b70a85h, 27b70a85h
+        DWORD 2e1b2138h, 2e1b2138h, 2e1b2138h, 2e1b2138h
+        DWORD 2e1b2138h, 2e1b2138h, 2e1b2138h, 2e1b2138h
+        DWORD 4d2c6dfch, 4d2c6dfch, 4d2c6dfch, 4d2c6dfch
+        DWORD 4d2c6dfch, 4d2c6dfch, 4d2c6dfch, 4d2c6dfch
+        DWORD 53380d13h, 53380d13h, 53380d13h, 53380d13h
+        DWORD 53380d13h, 53380d13h, 53380d13h, 53380d13h
+        DWORD 650a7354h, 650a7354h, 650a7354h, 650a7354h
+        DWORD 650a7354h, 650a7354h, 650a7354h, 650a7354h
+        DWORD 766a0abbh, 766a0abbh, 766a0abbh, 766a0abbh
+        DWORD 766a0abbh, 766a0abbh, 766a0abbh, 766a0abbh
+        DWORD 81c2c92eh, 81c2c92eh, 81c2c92eh, 81c2c92eh
+        DWORD 81c2c92eh, 81c2c92eh, 81c2c92eh, 81c2c92eh
+        DWORD 92722c85h, 92722c85h, 92722c85h, 92722c85h
+        DWORD 92722c85h, 92722c85h, 92722c85h, 92722c85h
+        DWORD 0a2bfe8a1h, 0a2bfe8a1h, 0a2bfe8a1h, 0a2bfe8a1h
+        DWORD 0a2bfe8a1h, 0a2bfe8a1h, 0a2bfe8a1h, 0a2bfe8a1h
+        DWORD 0a81a664bh, 0a81a664bh, 0a81a664bh, 0a81a664bh
+        DWORD 0a81a664bh, 0a81a664bh, 0a81a664bh, 0a81a664bh
+        DWORD 0c24b8b70h, 0c24b8b70h, 0c24b8b70h, 0c24b8b70h
+        DWORD 0c24b8b70h, 0c24b8b70h, 0c24b8b70h, 0c24b8b70h
+        DWORD 0c76c51a3h, 0c76c51a3h, 0c76c51a3h, 0c76c51a3h
+        DWORD 0c76c51a3h, 0c76c51a3h, 0c76c51a3h, 0c76c51a3h
+        DWORD 0d192e819h, 0d192e819h, 0d192e819h, 0d192e819h
+        DWORD 0d192e819h, 0d192e819h, 0d192e819h, 0d192e819h
+        DWORD 0d6990624h, 0d6990624h, 0d6990624h, 0d6990624h
+        DWORD 0d6990624h, 0d6990624h, 0d6990624h, 0d6990624h
+        DWORD 0f40e3585h, 0f40e3585h, 0f40e3585h, 0f40e3585h
+        DWORD 0f40e3585h, 0f40e3585h, 0f40e3585h, 0f40e3585h
+        DWORD 106aa070h, 106aa070h, 106aa070h, 106aa070h
+        DWORD 106aa070h, 106aa070h, 106aa070h, 106aa070h
+        DWORD 19a4c116h, 19a4c116h, 19a4c116h, 19a4c116h
+        DWORD 19a4c116h, 19a4c116h, 19a4c116h, 19a4c116h
+        DWORD 1e376c08h, 1e376c08h, 1e376c08h, 1e376c08h
+        DWORD 1e376c08h, 1e376c08h, 1e376c08h, 1e376c08h
+        DWORD 2748774ch, 2748774ch, 2748774ch, 2748774ch
+        DWORD 2748774ch, 2748774ch, 2748774ch, 2748774ch
+        DWORD 34b0bcb5h, 34b0bcb5h, 34b0bcb5h, 34b0bcb5h
+        DWORD 34b0bcb5h, 34b0bcb5h, 34b0bcb5h, 34b0bcb5h
+        DWORD 391c0cb3h, 391c0cb3h, 391c0cb3h, 391c0cb3h
+        DWORD 391c0cb3h, 391c0cb3h, 391c0cb3h, 391c0cb3h
+        DWORD 4ed8aa4ah, 4ed8aa4ah, 4ed8aa4ah, 4ed8aa4ah
+        DWORD 4ed8aa4ah, 4ed8aa4ah, 4ed8aa4ah, 4ed8aa4ah
+        DWORD 5b9cca4fh, 5b9cca4fh, 5b9cca4fh, 5b9cca4fh
+        DWORD 5b9cca4fh, 5b9cca4fh, 5b9cca4fh, 5b9cca4fh
+        DWORD 682e6ff3h, 682e6ff3h, 682e6ff3h, 682e6ff3h
+        DWORD 682e6ff3h, 682e6ff3h, 682e6ff3h, 682e6ff3h
+        DWORD 748f82eeh, 748f82eeh, 748f82eeh, 748f82eeh
+        DWORD 748f82eeh, 748f82eeh, 748f82eeh, 748f82eeh
+        DWORD 78a5636fh, 78a5636fh, 78a5636fh, 78a5636fh
+        DWORD 78a5636fh, 78a5636fh, 78a5636fh, 78a5636fh
+        DWORD 84c87814h, 84c87814h, 84c87814h, 84c87814h
+        DWORD 84c87814h, 84c87814h, 84c87814h, 84c87814h
+        DWORD 8cc70208h, 8cc70208h, 8cc70208h, 8cc70208h
+        DWORD 8cc70208h, 8cc70208h, 8cc70208h, 8cc70208h
+        DWORD 90befffah, 90befffah, 90befffah, 90befffah
+        DWORD 90befffah, 90befffah, 90befffah, 90befffah
+        DWORD 0a4506cebh, 0a4506cebh, 0a4506cebh, 0a4506cebh
+        DWORD 0a4506cebh, 0a4506cebh, 0a4506cebh, 0a4506cebh
+        DWORD 0bef9a3f7h, 0bef9a3f7h, 0bef9a3f7h, 0bef9a3f7h
+        DWORD 0bef9a3f7h, 0bef9a3f7h, 0bef9a3f7h, 0bef9a3f7h
+        DWORD 0c67178f2h, 0c67178f2h, 0c67178f2h, 0c67178f2h
+        DWORD 0c67178f2h, 0c67178f2h, 0c67178f2h, 0c67178f2h
+ptr_L_avx2_sha256_x8_k QWORD L_avx2_sha256_x8_k
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x8_AVX2 PROC
+        push	rbp
+        sub	rsp, 672
+        vmovdqu	OWORD PTR [rsp+512], xmm6
+        vmovdqu	OWORD PTR [rsp+528], xmm7
+        vmovdqu	OWORD PTR [rsp+544], xmm8
+        vmovdqu	OWORD PTR [rsp+560], xmm9
+        vmovdqu	OWORD PTR [rsp+576], xmm10
+        vmovdqu	OWORD PTR [rsp+592], xmm11
+        vmovdqu	OWORD PTR [rsp+608], xmm12
+        vmovdqu	OWORD PTR [rsp+624], xmm13
+        vmovdqu	OWORD PTR [rsp+640], xmm14
+        vmovdqu	OWORD PTR [rsp+656], xmm15
+        vmovdqu	ymm13, YMMWORD PTR L_avx2_sha256_x8_flip_mask
+        ; W[0..7] from the eight blocks
+        vmovdqu	ymm0, YMMWORD PTR [rdx]
+        vpshufb	ymm0, ymm0, ymm13
+        vmovdqu	ymm1, YMMWORD PTR [rdx+64]
+        vpshufb	ymm1, ymm1, ymm13
+        vmovdqu	ymm2, YMMWORD PTR [rdx+128]
+        vpshufb	ymm2, ymm2, ymm13
+        vmovdqu	ymm3, YMMWORD PTR [rdx+192]
+        vpshufb	ymm3, ymm3, ymm13
+        vmovdqu	ymm4, YMMWORD PTR [rdx+256]
+        vpshufb	ymm4, ymm4, ymm13
+        vmovdqu	ymm5, YMMWORD PTR [rdx+320]
+        vpshufb	ymm5, ymm5, ymm13
+        vmovdqu	ymm6, YMMWORD PTR [rdx+384]
+        vpshufb	ymm6, ymm6, ymm13
+        vmovdqu	ymm7, YMMWORD PTR [rdx+448]
+        vpshufb	ymm7, ymm7, ymm13
+        vpunpckldq	ymm14, ymm0, ymm1
+        vpunpckhdq	ymm1, ymm0, ymm1
+        vmovdqa	ymm0, ymm14
+        vpunpckldq	ymm14, ymm2, ymm3
+        vpunpckhdq	ymm3, ymm2, ymm3
+        vmovdqa	ymm2, ymm14
+        vpunpckldq	ymm14, ymm4, ymm5
+        vpunpckhdq	ymm5, ymm4, ymm5
+        vmovdqa	ymm4, ymm14
+        vpunpckldq	ymm14, ymm6, ymm7
+        vpunpckhdq	ymm7, ymm6, ymm7
+        vmovdqa	ymm6, ymm14
+        vpunpcklqdq	ymm14, ymm0, ymm2
+        vpunpckhqdq	ymm2, ymm0, ymm2
+        vmovdqa	ymm0, ymm14
+        vpunpcklqdq	ymm14, ymm1, ymm3
+        vpunpckhqdq	ymm3, ymm1, ymm3
+        vmovdqa	ymm1, ymm14
+        vpunpcklqdq	ymm14, ymm4, ymm6
+        vpunpckhqdq	ymm6, ymm4, ymm6
+        vmovdqa	ymm4, ymm14
+        vpunpcklqdq	ymm14, ymm5, ymm7
+        vpunpckhqdq	ymm7, ymm5, ymm7
+        vmovdqa	ymm5, ymm14
+        vperm2i128	ymm14, ymm0, ymm4, 32
+        vperm2i128	ymm4, ymm0, ymm4, 49
+        vmovdqa	ymm0, ymm14
+        vperm2i128	ymm14, ymm2, ymm6, 32
+        vperm2i128	ymm6, ymm2, ymm6, 49
+        vmovdqa	ymm2, ymm14
+        vperm2i128	ymm14, ymm1, ymm5, 32
+        vperm2i128	ymm5, ymm1, ymm5, 49
+        vmovdqa	ymm1, ymm14
+        vperm2i128	ymm14, ymm3, ymm7, 32
+        vperm2i128	ymm7, ymm3, ymm7, 49
+        vmovdqa	ymm3, ymm14
+        vmovdqu	YMMWORD PTR [rsp], ymm0
+        vmovdqu	YMMWORD PTR [rsp+32], ymm2
+        vmovdqu	YMMWORD PTR [rsp+64], ymm1
+        vmovdqu	YMMWORD PTR [rsp+96], ymm3
+        vmovdqu	YMMWORD PTR [rsp+128], ymm4
+        vmovdqu	YMMWORD PTR [rsp+160], ymm6
+        vmovdqu	YMMWORD PTR [rsp+192], ymm5
+        vmovdqu	YMMWORD PTR [rsp+224], ymm7
+        ; W[8..15] from the eight blocks
+        vmovdqu	ymm0, YMMWORD PTR [rdx+32]
+        vpshufb	ymm0, ymm0, ymm13
+        vmovdqu	ymm1, YMMWORD PTR [rdx+96]
+        vpshufb	ymm1, ymm1, ymm13
+        vmovdqu	ymm2, YMMWORD PTR [rdx+160]
+        vpshufb	ymm2, ymm2, ymm13
+        vmovdqu	ymm3, YMMWORD PTR [rdx+224]
+        vpshufb	ymm3, ymm3, ymm13
+        vmovdqu	ymm4, YMMWORD PTR [rdx+288]
+        vpshufb	ymm4, ymm4, ymm13
+        vmovdqu	ymm5, YMMWORD PTR [rdx+352]
+        vpshufb	ymm5, ymm5, ymm13
+        vmovdqu	ymm6, YMMWORD PTR [rdx+416]
+        vpshufb	ymm6, ymm6, ymm13
+        vmovdqu	ymm7, YMMWORD PTR [rdx+480]
+        vpshufb	ymm7, ymm7, ymm13
+        vpunpckldq	ymm14, ymm0, ymm1
+        vpunpckhdq	ymm1, ymm0, ymm1
+        vmovdqa	ymm0, ymm14
+        vpunpckldq	ymm14, ymm2, ymm3
+        vpunpckhdq	ymm3, ymm2, ymm3
+        vmovdqa	ymm2, ymm14
+        vpunpckldq	ymm14, ymm4, ymm5
+        vpunpckhdq	ymm5, ymm4, ymm5
+        vmovdqa	ymm4, ymm14
+        vpunpckldq	ymm14, ymm6, ymm7
+        vpunpckhdq	ymm7, ymm6, ymm7
+        vmovdqa	ymm6, ymm14
+        vpunpcklqdq	ymm14, ymm0, ymm2
+        vpunpckhqdq	ymm2, ymm0, ymm2
+        vmovdqa	ymm0, ymm14
+        vpunpcklqdq	ymm14, ymm1, ymm3
+        vpunpckhqdq	ymm3, ymm1, ymm3
+        vmovdqa	ymm1, ymm14
+        vpunpcklqdq	ymm14, ymm4, ymm6
+        vpunpckhqdq	ymm6, ymm4, ymm6
+        vmovdqa	ymm4, ymm14
+        vpunpcklqdq	ymm14, ymm5, ymm7
+        vpunpckhqdq	ymm7, ymm5, ymm7
+        vmovdqa	ymm5, ymm14
+        vperm2i128	ymm14, ymm0, ymm4, 32
+        vperm2i128	ymm4, ymm0, ymm4, 49
+        vmovdqa	ymm0, ymm14
+        vperm2i128	ymm14, ymm2, ymm6, 32
+        vperm2i128	ymm6, ymm2, ymm6, 49
+        vmovdqa	ymm2, ymm14
+        vperm2i128	ymm14, ymm1, ymm5, 32
+        vperm2i128	ymm5, ymm1, ymm5, 49
+        vmovdqa	ymm1, ymm14
+        vperm2i128	ymm14, ymm3, ymm7, 32
+        vperm2i128	ymm7, ymm3, ymm7, 49
+        vmovdqa	ymm3, ymm14
+        vmovdqu	YMMWORD PTR [rsp+256], ymm0
+        vmovdqu	YMMWORD PTR [rsp+288], ymm2
+        vmovdqu	YMMWORD PTR [rsp+320], ymm1
+        vmovdqu	YMMWORD PTR [rsp+352], ymm3
+        vmovdqu	YMMWORD PTR [rsp+384], ymm4
+        vmovdqu	YMMWORD PTR [rsp+416], ymm6
+        vmovdqu	YMMWORD PTR [rsp+448], ymm5
+        vmovdqu	YMMWORD PTR [rsp+480], ymm7
+        ; Load the eight lane-interleaved states
+        vmovdqu	ymm0, YMMWORD PTR [rcx]
+        vmovdqu	ymm1, YMMWORD PTR [rcx+32]
+        vmovdqu	ymm2, YMMWORD PTR [rcx+64]
+        vmovdqu	ymm3, YMMWORD PTR [rcx+96]
+        vmovdqu	ymm4, YMMWORD PTR [rcx+128]
+        vmovdqu	ymm5, YMMWORD PTR [rcx+160]
+        vmovdqu	ymm6, YMMWORD PTR [rcx+192]
+        vmovdqu	ymm7, YMMWORD PTR [rcx+224]
+        mov	rbp, QWORD PTR [ptr_L_avx2_sha256_x8_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rbp]
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rsp]
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm6
+        vpsrld	ymm8, ymm4, 6
+        vpslld	ymm9, ymm4, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 11
+        vpslld	ymm10, ymm4, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 25
+        vpslld	ymm10, ymm4, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm3, ymm3, ymm7
+        vpsrld	ymm8, ymm0, 2
+        vpslld	ymm9, ymm0, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 13
+        vpslld	ymm10, ymm0, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 22
+        vpslld	ymm10, ymm0, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm12, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rbp+32]
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rsp+32]
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm5
+        vpsrld	ymm8, ymm3, 6
+        vpslld	ymm9, ymm3, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 11
+        vpslld	ymm10, ymm3, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 25
+        vpslld	ymm10, ymm3, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm2, ymm2, ymm6
+        vpsrld	ymm8, ymm7, 2
+        vpslld	ymm9, ymm7, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 13
+        vpslld	ymm10, ymm7, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 22
+        vpslld	ymm10, ymm7, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm12, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rbp+64]
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rsp+64]
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm4
+        vpsrld	ymm8, ymm2, 6
+        vpslld	ymm9, ymm2, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 11
+        vpslld	ymm10, ymm2, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 25
+        vpslld	ymm10, ymm2, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm1, ymm1, ymm5
+        vpsrld	ymm8, ymm6, 2
+        vpslld	ymm9, ymm6, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 13
+        vpslld	ymm10, ymm6, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 22
+        vpslld	ymm10, ymm6, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm12, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rbp+96]
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rsp+96]
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm3
+        vpsrld	ymm8, ymm1, 6
+        vpslld	ymm9, ymm1, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 11
+        vpslld	ymm10, ymm1, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 25
+        vpslld	ymm10, ymm1, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm0, ymm0, ymm4
+        vpsrld	ymm8, ymm5, 2
+        vpslld	ymm9, ymm5, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 13
+        vpslld	ymm10, ymm5, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 22
+        vpslld	ymm10, ymm5, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm12, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rbp+128]
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rsp+128]
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm2
+        vpsrld	ymm8, ymm0, 6
+        vpslld	ymm9, ymm0, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 11
+        vpslld	ymm10, ymm0, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 25
+        vpslld	ymm10, ymm0, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm7, ymm7, ymm3
+        vpsrld	ymm8, ymm4, 2
+        vpslld	ymm9, ymm4, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 13
+        vpslld	ymm10, ymm4, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 22
+        vpslld	ymm10, ymm4, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm12, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rbp+160]
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rsp+160]
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm1
+        vpsrld	ymm8, ymm7, 6
+        vpslld	ymm9, ymm7, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 11
+        vpslld	ymm10, ymm7, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 25
+        vpslld	ymm10, ymm7, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm6, ymm6, ymm2
+        vpsrld	ymm8, ymm3, 2
+        vpslld	ymm9, ymm3, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 13
+        vpslld	ymm10, ymm3, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 22
+        vpslld	ymm10, ymm3, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm12, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rbp+192]
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rsp+192]
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm0
+        vpsrld	ymm8, ymm6, 6
+        vpslld	ymm9, ymm6, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 11
+        vpslld	ymm10, ymm6, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 25
+        vpslld	ymm10, ymm6, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm5, ymm5, ymm1
+        vpsrld	ymm8, ymm2, 2
+        vpslld	ymm9, ymm2, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 13
+        vpslld	ymm10, ymm2, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 22
+        vpslld	ymm10, ymm2, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm12, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rbp+224]
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rsp+224]
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm7
+        vpsrld	ymm8, ymm5, 6
+        vpslld	ymm9, ymm5, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 11
+        vpslld	ymm10, ymm5, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 25
+        vpslld	ymm10, ymm5, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vpaddd	ymm4, ymm4, ymm0
+        vpsrld	ymm8, ymm1, 2
+        vpslld	ymm9, ymm1, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 13
+        vpslld	ymm10, ymm1, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 22
+        vpslld	ymm10, ymm1, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm12, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rbp+256]
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rsp+256]
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm6
+        vpsrld	ymm8, ymm4, 6
+        vpslld	ymm9, ymm4, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 11
+        vpslld	ymm10, ymm4, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 25
+        vpslld	ymm10, ymm4, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm3, ymm3, ymm7
+        vpsrld	ymm8, ymm0, 2
+        vpslld	ymm9, ymm0, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 13
+        vpslld	ymm10, ymm0, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 22
+        vpslld	ymm10, ymm0, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm12, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rbp+288]
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rsp+288]
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm5
+        vpsrld	ymm8, ymm3, 6
+        vpslld	ymm9, ymm3, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 11
+        vpslld	ymm10, ymm3, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 25
+        vpslld	ymm10, ymm3, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm2, ymm2, ymm6
+        vpsrld	ymm8, ymm7, 2
+        vpslld	ymm9, ymm7, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 13
+        vpslld	ymm10, ymm7, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 22
+        vpslld	ymm10, ymm7, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm12, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rbp+320]
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rsp+320]
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm4
+        vpsrld	ymm8, ymm2, 6
+        vpslld	ymm9, ymm2, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 11
+        vpslld	ymm10, ymm2, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 25
+        vpslld	ymm10, ymm2, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm1, ymm1, ymm5
+        vpsrld	ymm8, ymm6, 2
+        vpslld	ymm9, ymm6, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 13
+        vpslld	ymm10, ymm6, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 22
+        vpslld	ymm10, ymm6, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm12, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rbp+352]
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rsp+352]
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm3
+        vpsrld	ymm8, ymm1, 6
+        vpslld	ymm9, ymm1, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 11
+        vpslld	ymm10, ymm1, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 25
+        vpslld	ymm10, ymm1, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm0, ymm0, ymm4
+        vpsrld	ymm8, ymm5, 2
+        vpslld	ymm9, ymm5, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 13
+        vpslld	ymm10, ymm5, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 22
+        vpslld	ymm10, ymm5, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm12, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rbp+384]
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rsp+384]
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm2
+        vpsrld	ymm8, ymm0, 6
+        vpslld	ymm9, ymm0, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 11
+        vpslld	ymm10, ymm0, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 25
+        vpslld	ymm10, ymm0, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm7, ymm7, ymm3
+        vpsrld	ymm8, ymm4, 2
+        vpslld	ymm9, ymm4, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 13
+        vpslld	ymm10, ymm4, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 22
+        vpslld	ymm10, ymm4, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm12, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rbp+416]
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rsp+416]
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm1
+        vpsrld	ymm8, ymm7, 6
+        vpslld	ymm9, ymm7, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 11
+        vpslld	ymm10, ymm7, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 25
+        vpslld	ymm10, ymm7, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm6, ymm6, ymm2
+        vpsrld	ymm8, ymm3, 2
+        vpslld	ymm9, ymm3, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 13
+        vpslld	ymm10, ymm3, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 22
+        vpslld	ymm10, ymm3, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm12, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rbp+448]
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rsp+448]
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm0
+        vpsrld	ymm8, ymm6, 6
+        vpslld	ymm9, ymm6, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 11
+        vpslld	ymm10, ymm6, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 25
+        vpslld	ymm10, ymm6, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm5, ymm5, ymm1
+        vpsrld	ymm8, ymm2, 2
+        vpslld	ymm9, ymm2, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 13
+        vpslld	ymm10, ymm2, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 22
+        vpslld	ymm10, ymm2, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm12, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rbp+480]
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rsp+480]
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm7
+        vpsrld	ymm8, ymm5, 6
+        vpslld	ymm9, ymm5, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 11
+        vpslld	ymm10, ymm5, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 25
+        vpslld	ymm10, ymm5, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vpaddd	ymm4, ymm4, ymm0
+        vpsrld	ymm8, ymm1, 2
+        vpslld	ymm9, ymm1, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 13
+        vpslld	ymm10, ymm1, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 22
+        vpslld	ymm10, ymm1, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm12, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        add	rbp, 512
+        mov	eax, 3
+L_sha256_x8_avx2_start:
+        vmovdqu	ymm8, YMMWORD PTR [rsp+32]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+448]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+288]
+        vmovdqu	YMMWORD PTR [rsp], ymm8
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rbp]
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rsp]
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm6
+        vpsrld	ymm8, ymm4, 6
+        vpslld	ymm9, ymm4, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 11
+        vpslld	ymm10, ymm4, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 25
+        vpslld	ymm10, ymm4, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm3, ymm3, ymm7
+        vpsrld	ymm8, ymm0, 2
+        vpslld	ymm9, ymm0, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 13
+        vpslld	ymm10, ymm0, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 22
+        vpslld	ymm10, ymm0, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm12, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+64]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+480]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+32]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+320]
+        vmovdqu	YMMWORD PTR [rsp+32], ymm8
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rbp+32]
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rsp+32]
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm5
+        vpsrld	ymm8, ymm3, 6
+        vpslld	ymm9, ymm3, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 11
+        vpslld	ymm10, ymm3, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 25
+        vpslld	ymm10, ymm3, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm2, ymm2, ymm6
+        vpsrld	ymm8, ymm7, 2
+        vpslld	ymm9, ymm7, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 13
+        vpslld	ymm10, ymm7, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 22
+        vpslld	ymm10, ymm7, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm12, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+96]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+64]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+352]
+        vmovdqu	YMMWORD PTR [rsp+64], ymm8
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rbp+64]
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rsp+64]
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm4
+        vpsrld	ymm8, ymm2, 6
+        vpslld	ymm9, ymm2, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 11
+        vpslld	ymm10, ymm2, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 25
+        vpslld	ymm10, ymm2, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm1, ymm1, ymm5
+        vpsrld	ymm8, ymm6, 2
+        vpslld	ymm9, ymm6, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 13
+        vpslld	ymm10, ymm6, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 22
+        vpslld	ymm10, ymm6, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm12, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+128]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+32]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+96]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+384]
+        vmovdqu	YMMWORD PTR [rsp+96], ymm8
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rbp+96]
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rsp+96]
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm3
+        vpsrld	ymm8, ymm1, 6
+        vpslld	ymm9, ymm1, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 11
+        vpslld	ymm10, ymm1, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 25
+        vpslld	ymm10, ymm1, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm0, ymm0, ymm4
+        vpsrld	ymm8, ymm5, 2
+        vpslld	ymm9, ymm5, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 13
+        vpslld	ymm10, ymm5, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 22
+        vpslld	ymm10, ymm5, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm12, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+160]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+64]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+128]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+416]
+        vmovdqu	YMMWORD PTR [rsp+128], ymm8
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rbp+128]
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rsp+128]
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm2
+        vpsrld	ymm8, ymm0, 6
+        vpslld	ymm9, ymm0, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 11
+        vpslld	ymm10, ymm0, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 25
+        vpslld	ymm10, ymm0, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm7, ymm7, ymm3
+        vpsrld	ymm8, ymm4, 2
+        vpslld	ymm9, ymm4, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 13
+        vpslld	ymm10, ymm4, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 22
+        vpslld	ymm10, ymm4, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm12, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+192]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+96]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+160]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+448]
+        vmovdqu	YMMWORD PTR [rsp+160], ymm8
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rbp+160]
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rsp+160]
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm1
+        vpsrld	ymm8, ymm7, 6
+        vpslld	ymm9, ymm7, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 11
+        vpslld	ymm10, ymm7, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 25
+        vpslld	ymm10, ymm7, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm6, ymm6, ymm2
+        vpsrld	ymm8, ymm3, 2
+        vpslld	ymm9, ymm3, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 13
+        vpslld	ymm10, ymm3, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 22
+        vpslld	ymm10, ymm3, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm12, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+224]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+128]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+192]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+480]
+        vmovdqu	YMMWORD PTR [rsp+192], ymm8
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rbp+192]
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rsp+192]
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm0
+        vpsrld	ymm8, ymm6, 6
+        vpslld	ymm9, ymm6, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 11
+        vpslld	ymm10, ymm6, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 25
+        vpslld	ymm10, ymm6, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm5, ymm5, ymm1
+        vpsrld	ymm8, ymm2, 2
+        vpslld	ymm9, ymm2, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 13
+        vpslld	ymm10, ymm2, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 22
+        vpslld	ymm10, ymm2, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm12, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+256]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+160]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+224]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp]
+        vmovdqu	YMMWORD PTR [rsp+224], ymm8
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rbp+224]
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rsp+224]
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm7
+        vpsrld	ymm8, ymm5, 6
+        vpslld	ymm9, ymm5, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 11
+        vpslld	ymm10, ymm5, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 25
+        vpslld	ymm10, ymm5, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vpaddd	ymm4, ymm4, ymm0
+        vpsrld	ymm8, ymm1, 2
+        vpslld	ymm9, ymm1, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 13
+        vpslld	ymm10, ymm1, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 22
+        vpslld	ymm10, ymm1, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm12, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+288]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+192]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+256]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+32]
+        vmovdqu	YMMWORD PTR [rsp+256], ymm8
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rbp+256]
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rsp+256]
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm6
+        vpsrld	ymm8, ymm4, 6
+        vpslld	ymm9, ymm4, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 11
+        vpslld	ymm10, ymm4, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 25
+        vpslld	ymm10, ymm4, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vpaddd	ymm3, ymm3, ymm7
+        vpsrld	ymm8, ymm0, 2
+        vpslld	ymm9, ymm0, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 13
+        vpslld	ymm10, ymm0, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 22
+        vpslld	ymm10, ymm0, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm12, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm7, ymm7, ymm11
+        vpaddd	ymm7, ymm7, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+320]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+224]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+288]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+64]
+        vmovdqu	YMMWORD PTR [rsp+288], ymm8
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rbp+288]
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rsp+288]
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm5
+        vpsrld	ymm8, ymm3, 6
+        vpslld	ymm9, ymm3, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 11
+        vpslld	ymm10, ymm3, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 25
+        vpslld	ymm10, ymm3, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm2, ymm2, ymm6
+        vpsrld	ymm8, ymm7, 2
+        vpslld	ymm9, ymm7, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 13
+        vpslld	ymm10, ymm7, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 22
+        vpslld	ymm10, ymm7, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm12, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm6, ymm6, ymm11
+        vpaddd	ymm6, ymm6, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+352]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+256]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+320]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+96]
+        vmovdqu	YMMWORD PTR [rsp+320], ymm8
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rbp+320]
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rsp+320]
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm4
+        vpsrld	ymm8, ymm2, 6
+        vpslld	ymm9, ymm2, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 11
+        vpslld	ymm10, ymm2, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 25
+        vpslld	ymm10, ymm2, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm1, ymm1, ymm5
+        vpsrld	ymm8, ymm6, 2
+        vpslld	ymm9, ymm6, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 13
+        vpslld	ymm10, ymm6, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 22
+        vpslld	ymm10, ymm6, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm12, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm5, ymm5, ymm11
+        vpaddd	ymm5, ymm5, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+384]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+288]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+352]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+128]
+        vmovdqu	YMMWORD PTR [rsp+352], ymm8
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rbp+352]
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rsp+352]
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm3
+        vpsrld	ymm8, ymm1, 6
+        vpslld	ymm9, ymm1, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 11
+        vpslld	ymm10, ymm1, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 25
+        vpslld	ymm10, ymm1, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm0, ymm0, ymm4
+        vpsrld	ymm8, ymm5, 2
+        vpslld	ymm9, ymm5, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 13
+        vpslld	ymm10, ymm5, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 22
+        vpslld	ymm10, ymm5, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm12, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm4, ymm4, ymm11
+        vpaddd	ymm4, ymm4, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+416]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+320]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+384]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+160]
+        vmovdqu	YMMWORD PTR [rsp+384], ymm8
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rbp+384]
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rsp+384]
+        vpxor	ymm11, ymm1, ymm2
+        vpand	ymm11, ymm11, ymm0
+        vpxor	ymm11, ymm11, ymm2
+        vpsrld	ymm8, ymm0, 6
+        vpslld	ymm9, ymm0, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 11
+        vpslld	ymm10, ymm0, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm0, 25
+        vpslld	ymm10, ymm0, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vpaddd	ymm7, ymm7, ymm3
+        vpsrld	ymm8, ymm4, 2
+        vpslld	ymm9, ymm4, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 13
+        vpslld	ymm10, ymm4, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm4, 22
+        vpslld	ymm10, ymm4, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm5, ymm6
+        vpand	ymm12, ymm5, ymm6
+        vpand	ymm11, ymm11, ymm4
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm3, ymm3, ymm11
+        vpaddd	ymm3, ymm3, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+448]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+352]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+416]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+192]
+        vmovdqu	YMMWORD PTR [rsp+416], ymm8
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rbp+416]
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rsp+416]
+        vpxor	ymm11, ymm0, ymm1
+        vpand	ymm11, ymm11, ymm7
+        vpxor	ymm11, ymm11, ymm1
+        vpsrld	ymm8, ymm7, 6
+        vpslld	ymm9, ymm7, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 11
+        vpslld	ymm10, ymm7, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm7, 25
+        vpslld	ymm10, ymm7, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vpaddd	ymm6, ymm6, ymm2
+        vpsrld	ymm8, ymm3, 2
+        vpslld	ymm9, ymm3, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 13
+        vpslld	ymm10, ymm3, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm3, 22
+        vpslld	ymm10, ymm3, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm4, ymm5
+        vpand	ymm12, ymm4, ymm5
+        vpand	ymm11, ymm11, ymm3
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm2, ymm2, ymm11
+        vpaddd	ymm2, ymm2, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp+480]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+384]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+448]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+224]
+        vmovdqu	YMMWORD PTR [rsp+448], ymm8
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rbp+448]
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rsp+448]
+        vpxor	ymm11, ymm7, ymm0
+        vpand	ymm11, ymm11, ymm6
+        vpxor	ymm11, ymm11, ymm0
+        vpsrld	ymm8, ymm6, 6
+        vpslld	ymm9, ymm6, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 11
+        vpslld	ymm10, ymm6, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm6, 25
+        vpslld	ymm10, ymm6, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vpaddd	ymm5, ymm5, ymm1
+        vpsrld	ymm8, ymm2, 2
+        vpslld	ymm9, ymm2, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 13
+        vpslld	ymm10, ymm2, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm2, 22
+        vpslld	ymm10, ymm2, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm3, ymm4
+        vpand	ymm12, ymm3, ymm4
+        vpand	ymm11, ymm11, ymm2
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm1, ymm1, ymm11
+        vpaddd	ymm1, ymm1, ymm8
+        vmovdqu	ymm8, YMMWORD PTR [rsp]
+        vpsrld	ymm9, ymm8, 7
+        vpslld	ymm10, ymm8, 25
+        vpor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 18
+        vpslld	ymm11, ymm8, 14
+        vpor	ymm10, ymm10, ymm11
+        vpxor	ymm9, ymm9, ymm10
+        vpsrld	ymm10, ymm8, 3
+        vpxor	ymm9, ymm9, ymm10
+        vmovdqu	ymm8, YMMWORD PTR [rsp+416]
+        vpsrld	ymm10, ymm8, 17
+        vpslld	ymm11, ymm8, 15
+        vpor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 19
+        vpslld	ymm12, ymm8, 13
+        vpor	ymm11, ymm11, ymm12
+        vpxor	ymm10, ymm10, ymm11
+        vpsrld	ymm11, ymm8, 10
+        vpxor	ymm10, ymm10, ymm11
+        vmovdqu	ymm8, YMMWORD PTR [rsp+480]
+        vpaddd	ymm8, ymm8, ymm9
+        vpaddd	ymm8, ymm8, ymm10
+        vpaddd	ymm8, ymm8, YMMWORD PTR [rsp+256]
+        vmovdqu	YMMWORD PTR [rsp+480], ymm8
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rbp+480]
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rsp+480]
+        vpxor	ymm11, ymm6, ymm7
+        vpand	ymm11, ymm11, ymm5
+        vpxor	ymm11, ymm11, ymm7
+        vpsrld	ymm8, ymm5, 6
+        vpslld	ymm9, ymm5, 26
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 11
+        vpslld	ymm10, ymm5, 21
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm5, 25
+        vpslld	ymm10, ymm5, 7
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        vpaddd	ymm4, ymm4, ymm0
+        vpsrld	ymm8, ymm1, 2
+        vpslld	ymm9, ymm1, 30
+        vpor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 13
+        vpslld	ymm10, ymm1, 19
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpsrld	ymm9, ymm1, 22
+        vpslld	ymm10, ymm1, 10
+        vpor	ymm9, ymm9, ymm10
+        vpxor	ymm8, ymm8, ymm9
+        vpxor	ymm11, ymm2, ymm3
+        vpand	ymm12, ymm2, ymm3
+        vpand	ymm11, ymm11, ymm1
+        vpxor	ymm11, ymm11, ymm12
+        vpaddd	ymm0, ymm0, ymm11
+        vpaddd	ymm0, ymm0, ymm8
+        add	rbp, 512
+        sub	eax, 1
+        jnz	L_sha256_x8_avx2_start
+        ; Add the compressed block into the states
+        vpaddd	ymm0, ymm0, YMMWORD PTR [rcx]
+        vmovdqu	YMMWORD PTR [rcx], ymm0
+        vpaddd	ymm1, ymm1, YMMWORD PTR [rcx+32]
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vpaddd	ymm2, ymm2, YMMWORD PTR [rcx+64]
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vpaddd	ymm3, ymm3, YMMWORD PTR [rcx+96]
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vpaddd	ymm4, ymm4, YMMWORD PTR [rcx+128]
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        vpaddd	ymm5, ymm5, YMMWORD PTR [rcx+160]
+        vmovdqu	YMMWORD PTR [rcx+160], ymm5
+        vpaddd	ymm6, ymm6, YMMWORD PTR [rcx+192]
+        vmovdqu	YMMWORD PTR [rcx+192], ymm6
+        vpaddd	ymm7, ymm7, YMMWORD PTR [rcx+224]
+        vmovdqu	YMMWORD PTR [rcx+224], ymm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+512]
+        vmovdqu	xmm7, OWORD PTR [rsp+528]
+        vmovdqu	xmm8, OWORD PTR [rsp+544]
+        vmovdqu	xmm9, OWORD PTR [rsp+560]
+        vmovdqu	xmm10, OWORD PTR [rsp+576]
+        vmovdqu	xmm11, OWORD PTR [rsp+592]
+        vmovdqu	xmm12, OWORD PTR [rsp+608]
+        vmovdqu	xmm13, OWORD PTR [rsp+624]
+        vmovdqu	xmm14, OWORD PTR [rsp+640]
+        vmovdqu	xmm15, OWORD PTR [rsp+656]
+        add	rsp, 672
+        pop	rbp
+        ret
+Transform_Sha256_x8_AVX2 ENDP
+_TEXT ENDS
+IFNDEF NO_AVX512_SUPPORT
+IFNDEF HAVE_INTEL_AVX512
+HAVE_INTEL_AVX512 = 1
+ENDIF
+ENDIF
+IFDEF HAVE_INTEL_AVX512
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_bswap_mask DWORD 0ff00ff00h, 0ff00ff00h, 0ff00ff00h, 0ff00ff00h
+        DWORD 0ff00ff00h, 0ff00ff00h, 0ff00ff00h, 0ff00ff00h
+        DWORD 0ff00ff00h, 0ff00ff00h, 0ff00ff00h, 0ff00ff00h
+        DWORD 0ff00ff00h, 0ff00ff00h, 0ff00ff00h, 0ff00ff00h
+ptr_L_avx512_sha256_x16_bswap_mask QWORD L_avx512_sha256_x16_bswap_mask
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_k DWORD 428a2f98h, 71374491h, 0b5c0fbcfh, 0e9b5dba5h
+        DWORD 3956c25bh, 59f111f1h, 923f82a4h, 0ab1c5ed5h
+        DWORD 0d807aa98h, 12835b01h, 243185beh, 550c7dc3h
+        DWORD 72be5d74h, 80deb1feh, 9bdc06a7h, 0c19bf174h
+        DWORD 0e49b69c1h, 0efbe4786h, 0fc19dc6h, 240ca1cch
+        DWORD 2de92c6fh, 4a7484aah, 5cb0a9dch, 76f988dah
+        DWORD 983e5152h, 0a831c66dh, 0b00327c8h, 0bf597fc7h
+        DWORD 0c6e00bf3h, 0d5a79147h, 06ca6351h, 14292967h
+        DWORD 27b70a85h, 2e1b2138h, 4d2c6dfch, 53380d13h
+        DWORD 650a7354h, 766a0abbh, 81c2c92eh, 92722c85h
+        DWORD 0a2bfe8a1h, 0a81a664bh, 0c24b8b70h, 0c76c51a3h
+        DWORD 0d192e819h, 0d6990624h, 0f40e3585h, 106aa070h
+        DWORD 19a4c116h, 1e376c08h, 2748774ch, 34b0bcb5h
+        DWORD 391c0cb3h, 4ed8aa4ah, 5b9cca4fh, 682e6ff3h
+        DWORD 748f82eeh, 78a5636fh, 84c87814h, 8cc70208h
+        DWORD 90befffah, 0a4506cebh, 0bef9a3f7h, 0c67178f2h
+ptr_L_avx512_sha256_x16_k QWORD L_avx512_sha256_x16_k
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_AVX512 PROC
+        push	rbp
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        vmovdqu64	zmm28, ZMMWORD PTR L_avx512_sha256_x16_bswap_mask
+        ; W[0..15] of all sixteen blocks
+        vmovdqu64	zmm8, [rdx]
+        vprord	zmm29, zmm8, 8
+        vprold	zmm8, zmm8, 8
+        vpternlogd	zmm8, zmm29, zmm28, 216
+        vmovdqu64	zmm9, [rdx+64]
+        vprord	zmm29, zmm9, 8
+        vprold	zmm9, zmm9, 8
+        vpternlogd	zmm9, zmm29, zmm28, 216
+        vmovdqu64	zmm10, [rdx+128]
+        vprord	zmm29, zmm10, 8
+        vprold	zmm10, zmm10, 8
+        vpternlogd	zmm10, zmm29, zmm28, 216
+        vmovdqu64	zmm11, [rdx+192]
+        vprord	zmm29, zmm11, 8
+        vprold	zmm11, zmm11, 8
+        vpternlogd	zmm11, zmm29, zmm28, 216
+        vmovdqu64	zmm12, [rdx+256]
+        vprord	zmm29, zmm12, 8
+        vprold	zmm12, zmm12, 8
+        vpternlogd	zmm12, zmm29, zmm28, 216
+        vmovdqu64	zmm13, [rdx+320]
+        vprord	zmm29, zmm13, 8
+        vprold	zmm13, zmm13, 8
+        vpternlogd	zmm13, zmm29, zmm28, 216
+        vmovdqu64	zmm14, [rdx+384]
+        vprord	zmm29, zmm14, 8
+        vprold	zmm14, zmm14, 8
+        vpternlogd	zmm14, zmm29, zmm28, 216
+        vmovdqu64	zmm15, [rdx+448]
+        vprord	zmm29, zmm15, 8
+        vprold	zmm15, zmm15, 8
+        vpternlogd	zmm15, zmm29, zmm28, 216
+        vmovdqu64	zmm16, [rdx+512]
+        vprord	zmm29, zmm16, 8
+        vprold	zmm16, zmm16, 8
+        vpternlogd	zmm16, zmm29, zmm28, 216
+        vmovdqu64	zmm17, [rdx+576]
+        vprord	zmm29, zmm17, 8
+        vprold	zmm17, zmm17, 8
+        vpternlogd	zmm17, zmm29, zmm28, 216
+        vmovdqu64	zmm18, [rdx+640]
+        vprord	zmm29, zmm18, 8
+        vprold	zmm18, zmm18, 8
+        vpternlogd	zmm18, zmm29, zmm28, 216
+        vmovdqu64	zmm19, [rdx+704]
+        vprord	zmm29, zmm19, 8
+        vprold	zmm19, zmm19, 8
+        vpternlogd	zmm19, zmm29, zmm28, 216
+        vmovdqu64	zmm20, [rdx+768]
+        vprord	zmm29, zmm20, 8
+        vprold	zmm20, zmm20, 8
+        vpternlogd	zmm20, zmm29, zmm28, 216
+        vmovdqu64	zmm21, [rdx+832]
+        vprord	zmm29, zmm21, 8
+        vprold	zmm21, zmm21, 8
+        vpternlogd	zmm21, zmm29, zmm28, 216
+        vmovdqu64	zmm22, [rdx+896]
+        vprord	zmm29, zmm22, 8
+        vprold	zmm22, zmm22, 8
+        vpternlogd	zmm22, zmm29, zmm28, 216
+        vmovdqu64	zmm23, [rdx+960]
+        vprord	zmm29, zmm23, 8
+        vprold	zmm23, zmm23, 8
+        vpternlogd	zmm23, zmm29, zmm28, 216
+        vpunpckldq	zmm29, zmm8, zmm9
+        vpunpckhdq	zmm9, zmm8, zmm9
+        vmovdqa32	zmm8, zmm29
+        vpunpckldq	zmm29, zmm10, zmm11
+        vpunpckhdq	zmm11, zmm10, zmm11
+        vmovdqa32	zmm10, zmm29
+        vpunpckldq	zmm29, zmm12, zmm13
+        vpunpckhdq	zmm13, zmm12, zmm13
+        vmovdqa32	zmm12, zmm29
+        vpunpckldq	zmm29, zmm14, zmm15
+        vpunpckhdq	zmm15, zmm14, zmm15
+        vmovdqa32	zmm14, zmm29
+        vpunpckldq	zmm29, zmm16, zmm17
+        vpunpckhdq	zmm17, zmm16, zmm17
+        vmovdqa32	zmm16, zmm29
+        vpunpckldq	zmm29, zmm18, zmm19
+        vpunpckhdq	zmm19, zmm18, zmm19
+        vmovdqa32	zmm18, zmm29
+        vpunpckldq	zmm29, zmm20, zmm21
+        vpunpckhdq	zmm21, zmm20, zmm21
+        vmovdqa32	zmm20, zmm29
+        vpunpckldq	zmm29, zmm22, zmm23
+        vpunpckhdq	zmm23, zmm22, zmm23
+        vmovdqa32	zmm22, zmm29
+        vpunpcklqdq	zmm29, zmm8, zmm10
+        vpunpckhqdq	zmm10, zmm8, zmm10
+        vmovdqa32	zmm8, zmm29
+        vpunpcklqdq	zmm29, zmm9, zmm11
+        vpunpckhqdq	zmm11, zmm9, zmm11
+        vmovdqa32	zmm9, zmm29
+        vpunpcklqdq	zmm29, zmm12, zmm14
+        vpunpckhqdq	zmm14, zmm12, zmm14
+        vmovdqa32	zmm12, zmm29
+        vpunpcklqdq	zmm29, zmm13, zmm15
+        vpunpckhqdq	zmm15, zmm13, zmm15
+        vmovdqa32	zmm13, zmm29
+        vpunpcklqdq	zmm29, zmm16, zmm18
+        vpunpckhqdq	zmm18, zmm16, zmm18
+        vmovdqa32	zmm16, zmm29
+        vpunpcklqdq	zmm29, zmm17, zmm19
+        vpunpckhqdq	zmm19, zmm17, zmm19
+        vmovdqa32	zmm17, zmm29
+        vpunpcklqdq	zmm29, zmm20, zmm22
+        vpunpckhqdq	zmm22, zmm20, zmm22
+        vmovdqa32	zmm20, zmm29
+        vpunpcklqdq	zmm29, zmm21, zmm23
+        vpunpckhqdq	zmm23, zmm21, zmm23
+        vmovdqa32	zmm21, zmm29
+        vshufi32x4	zmm29, zmm8, zmm12, 136
+        vshufi32x4	zmm12, zmm8, zmm12, 221
+        vmovdqa32	zmm8, zmm29
+        vshufi32x4	zmm29, zmm9, zmm13, 136
+        vshufi32x4	zmm13, zmm9, zmm13, 221
+        vmovdqa32	zmm9, zmm29
+        vshufi32x4	zmm29, zmm10, zmm14, 136
+        vshufi32x4	zmm14, zmm10, zmm14, 221
+        vmovdqa32	zmm10, zmm29
+        vshufi32x4	zmm29, zmm11, zmm15, 136
+        vshufi32x4	zmm15, zmm11, zmm15, 221
+        vmovdqa32	zmm11, zmm29
+        vshufi32x4	zmm29, zmm16, zmm20, 136
+        vshufi32x4	zmm20, zmm16, zmm20, 221
+        vmovdqa32	zmm16, zmm29
+        vshufi32x4	zmm29, zmm17, zmm21, 136
+        vshufi32x4	zmm21, zmm17, zmm21, 221
+        vmovdqa32	zmm17, zmm29
+        vshufi32x4	zmm29, zmm18, zmm22, 136
+        vshufi32x4	zmm22, zmm18, zmm22, 221
+        vmovdqa32	zmm18, zmm29
+        vshufi32x4	zmm29, zmm19, zmm23, 136
+        vshufi32x4	zmm23, zmm19, zmm23, 221
+        vmovdqa32	zmm19, zmm29
+        vshufi32x4	zmm29, zmm8, zmm16, 136
+        vshufi32x4	zmm16, zmm8, zmm16, 221
+        vmovdqa32	zmm8, zmm29
+        vshufi32x4	zmm29, zmm9, zmm17, 136
+        vshufi32x4	zmm17, zmm9, zmm17, 221
+        vmovdqa32	zmm9, zmm29
+        vshufi32x4	zmm29, zmm10, zmm18, 136
+        vshufi32x4	zmm18, zmm10, zmm18, 221
+        vmovdqa32	zmm10, zmm29
+        vshufi32x4	zmm29, zmm11, zmm19, 136
+        vshufi32x4	zmm19, zmm11, zmm19, 221
+        vmovdqa32	zmm11, zmm29
+        vshufi32x4	zmm29, zmm12, zmm20, 136
+        vshufi32x4	zmm20, zmm12, zmm20, 221
+        vmovdqa32	zmm12, zmm29
+        vshufi32x4	zmm29, zmm13, zmm21, 136
+        vshufi32x4	zmm21, zmm13, zmm21, 221
+        vmovdqa32	zmm13, zmm29
+        vshufi32x4	zmm29, zmm14, zmm22, 136
+        vshufi32x4	zmm22, zmm14, zmm22, 221
+        vmovdqa32	zmm14, zmm29
+        vshufi32x4	zmm29, zmm15, zmm23, 136
+        vshufi32x4	zmm23, zmm15, zmm23, 221
+        vmovdqa32	zmm15, zmm29
+        ; Load the sixteen lane-interleaved states
+        vmovdqu64	zmm0, [rcx]
+        vmovdqu64	zmm1, [rcx+64]
+        vmovdqu64	zmm2, [rcx+128]
+        vmovdqu64	zmm3, [rcx+192]
+        vmovdqu64	zmm4, [rcx+256]
+        vmovdqu64	zmm5, [rcx+320]
+        vmovdqu64	zmm6, [rcx+384]
+        vmovdqu64	zmm7, [rcx+448]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm10
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm9
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm14
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm13
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm18
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm17
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm22
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm21
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_avx512_start:
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm18
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm17
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm10
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm9
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm22
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm21
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm14
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm13
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm10
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm9
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm18
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm17
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm14
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm13
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm22
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm21
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_avx512_start
+        ; Add the compressed block into the states
+        vpaddd	zmm0, zmm0, [rcx]
+        vmovdqu64	[rcx], zmm0
+        vpaddd	zmm1, zmm1, [rcx+64]
+        vmovdqu64	[rcx+64], zmm1
+        vpaddd	zmm2, zmm2, [rcx+128]
+        vmovdqu64	[rcx+128], zmm2
+        vpaddd	zmm3, zmm3, [rcx+192]
+        vmovdqu64	[rcx+192], zmm3
+        vpaddd	zmm4, zmm4, [rcx+256]
+        vmovdqu64	[rcx+256], zmm4
+        vpaddd	zmm5, zmm5, [rcx+320]
+        vmovdqu64	[rcx+320], zmm5
+        vpaddd	zmm6, zmm6, [rcx+384]
+        vmovdqu64	[rcx+384], zmm6
+        vpaddd	zmm7, zmm7, [rcx+448]
+        vmovdqu64	[rcx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_AVX512 ENDP
+_TEXT ENDS
+IFNDEF NO_AVX512BW_SUPPORT
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_flip_mask QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+        QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+        QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+        QWORD 0405060700010203h, 0c0d0e0f08090a0bh
+ptr_L_avx512_sha256_x16_flip_mask QWORD L_avx512_sha256_x16_flip_mask
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_AVX512_BW PROC
+        push	rbp
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        vmovdqu64	zmm28, ZMMWORD PTR L_avx512_sha256_x16_flip_mask
+        ; W[0..15] of all sixteen blocks
+        vmovdqu64	zmm8, [rdx]
+        vpshufb	zmm8, zmm8, zmm28
+        vmovdqu64	zmm9, [rdx+64]
+        vpshufb	zmm9, zmm9, zmm28
+        vmovdqu64	zmm10, [rdx+128]
+        vpshufb	zmm10, zmm10, zmm28
+        vmovdqu64	zmm11, [rdx+192]
+        vpshufb	zmm11, zmm11, zmm28
+        vmovdqu64	zmm12, [rdx+256]
+        vpshufb	zmm12, zmm12, zmm28
+        vmovdqu64	zmm13, [rdx+320]
+        vpshufb	zmm13, zmm13, zmm28
+        vmovdqu64	zmm14, [rdx+384]
+        vpshufb	zmm14, zmm14, zmm28
+        vmovdqu64	zmm15, [rdx+448]
+        vpshufb	zmm15, zmm15, zmm28
+        vmovdqu64	zmm16, [rdx+512]
+        vpshufb	zmm16, zmm16, zmm28
+        vmovdqu64	zmm17, [rdx+576]
+        vpshufb	zmm17, zmm17, zmm28
+        vmovdqu64	zmm18, [rdx+640]
+        vpshufb	zmm18, zmm18, zmm28
+        vmovdqu64	zmm19, [rdx+704]
+        vpshufb	zmm19, zmm19, zmm28
+        vmovdqu64	zmm20, [rdx+768]
+        vpshufb	zmm20, zmm20, zmm28
+        vmovdqu64	zmm21, [rdx+832]
+        vpshufb	zmm21, zmm21, zmm28
+        vmovdqu64	zmm22, [rdx+896]
+        vpshufb	zmm22, zmm22, zmm28
+        vmovdqu64	zmm23, [rdx+960]
+        vpshufb	zmm23, zmm23, zmm28
+        vpunpckldq	zmm29, zmm8, zmm9
+        vpunpckhdq	zmm9, zmm8, zmm9
+        vmovdqa32	zmm8, zmm29
+        vpunpckldq	zmm29, zmm10, zmm11
+        vpunpckhdq	zmm11, zmm10, zmm11
+        vmovdqa32	zmm10, zmm29
+        vpunpckldq	zmm29, zmm12, zmm13
+        vpunpckhdq	zmm13, zmm12, zmm13
+        vmovdqa32	zmm12, zmm29
+        vpunpckldq	zmm29, zmm14, zmm15
+        vpunpckhdq	zmm15, zmm14, zmm15
+        vmovdqa32	zmm14, zmm29
+        vpunpckldq	zmm29, zmm16, zmm17
+        vpunpckhdq	zmm17, zmm16, zmm17
+        vmovdqa32	zmm16, zmm29
+        vpunpckldq	zmm29, zmm18, zmm19
+        vpunpckhdq	zmm19, zmm18, zmm19
+        vmovdqa32	zmm18, zmm29
+        vpunpckldq	zmm29, zmm20, zmm21
+        vpunpckhdq	zmm21, zmm20, zmm21
+        vmovdqa32	zmm20, zmm29
+        vpunpckldq	zmm29, zmm22, zmm23
+        vpunpckhdq	zmm23, zmm22, zmm23
+        vmovdqa32	zmm22, zmm29
+        vpunpcklqdq	zmm29, zmm8, zmm10
+        vpunpckhqdq	zmm10, zmm8, zmm10
+        vmovdqa32	zmm8, zmm29
+        vpunpcklqdq	zmm29, zmm9, zmm11
+        vpunpckhqdq	zmm11, zmm9, zmm11
+        vmovdqa32	zmm9, zmm29
+        vpunpcklqdq	zmm29, zmm12, zmm14
+        vpunpckhqdq	zmm14, zmm12, zmm14
+        vmovdqa32	zmm12, zmm29
+        vpunpcklqdq	zmm29, zmm13, zmm15
+        vpunpckhqdq	zmm15, zmm13, zmm15
+        vmovdqa32	zmm13, zmm29
+        vpunpcklqdq	zmm29, zmm16, zmm18
+        vpunpckhqdq	zmm18, zmm16, zmm18
+        vmovdqa32	zmm16, zmm29
+        vpunpcklqdq	zmm29, zmm17, zmm19
+        vpunpckhqdq	zmm19, zmm17, zmm19
+        vmovdqa32	zmm17, zmm29
+        vpunpcklqdq	zmm29, zmm20, zmm22
+        vpunpckhqdq	zmm22, zmm20, zmm22
+        vmovdqa32	zmm20, zmm29
+        vpunpcklqdq	zmm29, zmm21, zmm23
+        vpunpckhqdq	zmm23, zmm21, zmm23
+        vmovdqa32	zmm21, zmm29
+        vshufi32x4	zmm29, zmm8, zmm12, 136
+        vshufi32x4	zmm12, zmm8, zmm12, 221
+        vmovdqa32	zmm8, zmm29
+        vshufi32x4	zmm29, zmm9, zmm13, 136
+        vshufi32x4	zmm13, zmm9, zmm13, 221
+        vmovdqa32	zmm9, zmm29
+        vshufi32x4	zmm29, zmm10, zmm14, 136
+        vshufi32x4	zmm14, zmm10, zmm14, 221
+        vmovdqa32	zmm10, zmm29
+        vshufi32x4	zmm29, zmm11, zmm15, 136
+        vshufi32x4	zmm15, zmm11, zmm15, 221
+        vmovdqa32	zmm11, zmm29
+        vshufi32x4	zmm29, zmm16, zmm20, 136
+        vshufi32x4	zmm20, zmm16, zmm20, 221
+        vmovdqa32	zmm16, zmm29
+        vshufi32x4	zmm29, zmm17, zmm21, 136
+        vshufi32x4	zmm21, zmm17, zmm21, 221
+        vmovdqa32	zmm17, zmm29
+        vshufi32x4	zmm29, zmm18, zmm22, 136
+        vshufi32x4	zmm22, zmm18, zmm22, 221
+        vmovdqa32	zmm18, zmm29
+        vshufi32x4	zmm29, zmm19, zmm23, 136
+        vshufi32x4	zmm23, zmm19, zmm23, 221
+        vmovdqa32	zmm19, zmm29
+        vshufi32x4	zmm29, zmm8, zmm16, 136
+        vshufi32x4	zmm16, zmm8, zmm16, 221
+        vmovdqa32	zmm8, zmm29
+        vshufi32x4	zmm29, zmm9, zmm17, 136
+        vshufi32x4	zmm17, zmm9, zmm17, 221
+        vmovdqa32	zmm9, zmm29
+        vshufi32x4	zmm29, zmm10, zmm18, 136
+        vshufi32x4	zmm18, zmm10, zmm18, 221
+        vmovdqa32	zmm10, zmm29
+        vshufi32x4	zmm29, zmm11, zmm19, 136
+        vshufi32x4	zmm19, zmm11, zmm19, 221
+        vmovdqa32	zmm11, zmm29
+        vshufi32x4	zmm29, zmm12, zmm20, 136
+        vshufi32x4	zmm20, zmm12, zmm20, 221
+        vmovdqa32	zmm12, zmm29
+        vshufi32x4	zmm29, zmm13, zmm21, 136
+        vshufi32x4	zmm21, zmm13, zmm21, 221
+        vmovdqa32	zmm13, zmm29
+        vshufi32x4	zmm29, zmm14, zmm22, 136
+        vshufi32x4	zmm22, zmm14, zmm22, 221
+        vmovdqa32	zmm14, zmm29
+        vshufi32x4	zmm29, zmm15, zmm23, 136
+        vshufi32x4	zmm23, zmm15, zmm23, 221
+        vmovdqa32	zmm15, zmm29
+        ; Load the sixteen lane-interleaved states
+        vmovdqu64	zmm0, [rcx]
+        vmovdqu64	zmm1, [rcx+64]
+        vmovdqu64	zmm2, [rcx+128]
+        vmovdqu64	zmm3, [rcx+192]
+        vmovdqu64	zmm4, [rcx+256]
+        vmovdqu64	zmm5, [rcx+320]
+        vmovdqu64	zmm6, [rcx+384]
+        vmovdqu64	zmm7, [rcx+448]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm10
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm9
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm14
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm13
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm18
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm17
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm22
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm21
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_avx512_bw_start:
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm18
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm17
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm10
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm9
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm22
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm21
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm14
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm13
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm10
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm9
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm18
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm17
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm14
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm13
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm22
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm21
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_avx512_bw_start
+        ; Add the compressed block into the states
+        vpaddd	zmm0, zmm0, [rcx]
+        vmovdqu64	[rcx], zmm0
+        vpaddd	zmm1, zmm1, [rcx+64]
+        vmovdqu64	[rcx+64], zmm1
+        vpaddd	zmm2, zmm2, [rcx+128]
+        vmovdqu64	[rcx+128], zmm2
+        vpaddd	zmm3, zmm3, [rcx+192]
+        vmovdqu64	[rcx+192], zmm3
+        vpaddd	zmm4, zmm4, [rcx+256]
+        vmovdqu64	[rcx+256], zmm4
+        vpaddd	zmm5, zmm5, [rcx+320]
+        vmovdqu64	[rcx+320], zmm5
+        vpaddd	zmm6, zmm6, [rcx+384]
+        vmovdqu64	[rcx+384], zmm6
+        vpaddd	zmm7, zmm7, [rcx+448]
+        vmovdqu64	[rcx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_AVX512_BW ENDP
+_TEXT ENDS
+ENDIF
+wc_masm_cond_1 = 0
+IFDEF WOLFSSL_HAVE_LMS
+wc_masm_cond_1 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_XMSS
+wc_masm_cond_1 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_SLHDSA
+wc_masm_cond_1 = 1
+ENDIF
+IF wc_masm_cond_1
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_iv DWORD 6a09e667h, 0bb67ae85h, 3c6ef372h, 0a54ff53ah
+        DWORD 510e527fh, 9b05688ch, 1f83d9abh, 5be0cd19h
+ptr_L_avx512_sha256_x16_iv QWORD L_avx512_sha256_x16_iv
+_DATA ENDS
+ENDIF
+IFDEF WOLFSSL_HAVE_LMS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_lane DWORD 00000000h, 00000001h, 00000002h, 00000003h
+        DWORD 00000004h, 00000005h, 00000006h, 00000007h
+        DWORD 00000008h, 00000009h, 0000000ah, 0000000bh
+        DWORD 0000000ch, 0000000dh, 0000000eh, 0000000fh
+ptr_L_avx512_sha256_x16_lane QWORD L_avx512_sha256_x16_lane
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_lo16 DWORD 0000ffffh, 0000ffffh, 0000ffffh, 0000ffffh
+        DWORD 0000ffffh, 0000ffffh, 0000ffffh, 0000ffffh
+        DWORD 0000ffffh, 0000ffffh, 0000ffffh, 0000ffffh
+        DWORD 0000ffffh, 0000ffffh, 0000ffffh, 0000ffffh
+ptr_L_avx512_sha256_x16_lo16 QWORD L_avx512_sha256_x16_lo16
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_pad80 DWORD 00000080h, 00000080h, 00000080h, 00000080h
+        DWORD 00000080h, 00000080h, 00000080h, 00000080h
+        DWORD 00000080h, 00000080h, 00000080h, 00000080h
+        DWORD 00000080h, 00000080h, 00000080h, 00000080h
+ptr_L_avx512_sha256_x16_pad80 QWORD L_avx512_sha256_x16_pad80
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_LmsInit_AVX512 PROC
+        push	rbp
+        mov	r9d, r8d
+        mov	r8, rdx
+        mov	rdx, rcx
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        mov	rcx, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; W from the template, all lanes alike but for the chain index
+        vpbroadcastd	zmm8, DWORD PTR [r8]
+        vpbroadcastd	zmm9, DWORD PTR [r8+4]
+        vpbroadcastd	zmm10, DWORD PTR [r8+8]
+        vpbroadcastd	zmm11, DWORD PTR [r8+12]
+        vpbroadcastd	zmm12, DWORD PTR [r8+16]
+        vpbroadcastd	zmm14, DWORD PTR [r8+24]
+        vpbroadcastd	zmm15, DWORD PTR [r8+28]
+        vpbroadcastd	zmm16, DWORD PTR [r8+32]
+        vpbroadcastd	zmm17, DWORD PTR [r8+36]
+        vpbroadcastd	zmm18, DWORD PTR [r8+40]
+        vpbroadcastd	zmm19, DWORD PTR [r8+44]
+        vpbroadcastd	zmm20, DWORD PTR [r8+48]
+        vpbroadcastd	zmm21, DWORD PTR [r8+52]
+        vpbroadcastd	zmm22, DWORD PTR [r8+56]
+        vpbroadcastd	zmm23, DWORD PTR [r8+60]
+        ; W5 = i,i,j,tmp[0] - index varies by lane
+        vpbroadcastd	zmm24, r9d
+        vpaddd	zmm24, zmm24, ZMMWORD PTR L_avx512_sha256_x16_lane
+        vpslld	zmm24, zmm24, 16
+        vpbroadcastd	zmm25, DWORD PTR [r8+20]
+        vpandd	zmm25, zmm25, ZMMWORD PTR L_avx512_sha256_x16_lo16
+        vpord	zmm13, zmm24, zmm25
+        vpbroadcastd	zmm0, DWORD PTR [rcx]
+        vpbroadcastd	zmm1, DWORD PTR [rcx+4]
+        vpbroadcastd	zmm2, DWORD PTR [rcx+8]
+        vpbroadcastd	zmm3, DWORD PTR [rcx+12]
+        vpbroadcastd	zmm4, DWORD PTR [rcx+16]
+        vpbroadcastd	zmm5, DWORD PTR [rcx+20]
+        vpbroadcastd	zmm6, DWORD PTR [rcx+24]
+        vpbroadcastd	zmm7, DWORD PTR [rcx+28]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms_init_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms_init_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [rcx]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rdx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [rcx+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rdx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [rcx+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rdx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [rcx+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rdx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [rcx+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rdx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [rcx+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rdx+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [rcx+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rdx+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [rcx+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rdx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_LmsInit_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_LmsStep_AVX512 PROC
+        push	rbp
+        mov	r10, r9
+        mov	r9, r8
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        mov	r8, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; tmp of this hash is the interleaved digest of the last
+        vmovdqu64	zmm14, [rcx]
+        vmovdqu64	zmm15, [rcx+64]
+        vmovdqu64	zmm16, [rcx+128]
+        vmovdqu64	zmm17, [rcx+192]
+        vmovdqu64	zmm18, [rcx+256]
+        vmovdqu64	zmm19, [rcx+320]
+        vmovdqu64	zmm20, [rcx+384]
+        vmovdqu64	zmm21, [rcx+448]
+        ; W5 = i,i,j,tmp[0]
+        vmovdqu64	zmm24, [r9]
+        vpslld	zmm24, zmm24, 16
+        vmovdqu64	zmm25, [r10]
+        vpslld	zmm25, zmm25, 8
+        vpord	zmm24, zmm24, zmm25
+        vpsrld	zmm25, zmm14, 24
+        vpord	zmm13, zmm24, zmm25
+        ; W6..W13 = tmp, one byte out of word alignment
+        vpslld	zmm24, zmm14, 8
+        vpsrld	zmm25, zmm15, 24
+        vpord	zmm14, zmm24, zmm25
+        vpslld	zmm24, zmm15, 8
+        vpsrld	zmm25, zmm16, 24
+        vpord	zmm15, zmm24, zmm25
+        vpslld	zmm24, zmm16, 8
+        vpsrld	zmm25, zmm17, 24
+        vpord	zmm16, zmm24, zmm25
+        vpslld	zmm24, zmm17, 8
+        vpsrld	zmm25, zmm18, 24
+        vpord	zmm17, zmm24, zmm25
+        vpslld	zmm24, zmm18, 8
+        vpsrld	zmm25, zmm19, 24
+        vpord	zmm18, zmm24, zmm25
+        vpslld	zmm24, zmm19, 8
+        vpsrld	zmm25, zmm20, 24
+        vpord	zmm19, zmm24, zmm25
+        vpslld	zmm24, zmm20, 8
+        vpsrld	zmm25, zmm21, 24
+        vpord	zmm20, zmm24, zmm25
+        vpslld	zmm21, zmm21, 8
+        vpord	zmm21, zmm21, ZMMWORD PTR L_avx512_sha256_x16_pad80
+        ; The rest of the block does not vary
+        vpbroadcastd	zmm8, DWORD PTR [rdx]
+        vpbroadcastd	zmm9, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm10, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm11, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm12, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm22, DWORD PTR [rdx+56]
+        vpbroadcastd	zmm23, DWORD PTR [rdx+60]
+        vpbroadcastd	zmm0, DWORD PTR [r8]
+        vpbroadcastd	zmm1, DWORD PTR [r8+4]
+        vpbroadcastd	zmm2, DWORD PTR [r8+8]
+        vpbroadcastd	zmm3, DWORD PTR [r8+12]
+        vpbroadcastd	zmm4, DWORD PTR [r8+16]
+        vpbroadcastd	zmm5, DWORD PTR [r8+20]
+        vpbroadcastd	zmm6, DWORD PTR [r8+24]
+        vpbroadcastd	zmm7, DWORD PTR [r8+28]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms_step_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms_step_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [r8]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r8+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r8+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r8+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r8+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r8+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [r8+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rcx+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [r8+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rcx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_LmsStep_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_LmsChain_AVX512 PROC
+        push	rbp
+        mov	r10, r8
+        mov	r11d, r9d
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        test	r11d, r11d
+        jz	L_sha256_x16_lms_chain_done
+        mov	r8, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; The chain index does not change for the whole chain
+        vmovdqu64	zmm28, [r10]
+        vpslld	zmm28, zmm28, 16
+        xor	r9d, r9d
+L_sha256_x16_lms_chain_j:
+        ; j is the same in every lane, so it is just a counter
+        vpbroadcastd	zmm29, r9d
+        vpslld	zmm29, zmm29, 8
+        ; tmp of this hash is the interleaved digest of the last
+        vmovdqu64	zmm14, [rcx]
+        vmovdqu64	zmm15, [rcx+64]
+        vmovdqu64	zmm16, [rcx+128]
+        vmovdqu64	zmm17, [rcx+192]
+        vmovdqu64	zmm18, [rcx+256]
+        vmovdqu64	zmm19, [rcx+320]
+        vmovdqu64	zmm20, [rcx+384]
+        vmovdqu64	zmm21, [rcx+448]
+        ; W5 = i,i,j,tmp[0]
+        vpsrld	zmm24, zmm14, 24
+        vpord	zmm24, zmm24, zmm29
+        vpord	zmm13, zmm24, zmm28
+        ; W6..W13 = tmp, one byte out of word alignment
+        vpslld	zmm24, zmm14, 8
+        vpsrld	zmm25, zmm15, 24
+        vpord	zmm14, zmm24, zmm25
+        vpslld	zmm24, zmm15, 8
+        vpsrld	zmm25, zmm16, 24
+        vpord	zmm15, zmm24, zmm25
+        vpslld	zmm24, zmm16, 8
+        vpsrld	zmm25, zmm17, 24
+        vpord	zmm16, zmm24, zmm25
+        vpslld	zmm24, zmm17, 8
+        vpsrld	zmm25, zmm18, 24
+        vpord	zmm17, zmm24, zmm25
+        vpslld	zmm24, zmm18, 8
+        vpsrld	zmm25, zmm19, 24
+        vpord	zmm18, zmm24, zmm25
+        vpslld	zmm24, zmm19, 8
+        vpsrld	zmm25, zmm20, 24
+        vpord	zmm19, zmm24, zmm25
+        vpslld	zmm24, zmm20, 8
+        vpsrld	zmm25, zmm21, 24
+        vpord	zmm20, zmm24, zmm25
+        vpslld	zmm21, zmm21, 8
+        vpord	zmm21, zmm21, ZMMWORD PTR L_avx512_sha256_x16_pad80
+        ; The rest of the block does not vary
+        vpbroadcastd	zmm8, DWORD PTR [rdx]
+        vpbroadcastd	zmm9, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm10, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm11, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm12, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm22, DWORD PTR [rdx+56]
+        vpbroadcastd	zmm23, DWORD PTR [rdx+60]
+        vpbroadcastd	zmm0, DWORD PTR [r8]
+        vpbroadcastd	zmm1, DWORD PTR [r8+4]
+        vpbroadcastd	zmm2, DWORD PTR [r8+8]
+        vpbroadcastd	zmm3, DWORD PTR [r8+12]
+        vpbroadcastd	zmm4, DWORD PTR [r8+16]
+        vpbroadcastd	zmm5, DWORD PTR [r8+20]
+        vpbroadcastd	zmm6, DWORD PTR [r8+24]
+        vpbroadcastd	zmm7, DWORD PTR [r8+28]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms_chain_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms_chain_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [r8]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r8+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r8+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r8+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r8+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r8+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [r8+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rcx+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [r8+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rcx+448], zmm7
+        inc	r9d
+        cmp	r9d, r11d
+        jne	L_sha256_x16_lms_chain_j
+        vzeroupper
+L_sha256_x16_lms_chain_done:
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_LmsChain_AVX512 ENDP
+_TEXT ENDS
+IFDEF WOLFSSL_LMS_SHA256_192
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_Lms192Init_AVX512 PROC
+        push	rbp
+        mov	r9d, r8d
+        mov	r8, rdx
+        mov	rdx, rcx
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        mov	rcx, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; W from the template, all lanes alike but for the chain index
+        vpbroadcastd	zmm8, DWORD PTR [r8]
+        vpbroadcastd	zmm9, DWORD PTR [r8+4]
+        vpbroadcastd	zmm10, DWORD PTR [r8+8]
+        vpbroadcastd	zmm11, DWORD PTR [r8+12]
+        vpbroadcastd	zmm12, DWORD PTR [r8+16]
+        vpbroadcastd	zmm14, DWORD PTR [r8+24]
+        vpbroadcastd	zmm15, DWORD PTR [r8+28]
+        vpbroadcastd	zmm16, DWORD PTR [r8+32]
+        vpbroadcastd	zmm17, DWORD PTR [r8+36]
+        vpbroadcastd	zmm18, DWORD PTR [r8+40]
+        vpbroadcastd	zmm19, DWORD PTR [r8+44]
+        vpbroadcastd	zmm20, DWORD PTR [r8+48]
+        vpbroadcastd	zmm21, DWORD PTR [r8+52]
+        vpbroadcastd	zmm22, DWORD PTR [r8+56]
+        vpbroadcastd	zmm23, DWORD PTR [r8+60]
+        ; W5 = i,i,j,tmp[0] - index varies by lane
+        vpbroadcastd	zmm24, r9d
+        vpaddd	zmm24, zmm24, ZMMWORD PTR L_avx512_sha256_x16_lane
+        vpslld	zmm24, zmm24, 16
+        vpbroadcastd	zmm25, DWORD PTR [r8+20]
+        vpandd	zmm25, zmm25, ZMMWORD PTR L_avx512_sha256_x16_lo16
+        vpord	zmm13, zmm24, zmm25
+        vpbroadcastd	zmm0, DWORD PTR [rcx]
+        vpbroadcastd	zmm1, DWORD PTR [rcx+4]
+        vpbroadcastd	zmm2, DWORD PTR [rcx+8]
+        vpbroadcastd	zmm3, DWORD PTR [rcx+12]
+        vpbroadcastd	zmm4, DWORD PTR [rcx+16]
+        vpbroadcastd	zmm5, DWORD PTR [rcx+20]
+        vpbroadcastd	zmm6, DWORD PTR [rcx+24]
+        vpbroadcastd	zmm7, DWORD PTR [rcx+28]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms192_init_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms192_init_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [rcx]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rdx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [rcx+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rdx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [rcx+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rdx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [rcx+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rdx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [rcx+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rdx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [rcx+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rdx+320], zmm5
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_Lms192Init_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_Lms192Step_AVX512 PROC
+        push	rbp
+        mov	r10, r9
+        mov	r9, r8
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        mov	r8, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; tmp of this hash is the interleaved digest of the last
+        vmovdqu64	zmm14, [rcx]
+        vmovdqu64	zmm15, [rcx+64]
+        vmovdqu64	zmm16, [rcx+128]
+        vmovdqu64	zmm17, [rcx+192]
+        vmovdqu64	zmm18, [rcx+256]
+        vmovdqu64	zmm19, [rcx+320]
+        ; W5 = i,i,j,tmp[0]
+        vmovdqu64	zmm24, [r9]
+        vpslld	zmm24, zmm24, 16
+        vmovdqu64	zmm25, [r10]
+        vpslld	zmm25, zmm25, 8
+        vpord	zmm24, zmm24, zmm25
+        vpsrld	zmm25, zmm14, 24
+        vpord	zmm13, zmm24, zmm25
+        ; W6..W11 = tmp, one byte out of word alignment
+        vpslld	zmm24, zmm14, 8
+        vpsrld	zmm25, zmm15, 24
+        vpord	zmm14, zmm24, zmm25
+        vpslld	zmm24, zmm15, 8
+        vpsrld	zmm25, zmm16, 24
+        vpord	zmm15, zmm24, zmm25
+        vpslld	zmm24, zmm16, 8
+        vpsrld	zmm25, zmm17, 24
+        vpord	zmm16, zmm24, zmm25
+        vpslld	zmm24, zmm17, 8
+        vpsrld	zmm25, zmm18, 24
+        vpord	zmm17, zmm24, zmm25
+        vpslld	zmm24, zmm18, 8
+        vpsrld	zmm25, zmm19, 24
+        vpord	zmm18, zmm24, zmm25
+        vpslld	zmm19, zmm19, 8
+        vpord	zmm19, zmm19, ZMMWORD PTR L_avx512_sha256_x16_pad80
+        ; The rest of the block does not vary
+        vpbroadcastd	zmm8, DWORD PTR [rdx]
+        vpbroadcastd	zmm9, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm10, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm11, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm12, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm20, DWORD PTR [rdx+48]
+        vpbroadcastd	zmm21, DWORD PTR [rdx+52]
+        vpbroadcastd	zmm22, DWORD PTR [rdx+56]
+        vpbroadcastd	zmm23, DWORD PTR [rdx+60]
+        vpbroadcastd	zmm0, DWORD PTR [r8]
+        vpbroadcastd	zmm1, DWORD PTR [r8+4]
+        vpbroadcastd	zmm2, DWORD PTR [r8+8]
+        vpbroadcastd	zmm3, DWORD PTR [r8+12]
+        vpbroadcastd	zmm4, DWORD PTR [r8+16]
+        vpbroadcastd	zmm5, DWORD PTR [r8+20]
+        vpbroadcastd	zmm6, DWORD PTR [r8+24]
+        vpbroadcastd	zmm7, DWORD PTR [r8+28]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms192_step_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms192_step_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [r8]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r8+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r8+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r8+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r8+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r8+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_Lms192Step_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_Lms192Chain_AVX512 PROC
+        push	rbp
+        mov	r10, r8
+        mov	r11d, r9d
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        test	r11d, r11d
+        jz	L_sha256_x16_lms192_chain_done
+        mov	r8, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; The chain index does not change for the whole chain
+        vmovdqu64	zmm28, [r10]
+        vpslld	zmm28, zmm28, 16
+        xor	r9d, r9d
+L_sha256_x16_lms192_chain_j:
+        ; j is the same in every lane, so it is just a counter
+        vpbroadcastd	zmm29, r9d
+        vpslld	zmm29, zmm29, 8
+        ; tmp of this hash is the interleaved digest of the last
+        vmovdqu64	zmm14, [rcx]
+        vmovdqu64	zmm15, [rcx+64]
+        vmovdqu64	zmm16, [rcx+128]
+        vmovdqu64	zmm17, [rcx+192]
+        vmovdqu64	zmm18, [rcx+256]
+        vmovdqu64	zmm19, [rcx+320]
+        ; W5 = i,i,j,tmp[0]
+        vpsrld	zmm24, zmm14, 24
+        vpord	zmm24, zmm24, zmm29
+        vpord	zmm13, zmm24, zmm28
+        ; W6..W11 = tmp, one byte out of word alignment
+        vpslld	zmm24, zmm14, 8
+        vpsrld	zmm25, zmm15, 24
+        vpord	zmm14, zmm24, zmm25
+        vpslld	zmm24, zmm15, 8
+        vpsrld	zmm25, zmm16, 24
+        vpord	zmm15, zmm24, zmm25
+        vpslld	zmm24, zmm16, 8
+        vpsrld	zmm25, zmm17, 24
+        vpord	zmm16, zmm24, zmm25
+        vpslld	zmm24, zmm17, 8
+        vpsrld	zmm25, zmm18, 24
+        vpord	zmm17, zmm24, zmm25
+        vpslld	zmm24, zmm18, 8
+        vpsrld	zmm25, zmm19, 24
+        vpord	zmm18, zmm24, zmm25
+        vpslld	zmm19, zmm19, 8
+        vpord	zmm19, zmm19, ZMMWORD PTR L_avx512_sha256_x16_pad80
+        ; The rest of the block does not vary
+        vpbroadcastd	zmm8, DWORD PTR [rdx]
+        vpbroadcastd	zmm9, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm10, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm11, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm12, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm20, DWORD PTR [rdx+48]
+        vpbroadcastd	zmm21, DWORD PTR [rdx+52]
+        vpbroadcastd	zmm22, DWORD PTR [rdx+56]
+        vpbroadcastd	zmm23, DWORD PTR [rdx+60]
+        vpbroadcastd	zmm0, DWORD PTR [r8]
+        vpbroadcastd	zmm1, DWORD PTR [r8+4]
+        vpbroadcastd	zmm2, DWORD PTR [r8+8]
+        vpbroadcastd	zmm3, DWORD PTR [r8+12]
+        vpbroadcastd	zmm4, DWORD PTR [r8+16]
+        vpbroadcastd	zmm5, DWORD PTR [r8+20]
+        vpbroadcastd	zmm6, DWORD PTR [r8+24]
+        vpbroadcastd	zmm7, DWORD PTR [r8+28]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_lms192_chain_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_lms192_chain_start
+        ; Add the initial value back and leave the state interleaved
+        vpbroadcastd	zmm24, DWORD PTR [r8]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r8+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r8+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r8+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r8+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r8+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        inc	r9d
+        cmp	r9d, r11d
+        jne	L_sha256_x16_lms192_chain_j
+        vzeroupper
+L_sha256_x16_lms192_chain_done:
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_Lms192Chain_AVX512 ENDP
+_TEXT ENDS
+ENDIF
+ENDIF
+IFDEF WOLFSSL_HAVE_XMSS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_pad80w DWORD 80000000h
+ptr_L_avx512_sha256_x16_pad80w QWORD L_avx512_sha256_x16_pad80w
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_len768 DWORD 00000300h
+ptr_L_avx512_sha256_x16_len768 QWORD L_avx512_sha256_x16_len768
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_XmssPrf_AVX512 PROC
+        push	rbp
+        mov	r10, QWORD PTR [rsp+48]
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; ADRS: five words alike in every lane, three that vary
+        vpbroadcastd	zmm8, DWORD PTR [r8]
+        vpbroadcastd	zmm9, DWORD PTR [r8+4]
+        vpbroadcastd	zmm10, DWORD PTR [r8+8]
+        vpbroadcastd	zmm11, DWORD PTR [r8+12]
+        vpbroadcastd	zmm12, DWORD PTR [r8+16]
+        vpbroadcastd	zmm15, DWORD PTR [r8+28]
+        vmovdqu64	zmm13, [r9]
+        vmovdqu64	zmm14, [r10]
+        ; Padding for a 96-byte message, the last 64 of it this block
+        vpbroadcastd	zmm16, DWORD PTR L_avx512_sha256_x16_pad80w
+        vpxord	zmm17, zmm17, zmm17
+        vpxord	zmm18, zmm18, zmm18
+        vpxord	zmm19, zmm19, zmm19
+        vpxord	zmm20, zmm20, zmm20
+        vpxord	zmm21, zmm21, zmm21
+        vpxord	zmm22, zmm22, zmm22
+        vpbroadcastd	zmm23, DWORD PTR L_avx512_sha256_x16_len768
+        ; Carry on from the state padding || SEED left behind
+        vpbroadcastd	zmm0, DWORD PTR [rdx]
+        vpbroadcastd	zmm1, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm2, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm3, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm4, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm5, DWORD PTR [rdx+20]
+        vpbroadcastd	zmm6, DWORD PTR [rdx+24]
+        vpbroadcastd	zmm7, DWORD PTR [rdx+28]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss_prf_start:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss_prf_start
+        ; Add the midstate back; the digest stays interleaved for F
+        vpbroadcastd	zmm24, DWORD PTR [rdx]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [rdx+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [rdx+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [rdx+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [rdx+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [rdx+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [rdx+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rcx+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [rdx+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rcx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_XmssPrf_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_XmssF_AVX512 PROC
+        push	rbp
+        sub	rsp, 672
+        vmovdqu	OWORD PTR [rsp+512], xmm6
+        vmovdqu	OWORD PTR [rsp+528], xmm7
+        vmovdqu	OWORD PTR [rsp+544], xmm8
+        vmovdqu	OWORD PTR [rsp+560], xmm9
+        vmovdqu	OWORD PTR [rsp+576], xmm10
+        vmovdqu	OWORD PTR [rsp+592], xmm11
+        vmovdqu	OWORD PTR [rsp+608], xmm12
+        vmovdqu	OWORD PTR [rsp+624], xmm13
+        vmovdqu	OWORD PTR [rsp+640], xmm14
+        vmovdqu	OWORD PTR [rsp+656], xmm15
+        mov	r9, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; First block: the padding for F is zero, and then KEY
+        vpxord	zmm8, zmm8, zmm8
+        vpxord	zmm9, zmm9, zmm9
+        vpxord	zmm10, zmm10, zmm10
+        vpxord	zmm11, zmm11, zmm11
+        vpxord	zmm12, zmm12, zmm12
+        vpxord	zmm13, zmm13, zmm13
+        vpxord	zmm14, zmm14, zmm14
+        vpxord	zmm15, zmm15, zmm15
+        vmovdqu64	zmm16, [rdx]
+        vmovdqu64	zmm17, [rdx+64]
+        vmovdqu64	zmm18, [rdx+128]
+        vmovdqu64	zmm19, [rdx+192]
+        vmovdqu64	zmm20, [rdx+256]
+        vmovdqu64	zmm21, [rdx+320]
+        vmovdqu64	zmm22, [rdx+384]
+        vmovdqu64	zmm23, [rdx+448]
+        vpbroadcastd	zmm0, DWORD PTR [r9]
+        vpbroadcastd	zmm1, DWORD PTR [r9+4]
+        vpbroadcastd	zmm2, DWORD PTR [r9+8]
+        vpbroadcastd	zmm3, DWORD PTR [r9+12]
+        vpbroadcastd	zmm4, DWORD PTR [r9+16]
+        vpbroadcastd	zmm5, DWORD PTR [r9+20]
+        vpbroadcastd	zmm6, DWORD PTR [r9+24]
+        vpbroadcastd	zmm7, DWORD PTR [r9+28]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss_f_blk1:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss_f_blk1
+        ; Hold on to the chaining value: it is needed again at the end
+        vpbroadcastd	zmm24, DWORD PTR [r9]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rsp], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r9+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rsp+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r9+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rsp+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r9+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rsp+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r9+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rsp+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r9+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rsp+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [r9+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rsp+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [r9+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rsp+448], zmm7
+        ; Second block: tmp ^ BM, then the padding for 96 bytes
+        vmovdqu64	zmm24, [rcx]
+        vpxorq	zmm8, zmm24, [r8]
+        vmovdqu64	zmm24, [rcx+64]
+        vpxorq	zmm9, zmm24, [r8+64]
+        vmovdqu64	zmm24, [rcx+128]
+        vpxorq	zmm10, zmm24, [r8+128]
+        vmovdqu64	zmm24, [rcx+192]
+        vpxorq	zmm11, zmm24, [r8+192]
+        vmovdqu64	zmm24, [rcx+256]
+        vpxorq	zmm12, zmm24, [r8+256]
+        vmovdqu64	zmm24, [rcx+320]
+        vpxorq	zmm13, zmm24, [r8+320]
+        vmovdqu64	zmm24, [rcx+384]
+        vpxorq	zmm14, zmm24, [r8+384]
+        vmovdqu64	zmm24, [rcx+448]
+        vpxorq	zmm15, zmm24, [r8+448]
+        vpbroadcastd	zmm16, DWORD PTR L_avx512_sha256_x16_pad80w
+        vpxord	zmm17, zmm17, zmm17
+        vpxord	zmm18, zmm18, zmm18
+        vpxord	zmm19, zmm19, zmm19
+        vpxord	zmm20, zmm20, zmm20
+        vpxord	zmm21, zmm21, zmm21
+        vpxord	zmm22, zmm22, zmm22
+        vpbroadcastd	zmm23, DWORD PTR L_avx512_sha256_x16_len768
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss_f_blk2:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss_f_blk2
+        ; Add the chaining value back, leaving the chain value in place
+        vpaddd	zmm0, zmm0, [rsp]
+        vmovdqu64	[rcx], zmm0
+        vpaddd	zmm1, zmm1, [rsp+64]
+        vmovdqu64	[rcx+64], zmm1
+        vpaddd	zmm2, zmm2, [rsp+128]
+        vmovdqu64	[rcx+128], zmm2
+        vpaddd	zmm3, zmm3, [rsp+192]
+        vmovdqu64	[rcx+192], zmm3
+        vpaddd	zmm4, zmm4, [rsp+256]
+        vmovdqu64	[rcx+256], zmm4
+        vpaddd	zmm5, zmm5, [rsp+320]
+        vmovdqu64	[rcx+320], zmm5
+        vpaddd	zmm6, zmm6, [rsp+384]
+        vmovdqu64	[rcx+384], zmm6
+        vpaddd	zmm7, zmm7, [rsp+448]
+        vmovdqu64	[rcx+448], zmm7
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+512]
+        vmovdqu	xmm7, OWORD PTR [rsp+528]
+        vmovdqu	xmm8, OWORD PTR [rsp+544]
+        vmovdqu	xmm9, OWORD PTR [rsp+560]
+        vmovdqu	xmm10, OWORD PTR [rsp+576]
+        vmovdqu	xmm11, OWORD PTR [rsp+592]
+        vmovdqu	xmm12, OWORD PTR [rsp+608]
+        vmovdqu	xmm13, OWORD PTR [rsp+624]
+        vmovdqu	xmm14, OWORD PTR [rsp+640]
+        vmovdqu	xmm15, OWORD PTR [rsp+656]
+        add	rsp, 672
+        pop	rbp
+        ret
+Transform_Sha256_x16_XmssF_AVX512 ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_len480 DWORD 000001e0h
+ptr_L_avx512_sha256_x16_len480 QWORD L_avx512_sha256_x16_len480
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_avx512_sha256_x16_len416 DWORD 000001a0h
+ptr_L_avx512_sha256_x16_len416 QWORD L_avx512_sha256_x16_len416
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_Xmss192Prf_AVX512 PROC
+        push	rbp
+        mov	r10, r9
+        mov	r11, QWORD PTR [rsp+48]
+        sub	rsp, 672
+        vmovdqu	OWORD PTR [rsp+512], xmm6
+        vmovdqu	OWORD PTR [rsp+528], xmm7
+        vmovdqu	OWORD PTR [rsp+544], xmm8
+        vmovdqu	OWORD PTR [rsp+560], xmm9
+        vmovdqu	OWORD PTR [rsp+576], xmm10
+        vmovdqu	OWORD PTR [rsp+592], xmm11
+        vmovdqu	OWORD PTR [rsp+608], xmm12
+        vmovdqu	OWORD PTR [rsp+624], xmm13
+        vmovdqu	OWORD PTR [rsp+640], xmm14
+        vmovdqu	OWORD PTR [rsp+656], xmm15
+        mov	r9, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; First block: the four padding bytes and SEED, then ADRS
+        vpbroadcastd	zmm8, DWORD PTR [rdx]
+        vpbroadcastd	zmm9, DWORD PTR [rdx+4]
+        vpbroadcastd	zmm10, DWORD PTR [rdx+8]
+        vpbroadcastd	zmm11, DWORD PTR [rdx+12]
+        vpbroadcastd	zmm12, DWORD PTR [rdx+16]
+        vpbroadcastd	zmm13, DWORD PTR [rdx+20]
+        vpbroadcastd	zmm14, DWORD PTR [rdx+24]
+        vpbroadcastd	zmm15, DWORD PTR [r8]
+        vpbroadcastd	zmm16, DWORD PTR [r8+4]
+        vpbroadcastd	zmm17, DWORD PTR [r8+8]
+        vpbroadcastd	zmm18, DWORD PTR [r8+12]
+        vpbroadcastd	zmm19, DWORD PTR [r8+16]
+        vpbroadcastd	zmm22, DWORD PTR [r8+28]
+        vmovdqu64	zmm20, [r10]
+        vmovdqu64	zmm21, [r11]
+        ; The message ends at byte 60, so only the 0x80 fits here
+        vpbroadcastd	zmm23, DWORD PTR L_avx512_sha256_x16_pad80w
+        vpbroadcastd	zmm0, DWORD PTR [r9]
+        vpbroadcastd	zmm1, DWORD PTR [r9+4]
+        vpbroadcastd	zmm2, DWORD PTR [r9+8]
+        vpbroadcastd	zmm3, DWORD PTR [r9+12]
+        vpbroadcastd	zmm4, DWORD PTR [r9+16]
+        vpbroadcastd	zmm5, DWORD PTR [r9+20]
+        vpbroadcastd	zmm6, DWORD PTR [r9+24]
+        vpbroadcastd	zmm7, DWORD PTR [r9+28]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss192_prf_blk1:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss192_prf_blk1
+        ; Hold on to the chaining value for the end
+        vpbroadcastd	zmm24, DWORD PTR [r9]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rsp], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r9+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rsp+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r9+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rsp+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r9+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rsp+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r9+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rsp+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r9+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rsp+320], zmm5
+        vpbroadcastd	zmm24, DWORD PTR [r9+24]
+        vpaddd	zmm6, zmm6, zmm24
+        vmovdqu64	[rsp+384], zmm6
+        vpbroadcastd	zmm24, DWORD PTR [r9+28]
+        vpaddd	zmm7, zmm7, zmm24
+        vmovdqu64	[rsp+448], zmm7
+        ; Second block: the length of a 60-byte message, nothing else
+        vpxord	zmm8, zmm8, zmm8
+        vpxord	zmm9, zmm9, zmm9
+        vpxord	zmm10, zmm10, zmm10
+        vpxord	zmm11, zmm11, zmm11
+        vpxord	zmm12, zmm12, zmm12
+        vpxord	zmm13, zmm13, zmm13
+        vpxord	zmm14, zmm14, zmm14
+        vpxord	zmm15, zmm15, zmm15
+        vpxord	zmm16, zmm16, zmm16
+        vpxord	zmm17, zmm17, zmm17
+        vpxord	zmm18, zmm18, zmm18
+        vpxord	zmm19, zmm19, zmm19
+        vpxord	zmm20, zmm20, zmm20
+        vpxord	zmm21, zmm21, zmm21
+        vpxord	zmm22, zmm22, zmm22
+        vpbroadcastd	zmm23, DWORD PTR L_avx512_sha256_x16_len480
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss192_prf_blk2:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss192_prf_blk2
+        ; Add the chaining value back; six words of digest
+        vpaddd	zmm0, zmm0, [rsp]
+        vmovdqu64	[rcx], zmm0
+        vpaddd	zmm1, zmm1, [rsp+64]
+        vmovdqu64	[rcx+64], zmm1
+        vpaddd	zmm2, zmm2, [rsp+128]
+        vmovdqu64	[rcx+128], zmm2
+        vpaddd	zmm3, zmm3, [rsp+192]
+        vmovdqu64	[rcx+192], zmm3
+        vpaddd	zmm4, zmm4, [rsp+256]
+        vmovdqu64	[rcx+256], zmm4
+        vpaddd	zmm5, zmm5, [rsp+320]
+        vmovdqu64	[rcx+320], zmm5
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp+512]
+        vmovdqu	xmm7, OWORD PTR [rsp+528]
+        vmovdqu	xmm8, OWORD PTR [rsp+544]
+        vmovdqu	xmm9, OWORD PTR [rsp+560]
+        vmovdqu	xmm10, OWORD PTR [rsp+576]
+        vmovdqu	xmm11, OWORD PTR [rsp+592]
+        vmovdqu	xmm12, OWORD PTR [rsp+608]
+        vmovdqu	xmm13, OWORD PTR [rsp+624]
+        vmovdqu	xmm14, OWORD PTR [rsp+640]
+        vmovdqu	xmm15, OWORD PTR [rsp+656]
+        add	rsp, 672
+        pop	rbp
+        ret
+Transform_Sha256_x16_Xmss192Prf_AVX512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+Transform_Sha256_x16_Xmss192F_AVX512 PROC
+        push	rbp
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	r9, QWORD PTR [ptr_L_avx512_sha256_x16_iv]
+        ; The padding for F is zero, then KEY, then tmp ^ BM
+        vpxord	zmm8, zmm8, zmm8
+        vmovdqu64	zmm9, [rdx]
+        vmovdqu64	zmm10, [rdx+64]
+        vmovdqu64	zmm11, [rdx+128]
+        vmovdqu64	zmm12, [rdx+192]
+        vmovdqu64	zmm13, [rdx+256]
+        vmovdqu64	zmm14, [rdx+320]
+        vmovdqu64	zmm24, [rcx]
+        vpxorq	zmm15, zmm24, [r8]
+        vmovdqu64	zmm24, [rcx+64]
+        vpxorq	zmm16, zmm24, [r8+64]
+        vmovdqu64	zmm24, [rcx+128]
+        vpxorq	zmm17, zmm24, [r8+128]
+        vmovdqu64	zmm24, [rcx+192]
+        vpxorq	zmm18, zmm24, [r8+192]
+        vmovdqu64	zmm24, [rcx+256]
+        vpxorq	zmm19, zmm24, [r8+256]
+        vmovdqu64	zmm24, [rcx+320]
+        vpxorq	zmm20, zmm24, [r8+320]
+        ; 52 bytes of message, so the padding fits in this block
+        vpbroadcastd	zmm21, DWORD PTR L_avx512_sha256_x16_pad80w
+        vpxord	zmm22, zmm22, zmm22
+        vpbroadcastd	zmm23, DWORD PTR L_avx512_sha256_x16_len416
+        vpbroadcastd	zmm0, DWORD PTR [r9]
+        vpbroadcastd	zmm1, DWORD PTR [r9+4]
+        vpbroadcastd	zmm2, DWORD PTR [r9+8]
+        vpbroadcastd	zmm3, DWORD PTR [r9+12]
+        vpbroadcastd	zmm4, DWORD PTR [r9+16]
+        vpbroadcastd	zmm5, DWORD PTR [r9+20]
+        vpbroadcastd	zmm6, DWORD PTR [r9+24]
+        vpbroadcastd	zmm7, DWORD PTR [r9+28]
+        mov	rbp, QWORD PTR [ptr_L_avx512_sha256_x16_k]
+        ; Rounds 0-15: the schedule is the message block itself
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        mov	eax, 3
+L_sha256_x16_xmss192_f_blk:
+        vprord	zmm24, zmm9, 7
+        vprord	zmm25, zmm9, 18
+        vpsrld	zmm26, zmm9, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm22, 17
+        vprord	zmm26, zmm22, 19
+        vpsrld	zmm27, zmm22, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm8, zmm8, zmm24
+        vpaddd	zmm8, zmm8, zmm25
+        vpaddd	zmm8, zmm8, zmm17
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp]
+        vpaddd	zmm7, zmm7, zmm8
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm10, 7
+        vprord	zmm25, zmm10, 18
+        vpsrld	zmm26, zmm10, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm23, 17
+        vprord	zmm26, zmm23, 19
+        vpsrld	zmm27, zmm23, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm9, zmm9, zmm24
+        vpaddd	zmm9, zmm9, zmm25
+        vpaddd	zmm9, zmm9, zmm18
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+4]
+        vpaddd	zmm6, zmm6, zmm9
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm11, 7
+        vprord	zmm25, zmm11, 18
+        vpsrld	zmm26, zmm11, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm8, 17
+        vprord	zmm26, zmm8, 19
+        vpsrld	zmm27, zmm8, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm10, zmm10, zmm24
+        vpaddd	zmm10, zmm10, zmm25
+        vpaddd	zmm10, zmm10, zmm19
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+8]
+        vpaddd	zmm5, zmm5, zmm10
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm12, 7
+        vprord	zmm25, zmm12, 18
+        vpsrld	zmm26, zmm12, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm9, 17
+        vprord	zmm26, zmm9, 19
+        vpsrld	zmm27, zmm9, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm11, zmm11, zmm24
+        vpaddd	zmm11, zmm11, zmm25
+        vpaddd	zmm11, zmm11, zmm20
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+12]
+        vpaddd	zmm4, zmm4, zmm11
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm13, 7
+        vprord	zmm25, zmm13, 18
+        vpsrld	zmm26, zmm13, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm10, 17
+        vprord	zmm26, zmm10, 19
+        vpsrld	zmm27, zmm10, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm12, zmm12, zmm24
+        vpaddd	zmm12, zmm12, zmm25
+        vpaddd	zmm12, zmm12, zmm21
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+16]
+        vpaddd	zmm3, zmm3, zmm12
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm14, 7
+        vprord	zmm25, zmm14, 18
+        vpsrld	zmm26, zmm14, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm11, 17
+        vprord	zmm26, zmm11, 19
+        vpsrld	zmm27, zmm11, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm13, zmm13, zmm24
+        vpaddd	zmm13, zmm13, zmm25
+        vpaddd	zmm13, zmm13, zmm22
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+20]
+        vpaddd	zmm2, zmm2, zmm13
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm15, 7
+        vprord	zmm25, zmm15, 18
+        vpsrld	zmm26, zmm15, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm12, 17
+        vprord	zmm26, zmm12, 19
+        vpsrld	zmm27, zmm12, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm14, zmm14, zmm24
+        vpaddd	zmm14, zmm14, zmm25
+        vpaddd	zmm14, zmm14, zmm23
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+24]
+        vpaddd	zmm1, zmm1, zmm14
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm16, 7
+        vprord	zmm25, zmm16, 18
+        vpsrld	zmm26, zmm16, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm13, 17
+        vprord	zmm26, zmm13, 19
+        vpsrld	zmm27, zmm13, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm15, zmm15, zmm24
+        vpaddd	zmm15, zmm15, zmm25
+        vpaddd	zmm15, zmm15, zmm8
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+28]
+        vpaddd	zmm0, zmm0, zmm15
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm17, 7
+        vprord	zmm25, zmm17, 18
+        vpsrld	zmm26, zmm17, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm14, 17
+        vprord	zmm26, zmm14, 19
+        vpsrld	zmm27, zmm14, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm16, zmm16, zmm24
+        vpaddd	zmm16, zmm16, zmm25
+        vpaddd	zmm16, zmm16, zmm9
+        vpaddd	zmm7, zmm7, DWORD BCST [rbp+32]
+        vpaddd	zmm7, zmm7, zmm16
+        vpaddd	zmm3, zmm3, zmm7
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 226
+        vprord	zmm24, zmm4, 6
+        vprord	zmm25, zmm4, 11
+        vprord	zmm26, zmm4, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm0, 2
+        vprord	zmm25, zmm0, 13
+        vprord	zmm26, zmm0, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 232
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vprord	zmm24, zmm18, 7
+        vprord	zmm25, zmm18, 18
+        vpsrld	zmm26, zmm18, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm15, 17
+        vprord	zmm26, zmm15, 19
+        vpsrld	zmm27, zmm15, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm17, zmm17, zmm24
+        vpaddd	zmm17, zmm17, zmm25
+        vpaddd	zmm17, zmm17, zmm10
+        vpaddd	zmm6, zmm6, DWORD BCST [rbp+36]
+        vpaddd	zmm6, zmm6, zmm17
+        vpaddd	zmm2, zmm2, zmm6
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 226
+        vprord	zmm24, zmm3, 6
+        vprord	zmm25, zmm3, 11
+        vprord	zmm26, zmm3, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm7, 2
+        vprord	zmm25, zmm7, 13
+        vprord	zmm26, zmm7, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 232
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vprord	zmm24, zmm19, 7
+        vprord	zmm25, zmm19, 18
+        vpsrld	zmm26, zmm19, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm16, 17
+        vprord	zmm26, zmm16, 19
+        vpsrld	zmm27, zmm16, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm18, zmm18, zmm24
+        vpaddd	zmm18, zmm18, zmm25
+        vpaddd	zmm18, zmm18, zmm11
+        vpaddd	zmm5, zmm5, DWORD BCST [rbp+40]
+        vpaddd	zmm5, zmm5, zmm18
+        vpaddd	zmm1, zmm1, zmm5
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 226
+        vprord	zmm24, zmm2, 6
+        vprord	zmm25, zmm2, 11
+        vprord	zmm26, zmm2, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm6, 2
+        vprord	zmm25, zmm6, 13
+        vprord	zmm26, zmm6, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 232
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vprord	zmm24, zmm20, 7
+        vprord	zmm25, zmm20, 18
+        vpsrld	zmm26, zmm20, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm17, 17
+        vprord	zmm26, zmm17, 19
+        vpsrld	zmm27, zmm17, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm19, zmm19, zmm24
+        vpaddd	zmm19, zmm19, zmm25
+        vpaddd	zmm19, zmm19, zmm12
+        vpaddd	zmm4, zmm4, DWORD BCST [rbp+44]
+        vpaddd	zmm4, zmm4, zmm19
+        vpaddd	zmm0, zmm0, zmm4
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 226
+        vprord	zmm24, zmm1, 6
+        vprord	zmm25, zmm1, 11
+        vprord	zmm26, zmm1, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm5, 2
+        vprord	zmm25, zmm5, 13
+        vprord	zmm26, zmm5, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 232
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vprord	zmm24, zmm21, 7
+        vprord	zmm25, zmm21, 18
+        vpsrld	zmm26, zmm21, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm18, 17
+        vprord	zmm26, zmm18, 19
+        vpsrld	zmm27, zmm18, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm20, zmm20, zmm24
+        vpaddd	zmm20, zmm20, zmm25
+        vpaddd	zmm20, zmm20, zmm13
+        vpaddd	zmm3, zmm3, DWORD BCST [rbp+48]
+        vpaddd	zmm3, zmm3, zmm20
+        vpaddd	zmm7, zmm7, zmm3
+        vmovdqa32	zmm27, zmm1
+        vpternlogd	zmm27, zmm0, zmm2, 226
+        vprord	zmm24, zmm0, 6
+        vprord	zmm25, zmm0, 11
+        vprord	zmm26, zmm0, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm7, zmm7, zmm27
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm7, zmm7, zmm24
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm4, 2
+        vprord	zmm25, zmm4, 13
+        vprord	zmm26, zmm4, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm5
+        vpternlogd	zmm27, zmm4, zmm6, 232
+        vpaddd	zmm3, zmm3, zmm27
+        vpaddd	zmm3, zmm3, zmm24
+        vprord	zmm24, zmm22, 7
+        vprord	zmm25, zmm22, 18
+        vpsrld	zmm26, zmm22, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm19, 17
+        vprord	zmm26, zmm19, 19
+        vpsrld	zmm27, zmm19, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm21, zmm21, zmm24
+        vpaddd	zmm21, zmm21, zmm25
+        vpaddd	zmm21, zmm21, zmm14
+        vpaddd	zmm2, zmm2, DWORD BCST [rbp+52]
+        vpaddd	zmm2, zmm2, zmm21
+        vpaddd	zmm6, zmm6, zmm2
+        vmovdqa32	zmm27, zmm0
+        vpternlogd	zmm27, zmm7, zmm1, 226
+        vprord	zmm24, zmm7, 6
+        vprord	zmm25, zmm7, 11
+        vprord	zmm26, zmm7, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm6, zmm6, zmm27
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm6, zmm6, zmm24
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm3, 2
+        vprord	zmm25, zmm3, 13
+        vprord	zmm26, zmm3, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm4
+        vpternlogd	zmm27, zmm3, zmm5, 232
+        vpaddd	zmm2, zmm2, zmm27
+        vpaddd	zmm2, zmm2, zmm24
+        vprord	zmm24, zmm23, 7
+        vprord	zmm25, zmm23, 18
+        vpsrld	zmm26, zmm23, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm20, 17
+        vprord	zmm26, zmm20, 19
+        vpsrld	zmm27, zmm20, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm22, zmm22, zmm24
+        vpaddd	zmm22, zmm22, zmm25
+        vpaddd	zmm22, zmm22, zmm15
+        vpaddd	zmm1, zmm1, DWORD BCST [rbp+56]
+        vpaddd	zmm1, zmm1, zmm22
+        vpaddd	zmm5, zmm5, zmm1
+        vmovdqa32	zmm27, zmm7
+        vpternlogd	zmm27, zmm6, zmm0, 226
+        vprord	zmm24, zmm6, 6
+        vprord	zmm25, zmm6, 11
+        vprord	zmm26, zmm6, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm5, zmm5, zmm27
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm5, zmm5, zmm24
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm2, 2
+        vprord	zmm25, zmm2, 13
+        vprord	zmm26, zmm2, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm3
+        vpternlogd	zmm27, zmm2, zmm4, 232
+        vpaddd	zmm1, zmm1, zmm27
+        vpaddd	zmm1, zmm1, zmm24
+        vprord	zmm24, zmm8, 7
+        vprord	zmm25, zmm8, 18
+        vpsrld	zmm26, zmm8, 3
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vprord	zmm25, zmm21, 17
+        vprord	zmm26, zmm21, 19
+        vpsrld	zmm27, zmm21, 10
+        vpternlogd	zmm25, zmm26, zmm27, 150
+        vpaddd	zmm23, zmm23, zmm24
+        vpaddd	zmm23, zmm23, zmm25
+        vpaddd	zmm23, zmm23, zmm16
+        vpaddd	zmm0, zmm0, DWORD BCST [rbp+60]
+        vpaddd	zmm0, zmm0, zmm23
+        vpaddd	zmm4, zmm4, zmm0
+        vmovdqa32	zmm27, zmm6
+        vpternlogd	zmm27, zmm5, zmm7, 226
+        vprord	zmm24, zmm5, 6
+        vprord	zmm25, zmm5, 11
+        vprord	zmm26, zmm5, 25
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vpaddd	zmm4, zmm4, zmm27
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm4, zmm4, zmm24
+        vpaddd	zmm0, zmm0, zmm24
+        vprord	zmm24, zmm1, 2
+        vprord	zmm25, zmm1, 13
+        vprord	zmm26, zmm1, 22
+        vpternlogd	zmm24, zmm25, zmm26, 150
+        vmovdqa32	zmm27, zmm2
+        vpternlogd	zmm27, zmm1, zmm3, 232
+        vpaddd	zmm0, zmm0, zmm27
+        vpaddd	zmm0, zmm0, zmm24
+        add	rbp, 64
+        sub	eax, 1
+        jnz	L_sha256_x16_xmss192_f_blk
+        ; Add the initial value back; six words of digest
+        vpbroadcastd	zmm24, DWORD PTR [r9]
+        vpaddd	zmm0, zmm0, zmm24
+        vmovdqu64	[rcx], zmm0
+        vpbroadcastd	zmm24, DWORD PTR [r9+4]
+        vpaddd	zmm1, zmm1, zmm24
+        vmovdqu64	[rcx+64], zmm1
+        vpbroadcastd	zmm24, DWORD PTR [r9+8]
+        vpaddd	zmm2, zmm2, zmm24
+        vmovdqu64	[rcx+128], zmm2
+        vpbroadcastd	zmm24, DWORD PTR [r9+12]
+        vpaddd	zmm3, zmm3, zmm24
+        vmovdqu64	[rcx+192], zmm3
+        vpbroadcastd	zmm24, DWORD PTR [r9+16]
+        vpaddd	zmm4, zmm4, zmm24
+        vmovdqu64	[rcx+256], zmm4
+        vpbroadcastd	zmm24, DWORD PTR [r9+20]
+        vpaddd	zmm5, zmm5, zmm24
+        vmovdqu64	[rcx+320], zmm5
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        ret
+Transform_Sha256_x16_Xmss192F_AVX512 ENDP
+_TEXT ENDS
+ENDIF
+ENDIF
+ENDIF
 ENDIF
 ENDIF
 END
