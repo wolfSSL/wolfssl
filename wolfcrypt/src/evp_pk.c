@@ -1113,6 +1113,8 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         }
         if (rc == 0) {
             isMlDsa = 1;
+            /* Raw bytes carry no length prefix; the whole input is the key. */
+            keyIdx = inSz;
         }
     }
 
