@@ -1,3 +1,13 @@
+# wolfSSL Release (unreleased)
+
+## Behavioral Changes
+* **Behavioral change (`ConstantCompare()` rejects a negative length)**:
+  `ConstantCompare()` and `wc_ConstantCompare()` now return 1, not 0
+  ("equal"), for a negative `length`, so a caller whose length arithmetic
+  underflows no longer gets a false match.  `length == 0` still returns 0.
+  The sentinel is positive because callers fold the result into
+  constant-time masks that read a negative value as a match.
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
