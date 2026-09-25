@@ -550,7 +550,7 @@ int mlkem_derive_secret(MLKEM_PRF_T* prf, const byte* z, const byte* ct,
     word32 ctSz, byte* ss);
 
 WOLFSSL_LOCAL
-void mlkem_prf_init(MLKEM_PRF_T* prf);
+int mlkem_prf_reset(MLKEM_PRF_T* prf);
 WOLFSSL_LOCAL
 int mlkem_prf_new(MLKEM_PRF_T* prf, void* heap, int devId);
 WOLFSSL_LOCAL

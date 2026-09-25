@@ -357,6 +357,33 @@
   `WOLFSSL_X509_V_ERR_INVALID_PURPOSE`, reported through
   `wolfSSL_get_verify_result()` and to verify callbacks.
 
+* **Fix (ML-KEM and ML-DSA dropped the key's device id on internal hashing)**:
+  both algorithms hash with SHAKE objects held inside the key, and neither
+  object kept the device id the key was created with, so a registered crypto
+  callback never saw any of that hashing.  `mlkem_prf_init()` re-initialised
+  the PRF with a hardcoded heap of `NULL` and device id of `0`, discarding
+  what `mlkem_prf_new()` had stored, and it runs at the top of key generation
+  and encapsulation.  ML-DSA never bound its SHAKE object at all and
+  re-initialised it with `INVALID_DEVID` at every internal reset.  The ML-KEM
+  PRF is now reset in place, keeping the heap and device id `mlkem_prf_new()`
+  stored, `wc_MlDsaKey_Init()` binds `key->shake` to the key's heap and device
+  id, and every internal reset in both algorithms preserves that binding.  A
+  registered hash callback now sees the SHAKE-256 Update and Final calls of
+  both algorithms.  Sampling that goes through SHAKE Absorb and SqueezeBlocks,
+  which have no callback hook, and the hashing that `USE_INTEL_SPEEDUP` builds
+  run on the Keccak state directly, stay in software.  Software-only builds
+  are unchanged.
+
+* **Fix (SHA-3 crypto callback told the wrong variant)**: `wc_Sha3Update()`
+  and `wc_Sha3Final()` cached the SHA-3 variant on the context the first time
+  they dispatched to a callback, and kept it until the software path reset the
+  context.  A callback that handles the Final skips that reset, so a context
+  reused for another variant, as ML-KEM does with SHA3-512 and SHA3-256 on one
+  object, reached the callback labelled with the earlier variant.  A callback
+  honouring that type wrote 64 bytes into a 32 byte digest buffer, or left
+  half of it unwritten.  The variant is now derived on every call.  Only
+  builds with a registered SHA-3 crypto callback are affected.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.
