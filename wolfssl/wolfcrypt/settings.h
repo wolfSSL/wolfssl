@@ -3818,6 +3818,16 @@
         #undef  HAVE_AES_DECRYPT
         #define HAVE_AES_DECRYPT
     #endif
+    /* GCM and CCM decrypt only use AES encrypt, so keep them with
+     * NO_AES_DECRYPT. TLS always needs them, so the opt-outs are crypto only. */
+    #if !defined(NO_AESGCM_DECRYPT) || !defined(WOLFCRYPT_ONLY)
+        #undef  HAVE_AESGCM_DECRYPT
+        #define HAVE_AESGCM_DECRYPT
+    #endif
+    #if !defined(NO_AESCCM_DECRYPT) || !defined(WOLFCRYPT_ONLY)
+        #undef  HAVE_AESCCM_DECRYPT
+        #define HAVE_AESCCM_DECRYPT
+    #endif
     #ifndef NO_AES_CBC
         #undef  HAVE_AES_CBC
         #define HAVE_AES_CBC
