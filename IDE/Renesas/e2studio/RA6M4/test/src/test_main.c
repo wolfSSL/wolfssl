@@ -102,6 +102,64 @@ typedef struct func_args {
 void wolfcrypt_test(func_args args);
 int  benchmark_test(void *args);
 
+/* This board has no RTC wired up for wc_GetTime()/time() to read, and time()
+ * itself resolves to ARM semihosting (_gettimeofday, from librdimon -- see
+ * --specs=rdimon.specs), which blocks forever unless an active debugger is
+ * servicing semihosting calls. That's fine under an e2studio GUI debug
+ * session (which does), but hangs a standalone flash+run. Same approach as
+ * IDE/Renesas/e2studio/RX65N/GR-ROSE/common/wolfssl_dummy.c: derive a
+ * plausible "now" from the build date/time instead of a hand-maintained
+ * literal, so it stays roughly current as the project keeps getting rebuilt.
+ * Month-only granularity (no day-of-month/leap-year handling), matching that
+ * reference. Replace with a real RTC-backed callback if wall-clock time is
+ * ever needed (e.g. real certificate expiry checks). Only CRYPT_TEST
+ * (asn_test's wc_GetTime() call) and TLS_CLIENT (peer cert date validation)
+ * actually call wc_GetTime()/time(); guarded to match so BENCHMARK-only
+ * builds (which time via xTaskGetTickCount() instead, see benchmark.c)
+ * don't warn about an unused function. */
+#if defined(CRYPT_TEST) || defined(TLS_CLIENT)
+#define BUILD_YEAR  ( \
+    ((__DATE__)[7]  - '0') * 1000 + \
+    ((__DATE__)[8]  - '0') * 100  + \
+    ((__DATE__)[9]  - '0') * 10   + \
+    ((__DATE__)[10] - '0') * 1      \
+)
+#define BUILD_MONTH ( \
+    __DATE__[2] == 'n' ? (__DATE__[1] == 'a' ? 1 : 6) \
+  : __DATE__[2] == 'b' ? 2 \
+  : __DATE__[2] == 'r' ? (__DATE__[0] == 'M' ? 3 : 4) \
+  : __DATE__[2] == 'y' ? 5 \
+  : __DATE__[2] == 'l' ? 7 \
+  : __DATE__[2] == 'g' ? 8 \
+  : __DATE__[2] == 'p' ? 9 \
+  : __DATE__[2] == 't' ? 10 \
+  : __DATE__[2] == 'v' ? 11 \
+  : 12 \
+)
+#define BUILD_HOUR ( \
+    ((__TIME__)[0] - '0') * 10 + ((__TIME__)[1] - '0') \
+)
+#define BUILD_MIN ( \
+    ((__TIME__)[3] - '0') * 10 + ((__TIME__)[4] - '0') \
+)
+#define BUILD_SEC ( \
+    ((__TIME__)[6] - '0') * 10 + ((__TIME__)[7] - '0') \
+)
+
+static time_t build_time_cb(time_t* t)
+{
+    static time_t tick = 0;
+    time_t buildTime = (time_t)(((BUILD_YEAR - 1970) * 365 + 30 * BUILD_MONTH) *
+        24 * 60 * 60 + BUILD_HOUR * 60 * 60 + BUILD_MIN * 60 + BUILD_SEC);
+    /* tick advances each call so time isn't frozen at one instant */
+    time_t now = buildTime + tick++;
+    if (t != NULL) {
+        *t = now;
+    }
+    return now;
+}
+#endif /* defined(CRYPT_TEST) || defined(TLS_CLIENT) */
+
 #ifdef TLS_MULTITHREAD_TEST
 static void my_Logging_cb(const int logLevel, const char *const logMessage)
 {
@@ -215,6 +273,8 @@ void sce_test(void)
 
 
 
+    wc_SetTimeCb(build_time_cb);
+
     printf("Start wolfCrypt Test\n");
     wolfcrypt_test(args);
     printf("End wolfCrypt Test\n");
@@ -323,6 +383,8 @@ void sce_test(void)
     #endif
     int i = 0;
     int ret = 0;
+
+    wc_SetTimeCb(build_time_cb);
 
     printf("\n Start Client Example, ");
     printf("\n Connecting to %s\n\n", SERVER_IP);
