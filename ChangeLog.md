@@ -435,6 +435,11 @@ Fixed in PR 11500
 * Added a software CryptoCb API test, SM2 identical-point verify test, and Wycheproof-driven negative tests. by @AlexLanzano (PR 10604), @padelsbach (PR 10992) and @Frauschi (PR 10958)
 * Benchmark: HMAC-SHA3, AES IV/CCM nonce and key wrap sweeps, RSA padding sweep, AArch64 cycle counter under MSVC, numBlocks clamp, guards, a leak fix and zeroing the ML-KEM key objects before the first free; tls_bench now uses `CLOCK_MONOTONIC` and reports MiB/s. by @night1rider (PR 10946, PR 10947, PR 10887, PR 11249), @rizlik (PR 11090) and @dgarske (PR 11176, PR 11505)
 
+* **Fix (empty policyQualifiers in generated certificatePolicies)**: a
+  PolicyInformation entry set with `certPolicies` no longer carries an empty
+  `policyQualifiers` SEQUENCE (`30 00`), which RFC 5280 defines as
+  `SIZE (1..MAX)`.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA
