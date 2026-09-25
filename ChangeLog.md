@@ -58,6 +58,29 @@ Fixed in PR 11500
 Without NO_SESSION_CACHE_REF, wolfSSL_get_session() does not return a session object but a ClientSession reference of the form {row, index, hash(sessionID)} into the process-global SessionCache, and ClientSessionToSession() validates it against that hash alone. Because the TLS 1.2 session ID is chosen by the server and sent in clear, AddSessionToCache() matches any other server's session on the same ID and overwrites the client-side entry with that server's master secret, cipher suite and version, while the handle continues to resolve; nothing on the write path compares the peer, the application's server ID or the WOLFSSL_CTX. Resuming through the handle then produces an abbreviated handshake in which no Certificate message is sent, so neither chain verification nor wolfSSL_check_domain_name() runs, and the attacker is accepted as the original server for the whole of that connection. Affected builds are those leaving NO_SESSION_CACHE_REF, NO_SESSION_CACHE, NO_CLIENT_CACHE and TITAN_SESSION_CACHE all undefined, which includes a plain ./configure, --enable-opensslextra and --enable-opensslall; fifteen integration options define NO_SESSION_CACHE_REF and are therefore not affected, among them --enable-all, --enable-distro, --enable-curl, --enable-nginx, --enable-haproxy, --enable-stunnel, --enable-wpas and the rest of the OPENSSL_COMPATIBLE_DEFAULTS family, and --enable-leanpsk, --enable-leantls, --enable-lowresource and --enable-tinytls13 disable the cache outright. The application must use the legacy reference flow, wolfSSL_get_session() or SSL_get_session() followed by wolfSSL_set_session(); wolfSSL_get1_session() returns the session object itself and is not affected, nor are wolfSSL_SetServerID() lookups. Only TLS 1.2 and below and DTLS 1.2 and below are reachable, since TLS 1.3 and ticket resumption with an empty ServerHello session ID both use a client-chosen cache key. The poisoned entry lives in the process-global cache, so it crosses WOLFSSL_CTX boundaries and persists until the entry is evicted or the session times out, 500 seconds by default. Releases v5.3.0 through v5.9.2 are affected; the fix adds a per-write generation counter to the cache and raises WOLFSSL_CACHE_VERSION from 2 to 3, so a cache persisted by an older build is rejected by a fixed one. Found via the Anthropic OSS program.
 Fixed in PR 11500
 
+* **Behavioral change (DTLS cookie mode is one policy, set by the
+  application)**: `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` are
+  new and switch server cookies on and off for DTLS 1.2, DTLS 1.3 and TLS 1.3
+  alike, which changes existing entry points that now share that one
+  switch.  `wolfSSL_disable_hrr_cookie()` delegates to
+  `wolfSSL_disable_cookie()`, so on a DTLS object it now also frees the
+  DTLS 1.2 cookie secrets;
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_disable_hrr_cookie()`,
+  `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` now return
+  `BAD_STATE_E` once the handshake has decided how to process the
+  ClientHello. `wolfDTLS_accept_stateless()` reports `BAD_STATE_E` when called
+  on an object whose cookies are disabled, which `wolfSSL_accept()` handles
+  instead. Finally, every cookie secret change is now all or nothing: the
+  replacement is built before the secret it replaces is freed, so when
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_enable_cookie()`,
+  `wolfSSL_DTLS_SetCookieSecret()` or either secondary-secret setter fails,
+  the secrets and the cookie policy are left exactly as they were found
+  instead of the rotation half happening.  A DTLS 1.3 server with cookies
+  disabled can process a fragmented first ClientHello only when built with
+  `WOLFSSL_DTLS_CH_FRAG` (`--enable-dtls-frag-ch`, automatic with ML-KEM)
+  and with `wolfSSL_dtls13_allow_ch_frag()` on, which is the default only in
+  ML-KEM builds; otherwise the fragments are still dropped.
+
 ## New Features
 
 * Added `make sbom` (SPDX 2.3 + CycloneDX 1.6) and `make bomsh` (OmniBOR build provenance) targets for EU Cyber Resilience Act compliance. by @MarkAtwood (PR 10343)
