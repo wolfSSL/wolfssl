@@ -3488,6 +3488,9 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
+        /* wolfSSL_DSA_do_sign() reads WC_SHA_DIGEST_SIZE bytes of digest */
+        if (!tbs || tbslen < WC_SHA_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
         ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
         /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
@@ -3613,6 +3616,20 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
 #ifndef NO_DSA
      case WC_EVP_PKEY_DSA: {
         int dsacheck = 0;
+        int bytes;
+        if (!ctx->pkey->dsa || !sig || !tbs)
+            return WOLFSSL_FAILURE;
+        if (!ctx->pkey->dsa->exSet &&
+                SetDsaExternal(ctx->pkey->dsa) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+        /* wolfSSL_DSA_do_verify() reads 2 * |q| bytes of signature and
+         * WC_SHA_DIGEST_SIZE bytes of digest: check the lengths given. */
+        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
+        if (bytes <= 0)
+            return WOLFSSL_FAILURE;
+        bytes *= 2;
+        if (siglen != (size_t)bytes || tbslen < WC_SHA_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
         if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
             &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;
@@ -9533,6 +9550,16 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
                     XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
                     pkey->pkey.ptr = (char*)derBuf;
                     pkey->pkey_sz  = (int)pkcs8Sz;
+                    if (ret > 0) {
+                        word32 hdrIdx = 0;
+                        word32 hdrAlg = 0;
+                        /* Locate the header in the DER just built. */
+                        ret = ToTraditionalInline_ex(derBuf, &hdrIdx, sz,
+                            &hdrAlg);
+                        if (ret >= 0) {
+                            pkey->pkcs8HeaderSz = (word16)hdrIdx;
+                        }
+                    }
                 }
                 else {
                     /* The encoding is abandoned but keyBuf stays on the pkey,
@@ -10019,7 +10046,16 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
-                    if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) >= 0) {
+                    word32 hdrIdx = 0;
+                    word32 hdrAlg = 0;
+                    /* Encode key as PKCS#8. */
+                    if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) < 0) {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
+                    /* Locate the PKCS#8 header in the DER just built. */
+                    else if (ToTraditionalInline_ex(derBuf, &hdrIdx, derSzOut,
+                                 &hdrAlg) >= 0) {
                         derSz = (int)derSzOut;
                         if (pkey->pkey.ptr) {
                             /* The outgoing buffer can hold a private key
@@ -10033,10 +10069,12 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         }
                         pkey->pkey_sz = (int)derSz;
                         pkey->pkey.ptr = (char*)derBuf;
-                        pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
+                        pkey->pkcs8HeaderSz = (word16)hdrIdx;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        /* The buffer can hold a private key encoding. */
+                        ForceZero(derBuf, (word32)derSz);
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
