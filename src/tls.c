@@ -3304,9 +3304,11 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_ERROR;
 
 #ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
-    (void) isRequest;
+    /* Legacy lenient handling applies to TLS 1.2 and earlier only. */
+    if (!isRequest && IsAtLeastTLSv1_3(ssl->version)) {
 #else
     if (!isRequest) {
+#endif
         TLSX* extension;
 
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_MAX_FRAGMENT_LENGTH))
@@ -3327,7 +3329,6 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return UNKNOWN_MAX_FRAG_LEN_E;
         }
     }
-#endif
 
     switch (*input) {
         case WOLFSSL_MFL_2_8 : ssl->max_fragment =  256; break;
