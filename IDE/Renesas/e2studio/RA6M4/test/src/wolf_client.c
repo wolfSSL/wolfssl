@@ -163,19 +163,36 @@ int wolfSSL_TLS_client_do(void *pvParam)
     xRemoteAddress.sin_port = FreeRTOS_htons(p->port);
     xRemoteAddress.sin_addr = FreeRTOS_inet_addr(SERVER_IP);
 
-     /* Create a FreeRTOS TCP Socket and connect */
-     xClientSocket = FreeRTOS_socket(FREERTOS_AF_INET,
+     /* Create a FreeRTOS TCP Socket and connect. The network stack (PHY link,
+      * ARP for the gateway) isn't necessarily ready the instant this task
+      * starts, so a connect attempt made too early fails with ETIMEDOUT(-116)
+      * or ENOTCONN(-128); retry in that case, same as the non-multithreaded
+      * caller in test_main.c does around its own wolfSSL_TLS_client_do() call.
+      * A failed socket is closed and recreated each attempt since its state
+      * after a failed connect isn't reusable. */
+     {
+         int TCP_connect_retry = 0;
+         do {
+             xClientSocket = FreeRTOS_socket(FREERTOS_AF_INET,
                                              FREERTOS_SOCK_STREAM,
                                              FREERTOS_IPPROTO_TCP);
 
-     configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
+             configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
 
-     FreeRTOS_bind(xClientSocket, NULL, sizeof(xSize));
+             FreeRTOS_bind(xClientSocket, NULL, sizeof(xSize));
 
-     /* Client Socket Connect */
-     ret = FreeRTOS_connect(xClientSocket,
-                                 &xRemoteAddress,
-                                 sizeof(xRemoteAddress));
+             ret = FreeRTOS_connect(xClientSocket,
+                                         &xRemoteAddress,
+                                         sizeof(xRemoteAddress));
+             if (ret == FR_SOCKET_SUCCESS) {
+                 break;
+             }
+
+             FreeRTOS_closesocket(xClientSocket);
+             xClientSocket = NULL;
+             TCP_connect_retry++;
+         } while ((ret == -116 || ret == -128) && TCP_connect_retry < 100);
+     }
 
      if (ret != FR_SOCKET_SUCCESS) {
          msg(pcName, i, " Error [%d]: FreeRTOS_connect.\n", ret);
