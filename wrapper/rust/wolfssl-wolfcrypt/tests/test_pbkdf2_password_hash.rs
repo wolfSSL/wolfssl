@@ -4,7 +4,9 @@
 mod common;
 
 #[cfg(sha256)]
-use password_hash::phc::PasswordHash;
+use password_hash::Error;
+#[cfg(sha256)]
+use password_hash::phc::{Output, PasswordHash};
 use password_hash::{CustomizedPasswordHasher, PasswordHasher, PasswordVerifier};
 use wolfssl_wolfcrypt::pbkdf2_password_hash::*;
 
@@ -278,4 +280,43 @@ fn test_different_salts_produce_different_hashes() {
         .expect("second hash failed");
 
     assert_ne!(hash1.hash, hash2.hash);
+}
+
+#[test]
+#[cfg(sha256)]
+fn test_output_len_bounds() {
+    common::setup();
+
+    let hasher = Pbkdf2 {
+        algorithm: Algorithm::Pbkdf2Sha256,
+        params: Params::default(),
+    };
+    let salt = b"0123456789abcdef";
+
+    for len in [0, 1, Output::MIN_LENGTH - 1, Output::MAX_LENGTH + 1] {
+        let bad = Params { rounds: 1000, output_len: len };
+        let err = hasher
+            .hash_password_customized(b"pw", salt, None, None, bad)
+            .unwrap_err();
+        assert_eq!(err, Error::ParamInvalid { name: "l" });
+    }
+
+    for len in [Output::MIN_LENGTH, Output::MAX_LENGTH] {
+        let ok = Params { rounds: 1000, output_len: len };
+        let hash = hasher
+            .hash_password_customized(b"pw", salt, None, None, ok)
+            .unwrap();
+        assert_eq!(hash.hash.unwrap().len(), len);
+    }
+
+    // PHC "l" parameter parsing must enforce the same bounds.
+    for l in [0, Output::MIN_LENGTH - 1, Output::MAX_LENGTH + 1] {
+        let s = format!("$pbkdf2-sha256$i=1000,l={}$c2FsdHNhbHQ", l);
+        let parsed = PasswordHash::new(&s).unwrap();
+        let err = Params::try_from(&parsed).unwrap_err();
+        assert_eq!(err, Error::ParamInvalid { name: "l" });
+    }
+    let s = format!("$pbkdf2-sha256$i=1000,l={}$c2FsdHNhbHQ", Output::MIN_LENGTH);
+    let parsed = PasswordHash::new(&s).unwrap();
+    assert_eq!(Params::try_from(&parsed).unwrap().output_len, Output::MIN_LENGTH);
 }
