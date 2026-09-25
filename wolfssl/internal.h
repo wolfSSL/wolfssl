@@ -2030,7 +2030,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 /* Size of the static per-certificate slot in a cached session's chain. This is
  * embedded by value MAX_CHAIN_DEPTH times in every WOLFSSL_SESSION, so it is
  * deliberately not sized from a post-quantum signature: a certificate too
- * large for a slot is simply not recorded in the chain. Use
+ * large for a slot takes an empty one, keeping the chain positional. Use
  * MAX_CERT_WIRE_SZ for anything bounding a certificate on the wire. */
 #ifndef MAX_X509_SIZE
     /* 9 KB holds the largest ML-DSA certificate (ML-DSA-87: 4627 byte signature

@@ -6147,6 +6147,8 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
                 goto cleanup;
 
             for (i = idx + 1; i < wolfSSL_get_chain_count(peerCerts); i++) {
+                if (wolfSSL_get_chain_length(peerCerts, i) == 0)
+                    continue;   // a certificate too large to store leaves its slot empty
                 if (wolfSSL_CertManagerLoadCABuffer(cm, wolfSSL_get_chain_cert(peerCerts, i),
                         wolfSSL_get_chain_length(peerCerts, i), WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
                     goto cleanup;
@@ -7483,7 +7485,10 @@ int  wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx);
     \return Success If successful the call will return the peer’s
     certificate by index.
     \return 0 will be returned if an invalid chain pointer is passed
-    to the function.
+    to the function, or if the slot at idx holds no certificate because the
+    one presented there was too large to store. Indices inside
+    wolfSSL_get_chain_count() can be empty, so check
+    wolfSSL_get_chain_length() before using the result.
 
     \param chain pointer to a valid WOLFSSL_X509_CHAIN structure.
     \param idx index to start of chain.
@@ -7513,7 +7518,9 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
     \param idx the index of the WOLFSSL_X509 certificate.
 
     Note that it is the user's responsibility to free the returned memory
-    by calling wolfSSL_FreeX509().
+    by calling wolfSSL_FreeX509(). NULL is also returned when the slot at idx
+    holds no certificate because the one presented there was too large to
+    store, which can happen for an index inside wolfSSL_get_chain_count().
 
     _Example_
     \code
@@ -7546,7 +7553,9 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx);
     \return SSL_FAILURE will be returned when the certificate cannot be
     converted.
     \return BAD_FUNC_ARG will be returned when chain is NULL, idx is out of
-    range, outLen is NULL, or inLen is negative.
+    range, outLen is NULL, or inLen is negative. An idx inside
+    wolfSSL_get_chain_count() whose slot holds no certificate, because the one
+    presented there was too large to store, is reported the same way.
     \return BUFFER_E will be returned when inLen is too small to hold the PEM
     output, in a build that converts with wc_DerToPem(). A build that has
     only WOLFSSL_PEM_TO_DER reports that case as BAD_FUNC_ARG, so a caller
