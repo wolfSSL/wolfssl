@@ -454,6 +454,19 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     return 0;
 }
+
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+                    const byte* iv, int dir)
+{
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (len > sizeof(aes->key)) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_AesSetKey(aes, key, len, iv, dir);
+}
 #endif /* WOLFSSL_AES_COUNTER */
 
 #endif /* !defined(NO_AES) && defined(WOLFSSL_NXP_HASHCRYPT_AES) */

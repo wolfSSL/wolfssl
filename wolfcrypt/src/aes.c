@@ -5802,8 +5802,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
-        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
-        defined(WOLFSSL_NXP_HASHCRYPT_AES)
+        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
         #ifdef WOLF_CRYPTO_CB
         #ifndef WOLF_CRYPTO_CB_FIND
         if (aes->devId != INVALID_DEVID)
@@ -5815,6 +5814,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             }
             XMEMCPY(aes->devKey, userKey, keylen);
         }
+    #endif
+
+    #ifdef WOLFSSL_NXP_HASHCRYPT_AES
+        if (keylen > sizeof(aes->devKey)) {
+            return BAD_FUNC_ARG;
+        }
+        XMEMCPY(aes->devKey, userKey, keylen);
     #endif
 
     #ifdef WOLF_CRYPTO_CB_ONLY_AES

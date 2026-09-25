@@ -1564,7 +1564,8 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_ASYNC_POLL = 15,
     /* hardware key store lifecycle: import, export, derive, delete, query */
     WC_ALGO_TYPE_KEYSTORE = 16,
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_KEYSTORE
+    WC_ALGO_TYPE_HWPUF = 17,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HWPUF
 };
 
 /* KDF types */
