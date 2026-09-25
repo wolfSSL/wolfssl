@@ -106,3 +106,41 @@ fn test_verifying_key_without_rng() {
     let bogus = Signature::<256>::from_bytes([0xA5u8; 256]);
     assert!(vk.verify(b"message", &bogus).is_err());
 }
+
+/// A public exponent too large for the fixed exponent buffer must be
+/// rejected at construction time instead of making the infallible
+/// `Keypair::verifying_key()` panic.
+#[test]
+#[cfg(sha256)]
+fn test_oversized_exponent_rejected() {
+    use wolfssl_wolfcrypt::rsa::RSA;
+    use wolfssl_wolfcrypt::rsa_pkcs1v15::{Sha256, VerifyingKey};
+
+    common::setup();
+
+    // 2048-bit modulus with a 9-byte exponent (one byte more than the
+    // exponent buffer holds).
+    let mut n = [0xC5u8; 256];
+    n[0] = 0xF0;
+    n[255] = 0x01;
+    let e: [u8; 9] = [0x01, 0, 0, 0, 0, 0, 0, 0, 0x01];
+
+    let rsa = RSA::new_public_from_raw(&n, &e).expect("new_public_from_raw");
+    assert!(
+        VerifyingKey::<Sha256, 256>::from_rsa(rsa).is_err(),
+        "oversized exponent must be rejected"
+    );
+
+    #[cfg(random)]
+    {
+        use wolfssl_wolfcrypt::rsa_pkcs1v15::SigningKey;
+
+        let rsa = RSA::new_public_from_raw(&n, &e).expect("new_public_from_raw");
+        let rng = RNG::new().expect("RNG");
+        let result: Result<SigningKey<Sha256, 256>, _> = SigningKey::from_rsa(rsa, rng);
+        assert!(
+            result.is_err(),
+            "oversized exponent must be rejected by SigningKey::from_rsa"
+        );
+    }
+}
