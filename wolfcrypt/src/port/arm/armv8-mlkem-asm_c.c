@@ -36,7 +36,7 @@
 #ifdef WOLFSSL_ARMASM_INLINE
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
-#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 XALIGNED(4) static const word16 L_mlkem_aarch64_consts[] = {
     0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
 };
@@ -11261,7 +11261,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
     );
 }
 
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */
