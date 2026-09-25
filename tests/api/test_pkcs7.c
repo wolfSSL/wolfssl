@@ -4715,13 +4715,19 @@ int test_wc_PKCS7_MultipleRecipients(void)
     byte* cert3 = NULL;
     byte* key3  = NULL;
     byte* out   = NULL;
+    byte* out3  = NULL;
     byte decoded[128];
     word32 cert1Sz = 0, key1Sz = 0, cert2Sz = 0, key2Sz = 0;
     word32 cert3Sz = 0, key3Sz = 0;
     XFILE f = XBADFILE;
     int outSz = 4096;
     int encodedSz = 0;
-    int i, j;
+    int encoded3Sz = 0;
+    int b, i, j;
+#ifndef NO_PKCS7_STREAM
+    int k;
+    const int chunks[] = { 1, 13, 32 };
+#endif
     WOLFSSL_SMALL_STACK_STATIC const byte content[] = {
         0x74,0x77,0x6F,0x20,0x6F,0x66,0x20,0x75,0x73   /* "two of us" */
     };
@@ -4741,6 +4747,8 @@ int test_wc_PKCS7_MultipleRecipients(void)
     ExpectNotNull(key3 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(out = (byte*)XMALLOC((size_t)outSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out3 = (byte*)XMALLOC((size_t)outSz, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
@@ -4772,9 +4780,14 @@ int test_wc_PKCS7_MultipleRecipients(void)
     #endif
         if (EXPECT_FAIL())
             break;
-        /* build the bundle; the loop below opens it */
-        if (!EXPECT_FAIL()) {
+        /* build the bundles; b == 1 repeats cert1 so cert2 is in the middle */
+        for (b = 0; b < 2; b++) {
             wc_PKCS7* pkcs7 = NULL;
+            byte* enc = (b == 0) ? out : out3;
+            int encSz = 0;
+
+            if (EXPECT_FAIL())
+                break;
 
             ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
             ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
@@ -4792,23 +4805,33 @@ int test_wc_PKCS7_MultipleRecipients(void)
                 0);
             ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert2, cert2Sz, 0),
                 0);
+            if (b == 1) {
+                ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz,
+                    0), 0);
+            }
         #ifdef HAVE_AESGCM
             if (j == 1) {
-                ExpectIntGT(encodedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
-                    out, (word32)outSz), 0);
+                ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+                    enc, (word32)outSz), 0);
             }
             else
         #endif
             {
-                ExpectIntGT(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, out,
+                ExpectIntGT(encSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enc,
                     (word32)outSz), 0);
             }
+            if (b == 0)
+                encodedSz = encSz;
+            else
+                encoded3Sz = encSz;
             wc_PKCS7_Free(pkcs7);
         }
 
-        /* both recipients, the second one especially */
-        for (i = 0; i < 2; i++) {
+        /* each recipient, then cert2 as the middle one of three */
+        for (i = 0; i < 3; i++) {
             wc_PKCS7* pkcs7 = NULL;
+            byte* msg = (i == 2) ? out3 : out;
+            int msgSz = (i == 2) ? encoded3Sz : encodedSz;
             byte* useCert = (i == 0) ? cert1 : cert2;
             byte* useKey  = (i == 0) ? key1  : key2;
             word32 useCertSz = (i == 0) ? cert1Sz : cert2Sz;
@@ -4828,14 +4851,14 @@ int test_wc_PKCS7_MultipleRecipients(void)
             XMEMSET(decoded, 0, sizeof(decoded));
         #ifdef HAVE_AESGCM
             if (j == 1) {
-                ExpectIntGT(decSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, out,
-                    (word32)encodedSz, decoded, sizeof(decoded)), 0);
+                ExpectIntGT(decSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, msg,
+                    (word32)msgSz, decoded, sizeof(decoded)), 0);
             }
             else
         #endif
             {
-                ExpectIntGT(decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out,
-                    (word32)encodedSz, decoded, sizeof(decoded)), 0);
+                ExpectIntGT(decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, msg,
+                    (word32)msgSz, decoded, sizeof(decoded)), 0);
             }
             ExpectIntEQ(decSz, (int)sizeof(content));
             ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
@@ -4847,14 +4870,15 @@ int test_wc_PKCS7_MultipleRecipients(void)
             pkcs7 = NULL;
 
         #ifndef NO_PKCS7_STREAM
-            /* Again in chunks: only a buffered stream makes a rejected
-             * recipient shift the buffer rather than advance a counter.
-             * Scoped to EnvelopedData and the second recipient; the other
-             * combinations fail on the merge-base too. */
-            if ((i == 1) && (j == 0) && !EXPECT_FAIL()) {
+            /* again in chunks, so the walk and the step over the rest of
+             * the set run on a shifting stream buffer */
+            for (k = 0; k < (int)(sizeof(chunks) / sizeof(chunks[0])); k++) {
                 int fed = 0;
-                int chunk = 128;
+                int chunk = chunks[k];
                 int streamSz = -1;
+
+                if (EXPECT_FAIL())
+                    break;
 
                 ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
                 ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, useCert, useCertSz),
@@ -4865,11 +4889,19 @@ int test_wc_PKCS7_MultipleRecipients(void)
                 }
                 XMEMSET(decoded, 0, sizeof(decoded));
 
-                while ((pkcs7 != NULL) && (fed < encodedSz)) {
-                    int n = ((encodedSz - fed) < chunk) ? (encodedSz - fed)
-                                                        : chunk;
-                    streamSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
-                        out + fed, (word32)n, decoded, sizeof(decoded));
+                while ((pkcs7 != NULL) && (fed < msgSz)) {
+                    int n = ((msgSz - fed) < chunk) ? (msgSz - fed) : chunk;
+                #ifdef HAVE_AESGCM
+                    if (j == 1) {
+                        streamSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                            msg + fed, (word32)n, decoded, sizeof(decoded));
+                    }
+                    else
+                #endif
+                    {
+                        streamSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                            msg + fed, (word32)n, decoded, sizeof(decoded));
+                    }
                     fed += n;
                     if (streamSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
                         break;
@@ -4964,6 +4996,7 @@ int test_wc_PKCS7_MultipleRecipients(void)
     }
 
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(cert1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(cert2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

@@ -14631,11 +14631,17 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
         #ifndef NO_PKCS7_STREAM
             /* advance idx past recipient info set if not all recipients
-             * parsed. NOTE: only right while the whole set is read in one
-             * piece; three or more recipients fed in small chunks still fail
-             * for a recipient that is not the first. */
-            if (pkcs7->stream->totalRd < ((word32)pkcs7->stream->recipientSz +
-                    tmpIdx)) {
+             * parsed */
+            if (pkcs7->stream->length > 0) {
+                /* buffered: recipientRemain counts from the buffer start */
+                idx = pkcs7->stream->recipientRemain;
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
+                idx = (pkcs7->stream->length == 0)? pkcs7->stream->idx : 0;
+            }
+            else if (pkcs7->stream->totalRd <
+                    ((word32)pkcs7->stream->recipientSz + tmpIdx)) {
                 idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
 
                 /* process additional recipients as read */
@@ -16057,12 +16063,17 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
 
-            /* Step over the recipients left unread after the match, or the
-             * EncryptedContentInfo below is parsed from the wrong offset.
-             * Only while the stream has not already passed the end of the
-             * set. Same chunked-decode caveat as WC_PKCS7_ENV_2. */
+            /* step over the recipients left unread after the match */
         #ifndef NO_PKCS7_STREAM
-            if (pkcs7->stream->totalRd < (pkcs7->stream->recipientStart +
+            if (pkcs7->stream->length > 0) {
+                /* buffered: see WC_PKCS7_ENV_2 */
+                idx = pkcs7->stream->recipientRemain;
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
+                idx = (pkcs7->stream->length == 0)? pkcs7->stream->idx : 0;
+            }
+            else if (pkcs7->stream->totalRd < (pkcs7->stream->recipientStart +
                     (word32)pkcs7->stream->recipientSz)) {
                 tmpIdx = idx;
                 idx = pkcs7->stream->recipientStart +
