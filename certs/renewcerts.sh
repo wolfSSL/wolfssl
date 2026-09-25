@@ -1176,6 +1176,11 @@ run_renewcerts(){
     openssl cms -encrypt -des3 -in ca-cert.pem -recip client-cert.pem -out test-stream-dec.p7b -outform DER -stream
     check_result $? ""
 
+    echo "Creating test-stream-dec-aes256.p7b..."
+    echo ""
+    openssl cms -encrypt -aes256 -binary -in ca-cert.pem -recip client-cert.pem -out test-stream-dec-aes256.p7b -outform DER -stream
+    check_result $? ""
+
     echo "Creating test-multiple-recipients.p7b..."
     echo ""
     openssl smime -encrypt -binary -aes-256-cbc -in ./client-key.pem  -out ./test-multiple-recipients.p7b -outform DER ./client-cert.pem ./server-cert.pem

@@ -69,6 +69,7 @@ EXTRA_DIST += \
              certs/test-multiple-recipients.p7b \
              certs/test-stream-sign.p7b \
              certs/test-stream-dec.p7b \
+             certs/test-stream-dec-aes256.p7b \
              certs/test-ber-exp02-05-2022.p7b \
              certs/test-servercert.p12 \
              certs/test-servercert-rc2.p12 \

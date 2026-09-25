@@ -160,6 +160,7 @@ struct PKCS7State {
     word32 varOne;
     int    varTwo;
     int    varThree;
+    byte   fragCarry[MAX_CONTENT_BLOCK_LEN]; /* ciphertext short of a block */
 
     word32 vers;
     word32 idx;      /* index read into current input buffer */
@@ -173,6 +174,8 @@ struct PKCS7State {
     word32 aadSz;    /* size of additional AEAD data */
     word32 tagSz;    /* size of tag for AEAD */
     word32 icvSz;    /* expected ICV/MAC size from AlgoID parameter */
+    word32 fragCarrySz; /* bytes held in fragCarry */
+    word32 contentCap;  /* allocated size of reassembled content */
     word32 contentSz;
     word32 currContIdx;   /* index of current content */
     word32 currContSz;    /* size of current content */
@@ -10440,6 +10443,105 @@ static int wc_PKCS7_DecryptContent(wc_PKCS7* pkcs7, word32 encryptOID,
 }
 
 
+/* Grow *buf to hold at least need bytes, at least doubling it and keeping the
+ * first used bytes. returns 0 on success */
+static int wc_PKCS7_GrowContent(wc_PKCS7* pkcs7, byte** buf, word32 used,
+    word32 need, word32* cap)
+{
+    byte* grown;
+
+    if (need <= *cap) {
+        return 0;
+    }
+    if (*cap <= WOLFSSL_MAX_32BIT / 2 && need < *cap * 2) {
+        need = *cap * 2;
+    }
+    grown = (byte*)XMALLOC(need, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (grown == NULL) {
+        return MEMORY_E;
+    }
+    if (used > 0) {
+        XMEMCPY(grown, *buf, used);
+        ForceZero(*buf, used);
+    }
+    XFREE(*buf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    *buf = grown;
+    *cap = need;
+
+    return 0;
+}
+
+
+/* Append one decrypted encryptedContent fragment to cachedEncryptedContent,
+ * holding ciphertext short of a block in carry. returns 0 on success */
+static int wc_PKCS7_DecryptContentFragment(wc_PKCS7* pkcs7, word32 encryptOID,
+    word32 blockSz, const byte* in, word32 inSz, int last, byte* carry,
+    word32* carrySz, word32* contentCap)
+{
+    int ret = 0;
+    word32 avail = 0;
+    word32 decSz;
+    word32 need = 0;
+    word32 take;
+    byte* out;
+
+    if (blockSz == 0 || blockSz > MAX_CONTENT_BLOCK_LEN ||
+            *carrySz >= blockSz) {
+        return BAD_FUNC_ARG;
+    }
+    if (!WC_SAFE_SUM_WORD32(*carrySz, inSz, avail)) {
+        return BUFFER_E;
+    }
+
+    decSz = avail - (avail % blockSz);
+    if (last && (decSz == 0 || decSz != avail)) {
+        WOLFSSL_MSG("Encrypted content is not a whole number of blocks");
+        return BUFFER_E;
+    }
+    if (decSz == 0) {
+        XMEMCPY(carry + *carrySz, in, inSz);
+        *carrySz += inSz;
+        return 0;
+    }
+
+    if (!WC_SAFE_SUM_WORD32(pkcs7->cachedEncryptedContentSz, decSz, need)) {
+        return BUFFER_E;
+    }
+    ret = wc_PKCS7_GrowContent(pkcs7, &pkcs7->cachedEncryptedContent,
+        pkcs7->cachedEncryptedContentSz, need, contentCap);
+    if (ret != 0) {
+        return ret;
+    }
+
+    out = pkcs7->cachedEncryptedContent + pkcs7->cachedEncryptedContentSz;
+    if (*carrySz > 0) {
+        take = blockSz - *carrySz;
+        XMEMCPY(carry + *carrySz, in, take);
+        ret = wc_PKCS7_DecryptContentEx(pkcs7, encryptOID, NULL, 0, NULL, 0,
+            NULL, 0, carry, (int)blockSz, out);
+        in += take;
+        inSz -= take;
+        out += blockSz;
+        decSz -= blockSz;
+        *carrySz = 0;
+        pkcs7->cachedEncryptedContentSz += blockSz;
+    }
+    if (ret == 0 && decSz > 0) {
+        ret = wc_PKCS7_DecryptContentEx(pkcs7, encryptOID, NULL, 0, NULL, 0,
+            NULL, 0, in, (int)decSz, out);
+        in += decSz;
+        inSz -= decSz;
+        pkcs7->cachedEncryptedContentSz += decSz;
+    }
+    if (ret == 0 && inSz > 0) {
+        XMEMCPY(carry, in, inSz);
+        *carrySz = inSz;
+    }
+
+    return ret;
+}
+
+
 /* Generate random block, place in out, return 0 on success negative on error.
  * Used for generation of IV, nonce, etc */
 static int wc_PKCS7_GenerateBlock(wc_PKCS7* pkcs7, WC_RNG* rng, byte* out,
@@ -14372,6 +14474,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     word32 peekIdx = 0;
     int innerSz = 0;
     byte innerTag = 0;
+    int lastFrag = 0;
+    word32 contentEnd = 0;
+    byte* fragCarry = NULL;
+    word32* fragCarrySz = NULL;
+    word32* contentCap = NULL;
+#ifdef NO_PKCS7_STREAM
+    byte fragCarryBuf[MAX_CONTENT_BLOCK_LEN];
+    word32 fragCarryLen = 0;
+    word32 contentCapLen = 0;
+#endif
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -14677,6 +14789,12 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
         #endif
 
+            if (ret == 0 && explicitOctet && pkcs7->decryptionCb != NULL) {
+                WOLFSSL_MSG("Fragmented content cannot use a decryption "
+                            "callback");
+                ret = BAD_FUNC_ARG;
+            }
+
             if (ret != 0)
                 break;
 
@@ -14709,9 +14827,21 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     if (ret != 0)
                         break;
                 }
+                pkcs7->stream->fragCarrySz = 0;
+                pkcs7->stream->contentCap = 0;
             }
-
+        #else
+            if (explicitOctet) {
+                ret = wc_PKCS7_DecryptContentInit(pkcs7, encOID, decryptedKey,
+                    (word32)blockKeySz, tmpIv, expBlockSz, pkcs7->devId,
+                    pkcs7->heap);
+                if (ret != 0)
+                    break;
+            }
         #endif
+            if (explicitOctet) {
+                pkcs7->cachedEncryptedContentSz = 0;
+            }
             pkcs7->totalEncryptedContentSz = 0;
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_5);
             FALL_THROUGH;
@@ -14739,8 +14869,14 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = pkcs7->stream->aadSz;
             blockKeySz = (int)pkcs7->stream->contentSz;
+            fragCarry   = pkcs7->stream->fragCarry;
+            fragCarrySz = &pkcs7->stream->fragCarrySz;
+            contentCap  = &pkcs7->stream->contentCap;
         #else
             ret = 0;
+            fragCarry   = fragCarryBuf;
+            fragCarrySz = &fragCarryLen;
+            contentCap  = &contentCapLen;
         #endif
 
             if (explicitOctet) {
@@ -14751,19 +14887,19 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
                 while (1) {
                     encryptedContentSz = 0;
-                    if (pkiMsgSz <= localIdx + MAX_OCTET_STR_SZ) {
-                    #ifndef NO_PKCS7_STREAM
-                        /* ran out of data to parse */
-                        if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
-                            pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
-                            break;
-                        }
-                        pkiMsgSz = (pkcs7->stream->length > 0) ?
-                            pkcs7->stream->length : inSz;
-                    #else
-                        ret = BUFFER_E;
-                    #endif
+                #ifndef NO_PKCS7_STREAM
+                    /* StreamEndCase shifted the buffer without moving idx */
+                    if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                        pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                        break;
                     }
+                    pkiMsgSz = (pkcs7->stream->length > 0) ?
+                        pkcs7->stream->length : inSz;
+                #else
+                    if (pkiMsgSz <= localIdx + MAX_OCTET_STR_SZ) {
+                        ret = BUFFER_E;
+                    }
+                #endif
 
                     localIdx = idx;
                     if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) < 0) {
@@ -14786,26 +14922,10 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
-                    if (ret == 0 &&
-                         pkcs7->cachedEncryptedContentSz <
-                         (word32)encryptedContentSz) {
-                        if (pkcs7->cachedEncryptedContent != NULL) {
-                            XFREE(pkcs7->cachedEncryptedContent, pkcs7->heap,
-                                DYNAMIC_TYPE_PKCS7);
-                        }
-                        pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
-                            (word32)encryptedContentSz, pkcs7->heap,
-                            DYNAMIC_TYPE_PKCS7);
-                        if (pkcs7->cachedEncryptedContent == NULL) {
-                            ret = MEMORY_E;
-                        }
-                    }
-                    pkcs7->cachedEncryptedContentSz =
-                        (word32)encryptedContentSz;
-
-                    /* sanity check that the buffer has all of the data */
-                    if (ret == 0 && (localIdx + (word32)encryptedContentSz) >
-                            pkiMsgSz) {
+                    /* sanity check that the buffer has all of the data, and
+                     * the end-of-contents after it if this is the last */
+                    if (ret == 0 && (localIdx + (word32)encryptedContentSz +
+                            ASN_INDEF_END_SZ) > pkiMsgSz) {
                     #ifndef NO_PKCS7_STREAM
                         word32 ofsetIdx = localIdx - idx;
                         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
@@ -14821,19 +14941,37 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     #endif
                     }
 
-                    /* Use callback for decryption still, if set */
-                    if (ret == 0 && pkcs7->decryptionCb != NULL) {
-                        ret = pkcs7->decryptionCb(pkcs7, (int)encOID, tmpIv,
-                            expBlockSz, NULL, 0, NULL, 0, &pkiMsg[localIdx],
-                            encryptedContentSz, pkcs7->cachedEncryptedContent,
-                            pkcs7->decryptionCtx);
+                    lastFrag = 0;
+                    if (ret == 0 && localIdx + (word32)encryptedContentSz +
+                            ASN_INDEF_END_SZ <= pkiMsgSz &&
+                            pkiMsg[localIdx + (word32)encryptedContentSz] ==
+                                ASN_EOC &&
+                            pkiMsg[localIdx + (word32)encryptedContentSz + 1] ==
+                                ASN_EOC) {
+                        lastFrag = 1;
+                    }
+
+                    if (ret == 0 && !WC_SAFE_SUM_WORD32(
+                            pkcs7->totalEncryptedContentSz,
+                            (word32)encryptedContentSz, contentEnd)) {
+                        ret = BUFFER_E;
+                    }
+                    /* without a callback the plaintext, one padding block
+                     * shorter at most, has to fit output */
+                    if (ret == 0 && contentEnd > outputSz &&
+                            contentEnd - outputSz > (word32)expBlockSz
+                    #ifdef ASN_BER_TO_DER
+                            && pkcs7->streamOutCb == NULL
+                    #endif
+                            ) {
+                        ret = BUFFER_E;
                     }
 
                     if (ret == 0) {
-                        ret = wc_PKCS7_DecryptContentEx(pkcs7, encOID,
-                            tmpIv, expBlockSz, NULL, 0, NULL, 0,
-                            &pkiMsg[localIdx], encryptedContentSz,
-                            pkcs7->cachedEncryptedContent);
+                        ret = wc_PKCS7_DecryptContentFragment(pkcs7, encOID,
+                            (word32)expBlockSz, &pkiMsg[localIdx],
+                            (word32)encryptedContentSz, lastFrag, fragCarry,
+                            fragCarrySz, contentCap);
                     }
 
                 #ifndef NO_PKCS7_STREAM
@@ -14852,13 +14990,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     pkcs7->totalEncryptedContentSz +=
                         (word32)encryptedContentSz;
 
-                    if (localIdx + ASN_INDEF_END_SZ <= pkiMsgSz) {
-                        if (pkiMsg[localIdx] == ASN_EOC &&
-                                pkiMsg[localIdx+1] == ASN_EOC) {
-                            /* found the end of encrypted content */
-                            localIdx += ASN_INDEF_END_SZ;
-                            break;
-                        }
+                    if (ret == 0 && lastFrag) {
+                        localIdx += ASN_INDEF_END_SZ;
+                        break;
                     }
                 #ifdef NO_PKCS7_STREAM
                     /* Non-streaming has no resume path. If an error was flagged
@@ -14880,15 +15014,23 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
-                    /* save last decrypted string to handle padding (this output
-                     * flush happens outside of the while loop in the case that
-                     * the indef end was found) */
+                    /* a callback gets each fragment now, the last one after
+                     * its padding check; otherwise all of it waits */
                     if (ret == 0) {
                     #ifdef ASN_BER_TO_DER
-                        if (pkcs7->streamOutCb) {
+                        if (pkcs7->streamOutCb &&
+                                pkcs7->cachedEncryptedContentSz > 0) {
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
-                                (word32)encryptedContentSz, pkcs7->streamCtx);
+                                pkcs7->cachedEncryptedContentSz,
+                                pkcs7->streamCtx);
+                            pkcs7->cachedEncryptedContentSz = 0;
+                            if (ret != 0) {
+                                WOLFSSL_MSG("Stream out callback returned "
+                                            "failure");
+                                ret = BUFFER_E;
+                                break;
+                            }
                         }
                     #endif /* ASN_BER_TO_DER */
                     }

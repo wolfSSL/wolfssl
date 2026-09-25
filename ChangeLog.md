@@ -429,6 +429,19 @@
   addressed to a PWRI or ML-KEM recipient as well and got `ASN_VERSION_E`.
   Any CMSVersion valid for EnvelopedData (0, 2, 3 or 4) is now accepted.
 
+* **Fix (indefinite-length EnvelopedData decrypted to the wrong plaintext)**:
+  when the encryptedContent of an EnvelopedData is split into several OCTET
+  STRINGs, as `openssl cms -encrypt -stream` writes it,
+  `wc_PKCS7_DecodeEnvelopedData()` handed every fragment but the last only to
+  the stream output callback.  Without one set, the fragments were dropped
+  and just the last one was copied to the start of `output`, while the return
+  value still counted the whole content, so the caller got a success code and
+  a buffer holding one block of plaintext followed by whatever it contained
+  before.  Every fragment is now decrypted into the output.  Fragments no
+  longer have to be a whole number of cipher blocks, a chunked stream no
+  longer loses its place after a small fragment, and a build with
+  `NO_PKCS7_STREAM` now sets up the cipher for fragmented content at all.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA

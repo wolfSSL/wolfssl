@@ -3845,6 +3845,385 @@ int test_wc_PKCS7_DecodeEnvelopedData_version(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_version() */
 
 
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+/* Re-encode (Auth)EnvelopedData as openssl -stream does: indefinite lengths,
+ * encryptedContent in fragSz-byte pieces less trim bytes. 0 on success */
+static int pkcs7_berFragment(const byte* in, word32 inSz, byte* out,
+        word32 outCap, word32* outSz, word32 fragSz, word32 trim)
+{
+    word32 idx = 0;
+    word32 o = 0;
+    word32 len = 0;
+    word32 lenValOff = 0;
+    word32 lenValWidth = 0;
+    word32 oidStart, oidEnd, headEnd, eciStart, algEnd, envEnd, ctStart, ctSz;
+    word32 n;
+    byte   tag = 0;
+
+    if (fragSz == 0 ||
+            pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+                &lenValWidth) != 0 || tag != (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return -1;
+    }
+    oidStart = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 || tag != ASN_OBJECT_ID) {
+        return -1;
+    }
+    idx += len;
+    oidEnd = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 ||
+            pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    envEnd = idx + len;
+    headEnd = idx;
+    /* version and RecipientInfos */
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    idx += len;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    idx += len;
+    /* EncryptedContentInfo: contentType and contentEncryptionAlgorithm */
+    eciStart = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 || tag != (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return -1;
+    }
+    algEnd = idx;
+    if (pkcs7_der_readHdr(in, inSz, &algEnd, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    algEnd += len;
+    if (pkcs7_der_readHdr(in, inSz, &algEnd, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    algEnd += len;
+    ctStart = algEnd;
+    if (pkcs7_der_readHdr(in, inSz, &ctStart, &tag, &ctSz, &lenValOff,
+            &lenValWidth) != 0 || tag != (ASN_CONTEXT_SPECIFIC | 0) ||
+            trim >= ctSz || envEnd > inSz) {
+        return -1;
+    }
+    if (inSz + 32 + (ctSz / fragSz + 1) * 6 > outCap) {
+        return -1;
+    }
+
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + oidStart, oidEnd - oidStart);
+    o += oidEnd - oidStart;
+    out[o++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0;
+    out[o++] = ASN_INDEF_LENGTH;
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + headEnd, eciStart - headEnd);
+    o += eciStart - headEnd;
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + idx, algEnd - idx);
+    o += algEnd - idx;
+    out[o++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0;
+    out[o++] = ASN_INDEF_LENGTH;
+    for (idx = 0; idx < ctSz - trim; idx += n) {
+        n = ctSz - trim - idx;
+        if (n > fragSz) {
+            n = fragSz;
+        }
+        out[o++] = ASN_OCTET_STRING;
+        o += pkcs7_derWriteLen(out + o, n);
+        XMEMCPY(out + o, in + ctStart + idx, n);
+        o += n;
+    }
+    XMEMSET(out + o, 0, 4);
+    o += 4;
+    /* authAttrs, mac and unauthAttrs of an AuthEnvelopedData */
+    idx = ctStart + ctSz;
+    XMEMCPY(out + o, in + idx, envEnd - idx);
+    o += envEnd - idx;
+    XMEMSET(out + o, 0, 6);
+    o += 6;
+
+    *outSz = o;
+    return 0;
+}
+
+#ifdef ASN_BER_TO_DER
+/* Feed msg to a fresh decoder chunk bytes at a time, reporting in fed how
+ * much went in. With cbCtx the plaintext goes to the stream callback. */
+static int pkcs7_decodeFeed(const byte* msg, word32 msgSz, word32 chunk,
+        int auth, byte* out, word32 outSz, void* cbCtx, word32* fed)
+{
+    PKCS7* pkcs7;
+    word32 off = 0;
+    word32 n;
+    int    ret;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL) {
+        return MEMORY_E;
+    }
+    ret = wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048);
+    if (ret == 0) {
+        ret = wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+            sizeof_client_key_der_2048);
+    }
+#ifndef NO_PKCS7_STREAM
+    if (ret == 0 && cbCtx != NULL) {
+        ret = wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+            test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb, cbCtx);
+        out = NULL;
+        outSz = 0;
+    }
+#else
+    (void)cbCtx;
+#endif
+    if (ret == 0) {
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    }
+    while (off < msgSz && ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+        n = (msgSz - off < chunk) ? msgSz - off : chunk;
+        if (auth) {
+            ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, (byte*)msg + off, n,
+                out, outSz);
+        }
+        else {
+            ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, (byte*)msg + off, n,
+                out, outSz);
+        }
+        off += n;
+    }
+    wc_PKCS7_Free(pkcs7);
+    if (fed != NULL) {
+        *fed = off;
+    }
+    return ret;
+}
+
+static int pkcs7_decodeChunked(const byte* msg, word32 msgSz, word32 chunk,
+        int auth, byte* out, word32 outSz, void* cbCtx)
+{
+    return pkcs7_decodeFeed(msg, msgSz, chunk, auth, out, outSz, cbCtx, NULL);
+}
+
+#ifndef NO_PKCS7_STREAM
+/* stream output callback that refuses its second fragment */
+static int pkcs7_failingStreamOutCb(wc_PKCS7* pkcs7, const byte* output,
+    word32 outputSz, void* ctx)
+{
+    int* calls = (int*)ctx;
+
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    return (++(*calls) >= 2) ? -1 : 0;
+}
+#endif
+#endif /* ASN_BER_TO_DER */
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 */
+
+/* Indefinite-length EnvelopedData whose encryptedContent is split into several
+ * OCTET STRINGs, of sizes that need not be whole cipher blocks. */
+int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   ber[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    byte   data[200];
+    word32 fragSz[] = { 16, 7, 1, 33, 4096 };
+    int    envelopedSz = 0;
+    word32 berSz = 0;
+    size_t i;
+#if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
+    word32 chunkSz[] = { 1, 13 };
+    size_t j;
+    WOLFSSL_BUFFER_INFO cbOut;
+    int    cbCalls = 0;
+    word32 fed = 0;
+#endif
+
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    for (i = 0; i < sizeof(fragSz) / sizeof(fragSz[0]); i++) {
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, fragSz[i], 0), 0);
+    #ifndef ASN_BER_TO_DER
+        ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+            (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BER_INDEF_E));
+    #else
+        /* stale bytes in the caller's buffer must not pass for plaintext */
+        XMEMSET(decoded, 0xAA, sizeof(decoded));
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 0, decoded,
+            (word32)sizeof(decoded), NULL), (int)sizeof(data));
+        ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+        ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+            (word32)sizeof(data) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+
+    #ifndef NO_PKCS7_STREAM
+        for (j = 0; j < sizeof(chunkSz) / sizeof(chunkSz[0]); j++) {
+            XMEMSET(decoded, 0xAA, sizeof(decoded));
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 0,
+                decoded, (word32)sizeof(decoded), NULL), (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+            cbOut.buffer = decoded;
+            cbOut.length = 0;
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 0, NULL,
+                0, &cbOut), (int)sizeof(data));
+            ExpectIntEQ(cbOut.length, (word32)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+        }
+        /* first call ends right after the last fragment, before its EOC */
+        XMEMSET(decoded, 0xAA, sizeof(decoded));
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz - 10, 0, decoded,
+            (word32)sizeof(decoded), NULL), (int)sizeof(data));
+        ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+    #endif
+    #endif /* ASN_BER_TO_DER */
+    }
+
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* a callback that fails part way must fail the decode */
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 16, 0), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+        pkcs7_failingStreamOutCb, &cbCalls), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, berSz, NULL, 0),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(cbCalls, 2);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* too small an output stops the decode once the content outgrows it */
+    ExpectIntEQ(pkcs7_decodeFeed(ber, berSz, 13, 0, decoded, 16, NULL, &fed),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntLT(fed, berSz - 64);
+#endif
+
+#ifdef ASN_BER_TO_DER
+    /* a ciphertext that stops short of a whole block */
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 7, 1), 0);
+    ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+        (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_fragmented() */
+
+
+/* Messages written by openssl cms -encrypt -stream, see certs/renewcerts.sh */
+int test_wc_PKCS7_DecodeOpenSslStream(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_FILESYSTEM) && defined(ASN_BER_TO_DER)
+    static const struct {
+        const char* file;
+        int         auth;
+    } vectors[] = {
+        { "./certs/test-stream-dec-aes256.p7b", 0 },
+    };
+    XFILE  f = XBADFILE;
+    byte*  msg = NULL;
+    byte*  expect = NULL;
+    byte*  decoded = NULL;
+    word32 msgSz = 0;
+    word32 expectSz = 0;
+    word32 bufSz = 8192;
+    size_t i;
+
+    ExpectNotNull(msg = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(expect = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(decoded = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.pem", "rb")) != XBADFILE);
+    if (EXPECT_SUCCESS()) {
+        expectSz = (word32)XFREAD(expect, 1, bufSz, f);
+    }
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectIntGT(expectSz, 0);
+
+    for (i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++) {
+        msgSz = 0;
+        ExpectTrue((f = XFOPEN(vectors[i].file, "rb")) != XBADFILE);
+        if (EXPECT_SUCCESS()) {
+            msgSz = (word32)XFREAD(msg, 1, bufSz, f);
+        }
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        ExpectIntGT(msgSz, 0);
+        ExpectIntLT(msgSz, bufSz);
+
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(decoded, 0xAA, bufSz);
+        }
+        ExpectIntEQ(pkcs7_decodeChunked(msg, msgSz, msgSz, vectors[i].auth,
+            decoded, bufSz, NULL), (int)expectSz);
+        ExpectIntEQ(XMEMCMP(decoded, expect, expectSz), 0);
+    #ifndef NO_PKCS7_STREAM
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(decoded, 0xAA, bufSz);
+        }
+        ExpectIntEQ(pkcs7_decodeChunked(msg, msgSz, 100, vectors[i].auth,
+            decoded, bufSz, NULL), (int)expectSz);
+        ExpectIntEQ(XMEMCMP(decoded, expect, expectSz), 0);
+    #endif
+    }
+
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(expect, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decoded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeOpenSslStream() */
+
+
 /* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
  * is truncated must return BUFFER_E rather than reading past pkiMsg. */
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
