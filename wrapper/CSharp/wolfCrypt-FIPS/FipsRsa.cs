@@ -116,6 +116,13 @@ namespace wolfSSL.CSharp.Fips
 
         private readonly FipsRsaPublicKey publicKey;
 
+        /* Serializes every module call on this key: the module keeps a
+         * per-key working buffer (RsaKey.data) during private and public
+         * operations, and a concurrent call on the same key would find it in
+         * use (BAD_STATE_E) and free it under the other call. Taken before a
+         * FipsRng lease, never after. */
+        private readonly object sync = new object();
+
         /* Modulus sizes approved for key generation (FIPS 186-5,
          * SP 800-131A Rev. 2; cert #4718 Security Policy Table 7). */
         private static readonly int[] approvedKeySizes = { 2048, 3072, 4096 };
@@ -160,7 +167,8 @@ namespace wolfSSL.CSharp.Fips
         public void Check()
         {
             ThrowIfDisposed();
-            WolfCryptFipsException.Check("wc_CheckRsaKey_fips", Native.wc_CheckRsaKey_fips(Handle));
+            lock (sync)
+                WolfCryptFipsException.Check("wc_CheckRsaKey_fips", Native.wc_CheckRsaKey_fips(Handle));
         }
 
         /* Exports all key components. Requires the private key read gate
@@ -175,8 +183,9 @@ namespace wolfSSL.CSharp.Fips
             uint eSz = (uint)e.Length, nSz = (uint)n.Length, dSz = (uint)d.Length,
                  pSz = (uint)p.Length, qSz = (uint)q.Length;
             try {
-                WolfCryptFipsException.Check("wc_RsaExportKey_fips",
-                    Native.wc_RsaExportKey_fips(Handle, e, ref eSz, n, ref nSz, d, ref dSz, p, ref pSz, q, ref qSz));
+                lock (sync)
+                    WolfCryptFipsException.Check("wc_RsaExportKey_fips",
+                        Native.wc_RsaExportKey_fips(Handle, e, ref eSz, n, ref nSz, d, ref dSz, p, ref pSz, q, ref qSz));
                 return new FipsRsaKeyComponents(e.Take((int)eSz).ToArray(), n.Take((int)nSz).ToArray(),
                     PinnedCopy(d, dSz), PinnedCopy(p, pSz), PinnedCopy(q, qSz));
             }
@@ -222,9 +231,10 @@ namespace wolfSSL.CSharp.Fips
             byte[] sig = new byte[Size];
             ThrowIfDisposed();
             int ret;
-            using (rng.Use())
-                ret = Native.wc_RsaSSL_Sign_fips(digestInfo, (uint)digestInfo.Length, sig, (uint)sig.Length,
-                                                 Handle, rng.Handle);
+            lock (sync)
+                using (rng.Use())
+                    ret = Native.wc_RsaSSL_Sign_fips(digestInfo, (uint)digestInfo.Length, sig, (uint)sig.Length,
+                                                     Handle, rng.Handle);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaSSL_Sign_fips", ret);
             return sig.Take(ret).ToArray();
@@ -242,7 +252,9 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(signature));
             byte[] recovered = new byte[Size];
             ThrowIfDisposed();
-            int ret = Native.wc_RsaSSL_Verify_fips(signature, (uint)signature.Length, recovered,
+            int ret;
+            lock (sync)
+                ret = Native.wc_RsaSSL_Verify_fips(signature, (uint)signature.Length, recovered,
                                                    (uint)recovered.Length, Handle);
             if (ret < 0) {
                 VerifyFailure("wc_RsaSSL_Verify_fips", ret);   /* throws on module-state errors */
@@ -265,9 +277,10 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(rng));
             ThrowIfDisposed();
             int ret;
-            using (rng.Use())
-                ret = Native.wc_RsaPSS_SignEx_fips(digest, (uint)digest.Length, sig, (uint)sig.Length,
-                    (int)hash, Mgf(hash), saltLen, Handle, rng.Handle);
+            lock (sync)
+                using (rng.Use())
+                    ret = Native.wc_RsaPSS_SignEx_fips(digest, (uint)digest.Length, sig, (uint)sig.Length,
+                        (int)hash, Mgf(hash), saltLen, Handle, rng.Handle);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPSS_SignEx_fips", ret);
             return sig.Take(ret).ToArray();
@@ -281,8 +294,10 @@ namespace wolfSSL.CSharp.Fips
             CheckSaltLen(hash, saltLen);
             ThrowIfDisposed();
             byte[] decoded = new byte[Size];
-            int ret = Native.wc_RsaPSS_VerifyEx_fips((byte[])signature.Clone(), (uint)signature.Length,
-                decoded, (uint)decoded.Length, (int)hash, Mgf(hash), saltLen, Handle);
+            int ret;
+            lock (sync)
+                ret = Native.wc_RsaPSS_VerifyEx_fips((byte[])signature.Clone(), (uint)signature.Length,
+                    decoded, (uint)decoded.Length, (int)hash, Mgf(hash), saltLen, Handle);
             if (ret < 0)
                 return VerifyFailure("wc_RsaPSS_VerifyEx_fips", ret);
             ret = Native.wc_RsaPSS_CheckPaddingEx_fips(digest, (uint)digest.Length, decoded, (uint)ret,
@@ -312,10 +327,11 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             byte[] ct = new byte[Size];
             int ret;
-            using (rng.Use())
-                ret = Native.wc_RsaPublicEncryptEx_fips(plaintext, (uint)plaintext.Length, ct, (uint)ct.Length,
-                    Handle, rng.Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
-                    label, label == null ? 0u : (uint)label.Length);
+            lock (sync)
+                using (rng.Use())
+                    ret = Native.wc_RsaPublicEncryptEx_fips(plaintext, (uint)plaintext.Length, ct, (uint)ct.Length,
+                        Handle, rng.Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
+                        label, label == null ? 0u : (uint)label.Length);
             if (ret < 0)
                 throw new WolfCryptFipsException("wc_RsaPublicEncryptEx_fips", ret);
             return ct.Take(ret).ToArray();
@@ -328,9 +344,11 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(ciphertext));
             ThrowIfDisposed();
             byte[] pt = GC.AllocateArray<byte>(Size, pinned: true);
-            int ret = Native.wc_RsaPrivateDecryptEx_fips(ciphertext, (uint)ciphertext.Length, pt, (uint)pt.Length,
-                Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
-                label, label == null ? 0u : (uint)label.Length);
+            int ret;
+            lock (sync)
+                ret = Native.wc_RsaPrivateDecryptEx_fips(ciphertext, (uint)ciphertext.Length, pt, (uint)pt.Length,
+                    Handle, WC_RSA_OAEP_PAD, (int)oaepHash, Mgf(oaepHash),
+                    label, label == null ? 0u : (uint)label.Length);
             try {
                 if (ret < 0)
                     throw new WolfCryptFipsException("wc_RsaPrivateDecryptEx_fips", ret);

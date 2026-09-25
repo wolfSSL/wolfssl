@@ -286,6 +286,32 @@ namespace wolfSSL.CSharp.Fips.Test
              * the generation DRBG is freed (.NET encrypts), so a dangling
              * pointer could not land on a live DRBG, and the heap is churned
              * between operations. */
+            /* the module keeps a per-key working buffer; without the key lock
+             * concurrent calls on one key hit BAD_STATE_E or free each other's
+             * buffer */
+            T.Run("one RSA key used by several threads at once", () => {
+                byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 9 });
+                byte[] pss, v15, ct;
+                using (var r0 = new FipsRng()) {
+                    pss = key.SignPss(FipsHashType.Sha256, d, r0);
+                    v15 = Pkcs1.Sign(key, FipsHashType.Sha256, d, r0);
+                    ct = key.Encrypt(new byte[] { 1, 2, 3 }, r0);
+                }
+                int failures = 0;
+                System.Threading.Tasks.Parallel.For(0, 8, t => {
+                    using var r = new FipsRng();   /* separate DRBGs: only the key is shared */
+                    for (int i = 0; i < 25; i++) {
+                        bool ok = key.VerifyPss(FipsHashType.Sha256, d, pss)
+                               && Pkcs1.Verify(key, FipsHashType.Sha256, d, v15)
+                               && key.Decrypt(ct).SequenceEqual(new byte[] { 1, 2, 3 })
+                               && key.VerifyPss(FipsHashType.Sha256, d, key.SignPss(FipsHashType.Sha256, d, r));
+                        if (!ok)
+                            Interlocked.Increment(ref failures);
+                    }
+                });
+                T.Equal(0, failures, "failed operations");
+            });
+
             T.Run("OAEP decrypt needs no DRBG after the generation DRBG is freed", () => {
                 FipsRsaKey k2;
                 using (var genRng = new FipsRng())

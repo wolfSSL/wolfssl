@@ -51,7 +51,7 @@ namespace wolfSSL.CSharp.Fips
      *
      * Invocation limit (SP 800-38D 8.3): these IVs are RBG-based (8.2.2),
      * so at most 2^32 encryptions are allowed per key. The object refuses
-     * the 2^32nd; the module does not enforce it for 12-byte IVs. The limit
+     * encryption 2^32 + 1; the module does not enforce it for 12-byte IVs. The limit
      * is per key: encryptions under the same key in other FipsAesGcm
      * objects or FipsGmac.Compute calls count too, and staying within it
      * across objects is the application's responsibility.
@@ -400,18 +400,22 @@ namespace wolfSSL.CSharp.Fips
             if (plaintext == null)
                 throw new ArgumentNullException(nameof(plaintext));
             CheckTagSize(tagSize);
-            if (activeNonceSize == 0)
-                throw new InvalidOperationException("call SetNonce before Encrypt");
-            CheckPayloadLength(plaintext.Length, activeNonceSize);
-            ThrowIfDisposed();
             aad ??= Array.Empty<byte>();
             byte[] ct = new byte[plaintext.Length];
-            byte[] nonce = new byte[activeNonceSize];
             byte[] tag = new byte[tagSize];
-            lock (sync)   /* the module advances the nonce: one encryption at a time */
+            byte[] nonce;
+            /* the module advances the nonce: one encryption at a time, with
+             * the nonce state read under the same lock */
+            lock (sync) {
+                ThrowIfDisposed();
+                if (activeNonceSize == 0)
+                    throw new InvalidOperationException("call SetNonce before Encrypt");
+                CheckPayloadLength(plaintext.Length, activeNonceSize);
+                nonce = new byte[activeNonceSize];
                 WolfCryptFipsException.Check("wc_AesCcmEncrypt_fips",
                     Native.wc_AesCcmEncrypt_fips(Handle, ct, plaintext, (uint)plaintext.Length,
                         nonce, (uint)nonce.Length, tag, (uint)tag.Length, aad, (uint)aad.Length));
+            }
             return new FipsAeadResult(nonce, ct, tag);
         }
 
@@ -431,8 +435,10 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             aad ??= Array.Empty<byte>();
             byte[] pt = new byte[ciphertext.Length];
-            int ret = Native.wc_AesCcmDecrypt_fips(Handle, pt, ciphertext, (uint)ciphertext.Length,
-                nonce, (uint)nonce.Length, tag, (uint)tag.Length, aad, (uint)aad.Length);
+            int ret;
+            lock (sync)   /* same native context as encryption: calls are serialized */
+                ret = Native.wc_AesCcmDecrypt_fips(Handle, pt, ciphertext, (uint)ciphertext.Length,
+                    nonce, (uint)nonce.Length, tag, (uint)tag.Length, aad, (uint)aad.Length);
             if (ret != 0) {
                 CryptographicOperations.ZeroMemory(pt);
                 throw new WolfCryptFipsException("wc_AesCcmDecrypt_fips", ret);

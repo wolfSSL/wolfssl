@@ -35,7 +35,7 @@ wrapper binds every entry point by its `_fips` name
 | `FipsHash.cs`, `FipsHmac.cs`, `FipsCmac.cs` | SHA-1/2/3, HMAC, CMAC-AES |
 | `FipsAes.cs`, `FipsAesGcm.cs` | AES ECB/CBC/CTR/OFB, GCM, GMAC, CCM |
 | `FipsRsa.cs` | RSA key generation, PKCS#1 v1.5 and PSS signatures, RSA primitives with OAEP padding |
-| `FipsEcc.cs`, `FipsDh.cs`, `FfdheGroups.cs` | ECDSA, ECC CDH, finite field DH (RFC 7919 ffdhe2048) |
+| `FipsEcc.cs`, `FipsDh.cs` | ECDSA, ECC CDH, finite field DH (RFC 7919 ffdhe2048) |
 | `FipsKdf.cs` | TLS 1.2 KDF (EMS), TLS 1.3 KDF, SSH KDF |
 | `native/fips_sizes.c` | Structure size helper (see below) |
 | `tools/fips-bind-audit.sh` | Binding audit |
@@ -62,9 +62,10 @@ held in native memory. An object that is not disposed is zeroized only when
 its finalizer runs, at a time the GC chooses, and .NET does not run
 finalizers at process exit.
 
-`FipsRng`, `FipsAes`, `FipsAesGcm` and `FipsAesCcm` serialize calls on one
-object, so a DRBG or cipher stream cannot be used by two threads at once
-(which would repeat output or keystream). Other objects are not thread-safe;
+`FipsRng`, `FipsAes`, `FipsAesGcm`, `FipsAesCcm` and `FipsRsaKey` serialize
+calls on one object, so a DRBG or cipher stream cannot be used by two threads
+at once (which would repeat output or keystream), and two RSA operations never
+share the module's per-key working buffer. Other objects are not thread-safe;
 use one per thread or lock. A generated
 `FipsEccKey` owns a private DRBG (bound to the native key for signing and CDH
 blinding), so the `FipsRng` passed to `Generate` may be disposed afterwards.
@@ -132,6 +133,12 @@ FipsModule.Initialize(onFailure: (ok, err, hash) =>
 in-core integrity check in the library constructor), registers the failure
 callback, registers the DRBG seed source, and throws unless the module is in
 `FipsMode.Normal`. Call it once at startup, before any other use.
+
+The wrapper requires a library built with `WC_RNG_SEED_CB` (the default for
+`--enable-fips=v5`; not set with `--enable-kcapi-ecc` or in `user_settings.h`
+builds that omit it): `wc_SetSeed_Cb_fips` exists only then, and `Initialize`,
+`UseOsSeed` and `SetSeedCallback` fail with `EntryPointNotFoundException`
+without it.
 
 The module has no entropy source of its own. In `WC_RNG_SEED_CB` builds,
 nothing that needs the DRBG works until a seed source is registered,
