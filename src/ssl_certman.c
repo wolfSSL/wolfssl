@@ -852,9 +852,22 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
+    if (cm->crlEnabled && ((ret == 0) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
+        /* A caller may waive the date error, so only a revocation, never an
+         * inconclusive CRL result, may replace it. */
+        int crlRet;
+
+        crlRet = CheckCertCRL(cm->crl, cert);
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+        /* A synchronous caller cannot retry a fetch that would block. */
+        if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+            crlRet = CRL_MISSING;
+    #endif
+        if ((ret == 0) || (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))) {
+            ret = crlRet;
+        }
     }
 #endif
 
@@ -1983,12 +1996,30 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
-            if (ret != 0) {
+            if ((ret != 0) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
                 WOLFSSL_MSG("ParseCert failed");
             }
-            /* Do CRL checks with decoded certificate. */
-            else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
-                WOLFSSL_MSG("CheckCertCRL failed");
+            else {
+                /* A date error is returned only after the parse completed,
+                 * so still answer the revocation question that was asked. */
+                int crlRet;
+
+                crlRet = CheckCertCRL(cm->crl, cert);
+            #ifdef WOLFSSL_NONBLOCK_OCSP
+                if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+                    crlRet = CRL_MISSING;
+            #endif
+                if (crlRet != 0) {
+                    WOLFSSL_MSG("CheckCertCRL failed");
+                }
+                /* A caller may waive the date error, so only a revocation,
+                 * never an inconclusive CRL result, may replace it. */
+                if ((ret == 0) ||
+                        (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))) {
+                    ret = crlRet;
+                }
             }
 
             /* Dispose of dynamically allocated memory. */

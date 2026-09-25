@@ -659,7 +659,12 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         }
     }
 #endif
-    if (foundEntry == 0) {
+    /* A fetch that would block is retried, not a CRL found missing. */
+    if (foundEntry == 0
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+            && ret != WC_NO_ERR_TRACE(OCSP_WANT_READ)
+    #endif
+            ) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         if (ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)) {
             ret = CRL_MISSING;
