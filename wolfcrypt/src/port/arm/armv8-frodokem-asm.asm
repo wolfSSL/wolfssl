@@ -236,7 +236,7 @@ L_frodokem_sha3_x2_neon_begin
 	mov	V30.D[0], x3
 	mov	V30.D[1], x3
 	eor	V0.16B, V0.16B, V30.16B
-	bne	L_frodokem_sha3_x2_neon_begin
+	b.ne	L_frodokem_sha3_x2_neon_begin
 	st4	{V0.D, V1.D, V2.D, V3.D}[0], [x0], #32
 	st4	{V4.D, V5.D, V6.D, V7.D}[0], [x0], #32
 	st4	{V8.D, V9.D, V10.D, V11.D}[0], [x0], #32
@@ -374,7 +374,7 @@ L_frodokem_sha3_x2_crypto_begin
 	mov	V30.D[0], x3
 	mov	V30.D[1], x3
 	eor	V0.16B, V0.16B, V30.16B
-	bne	L_frodokem_sha3_x2_crypto_begin
+	b.ne	L_frodokem_sha3_x2_crypto_begin
 	st4	{V0.D, V1.D, V2.D, V3.D}[0], [x0], #32
 	st4	{V4.D, V5.D, V6.D, V7.D}[0], [x0], #32
 	st4	{V8.D, V9.D, V10.D, V11.D}[0], [x0], #32
@@ -450,7 +450,7 @@ frodokem_sample_neon PROC
 	stp	D10, D11, [x29, #32]
 	stp	D12, D13, [x29, #48]
 	cmp	w1, #16
-	blt	L_frodokem_sample_neon_rem
+	b.lt	L_frodokem_sample_neon_rem
 L_frodokem_sample_neon_blk16
 	ld1	{V0.8H}, [x0], #16
 	ld1	{V1.8H}, [x0], #16
@@ -474,7 +474,7 @@ L_frodokem_sample_neon_cdf16
 	ushr	V11.8H, V11.8H, #15
 	add	V7.8H, V7.8H, V11.8H
 	subs	w5, w5, #1
-	bne	L_frodokem_sample_neon_cdf16
+	b.ne	L_frodokem_sample_neon_cdf16
 	neg	V8.8H, V4.8H
 	eor	V6.16B, V6.16B, V8.16B
 	add	V6.8H, V6.8H, V4.8H
@@ -485,10 +485,10 @@ L_frodokem_sample_neon_cdf16
 	st1	{V7.8H}, [x0], #16
 	subs	w1, w1, #16
 	cmp	w1, #16
-	bge	L_frodokem_sample_neon_blk16
+	b.ge	L_frodokem_sample_neon_blk16
 L_frodokem_sample_neon_rem
 	cmp	w1, #0
-	beq	L_frodokem_sample_neon_done
+	b.eq	L_frodokem_sample_neon_done
 L_frodokem_sample_neon_blk
 	ld1	{V0.8H}, [x0]
 	ushr	V2.8H, V0.8H, #1
@@ -503,13 +503,13 @@ L_frodokem_sample_neon_cdf
 	ushr	V12.8H, V12.8H, #15
 	add	V6.8H, V6.8H, V12.8H
 	subs	w5, w5, #1
-	bne	L_frodokem_sample_neon_cdf
+	b.ne	L_frodokem_sample_neon_cdf
 	neg	V8.8H, V4.8H
 	eor	V6.16B, V6.16B, V8.16B
 	add	V6.8H, V6.8H, V4.8H
 	st1	{V6.8H}, [x0], #16
 	subs	w1, w1, #8
-	bne	L_frodokem_sample_neon_blk
+	b.ne	L_frodokem_sample_neon_blk
 L_frodokem_sample_neon_done
 	ldp	D8, D9, [x29, #16]
 	ldp	D10, D11, [x29, #32]
@@ -583,10 +583,10 @@ L_frodokem_sa_accum_neon_k
 	mla	V13.8H, V9.8H, V7.8H
 	st1	{V13.8H}, [x17], #16
 	subs	x11, x11, #1
-	bne	L_frodokem_sa_accum_neon_k
+	b.ne	L_frodokem_sa_accum_neon_k
 	add	x8, x8, x6
 	subs	x12, x12, #1
-	bne	L_frodokem_sa_accum_neon_t
+	b.ne	L_frodokem_sa_accum_neon_t
 	ldr	x17, [x29, #24]
 	ldp	D8, D9, [x29, #32]
 	ldp	D10, D11, [x29, #48]
@@ -690,10 +690,10 @@ L_frodokem_sa_accum_x4_neon_k
 	mla	V23.8H, V19.8H, V15.8H
 	st1	{V23.8H}, [x20], #16
 	subs	x13, x13, #1
-	bne	L_frodokem_sa_accum_x4_neon_k
+	b.ne	L_frodokem_sa_accum_x4_neon_k
 	add	x8, x8, x6
 	subs	x14, x14, #1
-	bne	L_frodokem_sa_accum_x4_neon_t
+	b.ne	L_frodokem_sa_accum_x4_neon_t
 	ldp	x17, x19, [x29, #24]
 	ldr	x20, [x29, #40]
 	ldp	D8, D9, [x29, #48]
@@ -755,7 +755,7 @@ L_frodokem_as_accum_neon_k0
 	mla	V3.8H, V8.8H, V10.8H
 	mla	V7.8H, V9.8H, V10.8H
 	subs	x14, x14, #1
-	bne	L_frodokem_as_accum_neon_k0
+	b.ne	L_frodokem_as_accum_neon_k0
 	addv	H13, V0.8H
 	ins	V11.H[0], V13.H[0]
 	addv	H13, V4.8H
@@ -804,7 +804,7 @@ L_frodokem_as_accum_neon_k1
 	mla	V3.8H, V8.8H, V10.8H
 	mla	V7.8H, V9.8H, V10.8H
 	subs	x14, x14, #1
-	bne	L_frodokem_as_accum_neon_k1
+	b.ne	L_frodokem_as_accum_neon_k1
 	addv	H13, V0.8H
 	ins	V11.H[4], V13.H[0]
 	addv	H13, V4.8H
@@ -916,7 +916,7 @@ L_frodokem_as_accum_x4_neon_k0
 	mla	V11.8H, V18.8H, V20.8H
 	mla	V15.8H, V19.8H, V20.8H
 	subs	x21, x21, #1
-	bne	L_frodokem_as_accum_x4_neon_k0
+	b.ne	L_frodokem_as_accum_x4_neon_k0
 	addv	H25, V0.8H
 	ins	V21.H[0], V25.H[0]
 	addv	H25, V4.8H
@@ -1001,7 +1001,7 @@ L_frodokem_as_accum_x4_neon_k1
 	mla	V11.8H, V18.8H, V20.8H
 	mla	V15.8H, V19.8H, V20.8H
 	subs	x21, x21, #1
-	bne	L_frodokem_as_accum_x4_neon_k1
+	b.ne	L_frodokem_as_accum_x4_neon_k1
 	addv	H25, V0.8H
 	ins	V21.H[4], V25.H[0]
 	addv	H25, V4.8H
@@ -1141,7 +1141,7 @@ L_frodokem_mul_bs_neon_k0
 	mla	V11.8H, V18.8H, V20.8H
 	mla	V15.8H, V19.8H, V20.8H
 	subs	x22, x22, #1
-	bne	L_frodokem_mul_bs_neon_k0
+	b.ne	L_frodokem_mul_bs_neon_k0
 	addv	H25, V0.8H
 	ins	V21.H[0], V25.H[0]
 	addv	H25, V4.8H
@@ -1226,7 +1226,7 @@ L_frodokem_mul_bs_neon_k1
 	mla	V11.8H, V18.8H, V20.8H
 	mla	V15.8H, V19.8H, V20.8H
 	subs	x22, x22, #1
-	bne	L_frodokem_mul_bs_neon_k1
+	b.ne	L_frodokem_mul_bs_neon_k1
 	addv	H25, V0.8H
 	ins	V21.H[4], V25.H[0]
 	addv	H25, V4.8H
@@ -1274,7 +1274,7 @@ L_frodokem_mul_bs_neon_k1
 	add	x9, x9, #0x40
 	add	x10, x10, #0x40
 	subs	x23, x23, #1
-	bne	L_frodokem_mul_bs_neon_p
+	b.ne	L_frodokem_mul_bs_neon_p
 	ldp	x17, x19, [x29, #16]
 	ldp	x20, x21, [x29, #32]
 	ldp	x22, x23, [x29, #48]
@@ -1331,7 +1331,7 @@ L_frodokem_mul_add_sb_plus_e_neon_j
 	ld1r	{V9.8H}, [x13], #2
 	mla	V7.8H, V8.8H, V9.8H
 	subs	x15, x15, #1
-	bne	L_frodokem_mul_add_sb_plus_e_neon_j
+	b.ne	L_frodokem_mul_add_sb_plus_e_neon_j
 	and	V0.16B, V0.16B, V10.16B
 	and	V1.16B, V1.16B, V10.16B
 	and	V2.16B, V2.16B, V10.16B
@@ -1380,13 +1380,13 @@ L_frodokem_gen_a_rows_aes_arm64_blk
 	stp	x12, xzr, [x9], #16
 	add	x11, x12, x14
 	cmp	x9, x10
-	blt	L_frodokem_gen_a_rows_aes_arm64_blk
+	b.lt	L_frodokem_gen_a_rows_aes_arm64_blk
 	add	x13, x13, #1
 	add	x10, x0, x8
 	cmp	x9, x10
-	blt	L_frodokem_gen_a_rows_aes_arm64_row
+	b.lt	L_frodokem_gen_a_rows_aes_arm64_row
 	cmp	x8, #0x80
-	blt	L_frodokem_gen_a_rows_aes_arm64_tail
+	b.lt	L_frodokem_gen_a_rows_aes_arm64_tail
 L_frodokem_gen_a_rows_aes_arm64_aes
 	ld1	{V11.16B, V12.16B, V13.16B, V14.16B}, [x0], #0x40
 	ld1	{V15.16B, V16.16B, V17.16B, V18.16B}, [x0], #0x40
@@ -1562,10 +1562,10 @@ L_frodokem_gen_a_rows_aes_arm64_aes
 	st1	{V15.16B, V16.16B, V17.16B, V18.16B}, [x1], #0x40
 	subs	x8, x8, #0x80
 	cmp	x8, #0x80
-	bge	L_frodokem_gen_a_rows_aes_arm64_aes
+	b.ge	L_frodokem_gen_a_rows_aes_arm64_aes
 L_frodokem_gen_a_rows_aes_arm64_tail
 	cmp	x8, #0
-	beq	L_frodokem_gen_a_rows_aes_arm64_done
+	b.eq	L_frodokem_gen_a_rows_aes_arm64_done
 	ld1	{V11.16B, V12.16B, V13.16B, V14.16B}, [x0], #0x40
 	aese	V11.16B, V0.16B
 	aesmc	V11.16B, V11.16B
