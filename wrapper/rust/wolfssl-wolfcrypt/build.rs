@@ -631,8 +631,8 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitSha256", "sha256");
     check_cfg(&binding, "wc_InitSha384", "sha384");
     check_cfg(&binding, "wc_InitSha512", "sha512");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
+    check_cfg(&binding, "wc_InitSha512_224", "sha512_224");
+    check_cfg(&binding, "wc_InitSha512_256", "sha512_256");
     check_cfg(&binding, "wc_InitSha3_224", "sha3_224");
     check_cfg(&binding, "wc_InitSha3_256", "sha3_256");
     check_cfg(&binding, "wc_InitSha3_384", "sha3_384");
