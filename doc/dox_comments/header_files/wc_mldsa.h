@@ -261,6 +261,29 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 /*!
     \ingroup ML_DSA
 
+    \brief Derives public key for a wc_MlDsaKey with private key set.
+    No-op if already set.
+
+    Software only; fails if devId is set and public key is unset.
+
+    \return 0 on success or already set.
+    \return BAD_FUNC_ARG if invalid args, or the public key is not yet set
+    and key has a devId set.
+    \return MEMORY_E on allocation failure.
+    \return PUBLIC_KEY_E if the derived public key does not match the t0 or
+    tr values stored in the private key.
+    \return Other negative on error.
+
+    \param [in,out] key Pointer to wc_MlDsaKey.
+
+    \sa wc_MlDsaKey_ImportPrivRaw
+    \sa wc_MlDsaKey_MakeKey
+*/
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+
+/*!
+    \ingroup ML_DSA
+
     \brief Signs a message with ML-DSA using the FIPS 204
     randomized-with-context signing API. Pass ctx=NULL and ctxLen=0
     for an empty context.
@@ -454,6 +477,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL or ctxLen is
     invalid.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.
@@ -481,6 +505,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
     invalid, or hashAlg is unsupported.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.
@@ -509,6 +534,7 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL or muLen is
     not 64.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.
@@ -817,7 +843,8 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     size of out; on success it is updated to the bytes written.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_FUNC_ARG if any required pointer is NULL, or the public
+    key is not set.
     \return BUFFER_E if *outLen is smaller than the public key size.
 
     \param [in] key Pointer to a wc_MlDsaKey with a public key.
@@ -825,6 +852,7 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     \param [in,out] outLen In: size of out. Out: bytes written.
 
     \sa wc_MlDsaKey_ImportPubRaw
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
 
@@ -878,6 +906,9 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     Only available when WOLFSSL_MLDSA_NO_ASN1 is not defined.
 
+    A private-only encoding leaves the public key unset; derive it with
+    wc_MlDsaKey_MakePublicKey() before exporting.
+
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E on malformed encoding.
@@ -890,6 +921,7 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     \sa wc_MlDsaKey_PrivateKeyToDer
     \sa wc_MlDsaKey_PublicKeyDecode
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx);
@@ -928,8 +960,8 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
     Pass NULL as output to query the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return BAD_FUNC_ARG if key is NULL or no parameter set is
-    selected.
+    \return BAD_FUNC_ARG if key is NULL, no parameter set is selected,
+    or the public key is not set.
     \return BUFFER_E if output is non-NULL and inLen is smaller than
     the required size.
 
@@ -942,6 +974,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
 
     \sa wc_MlDsaKey_PublicKeyDecode
     \sa wc_MlDsaKey_KeyToDer
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     word32 inLen, int withAlg);
@@ -954,9 +987,8 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return BAD_FUNC_ARG if key is NULL or no parameter set is
-    selected.
-    \return MISSING_KEY if the private key has not been set.
+    \return BAD_FUNC_ARG if key is NULL, no parameter set is selected,
+    the private key has not been set, or the public key is not set.
     \return BUFFER_E if output is non-NULL and inLen is too small.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
@@ -967,6 +999,7 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     \sa wc_MlDsaKey_PrivateKeyDecode
     \sa wc_MlDsaKey_PrivateKeyToDer
     \sa wc_MlDsaKey_PublicKeyToDer
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 
