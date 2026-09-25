@@ -318,11 +318,16 @@ impl<H: Hash, const N: usize> EncryptingKey<H, N> {
 ///
 /// `H` selects the OAEP hash; `N` is the expected modulus size in bytes
 /// (e.g. `256` for RSA-2048, `384` for RSA-3072).
+///
+/// Not available when wolfSSL is built with WOLFSSL_RSA_PUBLIC_ONLY, which
+/// removes the RSA private key operations.
+#[cfg(rsa_private)]
 pub struct DecryptingKey<H: Hash, const N: usize> {
     inner: RSA,
     _hash: PhantomData<H>,
 }
 
+#[cfg(rsa_private)]
 impl<H: Hash, const N: usize> DecryptingKey<H, N> {
     /// Generate a fresh `N * 8`-bit RSA key with public exponent 65537. The
     /// `rng` is consumed and bound to the key for blinding during decryption.
