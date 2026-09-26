@@ -3568,7 +3568,25 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP)
+    /* The XMEMCPY(dst, src, sizeof(wc_Sha256)) above copies src->msg as a
+     * raw pointer value, aliasing dst->msg to the same heap block. For any
+     * backend that buffers the whole message in sha256->msg (see the
+     * matching condition in wc_Sha256Free() above), that block later gets
+     * freed once via src's own Final()/Free() call and a second time via
+     * dst's -- a double free that silently corrupts the heap a little more
+     * on every wc_Sha256Copy()+wc_Sha256Free(dst) pair, instead of crashing
+     * outright. Give dst its own independent copy so the two objects don't
+     * share ownership of the same allocation. */
+#if defined(WOLFSSL_HASH_KEEP) || \
+    (defined(WOLFSSL_AFALG_HASH) && defined(WOLFSSL_AFALG_HASH_KEEP)) || \
+    (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP)) || \
+    ((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
+    ((defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))) && \
+    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) || \
+    defined(WOLFSSL_RENESAS_RX64_HASH)
     if (src->msg != NULL) {
         dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (dst->msg == NULL)

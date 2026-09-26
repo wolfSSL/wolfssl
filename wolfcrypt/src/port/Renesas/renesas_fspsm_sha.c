@@ -209,6 +209,12 @@ static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
         return BAD_FUNC_ARG;
     }
 
+    /* If dst already holds its own msg buffer (e.g. it was Update()'d
+     * before being used as a Copy() destination), the XMEMCPY below
+     * overwrites that pointer with src's, leaking the old allocation.
+     * Free it first. */
+    FSPSM_HashFree(dst);
+
     XMEMCPY(dst, src, sizeof(wolfssl_FSPSM_Hash));
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \

@@ -28,11 +28,14 @@
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
 defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
  #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+ /* Always declared: used unconditionally by the CRYPT_TEST/BENCHMARK
+  * branches of sce_test() below, which are independent of whether the
+  * TLS_CLIENT branch's multithread demo is also toggled on. */
+ FSPSM_ST guser_PKCbInfo;
 #if defined(TLS_MULTITHREAD_TEST)
+ /* Only used by the TLS_CLIENT branch's per-task connections. */
  FSPSM_ST guser_PKCbInfo_taskA;
  FSPSM_ST guser_PKCbInfo_taskB;
-#else
- FSPSM_ST guser_PKCbInfo;
 #endif
 #endif
 
@@ -101,6 +104,49 @@ typedef struct func_args {
 
 void wolfcrypt_test(func_args args);
 int  benchmark_test(void *args);
+
+#if defined(CRYPT_TEST) || defined(TLS_CLIENT)
+#define BUILD_YEAR  ( \
+    ((__DATE__)[7]  - '0') * 1000 + \
+    ((__DATE__)[8]  - '0') * 100  + \
+    ((__DATE__)[9]  - '0') * 10   + \
+    ((__DATE__)[10] - '0') * 1      \
+)
+#define BUILD_MONTH ( \
+    __DATE__[2] == 'n' ? (__DATE__[1] == 'a' ? 1 : 6) \
+  : __DATE__[2] == 'b' ? 2 \
+  : __DATE__[2] == 'r' ? (__DATE__[0] == 'M' ? 3 : 4) \
+  : __DATE__[2] == 'y' ? 5 \
+  : __DATE__[2] == 'l' ? 7 \
+  : __DATE__[2] == 'g' ? 8 \
+  : __DATE__[2] == 'p' ? 9 \
+  : __DATE__[2] == 't' ? 10 \
+  : __DATE__[2] == 'v' ? 11 \
+  : 12 \
+)
+#define BUILD_HOUR ( \
+    ((__TIME__)[0] - '0') * 10 + ((__TIME__)[1] - '0') \
+)
+#define BUILD_MIN ( \
+    ((__TIME__)[3] - '0') * 10 + ((__TIME__)[4] - '0') \
+)
+#define BUILD_SEC ( \
+    ((__TIME__)[6] - '0') * 10 + ((__TIME__)[7] - '0') \
+)
+
+static time_t build_time_cb(time_t* t)
+{
+    static time_t tick = 0;
+    time_t buildTime = (time_t)(((BUILD_YEAR - 1970) * 365 + 30 * BUILD_MONTH) *
+        24 * 60 * 60 + BUILD_HOUR * 60 * 60 + BUILD_MIN * 60 + BUILD_SEC);
+    /* tick advances each call so time isn't frozen at one instant */
+    time_t now = buildTime + tick++;
+    if (t != NULL) {
+        *t = now;
+    }
+    return now;
+}
+#endif /* defined(CRYPT_TEST) || defined(TLS_CLIENT) */
 
 #ifdef TLS_MULTITHREAD_TEST
 static void my_Logging_cb(const int logLevel, const char *const logMessage)
@@ -215,6 +261,8 @@ void sce_test(void)
 
 
 
+    wc_SetTimeCb(build_time_cb);
+
     printf("Start wolfCrypt Test\n");
     wolfcrypt_test(args);
     printf("End wolfCrypt Test\n");
@@ -323,6 +371,9 @@ void sce_test(void)
     #endif
     int i = 0;
     int ret = 0;
+    (void)ret;
+
+    wc_SetTimeCb(build_time_cb);
 
     printf("\n Start Client Example, ");
     printf("\n Connecting to %s\n\n", SERVER_IP);
@@ -352,7 +403,7 @@ void sce_test(void)
 
             printf(" %s connecting to %d port\n", info[j].name, info[j].port);
 
-            xReturned = xTaskCreate(wolfSSL_TLS_client_do, info[j].name,
+            xReturned = xTaskCreate((void (*)(void *))wolfSSL_TLS_client_do, info[j].name,
                                     THREAD_STACK_SIZE, &info[j], 2, NULL);
             if (xReturned != pdPASS) {
                  printf("Failed to create task\n");
