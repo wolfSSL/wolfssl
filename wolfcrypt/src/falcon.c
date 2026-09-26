@@ -565,6 +565,11 @@ static int falcon_sampler_z(void* ctx, fpr mu, fpr isigma);
 static int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g,
         sword8* F, sword8* G, word16* h, unsigned logn);
 
+/* h = g/f mod q. Returns 1, or 0 when f is not invertible mod q. tmp holds
+ * 2n word16. */
+static int falcon_compute_public(word16* h, const sword8* f,
+        const sword8* g, unsigned logn, word16* tmp);
+
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif
@@ -4692,159 +4697,6 @@ static word64 get_rng_u64(falcon_rng* r)
 }
 
 /* ==================================================================== */
-/* Self-contained mod-q (q = 12289) negacyclic NTT used only to compute */
-/* the public key h = g/f mod q. (modp_* targets 31-bit primes, so a    */
-/* dedicated small-modulus transform is used for q here.)               */
-
-static word32 mq_modpow(word32 b, word32 e)
-{
-    word64 r = 1, bb = b % FALCON_Q;
-    while (e != 0) {
-        if ((e & 1) != 0) {
-            r = (r * bb) % FALCON_Q;
-        }
-        bb = (bb * bb) % FALCON_Q;
-        e >>= 1;
-    }
-    return (word32)r;
-}
-
-static word32 mq_modinv(word32 a)
-{
-    return mq_modpow(a, FALCON_Q - 2);
-}
-
-static unsigned int mq_brv(unsigned int x, int bits)
-{
-    unsigned int r = 0;
-    int i;
-    for (i = 0; i < bits; i++) {
-        r = (r << 1) | (x & 1);
-        x >>= 1;
-    }
-    return r;
-}
-
-static void mq_build_tables(int logn, word32 psi, word16* zetas,
-        word16* izetas)
-{
-    int n = 1 << logn;
-    word32 ipsi = mq_modinv(psi);
-    int i;
-    for (i = 0; i < n; i++) {
-        unsigned int e = mq_brv((unsigned int)i, logn);
-        zetas[i]  = (word16)mq_modpow(psi,  e);
-        izetas[i] = (word16)mq_modpow(ipsi, e);
-    }
-}
-
-/* Forward negacyclic NTT, Cooley-Tukey: natural -> bit-reversed order. */
-static void mq_ntt(word16* a, int n, const word16* zetas)
-{
-    int t = n, m, i, j;
-    for (m = 1; m < n; m <<= 1) {
-        t >>= 1;
-        for (i = 0; i < m; i++) {
-            word32 z = zetas[m + i];
-            int start = 2 * i * t;
-            for (j = start; j < start + t; j++) {
-                word32 u = a[j];
-                word32 v = (word32)(((word64)a[j + t] * z) % FALCON_Q);
-                a[j]     = (word16)((u + v) % FALCON_Q);
-                a[j + t] = (word16)((u + FALCON_Q - v) % FALCON_Q);
-            }
-        }
-    }
-}
-
-/* Inverse negacyclic NTT, Gentleman-Sande: bit-reversed -> natural order. */
-static void mq_intt(word16* a, int n, const word16* izetas)
-{
-    int t = 1, m, i, j;
-    word32 ninv;
-    for (m = n; m > 1; m >>= 1) {
-        int h = m >> 1;
-        int j1 = 0;
-        for (i = 0; i < h; i++) {
-            word32 z = izetas[h + i];
-            int start = j1;
-            for (j = start; j < start + t; j++) {
-                word32 u = a[j];
-                word32 v = a[j + t];
-                a[j]     = (word16)((u + v) % FALCON_Q);
-                a[j + t] = (word16)(((word64)((u + FALCON_Q - v) % FALCON_Q)
-                                * z) % FALCON_Q);
-            }
-            j1 += 2 * t;
-        }
-        t <<= 1;
-    }
-    ninv = mq_modinv((word32)n);
-    for (j = 0; j < n; j++) {
-        a[j] = (word16)(((word64)a[j] * ninv) % FALCON_Q);
-    }
-}
-
-/*
- * Compute the public key h = g/f mod (X^n+1) mod q. Returns 1 on success, or
- * 0 if f is not invertible modulo q (i.e. some NTT coefficient of f is zero),
- * in which case the (f,g) pair is rejected. -1 is returned on allocation
- * failure.
- */
-static int falcon_compute_public(word16* h, const sword8* f, const sword8* g,
-        unsigned logn, void* heap)
-{
-    int n = 1 << logn;
-    int u;
-    word32 psi;
-    word16* zetas;
-    word16* izetas;
-    word16* ff;
-
-    zetas = (word16*)XMALLOC((size_t)3 * (size_t)n * sizeof(word16), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (zetas == NULL) {
-        return -1;
-    }
-    izetas = zetas + n;
-    ff = izetas + n;
-
-    psi = mq_modpow(11 /* generator of Z_q^* */,
-            (FALCON_Q - 1) / (word32)(2 * n));
-    mq_build_tables((int)logn, psi, zetas, izetas);
-
-    for (u = 0; u < n; u++) {
-        int xf = (int)f[u], xg = (int)g[u];
-        if (xf < 0) {
-            xf += FALCON_Q;
-        }
-        if (xg < 0) {
-            xg += FALCON_Q;
-        }
-        ff[u] = (word16)xf;
-        h[u]  = (word16)xg;
-    }
-    mq_ntt(ff, n, zetas);
-    mq_ntt(h, n, zetas);
-    for (u = 0; u < n; u++) {
-        if (ff[u] == 0) {
-            /* The tail of the buffer (ff) holds NTT(f) -- secret material. */
-            wc_ForceZero(zetas, (word32)((size_t)3 * (size_t)n
-                    * sizeof(word16)));
-            XFREE(zetas, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return 0;
-        }
-        h[u] = (word16)(((word64)h[u] * mq_modinv(ff[u])) % FALCON_Q);
-    }
-    mq_intt(h, n, izetas);
-
-    /* The tail of the buffer (ff) holds NTT(f) -- secret material. */
-    wc_ForceZero(zetas, (word32)((size_t)3 * (size_t)n * sizeof(word16)));
-    XFREE(zetas, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return 1;
-}
-
-/* ==================================================================== */
 /* Polynomial <-> floating-point conversions (port of keygen.c).         */
 
 /*
@@ -6287,7 +6139,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     falcon_rng* rc;          /* ~570B of SHAKE state; kept off the stack */
     byte* alloc = NULL;      /* base of the tmpbuf allocation */
     byte* tmpbuf = NULL;
-    word16* hwork = NULL;
+    word16* hwork;
     void* heap = NULL;
     size_t tmpSz, rcSz;
     int ret;
@@ -6311,26 +6163,11 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     }
     rc = (falcon_rng*)alloc;
     tmpbuf = alloc + rcSz;
-
-    /* We always need h to test invertibility; allocate scratch if caller
-     * did not supply one. */
-    if (h == NULL) {
-        hwork = (word16*)XMALLOC(n * sizeof(word16), heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-        if (hwork == NULL) {
-            XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-    }
-    else {
-        hwork = h;
-    }
+    /* The invertibility test runs before solve_NTRU needs tmpbuf. */
+    hwork = (word16*)tmpbuf;
 
     ret = falcon_rng_init(rc, rng, heap);
     if (ret != 0) {
-        if (h == NULL) {
-            XFREE(hwork, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
         /* rc sits at the front of the allocation and its sponge may already
          * have absorbed the seed even though the init failed, so wipe before
          * the block goes back to the allocator. */
@@ -6409,13 +6246,12 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         }
 
         /* Public key h = g/f mod q; restart if f not invertible. */
-        cp = falcon_compute_public(hwork, f, g, logn, heap);
-        if (cp < 0) {
-            ret = MEMORY_E;
-            goto out;
-        }
+        cp = falcon_compute_public(hwork, f, g, logn, hwork + n);
         if (cp == 0) {
             continue;
+        }
+        if (h != NULL) {
+            XMEMCPY(h, hwork, n * sizeof(word16));
         }
 
         /* Solve the NTRU equation to get F,G. */
@@ -6432,14 +6268,6 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
 
 out:
     falcon_rng_free(rc);
-    if (h == NULL) {
-        /* hwork holds the public key h by now (g was overwritten in place);
-         * zeroized anyway for consistency with the tmpbuf hardening. */
-        if (hwork != NULL) {
-            wc_ForceZero(hwork, (word32)(n * sizeof(word16)));
-        }
-        XFREE(hwork, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     /* tmpbuf held the full secret-key expansion (f,g in RNS/NTT, F,G, FFT
      * images, Babai reduction vectors). */
     if (alloc != NULL) {
@@ -8133,6 +7961,70 @@ static void falcon_intt(word16* a, int n, const word16* izetas)
     }
 }
 
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+/* a^-1 mod q as a^(q-2) with a fixed chain, for secret a in [0, q). */
+static word32 falcon_invq(word32 a)
+{
+    word32 r = a;
+    int i;
+
+    /* q - 2 = 0b10111111111111. */
+    r = falcon_barrett(r * r);
+    for (i = 0; i < 12; i++) {
+        r = falcon_barrett(falcon_barrett(r * r) * a);
+    }
+    return r;
+}
+
+/* a[i] = a[i]^-1 mod q with one inversion (all zero if any a[i] is zero);
+ * pre holds n word16. */
+static void falcon_invq_all(word16* a, word16* pre, int n)
+{
+    word32 acc = 1, inv;
+    int i;
+
+    for (i = 0; i < n; i++) {
+        pre[i] = (word16)acc;
+        acc = falcon_barrett(acc * a[i]);
+    }
+    inv = falcon_invq(acc);
+    for (i = n - 1; i >= 0; i--) {
+        word32 t = falcon_barrett(inv * pre[i]);
+        inv = falcon_barrett(inv * a[i]);
+        a[i] = (word16)t;
+    }
+}
+
+static int falcon_compute_public(word16* h, const sword8* f,
+        const sword8* g, unsigned logn, word16* tmp)
+{
+    int n = (int)MKN(logn), u;
+    const word16* zetas = NULL;
+    const word16* izetas = NULL;
+    word16* ff = tmp;
+    word32 zero = 0;
+
+    falcon_get_tables(logn, &zetas, &izetas);
+    for (u = 0; u < n; u++) {
+        ff[u] = (word16)((word32)(sword32)f[u] +
+            (FALCON_Q & (word32)((sword32)f[u] >> 31)));
+        h[u] = (word16)((word32)(sword32)g[u] +
+            (FALCON_Q & (word32)((sword32)g[u] >> 31)));
+    }
+    falcon_ntt(ff, n, zetas);
+    falcon_ntt(h, n, zetas);
+    falcon_invq_all(ff, tmp + n, n);
+    for (u = 0; u < n; u++) {
+        zero |= ((word32)ff[u] - 1) >> 31;
+        h[u] = (word16)falcon_barrett((word32)h[u] * ff[u]);
+    }
+    falcon_intt(h, n, izetas);
+    /* ff held NTT(f). */
+    ForceZero(tmp, (word32)(2 * (size_t)n * sizeof(word16)));
+    return (zero != 0) ? 0 : 1;
+}
+#endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
+
 /* ------------------------------------------------------------------------ */
 /* Codec                                                                    */
 /* ------------------------------------------------------------------------ */
@@ -9094,20 +8986,6 @@ static WC_INLINE sword32 falcon_sm_center(word32 x, word32 m)
         (sword32)(m & (word32)((sword32)((m >> 1) - x) >> 31));
 }
 
-/* a^-1 mod q as a^(q-2) with a fixed chain, for secret a in [0, q). */
-static word32 falcon_sm_invq(word32 a)
-{
-    word32 r = a;
-    int i;
-
-    /* q - 2 = 0b10111111111111. */
-    r = falcon_barrett(r * r);
-    for (i = 0; i < 12; i++) {
-        r = falcon_barrett(falcon_barrett(r * r) * a);
-    }
-    return r;
-}
-
 /* Integer x from its residues mod q and mod p, centered on zero. */
 static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
 {
@@ -9183,25 +9061,6 @@ static WC_NO_INLINE int falcon_sm_make_c(word16* c, wc_Shake* absorbed,
         wc_Shake256_Free(&shake);
     }
     return ret;
-}
-
-/* a[i] = a[i]^-1 mod q with one inversion (all zero if any a[i] is zero);
- * pre holds n word16. */
-static void falcon_sm_invq_all(word16* a, word16* pre, int n)
-{
-    word32 acc = 1, inv;
-    int i;
-
-    for (i = 0; i < n; i++) {
-        pre[i] = (word16)acc;
-        acc = falcon_barrett(acc * a[i]);
-    }
-    inv = falcon_sm_invq(acc);
-    for (i = n - 1; i >= 0; i--) {
-        word32 t = falcon_barrett(inv * pre[i]);
-        inv = falcon_barrett(inv * a[i]);
-        a[i] = (word16)t;
-    }
 }
 
 static void falcon_sm_ntt_p(word16* a, int n)
@@ -9601,7 +9460,7 @@ static int falcon_sm_complete_private(sword8* G, const falcon_sm_basis* b,
     }
     falcon_sm_lift_key(y, b, FALCON_SM_F, FALCON_Q);
     falcon_ntt(y, n, zetas);
-    falcon_sm_invq_all(y, tmp + 2 * n, n);
+    falcon_invq_all(y, tmp + 2 * n, n);
     for (u = 0; u < n; u++) {
         bad |= ((word32)y[u] - 1) >> 31;
         x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
@@ -9746,7 +9605,7 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     }
     falcon_sm_lift_key(y, b, FALCON_SM_F, FALCON_Q);
     falcon_ntt(y, (int)n, zetas);
-    falcon_sm_invq_all(y, ws + 2 * n, (int)n);
+    falcon_invq_all(y, ws + 2 * n, (int)n);
     for (u = 0; u < n; u++) {
         x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
     }
@@ -9886,19 +9745,15 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
                                             : FALCON_LEVEL5_KEY_SIZE;
     heap = key->heap;
 
-    /* One allocation for h (word16, public) then f/g/F/G (sword8, secret),
-     * ordered so each is naturally aligned. */
-    {
-        size_t hSz = sizeof(word16) * (size_t)n;
-        arenaSz = hSz + 4 * (size_t)n;
-        arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (arena != NULL) {
-            h = (word16*)arena;
-            f = (sword8*)(arena + hSz);
-            g = f + n;
-            F = g + n;
-            G = F + n;
-        }
+    /* f/g/F/G only; h is derived once the key generator's scratch is gone,
+     * so it does not add to the peak. */
+    arenaSz = 4 * (size_t)n;
+    arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (arena != NULL) {
+        f = (sword8*)arena;
+        g = f + n;
+        F = g + n;
+        G = F + n;
     }
     if (arena == NULL) {
         ret = MEMORY_E;
@@ -9914,11 +9769,23 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
         goto out;
     }
 #endif
-    ret = falcon_keygen(rng, f, g, F, G, h, logn);
+    ret = falcon_keygen(rng, f, g, F, G, NULL, logn);
 #ifdef WOLFSSL_FALCON_SAVE_VREGS
     RESTORE_VECTOR_REGISTERS();
 #endif
     if (ret != 0) {
+        goto out;
+    }
+
+    /* h, then the inversion scratch of falcon_compute_public. */
+    h = (word16*)XMALLOC(3 * (size_t)n * sizeof(word16), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (h == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    if (falcon_compute_public(h, f, g, logn, h + n) == 0) {
+        ret = BAD_FUNC_ARG;
         goto out;
     }
 
@@ -9943,8 +9810,8 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     key->prvKeySet = 1;
 
 out:
-    /* One ForceZero + free; covers the secret f/g/F/G (h is public but zeroing
-     * it too is harmless). */
+    /* f/g/F/G are secret; h is public and its scratch already wiped. */
+    XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (arena != NULL) {
         ForceZero(arena, (word32)arenaSz);
         XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
