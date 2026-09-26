@@ -68,6 +68,7 @@
 #define WC_RSA_BLINDING
 
 #define HAVE_AESGCM
+#define GCM_TABLE_4BIT
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519
@@ -91,7 +92,7 @@
 /* Enable the following definition to use TLS 1.3
  * For TLS1.3 use "extended-master" needs to turn on
  */
-/* #define WOLFSSL_TLS13 */
+#define WOLFSSL_TLS13
 
 #if defined(WOLFSSL_TLS13)
     #include <sys/time.h>

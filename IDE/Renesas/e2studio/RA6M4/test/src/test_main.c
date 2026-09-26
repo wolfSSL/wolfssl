@@ -28,11 +28,14 @@
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
 defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
  #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+ /* Always declared: used unconditionally by the CRYPT_TEST/BENCHMARK
+  * branches of sce_test() below, which are independent of whether the
+  * TLS_CLIENT branch's multithread demo is also toggled on. */
+ FSPSM_ST guser_PKCbInfo;
 #if defined(TLS_MULTITHREAD_TEST)
+ /* Only used by the TLS_CLIENT branch's per-task connections. */
  FSPSM_ST guser_PKCbInfo_taskA;
  FSPSM_ST guser_PKCbInfo_taskB;
-#else
- FSPSM_ST guser_PKCbInfo;
 #endif
 #endif
 
@@ -102,21 +105,6 @@ typedef struct func_args {
 void wolfcrypt_test(func_args args);
 int  benchmark_test(void *args);
 
-/* This board has no RTC wired up for wc_GetTime()/time() to read, and time()
- * itself resolves to ARM semihosting (_gettimeofday, from librdimon -- see
- * --specs=rdimon.specs), which blocks forever unless an active debugger is
- * servicing semihosting calls. That's fine under an e2studio GUI debug
- * session (which does), but hangs a standalone flash+run. Same approach as
- * IDE/Renesas/e2studio/RX65N/GR-ROSE/common/wolfssl_dummy.c: derive a
- * plausible "now" from the build date/time instead of a hand-maintained
- * literal, so it stays roughly current as the project keeps getting rebuilt.
- * Month-only granularity (no day-of-month/leap-year handling), matching that
- * reference. Replace with a real RTC-backed callback if wall-clock time is
- * ever needed (e.g. real certificate expiry checks). Only CRYPT_TEST
- * (asn_test's wc_GetTime() call) and TLS_CLIENT (peer cert date validation)
- * actually call wc_GetTime()/time(); guarded to match so BENCHMARK-only
- * builds (which time via xTaskGetTickCount() instead, see benchmark.c)
- * don't warn about an unused function. */
 #if defined(CRYPT_TEST) || defined(TLS_CLIENT)
 #define BUILD_YEAR  ( \
     ((__DATE__)[7]  - '0') * 1000 + \
