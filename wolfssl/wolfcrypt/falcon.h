@@ -56,6 +56,12 @@
 
 /* This is the native wolfCrypt implementation (no liboqs dependency). */
 
+/* The smallest memory signer builds on the small memory one. */
+#if defined(WOLFSSL_FALCON_SIGN_SMALLEST_MEM) && \
+    !defined(WOLFSSL_FALCON_SIGN_SMALL_MEM)
+    #define WOLFSSL_FALCON_SIGN_SMALL_MEM
+#endif
+
 /* Per-key signing caches, off by default and documented with the other tuning
  * knobs at the top of wolfcrypt/src/falcon.c. They exist only in builds that
  * sign in software. */

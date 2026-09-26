@@ -2066,6 +2066,7 @@ AC_ARG_WITH([liboqs],
 #            heap of a signature (176KB -> 88KB at Falcon-1024, 84KB -> 44KB at
 #            Falcon-512) for ~15% slower signing. Orthogonal to the fpr/FFT
 #            backends above; verify and keygen are unchanged.
+#   smallest-mem - signing in a 20*n byte working area; implies small-mem.
 #   cache-key - keep the expanded key (FFT basis plus normalized ffLDL tree) in
 #            the key structure, so only the first signature made with a key
 #            pays for the expansion. Over half of a signature with the default
@@ -2089,7 +2090,7 @@ AC_ARG_WITH([liboqs],
 #   Neither cache is synchronized: a key signed with from several threads at
 #            once must either not use them or be signed with before sharing.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem, cache-key/cache-basis, level1/level5 and dynamic-keys (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem, smallest-mem, cache-key/cache-basis, level1/level5 and dynamic-keys (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
@@ -2098,6 +2099,7 @@ ENABLED_FALCON_DOUBLE=no
 ENABLED_FALCON_AVX2=no
 ENABLED_FALCON_NEON=no
 ENABLED_FALCON_SMALL_MEM=no
+ENABLED_FALCON_SMALLEST_MEM=no
 ENABLED_FALCON_CACHE_KEY=no
 ENABLED_FALCON_CACHE_BASIS=no
 ENABLED_FALCON_LEVEL1=no
@@ -2119,12 +2121,14 @@ if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
             avx2)   ENABLED_FALCON_AVX2=yes ;;
             neon)   ENABLED_FALCON_NEON=yes ;;
             small-mem) ENABLED_FALCON_SMALL_MEM=yes ;;
+            smallest-mem) ENABLED_FALCON_SMALL_MEM=yes
+                          ENABLED_FALCON_SMALLEST_MEM=yes ;;
             cache-key) ENABLED_FALCON_CACHE_KEY=yes ;;
             cache-basis) ENABLED_FALCON_CACHE_BASIS=yes ;;
             level1) ENABLED_FALCON_LEVEL1=yes ;;
             level5) ENABLED_FALCON_LEVEL5=yes ;;
             dynamic-keys) ENABLED_FALCON_DYNAMIC_KEYS=yes ;;
-            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, cache-key, cache-basis, level1, level5, dynamic-keys]) ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, smallest-mem, cache-key, cache-basis, level1, level5, dynamic-keys]) ;;
         esac
     done
     IFS="$OIFS"
@@ -8661,6 +8665,10 @@ fi
 if test "$ENABLED_FALCON_SMALL_MEM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALL_MEM"
+fi
+if test "$ENABLED_FALCON_SMALLEST_MEM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALLEST_MEM"
 fi
 if test "$ENABLED_FALCON_CACHE_KEY" = "yes"
 then

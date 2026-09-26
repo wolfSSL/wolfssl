@@ -83,11 +83,17 @@ jobs:
           retention-days: 1
 
   falcon_interop:
-    name: Interop (native Falcon vs liboqs Falcon)
+    name: Interop ${{ matrix.name }} (native Falcon vs liboqs Falcon)
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: build_liboqs
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'default',      opts: '--enable-falcon' }
+          - { name: 'smallest-mem', opts: '--enable-falcon=smallest-mem' }
     steps:
       - name: Install build tools
         run: |
@@ -144,7 +150,7 @@ jobs:
       - name: Build wolfSSL with native Falcon
         run: |
           ./autogen.sh
-          ./configure --enable-falcon --enable-experimental --enable-static
+          ./configure ${{ matrix.opts }} --enable-experimental --enable-static
           make -j$(nproc)
 
       - name: Build and run the interop harness (native Falcon vs liboqs)
@@ -182,6 +188,12 @@ jobs:
           - { name: 'cache-key',         runner: ubuntu-latest,    opts: '--enable-falcon=cache-key', full_suite: true }
           - { name: 'cache-basis',       runner: ubuntu-latest,    opts: '--enable-falcon=cache-basis', full_suite: true }
           - { name: 'cache-key+small-mem', runner: ubuntu-latest,  opts: '--enable-falcon=cache-key,small-mem', full_suite: true }
+          - { name: 'smallest-mem',      runner: ubuntu-latest,    opts: '--enable-falcon=smallest-mem', full_suite: true }
+          - { name: 'asm+smallest-mem',  runner: ubuntu-latest,    opts: '--enable-falcon=asm,smallest-mem' }
+          - { name: 'avx2+smallest-mem', runner: ubuntu-latest,    opts: '--enable-falcon=avx2,smallest-mem', avx2: true }
+          - { name: 'neon+smallest-mem (ARM64)', runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon,smallest-mem', cflags: '-ffp-contract=off' }
+          - { name: 'cache-key+smallest-mem', runner: ubuntu-latest, opts: '--enable-falcon=cache-key,smallest-mem', full_suite: true }
+          - { name: 'level1+dynamic-keys+smallest-mem', runner: ubuntu-latest, opts: '--enable-falcon=level1,dynamic-keys,smallest-mem', full_suite: true }
           - { name: 'level1 only',       runner: ubuntu-latest,    opts: '--enable-falcon=level1', full_suite: true }
           - { name: 'level5 only',       runner: ubuntu-latest,    opts: '--enable-falcon=level5', full_suite: true }
           - { name: 'dynamic-keys',      runner: ubuntu-latest,    opts: '--enable-falcon=dynamic-keys', full_suite: true }
@@ -229,6 +241,10 @@ jobs:
         if: ${{ matrix.avx2 }}
         run: grep -q avx2 /proc/cpuinfo || { echo "::error::runner lacks AVX2"; exit 1; }
 
+      - name: Check the smallest-mem constant tables against their generator
+        if: ${{ contains(matrix.opts, 'smallest-mem') }}
+        run: python3 scripts/falcon_sm_tables.py --check
+
       # WC_RNG_SEED_CB makes the DRBG reproducible, which is what lets the
       # deterministic Falcon vector run at all.
       - name: Build wolfSSL (Falcon ${{ matrix.name }})
@@ -246,6 +262,21 @@ jobs:
       - name: Run Falcon API tests (includes the deterministic vector)
         if: ${{ ! matrix.build_only }}
         run: ./tests/unit.test --group falcon
+
+      # The white-box always exits 0 and reports failures as [wb] notes, so the
+      # notes that mean a failed check are what decide this step.
+      - name: Run the Falcon white-box (smallest-mem)
+        if: ${{ ! matrix.build_only && contains(matrix.opts, 'smallest-mem') }}
+        run: |
+          set -o pipefail
+          cp src/.libs/libwolfssl.a falcon-wb.a
+          ar d falcon-wb.a "$(ar t falcon-wb.a | grep -E '_la-falcon\.o$')"
+          gcc -O1 -I. -Itests -DHAVE_CONFIG_H -DWOLFSSL_USE_OPTIONS_H \
+              ${{ matrix.cflags }} -o falcon-wb \
+              tests/unit-mcdc/test_falcon_whitebox.c falcon-wb.a -lm -lpthread
+          ./falcon-wb | tee falcon-wb.log
+          ! grep -E '\[wb\] .*(expected|differs|does not|no accepted|failed|skipped)' \
+              falcon-wb.log
 
       # --group falcon misses the Falcon test in the signature group and every
       # caller of wc_falcon_set_level in the TLS and ASN paths, which a level
