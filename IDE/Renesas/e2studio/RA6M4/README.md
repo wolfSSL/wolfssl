@@ -132,21 +132,18 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     SEGGER_RTT_printf.c
 
 + To connect RTT block, you can configure RTT viewer configuration based on where RTT block is in a map file.
-+ To place RTT block specific area, you can add the following line to `fsp_gen.ld`:
++ To place the RTT control block at a fixed, predictable address, add the following to
+  `script/fsp.ld` (not the auto-generated `fsp_gen.ld`, which gets overwritten every time the
+  FSP Configurator regenerates project content):
 
 ```
-    __ram_from_flash$$ :
+SECTIONS
+{
+    .txt.rtt_block (READONLY) :
     {
-        __ram_from_flash$$Base = .;__ram_from_flash$$Load = LOADADDR(__ram_from_flash$$);
-        /* section.ram.from_flash */
-        *(.ram_from_flash)
-        /* section.ram.code_from_flash */
-        *(.txt.rtt_block)              /* <-- for SEGGER_RTT control block */
-        *(.ram_code_from_flash)
-        *(.data*)
-        *(vtable)
-        __ram_from_flash$$Limit = .;
-    }> RAM AT > FLASH
+        KEEP(*(.txt.rtt_block))
+    } > RAM
+} INSERT AFTER .data
 ```
   Also, adding the following line to `SEGGER_RTT.c`:
 
@@ -166,6 +163,10 @@ SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".txt.rtt_block")));
     you can specify "RTT control block" to 0x20000000 by Address
     OR
     you can specify "RTT control block" to 0x20000000 0x1000 by Search Range
+
+  `build.bat` does this lookup for you: after building `all`, it greps `test_RA6M4.map` for
+  `_SEGGER_RTT` and prints the address to enter directly into the RTT Viewer's Address field,
+  so you don't need to open the map file by hand.
 
 ## Run Client
 1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 project
@@ -371,6 +372,47 @@ You can update code above to handle AES128 key when you install its key.
 
 3.) Run Benchmark and Crypto Test
 
+
+## Appendix: command-line build and flash scripts
+
+Once the `wolfssl` and `test` projects have each been built at least once in e2studio (to
+generate their makefiles and `ra_gen`), `build.bat` and `debug_run.bat` let you rebuild and
+flash from the command line without reopening e2studio.
+
+### build.bat
+
+```
+build.bat [clean|crypt|bench|TLSClient|wolfssl]
+```
+
++ *(no arg)* -- incremental build of both projects (`wolfssl` then `test`)
++ `clean` -- clean both projects
++ `crypt` / `bench` / `TLSClient` -- set the corresponding demo mode in `wolfssl_demo.h`
+  (`CRYPT_TEST` / `BENCHMARK` / `TLS_CLIENT`) before building
++ `wolfssl` -- force a clean rebuild of the files that depend on `user_settings.h` (and other
+  shared wolfSSL headers); needed after editing them, since the generated makefiles only track
+  each `.c` file's own mtime, not the headers it includes
+
+After a successful `all` build, it also greps `test_RA6M4.map` for `_SEGGER_RTT` and prints
+the RTT control block address (see "Prepare SEGGER_RTT to logging" above).
+
+`MAKE`, `ARM_GCC_BIN`, and `E2_BUSYBOX` are tied to one specific e2studio/toolchain install;
+set them in the environment before calling `build.bat` if your install differs from the
+defaults baked into the script.
+
+### debug_run.bat
+
+```
+debug_run.bat [restart]
+```
+
++ *(no arg)* -- flash `test\Debug\test_RA6M4.srec` via SEGGER J-Link Commander, then reset and
+  run
++ `restart` -- reset and run the already-flashed target again, without reprogramming
+
+`JLINK_DIR` (the J-Link install directory) and `QC_DELAY_MS` (how long the script keeps the
+J-Link connection open after `go`, in ms, before disconnecting) can be overridden in the
+environment.
 
 ## Support
 
