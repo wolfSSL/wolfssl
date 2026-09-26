@@ -336,7 +336,10 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     uint8_t* plainBuf  = NULL;
     uint8_t* cipherBuf = NULL;
     uint8_t* aTagBuf   = NULL;
+    uint8_t* aadBuf    = NULL;
     uint8_t  delta;
+    uint8_t  aadDelta;
+    int      initOk = 0;
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
 
@@ -387,9 +390,23 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         cipherBuf = XMALLOC(sz + delta, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(SCE_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
+        /* authIn (AAD) is the caller's own buffer and isn't guaranteed to be
+         * aligned the way SCE requires (e.g. a real TLS record's AAD isn't
+         * word-aligned) -- bounce it through an aligned buffer like the
+         * plaintext/ciphertext/tag above, instead of passing it to the
+         * hardware update call directly. Padded up to a whole number of
+         * blocks (like cipherBuf) in case the hardware AAD-update routine
+         * touches memory in block-sized units rather than exactly authInSz
+         * bytes. */
+        aadDelta  = (authInSz == 0 || (authInSz % WC_AES_BLOCK_SIZE) == 0) ? 0 :
+                    (byte)(WC_AES_BLOCK_SIZE - (authInSz % WC_AES_BLOCK_SIZE));
+        aadBuf    = (authInSz > 0) ?
+                XMALLOC(authInSz + aadDelta, aes->heap, DYNAMIC_TYPE_AES) :
+                NULL;
 
         if ((sz > 0 && plainBuf == NULL) ||
-            ((sz + delta) > 0 && cipherBuf == NULL) || aTagBuf == NULL) {
+            ((sz + delta) > 0 && cipherBuf == NULL) || aTagBuf == NULL ||
+            (authInSz > 0 && aadBuf == NULL)) {
             WOLFSSL_MSG("wc_fspsm_AesGcmEncrypt: buffer allocation failed");
             ret = -1;
         }
@@ -398,6 +415,10 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             XMEMCPY(plainBuf, in, sz);
             XMEMSET((void*)cipherBuf, 0, sz + delta);
             XMEMSET((void*)authTag,   0, authTagSz);
+            if (authInSz > 0) {
+                XMEMSET((void*)aadBuf, 0, authInSz + aadDelta);
+                XMEMCPY(aadBuf, authIn, authInSz);
+            }
         }
 
       #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
@@ -416,6 +437,7 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 XFREE(plainBuf,       aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(cipherBuf,      aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(aTagBuf,        aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(aadBuf,         aes->heap, DYNAMIC_TYPE_AES);
                 wc_fspsm_hw_unlock();
                 return MEMORY_E;
             }
@@ -459,14 +481,15 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
              * them init func.
              */
             ret = initFn(&_handle, key_client_aes, (uint8_t*)iv_l, ivSz_l);
+            initOk = (ret == FSP_SUCCESS);
 
             if (ret == FSP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
                #if defined(WOLFSSL_RENESAS_RSIP) &&\
                                     (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                ret = _R_RSIP_AES_GCM_ADDUpdate((uint8_t*)authIn, authInSz);
+                ret = _R_RSIP_AES_GCM_ADDUpdate(aadBuf, authInSz);
                #else
-                ret = updateFn(&_handle, NULL, NULL, 0UL, (uint8_t*)authIn,
+                ret = updateFn(&_handle, NULL, NULL, 0UL, aadBuf,
                                                                 authInSz,
                                                                 &out_len_tmp);
                #endif
@@ -486,8 +509,16 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             /* Once R_SCE_AesxxxGcmEncryptInit or R_SCE_AesxxxEncryptUpdate is
              * called, R_SCE_AesxxxGcmEncryptFinal must be called regardless of
              * the result of the previous call. Otherwise, SCE can not come out
-             * from its error state and all the trailing APIs will fail.
-             */
+             * from its error state and all the trailing APIs will fail. This
+             * only holds once Init has actually succeeded, though -- if Init
+             * itself failed, _handle was never populated by the hardware, so
+             * calling Final on it is undefined behavior instead of a cleanup
+             * step (this used to happen unconditionally here and could hang
+             * or crash on an Init failure). */
+            if (!initOk) {
+                ret = -1;
+            }
+            else {
             dataLen = 0;
             out_len_tmp = 0;
             ret = finalFn(&_handle,
@@ -519,11 +550,13 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
                 ret = -1;
             }
+            }
         }
 
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(aadBuf,    aes->heap, DYNAMIC_TYPE_AES);
         if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_client_aes != NULL)
             XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
@@ -569,7 +602,10 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     uint8_t* cipherBuf = NULL;
     uint8_t* plainBuf  = NULL;
     uint8_t* aTagBuf = NULL;
+    uint8_t* aadBuf = NULL;
     uint8_t  delta;
+    uint8_t  aadDelta;
+    int      initOk = 0;
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
 
@@ -618,8 +654,20 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
         plainBuf  = XMALLOC(sz + delta, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(SCE_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
+        /* authIn (AAD) is the caller's own buffer and isn't guaranteed to be
+         * aligned the way SCE requires -- bounce it through an aligned
+         * buffer like the plaintext/ciphertext/tag above. Padded up to a
+         * whole number of blocks in case the hardware AAD-update routine
+         * touches memory in block-sized units rather than exactly
+         * authInSz bytes. */
+        aadDelta  = (authInSz == 0 || (authInSz % WC_AES_BLOCK_SIZE) == 0) ? 0 :
+                    (byte)(WC_AES_BLOCK_SIZE - (authInSz % WC_AES_BLOCK_SIZE));
+        aadBuf    = (authInSz > 0) ?
+                XMALLOC(authInSz + aadDelta, aes->heap, DYNAMIC_TYPE_AES) :
+                NULL;
 
-        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL) {
+        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
+            (authInSz > 0 && aadBuf == NULL)) {
             ret = -1;
         }
 
@@ -627,6 +675,10 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
             XMEMSET((void*)plainBuf,  0, sz);
             XMEMCPY(cipherBuf, in, sz);
             XMEMCPY(aTagBuf, authTag, authTagSz);
+            if (authInSz > 0) {
+                XMEMSET((void*)aadBuf, 0, authInSz + aadDelta);
+                XMEMCPY(aadBuf, authIn, authInSz);
+            }
         }
        #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
         if (ret == 0 &&
@@ -644,6 +696,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                 XFREE(plainBuf,        aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(cipherBuf,       aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(aTagBuf,         aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(aadBuf,          aes->heap, DYNAMIC_TYPE_AES);
                 wc_fspsm_hw_unlock();
                 return MEMORY_E;
             }
@@ -685,15 +738,16 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.
              */
              ret = initFn(&_handle, key_server_aes, (uint8_t*)iv_l, ivSz_l);
+             initOk = (ret == FSP_SUCCESS);
 
 
             if (ret == FSP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
                #if defined(WOLFSSL_RENESAS_RSIP) &&\
                                         (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                ret = _R_RSIP_AES_GCM_ADDUpdate((uint8_t*)authIn, authInSz);
+                ret = _R_RSIP_AES_GCM_ADDUpdate(aadBuf, authInSz);
                #else
-                ret = updateFn(&_handle, NULL, NULL, 0UL, (uint8_t*)authIn,
+                ret = updateFn(&_handle, NULL, NULL, 0UL, aadBuf,
                                                         authInSz, &out_len_tmp);
                #endif
             }
@@ -712,7 +766,14 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
              * is called, R_SCE_AesxxxGcmDecryptFinal must be called regardless
              * of the result of the previous call. Otherwise, SCE can not come
              * out from its error state and all the trailing APIs will fail.
-             */
+             * This only holds once Init has actually succeeded, though -- if
+             * Init itself failed, _handle was never populated by the
+             * hardware, so calling Final on it is undefined behavior instead
+             * of a cleanup step. */
+            if (!initOk) {
+                ret = -1;
+            }
+            else {
             dataLen = 0;
             out_len_tmp = 0;
             ret = finalFn(&_handle,
@@ -741,13 +802,26 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
             }
             else {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
-                ret = -1;
+                /* A bad/tampered auth tag is reported by the hardware as one
+                 * of these FSP-specific codes, not a generic failure -- the
+                 * wolfCrypt API contract requires AES_GCM_AUTH_E specifically
+                 * here (callers, and wolfcrypt_test()'s tampered-tag test,
+                 * distinguish "authentication failed" from other errors). */
+                if (ret == FSP_ERR_CRYPTO_SCE_AUTHENTICATION ||
+                    ret == FSP_ERR_CRYPTO_AUTHENTICATION_FAILED) {
+                    ret = AES_GCM_AUTH_E;
+                }
+                else {
+                    ret = -1;
+                }
+            }
             }
         }
 
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(aadBuf,    aes->heap, DYNAMIC_TYPE_AES);
         if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_client_aes != NULL)
             XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
