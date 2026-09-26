@@ -55,6 +55,7 @@
 #include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
+#include <math.h>
 
 static int wb_notes = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); wb_notes++; } while (0)
@@ -337,6 +338,7 @@ static void wb_make_fg(void)
     WB_OK("make_fg depth==0/out_ntt operand pair (cond0 FALSE via keygen)");
 }
 
+#ifndef WOLFSSL_FALCON_SIGN_SMALLEST_MEM
 /* ------------------------------------------------------------------ *
  * falcon_complete_private:
  *   G==NULL || f==NULL || g==NULL || F==NULL || logn<1 || logn>10   (6 conds)
@@ -404,6 +406,50 @@ static void wb_complete_private(void)
     (void)falcon_complete_private(G, f, g, F, 11, NULL, NULL);
     WB_OK("falcon_complete_private guard + range pairs exercised");
 }
+#else
+/* ------------------------------------------------------------------ *
+ * falcon_sm_complete_private: (bad != 0) over the non-invertible f and the
+ * two range halves. With f = 1, G = g*F mod q, so g[0]*F[0] sets G[0].
+ * ------------------------------------------------------------------ */
+static void wb_sm_complete_private(void)
+{
+    sword8 G[4], basis[4 * 4];
+    sword8* f = basis;
+    sword8* g = basis + 4;
+    sword8* F = basis + 8;
+    word16 scratch[3 * 4];
+    falcon_sm_basis b;
+
+    XMEMSET(basis, 0, sizeof(basis));
+    b.sk = NULL;
+    b.fgFG = basis;
+    b.G = NULL;
+    b.heap = NULL;
+    b.logn = 2;
+    f[0] = 1;
+
+    g[0] = 127; F[0] = -1;
+    if (falcon_sm_complete_private(G, &b, scratch) != 0 || G[0] != -127) {
+        WB_NOTE("sm_complete_private(in-range) expected 0 and G[0] = -127");
+    }
+    g[0] = 2; F[0] = 64;
+    if (falcon_sm_complete_private(G, &b, scratch) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sm_complete_private(G > 127) expected BAD_FUNC_ARG");
+    }
+    g[0] = -2;
+    if (falcon_sm_complete_private(G, &b, scratch) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sm_complete_private(G < -127) expected BAD_FUNC_ARG");
+    }
+    g[0] = 1; F[0] = 1; f[0] = 0;
+    if (falcon_sm_complete_private(G, &b, scratch) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sm_complete_private(f not invertible) expected BAD_FUNC_ARG");
+    }
+    WB_OK("falcon_sm_complete_private range and invertibility exercised");
+}
+#endif /* !WOLFSSL_FALCON_SIGN_SMALLEST_MEM */
 
 /* ------------------------------------------------------------------ *
  * falcon_comp_decode:  s != 0 && mag == 0   (reject negative zero)
@@ -442,18 +488,16 @@ static void wb_comp_decode(void)
 }
 
 /* ------------------------------------------------------------------ *
- * falcon_hash_to_point:  while (ret == 0 && i < n)
- * The ret==0 operand's FALSE half (with i<n TRUE) only shows when a SHAKE
- * operation fails mid-setup. Passing nonce==NULL makes wc_Shake256_Update
- * return BAD_FUNC_ARG (it null-checks before any use), so ret!=0 on entry to
- * the loop with i(0)<n. The ret==0 TRUE half and the i<n operand are covered by
- * the real sign/verify round-trip.
+ * falcon_hash_to_point_absorb:  a failed wc_Shake256_Update frees the sponge
+ * and falcon_hash_to_point returns without squeezing. nonce==NULL makes the
+ * Update return BAD_FUNC_ARG (it null-checks before any use). The success
+ * halves are covered by the real sign/verify round-trip.
  * ------------------------------------------------------------------ */
 static void wb_hash_to_point(void)
 {
     byte    msg[4];
     word16  c[2];
-    unsigned logn = 1;          /* n = 2 (loop never entered on error) */
+    unsigned logn = 1;          /* n = 2 (never squeezed on error) */
     int r;
 
     XMEMSET(msg, 0, sizeof(msg));
@@ -461,7 +505,7 @@ static void wb_hash_to_point(void)
     if (r == 0) {
         WB_NOTE("hash_to_point(nonce=NULL) expected error");
     }
-    WB_OK("falcon_hash_to_point ret==0 operand FALSE half exercised");
+    WB_OK("falcon_hash_to_point absorb error path exercised");
 }
 
 /* ------------------------------------------------------------------ *
@@ -566,7 +610,7 @@ static void wb_do_sign_tree_guard(void)
             NULL);
     WB_OK("falcon_do_sign_tree NULL+logn guard TRUE halves exercised");
 }
-#else /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
+#elif !defined(WOLFSSL_FALCON_SIGN_SMALLEST_MEM)
 /* ------------------------------------------------------------------ *
  * falcon_do_sign_dyn (small-mem twin of falcon_do_sign_tree) NULL/logn guard:
  *   samp||s2||f||g||F||G||hm||tmp==NULL  (8 operands) || logn<1 || logn>10
@@ -601,6 +645,45 @@ static void wb_do_sign_dyn_guard(void)
     (void)falcon_do_sign_dyn(S, NULL, s2d, fd, gd, Fd, Gd, hmd, 0, tmpd, NULL);
     (void)falcon_do_sign_dyn(S, NULL, s2d, fd, gd, Fd, Gd, hmd, 11, tmpd, NULL);
     WB_OK("falcon_do_sign_dyn NULL+logn guard TRUE halves exercised");
+}
+#else
+/* ------------------------------------------------------------------ *
+ * falcon_sm_do_sign (smallest-mem twin of falcon_do_sign_dyn) guard:
+ *   samp||b||cst||tmp==NULL || (b->sk==NULL && b->fgFG==NULL) ||
+ *   b->logn<2 || b->logn>10
+ * Every call early-returns BAD_FUNC_ARG before the signing loop.
+ * ------------------------------------------------------------------ */
+static void wb_sm_do_sign_guard(void)
+{
+    sword8  basis[4 * 4];
+    byte    skd[4];
+    byte    tmpd[8];
+    wc_Shake cstd;
+    falcon_sm_basis b;
+    const falcon_samplerZ S = falcon_sampler_z;
+
+    XMEMSET(basis, 0, sizeof(basis));
+    XMEMSET(skd, 0, sizeof(skd));
+    XMEMSET(tmpd, 0, sizeof(tmpd));
+    XMEMSET(&cstd, 0, sizeof(cstd));
+    b.sk = NULL;
+    b.fgFG = basis;
+    b.G = NULL;
+    b.heap = NULL;
+    b.logn = 9;
+
+    (void)falcon_sm_do_sign(NULL, NULL, &b, &cstd, tmpd, NULL);
+    (void)falcon_sm_do_sign(S, NULL, NULL, &cstd, tmpd, NULL);
+    (void)falcon_sm_do_sign(S, NULL, &b, NULL, tmpd, NULL);
+    (void)falcon_sm_do_sign(S, NULL, &b, &cstd, NULL, NULL);
+    b.fgFG = NULL;
+    (void)falcon_sm_do_sign(S, NULL, &b, &cstd, tmpd, NULL);
+    b.sk = skd;
+    b.logn = 1;
+    (void)falcon_sm_do_sign(S, NULL, &b, &cstd, tmpd, NULL);
+    b.logn = 11;
+    (void)falcon_sm_do_sign(S, NULL, &b, &cstd, tmpd, NULL);
+    WB_OK("falcon_sm_do_sign NULL+logn guard TRUE halves exercised");
 }
 #endif /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
 
@@ -1197,6 +1280,7 @@ static void wb_solve_ntru_babai_clamp(WC_RNG* rng)
     WB_OK("solve_NTRU_intermediate Babai clamp operand pair exercised");
 }
 
+#ifndef WOLFSSL_FALCON_SIGN_SMALLEST_MEM
 /* A sampler that always returns 0. Used to make a signing attempt fully
  * deterministic: the sampled lattice coordinates are zero, so the candidate is
  * exactly the (huge) target and the shortness test always rejects. It touches
@@ -1219,6 +1303,7 @@ static const sword8 wb_basis_f[WB_SIGN_N] = {  3,  1 };
 static const sword8 wb_basis_g[WB_SIGN_N] = {  1, -2 };
 static const sword8 wb_basis_F[WB_SIGN_N] = {  5,  0 };
 static const sword8 wb_basis_G[WB_SIGN_N] = {  0,  7 };
+#endif /* !WOLFSSL_FALCON_SIGN_SMALLEST_MEM */
 
 #ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
 /* ------------------------------------------------------------------ *
@@ -1331,7 +1416,7 @@ static void wb_sign_core_err(WC_RNG* rng)
     WB_OK("falcon_sign_core (ret==0)&&(p.err!=0) operand pair exercised");
 }
 
-#else /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
+#elif !defined(WOLFSSL_FALCON_SIGN_SMALLEST_MEM)
 
 /* ------------------------------------------------------------------ *
  * falcon_do_sign_dyn restart loop: the low-memory twin of the decision above
@@ -1409,6 +1494,361 @@ static void wb_sign_dyn_core_err(WC_RNG* rng)
     wc_Shake256_Free(&spc.p.shake);
     ForceZero(&spc, sizeof(spc));
     WB_OK("falcon_sign_dyn_core (ret==0)&&(p.err!=0) operand pair exercised");
+}
+
+#else
+
+#define WB_SM_LOGN  2
+#define WB_SM_N     4
+
+/* A sampler that always returns 3000, so every attempt lands far from its
+ * target and is rejected. */
+static int wb_samp_far(void* ctx, fpr mu, fpr isigma)
+{
+    (void)ctx;
+    (void)mu;
+    (void)isigma;
+    return 3000;
+}
+
+/* ------------------------------------------------------------------ *
+ * falcon_sm_do_sign restart loop: the smallest-mem twin of the decision in
+ * falcon_do_sign_dyn, with every attempt rejected by wb_samp_far.
+ * ------------------------------------------------------------------ */
+static void wb_sm_do_sign_samplererr(void)
+{
+    fpr     tmp[FALCON_SIGN_SMALLEST_TMP(WB_SM_LOGN) / sizeof(fpr)];
+    sword8  basis[4 * WB_SM_N] = {
+        1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1
+    };
+    byte    nonce[FALCON_NONCE_SIZE];
+    byte    msg[4] = { 1, 2, 3, 4 };
+    wc_Shake cst;
+    falcon_sm_basis b;
+    int     err  = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int     zero = 0;
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(nonce, 7, sizeof(nonce));
+    if (falcon_hash_to_point_absorb(&cst, nonce, msg, sizeof(msg), NULL)
+            != 0) {
+        WB_NOTE("sm_do_sign: absorb failed; samplerErr vectors skipped");
+        return;
+    }
+    b.sk = NULL;
+    b.fgFG = basis;
+    b.G = NULL;
+    b.heap = NULL;
+    b.logn = WB_SM_LOGN;
+    if (falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, &err)
+            != err) {
+        WB_NOTE("sm_do_sign(samplerErr set) expected the latched error");
+    }
+    (void)falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, NULL);
+    (void)falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, &zero);
+    wc_Shake256_Free(&cst);
+    WB_OK("falcon_sm_do_sign samplerErr operand pair exercised");
+}
+
+static double wb_sm_d(fpr x)
+{
+    double d;
+
+    XMEMCPY(&d, &x, sizeof(d));
+    return d;
+}
+
+static word32 wb_sm_rnd_state = 0x9E3779B9U;
+static sword32 wb_sm_rnd(sword32 lo, sword32 hi)
+{
+    wb_sm_rnd_state = wb_sm_rnd_state * 1664525U + 1013904223U;
+    return lo + (sword32)((wb_sm_rnd_state >> 8) %
+        (word32)(hi - lo + 1));
+}
+
+/* max |a[i] - b[i]| relative to max |b[i]|. */
+static double wb_sm_relerr(const double* a, const double* b, size_t n)
+{
+    double mx = 0, e = 0;
+    size_t i;
+
+    for (i = 0; i < n; i++) {
+        if (fabs(b[i]) > mx) {
+            mx = fabs(b[i]);
+        }
+    }
+    for (i = 0; i < n; i++) {
+        if (fabs(a[i] - b[i]) > e) {
+            e = fabs(a[i] - b[i]);
+        }
+    }
+    return (mx > 0) ? e / mx : e;
+}
+
+static fpr    wb_sm_A[1024], wb_sm_B[1024], wb_sm_X[1024], wb_sm_Y[1024];
+static double wb_sm_got[1024], wb_sm_ref[1024];
+
+/* The half-size LDL and (1 + X)*l*a product at degree 2^logn against
+ * split_fft and a complex division. */
+static void wb_sm_ldl_check(unsigned logn)
+{
+    size_t n = MKN(logn), hn = n >> 1, qn = hn >> 1, j;
+
+    /* LDL of a = |fft(u)|^2 + |fft(v)|^2, then v1 = in * L10. */
+    for (j = 0; j < n; j++) {
+        wb_sm_X[j] = fpr_of(wb_sm_rnd(-8, 8));
+        wb_sm_Y[j] = fpr_of(wb_sm_rnd(-8, 8));
+    }
+    falcon_FFT(wb_sm_X, logn);
+    falcon_FFT(wb_sm_Y, logn);
+    for (j = 0; j < hn; j++) {
+        double xr = wb_sm_d(wb_sm_X[j]), xi = wb_sm_d(wb_sm_X[j + hn]);
+        double yr = wb_sm_d(wb_sm_Y[j]), yi = wb_sm_d(wb_sm_Y[j + hn]);
+        double a = xr * xr + xi * xi + yr * yr + yi * yi;
+
+        XMEMCPY(&wb_sm_A[j], &a, sizeof(a));
+        wb_sm_B[j] = wb_sm_A[j];
+        wb_sm_B[j + hn] = fpr_zero;
+    }
+    falcon_poly_split_fft(wb_sm_X, wb_sm_X + hn, wb_sm_B, logn);
+    falcon_sm_ldl(wb_sm_A, wb_sm_Y, wb_sm_Y + qn, logn);
+    for (j = 0; j < qn; j++) {
+        double b = wb_sm_d(wb_sm_X[j]);
+        double ar = wb_sm_d(wb_sm_X[hn + j]);
+        double ai = wb_sm_d(wb_sm_X[hn + j + qn]);
+
+        wb_sm_got[j] = wb_sm_d(wb_sm_A[j]);
+        wb_sm_ref[j] = b;
+        wb_sm_got[qn + j] = wb_sm_d(wb_sm_Y[j]);
+        wb_sm_ref[qn + j] = b - (ar * ar + ai * ai) / b;
+    }
+    if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-9) {
+        WB_NOTE("sm_ldl b or d differs from the split reference");
+    }
+    for (j = 0; j < hn; j++) {
+        wb_sm_B[j] = fpr_of(wb_sm_rnd(-1000, 1000));
+    }
+    falcon_sm_mul_ixadj(wb_sm_A, wb_sm_B, wb_sm_Y + qn, logn - 1);
+    for (j = 0; j < qn; j++) {
+        double b = wb_sm_d(wb_sm_X[j]);
+        double lr = wb_sm_d(wb_sm_X[hn + j]) / b;
+        double li = -wb_sm_d(wb_sm_X[hn + j + qn]) / b;
+        double xr = wb_sm_d(wb_sm_B[j]), xi = wb_sm_d(wb_sm_B[j + qn]);
+
+        wb_sm_got[j] = wb_sm_d(wb_sm_A[j]);
+        wb_sm_ref[j] = xr * lr - xi * li;
+        wb_sm_got[qn + j] = wb_sm_d(wb_sm_A[j + qn]);
+        wb_sm_ref[qn + j] = xr * li + xi * lr;
+    }
+    if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-9) {
+        WB_NOTE("sm_ldl l with sm_mul_ixadj differs from in * L10");
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * Smallest-mem transforms at a real degree, each against the reference:
+ * the self-adjoint and integer FFTs against falcon_FFT, the half-size LDL
+ * and (1 + X)*l*a product against split_fft and a complex division, the
+ * mod-p NTT against a schoolbook product, and the CRT on random values.
+ * A wrong table entry or index fails here rather than as a sign timeout.
+ * ------------------------------------------------------------------ */
+static void wb_sm_transforms(unsigned logn)
+{
+    size_t n = MKN(logn), hn = n >> 1, j;
+    unsigned lg;
+    static sword32 ci[1024];
+    static word16 xa[1024], xb[1024];
+    static sword32 ref[1024];
+    int bad = 0;
+
+    /* Self-adjoint FFT from the first half of the coefficients. */
+    for (j = 0; j < hn; j++) {
+        ci[j] = (j == 0) ? wb_sm_rnd(0, 20000) : wb_sm_rnd(-20000, 20000);
+    }
+    for (j = 0; j < n; j++) {
+        sword32 v = (j < hn) ? ci[j] : (j == hn) ? 0 : -ci[n - j];
+        wb_sm_A[j] = fpr_of(v);
+    }
+    falcon_FFT(wb_sm_A, logn);
+    for (j = 0; j < hn; j++) {
+        wb_sm_B[j] = fpr_of(ci[j]);
+    }
+    falcon_sm_fft_selfadj(wb_sm_B, logn);
+    for (j = 0; j < hn; j++) {
+        wb_sm_got[j] = wb_sm_d(wb_sm_B[j]);
+        wb_sm_ref[j] = wb_sm_d(wb_sm_A[j]);
+    }
+    if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-12) {
+        WB_NOTE("sm_fft_selfadj differs from falcon_FFT");
+    }
+
+    /* Integer FFT, with c in the upper half of the output. */
+    for (j = 0; j < n; j++) {
+        ci[j] = wb_sm_rnd(-745216, 745216);
+        wb_sm_A[j] = fpr_of(ci[j]);
+        ((sword32*)(void*)(wb_sm_B + hn))[j] = ci[j];
+    }
+    falcon_FFT(wb_sm_A, logn);
+    falcon_sm_fft_i32(wb_sm_B, (sword32*)(void*)(wb_sm_B + hn), logn);
+    for (j = 0; j < n; j++) {
+        wb_sm_got[j] = wb_sm_d(wb_sm_B[j]);
+        wb_sm_ref[j] = wb_sm_d(wb_sm_A[j]);
+    }
+    if (wb_sm_relerr(wb_sm_got, wb_sm_ref, n) > 1e-12) {
+        WB_NOTE("sm_fft_i32 differs from falcon_FFT");
+    }
+
+    /* Every degree, so each table entry the tree levels read is used. */
+    for (lg = 2; lg <= logn; lg++) {
+        wb_sm_ldl_check(lg);
+    }
+
+    /* Negacyclic product mod p. */
+    for (j = 0; j < n; j++) {
+        xa[j] = (word16)wb_sm_rnd(0, FALCON_SM_P - 1);
+        xb[j] = (word16)wb_sm_rnd(0, FALCON_SM_P - 1);
+        ref[j] = 0;
+    }
+    for (j = 0; j < n; j++) {
+        size_t k;
+        for (k = 0; k < n; k++) {
+            sword32 p = (sword32)(((word64)xa[j] * xb[k]) % FALCON_SM_P);
+            if (j + k < n) {
+                ref[j + k] = (ref[j + k] + p) % (sword32)FALCON_SM_P;
+            }
+            else {
+                ref[j + k - n] = (ref[j + k - n] + (sword32)FALCON_SM_P - p)
+                    % (sword32)FALCON_SM_P;
+            }
+        }
+    }
+    falcon_sm_ntt_p(xa, (int)n);
+    falcon_sm_ntt_p(xb, (int)n);
+    for (j = 0; j < n; j++) {
+        xa[j] = (word16)falcon_sm_redp((word32)xa[j] * xb[j]);
+    }
+    falcon_sm_intt_p(xa, (int)n);
+    for (j = 0; j < n; j++) {
+        bad |= (xa[j] != (word16)ref[j]);
+    }
+    if (bad) {
+        WB_NOTE("sm_ntt_p product differs from the schoolbook product");
+    }
+
+    /* CRT over the whole centred range. */
+    bad = 0;
+    for (j = 0; j < 4096; j++) {
+        sword32 v = wb_sm_rnd(-(sword32)(FALCON_SM_PQ / 2) + 1,
+            (sword32)(FALCON_SM_PQ / 2));
+        word32 vq = (word32)(((v % FALCON_Q) + FALCON_Q) % FALCON_Q);
+        word32 vp = (word32)(((v % (sword32)FALCON_SM_P) +
+            (sword32)FALCON_SM_P) % (sword32)FALCON_SM_P);
+
+        bad |= (falcon_sm_crt(vq, vp) != v);
+    }
+    if (bad) {
+        WB_NOTE("sm_crt does not invert the residues");
+    }
+    WB_OK("smallest-mem transforms checked against the reference");
+}
+
+/* True when s2 (at the start of tmp) with s1 = c - s2*h is short. */
+static int wb_sm_is_short(const sword16* s2, const word16* c,
+        const word16* h)
+{
+    sword32 t[WB_SM_N];
+    word32 sqn = 0;
+    int i, j;
+
+    for (i = 0; i < WB_SM_N; i++) {
+        t[i] = 0;
+    }
+    for (i = 0; i < WB_SM_N; i++) {
+        for (j = 0; j < WB_SM_N; j++) {
+            sword32 p = (sword32)s2[i] * (sword32)h[j] % FALCON_Q;
+            if (i + j < WB_SM_N) {
+                t[i + j] = (t[i + j] + p) % FALCON_Q;
+            }
+            else {
+                t[i + j - WB_SM_N] = (t[i + j - WB_SM_N] - p) % FALCON_Q;
+            }
+        }
+    }
+    for (i = 0; i < WB_SM_N; i++) {
+        sword32 z = ((sword32)c[i] - t[i]) % FALCON_Q;
+        if (z < 0) {
+            z += FALCON_Q;
+        }
+        z = falcon_sm_center((word32)z, FALCON_Q);
+        sqn += (word32)(z * z);
+    }
+    return is_short_half(sqn, s2, WB_SM_LOGN);
+}
+
+/* ------------------------------------------------------------------ *
+ * falcon_sm_sign_core: (ret == 0 && spc->p.err != 0) with a real key at
+ * logn 2, until an attempt is accepted while p.err is latched.
+ * ------------------------------------------------------------------ */
+static void wb_sm_sign_core_err(WC_RNG* rng)
+{
+    falcon_sampler_ctx spc;
+    fpr     tmp[FALCON_SIGN_SMALLEST_TMP(WB_SM_LOGN) / sizeof(fpr)];
+    sword8  basis[4 * WB_SM_N];
+    word16  h[WB_SM_N], c[WB_SM_N];
+    byte    nonce[FALCON_NONCE_SIZE];
+    byte    msg[4] = { 5, 6, 7, 8 };
+    wc_Shake cst;
+    falcon_sm_basis b;
+    int     i, ok = 0;
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(nonce, 3, sizeof(nonce));
+    if (falcon_keygen(rng, basis, basis + WB_SM_N, basis + 2 * WB_SM_N,
+            basis + 3 * WB_SM_N, h, WB_SM_LOGN) != 0 ||
+            falcon_sampler_init(&spc, WB_SM_LOGN, rng) != 0) {
+        WB_NOTE("sm_sign_core: keygen or sampler_init failed; skipped");
+        return;
+    }
+    if (falcon_hash_to_point_absorb(&cst, nonce, msg, sizeof(msg), NULL)
+            != 0) {
+        WB_NOTE("sm_sign_core: absorbing the target failed; skipped");
+        wc_Shake256_Free(&spc.p.shake);
+        ForceZero(&spc, sizeof(spc));
+        ForceZero(basis, sizeof(basis));
+        return;
+    }
+    if (falcon_sm_make_c(c, &cst, NULL, WB_SM_LOGN) != 0) {
+        WB_NOTE("sm_sign_core: squeezing the target failed; skipped");
+        wc_Shake256_Free(&cst);
+        wc_Shake256_Free(&spc.p.shake);
+        ForceZero(&spc, sizeof(spc));
+        ForceZero(basis, sizeof(basis));
+        return;
+    }
+    b.sk = NULL;
+    b.fgFG = basis;
+    b.G = NULL;
+    b.heap = NULL;
+    b.logn = 0;
+
+    spc.p.err = 0;
+    (void)falcon_sm_sign_core(&spc, &b, &cst, (byte*)tmp);
+
+    b.logn = WB_SM_LOGN;
+    for (i = 0; i < 64 && !ok; i++) {
+        spc.p.err = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        (void)falcon_sm_sign_core(&spc, &b, &cst, (byte*)tmp);
+        ok = wb_sm_is_short((const sword16*)tmp, c, h);
+    }
+    spc.p.err = 0;
+    if (!ok) {
+        WB_NOTE("sm_sign_core: no accepted attempt with p.err latched");
+    }
+    wc_Shake256_Free(&cst);
+    wc_Shake256_Free(&spc.p.shake);
+    ForceZero(&spc, sizeof(spc));
+    ForceZero(basis, sizeof(basis));
+    WB_OK("falcon_sm_sign_core (ret==0)&&(p.err!=0) operand pair exercised");
 }
 
 #endif /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
@@ -1674,14 +2114,20 @@ int main(void)
         }
         wb_poly_big_to_small();
         wb_make_fg();
+#ifndef WOLFSSL_FALCON_SIGN_SMALLEST_MEM
         wb_complete_private();
+#else
+        wb_sm_complete_private();
+#endif
         wb_comp_decode();
         wb_hash_to_point();
 #ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
         wb_expand_and_ffsampling_guards();
         wb_do_sign_tree_guard();
-#else
+#elif !defined(WOLFSSL_FALCON_SIGN_SMALLEST_MEM)
         wb_do_sign_dyn_guard();
+#else
+        wb_sm_do_sign_guard();
 #endif
         if (haveRng) {
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
@@ -1711,11 +2157,22 @@ int main(void)
         if (haveRng) {
             wb_sign_core_err(&rng);
         }
-#else
+#elif !defined(WOLFSSL_FALCON_SIGN_SMALLEST_MEM)
         wb_do_sign_dyn_samplererr();
         if (haveRng) {
             wb_sign_dyn_core_err(&rng);
         }
+#else
+        wb_sm_do_sign_samplererr();
+        if (haveRng) {
+            wb_sm_sign_core_err(&rng);
+        }
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
+        wb_sm_transforms(FALCON_LEVEL1_LOGN);
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
+        wb_sm_transforms(FALCON_LEVEL5_LOGN);
+#endif
 #endif
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 #if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && !defined(MCDC_FA_UNAVAILABLE)
