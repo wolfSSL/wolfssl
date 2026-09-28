@@ -255,9 +255,8 @@ static void wb_check_low(void)
      !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
      (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
-      (!defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) && \
-       (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) || \
-        defined(WOLFSSL_MLDSA_SIGN_CHECK_W0)))))
+      (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) && \
+       !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))))
     /* Vector level: two polynomials, both in range -> (ret==1)&&(i<l) walks
      * both, returns 1; then a first-poly-out-of-range -> early ret 0. */
     for (j = 0; j < 2 * MLDSA_N; j++) {
@@ -274,6 +273,68 @@ static void wb_check_low(void)
     }
 #endif
     WB_OK("mldsa_check_low / vec_check_low_c operand pairs exercised");
+}
+#endif
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* ------------------------------------------------------------------ *
+ * mldsa_check_low / mldsa_vec_check_low_c boundaries: drive the four
+ * boundary values and confirm no early exit hides a later failure.
+ * ------------------------------------------------------------------ */
+static void wb_check_low_bounds(void)
+{
+    sword32 a[2 * MLDSA_N];
+    sword32 hi = 1 << 17;
+    unsigned int j;
+
+    for (j = 0; j < 2 * MLDSA_N; j++) {
+        a[j] = 0;
+    }
+
+    /* Boundaries: hi-1 and -hi+1 are in range, hi and -hi are not. */
+    a[0] = hi - 1;
+    if (mldsa_check_low(a, hi) != 1) {
+        WB_NOTE("mldsa_check_low(hi-1) expected 1");
+    }
+    a[0] = -hi + 1;
+    if (mldsa_check_low(a, hi) != 1) {
+        WB_NOTE("mldsa_check_low(-hi+1) expected 1");
+    }
+    a[0] = hi;
+    if (mldsa_check_low(a, hi) != 0) {
+        WB_NOTE("mldsa_check_low(hi) expected 0");
+    }
+    a[0] = -hi;
+    if (mldsa_check_low(a, hi) != 0) {
+        WB_NOTE("mldsa_check_low(-hi) expected 0");
+    }
+
+    /* The last coefficient must count: an early exit would miss it. */
+    a[0] = 0;
+    a[MLDSA_N - 1] = hi;
+    if (mldsa_check_low(a, hi) != 0) {
+        WB_NOTE("mldsa_check_low(last coeff) expected 0");
+    }
+    a[MLDSA_N - 1] = 0;
+
+#if (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+     !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)) || \
+    (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+     (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
+      (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) && \
+       !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))))
+    /* Vector form must fail on a bad coefficient in the LAST polynomial,
+     * which only holds because it does not exit early. */
+    if (mldsa_vec_check_low_c(a, 2, hi) != 1) {
+        WB_NOTE("mldsa_vec_check_low_c(in-range,l=2) expected 1");
+    }
+    a[2 * MLDSA_N - 1] = hi;
+    if (mldsa_vec_check_low_c(a, 2, hi) != 0) {
+        WB_NOTE("mldsa_vec_check_low_c(last poly) expected 0");
+    }
+#endif
+
+    WB_OK("mldsa_check_low / vec_check_low_c boundaries exercised");
 }
 #endif
 
@@ -1507,6 +1568,7 @@ int main(void)
     wb_get_params();
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wb_check_low();
+    wb_check_low_bounds();
 #endif
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)

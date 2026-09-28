@@ -5831,9 +5831,8 @@ static int mldsa_check_low(const sword32* a, sword32 hi)
      !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
      (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
-      (!defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) && \
-       (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) || \
-        defined(WOLFSSL_MLDSA_SIGN_CHECK_W0)))))
+      (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) && \
+       !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM))))
 /* Check that the values of the vector are in range.
  *
  * Many places in FIPS 204. One example from Algorithm 2:
@@ -9757,13 +9756,19 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         /* Step 23: Check z has low enough values. */
                         valid = mldsa_vec_check_low(z + i * MLDSA_N, 1, hi);
                     }
-                    hi = params->gamma2;
-                    for (i = 0; valid && i < params->k; i++) {
-                        /* Step 25: ct0 = NTT-1(c o t0) */
-                        mldsa_mul_invntt(ct0 + i * MLDSA_N, c,
-                            t0 + i * MLDSA_N);
-                        /* Step 27: Check ct0 has low enough values. */
-                        valid = mldsa_vec_check_low(ct0 + i * MLDSA_N, 1, hi);
+                    if (valid) {
+                        hi = params->gamma2;
+                        /* Unlike z and w0-cs2, ct0 carries no uniform mask, so
+                         * the index of a failing polynomial depends on t0.
+                         * Check them all. */
+                        for (i = 0; i < params->k; i++) {
+                            /* Step 25: ct0 = NTT-1(c o t0) */
+                            mldsa_mul_invntt(ct0 + i * MLDSA_N, c,
+                                t0 + i * MLDSA_N);
+                            /* Step 27: Check ct0 has low enough values. */
+                            valid &= mldsa_vec_check_low(ct0 + i * MLDSA_N,
+                                1, hi);
+                        }
                     }
                     if (valid) {
                         /* Step 26: ct0 = ct0 + w0 */
@@ -10134,8 +10139,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             }
 
             /* Steps 13-15: Invert transform, decompose and encode each row of
-             * w now that every column has been accumulated into it. */
-            for (r = rStart; (ret == 0) && valid && (r < params->k); r++) {
+             * w now that every column has been accumulated into it. Nothing
+             * was accumulated when y was rejected. */
+            for (r = valid ? rStart : params->k; (ret == 0) && (r < params->k);
+                    r++) {
                 unsigned int e;
 
                 /* Step 13: w = NTT-1(A o NTT(y)) */
@@ -10166,7 +10173,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             #endif
             #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
-                valid = mldsa_vec_check_low(w0t, 1,
+                valid &= mldsa_check_low(w0t,
                     params->gamma2 - params->beta);
             #endif
                 w0t += MLDSA_N;
@@ -10256,6 +10263,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             #endif
                 sword32* cs2 = ct0;
                 byte idx = 0;
+                int ct0Valid = 1;
                 w0t = w0;
                 w1et = w1e;
 
@@ -10302,10 +10310,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         mldsa_mul(ct0, c, t0 + r * MLDSA_N);
                     #endif
                         mldsa_invntt(ct0);
-                        /* Step 27: Check ct0 has low enough values. */
-                        valid = mldsa_check_low(ct0, params->gamma2);
-                    }
-                    if (valid) {
+                        /* Step 27: Check ct0 has low enough values. Every
+                         * row: ct0 has no mask, so a failing index leaks t0. */
+                        ct0Valid &= mldsa_check_low(ct0, params->gamma2);
                         /* Step 26: ct0 = ct0 + w0 */
                         mldsa_add(ct0, w0t);
                         mldsa_poly_red(ct0);
@@ -10345,6 +10352,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     w0t += MLDSA_N;
                     w1et += w1Stride;
                 }
+                valid &= ct0Valid;
                 /* Set remaining hints to zero. */
                 XMEMSET(h + idx, 0, (size_t)(params->omega - idx));
             }
@@ -10478,7 +10486,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             /* Alg 26. Step 2: Loop over second dimension of matrix. Working
              * down the columns keeps one polynomial of y and transforms it
              * once rather than once per row. */
-            for (s = 0; (ret == 0) && valid && (s < params->l); s++) {
+            for (s = 0; (ret == 0) && (s < params->l); s++) {
             #ifdef WC_MLDSA_FAULT_HARDEN
                 if (w_check != w) {
                     valid = 0;
@@ -10497,11 +10505,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 /* Bind this polynomial of y to the one regenerated for z. */
                 yChk[s] = mldsa_poly_checksum(y);
             #ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y
-                valid = mldsa_check_low(y,
+                /* Accumulate rather than leave the loop: an early exit would
+                 * make the number of polynomials of matrix A generated depend
+                 * on the secret mask y. */
+                valid &= mldsa_check_low(y,
                     ((sword32)1 << params->gamma1_bits) - params->beta);
-                if (!valid) {
-                    break;
-                }
             #endif
                 /* Step 13: NTT(y) */
                 mldsa_ntt_full(y);
@@ -10559,7 +10567,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             }
 
             wt = w;
-            for (r = 0; (ret == 0) && valid && (r < params->k); r++) {
+            for (r = 0; (ret == 0) && (r < params->k); r++) {
                 /* Step 13: w = NTT-1(A o NTT(y)) */
                 mldsa_poly_red(wt);
                 mldsa_invntt_full(wt);
@@ -10588,7 +10596,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             #endif
             #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
-                valid = mldsa_check_low(wt,
+                /* Accumulate: w0 comes from the secret mask, so an early exit
+                 * would leak which row rejected. */
+                valid &= mldsa_check_low(wt,
                     params->gamma2 - params->beta);
             #endif
                 wt += MLDSA_N;
@@ -10616,6 +10626,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
                 sp = s1p;
                 hi = ((sword32)1 << params->gamma1_bits) - params->beta;
+                /* z and w0 - cs2 stop at the first rejecting polynomial of a
+                 * discarded round; y masks which one it was. */
                 for (s = 0; (ret == 0) && valid && (s < params->l); s++) {
                     /* Vector y is not kept, so regenerate this polynomial. */
                     /* z is overwritten by the multiply below, so it doubles
@@ -10666,6 +10678,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             if ((ret == 0) && valid) {
                 const byte* t0pt = t0p;
                 byte idx = 0;
+                int ct0Valid = 1;
 
                 sp = s2p;
                 wt = w;
@@ -10688,10 +10701,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         /* Step 25: ct0 = NTT-1(c o t0) */
                         mldsa_mul(z, c, a);
                         mldsa_invntt(z);
-                        /* Step 27: Check ct0 has low enough values. */
-                        valid = mldsa_check_low(z, params->gamma2);
-                    }
-                    if (valid) {
+                        /* Step 27: Check ct0 has low enough values. Every
+                         * row: ct0 has no mask, so a failing index leaks t0. */
+                        ct0Valid &= mldsa_check_low(z, params->gamma2);
                         /* Step 26: ct0 = ct0 + w0 */
                         mldsa_add(z, wt);
                         mldsa_poly_red(z);
@@ -10729,8 +10741,13 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     wt += MLDSA_N;
                     w1et += w1Stride;
                 }
-                /* Set remaining hints to zero. */
-                XMEMSET(h + idx, 0, (size_t)(params->omega - idx));
+                valid &= ct0Valid;
+                /* Set remaining hints to zero. Only for a valid attempt: a
+                 * rejected one leaves a partial count that is never
+                 * published, and the next attempt rebuilds from index 0. */
+                if (valid) {
+                    XMEMSET(h + idx, 0, (size_t)(params->omega - idx));
+                }
             }
 
             if (!valid) {
