@@ -14,6 +14,7 @@
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 * Fixed `WC_MLDSA_CACHE_PUB_VECTORS` not building with `WOLFSSL_MLDSA_VERIFY_NO_MALLOC`; the verify scratch member `t1` is now `vt1`. by @Frauschi
 * Reduced ML-DSA small memory heap use and added `WOLFSSL_MLDSA_SIGN_SMALLEST_MEM`, which roughly halves the signing peak. by @Frauschi
+* Sped up ML-DSA small memory signing by transforming each polynomial of y once; `WOLFSSL_MLDSA_SMALL_MEM_POLY64` no longer affects signing. by @Frauschi
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
