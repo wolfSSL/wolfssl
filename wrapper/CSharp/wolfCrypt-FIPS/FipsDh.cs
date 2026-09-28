@@ -270,7 +270,7 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
-        /* Key checks return false for an invalid key and throw on module-state errors.
+        /* Key checks return false for an invalid key and throw on any other error.
          * CheckPublicKey: the module's range check, plus y^q = 1 for explicit domains. */
         public bool CheckPublicKey(byte[] pub) => CheckArgs(pub, nameof(pub)) &&
             CheckResult("wc_DhCheckPubKeyEx_fips", Native.wc_DhCheckPubKeyEx_fips(Handle, pub, (uint)pub.Length,
@@ -294,14 +294,20 @@ namespace wolfSSL.CSharp.Fips
             return true;
         }
 
+        /* false for an invalid key; resource, argument and module errors throw */
         private static bool CheckResult(string fn, int ret)
         {
-            if (FipsError.IsModuleStateError(ret))
+            if (ret == 0)
             {
-                throw new WolfCryptFipsException(fn, ret);
+                return true;
             }
 
-            return ret == 0;
+            if (FipsError.IsInvalidDhKey(ret))
+            {
+                return false;
+            }
+
+            throw new WolfCryptFipsException(fn, ret);
         }
     }
 }

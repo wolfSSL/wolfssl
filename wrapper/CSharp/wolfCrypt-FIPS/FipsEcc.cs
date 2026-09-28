@@ -207,12 +207,18 @@ namespace wolfSSL.CSharp.Fips
             ThrowIfDisposed();
             int ret = Native.wc_ecc_verify_hash_fips(derSignature, (uint)derSignature.Length,
                                                      digest, (uint)digest.Length, out int res, Handle);
-            if (FipsError.IsModuleStateError(ret))
+            if (ret == 0)
             {
-                throw new WolfCryptFipsException("wc_ecc_verify_hash_fips", ret);
+                return res == 1;
             }
 
-            return ret == 0 && res == 1;
+            /* false only for a bad signature; resource, argument and module errors throw */
+            if (FipsError.IsInvalidEcdsaSignature(ret))
+            {
+                return false;
+            }
+
+            throw new WolfCryptFipsException("wc_ecc_verify_hash_fips", ret);
         }
 
         /* ECC CDH (KAS-ECC-SSC): shared secret Z (x-coordinate, FieldSize bytes) with a peer's

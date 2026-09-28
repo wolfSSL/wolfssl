@@ -278,8 +278,13 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentNullException(nameof(signature));
             }
 
-            byte[] recovered = new byte[Size];
             ThrowIfDisposed();
+            if (signature.Length != Size)
+            {
+                return null;   /* not a signature for this key */
+            }
+
+            byte[] recovered = new byte[Size];
             int ret;
             lock (sync)
             {
@@ -289,9 +294,15 @@ namespace wolfSSL.CSharp.Fips
 
             if (ret < 0)
             {
-                VerifyFailure("wc_RsaSSL_Verify_fips", ret);   /* throws on module-state errors */
-                return null;
+                /* null only for a bad signature; resource, argument and module errors throw */
+                if (FipsError.IsInvalidRsaSignature(ret))
+                {
+                    return null;
+                }
+
+                throw new WolfCryptFipsException("wc_RsaSSL_Verify_fips", ret);
             }
+
             return recovered.Take(ret).ToArray();
         }
 
@@ -339,6 +350,11 @@ namespace wolfSSL.CSharp.Fips
             CheckDigest(hash, digest);
             CheckSaltLen(hash, saltLen);
             ThrowIfDisposed();
+            if (signature.Length != Size)
+            {
+                return false;   /* not a signature for this key */
+            }
+
             byte[] decoded = new byte[Size];
             int ret;
             lock (sync)
@@ -349,17 +365,12 @@ namespace wolfSSL.CSharp.Fips
 
             if (ret < 0)
             {
-                return VerifyFailure("wc_RsaPSS_VerifyEx_fips", ret);
+                return InvalidOrThrow("wc_RsaPSS_VerifyEx_fips", ret);
             }
 
             ret = Native.wc_RsaPSS_CheckPaddingEx_fips(digest, (uint)digest.Length, decoded, (uint)ret,
                 (int)hash, saltLen, Bits);
-            if (FipsError.IsModuleStateError(ret))
-            {
-                throw new WolfCryptFipsException("wc_RsaPSS_CheckPaddingEx_fips", ret);
-            }
-
-            return ret == 0;
+            return ret == 0 || InvalidOrThrow("wc_RsaPSS_CheckPaddingEx_fips", ret);
         }
 
         /* ---- RSA encryption primitives (RSAEP/RSADP) with OAEP padding ----
@@ -437,16 +448,15 @@ namespace wolfSSL.CSharp.Fips
 
         /* ---- helpers ---- */
 
-        /* Module errors that mean "signature does not verify" are reported
-         * as false; FIPS state errors are thrown. */
-        private static bool VerifyFailure(string fn, int ret)
+        /* false for a bad signature; resource, argument and module errors throw */
+        private static bool InvalidOrThrow(string fn, int ret)
         {
-            if (FipsError.IsModuleStateError(ret))
+            if (FipsError.IsInvalidRsaSignature(ret))
             {
-                throw new WolfCryptFipsException(fn, ret);
+                return false;
             }
 
-            return false;
+            throw new WolfCryptFipsException(fn, ret);
         }
 
         /* SP 800-131A Rev. 2 section 9 and Security Policy rule 3b: SHA-1 is

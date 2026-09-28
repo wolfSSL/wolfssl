@@ -74,7 +74,11 @@ namespace wolfSSL.CSharp.Fips
         public const int BUFFER_E = -132;
         public const int PUBLIC_KEY_E = -134;
         public const int ASN_PARSE_E = -140;
+        public const int ASN_GETINT_E = -142;
+        public const int ASN_EXPECT_0_E = -146;
+        public const int ASN_INPUT_E = -154;
         public const int ECC_BAD_ARG_E = -170;
+        public const int ASN_ECC_KEY_E = -171;
         public const int NOT_COMPILED_IN = -174;
         public const int BAD_STATE_E = -192;
         public const int BAD_PADDING_E = -193;
@@ -90,10 +94,27 @@ namespace wolfSSL.CSharp.Fips
         public const int MISSING_RNG_E = -236;
         public const int DH_CHECK_PUB_E = -243;
         public const int ECC_PRIVATEONLY_E = -246;
+        public const int PSS_SALTLEN_E = -250;
         public const int RSA_OUT_OF_RANGE_E = -253;
         public const int RSA_KEY_PAIR_E = -262;
         public const int DH_CHECK_PRIV_E = -263;
         public const int MISSING_KEY = -278;
+
+        /* Codes meaning "the signature or key is invalid" rather than an error, as the v5.2.1
+         * module returns them. MP_VAL is -98 with current headers and -3 in older releases. */
+        private const int MP_VAL_CURRENT = -98, MP_VAL_LEGACY = -3;
+
+        internal static bool IsInvalidRsaSignature(int code) =>
+            code == RSA_PAD_E || code == BAD_PADDING_E || code == RSA_OUT_OF_RANGE_E || code == PSS_SALTLEN_E;
+
+        /* besides result 0: r or s zero or out of range, or a malformed DER signature */
+        internal static bool IsInvalidEcdsaSignature(int code) =>
+            code == MP_ZERO_E || code == MP_VAL_CURRENT || code == MP_VAL_LEGACY || code == ASN_PARSE_E ||
+            code == ASN_GETINT_E || code == ASN_EXPECT_0_E || code == ASN_INPUT_E || code == ASN_ECC_KEY_E;
+
+        internal static bool IsInvalidDhKey(int code) =>
+            code == MP_CMP_E || code == MP_ZERO_E || code == MP_VAL_CURRENT || code == MP_VAL_LEGACY ||
+            code == DH_CHECK_PUB_E || code == DH_CHECK_PRIV_E;
 
         /* Module state errors (not bad input): verify APIs throw on these rather than
          * return false, so a degraded module is never mistaken for a bad signature. */

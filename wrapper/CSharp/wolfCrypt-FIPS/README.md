@@ -323,11 +323,11 @@ finalizer runs, and .NET does not run finalizers at process exit.
 Other objects are not thread-safe: use one per thread or lock.
 
 **Errors.** Failures throw `WolfCryptFipsException`; `Code` is the module's
-return value and `FipsError.Name(code)` its name. Verification returns
-`false` (or `null` for `RecoverPkcs1v15`) for a bad signature or tag and
-throws when the error reports the module's state
-(`FipsError.IsModuleStateError`), so a failed or degraded module is never
-reported as an invalid signature. After a DRBG self-test failure, every
+return value and `FipsError.Name(code)` its name. Verification and key checks
+return `false` (or `null` for `RecoverPkcs1v15`) only for an invalid
+signature, tag or key. Any other error throws, including a failed or degraded
+module (`FipsError.IsModuleStateError`), so an error is never reported as an
+invalid signature. After a DRBG self-test failure, every
 service that uses a `FipsRng` is refused (`DRBG_KAT_FIPS_E`).
 
 ## Run the tests

@@ -250,6 +250,27 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!key.VerifyPss(FipsHashType.Sha256, d, pss), "PSS tampered sig");
             });
 
+            /* the module reports these as error codes; each must be a failed verify, not an exception */
+            T.Run("RSA invalid signatures return false or null rather than throw", () =>
+            {
+                byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
+                byte[] pss = key.SignPss(FipsHashType.Sha256, d, rng);
+                var bad = new (byte[] sig, string what)[]
+                {
+                    (Enumerable.Repeat((byte)0xFF, key.Size).ToArray(), "value above n"),
+                    (new byte[key.Size], "zero"),
+                    (new byte[key.Size - 1], "one byte short"),
+                    (new byte[key.Size + 1], "one byte long"),
+                    (Array.Empty<byte>(), "empty"),
+                };
+                foreach (var (sig, what) in bad)
+                {
+                    T.True(key.RecoverPkcs1v15(sig) == null, "v1.5 " + what);
+                    T.True(!key.VerifyPss(FipsHashType.Sha256, d, sig), "PSS " + what);
+                }
+                T.True(!key.VerifyPss(FipsHashType.Sha256, d, pss, 20), "PSS wrong salt length");
+            });
+
             T.Run("ACVP RSA sigGen messages: module signatures verify in .NET", () =>
             {
                 int n = 0;

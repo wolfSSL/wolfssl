@@ -184,6 +184,21 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!k.VerifyHash(FipsHashType.Sha256, d, FipsEcdsaSignature.FromP1363(rs)), "tampered r");
             });
 
+            /* the module reports these as error codes; each must be a failed verify, not an exception */
+            T.Run("ECDSA invalid signatures return false rather than throw", () =>
+            {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
+                byte[] d = FipsHash.Compute(FipsHashType.Sha256, new byte[] { 1 });
+                byte[] rs = FipsEcdsaSignature.ToP1363(k.SignHash(FipsHashType.Sha256, d), 32);
+                byte[] rZero = (byte[])rs.Clone(); Array.Clear(rZero, 0, 32);
+                byte[] rMax = (byte[])rs.Clone(); Array.Fill(rMax, (byte)0xFF, 0, 32);
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, FipsEcdsaSignature.FromP1363(rZero)), "r = 0");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, FipsEcdsaSignature.FromP1363(rMax)), "r above n");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, new byte[] { 0x30, 0x03, 0x02, 0x01 }), "truncated DER");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, new byte[] { 0x04, 0x02, 0x01, 0x01 }), "not a SEQUENCE");
+                T.True(!k.VerifyHash(FipsHashType.Sha256, d, new byte[8]), "zero bytes");
+            });
+
             /* CVE-2026-5194 class: the module has no digest length bound, so
              * a short digest must never reach it */
             T.Run("ECDSA verify requires the digest length of the stated hash", () =>
@@ -416,6 +431,19 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(dh.CheckPrivateKey(a.PrivateKey), "private key check");
                 T.True(dh.CheckKeyPair(a.PublicKey, a.PrivateKey), "pair check");
                 T.True(!dh.CheckKeyPair(b.PublicKey, a.PrivateKey), "mismatched pair accepted");
+            });
+
+            /* the module reports these as error codes; each must be a failed check, not an exception */
+            T.Run("DH invalid keys return false rather than throw", () =>
+            {
+                using var dh = new FipsDh(FipsDhGroup.Ffdhe2048);
+                byte[] zero = new byte[dh.PrimeSize];
+                byte[] big = Enumerable.Repeat((byte)0xFF, dh.PrimeSize).ToArray();
+                T.True(!dh.CheckPublicKey(zero), "public 0");
+                T.True(!dh.CheckPublicKey(big), "public above p");
+                T.True(!dh.CheckPublicKey(Array.Empty<byte>()), "public empty");
+                T.True(!dh.CheckPrivateKey(zero), "private 0");
+                T.True(!dh.CheckPrivateKey(big), "private above q");
             });
 
             T.Run("DH explicit domain rejects in-range small-order peer keys (order 7)", () =>
