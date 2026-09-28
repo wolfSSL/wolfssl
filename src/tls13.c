@@ -3419,10 +3419,13 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
  * hashOutput  Whether to hash the unencrypted record data.
  * sizeOnly    Only want the size of the record message.
  * asyncOkay   If non-zero can return WC_PENDING_E, otherwise blocks on crypto
+ * padSz       Number of zero padding bytes to add after the content type.
+ *             Not included in a sizeOnly result.
  * returns the size of the encrypted record message or negative value on error.
  */
-int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
-                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay)
+int wolfssl_local_BuildTls13Message_ex(WOLFSSL* ssl, byte* output,
+                int outSz, const byte* input, int inSz, int type,
+                int hashOutput, int sizeOnly, int asyncOkay, word16 padSz)
 {
     int ret;
     BuildMsgArgs* args;
@@ -3526,6 +3529,9 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
             if (sizeOnly)
                 return (int)args->sz;
+
+            args->pad += padSz;
+            args->sz += padSz;
 
             if (args->sz > (word32)outSz) {
                 WOLFSSL_MSG("Oops, want to write past output buffer size");
@@ -3684,6 +3690,17 @@ exit_buildmsg:
 #endif
 
     return ret;
+}
+
+/* Build SSL Message, encrypted, with no padding.
+ * See wolfssl_local_BuildTls13Message_ex() for the parameters.
+ * returns the size of the encrypted record message or negative value on error.
+ */
+int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
+                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay)
+{
+    return wolfssl_local_BuildTls13Message_ex(ssl, output, outSz, input, inSz,
+                                   type, hashOutput, sizeOnly, asyncOkay, 0);
 }
 
 #if !defined(NO_WOLFSSL_CLIENT) || (!defined(NO_WOLFSSL_SERVER) && \
