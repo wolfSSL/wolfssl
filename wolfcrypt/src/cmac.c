@@ -574,6 +574,10 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
                 CmacAssociateTagSz(cmac, *outSz) != 0) {
             return BAD_FUNC_ARG;
         }
+        /* a key here sets the key, so the old length stops applying */
+        if (key != NULL) {
+            cmac->aes.tagLen = WC_NO_TAG_ASSOCIATION;
+        }
     #endif
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, in, inSz, out, outSz,
                 WC_CMAC_AES, NULL);
