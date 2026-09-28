@@ -188,6 +188,15 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
     if (key == NULL || key->dp == NULL)
         return BAD_FUNC_ARG;
 
+    /* keysize is only a curve-selection hint here: wc_ecc_set_curve resolves
+     * the curve from curve_id and may leave keysize disagreeing with it (the
+     * TLS ECDHE path passes eccTempKeySz with a larger negotiated curve). The
+     * SE lays out, and we read back, X||Y||D at the curve's stride, so use
+     * key->dp->size and bound it against key_raw (3 * ECC_MAX_CRYPTO_HW_SIZE). */
+    keysize = key->dp->size;
+    if (keysize > ECC_MAX_CRYPTO_HW_SIZE)
+        return ECC_BAD_ARG_E;
+
     key->key.type = silabs_map_key_type(key->dp->id);
     if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE)
         return WC_HW_E;
@@ -237,8 +246,17 @@ int silabs_ecc_import(ecc_key* key, word32 keysize, int pub, int priv)
     if (key == NULL || key->dp == NULL)
         return BAD_FUNC_ARG;
 
+    /* keysize comes from the caller (the imported point width) while the key
+     * type comes from key->dp; a keysize that disagrees with the curve or
+     * exceeds ECC_MAX_CRYPTO_HW_SIZE would write 3 * keysize bytes past the
+     * 3 * ECC_MAX_CRYPTO_HW_SIZE key_raw field. Reject it before any write into
+     * key_raw. */
+    if (keysize == 0 || keysize > ECC_MAX_CRYPTO_HW_SIZE ||
+            keysize != (word32)key->dp->size)
+        return ECC_BAD_ARG_E;
+
     key->key.type = silabs_map_key_type(key->dp->id);
-    if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE || keysize == 0)
+    if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE)
         return WC_HW_E;
 
     key->key.size = keysize;
@@ -363,6 +381,11 @@ int silabs_ecc_export_public(ecc_key* key, sl_se_key_descriptor_t* seKey)
         ret = ECC_CURVE_OID_E;
     if (ret != 0)
         return ret;
+
+    /* the public X||Y export and readback use key->dp->size strides into
+     * key_raw (3 * ECC_MAX_CRYPTO_HW_SIZE); reject a curve too large to fit. */
+    if (key->dp->size > ECC_MAX_CRYPTO_HW_SIZE)
+        return ECC_BAD_ARG_E;
 
     sl_stat = sl_se_init_command_context(&cmd);
     if (sl_stat == SL_STATUS_OK) {
