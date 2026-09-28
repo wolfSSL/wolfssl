@@ -3351,6 +3351,39 @@ impl BlockModeDecrypt for Aes256EcbDec {
 }
 
 // ---------------------------------------------------------------------------
+// Shared stream cipher helper
+// ---------------------------------------------------------------------------
+
+/// Apply a wolfCrypt stream mode (CTR or OFB) to `buf`, splitting the call
+/// into chunks that fit in the `word32` length accepted by wolfCrypt.
+///
+/// wolfCrypt tracks the unused keystream bytes of a partial block across
+/// calls, so chunking produces the same output as a single call. Chunks are
+/// kept block-aligned regardless.
+#[cfg(all(any(aes_ctr, aes_ofb), feature = "cipher"))]
+fn apply_stream_chunked(
+    ws_aes: &mut sys::Aes,
+    mut buf: cipher::InOutBuf<'_, '_, u8>,
+    f: unsafe extern "C" fn(*mut sys::Aes, *mut u8, *const u8, u32) -> core::ffi::c_int,
+    name: &str,
+) {
+    const MAX_CHUNK: usize = (u32::MAX as usize) & !(AES_BLOCK_SIZE - 1);
+    let len = buf.len();
+    let in_ptr = buf.get_in().as_ptr();
+    let out_ptr = buf.get_out().as_mut_ptr();
+    let mut off = 0usize;
+    while off < len {
+        let chunk = core::cmp::min(len - off, MAX_CHUNK);
+        // SAFETY: in-place operation is valid for CTR/OFB; the C function is
+        // called directly on raw pointers to avoid creating aliasing slices.
+        // off + chunk <= len, so both pointers stay within the buffer.
+        let rc = unsafe { f(ws_aes, out_ptr.add(off), in_ptr.add(off), chunk as u32) };
+        assert_eq!(rc, 0, "{} failed", name);
+        off += chunk;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AES-CTR cipher trait implementations
 // ---------------------------------------------------------------------------
 
@@ -3388,17 +3421,8 @@ impl StreamCipher for Aes128Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        // wolfCrypt AES-CTR supports in-place operation (out == in).
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3438,16 +3462,8 @@ impl StreamCipher for Aes192Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3487,16 +3503,8 @@ impl StreamCipher for Aes256Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3544,17 +3552,8 @@ impl StreamCipher for Aes128Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        // wolfCrypt AES-OFB supports in-place operation (out == in).
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3594,16 +3593,8 @@ impl StreamCipher for Aes192Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3643,16 +3634,8 @@ impl StreamCipher for Aes256Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
