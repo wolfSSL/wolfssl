@@ -162,7 +162,9 @@ impl<H: Hash, const N: usize> SigningKey<H, N> {
     /// Generate a fresh `N * 8`-bit RSA key with public exponent 65537.
     #[cfg(rsa_keygen)]
     pub fn generate(rng: RNG) -> Result<Self, i32> {
-        let bits: i32 = (N * 8).try_into().map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+        let bits = N.checked_mul(8)
+            .and_then(|b| i32::try_from(b).ok())
+            .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
         let rsa = RSA::generate(bits, 65537, &rng)?;
         Ok(Self { inner: rsa, rng, _hash: PhantomData })
     }

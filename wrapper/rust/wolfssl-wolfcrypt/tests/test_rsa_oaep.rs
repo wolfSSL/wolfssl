@@ -137,3 +137,21 @@ fn test_oaep_tampered_ciphertext_rejected() {
     let mut out = [0u8; 256];
     assert!(dk.decrypt(&ct, &mut out).is_err());
 }
+
+#[test]
+#[cfg(all(sha256, rsa_keygen))]
+fn test_generate_rejects_overflowing_modulus_size() {
+    use wolfssl_wolfcrypt::rsa_oaep::{DecryptingKey, Sha256};
+    use wolfssl_wolfcrypt::sys;
+
+    common::setup();
+
+    // N * 8 wraps to 2048 in usize arithmetic; generate() must reject it
+    // rather than panic or produce a 2048-bit key.
+    const N: usize = usize::MAX / 8 + 1 + 256;
+    let rng = RNG::new().expect("RNG");
+    match DecryptingKey::<Sha256, N>::generate(rng) {
+        Ok(_) => panic!("generate() must fail for overflowing N"),
+        Err(rc) => assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+    }
+}
