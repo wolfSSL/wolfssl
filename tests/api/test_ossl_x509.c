@@ -1778,7 +1778,7 @@ int test_wolfssl_local_IsValidFQDN(void) {
         {"com",                          SINGLE_LABEL_OK}, /* single label */
         {"123.456",                      0},   /* all-numeric final label (no alpha) */
         {"example.123",                  0},   /* all-numeric TLD (no alpha) */
-        {"a",                            SINGLE_LABEL_OK}, /* single label, too short */
+        {"a",                            SINGLE_LABEL_OK}, /* single label, one character */
         {"example.123a",                 1},   /* TLD with at least one letter -- valid */
     };
 
