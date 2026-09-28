@@ -67360,6 +67360,11 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest)
     ret = wc_MlDsaKey_MakeKeyFromSeed(freshKey, mldsa_kat_key_seed);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+    ret = wc_MlDsaKey_CheckKey(freshKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     freshSigLen = (word32)sigSz;
     ret = wc_MlDsaKey_SignCtxWithSeed(freshKey, NULL, 0, freshSig,
         &freshSigLen, mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg),

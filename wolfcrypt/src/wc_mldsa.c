@@ -13347,6 +13347,17 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 #endif
         }
     }
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && !defined(WC_MLDSA_FIXED_ARRAY)
+    /* The small memory key generation does not allocate the cache. */
+    if ((ret == 0) && (key->a == NULL)) {
+        key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_MLDSA);
+        if (key->a == NULL) {
+            ret = MEMORY_E;
+        }
+        a = key->a;
+    }
+#endif
 
     if (ret == 0) {
 #ifdef WC_MLDSA_CACHE_MATRIX_A
