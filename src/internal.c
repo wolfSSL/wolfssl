@@ -17492,7 +17492,7 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 /* account for verify params flag set */
 static int AdjustCMForParams(WOLFSSL* ssl)
 {
-    int flags;
+    unsigned long flags;
     WOLFSSL_X509_VERIFY_PARAM* param;
 
     param = wolfSSL_get0_param(ssl);

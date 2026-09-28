@@ -46,6 +46,7 @@ int test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup(void);
 int test_wolfSSL_X509_STORE_CTX_trusted_stack_reinit(void);
 int test_wolfSSL_X509_STORE_CTX_get_issuer(void);
 int test_wolfSSL_X509_STORE_set_flags(void);
+int test_wolfSSL_X509_STORE_CTX_set_flags(void);
 int test_wolfSSL_X509_STORE(void);
 int test_wolfSSL_X509_STORE_load_locations(void);
 int test_X509_STORE_get0_objects(void);
@@ -94,6 +95,8 @@ int test_wolfSSL_CTX_set_cert_store(void);
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                                       test_wolfSSL_X509_STORE_CTX_get_issuer), \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_set_flags),     \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                                       test_wolfSSL_X509_STORE_CTX_set_flags), \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE),               \
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                                       test_wolfSSL_X509_STORE_load_locations), \
