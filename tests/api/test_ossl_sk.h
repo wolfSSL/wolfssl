@@ -29,6 +29,7 @@ int test_wolfSSL_sk_push_get_node(void);
 int test_wolfSSL_sk_free(void);
 int test_wolfSSL_sk_push_pop(void);
 int test_wolfSSL_sk_insert(void);
+int test_wolfSSL_sk_delete(void);
 int test_wolfSSL_shallow_sk_dup(void);
 int test_wolfSSL_sk_num(void);
 int test_wolfSSL_sk_value(void);
@@ -44,6 +45,7 @@ int test_wolfssl_lh_retrieve(void);
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_free),           \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_push_pop),       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_insert),         \
+    TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_delete),         \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_shallow_sk_dup),    \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_num),            \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_value),          \

@@ -141,6 +141,43 @@ int test_wolfSSL_sk_push_pop(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_sk_delete(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(NO_CERTS)
+    WOLFSSL_STACK* stack = NULL;
+    unsigned char data_1[1] = { 1 };
+    unsigned char data_2[1] = { 2 };
+    unsigned char data_3[1] = { 3 };
+
+    ExpectNotNull(stack = wolfSSL_sk_new_node(HEAP_HINT));
+
+    ExpectNull(wolfSSL_sk_delete(NULL, 0));
+    ExpectNull(wolfSSL_sk_delete(stack, 0));
+
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_1), 1);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_2), 2);
+    ExpectIntEQ(wolfSSL_sk_push(stack, data_3), 3);
+    /* Out of range indexes remove nothing. */
+    ExpectNull(wolfSSL_sk_delete(stack, -1));
+    ExpectNull(wolfSSL_sk_delete(stack, 3));
+    ExpectIntEQ(wolfSSL_sk_num(stack), 3);
+
+    ExpectPtrEq(wolfSSL_sk_delete(stack, 1), data_2);
+    ExpectIntEQ(wolfSSL_sk_num(stack), 2);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 0), data_1);
+    ExpectPtrEq(wolfSSL_sk_value(stack, 1), data_3);
+    ExpectPtrEq(wolfSSL_sk_delete(stack, 1), data_3);
+    ExpectPtrEq(wolfSSL_sk_delete(stack, 0), data_1);
+    ExpectIntEQ(wolfSSL_sk_num(stack), 0);
+    ExpectNull(wolfSSL_sk_delete(stack, 0));
+
+    wolfSSL_sk_free(stack);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_sk_insert(void)
 {
     EXPECT_DECLS;

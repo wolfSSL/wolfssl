@@ -802,6 +802,23 @@ void* wolfSSL_sk_pop(WOLFSSL_STACK* stack)
     return wolfSSL_sk_pop_node(stack, -1);
 }
 
+/* Remove the node at an index from the stack and return its data.
+ *
+ * @param [in, out] stack  Stack of nodes with data.
+ * @param [in]      idx    Index of node to remove.
+ * @return  Data in removed node on success.
+ * @return  NULL when stack is NULL or index is out of range.
+ */
+void* wolfSSL_sk_delete(WOLFSSL_STACK* stack, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_delete");
+
+    if ((stack == NULL) || (idx < 0) || ((unsigned long)idx >= stack->num))
+        return NULL;
+
+    return wolfSSL_sk_pop_node(stack, idx);
+}
+
 #endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)

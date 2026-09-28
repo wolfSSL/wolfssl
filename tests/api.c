@@ -28719,6 +28719,7 @@ static int test_sk_X509_CRL_decode(void)
     STACK_OF(X509_CRL)* s = NULL;
 #ifndef NO_BIO
     BIO* bio = NULL;
+    X509_CRL* crl2 = NULL;
 #endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     RevokedCert* rev = NULL;
@@ -28745,6 +28746,18 @@ static int test_sk_X509_CRL_decode(void)
     ExpectNotNull(bio = BIO_new_file("./certs/crl/crl.der", "rb"));
     ExpectNull(wolfSSL_d2i_X509_CRL_bio(NULL, NULL));
     ExpectNotNull(crl = wolfSSL_d2i_X509_CRL_bio(bio, NULL));
+    BIO_free(bio);
+    bio = NULL;
+
+    /* DER round trip through a memory BIO. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(i2d_X509_CRL_bio(NULL, crl), WOLFSSL_FAILURE);
+    ExpectIntEQ(i2d_X509_CRL_bio(bio, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(i2d_X509_CRL_bio(bio, crl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), i2d_X509_CRL(crl, NULL));
+    ExpectNotNull(crl2 = d2i_X509_CRL_bio(bio, NULL));
+    X509_CRL_free(crl2);
+    crl2 = NULL;
     BIO_free(bio);
     bio = NULL;
 
@@ -28922,6 +28935,10 @@ static int test_sk_X509_CRL_decode(void)
     }
     ExpectIntEQ(sk_X509_CRL_num(s), 1);
     ExpectPtrEq(sk_X509_CRL_value(s, 0), crl);
+    ExpectNull(sk_X509_CRL_delete(s, 1));
+    ExpectPtrEq(sk_X509_CRL_delete(s, 0), crl);
+    ExpectIntEQ(sk_X509_CRL_num(s), 0);
+    ExpectIntEQ(sk_X509_CRL_push(s, crl), 1);
 
     sk_X509_CRL_free(s);
 #endif

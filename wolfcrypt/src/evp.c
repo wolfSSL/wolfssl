@@ -524,6 +524,14 @@ unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     return ctx->flags;
 }
 
+/* Returns 1 when ctx is set up to encrypt, 0 when it decrypts. */
+int wolfSSL_EVP_CIPHER_CTX_is_encrypting(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+{
+    if (ctx == NULL)
+        return 0;
+    return ctx->enc ? 1 : 0;
+}
+
 int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
