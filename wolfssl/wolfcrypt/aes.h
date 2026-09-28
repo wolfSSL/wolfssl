@@ -538,7 +538,8 @@ struct Aes {
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
     /* tag length this key is tied to, at the end so offsets do not move */
     word32 tagLen;
 #endif
@@ -630,7 +631,8 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
 /* no tag length is tied to the key yet, also pass to wc_AesSetTagLen() or
  * wc_CmacSetTagLen() to clear one */
 enum {

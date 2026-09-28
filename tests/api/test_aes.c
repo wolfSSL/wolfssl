@@ -3527,6 +3527,7 @@ int test_wc_AesGcmEncryptDecrypt(void)
 #if ((defined(HAVE_AESGCM) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12) || \
      defined(HAVE_AESCCM)) && !defined(NO_AES) && \
     defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 
 #define TEST_AES_TAG_GCM 1
@@ -3650,7 +3651,7 @@ int test_wc_AesSetTagLen(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
-    !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #if defined(HAVE_AESGCM) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12
     ExpectIntEQ(test_aes_tag_bind(TEST_AES_TAG_GCM, 12, GCM_NONCE_MID_SZ),
@@ -3672,6 +3673,7 @@ int test_wc_AesGcmStreamTagLen(void)
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM) && \
     !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
     !defined(HAVE_SELFTEST) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12 && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Aes  aes;
     byte key[16];
@@ -5368,6 +5370,7 @@ int test_wc_GmacUpdate(void)
         tagOut, sizeof(tag1)), 0);
     ExpectIntEQ(XMEMCMP(tag1, tagOut, sizeof(tag1)), 0);
 #if !defined(HAVE_SELFTEST) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12 && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     /* a gmac holds an aes, so a tag length associates the same way */
     ExpectIntEQ(wc_AesSetTagLen(&gmac.aes, sizeof(tag1)), 0);
