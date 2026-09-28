@@ -14269,6 +14269,10 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
                 if (headerEnd) {
                     headerEnd += XSTR_SIZEOF("-----");
                     /* Read in the newline */
+                    if (i >= l) {
+                        WOLFSSL_ERROR(BUFFER_E);
+                        goto err;
+                    }
                     if (wolfSSL_BIO_read(bio, &pem[i], 1) != 1) {
                         WOLFSSL_MSG("wolfSSL_BIO_read error");
                         goto err;
