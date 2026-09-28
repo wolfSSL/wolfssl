@@ -25370,6 +25370,12 @@ static int DoChangeCipherSpecTls12(WOLFSSL* ssl)
 
     ssl->buffers.inputBuffer.idx++;
 
+#ifdef WOLFSSL_MULTICAST
+    /* Multicast sessions use externally supplied keys, not a handshake. */
+    if (ssl->options.haveMcast)
+        return 0;
+#endif
+
     ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
     if (ret != 0) {
         if (!ssl->options.dtls) {
@@ -25414,15 +25420,6 @@ static int DoChangeCipherSpecTls12(WOLFSSL* ssl)
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
-#ifdef WOLFSSL_MULTICAST
-            if (ssl->options.haveMcast) {
-                peerSeq += ssl->keys.curPeerId;
-                peerSeq->highwaterMark = UpdateHighwaterMark(0,
-                        ssl->ctx->mcastFirstSeq,
-                        ssl->ctx->mcastSecondSeq,
-                        ssl->ctx->mcastMaxSeq);
-            }
-#endif
             peerSeq->nextEpoch++;
             peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
             peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;

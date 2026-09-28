@@ -74,6 +74,7 @@ int test_wolfSSL_DTLSv1_compat_timeouts(void);
 int test_wolfSSL_dtls13_set_send_more_acks(void);
 int test_wolfSSL_dtls_srtp_keying_material(void);
 int test_wolfSSL_mcast_peers(void);
+int test_wolfSSL_mcast_record_sequence(void);
 int test_wolfSSL_set_dtls_fd_connected(void);
 int test_wolfSSL_dtls_get_peer(void);
 int test_wolfSSL_dtls_set_peer(void);
@@ -259,6 +260,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls13_set_send_more_acks),       \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_srtp_keying_material),       \
         TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_peers),                     \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_record_sequence),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_set_dtls_fd_connected),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_peer),                   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer),                   \

@@ -9476,6 +9476,68 @@ int test_wolfSSL_set_dtls_fd_connected(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_mcast_record_sequence(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* rxCtx = NULL;
+    WOLFSSL_CTX* txCtx = NULL;
+    WOLFSSL* rx = NULL;
+    WOLFSSL* tx = NULL;
+    byte secret[16];
+    byte random[32];
+    const byte suite[2] = { 0, 0xfe }; /* WDM_WITH_NULL_SHA256 */
+    const byte control = 1;
+    const byte message[2] = { 'o', 'k' };
+    const word16 memberId = 250;
+    byte wire[256];
+    byte output[sizeof(message)] = { 0 };
+    word16 peerId = 0;
+    int controlSz = 0;
+    int messageSz = 0;
+
+    XMEMSET(secret, 0x23, sizeof(secret));
+    XMEMSET(random, 0xA5, sizeof(random));
+
+    ExpectNotNull(rxCtx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(txCtx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(rxCtx, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(txCtx, memberId),
+            WOLFSSL_SUCCESS);
+    ExpectNotNull(rx = wolfSSL_new(rxCtx));
+    ExpectNotNull(tx = wolfSSL_new(txCtx));
+    if (tx != NULL)
+        tx->options.side = WOLFSSL_SERVER_END;
+
+    ExpectIntEQ(wolfSSL_mcast_peer_add(rx, memberId, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_secret(rx, 1, secret, sizeof(secret), random,
+                    random, suite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_secret(tx, 1, secret, sizeof(secret), random,
+                    random, suite), WOLFSSL_SUCCESS);
+
+    ExpectIntGT(controlSz = BuildMessage(tx, wire, sizeof(wire), &control,
+                    sizeof(control), change_cipher_spec, 0, 0, 0,
+                    CUR_ORDER), 0);
+    ExpectIntGT(messageSz = BuildMessage(tx, wire + controlSz,
+                    (int)sizeof(wire) - controlSz, message, sizeof(message),
+                    application_data, 0, 0, 0, CUR_ORDER), 0);
+    ExpectIntEQ(wolfSSL_inject(rx, wire, controlSz + messageSz),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_mcast_read(rx, &peerId, output, sizeof(output)),
+            (int)sizeof(message));
+    ExpectIntEQ(peerId, memberId);
+    ExpectBufEQ(output, message, sizeof(message));
+
+    wolfSSL_free(tx);
+    wolfSSL_free(rx);
+    wolfSSL_CTX_free(txCtx);
+    wolfSSL_CTX_free(rxCtx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_get_peer(void)
 {
     EXPECT_DECLS;
