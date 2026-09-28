@@ -205,8 +205,8 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
-#ifdef WOLFSSL_TI_AM64X
-    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_port.h>
+#ifdef WOLFSSL_TI_AM64X_R5
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -939,7 +939,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(WOLFSSL_TI_AM64X)
+    #if defined(WOLFSSL_TI_AM64X_R5)
         ret = ti_sa2ul_port_init();
         if (ret != 0) {
             WOLFSSL_MSG("TI AM64x Init Failed");

@@ -24,7 +24,7 @@ an example (ti-am64x.config) of how to compile with the MCU Plus SDK.
 
 To enable all the above, with TRNG in NRBG mode, set the following build switch:
 
-**`WOLFSSL_TI_AM64X`**
+**`WOLFSSL_TI_AM64X_R5`**
 
 To change the TRNG to CTR-DRBG mode, then also set this switch:
 
