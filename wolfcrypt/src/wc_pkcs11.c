@@ -3738,7 +3738,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     if (ret == 0 && (len = in[i++]) == 0)
         ret = ASN_PARSE_E;
     /* Check there is space for INT data */
-    if (ret == 0 && (i > inSz || len > inSz - i))
+    if (ret == 0 && len > inSz - i)
         ret = ASN_PARSE_E;
     if (ret == 0) {
         /* Skip leading zero */
@@ -3756,7 +3756,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     }
 
     /* Check min data for: INT. */
-    if (ret == 0 && (i > inSz || inSz - i < 2))
+    if (ret == 0 && inSz - i < 2)
         ret = ASN_PARSE_E;
     /* Check INT */
     if (ret == 0 && GetASNTag(in, &i, &tag, inSz) != 0)
@@ -3768,7 +3768,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     if (ret == 0 && (len = in[i++]) == 0)
         ret = ASN_PARSE_E;
     /* Check there is space for INT data */
-    if (ret == 0 && (i > inSz || len > inSz - i))
+    if (ret == 0 && len > inSz - i)
         ret = ASN_PARSE_E;
     if (ret == 0) {
         /* Skip leading zero */
