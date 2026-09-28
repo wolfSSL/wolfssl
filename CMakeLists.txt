@@ -3510,14 +3510,6 @@ add_option("WOLFSSL_TITANCACHE"
     "Enable titan session cache (default: disabled)"
     "no" "yes;no")
 if(WOLFSSL_TITANCACHE)
-    if(WOLFSSL_SESSION_CACHE_REF)
-        # settings.h rejects the pair, so correct it here as configure does.
-        message(WARNING "WOLFSSL_SESSION_CACHE_REF=yes ignored: "
-            "TITAN_SESSION_CACHE needs NO_SESSION_CACHE_REF")
-        override_cache(WOLFSSL_SESSION_CACHE_REF "no")
-        list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DWOLFSSL_SESSION_CACHE_REF")
-        list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE_REF")
-    endif()
     list(APPEND WOLFSSL_DEFINITIONS
         "-DTITAN_SESSION_CACHE"
         )

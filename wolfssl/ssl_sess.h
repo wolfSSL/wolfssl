@@ -136,10 +136,10 @@
         #define CLIENT_SESSION_ROWS (SESSION_ROWS * CLIENT_SESSIONS_MULTIPLIER)
 
         #if CLIENT_SESSIONS_PER_ROW > 65535
-            #error CLIENT_SESSIONS_PER_ROW too big
+            #error CLIENT_SESSIONS_PER_ROW too big, lower CLIENT_SESSIONS_MULTIPLIER
         #endif
         #if CLIENT_SESSION_ROWS > 65535
-            #error CLIENT_SESSION_ROWS too big
+            #error CLIENT_SESSION_ROWS too big, lower CLIENT_SESSIONS_MULTIPLIER
         #endif
 
         struct ClientSession {

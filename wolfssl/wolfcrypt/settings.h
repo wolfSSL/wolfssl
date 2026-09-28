@@ -5420,16 +5420,6 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define NO_SESSION_CACHE_REF
 #endif
 
-#if defined(WOLFSSL_SESSION_CACHE_REF) && defined(TITAN_SESSION_CACHE)
-    #error TITAN_SESSION_CACHE has too many sessions for WOLFSSL_SESSION_CACHE_REF
-#endif
-
-/* With titan cache size there is too many sessions to fit with the default
- * multiplier of 8 */
-#if defined(TITAN_SESSION_CACHE) && !defined(NO_SESSION_CACHE_REF)
-    #define NO_SESSION_CACHE_REF
-#endif
-
 /* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
     (defined(WOLFSSL_HAVE_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \

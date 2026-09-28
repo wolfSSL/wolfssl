@@ -20,8 +20,9 @@
   holding the result past its `WOLFSSL` must move to `wolfSSL_get1_session()`
   plus `wolfSSL_SESSION_free()`.  The old behaviour is opt-in through
   `WOLFSSL_SESSION_CACHE_REF`, `--enable-session-cache-ref` or
-  `-DWOLFSSL_SESSION_CACHE_REF=yes`, and such a build warns at compile time
-  unless `WOLFSSL_SESSION_CACHE_REF_WARNED` is defined.  The recipes that
+  `-DWOLFSSL_SESSION_CACHE_REF=yes`; such a build warns at compile time and
+  marks `wolfSSL_get_session()` deprecated at every call site, unless
+  `WOLFSSL_SESSION_CACHE_REF_WARNED` is defined.  The recipes that
   already defined `NO_SESSION_CACHE_REF` still force it on over the option,
   which both build systems now report.
 

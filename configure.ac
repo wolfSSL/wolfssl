@@ -12585,10 +12585,7 @@ then
     AS_CASE(["$CFLAGS $CPPFLAGS $AM_CFLAGS"],[*'NO_SESSION_CACHE_REF'*],[],
         [AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"])
 else
-    # settings.h derives the macro from TITAN_SESSION_CACHE, which never
-    # reaches the compile line, so scanning for it alone would miss that.
-    AS_CASE(["$CFLAGS $CPPFLAGS $AM_CFLAGS"],
-        [*'NO_SESSION_CACHE_REF'*|*'TITAN_SESSION_CACHE'*],
+    AS_CASE(["$CFLAGS $CPPFLAGS $AM_CFLAGS"],[*'NO_SESSION_CACHE_REF'*],
         [ENABLED_SESSION_CACHE_REF=no
          AC_MSG_WARN([--enable-session-cache-ref ignored: NO_SESSION_CACHE_REF is already set by another option])],
         [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_CACHE_REF"])

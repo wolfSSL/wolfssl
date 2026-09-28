@@ -2947,8 +2947,9 @@ int        wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
     unless WOLFSSL_SESSION_CACHE_REF is defined, so every build selects it
     without asking. The deprecated behaviour remains available by defining
     WOLFSSL_SESSION_CACHE_REF, or through --enable-session-cache-ref and
-    -DWOLFSSL_SESSION_CACHE_REF=yes, and such a build warns at compile time;
-    define WOLFSSL_SESSION_CACHE_REF_WARNED to silence that warning.
+    -DWOLFSSL_SESSION_CACHE_REF=yes, and such a build warns at compile time,
+    both when building the library and at every call to this function; define
+    WOLFSSL_SESSION_CACHE_REF_WARNED to silence both.
 
     Under WOLFSSL_SESSION_CACHE_REF this function instead returns a persistent
     session object pointer stored in the local cache. The cache size is finite
