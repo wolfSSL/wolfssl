@@ -264,15 +264,28 @@ struct DRBG_internal {
 #endif /* HAVE_HASHDRBG */
 
 /* RNG health states */
-#define WC_DRBG_NOT_INIT     0
-#define WC_DRBG_OK           1
-#define WC_DRBG_FAILED       2
-#define WC_DRBG_CONT_FAILED  3
+enum wc_RngHealthState {
+    WC_DRBG_NOT_INIT =    0,
+    WC_DRBG_OK =          1,
+    WC_DRBG_FAILED =      2,
+    WC_DRBG_CONT_FAILED = 3
 #ifdef WC_RNG_BANK_SUPPORT
-    #define WC_DRBG_BANKREF  4 /* Marks the WC_RNG as a ref to a wc_rng_bank,
-                                * with no usable DRBG of its own.
-                                */
+    , WC_DRBG_BANKREF = 4 /* Marks the WC_RNG as a ref to a wc_rng_bank,
+                           * with no usable DRBG of its own.
+                           */
 #endif
+};
+
+#if defined(HAVE_FIPS) && !defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    #define WC_RNG_RBGC_STRATUM_IMMUTABLE
+#endif
+
+#define WC_RNG_HAVE_RBGC
+
+#ifndef WC_RNG_RBGC_USER_SEED_STRATUM
+    #define WC_RNG_RBGC_USER_SEED_STRATUM 65536
+#endif
+wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
 
 /* RNG context */
 struct WC_RNG {
@@ -321,6 +334,9 @@ struct WC_RNG {
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+#ifdef WC_RNG_HAVE_RBGC
+    int RBGCStratum;
+#endif
 };
 
 #endif /* NO FIPS or have FIPS v2*/
@@ -351,9 +367,12 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 #ifndef WC_NO_RNG
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
-WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
-WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
+WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
+WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
+#define WC_RNG_INIT_FLAG_NONE 0
+WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
+                                    word32 nonceSz, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
@@ -385,6 +404,18 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Uncredited(
+        WC_RNG* rng, const byte* seed, word32 seedSz);
+    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root);
+    #ifdef WORD64_AVAILABLE
+    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                             word64* reseedCtr);
+    #else
+    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                             word32* reseedCtr);
+    #endif
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
+                                           word32 nonceSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* seedA, word32 seedASz,
@@ -396,6 +427,13 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
+    #define WC_RNG_HAVE_HEALTHTEST_ADDIN
+    WOLFSSL_API int wc_RNG_HealthTest_AddIn(int reseed,
+                                        const byte* seedA, word32 seedASz,
+                                        const byte* seedB, word32 seedBSz,
+                                        const byte* addInA, word32 addInASz,
+                                        const byte* addInB, word32 addInBSz,
+                                        byte* output, word32 outputSz);
 #endif /* HAVE_HASHDRBG */
 
 #ifdef __cplusplus
