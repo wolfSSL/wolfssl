@@ -605,13 +605,11 @@ int wc_AlteraFcs_Ecc(wc_CryptoInfo* info)
 
     switch (info->pk.type) {
     #ifdef HAVE_ECC_DHE
-        /* Key generation is deliberately NOT offloaded here. An SDM key object
-         * must commit to Sign/Verify or Exchange usage at creation and the two
-         * are mutually exclusive, but wc_ecc_make_key_ex cannot express which
-         * is wanted, and callers routinely use one key for both ECDSA and ECDH.
-         * Silently creating a signing key would break the later exchange. Key
-         * slots are also scarce, so device residency is opt in through
-         * wc_AlteraFcsEcc_MakeSigningKey and _MakeExchangeKey. */
+        /* Generic keygen cannot select the SDM key usage. */
+        case WC_PK_TYPE_EC_KEYGEN:
+            if (wc_AlteraFcs_EccCtx(info->pk.eckg.key) != NULL)
+                ret = WC_HW_E;
+            break;
         case WC_PK_TYPE_ECDH:
             ret = wc_AlteraFcs_Ecdh(info);
             break;

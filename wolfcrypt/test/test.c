@@ -81832,15 +81832,14 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
     int       hwInit = 0;
     int       swInit = 0;
     int       copyInit = 0;
-    word32    sizes[4];
+    word32    sizes[5];
     word32    sz;
     int       i;
 
-    /* There is no minimum: every message whose length is a multiple of 8
-     * reaches the device, and each must match plain software */
-    sizes[0] = 8;
-    sizes[1] = 16;
-    sizes[2] = 64;
+    /* Aligned messages of at least 16 bytes reach the device. */
+    sizes[0] = 16;
+    sizes[1] = 24;
+    sizes[2] = 32;
     sizes[3] = msgSz;
     for (i = 0; i < 4; i++) {
         sz = sizes[i];
@@ -81901,14 +81900,13 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
         swInit = 0;
     }
 
-    /* The device refuses an empty message and any length that is not a
-     * multiple of 8, so those digests are the software shadow's and must
-     * still be right. */
-    sizes[0] = 0;
-    sizes[1] = 1;
-    sizes[2] = 63;
-    sizes[3] = 4097;
-    for (i = 0; i < 4; i++) {
+    /* Short, empty and unaligned messages use the software shadow. */
+    sizes[0] = 8;
+    sizes[1] = 0;
+    sizes[2] = 1;
+    sizes[3] = 63;
+    sizes[4] = 4097;
+    for (i = 0; i < 5; i++) {
         sz = sizes[i];
         wc_AlteraFcs_TestHwReset();
         ret = wc_InitSha256_ex(&hwSha, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
@@ -82730,6 +82728,13 @@ static wc_test_ret_t altera_fcs_ecc_test(int curveId)
     if (wc_AlteraFcsEcc_IsDeviceKey(&key) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
 
+#ifdef HAVE_ECC_DHE
+    ret = wc_ecc_make_key_ex(&rng, wc_ecc_size(&key), &key, curveId);
+    if (ret != WC_HW_E || wc_AlteraFcsEcc_IsDeviceKey(&key) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
+    ret = 0;
+#endif
+
     /* the private scalar must not be exportable from a device key */
     if (wc_ecc_export_private_only(&key, priv, &privSz) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
@@ -82805,6 +82810,11 @@ static wc_test_ret_t altera_fcs_ecdh_test(int curveId, int keySz)
     ret = wc_AlteraFcsEcc_MakeExchangeKey(&devKey, curveId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_ecdh);
+
+    ret = wc_ecc_make_key_ex(&rng, keySz, &devKey, curveId);
+    if (ret != WC_HW_E || wc_AlteraFcsEcc_IsDeviceKey(&devKey) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecdh);
+    ret = 0;
 
     XMEMSET(hash, 1, sizeof(hash));
     ret = wc_ecc_sign_hash(hash, (word32)sizeof(hash), sig, &sigSz, &rng,

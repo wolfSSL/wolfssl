@@ -55,7 +55,7 @@ because doing so could strand state or device keys owned by the port.
 | Algorithm | On the SDM | Notes |
 |---|---|---|
 | RNG | yes | the TRNG seeds wolfSSL's DRBG; generate requests stay in the DRBG unless built with `WOLFSSL_ALTERA_FCS_RAW_RNG` |
-| SHA-256 | yes | any message whose length is a multiple of 8 bytes, the SDM refuses others; past 4 MiB it is streamed through libfcs. A message longer than `WOLFSSL_ALTERA_FCS_HASH_MAX` (default 64 MiB) completes in software |
+| SHA-256 | yes | messages of at least 16 bytes whose length is a multiple of 8 bytes; others complete in software. Past 4 MiB the message is streamed through libfcs. A message longer than `WOLFSSL_ALTERA_FCS_HASH_MAX` (default 64 MiB) completes in software |
 | AES-128/256 CBC, CTR | yes | the driver requires a multiple of 32 bytes; other lengths fall back to software. Past 4 MiB the request is streamed. Device resident keys are supported, see below |
 | AES-192 | software | the SDM key object has no 192 bit code |
 | AES-GCM | software | not offloaded by this port |
@@ -100,6 +100,11 @@ Properties of a device key:
 
 The device holds roughly 27 key slots. `wc_ecc_free()` releases the slot; a
 leaked slot lasts until the service session closes.
+
+Do not overwrite a resident key with `wc_ecc_import_unsigned()` or another
+import API. Those APIs bypass the crypto callback and leave its device handle
+attached. Free the key and initialize a new one before importing or generating
+a different key. `wc_ecc_make_key_ex()` rejects generation on a resident key.
 
 ## AES device keys
 

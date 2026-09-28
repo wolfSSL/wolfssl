@@ -68,10 +68,9 @@
 
 #define FCS_SHA_OP_MODE_SHA 1
 #define FCS_SHA_SZ_256      0
-/* Measured on hardware: the SDM refuses any message whose length is not a
- * multiple of 8 bytes (the one shot call fails, the streaming call returns
- * success with a wrong digest), so those finish on the software shadow. */
+/* The SDM needs at least 16 bytes and a multiple of 8 bytes. */
 #define WC_ALTERA_FCS_HASH_ALIGN 8
+#define WC_ALTERA_FCS_HASH_MIN   16
 
 /* Public SHA APIs may consult WOLF_CRYPTO_CB_FIND even with INVALID_DEVID.
  * Internal software-shadow work sets this thread-local guard so redispatch
@@ -458,7 +457,7 @@ int wc_AlteraFcs_Hash(wc_CryptoInfo* info)
         if (keep == NULL) {
             return CRYPTOCB_UNAVAILABLE;
         }
-        if (keep->overflowed || keep->used == 0 ||
+        if (keep->overflowed || keep->used < WC_ALTERA_FCS_HASH_MIN ||
             (keep->used % WC_ALTERA_FCS_HASH_ALIGN) != 0) {
             ret = CRYPTOCB_UNAVAILABLE;
         }

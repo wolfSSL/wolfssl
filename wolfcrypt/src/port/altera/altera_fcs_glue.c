@@ -374,7 +374,7 @@ int wc_AlteraFcs_Init(void)
     }
 
     if (g_libReady == 0) {
-        ret = libfcs_init((FCS_OSAL_CHAR*)"error");
+        ret = libfcs_init((FCS_OSAL_CHAR*)"log_err");
         if (ret != 0) {
             WOLFSSL_MSG("libfcs_init failed");
             ret = wc_AlteraFcs_MapError(ret);
