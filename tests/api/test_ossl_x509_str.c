@@ -3034,6 +3034,29 @@ int test_wolfSSL_X509_STORE_CTX_get_issuer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* Store trusting the CA, with the CRL revoking cert loaded but not enabled */
+static int test_X509_STORE_revoked_setup(X509_STORE** store, X509** ca,
+    X509** cert)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(*store = X509_STORE_new());
+    ExpectNotNull(*ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_STORE_add_cert(*store, *ca), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile((*store)->cm,
+        "./certs/crl/crl.revoked", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerDisableCRL((*store)->cm), WOLFSSL_SUCCESS);
+    ExpectNotNull(*cert = wolfSSL_X509_load_certificate_file(
+        "./certs/server-revoked-cert.pem", WOLFSSL_FILETYPE_PEM));
+
+    return EXPECT_RESULT();
+}
+#endif
+
 int test_wolfSSL_X509_STORE_set_flags(void)
 {
     EXPECT_DECLS;
@@ -3069,6 +3092,56 @@ int test_wolfSSL_X509_STORE_set_flags(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_STORE_set_flags_crl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509* ca = NULL;
+    X509* cert = NULL;
+    static const unsigned long crlFlags[] = {
+        X509_V_FLAG_CRL_CHECK,
+        X509_V_FLAG_CRL_CHECK_ALL,
+        WOLFSSL_CRL_CHECKALL
+    };
+    size_t i;
+
+    ExpectIntEQ(test_X509_STORE_revoked_setup(&store, &ca, &cert),
+        TEST_SUCCESS);
+
+    /* A time flag must not turn on CRL checking */
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_USE_CHECK_TIME),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Each CRL flag must turn it on */
+    for (i = 0; i < XELEM_CNT(crlFlags); i++) {
+        ExpectIntEQ(wolfSSL_CertManagerDisableCRL(store->cm), WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_set_flags(store, crlFlags[i]), WOLFSSL_SUCCESS);
+        ExpectNotNull(ctx = X509_STORE_CTX_new());
+        ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL),
+            WOLFSSL_SUCCESS);
+        ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+            WOLFSSL_X509_V_ERR_CERT_REVOKED);
+        X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+    X509_STORE_free(store);
+    X509_free(cert);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_set_flags(void)
 {
     EXPECT_DECLS;
@@ -3093,18 +3166,14 @@ int test_wolfSSL_X509_STORE_CTX_set_flags(void)
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
     !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     /* CRL checking requested on the ctx must be applied */
-    ExpectNotNull(store = X509_STORE_new());
-    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
-        WOLFSSL_FILETYPE_PEM));
-    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(store->cm,
-        "./certs/crl/crl.revoked", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerDisableCRL(store->cm), WOLFSSL_SUCCESS);
-    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
-        "./certs/server-revoked-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(test_X509_STORE_revoked_setup(&store, &ca, &cert),
+        TEST_SUCCESS);
     ExpectNotNull(ctx = X509_STORE_CTX_new());
     ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
     /* Revoked, but CRL checking is off */
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    /* A time flag must not turn on CRL checking */
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_USE_CHECK_TIME);
     ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
     X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_CRL_CHECK);
     ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);

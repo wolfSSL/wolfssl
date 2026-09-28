@@ -4341,7 +4341,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 /*!
     \ingroup CertsKeys
 
-    \brief この関数は渡されたWOLFSSL_X509_STORE構造体の動作を変更するためのフラグを受け取ります。使用されるフラグの例としてWOLFSSL_CRL_CHECKがあります。
+    \brief この関数は渡されたWOLFSSL_X509_STORE構造体の動作を変更するためのフラグを受け取ります。使用されるフラグの例としてWOLFSSL_X509_V_FLAG_CRL_CHECKがあります。
 
     \return SSL_SUCCESS フラグの設定時にエラーが発生しなかった場合。
     \return <0 失敗時に負の値が返されます。
@@ -4354,7 +4354,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
     WOLFSSL_X509_STORE* str;
     int ret;
     // strを作成して設定
-    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_X509_V_FLAG_CRL_CHECK);
     if (ret != SSL_SUCCESS) {
     	//ret値を確認してエラーケースを処理する
     }

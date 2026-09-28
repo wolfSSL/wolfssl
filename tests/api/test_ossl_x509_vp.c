@@ -224,6 +224,30 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     return EXPECT_RESULT();
 }
 
+/* Verify flags must have the same values as in OpenSSL */
+int test_wolfSSL_X509_VERIFY_PARAM_openssl_values(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    static const struct {
+        unsigned long flag;
+        unsigned long opensslValue;
+    } flags[] = {
+        { X509_V_FLAG_USE_CHECK_TIME, 0x2 },
+        { X509_V_FLAG_CRL_CHECK,      0x4 },
+        { X509_V_FLAG_CRL_CHECK_ALL,  0x8 },
+        { X509_V_FLAG_PARTIAL_CHAIN,  0x80000 },
+        { X509_V_FLAG_NO_CHECK_TIME,  0x200000 }
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        ExpectIntEQ(flags[i].flag, flags[i].opensslValue);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 {
     EXPECT_DECLS;
