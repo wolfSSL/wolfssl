@@ -1348,6 +1348,292 @@ int test_mldsa_sign_vfy(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Sets the lowest ML-DSA parameter set this build enables. */
+static int mldsa_res_test_set_params(wc_MlDsaKey* key)
+{
+#ifndef WOLFSSL_NO_ML_DSA_44
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_44);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_65);
+#else
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_87);
+#endif
+}
+#endif
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC) && \
+    defined(WOLFSSL_SMALL_STACK) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_MEM_FAIL_COUNT) && !defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST)
+    #define TEST_MLDSA_VERIFY_OOM
+#endif
+
+#ifdef TEST_MLDSA_VERIFY_OOM
+/* Counts allocations while active and fails the fail_at-th (1-based). */
+static int mldsa_voom_active = 0;
+static int mldsa_voom_count = 0;
+static int mldsa_voom_fail_at = 0;
+static int mldsa_voom_failed = 0;
+/* The allocators in place before the swap; the shims pass through to them. */
+static wolfSSL_Malloc_cb mldsa_voom_mf = NULL;
+static wolfSSL_Free_cb mldsa_voom_ff = NULL;
+static wolfSSL_Realloc_cb mldsa_voom_rf = NULL;
+
+static void* mldsa_voom_malloc(size_t size)
+{
+    if (mldsa_voom_active) {
+        mldsa_voom_count++;
+        if (mldsa_voom_count == mldsa_voom_fail_at) {
+            mldsa_voom_failed = 1;
+            return NULL;
+        }
+    }
+    return (mldsa_voom_mf != NULL) ? mldsa_voom_mf(size) : malloc(size);
+}
+
+static void mldsa_voom_free(void* ptr)
+{
+    if (mldsa_voom_ff != NULL) {
+        mldsa_voom_ff(ptr);
+    }
+    else {
+        free(ptr);
+    }
+}
+
+static void* mldsa_voom_realloc(void* ptr, size_t size)
+{
+    return (mldsa_voom_rf != NULL) ? mldsa_voom_rf(ptr, size) :
+        realloc(ptr, size);
+}
+#endif /* TEST_MLDSA_VERIFY_OOM */
+
+/* A verify that fails part-way, here on an allocation, must not report the
+ * signature as valid. Built only where verify allocates after the norm
+ * check sets valid: WOLFSSL_SMALL_STACK without WOLFSSL_MLDSA_VERIFY_SMALL_MEM.
+ */
+int test_mldsa_verify_oom_res(void)
+{
+    EXPECT_DECLS;
+/* USE_WOLFSSL_MEMORY is implied, but check-api-guards.py needs it named
+ * at the allocator call sites. */
+#if defined(TEST_MLDSA_VERIFY_OOM) && defined(USE_WOLFSSL_MEMORY)
+    wc_MlDsaKey* key;
+    WC_RNG rng;
+    byte msg[32];
+    byte* sig = NULL;
+    word32 sigLen = MLDSA_MAX_SIG_SIZE;
+    int total = 0;
+    int setRet = -1;
+    int res;
+    int ret;
+    int i;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(mldsa_res_test_set_params(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, msg,
+        sizeof(msg), &rng), 0);
+
+    /* Warm up first: a verify can populate key caches, such as
+     * WC_MLDSA_CACHE_PUB_VECTORS, that later verifies reuse. Done before the
+     * swap so the caches come from, and are freed by, the default allocator. */
+    res = 0;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        sizeof(msg), &res), 0);
+    ExpectIntEQ(res, 1);
+
+    /* Outside Expect*: those skip argument evaluation after an earlier
+     * failure, which would leave the swap and the restore out of step. */
+    (void)wolfSSL_GetAllocators(&mldsa_voom_mf, &mldsa_voom_ff,
+        &mldsa_voom_rf);
+    if (EXPECT_SUCCESS()) {
+        setRet = wolfSSL_SetAllocators(mldsa_voom_malloc, mldsa_voom_free,
+            mldsa_voom_realloc);
+        ExpectIntEQ(setRet, 0);
+    }
+    if (setRet == 0) {
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+        /* Pin dispatch to the C path: under SVR2 fuzzing each verify can take
+         * a different (AVX2 vs C) path, with a different allocation count. */
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+#endif
+        /* Count verify's allocations with none failing. */
+        mldsa_voom_fail_at = 0;
+        mldsa_voom_count = 0;
+        mldsa_voom_active = 1;
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            sizeof(msg), &res);
+        mldsa_voom_active = 0;
+        total = mldsa_voom_count;
+        ExpectIntEQ(ret, 0);
+        ExpectIntEQ(res, 1);
+        ExpectIntGT(total, 0);
+
+        /* Fail each one in turn: every error must come back with res 0. */
+        for (i = 1; (i <= total) && EXPECT_SUCCESS(); i++) {
+            mldsa_voom_fail_at = i;
+            mldsa_voom_count = 0;
+            mldsa_voom_failed = 0;
+            mldsa_voom_active = 1;
+            /* A sentinel, so a stale value can't pass for a written 0. */
+            res = 1;
+            ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+                sizeof(msg), &res);
+            mldsa_voom_active = 0;
+            ExpectIntEQ(mldsa_voom_failed, 1);
+            ExpectIntNE(ret, 0);
+            ExpectIntEQ(res, 0);
+        }
+        mldsa_voom_fail_at = 0;
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+#endif
+
+        (void)wolfSSL_SetAllocators(mldsa_voom_mf, mldsa_voom_ff,
+            mldsa_voom_rf);
+    }
+
+    wc_MlDsaKey_Free(key);
+    wc_FreeRng(&rng);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WOLF_CRYPTO_CB)
+    #define TEST_MLDSA_VERIFY_ERR_CB
+    #define TEST_MLDSA_VERIFY_ERR_DEVID 0x4d4c4456
+#endif
+
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+/* A device that claims the signature is valid and then returns *ctx, an
+ * error or CRYPTOCB_UNAVAILABLE. */
+static int mldsa_verify_err_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) &&
+            (info->pk.pqc_verify.type == WC_PQC_SIG_TYPE_MLDSA)) {
+        *info->pk.pqc_verify.res = 1;
+        return *(int*)ctx;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_MLDSA_VERIFY_ERR_CB */
+
+/* Every error return from the public verify APIs, including argument errors
+ * and device failures, must leave res at 0. res starts as 1 each time. */
+int test_mldsa_verify_err_res(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
+    byte sig[16];
+    byte msg[16];
+    byte mu[16];
+    int res;
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+    int cbRet = WC_NO_ERR_TRACE(WC_HW_E);
+#endif
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+    XMEMSET(mu, 0, sizeof(mu));
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(mldsa_res_test_set_params(key), 0);
+
+    /* ctx NULL with a non-zero ctxLen. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sizeof(sig), NULL, 1, msg,
+        sizeof(msg), &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 1, msg,
+        sizeof(msg), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+    /* mu of the wrong length. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig, sizeof(sig), mu, sizeof(mu),
+        &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+    /* msg NULL with a non-zero msgLen. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sizeof(sig), NULL, 1, &res),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+#endif
+    wc_MlDsaKey_Free(key);
+
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLDSA_VERIFY_ERR_DEVID,
+        mldsa_verify_err_cb, &cbRet), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_VERIFY_ERR_DEVID), 0);
+    ExpectIntEQ(mldsa_res_test_set_params(key), 0);
+
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sizeof(sig), NULL, 0, msg,
+        sizeof(msg), &res), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 0, msg,
+        (word32)sizeof(msg), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sizeof(sig), msg, sizeof(msg),
+        &res), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+#endif
+
+    /* The device declines, then software rejects the call. Any error must
+     * leave res at 0, whichever check reports it. */
+    cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    res = 1;
+    ExpectIntNE(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 0, msg,
+        (word32)sizeof(msg), WC_HASH_TYPE_SHA256, &res), 0);
+    ExpectIntEQ(res, 0);
+
+    wc_MlDsaKey_Free(key);
+    wc_CryptoCb_UnRegisterDevice(TEST_MLDSA_VERIFY_ERR_DEVID);
+#endif /* TEST_MLDSA_VERIFY_ERR_CB */
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_check_key(void)
 {
     EXPECT_DECLS;
