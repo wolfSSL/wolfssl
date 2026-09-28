@@ -114,6 +114,61 @@ then
     [ $RESULT -ne 0 ] && echo -e "\nsnifftest static RSA failed\n" && exit 1
 fi
 
+# A Certificate message can span many records in one TCP packet. Keep the
+# later TCP sequence numbers consistent with the original capture.
+if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && \
+        test $has_static_rsa == yes && command -v python3 >/dev/null 2>&1 && \
+        ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -q 'max fragment'
+then
+    echo -e "\nStarting snifftest on a fragmented Certificate...\n"
+    SPLIT_PCAP=$(mktemp)
+    python3 - ./scripts/sniffer-static-rsa.pcap "$SPLIT_PCAP" <<'PY'
+import struct
+import sys
+
+source = open(sys.argv[1], 'rb').read()
+result = bytearray(source[:24])
+offset = 24
+packet_num = 0
+while offset < len(source):
+    seconds, micros, caplen, origlen = struct.unpack_from('<IIII', source, offset)
+    packet = bytearray(source[offset + 16:offset + 16 + caplen])
+    ip = 4
+    tcp = ip + (packet[ip] & 15) * 4
+    payload = tcp + (packet[tcp + 12] >> 4) * 4
+    source_port = struct.unpack_from('!H', packet, tcp)[0]
+    if packet_num == 8:
+        assert packet[payload] == 22
+        length = struct.unpack_from('!H', packet, payload + 3)[0]
+        body = packet[payload + 5:payload + 5 + length]
+        header = packet[payload:payload + 3]
+        fragments = [body[:4]] + [body[j:j + 1]
+                                  for j in range(4, len(body))]
+        packet[payload:] = b''.join(header + struct.pack('!H', len(part)) + part
+                                    for part in fragments)
+        added = 5 * (len(fragments) - 1)
+        struct.pack_into('!H', packet, ip + 2, len(packet) - ip)
+        caplen = origlen = len(packet)
+    elif packet_num > 8:
+        field = tcp + (4 if source_port == 11111 else 8)
+        value = struct.unpack_from('!I', packet, field)[0]
+        struct.pack_into('!I', packet, field, (value + added) & 0xffffffff)
+    result.extend(struct.pack('<IIII', seconds, micros, caplen, origlen))
+    result.extend(packet)
+    offset += 16 + struct.unpack_from('<I', source, offset + 8)[0]
+    packet_num += 1
+open(sys.argv[2], 'wb').write(result)
+PY
+    RESULT=$?
+    if test $RESULT -eq 0; then
+        ./sslSniffer/sslSnifferTest/snifftest -expectdata -pcap "$SPLIT_PCAP" \
+            -key ./certs/server-key.pem -server 127.0.0.1 -port 11111
+        RESULT=$?
+    fi
+    rm -f "$SPLIT_PCAP"
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest fragmented Certificate failed\n" && exit 1
+fi
+
 # TLS v1.2 CBC Encrypt-Then-MAC Test (RFC 7366). The decrypted lengths are
 # compared against known good output, since Encrypt-Then-MAC changes how much
 # of a record is payload and a wrong length still decrypts.

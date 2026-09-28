@@ -621,6 +621,7 @@ typedef struct SnifferSession {
     byte*          tlsFragBuf;
     word32         tlsFragOffset;
     word32         tlsFragSize;
+    word32         tlsFragCapacity;
 #endif
 #ifdef HAVE_SNI
     const char*    sni;             /* server name indication */
@@ -4915,7 +4916,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
 /* Process HandShake input */
 static int DoHandShake(const byte* input, int* sslBytes,
-                       SnifferSession* session, char* error, word16 rhSize)
+                       SnifferSession* session, char* error, word32 rhSize)
 {
     byte type;
     int  size;
@@ -4927,9 +4928,31 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
 #ifdef HAVE_MAX_FRAGMENT
     if (session->tlsFragBuf) {
-        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
+        word32 needed;
+
+        if (rhSize > session->tlsFragSize - session->tlsFragOffset) {
             SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
+        }
+        needed = session->tlsFragOffset + rhSize;
+        if (needed > session->tlsFragCapacity) {
+            byte* fragment;
+            word32 capacity = session->tlsFragCapacity;
+
+            if (capacity < session->tlsFragSize / 2)
+                capacity *= 2;
+            else
+                capacity = session->tlsFragSize;
+            if (capacity < needed)
+                capacity = needed;
+            fragment = (byte*)XREALLOC(session->tlsFragBuf, capacity, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (fragment == NULL) {
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            session->tlsFragBuf = fragment;
+            session->tlsFragCapacity = capacity;
         }
         XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
         session->tlsFragOffset += rhSize;
@@ -4957,6 +4980,32 @@ static int DoHandShake(const byte* input, int* sslBytes,
     *sslBytes -= HANDSHAKE_HEADER_SZ;
     startBytes = *sslBytes;
 
+    if (size > MAX_HANDSHAKE_SZ) {
+        SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+#ifdef HAVE_MAX_FRAGMENT
+    if (rhSize < (word32)size + HANDSHAKE_HEADER_SZ) {
+        /* partial fragment, let's reassemble */
+        if (session->tlsFragBuf == NULL) {
+            session->tlsFragSize = size + HANDSHAKE_HEADER_SZ;
+            session->tlsFragBuf = (byte*)XMALLOC(rhSize, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (session->tlsFragBuf == NULL) {
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            session->tlsFragCapacity = rhSize;
+        }
+
+        XMEMCPY(session->tlsFragBuf, input - HANDSHAKE_HEADER_SZ, rhSize);
+        session->tlsFragOffset = rhSize;
+        *sslBytes = 0;
+        return 0;
+    }
+#endif
+
     if (*sslBytes < size) {
         Trace(SPLIT_HANDSHAKE_MSG_STR);
         *sslBytes = 0;
@@ -4967,34 +5016,6 @@ static int DoHandShake(const byte* input, int* sslBytes,
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
-
-#ifdef HAVE_MAX_FRAGMENT
-    if (rhSize < size) {
-        /* partial fragment, let's reassemble */
-        if (session->tlsFragBuf == NULL) {
-            session->tlsFragOffset = 0;
-            session->tlsFragSize = size + HANDSHAKE_HEADER_SZ;
-            session->tlsFragBuf = (byte*)XMALLOC(session->tlsFragSize, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (session->tlsFragBuf == NULL) {
-                SetError(MEMORY_STR, error, NULL, 0);
-                return 0;
-            }
-
-            /* include the handshake header */
-            input -= HANDSHAKE_HEADER_SZ;
-            *sslBytes += HANDSHAKE_HEADER_SZ;
-        }
-
-        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
-            SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
-        XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
-        session->tlsFragOffset += rhSize;
-        *sslBytes -= rhSize;
-        return 0;
-    }
-#endif
 
 #ifdef WOLFSSL_TLS13
     if (type != client_hello && type != server_hello
@@ -5146,6 +5167,7 @@ exit:
 #ifdef HAVE_MAX_FRAGMENT
     XFREE(session->tlsFragBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     session->tlsFragBuf = NULL;
+    session->tlsFragCapacity = 0;
 #endif
 
     *sslBytes = startBytes - size;  /* actual bytes of full process */
@@ -6782,8 +6804,28 @@ doMessage:
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
         if (sslFrame != NULL) {
-            /* sslFrame moved so should recordEnd */
-            recordEnd = sslFrame - ivAdvance + rhSize;
+            word32 overhead = (word32)(sslFrame -
+                ssl->buffers.outputBuffer.buffer);
+
+            /* The decrypted handshake ends before the record MAC, block
+             * padding, and TLS 1.3 inner content type. TLS 1.2 AEAD also
+             * carries an explicit IV that is not written to output. */
+            if ((enum ContentType)rh.type == handshake) {
+                if (!ssl->options.tls1_3 && ssl->specs.cipher_type == aead &&
+                    ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
+                    overhead += AESGCM_EXP_IV_SZ;
+                }
+                if (overhead > (word32)rhSize ||
+                    ssl->keys.padSz > (word32)rhSize - overhead) {
+                    SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                recordEnd = sslFrame + rhSize - overhead - ssl->keys.padSz;
+            }
+            else {
+                /* sslFrame moved so should recordEnd */
+                recordEnd = sslFrame - ivAdvance + rhSize;
+            }
         }
         decrypted = 1;
 
@@ -6813,27 +6855,28 @@ doPart:
     switch ((enum ContentType)rh.type) {
         case handshake:
             {
-                int startIdx = sslBytes;
+                int startIdx = (int)(recordEnd - sslFrame);
+                int handshakeBytes = startIdx;
                 int used;
 
                 Trace(GOT_HANDSHAKE_STR);
-                ret = DoHandShake(sslFrame, &sslBytes, session, error, rhSize);
+                ret = DoHandShake(sslFrame, &handshakeBytes, session, error,
+                    (word32)startIdx);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
             #endif
-                if (ret != 0 || sslBytes > startIdx) {
+                if (ret != 0 || handshakeBytes < 0 ||
+                    handshakeBytes > startIdx) {
                     if (session->flags.fatalError == 0)
                         SetError(BAD_HANDSHAKE_STR, error, session,
                                  FATAL_ERROR_STATE);
                     return WOLFSSL_FATAL_ERROR;
                 }
 
-                /* DoHandShake now fully decrements sslBytes to remaining */
-                used = startIdx - sslBytes;
+                used = startIdx - handshakeBytes;
                 sslFrame += used;
-                if (decrypted)
-                    sslFrame += ssl->keys.padSz;
+                sslBytes = handshakeBytes;
             }
             break;
         case change_cipher_spec:
