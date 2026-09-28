@@ -5228,10 +5228,16 @@ WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_API int wolfSSL_disable_cookie(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_enable_cookie(WOLFSSL* ssl);
+#endif
+
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_API int wolfDTLS_accept_stateless(WOLFSSL* ssl);
-/* notify user we parsed a verified ClientHello is done. This only has an effect
- * on the server end. */
+/* Notify after cookie verification, or complete successful ClientHello
+ * processing when cookies are disabled. Server only. */
 typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
 WOLFSSL_API int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
 #endif

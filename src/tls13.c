@@ -7989,8 +7989,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* do not change state in the SSL object before the next region of code
      * to be able to statelessly compute a DTLS cookie */
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-    /* Update the ssl->options.dtlsStateful setting `if` statement in
-     * wolfSSL_accept_TLSv13 when changing this one. */
+    /* No-cookie accepts are already stateful before the first read. */
     if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
             !ssl->options.dtlsStateful) {
         DtlsSetSeqNumForReply(ssl);
@@ -16857,6 +16856,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 #endif
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
+
 /* Send a cookie with the HelloRetryRequest to avoid storing state.
  *
  * ssl       SSL/TLS object.
@@ -16865,81 +16865,33 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
  * secretSz  Size of secret data in bytes.
  *           Use a value of 0 to indicate use of default size.
  * returns BAD_FUNC_ARG when ssl is NULL or not using TLS v1.3, SIDE_ERROR when
- * called on a client; WOLFSSL_SUCCESS on success and otherwise failure.
+ * called on a client, BAD_STATE_E when the DTLS handshake has already decided
+ * how to process this ClientHello; WOLFSSL_SUCCESS on success and otherwise
+ * failure.
  */
 int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
                             unsigned int secretSz)
 {
+#ifndef NO_WOLFSSL_SERVER
     int ret;
+#endif
 
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
- #ifndef NO_WOLFSSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
+    ret = CheckCookieState(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
 
-    if (secretSz == 0) {
-    #ifndef NO_SHA256
-        secretSz = WC_SHA256_DIGEST_SIZE;
-    #elif defined(WOLFSSL_SHA384)
-        secretSz = WC_SHA384_DIGEST_SIZE;
-    #elif defined(WOLFSSL_TLS13_SHA512)
-        secretSz = WC_SHA512_DIGEST_SIZE;
-    #elif defined(WOLFSSL_SM3)
-        secretSz = WC_SM3_DIGEST_SIZE;
-    #else
-        #error "No digest to available to use with HMAC for cookies."
-    #endif /* NO_SHA */
-    }
-
-    if (secretSz != ssl->buffers.tls13CookieSecret.length) {
-        byte* newSecret;
-
-        if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
-            ForceZero(ssl->buffers.tls13CookieSecret.buffer,
-                      ssl->buffers.tls13CookieSecret.length);
-            XFREE(ssl->buffers.tls13CookieSecret.buffer,
-                  ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-        }
-
-        newSecret = (byte*)XMALLOC(secretSz, ssl->heap,
-                                   DYNAMIC_TYPE_COOKIE_PWD);
-        if (newSecret == NULL) {
-            ssl->buffers.tls13CookieSecret.buffer = NULL;
-            ssl->buffers.tls13CookieSecret.length = 0;
-            WOLFSSL_MSG("couldn't allocate new cookie secret");
-            return MEMORY_ERROR;
-        }
-        ssl->buffers.tls13CookieSecret.buffer = newSecret;
-        ssl->buffers.tls13CookieSecret.length = secretSz;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("wolfSSL_send_hrr_cookie secret",
-            ssl->buffers.tls13CookieSecret.buffer,
-            ssl->buffers.tls13CookieSecret.length);
-    #endif
-    }
-
-    /* If the supplied secret is NULL, randomly generate a new secret. */
-    if (secret == NULL) {
-        ret = wc_RNG_GenerateBlock(ssl->rng,
-                               ssl->buffers.tls13CookieSecret.buffer, secretSz);
-        if (ret < 0)
-            return ret;
-    }
-    else
-        XMEMCPY(ssl->buffers.tls13CookieSecret.buffer, secret, secretSz);
-
-    ssl->options.sendCookie = 1;
-
-    ret = WOLFSSL_SUCCESS;
+    /* On failure the previous secrets and policy are kept. */
+    return CookiePolicySet(ssl, secret, secretSz, 1);
 #else
     (void)secret;
     (void)secretSz;
-
-    ret = SIDE_ERROR;
+    return SIDE_ERROR;
 #endif
-
-    return ret;
 }
 
 int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
@@ -16950,29 +16902,7 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
 #ifdef NO_WOLFSSL_SERVER
     return SIDE_ERROR;
 #else
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
-
-    if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecret.buffer,
-            ssl->buffers.tls13CookieSecret.length);
-        XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
-            DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.tls13CookieSecret.buffer = NULL;
-        ssl->buffers.tls13CookieSecret.length = 0;
-    }
-
-    if (ssl->buffers.tls13CookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecretSecondary.buffer,
-            ssl->buffers.tls13CookieSecretSecondary.length);
-        XFREE(ssl->buffers.tls13CookieSecretSecondary.buffer, ssl->heap,
-            DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.tls13CookieSecretSecondary.buffer = NULL;
-        ssl->buffers.tls13CookieSecretSecondary.length = 0;
-    }
-
-    ssl->options.sendCookie = 0;
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_disable_cookie(ssl);
 #endif /* NO_WOLFSSL_SERVER */
 }
 
@@ -17012,38 +16942,19 @@ int wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
         return BAD_FUNC_ARG;
     }
 
-    /* Clear any existing secondary secret. */
-    if (ssl->buffers.tls13CookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecretSecondary.buffer,
-                  ssl->buffers.tls13CookieSecretSecondary.length);
-        XFREE(ssl->buffers.tls13CookieSecretSecondary.buffer, ssl->heap,
-              DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.tls13CookieSecretSecondary.buffer = NULL;
-        ssl->buffers.tls13CookieSecretSecondary.length = 0;
-    }
-
     /* A NULL/empty secret just clears the secondary secret. */
     if (secret == NULL || secretSz == 0) {
+        FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary);
         ret = WOLFSSL_SUCCESS;
     }
     else {
-        byte* newSecret = (byte*)XMALLOC(secretSz, ssl->heap,
-                                         DYNAMIC_TYPE_COOKIE_PWD);
-        if (newSecret == NULL) {
-            WOLFSSL_MSG("couldn't allocate secondary cookie secret");
-            ret = MEMORY_ERROR;
-        }
-        else {
-            XMEMCPY(newSecret, secret, secretSz);
-            ssl->buffers.tls13CookieSecretSecondary.buffer = newSecret;
-            ssl->buffers.tls13CookieSecretSecondary.length = secretSz;
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Add("wolfSSL_set_hrr_cookie_secret_secondary secret",
-                ssl->buffers.tls13CookieSecretSecondary.buffer,
-                ssl->buffers.tls13CookieSecretSecondary.length);
-        #endif
+        /* The replacement is built before the old secret is dropped, so a
+         * failed rotation leaves the secondary secret that was in use. */
+        ret = SetCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary,
+                secret, secretSz,
+                "wolfSSL_set_hrr_cookie_secret_secondary secret");
+        if (ret == 0)
             ret = WOLFSSL_SUCCESS;
-        }
     }
 #else
     (void)secret;
@@ -17981,6 +17892,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             }
 
+#ifdef WOLFSSL_DTLS13
+            /* Notify once at the first CH transition, not while reassembling
+             * or processing the second CH after a key-share HRR. */
+            if (ssl->options.acceptState == TLS13_ACCEPT_BEGIN) {
+                if ((ssl->error = DtlsNoCookieChGood(ssl)) < 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif
             ssl->options.acceptState = TLS13_ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
             if (!IsAtLeastTLSv1_3(ssl->version))
