@@ -1583,7 +1583,11 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #endif
 
         if (entry) {
-            XMEMCPY(&addr->sin_addr.s_addr, entry->h_addr_list[0],
+            char* hAddr;
+
+            /* macOS does not align h_addr_list, so copy the pointer out. */
+            XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
+            XMEMCPY(&addr->sin_addr.s_addr, hAddr,
                    (size_t) entry->h_length);
             useLookup = 1;
         }

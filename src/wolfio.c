@@ -1519,17 +1519,20 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif
 
     if (entry) {
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy the pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
     #ifdef WOLFSSL_IPV6
         sin = (SOCKADDR_IN6 *)&addr;
         sin->sin6_family = AF_INET6;
         sin->sin6_port = XHTONS(port);
-        XMEMCPY(&sin->sin6_addr, entry->h_addr_list[0], entry->h_length);
+        XMEMCPY(&sin->sin6_addr, hAddr, entry->h_length);
     #else
         sin = (SOCKADDR_IN *)&addr;
         sin->sin_family = AF_INET;
         sin->sin_port = XHTONS(port);
-        XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
-                (size_t)entry->h_length);
+        XMEMCPY(&sin->sin_addr.s_addr, hAddr, (size_t)entry->h_length);
     #endif
     }
 
@@ -2447,10 +2450,16 @@ int wolfIO_OcspDestAllowed(const char* host)
     /* gethostbyname()/gethostbyname_r() resolve only IPv4 (h_addrtype
      * AF_INET); IPv6 would require gethostbyname2()/getipnodebyname(), which
      * are not used here, so screen each returned address as IPv4. */
-    for (i = 0; entry->h_addr_list[i] != NULL && !blocked; i++) {
+    for (i = 0; !blocked; i++) {
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy each pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list + i, sizeof(hAddr));
+        if (hAddr == NULL) {
+            break;
+        }
         if (entry->h_addrtype == AF_INET) {
-            blocked = wolfIO_OcspIPv4Blocked(
-                (const unsigned char*)entry->h_addr_list[i]);
+            blocked = wolfIO_OcspIPv4Blocked((const unsigned char*)hAddr);
         }
     }
 #ifdef WOLFSSL_OCSP_GHBN_R
