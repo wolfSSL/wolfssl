@@ -20,6 +20,7 @@
  */
 
 using System;
+using System.Security.Cryptography;
 
 namespace wolfSSL.CSharp.Fips
 {
@@ -89,8 +90,11 @@ namespace wolfSSL.CSharp.Fips
          * FipsRng overloads draw the IV from the DRBG (read it from IV) and are the encryption
          * paths; with a caller IV, CBC only decrypts and OFB/CTR uniqueness is the caller's job. */
         public static FipsAes CreateEcb(byte[] key, bool encrypt) => new FipsAes(FipsAesMode.Ecb, encrypt, key, null);
+        /// <summary>CBC encryptor with a fresh DRBG IV. One message per encryptor: a second message would reuse the chaining state as a predictable IV (SP 800-38A App. C).</summary>
         public static FipsAes CreateCbc(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Cbc, true, key, NewIV(rng)));
+        /// <summary>OFB encryptor with a fresh DRBG IV. One message per encryptor; create a new one for each message.</summary>
         public static FipsAes CreateOfb(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ofb, true, key, NewIV(rng)));
+        /// <summary>CTR encryptor with a fresh DRBG initial counter. One message per encryptor; create a new one for each message.</summary>
         public static FipsAes CreateCtr(byte[] key, FipsRng rng) => WithDrbgIV(new FipsAes(FipsAesMode.Ctr, true, key, NewIV(rng)));
 
         private static FipsAes WithDrbgIV(FipsAes a)
@@ -166,7 +170,12 @@ namespace wolfSSL.CSharp.Fips
                         break;
                 }
             }
-            WolfCryptFipsException.Check(fn, ret);
+            if (ret != 0)
+            {
+                CryptographicOperations.ZeroMemory(output);   /* may hold partial plaintext */
+                throw new WolfCryptFipsException(fn, ret);
+            }
+
             return output;
         }
 
