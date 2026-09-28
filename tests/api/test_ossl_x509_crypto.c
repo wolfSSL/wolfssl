@@ -155,7 +155,14 @@ int test_wolfSSL_X509_check_private_key_mldsa(void)
 
         ExpectNotNull(x509 = X509_load_certificate_file(
             cases[i].certPath, SSL_FILETYPE_ASN1));
+    #ifdef WOLFSSL_MLDSA_CHECK_KEY
         ExpectIntEQ(X509_check_private_key(x509, pkey), 1);
+    #else
+        /* Without the key pair check the match cannot be confirmed, so
+         * wc_CheckPrivateKey() reports NOT_COMPILED_IN and the pair is
+         * rejected. */
+        ExpectIntEQ(X509_check_private_key(x509, pkey), 0);
+    #endif
 
         if (cases[i].mismatchCertPath != NULL) {
             ExpectNotNull(mismatchX509 = X509_load_certificate_file(

@@ -82,6 +82,19 @@
  * legacy compatibility shim is dropped. */
 #include <wolfssl/wolfcrypt/dilithium.h>
 
+/* Unconditional so the key layout does not depend on include order. */
+#if (defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) || \
+     defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \
+     defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)) && \
+    !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
+    #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
+#endif
+/* Allocates its buffers unless WOLFSSL_MLDSA_VERIFY_NO_MALLOC is also set. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+#endif
+
 #if defined(WOLFSSL_HAVE_MLDSA)
 
 #include <wolfssl/wolfcrypt/sha3.h>

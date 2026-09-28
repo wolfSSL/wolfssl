@@ -215,15 +215,12 @@
 #endif
 
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) && \
-        !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
-    #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
+        defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
+    #error "PRECALC and PRECALC_A are equivalent to non small mem"
 #endif
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A) && \
-        !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
-    #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
-    #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
-        #error "PRECALC and PRECALC_A are equivalent to non small mem"
-    #endif
+        ((WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A + 0) < 1)
+    #error "PRECALC_A must pre-calculate at least one row of matrix A"
 #endif
 #ifdef WOLFSSL_MLDSA_SIGN_SMALLEST_MEM
     #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \
@@ -7313,10 +7310,7 @@ static int mldsa_vec_ntt(sword32* r, byte l)
 #if (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
      (!defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) || \
       defined(WC_MLDSA_CACHE_PUB_VECTORS))) || \
-    (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
-     (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
-      defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \
-      defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A))) || \
+    defined(MLDSA_SIGN_VEC_HELPERS) || \
     (defined(WOLFSSL_MLDSA_SMALL) && \
      (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
       defined(WOLFSSL_MLDSA_CHECK_KEY)))
@@ -8340,7 +8334,8 @@ static int mldsa_invntt_full(sword32* r)
     return ret;
 }
 
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
      defined(WOLFSSL_MLDSA_CHECK_KEY) || \
     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
      !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
@@ -8377,7 +8372,8 @@ static int mldsa_vec_invntt_full(sword32* r, byte l)
 }
 #endif
 
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
      defined(WOLFSSL_MLDSA_CHECK_KEY) || \
     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
      !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
@@ -8896,7 +8892,8 @@ static word64 mldsa_poly_checksum(const sword32* a)
 #endif
 
 #if (defined(WOLFSSL_MLDSA_SMALL) && \
-     (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+     ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+       !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
        !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
       defined(WOLFSSL_MLDSA_CHECK_KEY))) || \
@@ -9071,7 +9068,8 @@ static int mldsa_add(sword32* r, const sword32* a)
     return ret;
 }
 
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
     defined(WOLFSSL_MLDSA_CHECK_KEY) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
      !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM))
@@ -9159,7 +9157,8 @@ static int mldsa_make_pos(sword32* a)
     return ret;
 }
 
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
     defined(WOLFSSL_MLDSA_CHECK_KEY) || \
     defined(MLDSA_SIGN_VEC_HELPERS)
 /* Make values in polynomials of vector be in positive range.
