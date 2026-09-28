@@ -2235,7 +2235,7 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, data, len,
-            NULL, 0);
+            NULL, 0, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2266,7 +2266,7 @@ int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     #endif
     {
         ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, NULL, 0, hash,
-            hashLen);
+            hashLen, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2303,6 +2303,19 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128,
+            data, len, NULL, 0, WC_SHAKE_OP_ABSORB);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
     ret = Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -2337,6 +2350,22 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    /* Use software when the byte count does not fit in outSz. */
+    if (blockCnt <= WOLFSSL_MAX_32BIT / (WC_SHA3_128_COUNT * 8U)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && shake->devId != INVALID_DEVID
+    #endif
+    ) {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128,
+            NULL, 0, out, blockCnt * (WC_SHA3_128_COUNT * 8U),
+            WC_SHAKE_OP_SQUEEZE);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -2558,7 +2587,7 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, data, len,
-            NULL, 0);
+            NULL, 0, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2590,7 +2619,7 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     #endif
     {
         ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, NULL, 0, hash,
-            hashLen);
+            hashLen, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2627,6 +2656,19 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256,
+            data, len, NULL, 0, WC_SHAKE_OP_ABSORB);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
     ret = Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -2654,6 +2696,22 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    /* Use software when the byte count does not fit in outSz. */
+    if (blockCnt <= WOLFSSL_MAX_32BIT / (WC_SHA3_256_COUNT * 8U)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && shake->devId != INVALID_DEVID
+    #endif
+    ) {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256,
+            NULL, 0, out, blockCnt * (WC_SHA3_256_COUNT * 8U),
+            WC_SHAKE_OP_SQUEEZE);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
 #ifdef WC_C_DYNAMIC_FALLBACK

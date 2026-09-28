@@ -372,6 +372,12 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
     if (info == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+    /* No sponge state is kept here, so the host runs absorb and squeeze. */
+    if (info->hash.shakeOp != WC_SHAKE_OP_NONE) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+#endif
 
     ret = wc_AsuHashResolve(info, &devCtxPtr, &shaType, &shaMode, &hashLen);
     if (ret != 0) {
