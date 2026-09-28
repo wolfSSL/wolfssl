@@ -1413,6 +1413,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case WC_AES_128_CCM_TYPE:
         case WC_AES_192_CCM_TYPE:
         case WC_AES_256_CCM_TYPE:
+            if (ctx->enc && ctx->authIvUsed) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0)
              || (ctx->authBufferLen == 0)) {
                 if (ctx->authBufferLen > 0 && out == NULL) {
@@ -1425,6 +1433,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                         ctx->iv, (word32)ctx->ivSz, ctx->authTag,
                         (word32)ctx->authTagSz, ctx->authIn,
                         (word32)ctx->authInSz);
+                    if (ret == 0)
+                        ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                 }
                 else {
                     ret = wc_AesCcmDecrypt(&ctx->cipher.aes, out,
@@ -7451,7 +7461,6 @@ void wolfSSL_EVP_init(void)
             WOLFSSL_MSG("wc_AesCcmSetNonce() failed");
             ret = WOLFSSL_FAILURE;
         }
-
         /*
          * OpenSSL clears this flag, which permits subsequent use of
          * EVP_CTRL_CCM_IV_GEN, when EVP_CipherInit is called with no key.
@@ -7475,10 +7484,14 @@ void wolfSSL_EVP_init(void)
         }
         else if (src != NULL && dst != NULL) {
             if (ctx->enc) {
+                if (ctx->authIvUsed)
+                    return WC_NO_ERR_TRACE(BAD_STATE_E);
                 ret = wc_AesCcmEncrypt(&ctx->cipher.aes, dst, src,
                         len, ctx->iv, (word32)ctx->ivSz, ctx->authTag,
                         (word32)ctx->authTagSz, ctx->authIn,
                         (word32)ctx->authInSz);
+                if (ret == 0)
+                    ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
             }
             else {
                 ret = wc_AesCcmDecrypt(&ctx->cipher.aes, dst, src,
@@ -7595,6 +7608,10 @@ void wolfSSL_EVP_init(void)
                                const byte* iv, int enc)
     {
         int ret = 0;
+#if defined(HAVE_AESCCM) && ((!defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))
+        int ivProvided = (iv != NULL);
+#endif
         (void)key;
         (void)iv;
         (void)enc;
@@ -7767,6 +7784,8 @@ void wolfSSL_EVP_init(void)
                 != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
         }
     #endif /* HAVE_AESCCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
             * HAVE_FIPS_VERSION >= 2 */
