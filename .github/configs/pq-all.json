@@ -261,6 +261,10 @@
  "comment": "Pre-calculated matrix A split part way, which is neither the single row nor the saturated case",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
   "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A=2"]},
+{"name": "mldsa-checks-default-signer", "minutes": 2,
+ "comment": "The y and w0 rejection checks on the default signer, the only combination that compiles the vector range check helper and its two call sites",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_CHECK_Y -DWOLFSSL_MLDSA_SIGN_CHECK_W0"]},
 {"name": "mldsa-cache-pub-vectors-verify-no-malloc", "minutes": 2,
  "comment": "Cached public vectors alongside the pinned verify buffers, the combination whose key structure member clash stopped it building; the clashing member only exists when the small memory verify is selected too",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
@@ -295,5 +299,9 @@
 {"name": "mldsa-verify-smallest-default-sign", "minutes": 2,
  "comment": "Smallest memory verify paired with the default signer, a combination every other row avoids",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
-  "CPPFLAGS=-DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM"]}
+  "CPPFLAGS=-DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM"]},
+{"name": "mldsa-small-check-w0-only", "minutes": 2,
+ "comment": "Small memory signing with the w0 check but not the y check, which decides whether the vector range check helper is reachable",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_W0"]}
 ]
