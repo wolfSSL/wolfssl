@@ -98,7 +98,9 @@ EXTRA_DIST += \
              certs/dh-priv-2048.pem \
              certs/dh-pub-2048.der \
              certs/dh-pub-2048.pem \
-             certs/dsa2048.pem
+             certs/dsa2048.pem \
+             certs/ca-unsigned.der \
+             certs/ca-unsigned.pem
 
 EXTRA_DIST += \
              certs/aia/ca-issuers-cert.pem \
