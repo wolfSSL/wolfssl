@@ -1135,6 +1135,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                  * certificate the caller actually trusts, so verify that
                  * ctx->current_cert is itself in the original trust set. */
                 if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
+                     (ctx->param != NULL &&
+                      (ctx->param->flags & WOLFSSL_PARTIAL_CHAIN)) ||
                      (ctx->store->param != NULL &&
                       (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN))) &&
                     X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
@@ -1410,8 +1412,23 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
 {
-    if ((ctx != NULL) && (flags & WOLFSSL_PARTIAL_CHAIN)){
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
+
+    if (ctx == NULL) {
+        return;
+    }
+
+    if (flags & WOLFSSL_PARTIAL_CHAIN) {
         ctx->flags |= WOLFSSL_PARTIAL_CHAIN;
+    }
+    (void)wolfSSL_X509_VERIFY_PARAM_set_flags(ctx->param, flags);
+
+    /* CRL checking is a CertManager setting, as in X509_STORE_set_flags */
+    if (((flags & WOLFSSL_CRL_CHECKALL) || (flags & WOLFSSL_CRL_CHECK)) &&
+            (ctx->store != NULL) &&
+            (wolfSSL_CertManagerEnableCRL(ctx->store->cm, (int)flags) !=
+                WOLFSSL_SUCCESS)) {
+        WOLFSSL_MSG("Unable to enable CRL checking");
     }
 }
 
@@ -2261,6 +2278,8 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
     int ret = WOLFSSL_SUCCESS;
+    const unsigned long timeFlags =
+        WOLFSSL_USE_CHECK_TIME | WOLFSSL_NO_CHECK_TIME;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_set_flags");
 
@@ -2275,9 +2294,9 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
         ret = wolfSSL_CertManagerDisableCRL(store->cm);
     }
 #endif
-    if (flag & WOLFSSL_PARTIAL_CHAIN) {
-        store->param->flags |= WOLFSSL_PARTIAL_CHAIN;
-    }
+    /* USE_CHECK_TIME has the same value as CRL_CHECK, and NO_CHECK_TIME
+     * would also skip date checks when loading certs into the store. */
+    (void)wolfSSL_X509_VERIFY_PARAM_set_flags(store->param, flag & ~timeFlags);
     return ret;
 }
 

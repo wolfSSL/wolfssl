@@ -10548,12 +10548,13 @@ int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 }
 
 
-int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param)
+unsigned long wolfSSL_X509_VERIFY_PARAM_get_flags(
+        WOLFSSL_X509_VERIFY_PARAM *param)
 {
-    int ret = 0;
+    unsigned long ret = 0;
 
     if (param != NULL) {
-        ret = (int)param->flags;
+        ret = param->flags;
     }
 
     return ret;

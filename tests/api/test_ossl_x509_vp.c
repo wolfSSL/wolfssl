@@ -207,6 +207,11 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
 
     ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), 0);
 
+    /* High bit must read back without sign extension */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(paramTo, 0x80000000UL), 1);
+    ExpectTrue(X509_VERIFY_PARAM_get_flags(paramTo) == 0x80000000UL);
+    ExpectIntEQ(X509_VERIFY_PARAM_clear_flags(paramTo, 0x80000000UL), 1);
+
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(NULL));
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(""));
     ExpectNotNull(wolfSSL_X509_VERIFY_PARAM_lookup("ssl_client"));

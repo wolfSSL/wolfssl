@@ -785,6 +785,30 @@ static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_param(
+    X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+
+    /* Partial chain flag set through the ctx verify parameters */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    /* Fails because chain is incomplete */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(X509_STORE_CTX_get0_param(ctx),
+        X509_V_FLAG_PARTIAL_CHAIN), 1);
+    /* Partial chain now OK */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_STORE_CTX_ex_partial_chain_neg(
     X509_STORE_test_data *testData)
 {
@@ -1581,6 +1605,8 @@ int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex_partial_chain_param(&testData),
+        1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex_partial_chain_neg(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex_partial_chain_mixed(&testData),
         1);
@@ -3021,6 +3047,13 @@ int test_wolfSSL_X509_STORE_set_flags(void)
         WOLFSSL_FILETYPE_PEM)));
     ExpectIntEQ(X509_STORE_add_cert(store, x509), WOLFSSL_SUCCESS);
 
+    /* Flags are recorded in the store verify parameters, including a bit
+     * that OpenSSL does not define */
+    ExpectIntEQ(X509_STORE_set_flags(store,
+        X509_V_FLAG_PARTIAL_CHAIN | 0x40000UL), WOLFSSL_SUCCESS);
+    ExpectTrue(X509_VERIFY_PARAM_get_flags(X509_STORE_get0_param(store)) ==
+        (X509_V_FLAG_PARTIAL_CHAIN | 0x40000UL));
+
 #ifdef HAVE_CRL
     ExpectIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
         WOLFSSL_SUCCESS);
@@ -3033,6 +3066,56 @@ int test_wolfSSL_X509_STORE_set_flags(void)
     wolfSSL_X509_STORE_free(store);
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) &&
         * !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_STORE_CTX_set_flags(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    X509_STORE_CTX* ctx = NULL;
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    X509_STORE* store = NULL;
+    X509* ca = NULL;
+    X509* cert = NULL;
+#endif
+
+    /* Flags are recorded in the ctx verify parameters */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    X509_STORE_CTX_set_flags(ctx,
+        X509_V_FLAG_NO_CHECK_TIME | X509_V_FLAG_PARTIAL_CHAIN);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_flags(X509_STORE_CTX_get0_param(ctx)),
+        X509_V_FLAG_NO_CHECK_TIME | X509_V_FLAG_PARTIAL_CHAIN);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    /* CRL checking requested on the ctx must be applied */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(store->cm,
+        "./certs/crl/crl.revoked", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerDisableCRL(store->cm), WOLFSSL_SUCCESS);
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+        "./certs/server-revoked-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    /* Revoked, but CRL checking is off */
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_CRL_CHECK);
+    ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(cert);
+    X509_free(ca);
+#endif
+#endif /* OPENSSL_EXTRA && !NO_CERTS */
     return EXPECT_RESULT();
 }
 
@@ -3504,7 +3587,7 @@ static int test_wolfSSL_X509_STORE_set_get_crl_verify(int ok,
         X509_STORE_CTX* ctx) {
     int cert_error = X509_STORE_CTX_get_error(ctx);
     X509_VERIFY_PARAM* param = X509_STORE_CTX_get0_param(ctx);
-    int flags = X509_VERIFY_PARAM_get_flags(param);
+    unsigned long flags = X509_VERIFY_PARAM_get_flags(param);
     if ((flags & (X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL)) !=
             (X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL)) {
         /* Make sure the flags are set */
