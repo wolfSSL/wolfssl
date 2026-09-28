@@ -147,7 +147,7 @@
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #endif
-#ifdef WOLFSSL_TI_AM64X
+#ifdef WOLFSSL_TI_AM64X_R5
     #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
 #endif
 
@@ -215,7 +215,7 @@ struct wc_Sha512 {
     int hashType; /* used to determine which SHA512 is used */
 #endif /* WOLFSSL_SHA512_HASHTYPE */
 #endif /* WOLFSSL_PSOC6_CRYPTO */
-#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
     XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextObject scObj;
 #endif
 };

@@ -245,8 +245,8 @@ This library contains implementation for the random number generator.
     #endif
 #endif
 
-#if defined(WOLFSSL_TI_AM64X)
-    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_port.h>
+#if defined(WOLFSSL_TI_AM64X_R5)
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
 #endif
 
 #if defined(WOLFSSL_SILABS_SE_TYPES)

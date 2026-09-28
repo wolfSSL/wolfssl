@@ -1,4 +1,4 @@
-/* ti-sa2ul_port.h
+/* ti-sa2ul_r5_port.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -18,11 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#ifndef _TI_SA2UL_PORT_H_
-#define _TI_SA2UL_PORT_H_
+#ifndef _TI_SA2UL_R5_PORT_H_
+#define _TI_SA2UL_R5_PORT_H_
 
-#if defined(WOLFSSL_TI_AM64X)
+#if defined(WOLFSSL_TI_AM64X_R5)
 
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
 #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
 
 #define WOLFSSL_TI_SA2UL_DEVID 8888
@@ -35,9 +37,11 @@
 #endif
 
 int ti_sa2ul_port_init(void);
+void ti_sa2ul_Sha256Teardown(wc_Sha256* sha256);
+void ti_sa2ul_Sha512Teardown(wc_Sha512* sha512);
 void ti_sa2ul_soc_uid(uint8_t *uid);
 int ti_sa2ul_trng_get(byte* output, word32 sz);
 
-#endif /* WOLFSSL_TI_AM64X */
+#endif /* WOLFSSL_TI_AM64X_R5 */
 
-#endif /* _TI_SA2UL_PORT_H_ */
+#endif /* _TI_SA2UL_R5_PORT_H_ */
