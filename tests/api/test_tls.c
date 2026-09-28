@@ -698,6 +698,68 @@ int test_tls_param_flags_crl_check(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER)
+/* certs/test/server-garbage.pem is self-signed for the dNSName "garbage". */
+static int test_single_label_host(const char* name, int expectRet,
+    int expectErr)
+{
+    EXPECT_DECLS;
+    const char* cert = "./certs/test/server-garbage.pem";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, cert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, cert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, name), expectRet);
+    if (expectRet == WOLFSSL_SUCCESS) {
+        if (expectErr == 0) {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                expectErr);
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls_check_domain_name_single_label(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER)
+    ExpectIntEQ(test_single_label_host("12345",
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE), 0), TEST_SUCCESS);
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    ExpectIntEQ(test_single_label_host("garbage", WOLFSSL_SUCCESS, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_single_label_host("rubbish", WOLFSSL_SUCCESS,
+        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH)), TEST_SUCCESS);
+#else
+    ExpectIntEQ(test_single_label_host("garbage",
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE), 0), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* One macro per group test_tls_get_peer_tmp_key() can exercise, so that the
  * helper below is never compiled without a caller. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \

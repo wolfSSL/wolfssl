@@ -1737,6 +1737,12 @@ int test_wolfSSL_X509_name_match3(void)
     return EXPECT_RESULT();
 }
 
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    #define SINGLE_LABEL_OK 1
+#else
+    #define SINGLE_LABEL_OK 0
+#endif
+
 int test_wolfssl_local_IsValidFQDN(void) {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
@@ -1754,8 +1760,10 @@ int test_wolfssl_local_IsValidFQDN(void) {
         {"ex--ample.com",                1},   /* double hyphen inside label (allowed) */
         {"A.B.C",                        1},   /* uppercase OK (case-insensitive rules) */
 
-        {"example",                      0},   /* single label (not fully qualified) */
-        {"example.",                     0},   /* becomes single label after dot strip */
+        {"example",                      SINGLE_LABEL_OK}, /* single label (not fully qualified) */
+        {"example.",                     SINGLE_LABEL_OK}, /* becomes single label after dot strip */
+        {"12345",                        0},   /* all-numeric single label */
+        {"host_1",                       0},   /* underscore in single label */
         {".example.com",                 0},   /* leading dot -- empty first label */
         {"example..com",                 0},   /* empty label (consecutive dots) */
         {"-example.com",                 0},   /* label starts with '-' */
@@ -1767,10 +1775,10 @@ int test_wolfssl_local_IsValidFQDN(void) {
         {"example com.com",              0},   /* illegal character ' ' */
         {"",                             0},   /* empty string */
         {NULL,                           0},   /* NULL pointer */
-        {"com",                          0},   /* single label */
+        {"com",                          SINGLE_LABEL_OK}, /* single label */
         {"123.456",                      0},   /* all-numeric final label (no alpha) */
         {"example.123",                  0},   /* all-numeric TLD (no alpha) */
-        {"a",                            0},   /* single label, too short */
+        {"a",                            SINGLE_LABEL_OK}, /* single label, too short */
         {"example.123a",                 1},   /* TLD with at least one letter -- valid */
     };
 
@@ -2036,6 +2044,13 @@ int test_wolfSSL_MatchDomainName_wildcard(void)
         /* A wildcard never spans a label separator. */
         { "*.example.com",       "foo.bar.example.com", 0, 0,
           "wildcard does not cross a dot" },
+
+        { "HOST",                "host",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, SINGLE_LABEL_OK,
+          "single-label host, case folded" },
+        { "h*",                  "host",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, 0,
+          "single-label host, partial wildcard" },
     };
     size_t i;
 

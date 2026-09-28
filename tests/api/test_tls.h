@@ -31,6 +31,7 @@ int test_tls_record_version_still_checked(void);
 int test_tls_record_overflow_alert(void);
 int test_tls_peer_name_mismatch_verify_cb(void);
 int test_tls_peer_name_mismatch_verify_result(void);
+int test_tls_check_domain_name_single_label(void);
 int test_tls_get_peer_tmp_key(void);
 int test_tls_get_negotiated_group(void);
 int test_tls_alert_info_cb(void);
@@ -92,6 +93,7 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls_record_overflow_alert),                \
         TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_cb),         \
         TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_result),     \
+        TEST_DECL_GROUP("tls", test_tls_check_domain_name_single_label),       \
         TEST_DECL_GROUP("tls", test_tls_get_peer_tmp_key),                     \
         TEST_DECL_GROUP("tls", test_tls_get_negotiated_group),                 \
         TEST_DECL_GROUP("tls", test_tls_alert_info_cb),                        \
