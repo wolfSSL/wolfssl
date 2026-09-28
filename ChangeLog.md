@@ -1,5 +1,10 @@
 # wolfSSL Release (unreleased)
 
+## Behavioral Changes
+
+* `WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM` no longer implies `WOLFSSL_MLDSA_VERIFY_NO_MALLOC`: the smallest memory verify allocates its scratch instead of pinning it in `wc_MlDsaKey`. Define `WOLFSSL_MLDSA_VERIFY_NO_MALLOC` as well to keep it heapless. by @Frauschi
+* `WOLFSSL_NO_MALLOC` now also selects the ML-DSA small memory verify, so heapless verification works instead of failing with `MEMORY_E`; each `wc_MlDsaKey` grows by about 12 kB. `WOLFSSL_MLDSA_VERIFY_ALLOW_MALLOC` keeps the allocating verify. by @Frauschi
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

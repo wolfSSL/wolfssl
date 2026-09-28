@@ -47,9 +47,18 @@
  *   Compiles in only the verification and public key operations.
  * WOLFSSL_MLDSA_VERIFY_SMALL_MEM                         Default: OFF
  *   Compiles verification implementation that uses smaller amounts of memory.
+ * WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM                      Default: OFF
+ *   Implies WOLFSSL_MLDSA_VERIFY_SMALL_MEM. Decodes and transforms vector z a
+ *   polynomial at a time instead of holding the whole vector, k times rather
+ *   than once, so unlike the signing option it trades time for memory.
+ *   Add WOLFSSL_MLDSA_VERIFY_NO_MALLOC to pin the buffers against the key.
  * WOLFSSL_MLDSA_VERIFY_NO_MALLOC                         Default: OFF
  *   Only works with WOLFSSL_MLDSA_VERIFY_SMALL_MEM.
  *   Don't allocate memory with XMALLOC. Memory is pinned against key.
+ * WOLFSSL_MLDSA_VERIFY_ALLOW_MALLOC                      Default: OFF
+ *   Declines the small memory verify and pinned buffers that WOLFSSL_NO_MALLOC
+ *   selects automatically, keeping the default verify and a key about 12kB
+ *   smaller. Only for a build whose XMALLOC does work.
  * WOLFSSL_MLDSA_ASSIGN_KEY                               Default: OFF
  *   Key data is assigned into ML-DSA key rather than copied.
  *   Life of key data passed in is tightly coupled to life of ML-DSA key.
