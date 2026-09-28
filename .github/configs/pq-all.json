@@ -241,6 +241,10 @@
  "comment": "NO_MAKE_KEY without NO_SIGN, so the sign callback branch compiles but mldsa_param_test is compiled out and no signature is ever produced. Guards the sign hit counter against a build that cannot sign.",
  "configure": ["--disable-intelasm", "--enable-cryptocb",
   "--enable-mldsa=sign,verify"]},
+{"name": "mldsa-smallest-mem", "minutes": 2,
+ "comment": "Smallest memory ML-DSA signing and verification; the only functional coverage of WOLFSSL_MLDSA_SIGN_SMALLEST_MEM and of VERIFY_SMALLEST_MEM with malloc",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM"]},
 {"name": "mldsa-smallest-mem-checks", "minutes": 2,
  "comment": "Smallest memory ML-DSA signing with the optional y and w0 rejection checks and the small code arms, which are otherwise never compiled",
  "configure": ["--enable-cryptonly", "--enable-mldsa=yes,small",
@@ -252,5 +256,9 @@
 {"name": "mldsa-smallest-checks-no-verify", "minutes": 2,
  "comment": "Smallest memory signing with the y and w0 checks and verify compiled out, which leaves neither vector range check helper with a caller",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
-  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_Y -DWOLFSSL_MLDSA_SIGN_CHECK_W0 -DWOLFSSL_MLDSA_NO_VERIFY"]}
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_Y -DWOLFSSL_MLDSA_SIGN_CHECK_W0 -DWOLFSSL_MLDSA_NO_VERIFY"]},
+{"name": "mldsa-verify-smallest-default-sign", "minutes": 2,
+ "comment": "Smallest memory verify paired with the default signer, a combination every other row avoids",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM"]}
 ]

@@ -151,14 +151,13 @@
     #endif
 #endif
 #ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
-    /* Smallest verify RAM: on top of the small-mem, no-malloc path, stream the
-     * signature's z vector one polynomial at a time instead of pinning the whole
-     * l-vector (~6 KB for ML-DSA-87) at the cost of a per-row z decode+NTT. */
+    /* Smallest verify RAM: on top of the small-mem path, stream the
+     * signature's z vector one polynomial at a time instead of holding the
+     * whole l-vector (~6 KB for ML-DSA-87) at the cost of a per-row z
+     * decode+NTT. Combine with WOLFSSL_MLDSA_VERIFY_NO_MALLOC to pin the
+     * buffers against the key; on its own the buffers are still allocated. */
     #ifndef WOLFSSL_MLDSA_VERIFY_SMALL_MEM
         #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
-    #endif
-    #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
-        #define WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     #endif
 #endif
 #ifdef WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM
@@ -435,6 +434,9 @@
 #endif
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
     #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#endif
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && !defined(WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM)
+    #define WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM
 #endif
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) && !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC)
     #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
