@@ -129,7 +129,8 @@ int wc_InitCmac(Cmac* cmac,
                 int type, void* unused);
 
 /* the selftest build pins an older aes.h that has no tag length field */
-#if !defined(NO_AES) && !defined(HAVE_SELFTEST)
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
     #define WOLFSSL_CMAC_TAG_ASSOCIATION
 #endif
 

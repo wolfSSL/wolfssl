@@ -206,7 +206,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 #endif
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
 
 /* One tag length per key, per SP 800-38D 5.2.1.2, SP 800-38C 5.3 and
  * SP 800-38B 5.4. Pass WC_NO_TAG_ASSOCIATION to clear it.
@@ -222,26 +223,17 @@ int wc_AesSetTagLen(Aes* aes, word32 tagLen)
     return 0;
 }
 
-#endif /* HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_CMAC */
+#endif /* a tag carrying mode, and not opted out */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 
-/* Ports that bring their own entry points enforce their own tag rules. */
-
-/* only where aes.c itself implements a GCM or CCM entry point, the ports
- * below carry their own
- */
-#if !defined(WOLFSSL_TI_CRYPT) && \
-    ((defined(HAVE_AESGCM) && !defined(WOLFSSL_AFALG) && \
-      !defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
-      !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)) || \
-     (defined(HAVE_AESCCM) && \
-      !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
-        !defined(WOLFSSL_QNX_CAAM))))
+/* Ports that bring their own entry points enforce their own tag rules, so
+ * they never call this and it is allowed to go unused. */
+#ifndef WOLFSSL_NO_AES_TAG_ASSOCIATION
 
 /* ties the length to the key on first use, then requires a match
  */
-static int AesAssociateTagSz(Aes* aes, word32 authTagSz)
+static WC_MAYBE_UNUSED int AesAssociateTagSz(Aes* aes, word32 authTagSz)
 {
     if (aes == NULL) {
         return BAD_FUNC_ARG;
@@ -262,7 +254,12 @@ static int AesAssociateTagSz(Aes* aes, word32 authTagSz)
     return 0;
 }
 
-#endif /* aes.c implements a GCM or CCM entry point */
+#else
+
+/* opted out, so a caller may use any length the mode itself allows */
+#define AesAssociateTagSz(aes, authTagSz) 0
+
+#endif /* !WOLFSSL_NO_AES_TAG_ASSOCIATION */
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
@@ -5729,7 +5726,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 /* A new key drops the old one's tag length. Built out entirely unless a mode
  * that carries one is on, so plain AES pays nothing. */
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
         if (ret == 0) {
             aes->tagLen = WC_NO_TAG_ASSOCIATION;
         }
@@ -8904,10 +8902,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+#ifndef WOLFSSL_NO_AES_TAG_ASSOCIATION
     /* new key, so the tag length of the old one no longer applies */
     if (ret == 0) {
         aes->tagLen = WC_NO_TAG_ASSOCIATION;
     }
+#endif
 #ifdef WOLF_CRYPTO_CB_ONLY_AES
     /* do key scheduling so that ECB-only devices can still do GCM */
     if (ret == 0) {
@@ -15516,10 +15516,12 @@ int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
         return BAD_FUNC_ARG;
 
     ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+#ifndef WOLFSSL_NO_AES_TAG_ASSOCIATION
     /* new key, so the tag length of the old one no longer applies */
     if (ret == 0) {
         aes->tagLen = WC_NO_TAG_ASSOCIATION;
     }
+#endif
 
     return ret;
 }

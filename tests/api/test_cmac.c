@@ -334,7 +334,7 @@ int test_wc_CmacSetTagLen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
-    && !defined(HAVE_SELFTEST) \
+    && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) \
     && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Cmac   cmac;
     byte   key[WC_AES_BLOCK_SIZE];

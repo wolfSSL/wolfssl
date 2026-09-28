@@ -1346,6 +1346,7 @@ int test_evp_cipher_aes_gcm_tag_len(void)
     EXPECT_DECLS;
 #if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     EVP_CIPHER_CTX* ctx = NULL;
     byte key[16];

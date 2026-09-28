@@ -369,6 +369,9 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     association. The mode still applies its own list of allowed tag lengths
     on top of this.
 
+    WOLFSSL_NO_AES_TAG_ASSOCIATION builds all of this out, which departs from
+    the requirement above.
+
     The first use of a key fixes its tag length even without this call. Set
     the key again through one of those two, or pass WC_NO_TAG_ASSOCIATION, to
     clear it. wc_AesSetKey() clears it as well on builds that use the software
