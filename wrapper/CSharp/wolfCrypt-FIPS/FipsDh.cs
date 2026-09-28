@@ -53,16 +53,18 @@ namespace wolfSSL.CSharp.Fips
         /* Subgroup order q for explicit domains; the module checks y^q = 1 only for a q passed in.
          * Null for the named group: range check 2 <= y <= p-2 only (partial validation, SP 800-56A
          * 5.6.2.3.2, allowed by 5.6.2.2.2 for ephemeral keys of a safe-prime group). */
-        private readonly byte[]? q;
+        private readonly byte[]? q = null;
 
         /* RFC 7919 safe-prime group (KAS-FFC-SSC, dhEphem): ffdhe2048. */
         public FipsDh(FipsDhGroup group) : this(group, validatedOnly: true)
         {
         }
 
+#if FIPS_TEST_HOOKS
         /* Any RFC 7919 group the module implements, including those outside
          * the validated KAS-FFC-SSC. Internal: for ACVP known-answer tests. */
         internal static FipsDh AnyNamedGroup(FipsDhGroup group) => new FipsDh(group, validatedOnly: false);
+#endif
 
         private FipsDh(FipsDhGroup group, bool validatedOnly) : base(FipsStructType.Dh)
         {
@@ -76,6 +78,7 @@ namespace wolfSSL.CSharp.Fips
             PrimeSize = (int)group switch { 256 => 256, 257 => 384, 258 => 512, 259 => 768, _ => 1024 };
         }
 
+#if FIPS_TEST_HOOKS
         /* Internal, for testing explicit FIPS 186-type domains; not an approved service (the
          * validated KAS-FFC-SSC, SP #4718, covers RFC 7919 groups only). SP 800-131A Rev. 2
          * Table 4 allows only (len(p), len(q)) = (2048, 224) or (2048, 256). */
@@ -172,6 +175,7 @@ namespace wolfSSL.CSharp.Fips
             while (b != 0) { bits++; b >>= 1; }
             return bits;
         }
+#endif
 
         private void Init()
         {

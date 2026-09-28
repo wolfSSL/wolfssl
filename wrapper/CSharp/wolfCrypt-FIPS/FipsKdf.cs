@@ -174,6 +174,7 @@ namespace wolfSSL.CSharp.Fips
             return Tls12Prf(hash, masterSecret, "key expansion", seed, length);
         }
 
+#if FIPS_TEST_HOOKS
         /* P_hash without a label (wc_PRF). Internal: it can build the non-approved
          * non-EMS master secret; used by the tests to check the PRF core. */
         internal static byte[] PHash(FipsHashType hash, byte[] secret, byte[] seed, int outLen)
@@ -226,6 +227,7 @@ namespace wolfSSL.CSharp.Fips
                 salt, salt == null ? 0u : (uint)salt.Length, info, info == null ? 0u : (uint)info.Length,
                 o, (uint)o.Length));
         }
+#endif
 
         /* ---- TLS 1.3 (RFC 8446 section 7.1) ---- */
 

@@ -116,9 +116,11 @@ namespace wolfSSL.CSharp.Fips
         /* CBC decryption with the IV that came with the ciphertext. */
         public static FipsAes CreateCbcDecryptor(byte[] key, byte[] iv) => new FipsAes(FipsAesMode.Cbc, false, key, iv);
 
+#if FIPS_TEST_HOOKS
         /* CBC with a caller IV in either direction. Internal, for known-answer testing: a
          * caller-chosen IV cannot be guaranteed unpredictable for encryption. */
         internal static FipsAes CreateCbc(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Cbc, encrypt, key, iv);
+#endif
         public static FipsAes CreateOfb(byte[] key, byte[] iv, bool encrypt) => new FipsAes(FipsAesMode.Ofb, encrypt, key, iv);
         /* iv is the initial counter block, the whole 16 bytes (m = 128); with a nonce || counter
          * layout keep each message under 2^m blocks for the counter width m you reserve. */

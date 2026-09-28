@@ -110,6 +110,7 @@ namespace wolfSSL.CSharp.Fips
             base.Dispose(disposing);
         }
 
+#if FIPS_TEST_HOOKS
         /* Encryptions made by this object (test hook for the 8.3 limit). */
         internal ulong Invocations
         {
@@ -128,16 +129,19 @@ namespace wolfSSL.CSharp.Fips
                 }
             }
         }
+#endif
 
         /* Selects module-generated IVs of ivSize bytes (12 or 16) drawn from rng (IG C.H
          * Scenario 2). Once per object: the IV construction and its invocation count are fixed
          * for the object's life (SP 800-38D 8.2.2, 8.3). */
         public void UseInternalIV(FipsRng rng, int ivSize = DefaultIVSize) => SelectIV(rng, ivSize, null);
 
+#if FIPS_TEST_HOOKS
         /* SP 800-38D 8.2.1-style fixed field (exactly 4 bytes, 16-byte IV so
          * at least 96 random bits remain). Internal: not an IG C.H Scenario 2
          * construction; used for ACVP testing of the module's 8.2.1 path. */
         internal void UseInternalIV(FipsRng rng, int ivSize, byte[]? fixedField) => SelectIV(rng, ivSize, fixedField);
+#endif
 
         private void SelectIV(FipsRng rng, int ivSize, byte[]? fixedField)
         {
@@ -235,6 +239,7 @@ namespace wolfSSL.CSharp.Fips
             }
         }
 
+#if FIPS_TEST_HOOKS
         /* Encrypts with a caller IV (wc_AesGcmSetExtIV_fips). Internal, for known-answer testing
          * only; the object cannot switch to internal IVs afterwards. */
         internal FipsAeadResult EncryptWithIV(byte[] iv, byte[] plaintext, byte[]? aad = null,
@@ -255,6 +260,7 @@ namespace wolfSSL.CSharp.Fips
                 return EncryptCurrent(plaintext, aad, tagSize, iv.Length);
             }
         }
+#endif
 
         private FipsAeadResult EncryptCurrent(byte[] plaintext, byte[]? aad, int tagSize, int ivSize)
         {

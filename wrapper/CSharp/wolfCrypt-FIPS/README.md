@@ -345,6 +345,9 @@ WOLFACVP_VECTORS=<fips-bundle>/fips/wolfACVP wrapper/CSharp/wolfCrypt-FIPS/run-t
 
 `run-tests.sh` builds the size helper, runs the binding audit
 (`tools/fips-bind-audit.sh`), then builds and runs `wolfCrypt-FIPS-Test`. The
+test project builds its own copy of the wrapper with `FipsTestHooks=true`
+(under `bin/Release/testhooks/`), which adds the known-answer and
+failure-injection hooks the tests need. The shipped build does not contain them. The
 last line reports `N passed, 0 failed, M skipped`; the exit code is non-zero
 on any failure.
 

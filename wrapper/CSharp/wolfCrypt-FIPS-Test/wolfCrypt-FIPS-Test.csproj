@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../wolfCrypt-FIPS/wolfCrypt-FIPS.csproj" />
+    <ProjectReference Include="../wolfCrypt-FIPS/wolfCrypt-FIPS.csproj" AdditionalProperties="FipsTestHooks=true" />
   </ItemGroup>
 
 </Project>
