@@ -86,6 +86,12 @@
 # in-flight ones get SIGTERM, then SIGKILL after a 10 s grace period) so CI
 # fails fast; pass --no-fail-fast to run everything and report every
 # failure.
+#
+# --timeout bounds each config's own wall time. Without it a wedged config
+# runs until the CI job's timeout-minutes kills the whole job, which loses
+# every other config's result and skips any "upload logs on failure" step,
+# since a job timeout cancels rather than fails. With it only the wedged
+# config dies, as a failure, and its make-check.log is still reported.
 
 from __future__ import annotations
 
@@ -180,6 +186,27 @@ def abort_others() -> None:
                     kill_group(p, signal.SIGKILL)
             break
         time.sleep(0.2)
+
+
+def wait_bounded(p: subprocess.Popen,
+                 deadline: float | None) -> tuple[int, bool]:
+    # Wait for p, but no longer than deadline (a time.monotonic() value;
+    # None waits forever). On expiry kill the process group like
+    # abort_others() does - SIGTERM, then SIGKILL after a 10 s grace - so a
+    # test that traps SIGTERM cannot outlive its timeout. Returns the exit
+    # status and whether the deadline ended the wait.
+    if deadline is None:
+        return p.wait(), False
+    try:
+        return p.wait(timeout=max(0.0, deadline - time.monotonic())), False
+    except subprocess.TimeoutExpired:
+        kill_group(p, signal.SIGTERM)
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            kill_group(p, signal.SIGKILL)
+            p.wait()
+        return -1, True
 
 
 def nproc() -> int:
@@ -438,6 +465,9 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
              if cfg.netns and BWRAP else [])
     failed: str | None = None
     start = time.monotonic()
+    # Budget for the whole step sequence, not per step: the total is what
+    # has to stay under the CI job's timeout-minutes.
+    deadline = start + opts.timeout * 60 if opts.timeout else None
     log = bdir / "make-check.log"
 
     def record_failure(step: str) -> str:
@@ -489,10 +519,15 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                 except subprocess.TimeoutExpired:
                     kill_group(proc, signal.SIGKILL)
             try:
-                rc = proc.wait()
+                rc, timed_out = wait_bounded(proc, deadline)
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
+            if timed_out:
+                print(f"+ killed: {step} exceeded --timeout={opts.timeout:g} "
+                      f"min", file=logf, flush=True)
+                failed = record_failure(f"timeout in {step}")
+                break
             if rc != 0:
                 failed = record_failure(step)
                 break
@@ -606,6 +641,13 @@ def main() -> int:
                         "pending configs are skipped and in-flight ones "
                         "killed (--no-fail-fast runs everything and "
                         "reports every failure)")
+    p.add_argument("--timeout", type=float, default=0, metavar="MINUTES",
+                   help="kill a config that has run this long and report it "
+                        "as a failure, instead of letting it wedge until the "
+                        "CI job's own timeout takes down the whole job and "
+                        "every other config's result with it (default: 0, "
+                        "no limit). Set it well above the slowest config's "
+                        "normal time - this catches hangs, not slowness")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None,
                    help="compiler passed to configure as CC= for configs "
@@ -625,6 +667,8 @@ def main() -> int:
                         "still populates ccache, which is the point when "
                         "seeding a shared cache on a schedule")
     opts = p.parse_args()
+    if opts.timeout < 0:
+        p.error("--timeout must be a non-negative number of minutes")
 
     all_configs = load_configs(opts, p.error)
     if opts.build_only:
