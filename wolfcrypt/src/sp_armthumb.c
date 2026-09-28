@@ -195,6 +195,11 @@ WC_MAYBE_UNUSED static void sp_cond_select(void* r, const void* a,
 }
 #endif /* WOLFSSL_HAVE_SP_ECC && WOLFSSL_SP_NONBLOCK */
 
+#if defined(WOLFSSL_SP_NONBLOCK) && (!defined(WOLFSSL_SP_NO_MALLOC) || \
+                                     !defined(WOLFSSL_SP_SMALL))
+    #error SP non-blocking requires small and no-malloc (WOLFSSL_SP_SMALL and WOLFSSL_SP_NO_MALLOC)
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
 /* Read big endian unsigned byte array into r.
@@ -104853,7 +104858,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p256_order, 1, 1);
+                      infinity, ctx->point, p256_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_256_iszero_8(ctx->point->x) ||
                     sp_256_iszero_8(ctx->point->y)) {
@@ -115795,7 +115800,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p384_order, 1, 1);
+                      infinity, ctx->point, p384_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_384_iszero_12(ctx->point->x) ||
                     sp_384_iszero_12(ctx->point->y)) {
@@ -130088,7 +130093,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_521_ecc_mulmod_17_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p521_order, 1, 1);
+                      infinity, ctx->point, p521_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_521_iszero_17(ctx->point->x) ||
                     sp_521_iszero_17(ctx->point->y)) {
