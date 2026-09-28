@@ -14460,7 +14460,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     /* ignore session ticket when ECH is rejected */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
             !ssl->options.echAccepted) {
-        *inOutIdx += size + ssl->keys.padSz;
+        *inOutIdx += size;
         return 0;
     }
 #endif
