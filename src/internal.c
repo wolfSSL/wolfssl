@@ -15414,6 +15414,15 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
 static int CopyDecodedSig(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
+    int setAlgo = 0;
+
+/* RFC 9925: unsigned certs name an algorithm but have an empty
+ * signatureValue. */
+#ifdef WOLFSSL_HAVE_UNSIGNED
+    if (dCert->signatureOID == CTC_UNSIGNED) {
+        setAlgo = 1;
+    }
+#endif
 
     if (dCert->signature != NULL && dCert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
@@ -15424,8 +15433,11 @@ static int CopyDecodedSig(WOLFSSL_X509* x509, DecodedCert* dCert)
         else {
             XMEMCPY(x509->sig.buffer, dCert->signature, dCert->sigLength);
             x509->sig.length = dCert->sigLength;
-            x509->sigOID = (int)dCert->signatureOID;
+            setAlgo = 1;
         }
+    }
+    if (ret == 0 && setAlgo == 1) {
+        x509->sigOID = (int)dCert->signatureOID;
 #if defined(OPENSSL_ALL)
         wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
         if (!(x509->algor.algorithm = wolfSSL_OBJ_nid2obj(

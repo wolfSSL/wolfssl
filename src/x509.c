@@ -7622,7 +7622,12 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
     char tmp[100];
     int tmpLen = 0;
 
-    if (sigSz <= 0) {
+    if (sigSz <= 0
+#ifdef WOLFSSL_HAVE_UNSIGNED
+    /* id-alg-unsigned has no signature bytes. Its NID is CTC_UNSIGNED. */
+        && sigNid != (int)CTC_UNSIGNED
+#endif
+        ) {
         return WOLFSSL_SUCCESS;
     }
 
@@ -7785,6 +7790,17 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
+#ifdef WOLFSSL_HAVE_UNSIGNED
+    else if (x509->sigOID == (int)CTC_UNSIGNED) {
+        /* RFC 9925: no signature bytes, so print only the algorithm. */
+        int sigNid = wolfSSL_X509_get_signature_nid(x509);
+
+        if ((sigNid <= 0) || (X509PrintSignature_ex(bio, NULL, 0, sigNid, 1,
+                indent) != WOLFSSL_SUCCESS)) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+#endif
 
     return WOLFSSL_SUCCESS;
 }

@@ -336,6 +336,7 @@ my @slhdsa_shake_256f = (2, 16, 840, 1, 101, 3, 4, 3, 31);
 my @hss_lms = ( 1, 2, 840, 113549, 1, 9, 16, 3, 17 );
 my @xmss = ( 1, 3, 6, 1, 5, 5, 7, 6, 34 );
 my @xmssmt = ( 1, 3, 6, 1, 5, 5, 7, 6, 35 );
+my @unsigned = ( 1, 3, 6, 1, 5, 5, 7, 6, 36 );
 # FrodoKEM / eFrodoKEM key OIDs (ISO/IEC 18033-2, arc 1.0.18033.2.2.7.x).
 # The old-scheme byte sums (434..441) collide with the SLH-DSA key OIDs, so an
 # add_sum offset gives them distinct old-scheme values (100434..100441); the new
@@ -483,6 +484,8 @@ my @policy_map = ( 2, 5, 29, 33 );
 my @policy_const = ( 2, 5, 29, 36 );
 my @issue_alt_names = ( 2, 5, 29, 18 );
 my @tls_feature = ( 1, 3, 6, 1, 5, 5, 7, 1, 24 );
+# RFC 8737 acmeIdentifier
+my @acme_identifier = ( 1, 3, 6, 1, 5, 5, 7, 1, 31 );
 my @dns_srv = ( 1, 3, 6, 1, 5, 5, 7, 8, 7 );
 my @netscape_ct = ( 2, 16, 840, 1, 113730, 1, 1 );
 my @ocsp_nocheck = ( 1, 3, 6, 1, 5, 5, 7, 48, 1, 5 );
@@ -513,6 +516,7 @@ my @exts = (
     { name => "POLICY_CONST",           oid => \@policy_const           },
     { name => "ISSUE_ALT_NAMES",        oid => \@issue_alt_names        },
     { name => "TLS_FEATURE",            oid => \@tls_feature            },
+    { name => "ACME_IDENTIFIER",        oid => \@acme_identifier        },
     { name => "DNS_SRV",                oid => \@dns_srv                },
     { name => "NETSCAPE_CT",            oid => \@netscape_ct            },
     { name => "OCSP_NOCHECK",           oid => \@ocsp_nocheck           },
@@ -808,14 +812,14 @@ my @cert_policies = (
     { name => "CP_CIS_MEDIUMHW_256_OID",  oid => \@cp_cis_medhw_256           },
     { name => "CP_CIS_MEDDEVHW_256_OID",  oid => \@cp_cis_meddevhw_256        },
     { name => "CP_CIS_ICECAP_HW_OID",     oid => \@cp_cis_icecap_hw           },
-    { name => "CP_CIS_ICECAP_CONTENT_OID", 
+    { name => "CP_CIS_ICECAP_CONTENT_OID",
                                           oid => \@cp_cis_icecap_cont_hw      },
 
     # CertiPath Bridge
     { name => "CP_CERTIPATH_MEDIUMHW_OID",
                                           oid => \@cp_certipath_medium,
                                           add_sum => 100000                   },
-    { name => "CP_CERTIPATH_HIGHHW_OID",  
+    { name => "CP_CERTIPATH_HIGHHW_OID",
                                           oid => \@cp_certipath_highhw,
                                           add_sum => 101000                   },
     { name => "CP_CERTIPATH_ICECAP_HW_OID",
@@ -1215,6 +1219,7 @@ my @sig_types = (
                                             same => 1                       },
     { name => "CTC_XMSSMT",                 oid => \@xmssmt,
                                             same => 1                       },
+    { name => "CTC_UNSIGNED",               oid => \@unsigned               },
 );
 
 print_enum("Ctc_SigType", "", \@sig_types, 32, 48);
