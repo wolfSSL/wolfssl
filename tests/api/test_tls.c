@@ -533,6 +533,8 @@ static int test_single_label_host(const char* name, int expectRet,
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, cert,
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
 
     ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, name), expectRet);
