@@ -2385,25 +2385,7 @@ struct Signer {
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* used for having trusted peer certs rather then CA */
 struct TrustedPeerCert {
-    int     nameLen;
-    const char*
-            name;                    /* common name */
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        Base_entry* permittedNames;
-        Base_entry* excludedNames;
-    #endif /* IGNORE_NAME_CONSTRAINTS */
-    byte    subjectNameHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of names in certificate */
-    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
-    byte    issuerHash[SIGNER_DIGEST_SIZE];
-                                    /* sha hash of issuer name in certificate */
-    #endif
-    #ifndef NO_SKID
-        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of SKID in certificate */
-    #endif
-    word32 sigLen;
-    byte*  sig;
+    byte   certHash[KEYID_SIZE];     /* hash of the whole certificate DER */
     struct TrustedPeerCert* next;
 };
 #endif /* WOLFSSL_TRUST_PEER_CERT */

@@ -615,6 +615,10 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
+        else {
+            /* a default, not a minimum the user asked for */
+            ctx->minVersionSet = 0;
+        }
     }
 #endif
 
@@ -2207,6 +2211,8 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 WOLFSSL_ABI
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
 
     if (ctx == NULL) {
@@ -2220,13 +2226,36 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ctx->minDowngrade, version);
+    ret = SetMinVersionHelper(&ctx->minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
+    return ret;
 }
 
+
+/* Work out whether the version set by wolfSSL_SetVersion() is one pinned
+ * version or the top of a range. */
+static void RestoreDowngrade(WOLFSSL* ssl)
+{
+    if (ssl->options.versionSet && ssl->ctx != NULL) {
+        if (ssl->options.failNoPSK || !ssl->options.minVersionSet) {
+            /* A PSK requirement is TLS 1.3 only, and with no minimum there is
+             * one version, so both keep the version pinned */
+            ssl->options.downgrade = 0;
+        }
+        else {
+            /* Set the connection's downgrade option to the context's default */
+            ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+        }
+    }
+}
 
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_SetMinVersion");
 
     if (ssl == NULL) {
@@ -2240,7 +2269,13 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
+    }
+
+    return ret;
 }
 
 
@@ -2334,7 +2369,12 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
-    ssl->options.downgrade = 0;
+    ssl->options.versionSet = 1;
+    ssl->options.maxVersionMinor = ssl->version.minor;
+    if (!ssl->options.minVersionSet) {
+        /* no minimum asked for, so this version is the whole range */
+        ssl->options.downgrade = 0;
+    }
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -3146,10 +3186,13 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version) &&
                 !ctx->method->downgrade) ||
                 (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version) &&
-                !ssl->options.downgrade)) {
+                (!ssl->options.downgrade || ssl->options.versionSet))) {
             /* Fail only for methods that can never reach TLS 1.3 (downgrade
-             * disabled). A version merely capped via set_max_proto_version()
-             * still silently ignores the list, matching OpenSSL. */
+             * disabled) or when SetVersion() put the maximum below TLS 1.3.
+             * A minimum version does not raise the maximum, so it is not
+             * considered here. A version merely capped via
+             * set_max_proto_version() still silently ignores the list,
+             * matching OpenSSL. */
             WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
                         "is not negotiable");
             return WOLFSSL_FAILURE;
@@ -3187,10 +3230,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
      * Since we direct both API here we attempt to provide API compatibility. If
      * we only get suites from <= 1.2 or == 1.3 then we will only update those
      * suites and keep the suites from the other group.
-     * If downgrade is disabled, skip preserving the other group's suites. */
-    if ((ssl != NULL && !ssl->options.downgrade) ||
+     * If a single version is in use, skip preserving the other group's
+     * suites. A min version makes it a range again, so both groups are kept. */
+    if ((ssl != NULL && (!ssl->options.downgrade ||
+            (ssl->options.versionSet && !ssl->options.minVersionSet))) ||
         (ctx != NULL && !ctx->method->downgrade)) {
-        /* Downgrade disabled - don't preserve other group's suites */
+        /* One version only - don't preserve the other group's suites */
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -3354,6 +3399,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
     if (ssl == NULL || out == NULL || label == NULL ||
             (use_context && contextLen && context == NULL)) {
         WOLFSSL_MSG("Bad argument");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* RFC 8446 Section 7.5 / RFC 5705: keying-material exporters derive from
+     * exporter_master_secret, which exists only after the handshake is
+     * complete. Refuse the export until the handshake has completed so that
+     * a premature call cannot derive material from an uninitialised
+     * exporterSecret buffer. */
+    if (ssl->options.handShakeDone == 0) {
+        WOLFSSL_MSG("Handshake not complete; refusing keying-material export");
         return WOLFSSL_FAILURE;
     }
 
@@ -4838,8 +4893,21 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         return WOLFSSL_FAILURE;
     }
 
+    /* Clear up front: the per-curve export failures below return early, and a
+     * caller reusing one variable across calls must not see a stale pointer. */
+    *pkey = NULL;
+
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
+    /* Keys kept for this call outlive the connection they came from, so pick
+     * the one the current key exchange used rather than the first one set. */
+    if ((ssl->peerEccKey != NULL) && ssl->peerEccKeyPresent
+#ifdef HAVE_CURVE25519
+        && (ssl->ecdhCurveOID != ECC_X25519_OID)
+#endif
+#ifdef HAVE_CURVE448
+        && (ssl->ecdhCurveOID != ECC_X448_OID)
+#endif
+        ) {
         unsigned char* der;
         const unsigned char* pt;
         unsigned int   derSz = 0;
@@ -4873,13 +4941,43 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
     }
 #endif
 
-    *pkey = ret;
-#ifdef HAVE_ECC
-    if (ret != NULL)
-        return WOLFSSL_SUCCESS;
-    else
+#ifdef HAVE_CURVE25519
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X25519_OID) &&
+            (ssl->peerX25519Key != NULL) && ssl->peerX25519KeyPresent) {
+        byte pub[CURVE25519_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X25519 keys are little-endian (RFC 7748). */
+        if (wc_curve25519_export_public_ex(ssl->peerX25519Key, pub, &pubSz,
+                EC25519_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve25519 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X25519, NULL,
+            pub, (size_t)pubSz);
+    }
 #endif
-        return WOLFSSL_FAILURE;
+
+#ifdef HAVE_CURVE448
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X448_OID) &&
+            (ssl->peerX448Key != NULL) && ssl->peerX448KeyPresent) {
+        byte pub[CURVE448_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X448 keys are little-endian (RFC 7748). */
+        if (wc_curve448_export_public_ex(ssl->peerX448Key, pub, &pubSz,
+                EC448_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve448 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X448, NULL,
+            pub, (size_t)pubSz);
+    }
+#endif
+
+    *pkey = ret;
+
+    return (ret != NULL) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 #endif /* !NO_WOLFSSL_SERVER */
@@ -5113,6 +5211,11 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     ret = Set_CTX_min_proto_version(ctx, proto);
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ctx->minVersionSet = (version != 0);
+    }
+
     return ret;
 }
 
@@ -5250,6 +5353,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     int i;
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int minProto;
+    byte minVersionSet;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
@@ -5262,7 +5366,9 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     wolfSSL_CTX_clear_options(ctx,
             WOLFSSL_OP_NO_TLSv1 | WOLFSSL_OP_NO_TLSv1_1 |
             WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_3);
+    minVersionSet = ctx->minVersionSet;
     wolfSSL_CTX_set_min_proto_version(ctx, minProto);
+    ctx->minVersionSet = minVersionSet; /* restoring, not setting, a minimum */
     if (version != 0) {
         ctx->maxProto = 0; /* turn max proto flag off */
         return Set_CTX_max_proto_version(ctx, version);
@@ -5377,14 +5483,21 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         return WOLFSSL_FAILURE;
     }
     if (version != 0) {
-        return Set_SSL_min_proto_version(ssl, version);
+        ret = Set_SSL_min_proto_version(ssl, version);
+    }
+    else {
+        /* when 0 is specified as version, try to find out the min version */
+        for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS)
+                break;
+        }
     }
 
-    /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-        ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
-        if (ret == WOLFSSL_SUCCESS)
-            break;
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ssl->options.minVersionSet = (version != 0);
+        RestoreDowngrade(ssl);
     }
 
     return ret;
@@ -5716,6 +5829,23 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+#ifdef HAVE_EXTENDED_MASTER
+        /* haveEMS is negotiated per handshake: re-arm an EMS-capable client
+         * unless the user disabled EMS, and clear a server until the next
+         * ClientHello. The requireEMS/disableEMS policy persists. */
+        ssl->options.haveEMS = 0;
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                !ssl->options.disableEMS) {
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                    ssl->ctx->method->version.minor >= TLSv1_MINOR) {
+                ssl->options.haveEMS = 1;
+            }
+        #ifdef WOLFSSL_DTLS
+            if (ssl->ctx->method->version.major == DTLS_MAJOR)
+                ssl->options.haveEMS = 1;
+        #endif
+        }
+#endif
     #ifdef WOLFSSL_TLS13
     #ifdef WOLFSSL_TLS13_COOKIE
         ssl->options.hrrSentCookie = 0;
@@ -5725,6 +5855,30 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* Matches InitSSL_Tls13Options(); the server clears it again when the
          * next ClientHello carries an empty session id. */
         ssl->options.tls13MiddleBoxCompat = 1;
+        ssl->options.shSentKeyShare = 0;
+    #endif
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        /* The group the previous connection negotiated. Nothing else clears
+         * it, and a handshake that negotiates none - TLS 1.3 psk_ke - would
+         * leave it readable as this connection's. */
+        ssl->namedGroup = 0;
+    #endif
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+        defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
+        defined(HAVE_CURVE448)
+        /* The peer's ephemeral key is now kept past the handshake for
+         * wolfSSL_get_peer_tmp_key(). A next handshake that negotiates no
+         * (EC)DH would otherwise report the previous connection's key.
+         * Back to what SetSSL_CTX() starts from, so a curve set with
+         * wolfSSL_CTX_set_tmp_ecdh() survives. */
+        ssl->ecdhCurveOID = ssl->ctx->ecdhCurveOID;
+        ssl->peerEccKeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE25519
+        ssl->peerX25519KeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE448
+        ssl->peerX448KeyPresent = 0;
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
@@ -7293,6 +7447,25 @@ void wolfSSL_set_info_callback(WOLFSSL* ssl,
 
 
 #ifndef NO_TLS
+/* The info callback (DoAlert/SendAlert) passes alerts packed as
+ * (level << 8) | code. Unpack for the string lookups; a raw level or code
+ * (high byte zero) passes through unchanged. */
+static int unpackAlertCode(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = alertID & 0xff;
+
+    return alertID;
+}
+
+static int unpackAlertLevel(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = (alertID >> 8) & 0xff;
+
+    return alertID;
+}
+
 /* returns a string that describes the alert
  *
  * alertID the alert value to look up
@@ -7301,14 +7474,14 @@ const char* wolfSSL_alert_type_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_type_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string");
 
-    switch (alertID) {
+    switch (unpackAlertLevel(alertID)) {
         case alert_warning:
             return "W";
         case alert_fatal:
@@ -7322,14 +7495,14 @@ const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_desc_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string");
 
-    switch (alertID) {
+    switch (unpackAlertCode(alertID)) {
         case close_notify:
             return "CN";
         case unexpected_message:
@@ -7570,9 +7743,12 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
              * options limit the allowed ciphers so let's try to get as many as
              * possible.
              * - haveStaticECC turns off haveRSA
-             * - haveECDSAsig turns off haveRSAsig */
+             * - haveECDSAsig turns off haveRSAsig
+             * - SUITES_NULL_EXPLICIT includes the integrity-only suites, so
+             *   an explicitly configured one is preserved */
             InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, 1, 1, 1, 1, ssl->options.side);
+                    haveStaticECC, 1, SUITES_NULL_EXPLICIT, 1, 1, 1,
+                    ssl->options.side);
             for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
                 if (FindSuite(&tmpSuites, ssl->suites->suites[in],
                         ssl->suites->suites[in+1]) >= 0) {
@@ -9609,8 +9785,10 @@ void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 
-#if (defined(HAVE_ECC) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+/* The FFDHE groups have no curve behind them, but they are named and reported
+ * through these same APIs, so an FFDHE-only build needs this block too. */
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448) || !defined(NO_DH))
 #define CURVE_NAME(c) XSTR_SIZEOF((c)), (c)
 
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -9693,6 +9871,26 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #endif
 #endif /* WOLFSSL_MLKEM_KYBER */
 #endif /* WOLFSSL_HAVE_MLKEM */
+#ifndef NO_DH
+    /* Finite field groups are not EC curves, but they do have NIDs of their
+     * own (RFC 7919, same values as OpenSSL). Use those rather than the TLS
+     * code point, which would collide with an unrelated WC_NID_* value. */
+    #ifdef HAVE_FFDHE_2048
+    {CURVE_NAME("ffdhe2048"), WC_NID_ffdhe2048, WOLFSSL_FFDHE_2048},
+    #endif
+    #ifdef HAVE_FFDHE_3072
+    {CURVE_NAME("ffdhe3072"), WC_NID_ffdhe3072, WOLFSSL_FFDHE_3072},
+    #endif
+    #ifdef HAVE_FFDHE_4096
+    {CURVE_NAME("ffdhe4096"), WC_NID_ffdhe4096, WOLFSSL_FFDHE_4096},
+    #endif
+    #ifdef HAVE_FFDHE_6144
+    {CURVE_NAME("ffdhe6144"), WC_NID_ffdhe6144, WOLFSSL_FFDHE_6144},
+    #endif
+    #ifdef HAVE_FFDHE_8192
+    {CURVE_NAME("ffdhe8192"), WC_NID_ffdhe8192, WOLFSSL_FFDHE_8192},
+    #endif
+#endif /* !NO_DH */
 #ifdef WOLFSSL_SM2
     {CURVE_NAME("SM2"),     WC_NID_sm2, WOLFSSL_ECC_SM2P256V1},
 #endif
@@ -9855,7 +10053,168 @@ leave:
     return ret;
 }
 
-#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+/* Get the group used for key exchange.
+ *
+ * Mirrors OpenSSL's SSL_get_negotiated_group(): the NID is returned for groups
+ * wolfSSL gives one, the IANA code point otherwise. NID values are wolfSSL's
+ * WC_NID_* (not every one matches OpenSSL's), so compare against those rather
+ * than against literals. The result can be passed to wolfSSL_group_to_name().
+ * Only a completed handshake reports a group.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  Group identifier on success.
+ * @return  0 when ssl is NULL or no group has been negotiated.
+ */
+int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
+{
+    word16 group = 0;
+    const WOLF_EC_NIST_NAME* nist_name;
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    int ecdhDone;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_get_negotiated_group");
+
+    if (ssl == NULL)
+        return 0;
+
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+    /* Only a completed handshake has a negotiated group. Mid-handshake this
+     * can hold a group no key exchange used: the server seeds it from the
+     * resumed session in CheckPreSharedKeys(), and the client stores the group
+     * a HelloRetryRequest asked for. */
+    if (ssl->options.handShakeDone)
+        group = ssl->namedGroup;
+#endif
+
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    /* Below TLS 1.3 the negotiated curve is only in ecdhCurveOID, which
+     * InitSSL() also seeds from ctx->ecdhCurveOID - what
+     * SSL_CTX_set_tmp_ecdh() writes. Report it only once an EC(DH) exchange
+     * has actually run, or a configured preference reads back as a
+     * negotiated group on a connection that never used one. */
+    ecdhDone = ssl->options.handShakeDone &&
+               ((ssl->specs.kea == ecc_diffie_hellman_kea) ||
+                (ssl->specs.kea == ecdhe_psk_kea));
+#endif
+
+#ifdef HAVE_CURVE25519
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X25519_OID))
+        group = WOLFSSL_ECC_X25519;
+#endif
+#ifdef HAVE_CURVE448
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X448_OID))
+        group = WOLFSSL_ECC_X448;
+#endif
+#ifdef HAVE_ECC
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID != 0))
+        group = GetCurveByOID((int)ssl->ecdhCurveOID);
+#endif
+
+    if (group == 0)
+        return 0;
+
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->curve == group)
+            return nist_name->nid;
+    }
+
+    return (int)group;
+}
+
+/* Names OpenSSL gives the TLS supported groups. These are the TLS group
+ * registry spellings, which differ from both the NIST curve names in
+ * kNistCurves ("P-256" is "secp256r1" here) and from wolfSSL_get_curve_name().
+ */
+static const struct {
+    word16      group;
+    const char* name;
+} kTlsGroupNames[] = {
+#ifdef HAVE_ECC
+    {WOLFSSL_ECC_SECP256R1,        "secp256r1"},
+    {WOLFSSL_ECC_SECP384R1,        "secp384r1"},
+    {WOLFSSL_ECC_SECP521R1,        "secp521r1"},
+    {WOLFSSL_ECC_SECP224R1,        "secp224r1"},
+    {WOLFSSL_ECC_SECP192R1,        "secp192r1"},
+    {WOLFSSL_ECC_SECP256K1,        "secp256k1"},
+#ifdef HAVE_ECC_BRAINPOOL
+    {WOLFSSL_ECC_BRAINPOOLP256R1,  "brainpoolP256r1"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1,  "brainpoolP384r1"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1,  "brainpoolP512r1"},
+    {WOLFSSL_ECC_BRAINPOOLP256R1TLS13, "brainpoolP256r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1TLS13, "brainpoolP384r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1TLS13, "brainpoolP512r1tls13"},
+#endif
+#endif /* HAVE_ECC */
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_ECC_X25519,           "x25519"},
+#endif
+#ifdef HAVE_CURVE448
+    {WOLFSSL_ECC_X448,             "x448"},
+#endif
+#ifndef NO_DH
+    {WOLFSSL_FFDHE_2048,           "ffdhe2048"},
+    {WOLFSSL_FFDHE_3072,           "ffdhe3072"},
+    {WOLFSSL_FFDHE_4096,           "ffdhe4096"},
+    {WOLFSSL_FFDHE_6144,           "ffdhe6144"},
+    {WOLFSSL_FFDHE_8192,           "ffdhe8192"},
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    {WOLFSSL_ML_KEM_512,           "MLKEM512"},
+    {WOLFSSL_ML_KEM_768,           "MLKEM768"},
+    {WOLFSSL_ML_KEM_1024,          "MLKEM1024"},
+#if defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS)
+    {WOLFSSL_SECP256R1MLKEM768,    "SecP256r1MLKEM768"},
+    {WOLFSSL_SECP384R1MLKEM1024,   "SecP384r1MLKEM1024"},
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_X25519MLKEM768,       "X25519MLKEM768"},
+#endif
+#endif
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM */
+    {0, NULL}
+};
+
+/* Get the name of a group.
+ *
+ * @param [in] ssl  SSL/TLS object. Unused, present for OpenSSL compatibility.
+ * @param [in] id   NID or IANA code point of the group.
+ * @return  Name of the group on success.
+ * @return  NULL when the group is unknown.
+ */
+const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id)
+{
+    const WOLF_EC_NIST_NAME* nist_name;
+    int group = id;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_group_to_name");
+
+    (void)ssl;
+
+    /* wolfSSL_get_negotiated_group() reports a NID where one exists, so map
+     * NIDs back to their code point before looking the name up. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->nid == id) {
+            group = (int)nist_name->curve;
+            break;
+        }
+    }
+
+    for (i = 0; kTlsGroupNames[i].name != NULL; i++) {
+        if ((int)kTlsGroupNames[i].group == group)
+            return kTlsGroupNames[i].name;
+    }
+
+    /* Not a group OpenSSL names - fall back to the wolfSSL name. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if ((int)nist_name->curve == group)
+            return nist_name->name;
+    }
+
+    return NULL;
+}
+
+#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_DH) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 
 

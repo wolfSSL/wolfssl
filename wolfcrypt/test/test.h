@@ -24,6 +24,10 @@
 #define WOLFCRYPT_TEST_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#ifndef WC_NO_RNG
+    /* for WC_RNG_HAVE_AUTO_LOCK and WC_RNG_LOCK_ATFORK; above extern "C" */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -38,6 +42,29 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+/* Needs the lock, threads it can start, and a heap for the compare buffer.
+ * WC_RNG_AUTO_LOCK_DEFAULT: the shared instance comes from wc_rng_new_ex(),
+ * which takes no flags, so a default-off build cannot give it a lock. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && WC_RNG_AUTO_LOCK_DEFAULT && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
+    (defined(WOLFSSL_PTHREADS) || \
+     (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
+    #define WC_TEST_RNG_AUTOLOCK
+#endif
+/* A lock the test can hold, plus the POSIX parts the timing tests use. */
+#if defined(WC_TEST_RNG_AUTOLOCK) && !defined(__STRICT_ANSI__) && \
+    (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
+    #define WC_TEST_RNG_HOLD
+#endif
+/* The fork test needs a real process model on top of the handlers. */
+#if defined(WC_TEST_RNG_HOLD) && defined(WC_RNG_LOCK_ATFORK)
+    #define WC_TEST_RNG_AUTOFORK
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -75,7 +102,7 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 #define WC_TEST_RET_ENC_NC WC_TEST_RET_ENC(WC_TEST_RET_LN, 0, WC_TEST_RET_TAG_NC)
 
 /* encode positive integer */
-#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, i, WC_TEST_RET_TAG_I)
+#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, ((i) > 0x7ff) ? 0x7ff : (i), WC_TEST_RET_TAG_I)
 
 /* encode error code (negative integer) */
 #define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, -(ec), WC_TEST_RET_TAG_EC)
@@ -114,6 +141,10 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
     #endif
 #endif
 
+/* Note, all macro gates used below must be available with just
+ * wolfcrypt/types.h included, i.e. no macros in alg-specific headers can be
+ * used here.
+ */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
@@ -252,9 +283,21 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
-#ifdef WC_RNG_BANK_SUPPORT
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
+#ifdef WC_TEST_RNG_AUTOLOCK
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
+#ifdef HAVE_WC_RNG_BANK
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
+#endif
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \

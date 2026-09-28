@@ -9802,22 +9802,26 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
 #endif
     {
     #ifdef HAVE_ECC
-        if (ssl->peerEccKey != NULL) {
-            wc_ecc_free(ssl->peerEccKey);
-            ssl->peerEccKey = NULL;
-            ssl->peerEccKeyPresent = 0;
-        }
+        /* A reused WOLFSSL may already carry a retained peer key. FreeKey()
+         * rather than wc_ecc_free(), which leaves the allocation behind. */
+        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+        ssl->peerEccKeyPresent = 0;
     #endif
 
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
+        ssl->peerX25519KeyPresent = 0;
+
+        /* The key can outlive this function, and FreeKey() then releases it
+         * as DYNAMIC_TYPE_CURVE25519, so allocate it with that type. */
         ssl->peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
-                                        ssl->heap, DYNAMIC_TYPE_TLSX);
+                                        ssl->heap, DYNAMIC_TYPE_CURVE25519);
         if (ssl->peerX25519Key == NULL) {
             WOLFSSL_MSG("PeerX25519Key Memory error");
             return MEMORY_ERROR;
         }
         ret = wc_curve25519_init(ssl->peerX25519Key);
         if (ret != 0) {
-            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
             ssl->peerX25519Key = NULL;
             return ret;
         }
@@ -9884,10 +9888,13 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
          * falls through to the cleanup code below. */
     }
 
-    /* done with key share, release resources */
-    if (ssl->peerX25519Key != NULL) {
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake. A failed
+     * exchange keeps nothing, matching TLSX_KeyShare_ProcessX448_ex(). */
+    if ((ssl->peerX25519Key != NULL) &&
+            ((ret != 0) || !ssl->options.keepResources)) {
         wc_curve25519_free(ssl->peerX25519Key);
-        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
         ssl->peerX25519Key = NULL;
         ssl->peerX25519KeyPresent = 0;
     }
@@ -9952,22 +9959,23 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
     curve448_key* peerX448Key;
 
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
-        wc_ecc_free(ssl->peerEccKey);
-        ssl->peerEccKey = NULL;
-        ssl->peerEccKeyPresent = 0;
-    }
+    /* A reused WOLFSSL may already carry a retained peer key. FreeKey() rather
+     * than wc_ecc_free(), which leaves the allocation behind. */
+    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+    ssl->peerEccKeyPresent = 0;
 #endif
 
+    /* The key can outlive this function, and FreeKey() then releases it as
+     * DYNAMIC_TYPE_CURVE448, so allocate it with that type. */
     peerX448Key = (curve448_key*)XMALLOC(sizeof(curve448_key), ssl->heap,
-                                                             DYNAMIC_TYPE_TLSX);
+                                                        DYNAMIC_TYPE_CURVE448);
     if (peerX448Key == NULL) {
         WOLFSSL_MSG("PeerEccKey Memory error");
         return MEMORY_ERROR;
     }
     ret = wc_curve448_init(peerX448Key);
     if (ret != 0) {
-        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
         return ret;
     }
 #ifdef WOLFSSL_DEBUG_TLS
@@ -9997,8 +10005,18 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
                     ssOutput, ssOutSz, EC448_LITTLE_ENDIAN);
     }
 
-    wc_curve448_free(peerX448Key);
-    XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+    /* Keep the peer key when it was asked for - wolfSSL_get_peer_tmp_key()
+     * needs it after the handshake. Freed with the other peer keys on
+     * teardown. */
+    if ((ret == 0) && ssl->options.keepResources) {
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE448, (void**)&ssl->peerX448Key);
+        ssl->peerX448Key = peerX448Key;
+        ssl->peerX448KeyPresent = 1;
+    }
+    else {
+        wc_curve448_free(peerX448Key);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
+    }
     wc_curve448_free((curve448_key*)keyShareEntry->key);
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     keyShareEntry->key = NULL;
@@ -10171,11 +10189,13 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
     #endif
     }
 
-    /* done with key share, release resources */
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake */
     if (ssl->peerEccKey != NULL
     #ifdef HAVE_PK_CALLBACKS
         && ssl->ctx->EccSharedSecretCb == NULL
     #endif
+        && !ssl->options.keepResources
     ) {
         wc_ecc_free(ssl->peerEccKey);
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -11718,6 +11738,13 @@ static const word16 preferredGroup[] = {
     ((sizeof(preferredGroup)/sizeof(*preferredGroup)) - 1)
                                             /* -1 for the invalid group */
 
+/* One past the worst rank TLSX_KeyShare_GroupRank() can return. It ranks
+ * against ssl->group[] when the user set a list and against preferredGroup[]
+ * otherwise, so the sentinel has to cover the longer of the two. */
+#define WOLFSSL_WORST_GROUP_RANK \
+    ((int)(((size_t)WOLFSSL_MAX_GROUP_COUNT > PREFERRED_GROUP_SZ) ? \
+        (size_t)WOLFSSL_MAX_GROUP_COUNT : PREFERRED_GROUP_SZ))
+
 /* WOLFSSL_KEY_SHARE_DEFAULT_GROUP - group used for the speculative key share
  * in ClientHello messages when the application has not selected one via
  * wolfSSL_CTX_set_groups() / wolfSSL_set_groups() or wolfSSL_UseKeyShare().
@@ -11835,7 +11862,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     SupportedCurve* preferredCurve = NULL;
     word16          name = WOLFSSL_NAMED_GROUP_INVALID;
     KeyShareEntry*  kse = NULL;
-    int             preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int             preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int             rank;
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
@@ -12042,7 +12069,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     KeyShareEntry* clientKSE = NULL;
     KeyShareEntry* list = NULL;
     KeyShareEntry* preferredKSE = NULL;
-    int preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int rank;
 
     (void)cipherSuite0;
@@ -13326,6 +13353,22 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (length != OPAQUE32_LEN)
             return BUFFER_E;
         ato32(input, &maxSz);
+
+#ifdef WOLFSSL_QUIC
+        /* RFC 9001 Section 4.6.1: "Servers MUST NOT send the early_data
+         * extension with a max_early_data_size field set to any value other
+         * than 0xffffffff. A client MUST treat receipt of a NewSessionTicket
+         * that contains an early_data extension with any other value as a
+         * connection error of type PROTOCOL_VIOLATION." */
+        if (WOLFSSL_IS_QUIC(ssl) && maxSz != WOLFSSL_MAX_32BIT) {
+            WOLFSSL_MSG("QUIC ticket early data size not 0xffffffff");
+            wolfSSL_quic_send_alert(ssl, alert_fatal,
+                                    WOLFSSL_QUIC_ERR_CRYPTO_ERROR |
+                                    WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+#endif /* WOLFSSL_QUIC */
 
         ssl->session->maxEarlyDataSz = maxSz;
         return 0;
@@ -18957,11 +19000,15 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 if (size != 0)
                     return BUFFER_ERROR;
 
+                /* Honor a user request to disable EMS by ignoring the peer's
+                 * extension rather than enabling it. */
+                if (!ssl->options.disableEMS) {
 #ifndef NO_WOLFSSL_SERVER
-                if (isRequest)
-                    ssl->options.haveEMS = 1;
+                    if (isRequest)
+                        ssl->options.haveEMS = 1;
 #endif
-                pendingEMS = 1;
+                    pendingEMS = 1;
+                }
                 break;
 #endif
 
@@ -19066,7 +19113,6 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
-                WOLFSSL_MSG("Skipping Supported Versions - already processed");
             #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
@@ -19075,6 +19121,18 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     msgType != hello_retry_request)
                     return EXT_NOT_ALLOWED;
 
+                /* RFC 8446 Section 4.2.1: "A server which negotiates a version
+                 * of TLS prior to TLS 1.3 MUST set ServerHello.version and MUST
+                 * NOT send the "supported_versions" extension."  If TLS version
+                 * is <1.3, supported_versions is invalid. */
+                if (msgType == server_hello &&
+                        !IsAtLeastTLSv1_3(ssl->version)) {
+                    WOLFSSL_MSG("Supported Versions in older ServerHello");
+                    WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+                    return VERSION_ERROR;
+                }
+
+                WOLFSSL_MSG("Skipping Supported Versions - already processed");
                 break;
 
             case TLSX_COOKIE:

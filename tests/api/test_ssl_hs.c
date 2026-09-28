@@ -2245,7 +2245,8 @@ int test_wolfSSL_hs_info_cb(void)
  * complete, so it needs the credential-bearing guard. Keep it identical on the
  * test body below, or the helper is compiled unused. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 /* One handshake, with one byte flipped at one point.
  *
@@ -2340,7 +2341,8 @@ int test_tls_wire_mangle(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     /* Offsets chosen against the record and handshake framing rather than at
      * random: 0 is the record type, 1-2 the record version, 3-4 the record
      * length, 5 the handshake type, 6-8 the handshake length, and the rest
@@ -2510,7 +2512,8 @@ int test_tls_wire_mangle(void)
  * fixture as the byte mangler, and none of them needs a socket.
  * ------------------------------------------------------------------------- */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 enum wire_op { WIRE_DROP, WIRE_DUP, WIRE_MOVE, WIRE_TRUNC, WIRE_SHORTEN,
                WIRE_NONE };
@@ -2592,7 +2595,8 @@ int test_tls_wire_sequence(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     int round, op, pos;
 
     for (round = 0; round < 6; round++) {

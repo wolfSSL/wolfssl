@@ -1085,6 +1085,11 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
             return ret;
         if (resume) {
             ssl->options.dtlsStateful = 1;
+            /* Update the window now that we enter the stateful parsing */
+            DtlsUpdateWindow(ssl);
+            /* Set record numbers before current record number as read */
+            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
+                    sizeof(ssl->keys.peerSeq->window));
             return 0;
         }
     }

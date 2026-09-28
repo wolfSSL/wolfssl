@@ -6907,6 +6907,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte noContent = 0;
     byte tag = 0;
     word16 contentIsPkcs7Type = 0;
+    byte noDegenerate = 0;
 #ifdef ASN_BER_TO_DER
     byte* der;
 #endif
@@ -7887,6 +7888,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #endif
                     version = pkcs7->version;
                     contentIsPkcs7Type = pkcs7->contentIsPkcs7Type;
+                    noDegenerate = (byte)pkcs7->noDegenerate;
 
                     if (ret == 0) {
                         byte isDynamic = (byte)pkcs7->isDynamic;
@@ -7927,6 +7929,10 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                         /* Restore content is PKCS#7 flag */
                         pkcs7->contentIsPkcs7Type = (contentIsPkcs7Type != 0);
+
+                        /* Restore degenerate case policy, it is checked
+                         * against the signerInfos set in later stages */
+                        pkcs7->noDegenerate = (noDegenerate != 0);
 
                     #ifndef NO_PKCS7_STREAM
                         pkcs7->stream = stream;

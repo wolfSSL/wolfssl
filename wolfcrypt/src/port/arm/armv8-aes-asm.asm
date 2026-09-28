@@ -25,6 +25,7 @@
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-aes-asm.asm
 	IF :LNOT::DEF:NO_AES :LAND: {TRUE}
 	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_HW_CRYPTO
+; .arch_extension crypto
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_set_key_AARCH64
@@ -14768,6 +14769,7 @@ L_aes_gcm_decrypt_arm64_crypto_done
 	ENDP
 	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
+; .arch_extension sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_encrypt_AARCH64_EOR3
@@ -32544,6 +32546,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 	ENDP
 	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
+; .arch_extension sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_init_AARCH64_EOR3

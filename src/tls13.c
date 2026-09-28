@@ -69,6 +69,11 @@
  * WOLFSSL_CHECK_SIG_FAULTS: Verify signature after ECC signing    default: off
  *                            to detect fault injection attacks
  * WOLFSSL_CIPHER_TEXT_CHECK: Verify ciphertext integrity          default: off
+ * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT: Include RFC 9150 suites   default: off
+ *                            in the default cipher suite list (requires
+ *                            HAVE_NULL_CIPHER). Without it the integrity-only
+ *                            suites must be requested explicitly in the
+ *                            cipher list, by name or with "eNULL".
  *
  * TLS 1.3 PSK:
  * WOLFSSL_PSK_ONE_ID:       Single PSK identity per connect       default: off
@@ -15167,6 +15172,21 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            /* RFC 8446 4.4.2: the client only sends this in response to a
+             * CertificateRequest, which a server authenticating with a PSK
+             * does not send in the main handshake (but may post-handshake). */
+            if (ssl->options.side == WOLFSSL_SERVER_END &&
+                ssl->options.pskNegotiated && !TLS13_AFTER_HANDSHAKE(ssl)
+#ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+                && !ssl->options.certWithExternPsk
+#endif
+               ) {
+                WOLFSSL_MSG("Certificate received while using PSK - Server");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+            }
+        #endif
     #endif
             /* Check previously seen. */
             if (ssl->msgsReceived.got_certificate) {
@@ -15431,16 +15451,16 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
-                /* Must have received a valid CertificateVerify if verifying
-                 * peer and got a peer certificate.
-                 */
-                if ((ssl->options.mutualAuth || ssl->options.verifyPeer) &&
-                    ssl->options.havePeerCert && !ssl->options.havePeerVerify) {
-                    WOLFSSL_MSG("Finished received out of order - "
-                                "Certificate message but no CertificateVerify");
-                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-                    return OUT_OF_ORDER_E;
-                }
+            }
+            /* Must have received a valid CertificateVerify if got a peer
+             * certificate. A certificate without proof of possession is never
+             * acceptable, regardless of how the handshake was authenticated.
+             */
+            if (ssl->options.havePeerCert && !ssl->options.havePeerVerify) {
+                WOLFSSL_MSG("Finished received out of order - "
+                            "Certificate message but no CertificateVerify");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
             }
             /* Check previously seen. */
             if (ssl->msgsReceived.got_finished) {
@@ -15457,7 +15477,8 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifdef WOLFSSL_QUIC
             /* RFC 9001 Section 6: QUIC performs key updates at the QUIC
              * packet-protection layer, so a TLS KeyUpdate message must be
-             * rejected as a fatal unexpected_message connection error. */
+             * rejected as a fatal unexpected_message connection error. The
+             * caller sends that alert for any sanity failure. */
             if (WOLFSSL_IS_QUIC(ssl)) {
                 WOLFSSL_MSG("KeyUpdate received over QUIC");
                 WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);

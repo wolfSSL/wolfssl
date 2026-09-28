@@ -57,6 +57,7 @@ int test_wolfSSL_cert_critical_policy_constraints(void);
 int test_wolfSSL_CertManagerCheckOCSPResponse(void);
 int test_various_pathlen_chains(void);
 int test_wolfSSL_CertManagerRejectMD5Cert(void);
+int test_wolfSSL_CertManagerRejectRPK(void);
 int test_wolfSSL_X509_V_ERR_strings(void);
 int test_wolfSSL_CertManagerNameConstraint_valid_chain(void);
 int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
@@ -101,6 +102,7 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCheckOCSPResponse),  \
     TEST_DECL_GROUP("certman", test_various_pathlen_chains),                \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerRejectMD5Cert),      \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerRejectRPK),          \
     TEST_DECL_GROUP("certman", test_wolfSSL_X509_V_ERR_strings),            \
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \

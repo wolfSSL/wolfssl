@@ -30,6 +30,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void);
 int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
+int test_tls13_rpk_unnegotiated_not_overridable(void);
 int test_tls13_pha(void);
 int test_tls13_ctx_dh_rotation(void);
 int test_tls13_accept_state_dh_copy(void);
@@ -41,6 +42,7 @@ int test_tls13_pha_resumption_second_round(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
 int test_tls13_rpk_unoffered_cert_type(void);
+int test_tls13_rpk_multiple_certs(void);
 int test_tls13_pq_groups(void);
 int test_tls13_multi_pqc_key_share(void);
 int test_tls13_early_data(void);
@@ -97,6 +99,7 @@ int test_tls13_zero_inner_content_type(void);
 int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
 int test_tls13_downgrade_sentinel(void);
+int test_tls13_serverhello_legacy_version(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
 int test_tls13_psk_no_cert_bad_binder(void);
 int test_tls13_psk_age_no_identity_oracle(void);
@@ -120,6 +123,7 @@ int test_tls13_fail_if_no_psk_no_cert_server(void);
 int test_tls13_fail_if_no_psk_dtls13_handshake(void);
 int test_tls13_fail_if_no_psk_dtls13_rejects_no_psk(void);
 int test_tls13_ticket_peer_cert_reverify(void);
+int test_tls13_legacy_session_id_peer_chain(void);
 int test_tls13_clear_preserves_psk_dhe(void);
 int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
 int test_tls13_cipher_fuzz_aes256_gcm_sha384(void);
@@ -160,6 +164,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_unnegotiated_not_overridable), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
     TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_rotation),       \
     TEST_DECL_GROUP("tls13", test_tls13_accept_state_dh_copy),  \
@@ -171,6 +176,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_unoffered_cert_type), \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_multiple_certs), \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
     TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
@@ -228,6 +234,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_no_ext), \
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
+    TEST_DECL_GROUP("tls13", test_tls13_serverhello_legacy_version), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_no_cert_bad_binder), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_age_no_identity_oracle), \
@@ -251,6 +258,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_rejects_no_psk), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
+    TEST_DECL_GROUP("tls13", test_tls13_legacy_session_id_peer_chain), \
     TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes256_gcm_sha384), \

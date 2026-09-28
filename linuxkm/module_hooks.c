@@ -61,26 +61,31 @@
 
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
     enum linux_errcodes {
-        my_EINVAL = EINVAL,
-        my_ENOMEM = ENOMEM,
-        my_EBADMSG = EBADMSG,
-        my_ENOKEY = ENOKEY,
-        my_EFAULT = EFAULT,
-        my_EAFNOSUPPORT = EAFNOSUPPORT,
-        my_EOVERFLOW = EOVERFLOW,
-        my_EOPNOTSUPP = EOPNOTSUPP,
-        my_EDEADLK = EDEADLK,
-        my_EAGAIN = EAGAIN,
-        my_EBUSY = EBUSY,
-        my_ECANCELED = ECANCELED,
-        my_EINTR = EINTR,
-        my_ELIBBAD = ELIBBAD,
-        my_ENODATA = ENODATA,
-        my_ENODEV = ENODEV,
-        my_EPERM = EPERM,
-        my_EFBIG = EFBIG
+        CONST_NUM_ERR_EINVAL = EINVAL,
+        CONST_NUM_ERR_ENOMEM = ENOMEM,
+        CONST_NUM_ERR_EBADMSG = EBADMSG,
+        CONST_NUM_ERR_ENOKEY = ENOKEY,
+        CONST_NUM_ERR_EFAULT = EFAULT,
+        CONST_NUM_ERR_EAFNOSUPPORT = EAFNOSUPPORT,
+        CONST_NUM_ERR_EOVERFLOW = EOVERFLOW,
+        CONST_NUM_ERR_EOPNOTSUPP = EOPNOTSUPP,
+        CONST_NUM_ERR_EDEADLK = EDEADLK,
+        CONST_NUM_ERR_EAGAIN = EAGAIN,
+        CONST_NUM_ERR_EBUSY = EBUSY,
+        CONST_NUM_ERR_ECANCELED = ECANCELED,
+        CONST_NUM_ERR_EINTR = EINTR,
+        CONST_NUM_ERR_ELIBBAD = ELIBBAD,
+        CONST_NUM_ERR_ENODATA = ENODATA,
+        CONST_NUM_ERR_ENODEV = ENODEV,
+        CONST_NUM_ERR_EPERM = EPERM,
+        CONST_NUM_ERR_EFBIG = EFBIG,
+        CONST_NUM_ERR_ETIMEDOUT = ETIMEDOUT,
+        CONST_NUM_ERR_ERESTARTSYS = ERESTARTSYS,
+        CONST_NUM_ERR_EKEYREJECTED = EKEYREJECTED
     };
 
+    /* transform the Linux error codes into enums like the wolfCrypt error
+     * codes. */
     #undef EINVAL
     #undef ENOMEM
     #undef EBADMSG
@@ -99,26 +104,57 @@
     #undef ENODEV
     #undef EPERM
     #undef EFBIG
+    #undef ETIMEDOUT
+    #undef ERESTARTSYS
+    #undef EKEYREJECTED
 
-    #define EINVAL WC_ERR_TRACE(my_EINVAL)
-    #define ENOMEM WC_ERR_TRACE(my_ENOMEM)
-    #define EBADMSG WC_ERR_TRACE(my_EBADMSG)
-    #define ENOKEY WC_ERR_TRACE(my_ENOKEY)
-    #define EFAULT WC_ERR_TRACE(my_EFAULT)
-    #define EAFNOSUPPORT WC_ERR_TRACE(my_EAFNOSUPPORT)
-    #define EOVERFLOW WC_ERR_TRACE(my_EOVERFLOW)
-    #define EOPNOTSUPP WC_ERR_TRACE(my_EOPNOTSUPP)
-    #define EDEADLK WC_ERR_TRACE(my_EDEADLK)
-    #define EAGAIN WC_ERR_TRACE(my_EAGAIN)
-    #define EBUSY WC_ERR_TRACE(my_EBUSY)
-    #define ECANCELED WC_ERR_TRACE(my_ECANCELED)
-    #define EINTR WC_ERR_TRACE(my_EINTR)
-    #define ELIBBAD WC_ERR_TRACE(my_ELIBBAD)
-    #define ENODATA WC_ERR_TRACE(my_ENODATA)
-    #define ENODEV WC_ERR_TRACE(my_ENODEV)
-    #define EPERM WC_ERR_TRACE(my_EPERM)
-    #define EFBIG WC_ERR_TRACE(my_EFBIG)
-#endif
+    enum {
+        EINVAL = CONST_NUM_ERR_EINVAL,
+        ENOMEM = CONST_NUM_ERR_ENOMEM,
+        EBADMSG = CONST_NUM_ERR_EBADMSG,
+        ENOKEY = CONST_NUM_ERR_ENOKEY,
+        EFAULT = CONST_NUM_ERR_EFAULT,
+        EAFNOSUPPORT = CONST_NUM_ERR_EAFNOSUPPORT,
+        EOVERFLOW = CONST_NUM_ERR_EOVERFLOW,
+        EOPNOTSUPP = CONST_NUM_ERR_EOPNOTSUPP,
+        EDEADLK = CONST_NUM_ERR_EDEADLK,
+        EAGAIN = CONST_NUM_ERR_EAGAIN,
+        EBUSY = CONST_NUM_ERR_EBUSY,
+        ECANCELED = CONST_NUM_ERR_ECANCELED,
+        EINTR = CONST_NUM_ERR_EINTR,
+        ELIBBAD = CONST_NUM_ERR_ELIBBAD,
+        ENODATA = CONST_NUM_ERR_ENODATA,
+        ENODEV = CONST_NUM_ERR_ENODEV,
+        EPERM = CONST_NUM_ERR_EPERM,
+        EFBIG = CONST_NUM_ERR_EFBIG,
+        ETIMEDOUT = CONST_NUM_ERR_ETIMEDOUT,
+        ERESTARTSYS = CONST_NUM_ERR_ERESTARTSYS,
+        EKEYREJECTED = CONST_NUM_ERR_EKEYREJECTED
+    };
+
+    #define EINVAL WC_ERR_TRACE(EINVAL)
+    #define ENOMEM WC_ERR_TRACE(ENOMEM)
+    #define EBADMSG WC_ERR_TRACE(EBADMSG)
+    #define ENOKEY WC_ERR_TRACE(ENOKEY)
+    #define EFAULT WC_ERR_TRACE(EFAULT)
+    #define EAFNOSUPPORT WC_ERR_TRACE(EAFNOSUPPORT)
+    #define EOVERFLOW WC_ERR_TRACE(EOVERFLOW)
+    #define EOPNOTSUPP WC_ERR_TRACE(EOPNOTSUPP)
+    #define EDEADLK WC_ERR_TRACE(EDEADLK)
+    #define EAGAIN WC_ERR_TRACE(EAGAIN)
+    #define EBUSY WC_ERR_TRACE(EBUSY)
+    #define ECANCELED WC_ERR_TRACE(ECANCELED)
+    #define EINTR WC_ERR_TRACE(EINTR)
+    #define ELIBBAD WC_ERR_TRACE(ELIBBAD)
+    #define ENODATA WC_ERR_TRACE(ENODATA)
+    #define ENODEV WC_ERR_TRACE(ENODEV)
+    #define EPERM WC_ERR_TRACE(EPERM)
+    #define EFBIG WC_ERR_TRACE(EFBIG)
+    #define ETIMEDOUT WC_ERR_TRACE(ETIMEDOUT)
+    #define ERESTARTSYS WC_ERR_TRACE(ERESTARTSYS)
+    #define EKEYREJECTED WC_ERR_TRACE(EKEYREJECTED)
+
+#endif /* WOLFSSL_DEBUG_TRACE_ERROR_CODES */
 
 #ifdef CONFIG_HAVE_KPROBES
     static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name);
@@ -256,27 +292,58 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
+    int can_block = wc_linuxkm_can_block();
+
+#ifdef WC_LINUXKM_SPIN_IN_ATOMIC
     unsigned long irq_flags;
+#endif
+
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
     if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
         return BAD_FUNC_ARG;
 #endif
+
+#if IS_ENABLED(CONFIG_PREEMPT_RT)
+    /* On RT, spinlock_t is retyped to a sleeping rtmutex, and spin_trylock
+     * becomes rt_spin_trylock, illegal from NMI. */
+    if (in_nmi())
+        return BUSY_E;
+#endif
+
     /* first, try the cheap way. */
+#ifdef WC_LINUXKM_SPIN_IN_ATOMIC
     if (spin_trylock_irqsave(&m->lock, irq_flags)) {
         m->irq_flags = irq_flags;
         return 0;
     }
+#else
+    if (spin_trylock(&m->lock)) {
+    #if !IS_ENABLED(CONFIG_PREEMPT_RT)
+        /* On CONFIG_PREEMPT_RT kernels, spin_trylock() does not disable
+         * preemption, so don't re-enable it. */
+        if (can_block) {
+            preempt_enable();
+            m->preempt_reenabled = 1;
+        }
+    #endif
+        return 0;
+    }
+#endif
+
+#if !IS_ENABLED(CONFIG_PREEMPT_RT)
     if (in_nmi())
         return BUSY_E;
-    if (! wc_linuxkm_can_block()) {
-#if IS_ENABLED(CONFIG_PREEMPT_RT)
+#endif
+
+    if (! can_block) {
+#ifndef WC_LINUXKM_SPIN_IN_ATOMIC
         /* RT spinlock_t is a sleeping rtmutex; an atomic caller has no legal
          * wait -- the entry trylock was its one shot. */
         return BUSY_E;
-#else /* !CONFIG_PREEMPT_RT */
-        /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
-         * required, because in_softirq() is always true while saved,
-         * even for WC_FPU_INHIBITED_FLAG contexts.
+#else /* WC_LINUXKM_SPIN_IN_ATOMIC */
+        /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed, because
+         * in_softirq() is always true while saved, even for
+         * WC_FPU_INHIBITED_FLAG contexts.
          *
          * It also catches non-interrupt atomic callers -- tasks holding a
          * spinlock or running with IRQs off -- which must not reach the
@@ -285,7 +352,7 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         spin_lock_irqsave(&m->lock, irq_flags);
         m->irq_flags = irq_flags;
         return 0;
-#endif /* !CONFIG_PREEMPT_RT */
+#endif /* WC_LINUXKM_SPIN_IN_ATOMIC */
     }
     else {
         for (;;) {
@@ -298,13 +365,52 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
              * but a low-priority holder under a high-priority RT poller
              * inherits nothing and the loop degrades to prioritized
              * busy-wait. */
+
+#ifdef WC_LINUXKM_SPIN_IN_ATOMIC
+            /* When this path is configured, task context lockers are promoted
+             * to non-preemptible context for the duration of the mutex hold,
+             * allowing atomic context callers (except NMI) to spin-wait without
+             * risk of deadlock. */
             if (spin_trylock_irqsave(&m->lock, irq_flags)) {
                 m->irq_flags = irq_flags;
                 return 0;
             }
+#else
+            /* When this path is configured, we re-enable preemption and
+             * migration for regular tasks while they hold the mutex.  Atomic
+             * context callers must correspondingly use one-try as above,
+             * otherwise deadlocks are inevitable.
+             */
+            if (spin_trylock(&m->lock)) {
+        #if !IS_ENABLED(CONFIG_PREEMPT_RT)
+                /* On CONFIG_PREEMPT_RT kernels, spin_trylock() does not disable
+                 * preemption, so don't re-enable it. */
+                preempt_enable();
+                m->preempt_reenabled = 1;
+        #endif
+                return 0;
+            }
+#endif
         }
     }
     __builtin_unreachable();
+}
+
+int wc_lkm_UnlockMutex(wolfSSL_Mutex* m) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+        return BAD_FUNC_ARG;
+#endif
+#ifdef WC_LINUXKM_SPIN_IN_ATOMIC
+    spin_unlock_irqrestore(&m->lock, m->irq_flags);
+#else
+    if (m->preempt_reenabled) {
+        m->preempt_reenabled = 0;
+        preempt_disable();
+    }
+    spin_unlock(&m->lock);
+#endif
+    return 0;
 }
 #endif
 
@@ -2034,6 +2140,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     wolfssl_linuxkm_pie_redirect_table.wc_lkm_LockMutex = wc_lkm_LockMutex;
+    wolfssl_linuxkm_pie_redirect_table.wc_lkm_UnlockMutex = wc_lkm_UnlockMutex;
 #endif
 
 #ifdef CONFIG_ARM64
@@ -2187,7 +2294,7 @@ static int updateFipsHash(void)
     }
 
     if (IS_ERR(tfm)) {
-        if (PTR_ERR(tfm) == -ENOMEM) {
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM)) {
             pr_err("ERROR: crypto_alloc_shash failed: out of memory\n");
             ret = MEMORY_E;
         } else if (PTR_ERR(tfm) == -ENOENT) {

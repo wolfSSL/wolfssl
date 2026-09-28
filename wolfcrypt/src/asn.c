@@ -25072,6 +25072,32 @@ static int GeneratePreTBSBuffer(DecodedCert* cert, byte** derOut)
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+#if defined(HAVE_RPK)
+/* A Raw Public Key (RFC 7250) is only a SubjectPublicKeyInfo: it has no issuer
+ * and no signature, so there is no signer to look up and nothing to confirm.
+ * A caller that asked for verification against the CertManager - any verifying
+ * mode on a type the signer lookup and ConfirmSignature() apply to - must not
+ * be told the key verified, or a bare key would pass wherever a chained
+ * certificate is required (CertManager, X509_STORE, PKCS#7, OCSP, TSP). The
+ * TLS handshake parses a negotiated RPK with NO_VERIFY and authenticates it
+ * out of band (RpkIsTrusted()).
+ *
+ * @param [in] type    Type of certificate being parsed.
+ * @param [in] verify  Verification mode requested by the caller.
+ * @return  0 when no signer verification was requested.
+ * @return  ASN_NO_SIGNER_E when the caller requested signer verification.
+ */
+static int CheckRpkVerifyMode(int type, int verify)
+{
+    if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
+        WOLFSSL_MSG("Raw Public Key has no signer to verify against");
+        WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+        return ASN_NO_SIGNER_E;
+    }
+    return 0;
+}
+#endif /* HAVE_RPK */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
@@ -25152,6 +25178,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 return ASN_PARSE_E;
             }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
+            /* No signer lookup or signature check is possible for an RPK. */
+            if (ret == 0) {
+                ret = CheckRpkVerifyMode(type, verify);
+            }
             return ret;
         }
 #endif /* HAVE_RPK */
@@ -25414,6 +25444,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             }
 #if defined(HAVE_RPK)
             if (cert->isRPK) {
+                /* No signer lookup or signature check is possible for an
+                 * RPK. */
+                if (ret == 0) {
+                    ret = CheckRpkVerifyMode(type, verify);
+                }
                 return ret;
             }
 #endif /* HAVE_RPK */
@@ -26122,23 +26157,7 @@ void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
     if (tp == NULL) {
         return;
     }
-
-    /* safe cast -- when .name is set in AddTrustedPeer() from cert->subjectCN,
-     * it inherits the allocation from ParseCert(), and cert->subjectCN is set
-     * to NULL.
-     */
-    XFREE((void *)(wc_ptr_t)tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
-
-    XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
-#ifndef IGNORE_NAME_CONSTRAINTS
-    if (tp->permittedNames)
-        FreeNameSubtrees(tp->permittedNames, heap);
-    if (tp->excludedNames)
-        FreeNameSubtrees(tp->excludedNames, heap);
-#endif
     XFREE(tp, heap, DYNAMIC_TYPE_CERT);
-
-    (void)heap;
 }
 
 /* Free the whole Trusted Peer linked list.
@@ -31081,6 +31100,9 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     int ret = 0;
     word32 issRawLen = 0;
     word32 sbjRawLen = 0;
+    const byte* serialPtr = NULL;
+    word32 serialLen = 0;
+    word32 encodedLen = 0;
     byte localBefore[MAX_DATE_SIZE];
     byte localAfter[MAX_DATE_SIZE];
 
@@ -31181,6 +31203,45 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         cert->serialSz = CTC_GEN_SERIAL_SZ;
         ret = GenerateInteger(rng, cert->serial, CTC_GEN_SERIAL_SZ);
     }
+    /* Serial has to fit cert->serial, which is the RFC 5280 4.1.2.2 cap. */
+    if ((ret == 0) && ((cert->serialSz < 0) ||
+                       (cert->serialSz > CTC_SERIAL_SIZE))) {
+        WOLFSSL_MSG("Serial number size out of range");
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        serialPtr = cert->serial;
+        serialLen = (word32)cert->serialSz;
+        /* DER requires the minimum number of octets, so drop the redundant
+         * leading zeros a caller-supplied fixed-width serial carries. Parsed
+         * serials are already minimal unless WOLFSSL_ASN_INT_LEAD_0_ANY. */
+        while ((serialLen > 1) && (serialPtr[0] == 0)) {
+            serialLen--;
+            serialPtr++;
+        }
+        /* The sign pad added for a set high bit counts towards the RFC 5280
+         * 4.1.2.2 limit of 20 octets. */
+        encodedLen = serialLen;
+        if ((serialPtr[0] & 0x80) != 0) {
+            encodedLen++;
+        }
+        if (encodedLen > CTC_SERIAL_SIZE) {
+            WOLFSSL_MSG("Encoded serial number longer than 20 octets");
+            WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+            ret = BAD_FUNC_ARG;
+        }
+    }
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* RFC 5280 4.1.2.2 requires a positive serial number. Reject zero rather
+     * than emit a certificate wolfSSL itself will not parse. */
+    if ((ret == 0) && (serialLen == 1) && (serialPtr[0] == 0)) {
+        WOLFSSL_MSG("Serial number must be positive (non-zero)");
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+        ret = BAD_FUNC_ARG;
+    }
+#endif
     if (ret == 0) {
         /* Determine issuer name size. */
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
@@ -31234,8 +31295,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Set version, serial number and signature OID */
         SetASN_Int8Bit(&dataASN[X509CERTASN_IDX_TBS_VER_INT],
                        (byte)cert->version);
-        SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_SERIAL], cert->serial,
-                (word32)cert->serialSz);
+        SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_SERIAL], serialPtr,
+                serialLen);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (cert->sigType == 0) {
             /* sigOID being 0 indicates preTBS. Do not encode signature. */

@@ -24,8 +24,15 @@
 
 int test_utils_memio_move_message(void);
 int test_tls12_unexpected_ccs(void);
+int test_tls12_early_server_ccs(void);
 int test_tls13_unexpected_ccs(void);
 int test_tls_record_overflow_alert(void);
+int test_tls_peer_name_mismatch_verify_cb(void);
+int test_tls_peer_name_mismatch_verify_result(void);
+int test_tls_get_peer_tmp_key(void);
+int test_tls_get_negotiated_group(void);
+int test_tls_alert_info_cb(void);
+int test_tls_shutdown_in_init(void);
 int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
 int test_tls12_ske_sig_param_binding(void);
@@ -66,12 +73,20 @@ int test_record_size_matches_build_message(void);
 int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
+int test_tls12_aesgcm_record_nonce_unique(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
         TEST_DECL_GROUP("tls", test_tls12_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls12_early_server_ccs),                   \
         TEST_DECL_GROUP("tls", test_tls13_unexpected_ccs),                     \
         TEST_DECL_GROUP("tls", test_tls_record_overflow_alert),                \
+        TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_cb),         \
+        TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_result),     \
+        TEST_DECL_GROUP("tls", test_tls_get_peer_tmp_key),                     \
+        TEST_DECL_GROUP("tls", test_tls_get_negotiated_group),                 \
+        TEST_DECL_GROUP("tls", test_tls_alert_info_cb),                        \
+        TEST_DECL_GROUP("tls", test_tls_shutdown_in_init),                     \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \
         TEST_DECL_GROUP("tls", test_tls12_dhe_rsa_pss_sigalg),                 \
         TEST_DECL_GROUP("tls", test_tls12_ske_sig_param_binding),              \
@@ -114,6 +129,7 @@ int test_wolfSSL_get_shared_ciphers(void);
             test_record_size_preserves_build_msg_state),                       \
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
-        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers)
+        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),               \
+        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique)
 
 #endif /* TESTS_API_TEST_TLS_H */

@@ -1728,6 +1728,48 @@ int test_tls13_fail_if_no_psk_api(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Setting a version range after require_psk() must not hand the downgrade
+     * back. The minimum is below TLS 1.3, where the requirement cannot be
+     * enforced, so the requirement wins and the single version stands. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+#ifdef OPENSSL_EXTRA
+    /* Same through the OpenSSL compatibility setter. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+    /* Without the requirement the same calls do make a range again. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
@@ -3962,6 +4004,64 @@ int test_tls13_rpk_handshake(void)
  * rejected instead of accepted without any chain verification (auth bypass).
  * Covers both directions: server presenting an RPK to the client, and client
  * presenting an RPK to the server. */
+ #if defined(HAVE_RPK) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static int rpk_waive_issuer_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    /* the common "accept any issuer" pattern: waive issuer-lookup errors */
+    if (store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+        return 1;
+    return 0;
+}
+#endif
+
+int test_tls13_rpk_unnegotiated_not_overridable(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char certType_s[MAX_CLIENT_CERT_TYPE_CNT];
+    int  typeCnt_s;
+    int  ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            cliCertFile,     CERT_FILETYPE,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
+        , 0);
+
+    certType_s[0] = WOLFSSL_CERT_TYPE_X509;
+    certType_s[1] = -1;
+    typeCnt_s = 1;
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType_s, typeCnt_s),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType_s, typeCnt_s),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, rpk_waive_issuer_cb);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+        WC_NO_ERR_TRACE(UNSUPPORTED_CERTIFICATE));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_rpk_handshake_no_negotiation(void)
 {
     EXPECT_DECLS;
@@ -5084,6 +5184,136 @@ int test_tls13_rpk_unoffered_cert_type(void)
         wolfSSL_CTX_free(ctx_s);
     }
 #endif /* HAVE_RPK && WOLFSSL_TLS13 && client && server */
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 4.4.2: "If the RawPublicKey certificate type was negotiated,
+ * then the certificate_list MUST contain no more than one CertificateEntry,
+ * which contains an ASN1_subjectPublicKeyInfo value as defined in [RFC7250],
+ * Section 3." Make each side send a second raw public key and check that its
+ * peer rejects the Certificate message as illegal_parameter. */
+int test_tls13_rpk_multiple_certs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && !defined(NO_TLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    byte* spki = NULL;
+    size_t spkiSz = 0;
+    DerBuffer* chain = NULL;
+    char certType[] = { WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+
+    /* Append a second entry to the server's certificate_list: the same raw
+     * public key again, in the length-prefixed form the chain is sent in. */
+    ExpectIntEQ(load_file(svrRpkCertFile, &spki, &spkiSz), 0);
+    ExpectIntEQ(AllocDer(&chain, (word32)spkiSz + CERT_HEADER_SZ,
+        CERT_TYPE, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        chain->buffer[0] = (byte)(spkiSz >> 16);
+        chain->buffer[1] = (byte)(spkiSz >> 8);
+        chain->buffer[2] = (byte)spkiSz;
+        XMEMCPY(chain->buffer + CERT_HEADER_SZ, spki, spkiSz);
+        ssl_s->buffers.certChain = chain;
+        ssl_s->buffers.certChainCnt = 1;
+        ssl_s->buffers.weOwnCertChain = 1;
+        chain = NULL; /* owned by ssl_s now */
+    }
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    FreeDer(&chain);
+    XFREE(spki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    spki = NULL;
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+
+    /* Client direction: with client RawPublicKey negotiated too, a second
+     * entry in the client's certificate_list must be rejected by the
+     * server the same way. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_c, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_s, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(load_file(clntRpkCertFile, &spki, &spkiSz), 0);
+    ExpectIntEQ(AllocDer(&chain, (word32)spkiSz + CERT_HEADER_SZ,
+        CERT_TYPE, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        chain->buffer[0] = (byte)(spkiSz >> 16);
+        chain->buffer[1] = (byte)(spkiSz >> 8);
+        chain->buffer[2] = (byte)spkiSz;
+        XMEMCPY(chain->buffer + CERT_HEADER_SZ, spki, spkiSz);
+        ssl_c->buffers.certChain = chain;
+        ssl_c->buffers.certChainCnt = 1;
+        ssl_c->buffers.weOwnCertChain = 1;
+        chain = NULL; /* owned by ssl_c now */
+    }
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    FreeDer(&chain);
+    XFREE(spki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* HAVE_RPK && WOLFSSL_TLS13 && memio && !NO_SHA256 && client+server */
     return EXPECT_RESULT();
 }
 
@@ -10382,6 +10612,103 @@ int test_tls13_downgrade_sentinel(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a client does not treat a ServerHello carrying supported_versions
+ * as an older-version ServerHello because of its legacy_version. RFC 8446
+ * Section 4.2.1: "A server which negotiates a version of TLS prior to TLS 1.3
+ * MUST set ServerHello.version and MUST NOT send the "supported_versions"
+ * extension", and a client "MUST ignore the ServerHello.legacy_version value
+ * and MUST use only the "supported_versions" extension to determine the
+ * selected version". A server selecting TLS 1.3 must set legacy_version to
+ * 0x0303 (Section 4.1.3). */
+int test_tls13_serverhello_legacy_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    /* legacy_version follows the record (5) and handshake (4) headers. */
+    int verOff = 9;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    /* Client allows downgrading, so the legacy dispatch is reachable. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLS_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Claim TLS 1.0 in legacy_version. supported_versions still selects
+     * TLS 1.3. Rejected by the version floor when old TLS is compiled out,
+     * and by the supported_versions check when it is not; either way the
+     * result must be a fatal protocol_version alert. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(test_ctx.c_len, verOff + 1);
+        test_ctx.c_buff[verOff + 0] = SSLv3_MAJOR;
+        test_ctx.c_buff[verOff + 1] = TLSv1_MINOR;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, wolfssl_alert_protocol_version);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* supported_versions on a ServerHello negotiating below TLS 1.3 is
+     * refused whatever version it names (RFC 8446 Section 4.2.1). Hand the
+     * extension straight to the parser as a TLS 1.2 client: no version floor
+     * filters this route, so the check runs in every build. */
+    {
+        /* supported_versions (43) of length 2 naming TLS 1.3 */
+        static const byte svExt[6] = { 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04 };
+
+        ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+        ExpectIntEQ(TLSX_Parse(ssl_c, svExt, (word16)sizeof(svExt),
+            server_hello, NULL), WC_NO_ERR_TRACE(VERSION_ERROR));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        ssl_c = NULL;
+        ctx_c = NULL;
+    }
+
+    /* A ServerHello that really is older still downgrades: no
+     * supported_versions extension to contradict its legacy_version. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLS_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 client rejects ServerHello cipher suites that are not
  * TLS 1.3 suites or were not offered by the client. */
 int test_tls13_serverhello_bad_cipher_suites(void)
@@ -10598,6 +10925,114 @@ int test_tls13_ticket_peer_cert_reverify(void)
     ExpectIntEQ(ssl_s->peerCert.issuer.sz, 0);
 
     wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that a TLS 1.3 server never stores a session in its cache under the
+ * client-chosen legacy_session_id. A second client that replays another
+ * client's legacy_session_id in a full handshake but sends no certificate must
+ * not inherit that client's peer certificate chain from the cache entry. */
+int test_tls13_legacy_session_id_peer_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    defined(SESSION_CERTS) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_X509 *peer = NULL;
+    byte legacyId[ID_LEN];
+    int i;
+
+    /* legacy_session_id that both clients put in their ClientHello */
+    for (i = 0; i < ID_LEN; i++)
+        legacyId[i] = (byte)(0xA0 + i);
+
+    /* Server with optional client authentication */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    /* --- Step 1: client that authenticates with a certificate --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    if (ssl_c != NULL) {
+        XMEMCPY(ssl_c->session->sessionID, legacyId, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* --- Step 2: client without a certificate replaying the same ID --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    if (ssl_c != NULL) {
+        XMEMCPY(ssl_c->session->sessionID, legacyId, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    /* No certificate was received on this connection so none may be
+     * reported, in particular not the one from step 1. */
+    ExpectNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    ExpectIntEQ(wolfSSL_get_chain_count(wolfSSL_get_peer_chain(ssl_s)), 0);
+
+    wolfSSL_X509_free(peer);
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);

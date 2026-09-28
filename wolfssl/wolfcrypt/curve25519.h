@@ -222,6 +222,8 @@ void wc_curve25519_free(curve25519_key* key);
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_API
 int wc_curve25519_set_rng(curve25519_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_curve25519_clear_rng(curve25519_key* key);
 #endif
 
 #ifndef WC_NO_CONSTRUCTORS

@@ -349,33 +349,24 @@ ECC Curve Sizes:
     #define HAVE_ECC_CHECK_PUBKEY_ORDER
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) && SP_INT_BITS < MAX_ECC_BITS_NEEDED
+/* MAX_ECC_BITS is the largest curve compiled in unless the user raised it, and
+ * ecc.h rejects a smaller one.  MAX_ECC_BITS_EXTRA is the bit ECC_KEY_MAX_BITS
+ * adds below, so the working values need room for it too. */
+#if defined(WOLFSSL_SP_MATH_ALL) && \
+    SP_INT_BITS < (MAX_ECC_BITS + MAX_ECC_BITS_EXTRA)
 #define MAX_ECC_BITS_USE    SP_INT_BITS
 #else
-#define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
+#define MAX_ECC_BITS_USE    (MAX_ECC_BITS + MAX_ECC_BITS_EXTRA)
 #endif
 
-#if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
-    (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
-
+/* MAX_ECC_BITS_EXTRA (ecc.h) is the one bit the builds whose order can be a bit
+ * greater than the prime need, and the ceiling is sized from the same macro. */
 #define ECC_KEY_MAX_BITS(key)                                       \
     ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8)))
+        ((unsigned)((key)->dp->size * 8 + MAX_ECC_BITS_EXTRA)))
 #define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
     (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
-        ((unsigned)((key)->dp->size * 8)))
-
-#else
-
-/* Add one bit for cases when order is a bit greater than prime. */
-#define ECC_KEY_MAX_BITS(key)                                       \
-    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8 + 1)))
-#define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
-    (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
-        ((unsigned)((key)->dp->size * 8 + 1)))
-
-#endif
+        ((unsigned)((key)->dp->size * 8 + MAX_ECC_BITS_EXTRA)))
 
 #ifdef WOLFSSL_ECC_BLIND_K
 /* Number of digits covered by the fixed-width XORs below. */
@@ -7964,10 +7955,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 {
     int ret = 0;
 #ifndef WOLFSSL_SMALL_STACK
-    byte h1[MAX_ECC_BYTES];
+    byte h1[MAX_ECC_ORDER_BYTES];
     byte V[WC_MAX_DIGEST_SIZE];
     byte K[WC_MAX_DIGEST_SIZE];
-    byte x[MAX_ECC_BYTES];
+    byte x[MAX_ECC_ORDER_BYTES];
     mp_int z1[1];
 #else
     byte *h1 = NULL;
@@ -8005,13 +7996,19 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         }
     }
 
-    if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
+    if (mp_unsigned_bin_size(priv) > MAX_ECC_ORDER_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
     }
 
+    /* x and h1 below are written to the order's length. */
+    if (mp_unsigned_bin_size(order) > MAX_ECC_ORDER_BYTES) {
+        WOLFSSL_MSG("order larger than max expected!");
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
-    h1 = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_DIGEST);
+    h1 = (byte*)XMALLOC(MAX_ECC_ORDER_BYTES, heap, DYNAMIC_TYPE_DIGEST);
     if (h1 == NULL) {
         ret = MEMORY_E;
     }
@@ -8029,7 +8026,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 
     if (ret == 0) {
-        x = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        x = (byte*)XMALLOC(MAX_ECC_ORDER_BYTES, heap,
+                           DYNAMIC_TYPE_PRIVATE_KEY);
         if (x == NULL)
             ret = MEMORY_E;
     }
@@ -8090,7 +8088,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bits2octets on h1 */
     if (ret == 0) {
-        XMEMSET(h1, 0, MAX_ECC_BYTES);
+        XMEMSET(h1, 0, MAX_ECC_ORDER_BYTES);
 
     #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
         /* mod reduce by order using conditional subtract
@@ -8102,7 +8100,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
             mp_sub(z1, order, z1);
             z1Sz = mp_unsigned_bin_size(z1);
-            if (z1Sz < 0 || z1Sz > MAX_ECC_BYTES) {
+            if (z1Sz < 0 || z1Sz > MAX_ECC_ORDER_BYTES) {
                 ret = BUFFER_E;
             }
             else {
@@ -8205,7 +8203,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         } while (ret == 0 && err != 0);
     }
 
-    ForceZero(x, MAX_ECC_BYTES);
+    ForceZero(x, MAX_ECC_ORDER_BYTES);
     ForceZero(K, WC_MAX_DIGEST_SIZE);
     ForceZero(V, WC_MAX_DIGEST_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
@@ -8215,7 +8213,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(x, MAX_ECC_BYTES);
+    wc_MemZero_Check(x, MAX_ECC_ORDER_BYTES);
     wc_MemZero_Check(K, WC_MAX_DIGEST_SIZE);
     wc_MemZero_Check(V, WC_MAX_DIGEST_SIZE);
 #endif
@@ -8307,10 +8305,13 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
  * at sign time it is decrypted into a short-lived buffer. The devId is NOT set
  * here -- enable the device by setting devId at init
  * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). See ecc.h for the contract. */
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+int wc_ecc_import_wrapped_private(ecc_key* key, int curve_id,
+                                  const byte* seed, word32 seedSz,
                                   const byte* wrapped, word32 wrappedLen,
                                   word32 plainLen)
 {
+    int ret;
+
     if (key == NULL || seed == NULL || wrapped == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -8335,6 +8336,25 @@ int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
     if (wrappedLen > ((plainLen + 15u) & ~15u)) {
         return BAD_FUNC_ARG;
     }
+    /* Validate the scalar size against the curve before touching the key, so a
+     * rejected import leaves no curve behind on a key that has no blob. */
+    ret = wc_ecc_get_curve_size_from_id(curve_id);
+    if (ret < 0) {
+        return ret;
+    }
+    if ((word32)ret != plainLen) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* The sign path needs the domain parameters to drive the PKA and returns
+     * ECC_BAD_ARG_E without them, and a caller starting from a bare
+     * wc_ecc_init() has no other way to supply them for a key that never holds
+     * its scalar in software. */
+    ret = wc_ecc_set_curve(key, (int)plainLen, curve_id);
+    if (ret != 0) {
+        return ret;
+    }
+
     XMEMCPY(key->dhuk_wrapped_priv, wrapped, wrappedLen);
     XMEMCPY(key->dhuk_seed, seed, seedSz);
     key->dhuk_wrapped_priv_len = wrappedLen;
@@ -9858,9 +9878,13 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
         if (!mp_iszero((MP_INT_SIZE*)u1)) {
             /* compute u1*mG + u2*mQ = mG */
+         #ifdef WOLFSSL_CHECK_VER_FAULTS
             if (err == MP_OKAY)
+         #endif
+            {
                 err = wc_ecc_mulmod_ex(u1, mG, mG, curve->Af, curve->prime, 0,
                                                                      key->heap);
+            }
         #ifdef WOLFSSL_CHECK_VER_FAULTS
             if (err == MP_OKAY && wc_ecc_cmp_point(mG, mG1) == MP_EQ) {
                 err = BAD_STATE_E;
@@ -15101,6 +15125,28 @@ int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng)
     return err;
 }
 
+/* Companion to wc_ecc_set_rng(): detach the key's RNG association.
+ * Subsequent operations that require the key's RNG then fail with
+ * MISSING_RNG_E until a new one is set. */
+int wc_ecc_clear_rng(ecc_key* key)
+{
+    int err = 0;
+
+#ifdef ECC_TIMING_RESISTANT
+    if (key == NULL) {
+        err = BAD_FUNC_ARG;
+    }
+    else {
+        key->rng = NULL;
+    }
+#else
+    (void)key;
+    /* report success, not an error if ECC_TIMING_RESISTANT is not defined */
+#endif
+
+    return err;
+}
+
 #ifdef HAVE_ECC_ENCRYPT
 
 
@@ -15130,6 +15176,11 @@ struct ecEncCtx {
     word32    kdfSaltSz;   /* size of kdfSalt */
     word32    kdfInfoSz;   /* size of kdfInfo */
     word32    macSaltSz;   /* size of macSalt */
+#ifdef WOLF_CRYPTO_CB
+    /* Device for ECIES. Not copied from the ECC key: unset means software,
+     * or the WOLF_CRYPTO_CB_FIND finder, even if the key has a device. */
+    int       devId;
+#endif
     void*     heap;        /* heap hint for memory used */
     byte      clientSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
     byte      serverSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
@@ -15229,6 +15280,30 @@ int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng)
         return BAD_FUNC_ARG;
 
     *rng = ctx->rng;
+
+    return 0;
+}
+
+/* Pick the device that ECIES uses; it is never copied from the ECC key. Unset
+ * means software, or the WOLF_CRYPTO_CB_FIND finder. Kept across ctx reset. */
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->devId = devId;
+
+    return 0;
+}
+
+/* Read back the device set above.  Callback code can use this to learn
+ * which device it was called for. */
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId)
+{
+    if (ctx == NULL || devId == NULL)
+        return BAD_FUNC_ARG;
+
+    *devId = ctx->devId;
 
     return 0;
 }
@@ -15441,6 +15516,12 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
         ctx->macAlgo  = ecHMAC_SHA256;
         ctx->protocol = (byte)flags;
         ctx->rng      = rng;
+    #ifdef WOLF_CRYPTO_CB
+        /* The XMEMSET above leaves this at 0, and 0 is a real devId.  Start
+         * in software; the caller picks a device with
+         * wc_ecc_ctx_set_dev_id(). */
+        ctx->devId    = INVALID_DEVID;
+    #endif
 
         if (flags == REQ_RESP_CLIENT)
             ctx->cliSt = ecCLI_INIT;
@@ -15455,15 +15536,25 @@ WOLFSSL_ABI
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 {
     void* heap;
+#ifdef WOLF_CRYPTO_CB
+    int   devId;
+#endif
 
     if (ctx == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
     /* ecc_ctx_init clears the whole context, so carry the heap hint over it.
-     * The context has to be freed to the heap it was allocated from. */
+     * The context has to be freed to the heap it was allocated from.  Keep
+     * the device too: reset means "reuse this context", so it must stay. */
     heap = ctx->heap;
+#ifdef WOLF_CRYPTO_CB
+    devId = ctx->devId;
+#endif
     ecc_ctx_init(ctx, ctx->protocol, rng);
     ctx->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    ctx->devId = devId;
+#endif
 
     return ecc_ctx_set_salt(ctx, ctx->protocol);
 }
@@ -15478,6 +15569,11 @@ ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap)
     if (ctx) {
         ctx->protocol = (byte)flags;
         ctx->heap     = heap;
+    #ifdef WOLF_CRYPTO_CB
+        /* wc_ecc_ctx_reset() below keeps devId across ecc_ctx_init(), so it
+         * needs a real value first.  This memory starts out uninitialized. */
+        ctx->devId    = INVALID_DEVID;
+    #endif
     }
 
     ret = wc_ecc_ctx_reset(ctx, rng);
@@ -15707,21 +15803,25 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     byte*        encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
-     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
+     * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
+#ifdef ECC_TIMING_RESISTANT
+    int          lentRng = 0;      /* ctx->rng lent to privKey for this op */
+#endif
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-    eciesDevId = privKey->devId;
-#endif
-
 #ifdef WOLF_CRYPTO_CB
+    /* Read this before ctx is swapped for the local default below.  A NULL
+     * context has no device and stays INVALID_DEVID. */
+    if (ctx != NULL)
+        eciesDevId = ctx->devId;
+
     #ifndef WOLF_CRYPTO_CB_FIND
-    if (privKey->devId != INVALID_DEVID)
+    if (eciesDevId != INVALID_DEVID)
     #endif
     {
         /* Snapshot single-use state so we can tell whether the callback handled
@@ -15729,8 +15829,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
          * (which advances the state itself, below). */
         byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
         byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesEncrypt(privKey, pubKey, msg, msgSz, out, outSz,
-                                       ctx, compressed);
+        ret = wc_CryptoCb_EciesEncrypt(eciesDevId, privKey, pubKey, msg, msgSz,
+                                       out, outSz, ctx, compressed);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here so the ctx can't be reused (nonce reuse for static-nonce
@@ -15797,8 +15897,14 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef ECC_TIMING_RESISTANT
-    if (ctx->rng != NULL && privKey->rng == NULL)
+    if (ctx->rng != NULL && privKey->rng == NULL) {
+        /* Lend the ctx's RNG to the key for the duration of this operation
+         * only.  Restored to NULL before every subsequent return, so no
+         * borrowed pointer survives on the caller's key object after the
+         * call. */
         privKey->rng = ctx->rng;
+        lentRng = 1;
+    }
 #endif
 
 #ifndef WOLFSSL_ECIES_OLD
@@ -15808,23 +15914,42 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #else
         ret = wc_ecc_make_pub_ex(privKey, NULL, NULL);
 #endif
-        if (ret != 0)
+        if (ret != 0) {
+        #ifdef ECC_TIMING_RESISTANT
+            if (lentRng)
+                privKey->rng = NULL;
+        #endif
             return ret;
+        }
     }
     ret = wc_ecc_export_x963_ex(privKey, out, &pubKeySz, compressed);
-    if (ret != 0)
+    if (ret != 0) {
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return ret;
+    }
     out += pubKeySz;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(sharedSz, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (sharedSecret == NULL)
+    if (sharedSecret == NULL) {
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return MEMORY_E;
+    }
 
     keys = (byte*)XMALLOC(ECC_BUFSIZE, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (keys == NULL) {
         XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return MEMORY_E;
     }
 #endif
@@ -15855,15 +15980,19 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
+            /* Use the _ex form so the KDF runs on the context's device, like
+             * the cipher and MAC do.  wc_HKDF() would always use software.
+             * wc_X963_KDF() below takes no device, so it stays in software. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           privKey->heap, eciesDevId);
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                           keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16105,6 +16234,11 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     WC_FREE_VAR_EX(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     WC_FREE_VAR_EX(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
 
+#ifdef ECC_TIMING_RESISTANT
+    if (lentRng)
+        privKey->rng = NULL;
+#endif
+
     return ret;
 }
 
@@ -16160,9 +16294,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     const byte*  encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
-     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
+     * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
+#ifdef ECC_TIMING_RESISTANT
+    int          lentRng = 0;      /* ctx->rng lent to privKey for this op */
+#endif
 
 
     if (privKey == NULL || msg == NULL || out == NULL || outSz  == NULL)
@@ -16172,13 +16309,14 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BAD_FUNC_ARG;
 #endif
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-    eciesDevId = privKey->devId;
-#endif
-
 #ifdef WOLF_CRYPTO_CB
+    /* Read this before ctx is swapped for the local default below.  A NULL
+     * context has no device and stays INVALID_DEVID. */
+    if (ctx != NULL)
+        eciesDevId = ctx->devId;
+
     #ifndef WOLF_CRYPTO_CB_FIND
-    if (privKey->devId != INVALID_DEVID)
+    if (eciesDevId != INVALID_DEVID)
     #endif
     {
         /* Snapshot single-use state so we can tell whether the callback handled
@@ -16186,8 +16324,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
          * (which advances the state itself, below). */
         byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
         byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesDecrypt(privKey, pubKey, msg, msgSz, out, outSz,
-                                       ctx);
+        ret = wc_CryptoCb_EciesDecrypt(eciesDevId, privKey, pubKey, msg, msgSz,
+                                       out, outSz, ctx);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here.  A re-entrant software callback already advanced it. */
@@ -16291,8 +16429,14 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 
 #ifdef ECC_TIMING_RESISTANT
-    if (ctx->rng != NULL && privKey->rng == NULL)
+    if (ctx->rng != NULL && privKey->rng == NULL) {
+        /* Lend the ctx's RNG to the key for the duration of this operation
+         * only.  Restored to NULL before every subsequent return, so no
+         * borrowed pointer survives on the caller's key object after the
+         * call. */
         privKey->rng = ctx->rng;
+        lentRng = 1;
+    }
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -16301,6 +16445,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     #ifndef WOLFSSL_ECIES_OLD
         if (pubKey == peerKey)
             wc_ecc_free(peerKey);
+    #endif
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
     #endif
         return MEMORY_E;
     }
@@ -16311,6 +16459,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     #ifndef WOLFSSL_ECIES_OLD
         if (pubKey == peerKey)
             wc_ecc_free(peerKey);
+    #endif
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
     #endif
         return MEMORY_E;
     }
@@ -16368,15 +16520,19 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
+            /* Use the _ex form so the KDF runs on the context's device, like
+             * the cipher and MAC do.  wc_HKDF() would always use software.
+             * wc_X963_KDF() below takes no device, so it stays in software. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           privKey->heap, eciesDevId);
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                           keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16613,6 +16769,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
     XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
+
+#ifdef ECC_TIMING_RESISTANT
+    if (lentRng)
+        privKey->rng = NULL;
 #endif
 
     return ret;

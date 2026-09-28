@@ -290,7 +290,9 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
             return ret;
         }
 
+        /* parse the DER conversion with its own size, not the BER size */
         input = pkcs12->safeDer;
+        size  = (int)pkcs12->safeDersz;
      }
 #endif /* ASN_BER_TO_DER */
 
@@ -320,8 +322,8 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
                 return ret;
             }
 
-            if (curSz > CISz) {
-                /* subset should not be larger than universe */
+            if (localIdx + (word32)curSz > (word32)CISz) {
+                /* ContentInfo must lie inside the AuthenticatedSafe SEQUENCE */
                 freeSafe(safe, pkcs12->heap);
                 return ASN_PARSE_E;
             }

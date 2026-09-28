@@ -459,7 +459,9 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \param nxsocket a pointer to type NX_TCP_SOCKET that is set to the
     nxTcpSocket member of the nxCtx structure.
     \param waitoption a ULONG type that is set to the nxWait member of
-    the nxCtx structure.
+    the nxCtx structure. With NX_NO_WAIT, or any wait option that can expire,
+    the callbacks report WANT_READ/WANT_WRITE instead of a fatal error, so
+    the wolfSSL call can be retried.
 
     _Example_
     \code
@@ -496,6 +498,10 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
     \param nxdip the destination NXD_ADDRESS (passed by value; IPv4 or IPv6).
     \param nxport the destination UDP port number.
     \param waitoption a ULONG NetX wait option (e.g. NX_WAIT_FOREVER or ticks).
+    With NX_NO_WAIT, or any wait option that can expire, NetX_SendTo reports
+    WANT_WRITE instead of a fatal error. A receive that expires reports
+    WANT_READ when the session is set non blocking, and a timeout otherwise so
+    that DTLS can retransmit.
 
     _Example_
     \code

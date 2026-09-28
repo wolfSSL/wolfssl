@@ -55,11 +55,15 @@ void wc_Stm32_DhukUnRegister(int devId);
     \ingroup STM32
 
     \brief This function performs a chip-bound DHUK AES key-wrap on the SAES
-    (KEYSEL=HW, deterministic output) and is retained for provisioning wrapped
-    key material. The wrap-key source is selected by aes->devId
+    (KEYSEL=HW, deterministic output) for provisioning wrapped key material.
+    It is the inverse of the SAES wrapped-key load: the blob unwraps back to
+    the key it wrapped, and matches ST's HAL_CRYPEx_WrapKey() output on the
+    same die. The wrap-key source is selected by aes->devId
     (WOLFSSL_DHUK_DEVID for the hardware DHUK, otherwise a software key in
-    aes->key). An optional iv selects CBC instead of ECB. Available on STM32
-    builds with WOLFSSL_DHUK and a DHUK-capable SAES.
+    aes->key; WOLFSSL_SAES_DEVID is a marker for that second case, not a
+    device to register). An optional iv selects CBC instead of ECB. Produces
+    WC_STM32_WRAP_ORDER_RAW on both build paths. Available on STM32 builds
+    with WOLFSSL_DHUK and a DHUK-capable SAES.
 
     \return 0 Returned on success.
     \return BAD_FUNC_ARG Returned if a required pointer is NULL, if inSz is not a
@@ -85,18 +89,16 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
     \ingroup STM32
 
     \brief This function is wc_Stm32_Aes_Wrap() with the blob word order given
-    explicitly. The two build paths have historically produced different word
-    orders, so wc_Stm32_Aes_Wrap() keeps each path's established default and
-    this entry point lets a caller choose. Available on STM32 builds with
-    WOLFSSL_DHUK and a DHUK-capable SAES.
+    explicitly. Available on STM32 builds with WOLFSSL_DHUK and a DHUK-capable
+    SAES.
 
-    Pass WC_STM32_WRAP_ORDER_RAW for new provisioning: it is one format that
-    both the CubeMX/HAL and bare-metal builds agree on, and the same format
-    wc_Stm32_Aes_DhukOp_ex() and the DHUK crypto-callback derive path consume,
-    so a blob wrapped on one build is usable on the other. Pass
-    WC_STM32_WRAP_ORDER_LEGACY to read or regenerate blobs provisioned by the
-    CubeMX HAL_CRYPEx_WrapKey implementation shipped in wolfSSL 5.9.0 - 5.9.2,
-    which byte-reversed its input and output.
+    WC_STM32_WRAP_ORDER_RAW is the default on both build paths and is the only
+    order that round-trips: it is what wc_Stm32_Aes_DhukOp_ex() and the DHUK
+    crypto-callback derive path consume, so a blob wrapped on one build is
+    usable on the other. Pass WC_STM32_WRAP_ORDER_LEGACY only to regenerate
+    blobs provisioned by the CubeMX HAL_CRYPEx_WrapKey implementation shipped
+    in wolfSSL 5.9.0 - 5.9.2, which byte-reversed its input and output; such a
+    blob does not unwrap back to its key.
 
     \return 0 Returned on success.
     \return BAD_FUNC_ARG Returned if a required pointer is NULL, if inSz is not a
@@ -111,8 +113,9 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
     \param outSz on input the size of out; on output the bytes written.
     \param iv optional 16-byte iv; NULL selects ECB, non-NULL selects CBC.
     \param ivSz length of iv in bytes when iv is non-NULL; must be 16.
-    \param rawOrder WC_STM32_WRAP_ORDER_RAW (1) for the shared blob format, or
-    WC_STM32_WRAP_ORDER_LEGACY (0) for the byte-reversed CubeMX format. Define
+    \param rawOrder WC_STM32_WRAP_ORDER_RAW (1) for the shared, round-tripping
+    blob format, or WC_STM32_WRAP_ORDER_LEGACY (0) for the byte-reversed
+    wolfSSL 5.9.0 - 5.9.2 CubeMX format. Define
     WC_STM32_WRAP_DEFAULT_RAW_ORDER before including the header to change what
     plain wc_Stm32_Aes_Wrap() passes here.
 

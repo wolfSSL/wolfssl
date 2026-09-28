@@ -1318,8 +1318,8 @@ static int test_dtls_cid_wire(byte msgType, byte minor, int cidFirst,
         ExpectIntEQ(input[DTLS_RECORD_HEADER_SZ], msgType);
         outputSz = test_dtls_cid_rewrite_hello(input, inputSz, output,
                 (int)sizeof(output),
-                retry && round == 0 ? DTLSv1_3_MINOR : minor, cidFirst, cidSz,
-                retry && round == 0 ? DTLSv1_2_MINOR : legacyMinor);
+                retry && round == 0 ? (byte)DTLSv1_3_MINOR : minor, cidFirst, cidSz,
+                retry && round == 0 ? (byte)DTLSv1_2_MINOR : legacyMinor);
         ExpectIntGT(outputSz, 0);
         if (!EXPECT_SUCCESS())
             break;
@@ -1844,6 +1844,104 @@ int test_dtls_drop_invalid_record_during_handshake(void)
     return EXPECT_RESULT();
 }
 
+/* Deliver one datagram to a DTLS server that has not yet verified a
+ * ClientHello and require that it is dropped without disturbing a later
+ * handshake. */
+static int test_dtls_drop_invalid_hs_header(method_provider method_c,
+    method_provider method_s, const byte* dgram, int dgramSz)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    method_c, method_s), 0);
+
+    /* The server has received nothing so far, so the datagram must be
+     * discarded. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)dgram,
+                    dgramSz), 0);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    /* The object was preserved, so a genuine client still gets through. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* A DTLS server that has not verified a ClientHello must silently discard a
+ * handshake record whose handshake header is malformed. */
+int test_dtls_drop_invalid_hs_header_when_unverified(void)
+{
+    EXPECT_DECLS;
+    /* Each datagram is a plaintext handshake record at epoch 0, sequence 7,
+     * carrying a corrupted handshake header. */
+
+    /* Message type that is not a handshake type. */
+    static const byte unknown_type[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+        0x00, 0x0c,
+        0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* Finished, which only makes sense once encryption is on. */
+    static const byte plaintext_finished[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+        0x00, 0x0c,
+        0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* Record body too short to hold a handshake header. */
+    static const byte truncated[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+        0x00, 0x05,
+        0x01, 0x00, 0x00, 0x00, 0x00
+    };
+    /* ClientHello followed by a trailing byte, so it is not the last message
+     * in its record. */
+    static const byte ch_not_last[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+        0x00, 0x0d,
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00
+    };
+    static const struct {
+        const byte* dgram;
+        int sz;
+    } cases[] = {
+        { unknown_type,       (int)sizeof(unknown_type)       },
+        { plaintext_finished, (int)sizeof(plaintext_finished) },
+        { truncated,          (int)sizeof(truncated)          },
+        { ch_not_last,        (int)sizeof(ch_not_last)        }
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+#ifndef WOLFSSL_NO_TLS12
+        ExpectIntEQ(test_dtls_drop_invalid_hs_header(wolfDTLSv1_2_client_method,
+            wolfDTLSv1_2_server_method, cases[i].dgram, cases[i].sz),
+            TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+        ExpectIntEQ(test_dtls_drop_invalid_hs_header(wolfDTLSv1_3_client_method,
+            wolfDTLSv1_3_server_method, cases[i].dgram, cases[i].sz),
+            TEST_SUCCESS);
+#endif
+    }
+
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
 int test_dtls13_longer_length(void)
 {
@@ -2317,6 +2415,10 @@ int test_dtls_short_ciphertext(void)
 }
 #else
 int test_dtls_drop_invalid_record_during_handshake(void)
+{
+    return TEST_SKIPPED;
+}
+int test_dtls_drop_invalid_hs_header_when_unverified(void)
 {
     return TEST_SKIPPED;
 }
@@ -3325,6 +3427,80 @@ int test_dtls_memio_wolfio_stateless(void)
         ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), 1);
 
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A datagram from an address other than the learned peer is dropped and the
+ * session stays usable. */
+int test_dtls_memio_wolfio_invalid_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_PEER_ADDRESS_CHANGES)
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_client_method, wolfDTLSv1_server_method },
+#endif
+    };
+    XMEMSET(&test_memio_wolfio_ctx, 0, sizeof(test_memio_wolfio_ctx));
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        char readBuf[16];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                params[i].client_meth, params[i].server_meth), 0);
+
+        test_memio_wolfio_ctx.test_ctx = &test_ctx;
+        test_memio_wolfio_ctx.ssl_s = ssl_s;
+        /* Large number to error out if any syscalls are called with it */
+        test_memio_wolfio_ctx.fd = 6000;
+        XMEMSET(&test_memio_wolfio_ctx.peer_addr, 0,
+                sizeof(test_memio_wolfio_ctx.peer_addr));
+        test_memio_wolfio_ctx.peer_addr.ss_family = AF_INET;
+
+        wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
+        wolfSSL_SetRecvFrom(ssl_s, test_memio_wolfio_recvfrom);
+        wolfSSL_SetSendTo(ssl_s, test_memio_wolfio_sendto);
+        /* Restore default functions */
+        wolfSSL_SSLSetIORecv(ssl_s, EmbedReceiveFrom);
+        wolfSSL_SSLSetIOSend(ssl_s, EmbedSendTo);
+        /* No wolfSSL_dtls_set_peer(): wolfio learns the peer address */
+        ExpectIntEQ(wolfSSL_set_fd(ssl_s, test_memio_wolfio_ctx.fd),
+                    WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Serve the next datagram as coming from a different address */
+        ExpectIntEQ(wolfSSL_write(ssl_c, "test", 5), 5);
+        ((SOCKADDR_IN*)&test_memio_wolfio_ctx.peer_addr)->sin_port++;
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ((SOCKADDR_IN*)&test_memio_wolfio_ctx.peer_addr)->sin_port--;
+
+        ExpectIntEQ(wolfSSL_write(ssl_c, "test", 5), 5);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+        ExpectStrEQ(readBuf, "test");
 
         wolfSSL_free(ssl_s);
         wolfSSL_free(ssl_c);
@@ -6681,6 +6857,58 @@ int test_dtls_old_seq_number(void)
     return EXPECT_RESULT();
 }
 
+/* A DTLS 1.2 server that has not yet accepted a cookie must not let a record it
+ * ignores advance its anti-replay window. A record with a high record sequence
+ * number would otherwise leave every later ClientHello, which starts at zero,
+ * looking like a replay, and the server would never answer one again. */
+int test_dtls12_stateless_window(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Handshake record, epoch 0, record sequence number 1000000, holding a
+     * complete server_hello with a 32 byte body. A server drops the message
+     * before it has seen a ClientHello, so nothing resets the state. */
+    const byte spoof[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x42, 0x40,
+        0x00, 0x2c,
+        0x02, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)spoof,
+        (int)sizeof(spoof)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+        ExpectIntEQ((int)ssl_s->keys.peerSeq[0].nextSeq_lo, 0);
+        ExpectIntEQ((int)ssl_s->keys.peerSeq[0].nextSeq_hi, 0);
+    }
+
+    /* The cookie exchange and the rest of the handshake still run. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Re-frame a protected dtls12_cid record as the given wire type and strip the
  * CID. The MAC doesn't cover the wire type, so the record still authenticates
  * and is dispatched on the forged type. */
@@ -8974,7 +9202,9 @@ int test_wolfSSL_set_secret(void)
  * and reordering rather than corruption. Same fixture as the TLS version:
  * test_memio, credentials from certs/, no socket and no second process.
  * ------------------------------------------------------------------------- */
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && defined(WOLFSSL_DTLS)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS) &&                               \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 /* Offsets into a DTLS record, by field rather than by guess. */
 #define DW_TYPE        0
@@ -9142,7 +9372,8 @@ int test_dtls12_wire_mangle(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_2_client_method,
                                      wolfDTLSv1_2_server_method), 0);
 #endif
@@ -9153,7 +9384,8 @@ int test_dtls13_wire_mangle(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
-    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA)
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_3_client_method,
                                      wolfDTLSv1_3_server_method), 0);
 #endif
@@ -9209,7 +9441,8 @@ int test_dtls13_wire_mangle(void)
  * the harness has no business asserting it either way. */
 #if defined(WOLFSSL_DTLS) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
 
 #define DF_MAX_PKT 384
 #define DF_MAX_SZ  1600
@@ -10401,7 +10634,7 @@ int test_dtls12_packet_forgeries(void)
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
     && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(WOLFSSL_ASYNC_CRYPT)
+    && !defined(WOLFSSL_ASYNC_CRYPT) && !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(df_sweep(wolfDTLSv1_2_client_method,
                          wolfDTLSv1_2_server_method), 0);
 #endif
@@ -10414,7 +10647,7 @@ int test_dtls13_packet_forgeries(void)
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) \
     && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(WOLFSSL_ASYNC_CRYPT)
+    && !defined(WOLFSSL_ASYNC_CRYPT) && !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
     ExpectIntEQ(df_sweep(wolfDTLSv1_3_client_method,
                          wolfDTLSv1_3_server_method), 0);
 #endif
@@ -10533,6 +10766,103 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
     wolfSSL_free(plain);
     wolfSSL_free(enabled);
     wolfSSL_CTX_free(ctx);
+
+    #endif
+    return EXPECT_RESULT();
+}
+
+/* The DTLS send path has to bound application records by the configured MTU.
+ * WOLFSSL_SCTP raises that MTU well above MAX_MTU, so a build that ignores the
+ * configured value and falls back to MAX_MTU rejects records it should accept.
+ * The record between the two bounds is what catches that. */
+int test_dtls_sctp_app_data_size(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    ((WOLFSSL_MAX_MTU + 1024) <= MAX_RECORD_SIZE)
+    /* Sized from the datagram MTU so the relationships hold for any
+     * WOLFSSL_MAX_MTU: FITS is above it, the configured MTU is above FITS plus
+     * record overhead, and OVER is above the configured MTU. The guard above
+     * keeps the configured MTU within what wolfSSL_dtls_set_mtu() accepts. */
+    #define TEST_SCTP_FITS  (WOLFSSL_MAX_MTU + 512)
+    #define TEST_SCTP_MTU   (TEST_SCTP_FITS + 512)
+    #define TEST_SCTP_OVER  (TEST_SCTP_MTU + 512)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* msg = NULL;
+    byte* readBuf = NULL;
+    int   i;
+
+    ExpectNotNull(msg = (byte*)XMALLOC(TEST_SCTP_OVER, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(readBuf = (byte*)XMALLOC(TEST_SCTP_OVER, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (msg != NULL) {
+        for (i = 0; i < TEST_SCTP_OVER; i++)
+            msg[i] = (byte)(i & 0xFF);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.sctp = 1;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_dtls_set_sctp(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_sctp(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Set after the handshake so only the application record path is bound. */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, TEST_SCTP_MTU), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, TEST_SCTP_MTU), WOLFSSL_SUCCESS);
+
+    /* Within the configured MTU, beyond MAX_MTU: accepted. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS), TEST_SCTP_FITS);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, TEST_SCTP_FITS), TEST_SCTP_FITS);
+    ExpectIntEQ(XMEMCMP(msg, readBuf, TEST_SCTP_FITS), 0);
+
+    /* Beyond the configured MTU: still refused. CheckAvailableSize() bounds
+     * this independently, so this does not isolate the send path - it is here
+     * so a change that widens the limit instead of reading it is not silently
+     * accepted end to end. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_OVER),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    ssl_c = NULL; ssl_s = NULL; ctx_c = NULL; ctx_s = NULL;
+
+    /* Same build, ordinary UDP DTLS object: compiling SCTP support in must not
+     * lift the datagram bound for a connection that never enabled SCTP. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(WOLFSSL_DTLS_MTU)
+    /* Where the MTU is configurable it governs this object too, and the CTX
+     * default is the SCTP record size for the whole build, so give it the
+     * datagram MTU it would otherwise have. */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, WOLFSSL_MAX_MTU), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef TEST_SCTP_MTU
+    #undef TEST_SCTP_FITS
+    #undef TEST_SCTP_OVER
 #endif
     return EXPECT_RESULT();
 }

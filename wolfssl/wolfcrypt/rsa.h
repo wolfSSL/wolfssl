@@ -447,6 +447,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 
 #ifndef WC_NO_RNG
     WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
+    WOLFSSL_API int wc_RsaClearRNG(RsaKey* key);
 #endif
 #ifdef WC_RSA_NONBLOCK
     WOLFSSL_API int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);

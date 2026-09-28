@@ -63,12 +63,7 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap)
         XMEMSET(ctx, 0, sizeof(WOLFSSL_X509_STORE_CTX));
         ctx->heap = heap;
 #ifdef OPENSSL_EXTRA
-        if ((ctx->owned = wolfSSL_sk_X509_new_null()) == NULL) {
-            XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
-            ctx = NULL;
-        }
-        if (ctx != NULL &&
-            wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
+        if (wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
                 WOLFSSL_SUCCESS) {
             wolfSSL_X509_STORE_CTX_free(ctx);
             ctx = NULL;
@@ -159,19 +154,25 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         return WOLFSSL_FAILURE;
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
-    /* populate issuer with Signer DER */
-    if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
-            ca->derCert->length, cm->heap) == NULL)
-        return WOLFSSL_FAILURE;
-#else
-    /* Create an empty certificate as CA doesn't have a certificate. */
-    *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
-        DYNAMIC_TYPE_OPENSSL);
-    if (*issuer == NULL)
-        return WOLFSSL_FAILURE;
-
-    InitX509((*issuer), 1, NULL);
+    /* populate issuer with Signer DER. A signer restored from a cert cache
+     * (cm_restore_cert_row()) carries no DER, so fall back to the empty
+     * certificate below rather than dereferencing NULL. */
+    if ((ca->derCert != NULL) && (ca->derCert->buffer != NULL)) {
+        if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
+                ca->derCert->length, cm->heap) == NULL)
+            return WOLFSSL_FAILURE;
+    }
+    else
 #endif
+    {
+        /* Create an empty certificate as CA doesn't have a certificate. */
+        *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
+            DYNAMIC_TYPE_OPENSSL);
+        if (*issuer == NULL)
+            return WOLFSSL_FAILURE;
+
+        InitX509((*issuer), 1, NULL);
+    }
 
     return WOLFSSL_SUCCESS;
 }
@@ -214,6 +215,15 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
             wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
             ctx->chain = NULL;
         }
+        /* Release the issuers retained by the previous verification and start
+         * a fresh stack. X509StoreVerifyCert() drops the issuer it decodes
+         * when this is NULL, so the context must always carry one. */
+        wolfSSL_sk_X509_pop_free(ctx->owned, NULL);
+        ctx->owned = wolfSSL_sk_X509_new_null();
+        if (ctx->owned == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
+            return WOLFSSL_FAILURE;
+        }
 #ifdef SESSION_CERTS
         ctx->sesChain = NULL;
 #endif
@@ -235,18 +245,16 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
                 WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
                 return WOLFSSL_FAILURE;
             }
-            XMEMSET(ctx->param, 0, sizeof(*ctx->param));
         }
+        XMEMSET(ctx->param, 0, sizeof(*ctx->param));
 
-        /* Copy check_time from store parameters if available */
+        /* Inherit the store's parameters, including the hostname / IP the
+         * caller expects the peer to present. */
         if (store != NULL && store->param != NULL) {
-            if ((store->param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
-                store->param->check_time != 0) {
-                ctx->param->check_time = store->param->check_time;
-                ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
-            }
-            if ((store->param->flags & WOLFSSL_NO_CHECK_TIME) != 0) {
-                ctx->param->flags |= WOLFSSL_NO_CHECK_TIME;
+            if (wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, store->param)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
+                return WOLFSSL_FAILURE;
             }
         }
 

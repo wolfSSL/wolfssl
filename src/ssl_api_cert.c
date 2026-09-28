@@ -2081,7 +2081,7 @@ long wolfSSL_get_verify_result(const WOLFSSL *ssl)
  */
 int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 {
-    int ret;
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_cmp_peer_cert_to_file");
 
@@ -2095,16 +2095,25 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         byte staticBuffer[FILE_BUFFER_SIZE];
         #endif
         byte* myBuf = staticBuffer;
-        XFILE file;
+        XFILE file = XBADFILE;
         long sz = 0;
         void* heap = ssl->ctx->heap;
         WOLFSSL_X509* peer_cert = &ssl->peerCert;
         DerBuffer* fileDer = NULL;
 
-        /* Open the file and determine its size. From here, ret == 0
-         * indicates processing is still on track. */
-        file = XFOPEN(fname, "rb");
-        ret = wolfssl_file_len(file, &sz);
+        /* handle gracefully if called before handshake, or if peer did not
+         * present a cert. */
+        if (peer_cert->derCert == NULL) {
+            WOLFSSL_MSG("wolfSSL_cmp_peer_cert_to_file without peer cert");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+
+        if (ret == 0) {
+            /* Open the file and determine its size. From here, ret == 0
+             * indicates processing is still on track. */
+            file = XFOPEN(fname, "rb");
+            ret = wolfssl_file_len(file, &sz);
+        }
         /* Use a heap buffer when the file is bigger than the stack buffer. */
         if ((ret == 0) && (sz > (long)sizeof(staticBuffer))) {
             WOLFSSL_MSG("Getting dynamic buffer");

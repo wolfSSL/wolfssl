@@ -926,6 +926,11 @@ enum {
     #endif /* WOLFSSL_STATIC_MEMORY */
 #endif
 
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WC_NO_CONSTRUCTORS)
+    #define WC_NO_CONSTRUCTORS
+#endif
+
 #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
     #error WOLFSSL_SMALL_STACK requires constructors.
 #endif

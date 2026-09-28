@@ -366,7 +366,7 @@ module-update-fips-hash: $(LIBWOLFSSL_NAME).ko
 	readarray -t verifyCore_attrs < <($(READELF) --wide --symbols "$<" | \
 	    sed -E -n 's/^[[:space:]]*[0-9]+: ([0-9a-fA-F]+)[[:space:]]+([0-9]+)[[:space:]]+OBJECT[[:space:]]+[A-Z]+[[:space:]]+[A-Z]+[[:space:]]+'"$${rodata_segment[0]}"'[[:space:]]+verifyCore$$/\1\n\2/p'); \
 	if [[ $${#verifyCore_attrs[@]} != 2 ]]; then echo '  unexpected verifyCore_attrs.' >&2; exit 1; fi
-	verifyCore_size=$$(("$${verifyCore_attrs[1]}" - 1))
+	verifyCore_size=$$(($${verifyCore_attrs[1]} - 1))
 	if [[ "$$verifyCore_size" != "64" && "$$verifyCore_size" != "128" ]]; then echo "	 verifyCore has unexpected length $${verifyCore_size}." >&2; exit 1; fi
 	verifyCore_offset=$$((0x$${rodata_segment[1]} + 0x$${verifyCore_attrs[0]}))
 	current_verifyCore=$$(dd bs=1 if="$<" skip=$$verifyCore_offset count=$$verifyCore_size status=none)

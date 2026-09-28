@@ -767,7 +767,6 @@ then
     then
         psk="-j"
     fi
-echo "cert_file=$cert_file"
     start_wolfssl_server
     psk=
     wolfssl_port=$server_port

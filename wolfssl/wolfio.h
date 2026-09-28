@@ -411,10 +411,14 @@
     #define SOCKET_ECONNREFUSED SOCKET_ERROR
     #define SOCKET_ECONNABORTED SOCKET_ERROR
 #elif defined(HAVE_NETX)
-    #define SOCKET_EWOULDBLOCK NX_NOT_CONNECTED
-    #define SOCKET_EAGAIN      NX_NOT_CONNECTED
+    /* NetX has no errno, these map onto the closest nx_api.h status codes.
+     * A send can also block as NX_WINDOW_OVERFLOW or NX_TX_QUEUE_DEPTH, so
+     * use the WANT_READ/WANT_WRITE the callbacks return rather than testing
+     * a NetX status against these. */
+    #define SOCKET_EWOULDBLOCK NX_NO_PACKET
+    #define SOCKET_EAGAIN      NX_NO_PACKET
     #define SOCKET_ECONNRESET  NX_NOT_CONNECTED
-    #define SOCKET_EINTR       NX_NOT_CONNECTED
+    #define SOCKET_EINTR       NX_WAIT_ABORTED
     #define SOCKET_EPIPE       NX_NOT_CONNECTED
     #define SOCKET_ECONNREFUSED NX_NOT_CONNECTED
     #define SOCKET_ECONNABORTED NX_NOT_CONNECTED
@@ -497,8 +501,24 @@
         #define WOLFSSL_MAX_SEND_SZ       256
     #endif
 
-    #define SEND_FUNCTION send
-    #define RECV_FUNCTION recv
+    #if KERNEL_VERSION_NUMBER >= 0x40100
+        /* Zephyr 4.1 removed CONFIG_NET_SOCKETS_POSIX_NAMES. The zsock_ names
+         * are always present; the types and constants below still need
+         * CONFIG_NET_NAMESPACE_COMPAT_MODE from 4.4 on. */
+        #define SEND_FUNCTION          zsock_send
+        #define RECV_FUNCTION          zsock_recv
+        #define DTLS_SENDTO_FUNCTION   zsock_sendto
+        #define DTLS_RECVFROM_FUNCTION zsock_recvfrom
+        #define XSOCKET_BIND           zsock_bind
+        #define XSOCKET_CONNECT        zsock_connect
+        #define XSOCKET_LISTEN         zsock_listen
+        #define XSOCKET_GETSOCKOPT     zsock_getsockopt
+        #define XSOCKET_SETSOCKOPT     zsock_setsockopt
+        #define XSOCKET_GETPEERNAME    zsock_getpeername
+    #else
+        #define SEND_FUNCTION send
+        #define RECV_FUNCTION recv
+    #endif
 #elif defined(WOLFSSL_LINUXKM)
     #define SEND_FUNCTION linuxkm_send
     #define RECV_FUNCTION linuxkm_recv
@@ -511,6 +531,28 @@
     #if !defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_SOCK)
         #define HAVE_SOCKADDR
     #endif
+#endif
+
+/* Socket calls wolfSSL makes that have no wrapper of their own. A port that
+ * spells them differently overrides these above; everyone else gets the BSD
+ * names, so the expansion is unchanged. */
+#ifndef XSOCKET_BIND
+    #define XSOCKET_BIND        bind
+#endif
+#ifndef XSOCKET_CONNECT
+    #define XSOCKET_CONNECT     connect
+#endif
+#ifndef XSOCKET_LISTEN
+    #define XSOCKET_LISTEN      listen
+#endif
+#ifndef XSOCKET_GETSOCKOPT
+    #define XSOCKET_GETSOCKOPT  getsockopt
+#endif
+#ifndef XSOCKET_SETSOCKOPT
+    #define XSOCKET_SETSOCKOPT  setsockopt
+#endif
+#ifndef XSOCKET_GETPEERNAME
+    #define XSOCKET_GETPEERNAME getpeername
 #endif
 
 #ifndef WOLFSSL_NO_SOCK
@@ -1057,7 +1099,13 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 #ifndef XHTONS
     #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
-        #define XHTONS(a) htons((a))
+        #if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40400
+            /* Zephyr 4.4 renamed htons() to net_htons() and brings the old name
+             * back only under CONFIG_NET_NAMESPACE_COMPAT_MODE. */
+            #define XHTONS(a) net_htons((a))
+        #else
+            #define XHTONS(a) htons((a))
+        #endif
     #else
         /* we don't have sockets, so define our own htons and ntohs */
         #ifdef BIG_ENDIAN_ORDER
@@ -1069,7 +1117,13 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 #ifndef XNTOHS
     #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
-        #define XNTOHS(a) ntohs((a))
+        #if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40400
+            /* Zephyr 4.4 renamed ntohs() to net_ntohs() and brings the old name
+             * back only under CONFIG_NET_NAMESPACE_COMPAT_MODE. */
+            #define XNTOHS(a) net_ntohs((a))
+        #else
+            #define XNTOHS(a) ntohs((a))
+        #endif
     #else
         /* we don't have sockets, so define our own htons and ntohs */
         #ifdef BIG_ENDIAN_ORDER

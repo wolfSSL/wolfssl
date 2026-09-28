@@ -962,6 +962,33 @@ static int InitSha512(wc_Sha512* sha512)
     return 0;
 }
 
+#if !defined(WOLFSSL_HASH_KEEP)
+
+/* Reset a hash context to its freshly initialized state, reusing its existing
+ * allocations.  Like the Final functions, Reset does not destroy sensitive
+ * internal state; use the matching Free function for teardown at end of life.
+ */
+int wc_Sha512Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512Free(sha512);
+        return wc_InitSha512_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512(sha512);
+}
+#define WC_SHA512RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
+
 #if !defined(WOLFSSL_NOSHA512_224) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
@@ -1014,6 +1041,28 @@ static int InitSha512_224(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
+
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha512_224Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512_224() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512_224Free(sha512);
+        return wc_InitSha512_224_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512_224(sha512);
+}
+#define WC_SHA512_224RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
 #endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
 
 #if !defined(WOLFSSL_NOSHA512_256) && \
@@ -1067,6 +1116,28 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
+
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha512_256Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512_256() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512_256Free(sha512);
+        return wc_InitSha512_256_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512_256(sha512);
+}
+#define WC_SHA512_256RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
 #endif /* !WOLFSSL_NOSHA512_256 && !FIPS... */
 
 #endif /* WOLFSSL_SHA512 */
@@ -2894,6 +2965,28 @@ static int InitSha384(wc_Sha384* sha384)
     return 0;
 }
 
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha384Reset(wc_Sha384* sha384) {
+    if (sha384 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha384() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha384->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha384->heap;
+        int devId = sha384->devId;
+        wc_Sha384Free(sha384);
+        return wc_InitSha384_ex(sha384, heap, devId);
+    }
+#endif
+    return InitSha384(sha384);
+}
+#define WC_SHA384RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
+
 int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
 {
 
@@ -3750,4 +3843,49 @@ int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz)
 #endif /* WOLFSSL_HASH_KEEP */
 
 #endif /* !WOLF_CRYPTO_CB_ONLY_SHA512 */
+
+/* Fallback implementations of the Reset functions, for all configurations other
+ * than plain software.  Continues with the established heap and devId.
+ */
+
+#ifdef WOLF_CRYPTO_CB
+    #define WC_SHA512_RESET_DEVID(sha) ((sha)->devId)
+#else
+    #define WC_SHA512_RESET_DEVID(sha) (INVALID_DEVID)
+#endif
+#define WC_SHA512_RESET_FALLBACK_IMPLEMENT(flavor)              \
+    int wc_##flavor##Reset(wc_##flavor *sha) {                  \
+        void *heap;                                             \
+        int devId;                                              \
+                                                                \
+        if (sha == NULL)                                        \
+            return BAD_FUNC_ARG;                                \
+                                                                \
+        heap = sha->heap;                                       \
+        devId = WC_SHA512_RESET_DEVID(sha);                     \
+                                                                \
+        wc_##flavor##Free(sha);                                 \
+        return wc_Init##flavor##_ex(sha, heap, devId);          \
+    }
+
+#if defined(WOLFSSL_SHA512) && !defined(WC_SHA512RESET_DEFINED)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512)
+#endif
+
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224) && \
+    !defined(WC_SHA512_224RESET_DEFINED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512_224)
+#endif
+
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256) && \
+    !defined(WC_SHA512_256RESET_DEFINED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512_256)
+#endif
+
+#if defined(WOLFSSL_SHA384) && !defined(WC_SHA384RESET_DEFINED)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha384)
+#endif
+
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */

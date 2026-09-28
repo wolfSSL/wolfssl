@@ -26,6 +26,7 @@
 
 int test_tls13_feat_optional_client_cert(void);
 int test_tls13_feat_post_handshake_unexpected_msg(void);
+int test_tls13_feat_psk_unsolicited_client_cert(void);
 int test_tls13_feat_psk_ke_no_dhe(void);
 int test_tls13_feat_psk_only_dhe_ignores_psk_ke(void);
 int test_tls13_feat_no_ticket_enc_cb(void);
@@ -47,6 +48,7 @@ int test_tls13_feat_ech_psk_disabled_client(void);
 #define TEST_TLS13_FEATURES_DECLS                                            \
     TEST_DECL_GROUP("tls13", test_tls13_feat_optional_client_cert),          \
     TEST_DECL_GROUP("tls13", test_tls13_feat_post_handshake_unexpected_msg), \
+    TEST_DECL_GROUP("tls13", test_tls13_feat_psk_unsolicited_client_cert),   \
     TEST_DECL_GROUP("tls13", test_tls13_feat_psk_ke_no_dhe),                 \
     TEST_DECL_GROUP("tls13", test_tls13_feat_psk_only_dhe_ignores_psk_ke),   \
     TEST_DECL_GROUP("tls13", test_tls13_feat_no_ticket_enc_cb),                \

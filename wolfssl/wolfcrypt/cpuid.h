@@ -131,11 +131,16 @@ typedef word32 cpuid_flags_t;
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_DQ)
     #define IS_INTEL_AVX512_BW(f) \
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_BW)
-    /* Safe to dispatch to wolfSSL's AVX512 assembly: every algorithm using it
-     * (ML-DSA, ML-KEM, FrodoKEM) works on 8- or 16-bit lanes at 512-bit width
-     * - vpshufb, vpaddw, vpsubw, vpmulhw, vpmullw, vpackusdw, vpmaddwd, ... -
-     * which are AVX512BW, not AVX512F. IS_INTEL_AVX512() is the F bit alone
-     * and is not sufficient on its own. */
+    /* Safe to dispatch to wolfSSL's AVX512 assembly that works on 8- or 16-bit
+     * lanes at 512-bit width - vpshufb, vpaddw, vpsubw, vpmulhw, vpmullw,
+     * vpackusdw, vpmaddwd, ... - which are AVX512BW, not AVX512F, so
+     * IS_INTEL_AVX512() (the F bit alone) is not sufficient. ML-DSA, ML-KEM
+     * and FrodoKEM are all of that shape.
+     *
+     * The multi-buffer hash kernels LMS, XMSS and SLH-DSA drive are not: they
+     * are written to stay inside AVX512F and test IS_INTEL_AVX512() directly.
+     * See ci/check_avx512_isa.rb in the scripts repo, which holds them to
+     * it. */
     #define USE_INTEL_AVX512(f) \
         (IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f))
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
@@ -233,11 +238,7 @@ typedef word32 cpuid_flags_t;
      * accurate.
      */
     static WC_INLINE int cpuid_get_flags_atomic(cpuid_flags_atomic_t *flags) {
-        #ifdef WOLFSSL_BSDKM
-        if (WOLFSSL_ATOMIC_LOAD_UINT(*flags) == WC_CPUID_INITIALIZER) {
-        #else
         if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_INITIALIZER) {
-        #endif /* WOLFSSL_BSDKM */
             cpuid_flags_t old_cpuid_flags = WC_CPUID_INITIALIZER;
             return wolfSSL_Atomic_Uint_CompareExchange
                 (flags, &old_cpuid_flags, cpuid_get_flags());

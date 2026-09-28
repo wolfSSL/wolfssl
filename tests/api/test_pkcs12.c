@@ -533,6 +533,113 @@ int test_wc_PKCS12_encrypted_content_bounds(void)
     return EXPECT_RESULT();
 }
 
+/* The AuthenticatedSafe of an indefinite-length PKCS#12 is converted from BER
+ * to DER into a new, smaller buffer before its ContentInfos are walked. The
+ * walk must be bounded by the size of that buffer, and each ContentInfo must
+ * lie inside the AuthenticatedSafe SEQUENCE. Otherwise a ContentInfo can be
+ * declared to extend past the allocation and wc_PKCS12_parse() then reads and
+ * writes there. */
+int test_wc_d2i_PKCS12_ber_content_info_bounds(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    /* Definite-length PFX, so no BER to DER conversion takes place. The
+     * AuthenticatedSafe SEQUENCE holds 40 bytes, ending at offset 42, but its
+     * one ContentInfo claims 41 bytes from offset 4 and so ends at 45. That is
+     * still inside the buffer, and 41 is less than 42, which is all the length
+     * comparison this replaced looked at. */
+    WOLFSSL_SMALL_STACK_STATIC const byte contentInfoPastSeq[] = {
+        0x30, 0x41, 0x02, 0x01, 0x03, 0x30, 0x3C, 0x06, 0x09, 0x2A, 0x86, 0x48,
+        0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01, 0xA0, 0x2F, 0x04, 0x2D, 0x30, 0x28,
+        0x30, 0x29, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07,
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+#ifdef ASN_BER_TO_DER
+    /* Indefinite-length PFX, no MacData, AuthenticatedSafe in a primitive
+     * OCTET STRING. Its last ContentInfo claims 22 bytes more than the
+     * SEQUENCE holds; those bytes exist only in the BER form, as the trailing
+     * indefinite-length OCTET STRING that wc_BerToDer() collapses to "04 00". */
+    WOLFSSL_SMALL_STACK_STATIC const byte berOverclaim[] = {
+        0x30, 0x80, 0x02, 0x01, 0x03, 0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48,
+        0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01, 0xA0, 0x80, 0x04, 0x81, 0x8E, 0x30,
+        0x74, 0x30, 0x20, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30,
+        0x68, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x06,
+        0xA0, 0x5B, 0x30, 0x59, 0x02, 0x01, 0x00, 0x30, 0x54, 0x06, 0x09, 0x2A,
+        0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01, 0x30, 0x1B, 0x06, 0x0A,
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x0C, 0x01, 0x03, 0x30, 0x0D,
+        0x04, 0x08, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x02, 0x01,
+        0x01, 0xA0, 0x28, 0x04, 0x26, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x24, 0x80, 0x04,
+        0x00, 0x04, 0x00, 0x04, 0x00, 0x04, 0x00, 0x04, 0x00, 0x04, 0x00, 0x04,
+        0x00, 0x04, 0x00, 0x04, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00,
+    };
+#endif /* ASN_BER_TO_DER */
+    WC_PKCS12* pkcs12 = NULL;
+#if defined(ASN_BER_TO_DER) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && !defined(NO_SHA) && !defined(NO_SHA256)
+    const char p12_f[] = "./certs/test-servercert.p12";
+    byte   der[FOURK_BUF * 2];
+    byte   ber[FOURK_BUF * 2];
+    int    derSz = 0;
+    word32 hdrSz;
+    word32 berSz;
+    XFILE  f = XBADFILE;
+
+    /* Sanity: a well-formed file parses. */
+    ExpectTrue((f = XFOPEN(p12_f, "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(der, (word32)derSz, pkcs12), 0);
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    /* Sanity: the same file with an indefinite-length outer SEQUENCE, so the
+     * BER to DER conversion of the AuthenticatedSafe runs on valid input. */
+    if (EXPECT_SUCCESS()) {
+        hdrSz = 2;
+        if ((der[1] & 0x80) != 0)
+            hdrSz += (word32)(der[1] & 0x7F);
+        berSz = 0;
+        ber[berSz++] = 0x30;
+        ber[berSz++] = 0x80;
+        XMEMCPY(ber + berSz, der + hdrSz, (size_t)derSz - hdrSz);
+        berSz += (word32)derSz - hdrSz;
+        ber[berSz++] = 0x00;
+        ber[berSz++] = 0x00;
+        ExpectNotNull(pkcs12 = wc_PKCS12_new());
+        ExpectIntEQ(wc_d2i_PKCS12(ber, berSz, pkcs12), 0);
+        wc_PKCS12_free(pkcs12);
+        pkcs12 = NULL;
+    }
+#endif
+
+    /* A ContentInfo reaching past its AuthenticatedSafe SEQUENCE must be
+     * rejected even when it stays inside the buffer. */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(contentInfoPastSeq,
+        (word32)sizeof(contentInfoPastSeq), pkcs12),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+#ifdef ASN_BER_TO_DER
+    /* A ContentInfo reaching past the converted buffer must be rejected. */
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(berOverclaim, (word32)sizeof(berOverclaim),
+        pkcs12), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS12_free(pkcs12);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a crafted PKCS12 with a MAC OCTET STRING shorter than the
  * algorithm's native digest size is rejected, rather than allowing the
  * integrity check to be truncated to a brute-forceable length. */

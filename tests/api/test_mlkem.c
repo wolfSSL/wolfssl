@@ -3976,6 +3976,12 @@ int test_wc_mlkem_decap_fo_reject(void)
     byte ssDec[WC_ML_KEM_SS_SZ];
     byte ssTampered[WC_ML_KEM_SS_SZ];
     word32 ctLen = 0;
+#ifdef WOLFSSL_SHAKE256
+    byte priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte ssExpected[WC_ML_KEM_SS_SZ];
+    wc_Shake shake;
+    word32 privLen = 0;
+#endif
 
     XMEMSET(ct, 0, sizeof(ct));
     XMEMSET(ctTampered, 0, sizeof(ctTampered));
@@ -4014,6 +4020,27 @@ int test_wc_mlkem_decap_fo_reject(void)
     ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
     PRIVATE_KEY_LOCK();
     ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
+#ifdef WOLFSSL_SHAKE256
+    /* FIPS 203, Algorithm 18: the implicit rejection value must be exactly
+     * K_bar = J(z || c) = SHAKE256(z || c, 32), with z the last 32 bytes of
+     * the decapsulation key. Pin it so that a stale SHAKE state left in the
+     * key's PRF object by the re-encryption step is detected whichever
+     * implementation (asm or C) the build and CPU dispatch to. */
+    XMEMSET(priv, 0, sizeof(priv));
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(key, &privLen), 0);
+    ExpectTrue(privLen >= (word32)WC_ML_KEM_SYM_SZ);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, priv, privLen), 0);
+    XMEMSET(ssExpected, 0, sizeof(ssExpected));
+    ExpectIntEQ(wc_InitShake256(&shake, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake256_Update(&shake, priv + privLen - WC_ML_KEM_SYM_SZ,
+        WC_ML_KEM_SYM_SZ), 0);
+    ExpectIntEQ(wc_Shake256_Update(&shake, ctTampered, ctLen), 0);
+    ExpectIntEQ(wc_Shake256_Final(&shake, ssExpected, WC_ML_KEM_SS_SZ), 0);
+    wc_Shake256_Free(&shake);
+    ExpectIntEQ(XMEMCMP(ssTampered, ssExpected, WC_ML_KEM_SS_SZ), 0);
+    ForceZero(priv, sizeof(priv));
+#endif
 
     /* Tamper at byte 0: decapsulation must still return 0. We do NOT assert
      * ssTampered != ss here: byte 0 sits in the lossy-compressed u portion of

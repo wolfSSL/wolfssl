@@ -224,6 +224,27 @@
     #define SOCKET_T int
     #define WOLFSSL_USE_GETADDRINFO
 
+    #if KERNEL_VERSION_NUMBER >= 0x40100
+    /* Zephyr 4.1 dropped CONFIG_NET_SOCKETS_POSIX_NAMES, so this harness calls
+     * the zsock_ API. Function-like on purpose: an object-like macro would also
+     * rewrite identically named structure members, such as sendto/recvfrom in
+     * WOLFSSL_DTLS_CTX or Zephyr's own struct socket_op_vtable. */
+    #define socket(a,b,c)           zsock_socket((a),(b),(c))
+    #define bind(a,b,c)             zsock_bind((a),(b),(c))
+    #define connect(a,b,c)          zsock_connect((a),(b),(c))
+    #define listen(a,b)             zsock_listen((a),(b))
+    #define accept(a,b,c)           zsock_accept((a),(b),(c))
+    #define send(a,b,c,d)           zsock_send((a),(b),(c),(d))
+    #define recv(a,b,c,d)           zsock_recv((a),(b),(c),(d))
+    #define sendto(a,b,c,d,e,f)     zsock_sendto((a),(b),(c),(d),(e),(f))
+    #define recvfrom(a,b,c,d,e,f)   zsock_recvfrom((a),(b),(c),(d),(e),(f))
+    #define setsockopt(a,b,c,d,e)   zsock_setsockopt((a),(b),(c),(d),(e))
+    #define getsockopt(a,b,c,d,e)   zsock_getsockopt((a),(b),(c),(d),(e))
+    #define shutdown(a,b)           zsock_shutdown((a),(b))
+    #define getpeername(a,b,c)      zsock_getpeername((a),(b),(c))
+    #define getsockname(a,b,c)      zsock_getsockname((a),(b),(c))
+    #endif
+
     #if !defined(CONFIG_POSIX_API)
     #define SOL_SOCKET 1
     static unsigned long inet_addr(const char *cp)

@@ -110,6 +110,174 @@ int test_tls13_feat_optional_client_cert(void)
 }
 
 /* -------------------------------------------------------------------------
+ * Unsolicited client Certificate in a PSK-authenticated handshake.
+ * ---------------------------------------------------------------------- */
+
+/* RFC 8446 Section 4.4.2: a client sends Certificate only in answer to a
+ * CertificateRequest. A server authenticating with a PSK sends no
+ * CertificateRequest during the handshake, so a Certificate arriving there
+ * must be refused before it is parsed. Otherwise the connection ends up
+ * carrying a peer certificate whose private key the client never proved it
+ * holds: SanityCheckTls13MsgReceived() let the message through, and the
+ * "Certificate but no CertificateVerify" check at Finished is skipped for a
+ * PSK handshake.
+ *
+ * The server's flight is delivered to the client without its Finished, so the
+ * client stops with its handshake write keys still installed. The Certificate
+ * record is then built with those keys via BuildTls13Message() and handed to
+ * the server, which is waiting for the client's second flight. */
+int test_tls13_feat_psk_unsolicited_client_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    byte flight[4096];
+    byte* record = NULL;
+    byte* certMsg = NULL;
+    byte certDer[2048];
+    int  certDerSz = 0;
+    int  flightSz = 0;
+    int  keepSz = 0;
+    int  certMsgSz = 0;
+    int  recordSz = 0;
+    int  off;
+    XFILE f = XBADFILE;
+
+    /* The certificate the client attaches without ever proving possession. */
+    ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(certDerSz = (int)XFREAD(certDer, 1, sizeof(certDer), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* --- connection 1: full handshake, take the session ticket --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* The server trusts the client CA and asks for, but does not require, a
+     * client certificate. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Let the NewSessionTicket through. */
+    if (EXPECT_SUCCESS()) {
+        char buf[16];
+        (void)wolfSSL_read(ssl_c, buf, (int)sizeof(buf));
+    }
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* --- connection 2: resume, then attach a certificate --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    }
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.pskNegotiated, 1);
+
+    /* Hold back the last record of the server's flight, its Finished. */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectIntLE(test_ctx.c_len, (int)sizeof(flight));
+    if (EXPECT_SUCCESS()) {
+        flightSz = test_ctx.c_len;
+        XMEMCPY(flight, test_ctx.c_buff, (size_t)flightSz);
+        for (off = 0; off + 5 <= flightSz; ) {
+            keepSz = off;
+            off += 5 + ((flight[off + 3] << 8) | flight[off + 4]);
+        }
+        test_memio_clear_buffer(&test_ctx, 1);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)flight, keepSz), 0);
+    }
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Stopped before the server Finished, so the client's write keys are
+     * still the handshake traffic keys. */
+    ExpectIntEQ(ssl_c->options.serverState,
+        SERVER_ENCRYPTED_EXTENSIONS_COMPLETE);
+    ExpectIntEQ(ssl_c->options.resuming, 1);
+
+    /* Certificate: empty request context, one entry, no extensions. */
+    if (EXPECT_SUCCESS()) {
+        int listSz = 3 + certDerSz + 2;
+        int bodySz = 1 + 3 + listSz;
+        certMsgSz = 4 + bodySz;
+        ExpectNotNull(certMsg = (byte*)XMALLOC((size_t)certMsgSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (EXPECT_SUCCESS()) {
+        int listSz = 3 + certDerSz + 2;
+        int bodySz = 1 + 3 + listSz;
+        int i = 0;
+        certMsg[i++] = certificate;
+        certMsg[i++] = (byte)(bodySz >> 16);
+        certMsg[i++] = (byte)(bodySz >> 8);
+        certMsg[i++] = (byte)bodySz;
+        certMsg[i++] = 0x00;                        /* request context */
+        certMsg[i++] = (byte)(listSz >> 16);
+        certMsg[i++] = (byte)(listSz >> 8);
+        certMsg[i++] = (byte)listSz;
+        certMsg[i++] = (byte)(certDerSz >> 16);
+        certMsg[i++] = (byte)(certDerSz >> 8);
+        certMsg[i++] = (byte)certDerSz;
+        XMEMCPY(certMsg + i, certDer, (size_t)certDerSz);
+        i += certDerSz;
+        certMsg[i++] = 0x00;                        /* extensions */
+        certMsg[i++] = 0x00;
+        ExpectIntEQ(i, certMsgSz);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(record = (byte*)XMALLOC((size_t)certMsgSz + 128, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (EXPECT_SUCCESS()) {
+        recordSz = BuildTls13Message(ssl_c, record, certMsgSz + 128, certMsg,
+            certMsgSz, handshake, 0, 0, 0);
+        ExpectIntGT(recordSz, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)record, recordSz), 0);
+    }
+
+    /* The server must refuse the message outright. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WC_NO_ERR_TRACE(SANITY_MSG_E));
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+
+    XFREE(certMsg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(record, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* -------------------------------------------------------------------------
  * A handshake message of a type that is not legal after the handshake.
  * ---------------------------------------------------------------------- */
 
@@ -1172,6 +1340,10 @@ int test_tls13_feat_ech_rejected_with_psk(void)
 #else /* !WOLFSSL_TLS13 || !HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
 
 int test_tls13_feat_optional_client_cert(void)
+{
+    return TEST_SKIPPED;
+}
+int test_tls13_feat_psk_unsolicited_client_cert(void)
 {
     return TEST_SKIPPED;
 }

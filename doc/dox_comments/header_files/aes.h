@@ -2773,8 +2773,24 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz, const byte* ivFixed,
     parameters, including IV output. This is a one-shot encryption
     function that outputs the generated IV.
 
+    The IV is taken from an internal counter that is advanced whenever an IV
+    is consumed - on success, and on submission to an asynchronous device - so
+    no two encryptions under one key use the same IV. A call that fails before
+    the cipher consumes the IV leaves the counter where it was. ivOut must not
+    overlap out, in, authTag or authIn: the buffer is the working copy of the
+    IV that was consumed, and overwriting it corrupts the counter for the next
+    call. ivOut may be written even when the function returns an error.
+
+    When the Aes carries an asynchronous device, a return of WC_PENDING_E
+    means the operation was submitted, not that it finished. ivOut - like out,
+    in, authTag and authIn - must stay allocated and unmodified until the
+    operation completes, because the backend reads the IV from it at
+    completion time.
+
     \return 0 On success.
     \return BAD_FUNC_ARG If parameters are invalid.
+    \return WC_PENDING_E If submitted to an asynchronous device and still
+    in progress.
     \return Other negative values on error.
 
     \param aes pointer to the AES structure
@@ -2936,6 +2952,15 @@ int wc_AesCcmSetNonce(Aes* aes, const byte* nonce, word32 nonceSz);
     \brief This function performs AES CCM encryption with extended
     parameters, including nonce output. This is useful when part of the
     nonce is generated internally.
+
+    The nonce is taken from an internal counter that is advanced whenever a
+    nonce is consumed - on success, and on submission to an asynchronous
+    device - so no two encryptions under one key use the same nonce. A call
+    that fails before the cipher consumes the nonce leaves the counter where
+    it was. ivOut must not overlap out, in, authTag or authIn: the buffer is
+    the working copy of the nonce that was consumed, and overwriting it
+    corrupts the counter for the next call. ivOut may be written even when the
+    function returns an error - earlier releases left it untouched on failure.
 
     \return 0 On success.
     \return BAD_FUNC_ARG If parameters are invalid.

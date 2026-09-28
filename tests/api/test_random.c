@@ -570,9 +570,13 @@ int test_wc_RNG_HealthTest(void)
         NULL  , 0             ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_RNG_HealthTest(0, NULL     , 0                , NULL, 0,
         output, sizeof(output)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
     ExpectIntEQ(wc_RNG_HealthTest(0, test1Seed, sizeof(test1Seed), NULL, 0,
-        output, 0             ), WC_NO_ERR_TRACE(-1));
-
+        output, 0             ), -1);
+#else
+    ExpectIntEQ(wc_RNG_HealthTest(0, test1Seed, sizeof(test1Seed), NULL, 0,
+        output, 0             ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* Good parameters. */
     ExpectIntEQ(wc_RNG_HealthTest(0, test1Seed, sizeof(test1Seed), NULL, 0,
         output, sizeof(output)), 0);
@@ -594,9 +598,14 @@ int test_wc_RNG_HealthTest(void)
     ExpectIntEQ(wc_RNG_HealthTest_ex(0, NULL, 0, NULL     , 0                ,
         NULL, 0, output, sizeof(output), HEAP_HINT, INVALID_DEVID),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_RNG_HealthTest_ex(0, NULL, 0, test1Seed, sizeof(test1Seed),
+        NULL, 0, output, 0             , HEAP_HINT, INVALID_DEVID), -1);
+#else
     ExpectIntEQ(wc_RNG_HealthTest_ex(0, NULL, 0, test1Seed, sizeof(test1Seed),
         NULL, 0, output, 0             , HEAP_HINT, INVALID_DEVID),
-        WC_NO_ERR_TRACE(-1));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* reseed requested but seedB NULL: wc_RNG_HealthTest() (above) never
      * varies this combination since it always forwards a matching
      * reseed/seedB pair. */
