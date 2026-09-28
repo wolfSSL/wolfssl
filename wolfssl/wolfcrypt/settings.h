@@ -3824,7 +3824,7 @@
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-      defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+      defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
@@ -3837,7 +3837,7 @@
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-      defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+      defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \

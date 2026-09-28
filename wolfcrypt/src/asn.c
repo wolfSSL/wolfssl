@@ -9950,9 +9950,16 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             keyIdx = 0;
             if ((ret = wc_MlDsaKey_ImportPubRaw(key_pair, pubKey,
                                                pubKeySz)) == 0) {
+            #ifdef WOLFSSL_MLDSA_CHECK_KEY
                 /* Public and private extracted successfully. Sanity check. */
                 if ((ret = wc_MlDsaKey_CheckKey(key_pair)) == 0)
                     ret = 1;
+            #else
+                /* Without the key check the pair cannot be confirmed to
+                 * match, so do not claim that it does. */
+                ret = NOT_COMPILED_IN;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            #endif
             }
         }
         wc_MlDsaKey_Free(key_pair);
