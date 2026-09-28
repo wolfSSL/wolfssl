@@ -34,6 +34,7 @@ int test_mldsa_sign(void);
 int test_mldsa_verify(void);
 int test_mldsa_sign_vfy(void);
 int test_mldsa_prehash_strength(void);
+int test_mldsa_verify_err_res(void);
 int test_mldsa_check_key(void);
 int test_mldsa_public_der_decode(void);
 int test_mldsa_der(void);
@@ -81,6 +82,7 @@ int test_wc_MlDsaKey_SetPrecompA(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_verify),                               \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_vfy),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_prehash_strength),                     \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_err_res),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_check_key),                            \
     TEST_DECL_GROUP("mldsa", test_mldsa_public_der_decode),                    \
     TEST_DECL_GROUP("mldsa", test_mldsa_der),                                  \

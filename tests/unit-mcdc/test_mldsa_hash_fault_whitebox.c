@@ -240,6 +240,7 @@ static void wb_sweep_verify(wc_MlDsaKey* key, word32 sigLen)
 {
     long k, n, points = 0;
     int  res = 0;
+    int  ret;
 
     if (sigLen == 0) {
         return;
@@ -252,11 +253,16 @@ static void wb_sweep_verify(wc_MlDsaKey* key, word32 sigLen)
     printf("  [wb] verify K=%ld\n", k);
 
     for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_VERIFY)) {
-        res = 0;
+        /* A sentinel: an error must come back with res cleared to 0. */
+        res = 1;
         mcdc_fh_arm(n);
-        (void)wc_MlDsaKey_VerifyCtx(key, s_sig, sigLen, NULL, 0, s_msg,
+        ret = wc_MlDsaKey_VerifyCtx(key, s_sig, sigLen, NULL, 0, s_msg,
             (word32)sizeof(s_msg), &res);
         mcdc_fh_disarm();
+        if ((ret != 0) && (res != 0)) {
+            printf("  [wb] verify n=%ld: ret=%d with res=%d\n", n, ret, res);
+            wb_fail = 1;
+        }
         points++;
     }
     printf("  [wb] verify sweep: %ld points\n", points);
