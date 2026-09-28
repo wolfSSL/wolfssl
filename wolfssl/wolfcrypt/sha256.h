@@ -167,7 +167,7 @@
     #include "mcapi_error.h"
 #endif
 
-#ifdef WOLFSSL_TI_AM64X
+#ifdef WOLFSSL_TI_AM64X_R5
     #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
 #endif
 
@@ -258,7 +258,7 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
-#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
     XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextObject scObj;
 #endif
 };

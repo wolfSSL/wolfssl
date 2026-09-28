@@ -127,6 +127,10 @@
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_R5
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
+#endif
+
 #if defined(MAX3266X_SHA)
     /* Already brought in by sha512.h */
     /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
@@ -939,6 +943,10 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
+#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+    ti_sa2ul_Sha512Teardown(sha512);
+#endif
+
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
     defined(WOLFSSL_ARMASM)
@@ -960,9 +968,6 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->hashType = WC_HASH_TYPE_SHA512;
 #endif /* WOLFSSL_SHA512_HASHTYPE */
 
-#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
-    XMEMSET(&sha512->scObj, 0, sizeof(sha512->scObj));
-#endif
     return 0;
 }
 
