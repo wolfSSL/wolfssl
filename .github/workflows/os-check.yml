@@ -96,7 +96,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
-      - run: pip install tlslite-ng
+      - run: pip install 'tlslite-ng==0.8.2'
 
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
@@ -225,7 +225,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
-      - run: pip install tlslite-ng
+      - run: pip install 'tlslite-ng==0.8.2'
 
       # The macos runner images ship without autotools (the old per-config
       # matrix got them via wolfSSL/actions-build-autotools-project).
