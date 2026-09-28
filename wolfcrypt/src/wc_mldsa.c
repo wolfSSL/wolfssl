@@ -1883,7 +1883,8 @@ static void mldsa_decode_t1(const byte* t1, sword32* t)
 #endif
 
 #if (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-     !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) || \
+      defined(WC_MLDSA_CACHE_PUB_VECTORS))) || \
     defined(WOLFSSL_MLDSA_CHECK_KEY)
 /* Decode top bits of t as t1.
  *
@@ -11547,7 +11548,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         z = key->z;
         c = key->c;
         w = key->w;
-        t1 = key->t1;
+        t1 = key->vt1;
         w1e = key->w1e;
         aBuf = t1;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
@@ -11607,46 +11608,58 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             unsigned int s;
             unsigned int e;
             const sword32* zt = z;
+            /* Source of this polynomial of t1 for the multiply below. The
+             * result goes to w either way, so a cached polynomial is read in
+             * place rather than copied. */
+            const sword32* t1v = w;
 
-            /* Step 1: Decode and NTT vector t1. */
-            mldsa_decode_t1(t1p, w);
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+            if (key->pubVecSet) {
+                /* Cached vector is already decoded and transformed. */
+                t1v = key->t1 + (size_t)r * MLDSA_N;
+            }
+            else
+#endif
+            {
+                /* Step 1: Decode and NTT vector t1. */
+                mldsa_decode_t1(t1p, w);
+                mldsa_ntt_full(w);
+            }
             /* Next polynomial. */
             t1p += MLDSA_U * MLDSA_N / 8;
 
-            /* Step 10: - NTT(c) o NTT(t1)) */
-            mldsa_ntt_full(w);
     #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         #ifdef WOLFSSL_MLDSA_SMALL
             for (e = 0; e < MLDSA_N; e++) {
-                w[e] = -mldsa_mont_red((sword64)c[e] * w[e]);
+                w[e] = -mldsa_mont_red((sword64)c[e] * t1v[e]);
             }
         #else
             for (e = 0; e < MLDSA_N; e += 8) {
-                w[e+0] = -mldsa_mont_red((sword64)c[e+0] * w[e+0]);
-                w[e+1] = -mldsa_mont_red((sword64)c[e+1] * w[e+1]);
-                w[e+2] = -mldsa_mont_red((sword64)c[e+2] * w[e+2]);
-                w[e+3] = -mldsa_mont_red((sword64)c[e+3] * w[e+3]);
-                w[e+4] = -mldsa_mont_red((sword64)c[e+4] * w[e+4]);
-                w[e+5] = -mldsa_mont_red((sword64)c[e+5] * w[e+5]);
-                w[e+6] = -mldsa_mont_red((sword64)c[e+6] * w[e+6]);
-                w[e+7] = -mldsa_mont_red((sword64)c[e+7] * w[e+7]);
+                w[e+0] = -mldsa_mont_red((sword64)c[e+0] * t1v[e+0]);
+                w[e+1] = -mldsa_mont_red((sword64)c[e+1] * t1v[e+1]);
+                w[e+2] = -mldsa_mont_red((sword64)c[e+2] * t1v[e+2]);
+                w[e+3] = -mldsa_mont_red((sword64)c[e+3] * t1v[e+3]);
+                w[e+4] = -mldsa_mont_red((sword64)c[e+4] * t1v[e+4]);
+                w[e+5] = -mldsa_mont_red((sword64)c[e+5] * t1v[e+5]);
+                w[e+6] = -mldsa_mont_red((sword64)c[e+6] * t1v[e+6]);
+                w[e+7] = -mldsa_mont_red((sword64)c[e+7] * t1v[e+7]);
             }
         #endif
     #else
         #ifdef WOLFSSL_MLDSA_SMALL
             for (e = 0; e < MLDSA_N; e++) {
-                t64[e] = -(sword64)c[e] * w[e];
+                t64[e] = -(sword64)c[e] * t1v[e];
             }
         #else
             for (e = 0; e < MLDSA_N; e += 8) {
-                t64[e+0] = -(sword64)c[e+0] * w[e+0];
-                t64[e+1] = -(sword64)c[e+1] * w[e+1];
-                t64[e+2] = -(sword64)c[e+2] * w[e+2];
-                t64[e+3] = -(sword64)c[e+3] * w[e+3];
-                t64[e+4] = -(sword64)c[e+4] * w[e+4];
-                t64[e+5] = -(sword64)c[e+5] * w[e+5];
-                t64[e+6] = -(sword64)c[e+6] * w[e+6];
-                t64[e+7] = -(sword64)c[e+7] * w[e+7];
+                t64[e+0] = -(sword64)c[e+0] * t1v[e+0];
+                t64[e+1] = -(sword64)c[e+1] * t1v[e+1];
+                t64[e+2] = -(sword64)c[e+2] * t1v[e+2];
+                t64[e+3] = -(sword64)c[e+3] * t1v[e+3];
+                t64[e+4] = -(sword64)c[e+4] * t1v[e+4];
+                t64[e+5] = -(sword64)c[e+5] * t1v[e+5];
+                t64[e+6] = -(sword64)c[e+6] * t1v[e+6];
+                t64[e+7] = -(sword64)c[e+7] * t1v[e+7];
             }
         #endif
     #endif
