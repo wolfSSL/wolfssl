@@ -16,6 +16,7 @@
 * Reduced ML-DSA small memory heap use and added `WOLFSSL_MLDSA_SIGN_SMALLEST_MEM`, which roughly halves the signing peak. by @Frauschi
 * Sped up ML-DSA small memory signing by transforming each polynomial of y once; `WOLFSSL_MLDSA_SMALL_MEM_POLY64` no longer affects signing. by @Frauschi
 * Fixed `--enable-mldsa=<level>` building no ML-DSA operations. by @Frauschi
+* Fixed ML-DSA small memory key generation keeping the caches (`WC_MLDSA_CACHE_*`) of the key it replaced, which broke its signatures. by @Frauschi
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 

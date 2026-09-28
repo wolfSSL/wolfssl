@@ -9293,6 +9293,16 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Public key and private key are available. */
         key->prvKeySet = 1;
         key->pubKeySet = 1;
+        /* Any cached matrix or vectors belong to the key this replaced. */
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+        key->aSet = 0;
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+        key->privVecsSet = 0;
+#endif
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+        key->pubVecSet = 0;
+#endif
     }
 
     /* Zeroize the whole buffer before freeing. It holds the private vectors
