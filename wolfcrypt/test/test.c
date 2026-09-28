@@ -69072,13 +69072,17 @@ static wc_test_ret_t mldsa_sign_cache_alloc_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
     /* With the fix, signing must populate key->a (allocated buffer is owned
      * by the key, not leaked to a local). Without the fix, key->a remains
-     * NULL because the XMALLOC result was assigned to a local variable. */
+     * NULL because the XMALLOC result was assigned to a local variable.
+     * The small memory implementations stream matrix A and never populate
+     * key->a, so only the round trip below applies to them. */
     if (key->a == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (key->aSet != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
     ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
         (word32)sizeof(msg), &res);

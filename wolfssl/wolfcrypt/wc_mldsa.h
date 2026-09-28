@@ -684,7 +684,9 @@ struct wc_MlDsaKey {
 #endif
     sword32 c[MLDSA_N];
     sword32 w[MLDSA_N];
-    sword32 t1[MLDSA_N];
+    /* One t1 polynomial, also used for a polynomial of A. Not named t1 as
+     * WC_MLDSA_CACHE_PUB_VECTORS already has a member of that name. */
+    sword32 vt1[MLDSA_N];
     byte w1e[MLDSA_MAX_W1_ENC_SZ];
 #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
     sword64 t64[MLDSA_N];
