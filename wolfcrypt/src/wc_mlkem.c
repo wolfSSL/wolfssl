@@ -1922,7 +1922,7 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     }
 
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
-    if (key->type & MLKEM_KYBER)
+    if ((ret == 0) && (key->type & MLKEM_KYBER))
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
     {
