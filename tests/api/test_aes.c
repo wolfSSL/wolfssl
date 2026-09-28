@@ -3701,6 +3701,14 @@ int test_wc_AesGcmStreamTagLen(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
 
+    /* the decrypt side of the stream is held to it too */
+    ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, plain, cipher, sizeof(cipher),
+        NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, shortTagSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
     /* a NULL aes is an argument error, never a read through the pointer */
     ExpectIntEQ(wc_AesGcmEncryptFinal(NULL, tag, sizeof(tag)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

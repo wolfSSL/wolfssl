@@ -366,6 +366,29 @@ int test_wc_CmacSetTagLen(void)
         wc_CmacFree(&cmac);
     }
 
+    /* clearing it lets another size through */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MIN_SZ - 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_NO_TAG_ASSOCIATION), 0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
+        tagSz = otherSz;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        wc_CmacFree(&cmac);
+    }
+
+    /* handing in a key drops it as well */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        tagSz = otherSz;
+        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, tag, &tagSz, msg, sizeof(msg),
+            key, sizeof(key), HEAP_HINT, INVALID_DEVID), 0);
+        wc_CmacFree(&cmac);
+    }
+
     /* verify side: a check value of another size is refused */
     ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
     if (EXPECT_SUCCESS()) {
@@ -849,3 +872,76 @@ int test_wc_CryptoCb_CmacFree(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_CmacFree */
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+/* Device that does the work in software. The one-shot branch returns before
+ * wc_CmacFinal(), which is the path that used to keep a stale tag length. */
+static int cmac_tag_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int prevDevId;
+
+    (void)devIdArg;
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_CMAC ||
+            info->cmac.cmac == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    /* keeps the software call below from coming back through here */
+    prevDevId = info->cmac.cmac->devId;
+    info->cmac.cmac->devId = INVALID_DEVID;
+    if (info->cmac.key != NULL && info->cmac.in != NULL &&
+            info->cmac.out != NULL) {
+        ret = wc_AesCmacGenerate(info->cmac.out, info->cmac.outSz,
+            info->cmac.in, info->cmac.inSz, info->cmac.key, info->cmac.keySz);
+    }
+    info->cmac.cmac->devId = prevDevId;
+
+    return ret;
+}
+#endif
+
+/* A key handed to the device path must drop the length tied to the old one.
+ */
+int test_wc_CryptoCb_CmacTagLen(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    int    devId = 4461;
+    Cmac   cmac;
+    byte   key[WC_AES_BLOCK_SIZE];
+    byte   msg[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    word32 tagSz;
+
+    XMEMSET(key, 0x0a, sizeof(key));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, cmac_tag_test_crypto_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
+        HEAP_HINT, devId), 0);
+    if (EXPECT_SUCCESS()) {
+        /* tie the full length to this key */
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        /* the device takes this one, and a key means the old length goes */
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, tag, &tagSz, msg, sizeof(msg),
+            key, sizeof(key), HEAP_HINT, devId), 0);
+        /* so the new key may use another length */
+        tagSz = WC_CMAC_TAG_MIN_SZ;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        wc_CmacFree(&cmac);
+    }
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCb_CmacTagLen */
