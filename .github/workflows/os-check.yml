@@ -19,10 +19,12 @@ on:
 
   # Run the build and update the ccache on:
   # - Scheduled: weekday mornings at 10:00 UTC to keep the ccache.
-  #   This reseeds the ccache from scratch (manual runs do as well).
+  #   This reseeds both platforms from scratch (a manual run reseeds
+  #   linux from scratch, but only refreshes macOS - see below).
   # - Any push to master that changed headers or the build system since the
-  #   last seed (linux shards only; macOS is seeded by the cron and manual
-  #   runs, since its runner pool is small and its cold-cache cost minor).
+  #   last seed (linux shards only; macOS is refreshed by the cron and
+  #   manual runs, since its runner pool is small and its cold-cache cost
+  #   minor).
   # Note that Windows builds are skipped on a seed run since it uses Visual
   # Studio and has no ccache to seed.
   #
@@ -32,9 +34,10 @@ on:
   # only on seed runs. macOS goes through the shared ccache-setup composite,
   # which sets CCACHE_RECACHE and skips the restore only on the cron (not on
   # a dispatch seed) and saves on every run that is not read-only,
-  # i.e. every non-PR run, release pushes included. Left as-is deliberately;
-  # the note is here so the difference is not rediscovered from a surprising
-  # cache.
+  # i.e. every non-PR run, release pushes included. So a dispatch refills an
+  # empty macOS cache but only layers onto a stale one; only the cron
+  # rebuilds macOS from scratch. Left as-is deliberately; the note is here
+  # so the difference is not rediscovered from a surprising cache.
   schedule:
     - cron: '0 10 * * 1-5'
   # Runs the same seed on demand. Needed whenever the cache is empty and
@@ -91,13 +94,25 @@ jobs:
                    -f key=os-check-linux-ccache- -f ref=refs/heads/master -F per_page=100 \
                    --jq '[.actions_caches[] | select(.key | test("^os-check-linux-ccache-[1-4]-master-[0-9a-f]{40}$"))]
                          | group_by(.key | split("-")[4])
-                         | if length == 4 then map(max_by(.created_at)) | min_by(.created_at).key else empty end') || last=
+                         | if length == 4 then map(max_by(.created_at)) | min_by(.created_at).key
+                           else "incomplete" end') || last=
           base=${last##*-}
           [[ $base =~ ^[0-9a-f]{40}$ ]] || base=$BEFORE
-          if files=$(gh api "repos/$REPO/compare/$base...$SHA" --jq '.files[]?.filename' | sort -u); then
+          # Build inputs the ccache is sensitive to. Headers live outside
+          # wolfssl/ too: examples/configs holds the user_settings variants
+          # the matrix stages, and wolfcrypt/src has a few private ones.
+          wide='^((wolfssl|tests|wolfcrypt|examples|testsuite)/.*\.h'
+          wide+='|wolfcrypt/src/misc\.c|configure\.ac|m4/.*|.*\.am'
+          wide+='|\.github/configs/os-check-.*\.json'
+          wide+='|\.github/workflows/os-check\.yml)$'
+          if [ "$last" = incomplete ]; then
+            # Fewer than four shard seeds exist, so there is no complete set
+            # to compare against; comparing with the previous push instead
+            # would keep declining the seed that would refill it.
+            echo "incomplete shard seed set, seeding"
+          elif files=$(gh api "repos/$REPO/compare/$base...$SHA" --jq '.files[]?.filename' | sort -u); then
             count=$(printf '%s\n' "$files" | grep -c . || true)
-            if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -qE \
-                '^(wolfssl/.*\.h|wolfcrypt/src/misc\.c|tests/.*\.h|configure\.ac|m4/.*|.*\.am|\.github/configs/os-check-.*\.json|\.github/workflows/os-check\.yml)$'; then
+            if [ "$count" -lt 300 ] && ! printf '%s\n' "$files" | grep -qE "$wide"; then
               seed=false
             fi
             echo "last seed ${base:0:10}, changed files: $count, wide reach: $seed"
@@ -300,9 +315,10 @@ jobs:
     # Runs on PRs/pushes and on a seed run (the cron or a manual dispatch),
     # where it --build-only-seeds the macOS ccache like the linux shards.
     # Windows is the only job skipped on a seed run (no ccache to seed).
-    # Not seeded on master pushes: macOS runner concurrency is small, and a
-    # fresh macOS seed saves only about two minutes per PR job. The cron and
-    # a manual dispatch still seed it.
+    # Not seeded on master pushes: macOS runner concurrency is small, so
+    # per-merge seeds would queue PR macOS jobs behind them, and a fresh
+    # macOS seed saves only about two minutes per PR job. The cron refreshes
+    # it from scratch; a manual dispatch only layers onto what is there.
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && (github.event_name != 'push' || github.ref != 'refs/heads/master') }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
