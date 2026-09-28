@@ -1464,9 +1464,27 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 
 #ifdef OPENSSL_EXTRA
 
+/* Convert X509_V_FLAG CRL bits to wolfSSL_CertManagerEnableCRL options.
+ * WOLFSSL_CRL_CHECKALL is also accepted as its value is not a verify flag. */
+static int X509StoreCrlOptions(unsigned long flags)
+{
+    int options = 0;
+
+    if (flags & WOLFSSL_X509_V_FLAG_CRL_CHECK) {
+        options |= WOLFSSL_CRL_CHECK;
+    }
+    if (flags & (WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL | WOLFSSL_CRL_CHECKALL)) {
+        options |= WOLFSSL_CRL_CHECKALL;
+    }
+
+    return options;
+}
+
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
 {
+    const int crlOptions = X509StoreCrlOptions(flags);
+
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
 
     if (ctx == NULL) {
@@ -1479,9 +1497,8 @@ void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
     (void)wolfSSL_X509_VERIFY_PARAM_set_flags(ctx->param, flags);
 
     /* CRL checking is a CertManager setting, as in X509_STORE_set_flags */
-    if (((flags & WOLFSSL_CRL_CHECKALL) || (flags & WOLFSSL_CRL_CHECK)) &&
-            (ctx->store != NULL) &&
-            (wolfSSL_CertManagerEnableCRL(ctx->store->cm, (int)flags) !=
+    if ((crlOptions != 0) && (ctx->store != NULL) &&
+            (wolfSSL_CertManagerEnableCRL(ctx->store->cm, crlOptions) !=
                 WOLFSSL_SUCCESS)) {
         WOLFSSL_MSG("Unable to enable CRL checking");
     }
@@ -2338,7 +2355,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
     int ret = WOLFSSL_SUCCESS;
-    int crlOpts = 0;
+    int crlOptions = X509StoreCrlOptions(flag);
     const unsigned long timeFlags =
         WOLFSSL_USE_CHECK_TIME | WOLFSSL_NO_CHECK_TIME;
 
@@ -2347,17 +2364,12 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
     if (store == NULL)
         return WOLFSSL_FAILURE;
 
-    /* X509_V_FLAG_CRL_CHECK(_ALL), and the native WOLFSSL_CRL_CHECK(ALL)
-     * options for compatibility. */
-    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK | WOLFSSL_CRL_CHECK)) {
-        crlOpts |= WOLFSSL_CRL_CHECK;
+    /* Native WOLFSSL_CRL_CHECK option, for compatibility */
+    if (flag & WOLFSSL_CRL_CHECK) {
+        crlOptions |= WOLFSSL_CRL_CHECK;
     }
-    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL | WOLFSSL_CRL_CHECKALL)) {
-        crlOpts |= WOLFSSL_CRL_CHECKALL;
-    }
-
-    if (crlOpts != 0) {
-        ret = wolfSSL_CertManagerEnableCRL(store->cm, crlOpts);
+    if (crlOptions != 0) {
+        ret = wolfSSL_CertManagerEnableCRL(store->cm, crlOptions);
     }
 #if defined(OPENSSL_COMPATIBLE_DEFAULTS)
     else if (flag == 0) {
