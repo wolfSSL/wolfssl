@@ -132,6 +132,8 @@ namespace wolfSSL.CSharp.Fips.Test
             {
                 T.Bytes(T.Hex("070a16b46b4d4144f79bdd9dd04a287c"),
                         FipsCmac.Compute(Key38A, Pt38A.Take(16).ToArray()), "tag");
+                T.Bytes(T.Hex("070a16b46b4d4144"), FipsCmac.Compute(Key38A, Pt38A.Take(16).ToArray(), 8),
+                        "8-byte tag is the leftmost 64 bits");
             });
 
             T.Run("AES-GCM (test case 2, external IV) and .NET cross-check", () =>

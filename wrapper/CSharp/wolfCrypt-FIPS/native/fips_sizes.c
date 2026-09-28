@@ -130,10 +130,8 @@ int wc_csharp_fips_sizeof(int type)
         case WC_CSHARP_FIPS_TLS13_LABEL_MAX:
             return (int)MAX_TLS13_HKDF_LABEL_SZ;
     #endif
-    #if defined(HAVE_FIPS_VERSION_MAJOR) && defined(HAVE_FIPS_VERSION_MINOR)
         case WC_CSHARP_FIPS_VERSION_MM:
             return HAVE_FIPS_VERSION_MAJOR * 100 + HAVE_FIPS_VERSION_MINOR;
-    #endif
     #if defined(WC_CSHARP_FIPS_BUILT_LIB_CRC) && \
         defined(WC_CSHARP_FIPS_BUILT_LIB_SIZE)
         case WC_CSHARP_FIPS_LIB_CRC:

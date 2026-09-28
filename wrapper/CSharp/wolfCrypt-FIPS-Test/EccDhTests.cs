@@ -199,6 +199,16 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.True(!k.VerifyHash(FipsHashType.Sha256, d, new byte[8]), "zero bytes");
             });
 
+            T.Run("ECDH refuses a peer on another curve", () =>
+            {
+                using var k = FipsEccKey.Generate(FipsEccCurve.P256, rng);
+                using var other = FipsEccKey.Generate(FipsEccCurve.P384, rng);
+                using var peer = FipsEccKey.ImportPublic(FipsEccCurve.P384, other.ExportPublic());
+                bool threw = false;
+                try { k.SharedSecret(peer); } catch (ArgumentException) { threw = true; }
+                T.True(threw, "P-384 peer accepted by a P-256 key");
+            });
+
             /* CVE-2026-5194 class: the module has no digest length bound, so
              * a short digest must never reach it */
             T.Run("ECDSA verify requires the digest length of the stated hash", () =>
@@ -273,9 +283,9 @@ namespace wolfSSL.CSharp.Fips.Test
                         (T.Hex("3006020101020201"), "truncated integer"),
                         (good.Concat(new byte[] { 0 }).ToArray(), "trailing data"),
                         (T.Hex("30060201ff020101"), "negative r"),
-                        (T.Hex("3007020200010201 01".Replace(" ", "")), "non-minimal r"),
-                        (T.Hex("30060201000201 01".Replace(" ", "")), "zero r"),
-                        (T.Hex("3081060201010201 01".Replace(" ", "")), "non-minimal length"),
+                        (T.Hex("3007020200010201 01"), "non-minimal r"),
+                        (T.Hex("30060201000201 01"), "zero r"),
+                        (T.Hex("3081060201010201 01"), "non-minimal length"),
                         (T.Hex("30"), "header only") })
                 {
                     bool threw = false;
@@ -487,7 +497,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 {
                     bool threw = false;
                     try { new FipsDh(p, new byte[] { 2 }, q).Dispose(); } catch (ArgumentException) { threw = true; }
-                    T.True(threw, "" + what + " accepted");
+                    T.True(threw, what + " accepted");
                 }
             });
 

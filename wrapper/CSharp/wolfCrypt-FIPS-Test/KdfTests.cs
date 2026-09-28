@@ -20,6 +20,7 @@
  */
 
 using System;
+using System.Buffers.Binary;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -422,7 +423,9 @@ namespace wolfSSL.CSharp.Fips.Test
                 kk = new byte[] { 0 }.Concat(kk).ToArray();
             }
 
-            byte[] mp = BitConverter.GetBytes(kk.Length).Reverse().Concat(kk).ToArray();
+            byte[] mpLen = new byte[4];
+            BinaryPrimitives.WriteInt32BigEndian(mpLen, kk.Length);   /* RFC 4251 mpint: big-endian length */
+            byte[] mp = mpLen.Concat(kk).ToArray();
             Func<byte[], byte[]> hash = h switch
             {
                 FipsHashType.Sha1 => SHA1.HashData,

@@ -359,8 +359,8 @@ namespace wolfSSL.CSharp.Fips
         internal static int InjectFailure(int code) => Native.wolfCrypt_SetStatus_fips(code);
 #endif
 
-        /* Runs a synchronous op returning an SSP (shared secret, key pair, derived key) with
-         * the read gate open, like PRIVATE_KEY_UNLOCK/LOCK. Not used by FipsRsaKey.Export. */
+        /* Runs a synchronous op returning an SSP (shared secret, key pair, derived key, and the
+         * RSA components the FipsRsaKey constructor reads) with the read gate open. */
         internal static TR WithPrivateKeyRead<TR>(Func<TR> op)
         {
             bool prev = PrivateKeyReadEnabled;
@@ -369,17 +369,35 @@ namespace wolfSSL.CSharp.Fips
                 SetPrivateKeyReadEnable(true);
             }
 
+            TR result;
             try
             {
-                return op();
+                result = op();
             }
-            finally
+            catch
             {
+                /* keep op's exception: a failure to close the gate here must not replace it */
                 if (!prev)
+                {
+                    try { SetPrivateKeyReadEnable(false); } catch (Exception) { }
+                }
+                throw;
+            }
+
+            if (!prev)
+            {
+                try
                 {
                     SetPrivateKeyReadEnable(false);
                 }
+                catch
+                {
+                    (result as IDisposable)?.Dispose();   /* zeroes exported private components */
+                    throw;
+                }
             }
+
+            return result;
         }
     }
 }

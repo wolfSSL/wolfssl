@@ -224,6 +224,17 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Bytes(pt, gcm.Decrypt(r2.IV, r2.Ciphertext, r2.Tag, new byte[] { 9 }), "round trip");
             });
 
+            T.Run("GCM round trip with a 12-byte tag", () =>
+            {
+                using var rng = new FipsRng();
+                using var gcm = new FipsAesGcm(new byte[16]);
+                gcm.UseInternalIV(rng);
+                byte[] pt = { 1, 2, 3 }, aad = { 4 };
+                var r = gcm.Encrypt(pt, aad, 12);
+                T.Equal(12, r.Tag.Length, "tag size");
+                T.Bytes(pt, gcm.Decrypt(r.IV, r.Ciphertext, r.Tag, aad, 12), "round trip");
+            });
+
             /* the module draws the first IV from the DRBG, then adds one per encryption */
             T.Run("GCM internal IVs: DRBG start value, then previous IV plus one", () =>
             {
@@ -376,6 +387,12 @@ namespace wolfSSL.CSharp.Fips.Test
                 threw = false;
                 try { c3.SetNonce(rng, 6); } catch (ArgumentOutOfRangeException) { threw = true; }
                 T.True(threw, "6-byte nonce accepted");
+                foreach (int len in new[] { 6, 14 })
+                {
+                    threw = false;
+                    try { c3.SetNonce(new byte[len]); } catch (ArgumentException) { threw = true; }
+                    T.True(threw, len + "-byte caller nonce accepted");
+                }
             });
 
             T.Run("GMAC Verify throws on bad arguments, false only on tag mismatch", () =>

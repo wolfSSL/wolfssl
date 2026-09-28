@@ -327,8 +327,8 @@ namespace wolfSSL.CSharp.Fips.Test
                     continue;   /* CAST neither passed nor failed: no expectation */
                 }
                 /* the wrapper refuses every DRBG consumer once the DRBG CAST
-* has failed, including those the module still serves from
-* an existing instance (module finding 14) */
+                 * has failed, including those the module still serves from
+                 * an existing instance (module finding 14) */
                 bool expectFail = failed || op.Casts.Any(degraded.Contains) ||
                                   (op.UsesDrbg && degraded.Contains("DRBG"));
                 bool ok = Try(op, out string err, out int errCode);
@@ -341,7 +341,7 @@ namespace wolfSSL.CSharp.Fips.Test
                               op.Name + ": expected FIPS_NOT_ALLOWED_E, got " + err);
                     }
                     /* a refusal must be a module-state error, never a plain
-* "verification returned false" */
+                     * "verification returned false" */
                     if (!failed && !ok)
                     {
                         Check(FipsError.IsModuleStateError(errCode),

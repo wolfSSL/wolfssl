@@ -148,21 +148,21 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentException("RSA key size must be 2048, 3072 or 4096 bits", nameof(bits));
             }
             /* FIPS 186-5 5.4(e): e odd, 2^16 < e < 2^256 (the module also
-* accepts e = 3). */
+             * accepts e = 3). */
             if (exponent <= 65536 || (exponent & 1) == 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(exponent), "exponent must be odd and greater than 2^16");
             }
             /* the module takes a C long (32 bits on Windows and 32-bit platforms);
-* refuse values it cannot represent rather than truncate them */
+             * refuse values it cannot represent rather than truncate them */
             bool cLongIs32 = IntPtr.Size == 4 || OperatingSystem.IsWindows();
             if (cLongIs32 && exponent > int.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(exponent), "exponent does not fit the platform's C long");
             }
             /* FIPS 186 prime generation stops after a bounded number of
-* candidates and reports failure (PRIME_GEN_E); that is rare and
-* the standard allows trying again with fresh random input. */
+             * candidates and reports failure (PRIME_GEN_E); that is rare and
+             * the standard allows trying again with fresh random input. */
             const int attempts = 3;
             for (int i = 1; ; i++)
             {
@@ -294,8 +294,9 @@ namespace wolfSSL.CSharp.Fips
 
             if (ret < 0)
             {
-                /* null only for a bad signature; resource, argument and module errors throw */
-                if (FipsError.IsInvalidRsaSignature(ret))
+                /* null only for a bad signature; resource, argument and module errors throw.
+                 * With both lengths fixed at Size, RSA_BUFFER_E here means an empty payload. */
+                if (FipsError.IsInvalidRsaSignature(ret) || ret == FipsError.RSA_BUFFER_E)
                 {
                     return null;
                 }

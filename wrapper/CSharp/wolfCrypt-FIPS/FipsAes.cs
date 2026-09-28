@@ -186,7 +186,12 @@ namespace wolfSSL.CSharp.Fips
          * buffered keystream that wc_AesSetIV does not reset. */
         public void SetIV(byte[] iv)
         {
-            if (iv == null || iv.Length != BlockSize)
+            if (iv == null)
+            {
+                throw new ArgumentNullException(nameof(iv));
+            }
+
+            if (iv.Length != BlockSize)
             {
                 throw new ArgumentException("IV must be 16 bytes", nameof(iv));
             }

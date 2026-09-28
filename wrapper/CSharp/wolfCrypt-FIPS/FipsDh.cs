@@ -255,7 +255,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new WolfCryptFipsException("wc_DhCheckPubKeyEx_fips", chk);
             }
             /* pinned and zeroed on every exit, including a failure to
-* close the private key read gate after a successful agree */
+             * close the private key read gate after a successful agree */
             byte[] z = GC.AllocateArray<byte>(PrimeSize, pinned: true);
             try
             {

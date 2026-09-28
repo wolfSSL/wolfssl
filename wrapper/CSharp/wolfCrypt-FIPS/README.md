@@ -266,8 +266,9 @@ int failed = FipsModule.RunAllCasts();       // number of failed CASTs (0 = all 
 `Initialize` registers the library's OS source (`wc_GenerateSeed`,
 `/dev/urandom` on Linux). To use a hardware TRNG instead, call
 `FipsModule.SetSeedCallback`; `Initialize` keeps it, and only
-`FipsModule.UseOsSeed()` switches back. A custom source is outside the module
-boundary and must:
+`FipsModule.UseOsSeed()` switches back. Register callbacks once at startup:
+each registration (seed or failure callback) is kept for the life of the
+process. A custom source is outside the module boundary and must:
 - supply full-entropy bytes (the module asks for 196 bytes, or 132 with a
   caller nonce, at each instantiation);
 - run its own SP 800-90B health tests and return non-zero on failure;
@@ -275,7 +276,9 @@ boundary and must:
 
 The module's automatic reseed (after 1,000,000 requests) draws from
 `wc_GenerateSeed`, not from the callback. To seed only from your source,
-dispose and recreate a `FipsRng` before that point. Certificate #4718 carries
+dispose and recreate a `FipsRng` before that point. A `FipsEccKey` from
+`Generate` owns a DRBG, drawn on by every signature and ECDH, that cannot be
+recreated, so replace long-lived keys before that point too. Certificate #4718 carries
 the caveat that there is no assurance of the minimum strength of generated
 keys; an ESV-validated entropy source is needed to remove it.
 
@@ -307,8 +310,9 @@ opens the gate for that one call and closes it again. `FipsRsaKey.Export()`
 CMAC tags 8 to 16. Decryption and GMAC verification take the expected tag
 size and refuse a tag of any other length. Use one tag length per key.
 
-**Secrets returned to you.** DH private keys, shared secrets, KDF output,
-decrypted plaintext (RSA and AES) and exported RSA private components are
+**Secrets returned to you.** DRBG output (`FipsRng.Generate(int)`), DH private
+keys, shared secrets, KDF output, decrypted plaintext (RSA and AES) and exported
+RSA private components are
 returned as pinned `byte[]` arrays, so the GC does not leave moved copies. `FipsDhKeyPair` and
 `FipsRsaKeyComponents` zero their private parts on `Dispose`; zero other
 buffers with `CryptographicOperations.ZeroMemory` when done. Copies you make

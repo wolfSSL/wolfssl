@@ -168,6 +168,11 @@ namespace wolfSSL.CSharp.Fips
                     : clientRandom == null ? nameof(clientRandom) : nameof(serverRandom));
             }
 
+            if (length <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+
             byte[] seed = new byte[serverRandom.Length + clientRandom.Length];
             serverRandom.CopyTo(seed, 0);
             clientRandom.CopyTo(seed, serverRandom.Length);
@@ -275,7 +280,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentException("label must not be empty", nameof(label));
             }
             /* v5.2.x builds HkdfLabel in a MAX_TLS13_HKDF_LABEL_SZ stack buffer with no
-* capacity check, and stores label and context lengths in single bytes. */
+             * capacity check, and stores label and context lengths in single bytes. */
             if (proto.Length + lab.Length > 255)
             {
                 throw new ArgumentException("protocol + label must be at most 255 bytes", nameof(label));

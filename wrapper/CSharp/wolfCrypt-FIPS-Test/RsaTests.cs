@@ -349,6 +349,11 @@ namespace wolfSSL.CSharp.Fips.Test
                 T.Throws(FipsError.RSA_BUFFER_E, () => key.Decrypt(ct, FipsHashType.Sha256, new byte[] { 2 }), "wrong label");
             });
 
+            T.Run("OAEP encrypt refuses a plaintext too long for the hash", () =>
+            {
+                T.Throws(FipsError.RSA_BUFFER_E, () => key.Encrypt(new byte[key.Size], rng, FipsHashType.Sha256), "full-size plaintext");
+            });
+
             /* FIPS builds #undef WC_RSA_BLINDING (settings.h), so RsaKey has
              * no rng member and private operations need no DRBG; the module
              * never keeps the generation DRBG. No FipsRng is allocated after

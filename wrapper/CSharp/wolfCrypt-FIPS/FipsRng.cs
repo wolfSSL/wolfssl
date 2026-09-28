@@ -156,7 +156,7 @@ namespace wolfSSL.CSharp.Fips
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
 
-            byte[] buf = new byte[count];
+            byte[] buf = GC.AllocateArray<byte>(count, pinned: true);   /* often key material */
             Generate(buf);
             return buf;
         }
