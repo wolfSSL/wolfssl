@@ -774,6 +774,7 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     WC_BITFIELD authIvGenEnable:1;
     WC_BITFIELD authIncIv:1;
+    WC_BITFIELD authIvUsed:1;
 #endif
 #endif
 };
