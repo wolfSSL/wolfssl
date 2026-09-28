@@ -67259,6 +67259,132 @@ out:
 }
 #endif
 
+/* Cross-implementation signature KAT. ML-DSA signing is deterministic given
+ * the key and signing seeds, so every signer here must produce the same bytes.
+ * Expected values are SHAKE-256 digests of the default signer's signature;
+ * regenerate them from a default-signer build if the seeds or message change.
+ * Skipped for the signers that are deliberately not FIPS 204 conformant: the
+ * draft domain separation and the CHECK_Y/CHECK_W0 early rejects. */
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
+    !defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) && \
+    !defined(WOLFSSL_MLDSA_SIGN_CHECK_W0)
+
+/* Seed the key pair is generated from. */
+static const byte mldsa_kat_key_seed[MLDSA_SEED_SZ] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+};
+/* Seed used in place of the per-signature randomness. */
+static const byte mldsa_kat_sig_seed[MLDSA_RND_SZ] = {
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+    0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+    0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f
+};
+static const byte mldsa_kat_msg[] = {
+    0x77, 0x6f, 0x6c, 0x66, 0x53, 0x53, 0x4c, 0x20,   /* "wolfSSL " */
+    0x4d, 0x4c, 0x2d, 0x44, 0x53, 0x41, 0x20, 0x4b,   /* "ML-DSA K" */
+    0x41, 0x54                                        /* "AT"       */
+};
+
+/* SHAKE-256 digests of the signature the default signer produces. */
+#ifndef WOLFSSL_NO_ML_DSA_44
+static const byte mldsa_kat_digest_44[32] = {
+    0x17, 0xc1, 0xa1, 0x07, 0x90, 0xe6, 0xce, 0xc3,
+    0x38, 0x17, 0x18, 0x02, 0x41, 0xaf, 0x0a, 0x3f,
+    0xbd, 0x2c, 0xb9, 0x0d, 0xbc, 0x3f, 0x5d, 0x8b,
+    0x07, 0x98, 0xc6, 0xe3, 0x75, 0x66, 0x8b, 0x3c
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+static const byte mldsa_kat_digest_65[32] = {
+    0x10, 0xb5, 0x77, 0xb1, 0x8f, 0xf0, 0x21, 0x0c,
+    0x17, 0x31, 0x54, 0xe9, 0x3e, 0x79, 0xc8, 0x05,
+    0x22, 0xdf, 0x27, 0x03, 0xfb, 0x99, 0xc0, 0x8b,
+    0xf8, 0x25, 0x4c, 0xda, 0x36, 0xf7, 0x6f, 0xb1
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+static const byte mldsa_kat_digest_87[32] = {
+    0xbe, 0xf0, 0xb7, 0xe5, 0x5f, 0x86, 0x4a, 0xdb,
+    0x48, 0xfc, 0x56, 0x80, 0x93, 0x13, 0xdd, 0x96,
+    0x08, 0x2d, 0x0f, 0x86, 0x1b, 0xf1, 0x89, 0x52,
+    0x9f, 0x97, 0xb9, 0xca, 0xd3, 0x8f, 0xc3, 0xbf
+};
+#endif
+
+static wc_test_ret_t mldsa_sign_kat_test(int param, const byte* expDigest)
+{
+    wc_test_ret_t ret;
+    wc_MlDsaKey* key = NULL;
+    byte* sig = NULL;
+    word32 sigLen;
+    int sigSz = 0;
+    byte digest[32];
+    wc_Shake shake;
+    int keyInit = 0;
+    int shakeInit = 0;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (sig == NULL))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_MlDsaKey_Init(key, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    keyInit = 1;
+    ret = wc_MlDsaKey_SetParams(key, param);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* Deterministic key and deterministic signature. */
+    ret = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_kat_key_seed);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlDsaKey_GetSigLen(key, &sigSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    sigLen = (word32)sigSz;
+    ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen,
+        mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), mldsa_kat_sig_seed);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_InitShake256(&shake, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    shakeInit = 1;
+    ret = wc_Shake256_Update(&shake, sig, sigLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Shake256_Final(&shake, digest, (word32)sizeof(digest));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(digest, expDigest, sizeof(digest)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = 0;
+out:
+    if (shakeInit)
+        wc_Shake256_Free(&shake);
+    if (keyInit)
+        wc_MlDsaKey_Free(key);
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+#endif /* !NO_SIGN && !NO_MAKE_KEY && !FIPS204_DRAFT */
+
 #if defined(WC_MLDSA_CACHE_MATRIX_A) && \
     !defined(WC_MLDSA_FIXED_ARRAY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
@@ -68358,6 +68484,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 #endif
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     ret = mldsa_param_test(WC_ML_DSA_87, &rng);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
+#endif
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
+    !defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) && \
+    !defined(WOLFSSL_MLDSA_SIGN_CHECK_W0)
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ret = mldsa_sign_kat_test(WC_ML_DSA_44, mldsa_kat_digest_44);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ret = mldsa_sign_kat_test(WC_ML_DSA_65, mldsa_kat_digest_65);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ret = mldsa_sign_kat_test(WC_ML_DSA_87, mldsa_kat_digest_87);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif

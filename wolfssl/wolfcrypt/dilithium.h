@@ -176,6 +176,14 @@
         #define WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
     #endif
 #endif
+#ifdef WOLFSSL_MLDSA_SIGN_SMALLEST_MEM
+    /* Smallest signing RAM: on top of the small-mem path, generate matrix A a
+     * column at a time so only one polynomial of y is held, decompose w into
+     * w0 in place and keep w1 encoded. Vector y is regenerated for z. */
+    #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
+        #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
+    #endif
+#endif
 #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
     #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A
         #define WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A \

@@ -251,6 +251,13 @@ static void wb_check_low(void)
         WB_NOTE("mldsa_check_low(>=hi) expected 0");
     }
 
+#if (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+     !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)) || \
+    (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+     (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
+      (!defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) && \
+       (defined(WOLFSSL_MLDSA_SIGN_CHECK_Y) || \
+        defined(WOLFSSL_MLDSA_SIGN_CHECK_W0)))))
     /* Vector level: two polynomials, both in range -> (ret==1)&&(i<l) walks
      * both, returns 1; then a first-poly-out-of-range -> early ret 0. */
     for (j = 0; j < 2 * MLDSA_N; j++) {
@@ -265,9 +272,87 @@ static void wb_check_low(void)
     if (ret != 0) {
         WB_NOTE("mldsa_vec_check_low_c(out) expected 0");
     }
+#endif
     WB_OK("mldsa_check_low / vec_check_low_c operand pairs exercised");
 }
 #endif
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
+/* ------------------------------------------------------------------ *
+ * mldsa_poly_checksum: the smallest memory signer binds the polynomial of y
+ * it regenerates for z to the one it used for w, raising BAD_COND_E when they
+ * differ. That branch needs a fault to reach, so the property is tested
+ * directly: any single changed coefficient must change the checksum.
+ * ------------------------------------------------------------------ */
+static void wb_poly_checksum(void)
+{
+    sword32 a[MLDSA_N];
+    word64 base;
+    unsigned int j;
+    unsigned int pos[4];
+    unsigned int p;
+
+    for (j = 0; j < MLDSA_N; j++) {
+        a[j] = (sword32)(j * 7);
+    }
+    base = mldsa_poly_checksum(a);
+
+    /* Same input, same checksum: the comparison in the signer only fires
+     * on a real difference. */
+    if (mldsa_poly_checksum(a) != base) {
+        WB_NOTE("mldsa_poly_checksum is not deterministic");
+    }
+
+    /* First, last and two interior coefficients. */
+    pos[0] = 0;
+    pos[1] = 1;
+    pos[2] = MLDSA_N / 2;
+    pos[3] = MLDSA_N - 1;
+    for (p = 0; p < 4; p++) {
+        sword32 keep = a[pos[p]];
+
+        a[pos[p]] = keep ^ 1;
+        if (mldsa_poly_checksum(a) == base) {
+            WB_NOTE("mldsa_poly_checksum missed a changed coefficient");
+        }
+        a[pos[p]] = keep;
+    }
+
+    /* Two coefficients swapped: same multiset, different polynomial. */
+    if (MLDSA_N >= 2) {
+        sword32 k0 = a[0];
+
+        a[0] = a[1];
+        a[1] = k0;
+        if (mldsa_poly_checksum(a) == base) {
+            WB_NOTE("mldsa_poly_checksum missed a reordering");
+        }
+        a[1] = a[0];
+        a[0] = k0;
+    }
+
+    /* Equal deltas 32 apart cancel in a rotating exclusive-or checksum. */
+    a[0] += 1;
+    a[32] += 1;
+    if (mldsa_poly_checksum(a) == base) {
+        WB_NOTE("mldsa_poly_checksum missed equal changes 32 apart");
+    }
+    a[0] -= 1;
+    a[32] -= 1;
+
+    /* Opposite deltas cancel in a plain sum. */
+    a[MLDSA_N - 2] += 5;
+    a[MLDSA_N - 1] -= 5;
+    if (mldsa_poly_checksum(a) == base) {
+        WB_NOTE("mldsa_poly_checksum missed opposite changes");
+    }
+    a[MLDSA_N - 2] -= 5;
+    a[MLDSA_N - 1] += 5;
+
+    WB_OK("mldsa_poly_checksum change detection exercised");
+}
+#endif /* WOLFSSL_MLDSA_SIGN_SMALLEST_MEM */
 
 /* ------------------------------------------------------------------ *
  * mldsa_check_hint: two inner loop decisions that the 3-outcome test
@@ -1422,6 +1507,10 @@ int main(void)
     wb_get_params();
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wb_check_low();
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
+    wb_poly_checksum();
 #endif
 #ifndef WOLFSSL_MLDSA_NO_SIGN
 #ifndef WOLFSSL_NO_ML_DSA_44

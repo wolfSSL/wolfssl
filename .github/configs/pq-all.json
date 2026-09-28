@@ -228,5 +228,13 @@
 {"name": "pkcs7-mldsa-only", "minutes": 0.5,
  "comment": "PKCS#7 SignedData with ML-DSA as the only signature algorithm (no RSA, no ECC); guards the ML-DSA-only PKCS7 build path",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
-  "--enable-pkcs7", "--disable-rsa", "--disable-ecc"]}
+  "--enable-pkcs7", "--disable-rsa", "--disable-ecc"]},
+{"name": "mldsa-smallest-mem-checks", "minutes": 2,
+ "comment": "Smallest memory ML-DSA signing with the optional y and w0 rejection checks and the small code arms, which are otherwise never compiled",
+ "configure": ["--enable-cryptonly", "--enable-mldsa=yes,small",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_Y -DWOLFSSL_MLDSA_SIGN_CHECK_W0"]},
+{"name": "mldsa-smallest-checks-no-verify", "minutes": 2,
+ "comment": "Smallest memory signing with the y and w0 checks and verify compiled out, which leaves neither vector range check helper with a caller",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_Y -DWOLFSSL_MLDSA_SIGN_CHECK_W0 -DWOLFSSL_MLDSA_NO_VERIFY"]}
 ]
