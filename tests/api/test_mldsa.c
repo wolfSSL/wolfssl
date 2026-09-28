@@ -1351,6 +1351,133 @@ int test_mldsa_sign_vfy(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Sets the lowest ML-DSA parameter set this build enables. */
+static int mldsa_res_test_set_params(wc_MlDsaKey* key)
+{
+#ifndef WOLFSSL_NO_ML_DSA_44
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_44);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_65);
+#else
+    return wc_MlDsaKey_SetParams(key, WC_ML_DSA_87);
+#endif
+}
+#endif
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WOLF_CRYPTO_CB)
+    #define TEST_MLDSA_VERIFY_ERR_CB
+    #define TEST_MLDSA_VERIFY_ERR_DEVID 0x4d4c4456
+#endif
+
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+/* A device that claims the signature is valid and then returns *ctx, an
+ * error or CRYPTOCB_UNAVAILABLE. */
+static int mldsa_verify_err_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) &&
+            (info->pk.pqc_verify.type == WC_PQC_SIG_TYPE_MLDSA)) {
+        *info->pk.pqc_verify.res = 1;
+        return *(int*)ctx;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_MLDSA_VERIFY_ERR_CB */
+
+/* Every error return from the public verify APIs, including argument errors
+ * and device failures, must leave res at 0. res starts as 1 each time. */
+int test_mldsa_verify_err_res(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
+    byte sig[16];
+    byte msg[16];
+    byte mu[16];
+    int res;
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+    int cbRet = WC_NO_ERR_TRACE(WC_HW_E);
+#endif
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+    XMEMSET(mu, 0, sizeof(mu));
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(mldsa_res_test_set_params(key), 0);
+
+    /* ctx NULL with a non-zero ctxLen. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sizeof(sig), NULL, 1, msg,
+        sizeof(msg), &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 1, msg,
+        sizeof(msg), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+    /* mu of the wrong length. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig, sizeof(sig), mu, sizeof(mu),
+        &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+    /* msg NULL with a non-zero msgLen. */
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sizeof(sig), NULL, 1, &res),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(res, 0);
+#endif
+    wc_MlDsaKey_Free(key);
+
+#ifdef TEST_MLDSA_VERIFY_ERR_CB
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLDSA_VERIFY_ERR_DEVID,
+        mldsa_verify_err_cb, &cbRet), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_VERIFY_ERR_DEVID), 0);
+    ExpectIntEQ(mldsa_res_test_set_params(key), 0);
+
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sizeof(sig), NULL, 0, msg,
+        sizeof(msg), &res), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 0, msg,
+        (word32)sizeof(msg), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+    res = 1;
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sizeof(sig), msg, sizeof(msg),
+        &res), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(res, 0);
+#endif
+
+    /* The device declines, then software rejects the call. Any error must
+     * leave res at 0, whichever check reports it. */
+    cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    res = 1;
+    ExpectIntNE(wc_MlDsaKey_VerifyCtxHash(key, sig, sizeof(sig), NULL, 0, msg,
+        (word32)sizeof(msg), WC_HASH_TYPE_SHA256, &res), 0);
+    ExpectIntEQ(res, 0);
+
+    wc_MlDsaKey_Free(key);
+    wc_CryptoCb_UnRegisterDevice(TEST_MLDSA_VERIFY_ERR_DEVID);
+#endif /* TEST_MLDSA_VERIFY_ERR_CB */
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_check_key(void)
 {
     EXPECT_DECLS;
