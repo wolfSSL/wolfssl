@@ -384,8 +384,10 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     until the object is freed.
 
     An OpenSSL-compat EVP context re-initialized without a new key keeps the
-    association, so a later message asking for a different tag length fails.
-    That is the one key one tag length rule, not a caller error.
+    association, so a later verify asking for a different tag length fails.
+    That is the one key one tag length rule, not a caller error. EVP encrypt
+    always tags at the full length and shortens afterwards, so it never
+    reaches this check.
 
     \return 0 On success.
     \return BAD_FUNC_ARG Returned if aes is NULL, or the length is larger
