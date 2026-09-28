@@ -155,10 +155,25 @@ static int wb_build_key(wc_MlDsaKey* key)
 
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN)
 
+static int wb_all_bytes(const byte* b, word32 len, byte v)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (b[i] != v) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void wb_sweep_sign(wc_MlDsaKey* key)
 {
     word32 sigLen = (word32)sizeof(s_sig);
-    long   k, n, points = 0;
+    long   k, n, points = 0, scrubbed = 0, partial = 0;
+    byte   s2[sizeof(s_sig)];
+    word32 l2;
+    int    ret;
 
     mcdc_fh_disarm();
     if (wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s_sig, &sigLen, s_msg,
@@ -170,16 +185,43 @@ static void wb_sweep_sign(wc_MlDsaKey* key)
     k = mcdc_fh_seen();
     printf("  [wb] sign K=%ld\n", k);
 
+    /* A buffer that is too small is rejected before anything is written. */
+    XMEMSET(s2, 0xa5, sizeof(s2));
+    l2 = sigLen - 1;
+    ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
+        (word32)sizeof(s_msg), s_sigSeed);
+    if ((ret != WC_NO_ERR_TRACE(BUFFER_E)) || !wb_all_bytes(s2, sigLen, 0xa5)) {
+        WB_NOTE("short signature buffer not rejected untouched");
+        wb_fail = 1;
+    }
+
     for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_SIGN)) {
-        byte   s2[sizeof(s_sig)];
-        word32 l2 = (word32)sizeof(s2);
+        l2 = (word32)sizeof(s2);
+        XMEMSET(s2, 0xa5, sizeof(s2));
         mcdc_fh_arm(n);
-        (void)wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
+        ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
             (word32)sizeof(s_msg), s_sigSeed);
         mcdc_fh_disarm();
+        /* A failed signature leaves the buffer untouched or all zero. */
+        if (ret != 0) {
+            if (wb_all_bytes(s2, sigLen, 0)) {
+                scrubbed++;
+            }
+            else if (!wb_all_bytes(s2, sigLen, 0xa5)) {
+                partial++;
+            }
+        }
         points++;
     }
-    printf("  [wb] sign sweep: %ld points\n", points);
+    printf("  [wb] sign sweep: %ld points, %ld scrubbed\n", points, scrubbed);
+    if (partial != 0) {
+        WB_NOTE("failed sign left part of a signature behind");
+        wb_fail = 1;
+    }
+    if (scrubbed == 0) {
+        WB_NOTE("no failure reached the signature scrub");
+        wb_fail = 1;
+    }
 }
 
 #else

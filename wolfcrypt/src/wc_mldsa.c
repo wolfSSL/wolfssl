@@ -9811,6 +9811,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
 #endif
+    /* Parts of the commit and z are written into the caller's buffer as they
+     * are produced. Do not leave them there on failure. The length is only
+     * set once the buffer was known to be big enough. */
+    if ((ret != 0) && (*sigLen == params->sigSz)) {
+        ForceZero(sig, params->sigSz);
+    }
     if (y != NULL) {
         word32 zeroSz = allocSz;
 #ifndef WC_MLDSA_CACHE_MATRIX_A
@@ -10376,6 +10382,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
 #endif
+    /* Parts of the commit and z are written into the caller's buffer as they
+     * are produced. Do not leave them there on failure. The length is only
+     * set once the buffer was known to be big enough. */
+    if ((ret != 0) && (*sigLen == params->sigSz)) {
+        ForceZero(sig, params->sigSz);
+    }
     if (y != NULL) {
         ForceZero(y, allocSz);
     }
@@ -10774,6 +10786,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
 #endif
+    /* Parts of the commit and z are written into the caller's buffer as they
+     * are produced. Do not leave them there on failure. The length is only
+     * set once the buffer was known to be big enough. */
+    if ((ret != 0) && (*sigLen == params->sigSz)) {
+        ForceZero(sig, params->sigSz);
+    }
     /* Checksums are derived from the secret mask y. */
     ForceZero(yChk, sizeof(yChk));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
