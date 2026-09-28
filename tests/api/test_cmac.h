@@ -36,6 +36,7 @@ int test_wc_AesCmacGenerateExDecisionCoverage(void);
 int test_wc_AesCmacVerifyExDecisionCoverage(void);
 int test_wc_AesCmacVerify_CryptoCb_LenMismatch(void);
 int test_wc_CryptoCb_CmacFree(void);
+int test_wc_CryptoCb_CmacTagLen(void);
 
 #define TEST_CMAC_DECLS                                 \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac),          \
@@ -49,6 +50,7 @@ int test_wc_CryptoCb_CmacFree(void);
     TEST_DECL_GROUP("cmac", test_wc_AesCmacGenerateExDecisionCoverage), \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacVerifyExDecisionCoverage), \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacVerify_CryptoCb_LenMismatch), \
-    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacFree)
+    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacFree),                     \
+    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacTagLen)
 
 #endif /* WOLFCRYPT_TEST_CMAC_H */
