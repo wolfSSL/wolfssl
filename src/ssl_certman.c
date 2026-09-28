@@ -806,7 +806,7 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(WOLFSSL_CERT_MANAGER* cm,
         return BAD_FUNC_ARG;
     }
     cm->crlUnknownExtCallback32Ex  = cb;
-    cm->crlUnknownExtCallbackExCtx = ctx;
+    cm->crlUnknownExtCallback32ExCtx = ctx;
     return WOLFSSL_SUCCESS;
 }
 #endif /* HAVE_CRL */
@@ -3036,6 +3036,14 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     }
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback32 != NULL) {
+        wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
+    }
+    if (cm->unknownExtCallback != NULL) {
+        wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+    }
+#endif
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
         FreeDecodedCert(cert);
         XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);

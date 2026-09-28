@@ -954,6 +954,8 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
         dcrl->unknownExtCallback32Ex  = crl->cm->crlUnknownExtCallback32Ex;
         dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+        dcrl->unknownExtCallback32ExCtx =
+            crl->cm->crlUnknownExtCallback32ExCtx;
     }
 #endif
     ret = ParseCRL(currentEntry->certs, dcrl, myBuffer, (word32)sz,
@@ -1288,6 +1290,8 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
         dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
         dcrl->unknownExtCallback32Ex  = crl->cm->crlUnknownExtCallback32Ex;
         dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+        dcrl->unknownExtCallback32ExCtx =
+            crl->cm->crlUnknownExtCallback32ExCtx;
     }
 #endif
     ret = ParseCRL(crle->certs, dcrl, myBuffer, (word32)sz,

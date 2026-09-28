@@ -378,7 +378,6 @@ struct wc_PKCS7 {
     /* The word32 callback receives untruncated OID arcs, so it takes
      * precedence: when both are set only unknownExtCallback32 is invoked. */
     wc_UnknownExtCallback   unknownExtCallback;
-    wc_UnknownExtCallback32 unknownExtCallback32;
 #endif
 
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
@@ -426,6 +425,9 @@ struct wc_PKCS7 {
     byte pssParamsPresent;
 #endif
 
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    wc_UnknownExtCallback32 unknownExtCallback32;
+#endif
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 

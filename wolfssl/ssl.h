@@ -4577,9 +4577,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
      * a word32 CRL callback are set on the same cert manager, only the word32
      * callback is invoked.
      *
-     * The Ex variants share one context slot with
-     * wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(), so registering one
-     * overwrites the context registered by the other.
+     * The word32 Ex variant keeps its own context, independent of the one
+     * registered with wolfSSL_CertManagerSetCRLUnknownExtCallbackEx().
      *
      * Both return WOLFSSL_SUCCESS, or BAD_FUNC_ARG when cm is NULL. */
     WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback32(

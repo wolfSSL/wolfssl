@@ -3750,7 +3750,9 @@ int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
      * ways. */
     for (reg32First = 0; reg32First < 2; reg32First++) {
         WOLFSSL_CERT_MANAGER* cm = NULL;
+        /* Separate contexts: each Ex callback must receive its own. */
         CRLUnkExtCtx ctx = { 0, 0, 0 };
+        CRLUnkExtCtx ctx16 = { 0, 0, 0 };
 
         crl_unk_ext_last_cb = -1;
 
@@ -3763,11 +3765,11 @@ int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
             ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
                 crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
             ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-                crl_unk_ext_cb_16_reject, &ctx), WOLFSSL_SUCCESS);
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
         }
         else {
             ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-                crl_unk_ext_cb_16_reject, &ctx), WOLFSSL_SUCCESS);
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
             ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
                 crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
         }
@@ -3781,6 +3783,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
         ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx16.calls, 0);
         ExpectIntEQ(crl_unk_ext_last_cb, 1);
 
         wolfSSL_CertManagerFree(cm);

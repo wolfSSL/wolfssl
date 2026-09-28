@@ -2854,8 +2854,8 @@ struct WOLFSSL_CERT_MANAGER {
     wc_UnknownExtCallback32   crlUnknownExtCallback32;
     wc_UnknownExtCallbackEx   crlUnknownExtCallbackEx;
     wc_UnknownExtCallback32Ex crlUnknownExtCallback32Ex;
-    /* Shared by crlUnknownExtCallbackEx and crlUnknownExtCallback32Ex. */
     void*                     crlUnknownExtCallbackExCtx;
+    void*                     crlUnknownExtCallback32ExCtx;
 #endif
 #endif
 #ifdef HAVE_CRL_UPDATE_CB

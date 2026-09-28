@@ -13443,9 +13443,8 @@ static int SetCurve(ecc_key* key, byte* output, size_t outSz)
     }
 
 #ifdef HAVE_OID_ENCODING
-    /* ecc_oid_t cannot be changed due to it being in the FIPS boundary so we
-     * have a work around of upsizing its representation. */
-    /* Get the size of the encoded OID without having an encoded output */
+    /* ecc_oid_t cannot be changed due to it being in the FIPS boundary. So
+     * we use the word16 version of EncodeObjectId*/
     ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
     if (ret != 0) {
         return ret;
@@ -15205,7 +15204,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     word32 oid      = 0;
     word32 idx      = 0;
     word32 tmpName[MAX_OID_SZ];
-    char   oidName[MAX_OID_SZ];
+    char   oidName[MAX_OID_STRING_SZ];
     char*  finalName = NULL;
 
     if (entry == NULL || entry->type != ASN_RID_TYPE) {
@@ -15216,7 +15215,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         return BAD_FUNC_ARG;
     }
 
-    XMEMSET(&oidName, 0, MAX_OID_SZ);
+    XMEMSET(&oidName, 0, sizeof(oidName));
 
     ret = GetOID((const byte*)entry->name, &idx, &oid, oidIgnoreType,
                  entry->len);
@@ -15237,20 +15236,22 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                 j = 0;
                 /* Append each number of dotted form. */
                 for (i = 0; (word32)i < tmpSize; i++) {
-                    if (j >= MAX_OID_SZ) {
+                    if (j >= MAX_OID_STRING_SZ) {
                         return BUFFER_E;
                     }
 
                     if ((word32)i < tmpSize - 1) {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%u.", tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_STRING_SZ
+                                    - j),
+                            "%lu.", (unsigned long)tmpName[i]);
                     }
                     else {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%u", tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_STRING_SZ
+                                    - j),
+                            "%lu", (unsigned long)tmpName[i]);
                     }
 
-                    if (ret >= 0 && ret < MAX_OID_SZ - j) {
+                    if (ret >= 0 && ret < MAX_OID_STRING_SZ - j) {
                         j += ret;
                     }
                     else {
@@ -15265,7 +15266,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
     if (ret == 0) {
         nameSz = (word16)XSTRLEN((const char*)finalName);
-        if (nameSz > MAX_OID_SZ) {
+        if (nameSz > MAX_OID_STRING_SZ) {
             return BUFFER_E;
         }
 
@@ -23341,7 +23342,7 @@ int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
     }
 
     cert->unknownExtCallback32Ex  = cb;
-    cert->unknownExtCallbackExCtx = ctx;
+    cert->unknownExtCallback32ExCtx = ctx;
     return 0;
 }
 
@@ -23427,6 +23428,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
                                   critical,
                                   dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                   dataASN[CERTEXTASN_IDX_VAL].length);
+                        /* make sure that all non zero returns are treated as
+                         * errors */
+                        if (ret > 0) {
+                            ret = ASN_PARSE_E;
+                        }
                     }
 
                     if (ret == 0 && cert->unknownExtCallback32Ex != NULL) {
@@ -23434,7 +23440,12 @@ static int DecodeCertExtensions(DecodedCert* cert)
                                   critical,
                                   dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                   dataASN[CERTEXTASN_IDX_VAL].length,
-                                  cert->unknownExtCallbackExCtx);
+                                  cert->unknownExtCallback32ExCtx);
+                        /* make sure that all non zero returns are treated as
+                         * errors */
+                        if (ret > 0) {
+                            ret = ASN_PARSE_E;
+                        }
                     }
                 }
                 else if (cert->unknownExtCallbackEx != NULL ||
@@ -23458,6 +23469,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
                                   critical,
                                   dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                   dataASN[CERTEXTASN_IDX_VAL].length);
+                        /* make sure that all non zero returns are treated as
+                         * errors */
+                        if (ret > 0) {
+                            ret = ASN_PARSE_E;
+                        }
                     }
 
                     if (ret == 0 && cert->unknownExtCallbackEx != NULL) {
@@ -23466,6 +23482,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
                                   dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                                   dataASN[CERTEXTASN_IDX_VAL].length,
                                   cert->unknownExtCallbackExCtx);
+                        /* make sure that all non zero returns are treated as
+                         * errors */
+                        if (ret > 0) {
+                            ret = ASN_PARSE_E;
+                        }
                     }
                 }
             }
@@ -38483,7 +38504,7 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                     if (cbRet == 0 && dcrl->unknownExtCallback32Ex != NULL) {
                         cbRet = dcrl->unknownExtCallback32Ex(decOid, decOidSz,
                             critical, buff + valIdx, (word32)valLen,
-                            dcrl->unknownExtCallbackExCtx);
+                            dcrl->unknownExtCallback32ExCtx);
                     }
                     if (cbRet != 0) {
                         /* Must stay negative: BufferLoadCRL converts its result
@@ -38990,7 +39011,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                                 dataASN[CERTEXTASN_IDX_VAL]
                                 .data.buffer.data,
                                 dataASN[CERTEXTASN_IDX_VAL].length,
-                                dcrl->unknownExtCallbackExCtx);
+                                dcrl->unknownExtCallback32ExCtx);
                         }
                         if (ret > 0) {
                             /* Must stay negative: BufferLoadCRL converts its
@@ -40488,7 +40509,7 @@ static void PrintObjectIdNum(XFILE file, unsigned char* oid, word32 len)
     if (DecodeObjectId32(oid, len, dotted_nums, &num) == 0) {
         /* Print out each number of dotted form. */
         for (i = 0; i < num; i++) {
-            XFPRINTF(file, "%u", dotted_nums[i]);
+            XFPRINTF(file, "%lu", (unsigned long)dotted_nums[i]);
             /* Add separator. */
             if (i < num - 1) {
                 XFPRINTF(file, ".");

@@ -1862,9 +1862,7 @@ typedef struct WOLFSSL_AIA_ENTRY {
 /* Unknown extension callbacks.  The word16 forms truncate OID arcs with
  * values > 65535; the ...32 forms receive every arc untruncated and should be
  * preferred in new code.  When both a word16 and a word32 callback are
- * registered on the same object, only the word32 callback is invoked.  The
- * two Ex forms share a single context slot, so registering one overwrites the
- * context registered by the other. */
+ * registered on the same object, only the word32 callback is invoked. */
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
 typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
@@ -2261,6 +2259,7 @@ struct DecodedCert {
     wc_UnknownExtCallbackEx   unknownExtCallbackEx;
     wc_UnknownExtCallback32Ex unknownExtCallback32Ex;
     void*                     unknownExtCallbackExCtx;
+    void*                     unknownExtCallback32ExCtx;
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
@@ -3318,6 +3317,7 @@ struct DecodedCRL {
     wc_UnknownExtCallbackEx   unknownExtCallbackEx;
     wc_UnknownExtCallback32Ex unknownExtCallback32Ex;
     void*                     unknownExtCallbackExCtx;
+    void*                     unknownExtCallback32ExCtx;
 #endif
 };
 

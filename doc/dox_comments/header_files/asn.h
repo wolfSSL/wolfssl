@@ -87,10 +87,6 @@ void FreeAltNames(DNS_entry* altNames, void* heap);
     arcs. When both a word16 and a word32 callback are registered on the same
     DecodedCert, only the word32 callback is invoked.
 
-    \note wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex()
-    share a single context slot on the DecodedCert. Registering one overwrites
-    the context registered by the other.
-
     _Example_
     \code
     DecodedCert cert;
@@ -135,10 +131,6 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex() (or their
     non-Ex counterparts) have been called on the same DecodedCert, only the
     word32 callback is invoked.
-
-    \note wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex()
-    share a single context slot on the DecodedCert. Registering one overwrites
-    the context registered by the other.
 
     _Example_
     \code
