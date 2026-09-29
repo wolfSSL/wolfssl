@@ -69829,7 +69829,7 @@ out:
         if (ret == 0) {
             WC_RNG kgRng;
 
-            r = wc_InitRng_ex(&kgRng, HEAP_HINT, INVALID_DEVID);
+            r = wc_InitRng_ex(&kgRng, HEAP_HINT, devId);
             if (r != 0) {
                 ret = WC_TEST_RET_ENC_EC(r);
             }
@@ -95143,8 +95143,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if ((!WC_VAR_OK(key)) || (!WC_VAR_OK(mldsaRng)))
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         if (ret == 0) {
-            /* The device ignores the RNG; keep it off the callback path. */
-            r = wc_InitRng_ex(mldsaRng, HEAP_HINT, INVALID_DEVID);
+            r = wc_InitRng_ex(mldsaRng, HEAP_HINT, devId);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
             else
