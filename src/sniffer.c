@@ -20,6 +20,7 @@
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <stddef.h>
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -4930,7 +4931,8 @@ static int DoHandShake(const byte* input, int* sslBytes,
     if (session->tlsFragBuf) {
         word32 needed;
 
-        if (rhSize > session->tlsFragSize - session->tlsFragOffset) {
+        if (session->tlsFragOffset > session->tlsFragSize ||
+            rhSize > session->tlsFragSize - session->tlsFragOffset) {
             SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
         }
@@ -4939,7 +4941,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             byte* fragment;
             word32 capacity = session->tlsFragCapacity;
 
-            if (capacity < session->tlsFragSize / 2)
+            if (capacity == 0)
+                capacity = needed;
+            else if (capacity < session->tlsFragSize / 2)
                 capacity *= 2;
             else
                 capacity = session->tlsFragSize;
@@ -6804,23 +6808,27 @@ doMessage:
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
         if (sslFrame != NULL) {
-            word32 overhead = (word32)(sslFrame -
-                ssl->buffers.outputBuffer.buffer);
+            ptrdiff_t overhead = sslFrame -
+                ssl->buffers.outputBuffer.buffer;
 
             /* The decrypted handshake ends before the record MAC, block
              * padding, and TLS 1.3 inner content type. TLS 1.2 AEAD also
              * carries an explicit IV that is not written to output. */
             if ((enum ContentType)rh.type == handshake) {
+                word32 payloadSz;
+
                 if (!ssl->options.tls1_3 && ssl->specs.cipher_type == aead &&
                     ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
                     overhead += AESGCM_EXP_IV_SZ;
                 }
-                if (overhead > (word32)rhSize ||
-                    ssl->keys.padSz > (word32)rhSize - overhead) {
+                if (overhead < 0 || overhead > (ptrdiff_t)rhSize ||
+                    ssl->keys.padSz > (word32)rhSize - (word32)overhead) {
                     SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
                     return WOLFSSL_FATAL_ERROR;
                 }
-                recordEnd = sslFrame + rhSize - overhead - ssl->keys.padSz;
+                payloadSz = (word32)rhSize - (word32)overhead -
+                    ssl->keys.padSz;
+                recordEnd = sslFrame + payloadSz;
             }
             else {
                 /* sslFrame moved so should recordEnd */
@@ -6855,10 +6863,17 @@ doPart:
     switch ((enum ContentType)rh.type) {
         case handshake:
             {
-                int startIdx = (int)(recordEnd - sslFrame);
-                int handshakeBytes = startIdx;
+                ptrdiff_t recordBytes = recordEnd - sslFrame;
+                int startIdx;
+                int handshakeBytes;
                 int used;
 
+                if (recordBytes < 0 || recordBytes > rhSize) {
+                    SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                startIdx = (int)recordBytes;
+                handshakeBytes = startIdx;
                 Trace(GOT_HANDSHAKE_STR);
                 ret = DoHandShake(sslFrame, &handshakeBytes, session, error,
                     (word32)startIdx);
