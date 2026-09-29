@@ -2297,6 +2297,97 @@ int test_wolfSSL_client_cache_id_overwrite(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_client_cache_set1_id(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_NGINX)) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_SESSION_CACHE_REF) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* owned = NULL;
+    const byte* cachedId = NULL;
+    unsigned int idLen = 0;
+    struct test_memio_ctx test_ctx;
+    static const byte sidCtx[] = { 's', 'i', 'd', 'c', 't', 'x' };
+    byte newId[ID_LEN];
+    byte origId[ID_LEN];
+
+    XMEMSET(newId, 0xA5, sizeof(newId));
+    XMEMSET(origId, 0, sizeof(origId));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->haveAltSessionID, 0);
+
+    /* A client-side handle is a ClientCache reference, not a session. */
+    ExpectNotNull(sess = wolfSSL_get_session(ssl_c));
+    ExpectNotNull(cachedId = wolfSSL_SESSION_get_id(sess, &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    ExpectIntNE(XMEMCMP(cachedId, newId, ID_LEN), 0);
+    if (cachedId != NULL) {
+        XMEMCPY(origId, cachedId, ID_LEN);
+    }
+
+    ExpectIntEQ(wolfSSL_SESSION_set1_id_context(sess, sidCtx, sizeof(sidCtx)),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->sessionCtxSz, sizeof(sidCtx));
+    ExpectBufEQ(ssl->session->sessionCtx, sidCtx, sizeof(sidCtx));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Re-keying a cache entry would orphan the handle, so only a no-op is
+     * accepted. */
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(sess, newId, ID_LEN),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(sess, newId, ID_LEN - 1),
+        WOLFSSL_FAILURE);
+    ExpectBufEQ(cachedId, origId, ID_LEN);
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(sess, origId, ID_LEN),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(sess, cachedId, ID_LEN),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->sessionID, origId, ID_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* An owned session is not a cache entry and takes a new ID. */
+    ExpectNotNull(owned = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(owned, newId, ID_LEN),
+        WOLFSSL_SUCCESS);
+    ExpectBufEQ(owned->sessionID, newId, ID_LEN);
+    ExpectBufEQ(cachedId, origId, ID_LEN);
+    wolfSSL_SESSION_free(owned);
+
+    wolfSSL_CTX_flush_sessions(ctx_c, (long)-1);
+    /* The handle no longer resolves once its entry is evicted. */
+    ExpectIntEQ(wolfSSL_SESSION_set1_id(sess, origId, ID_LEN),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_SESSION_set1_id_context(sess, sidCtx, sizeof(sidCtx)),
+        WOLFSSL_FAILURE);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) && \
     !defined(SESSION_CACHE_DYNAMIC_MEM) && !defined(TITAN_SESSION_CACHE) && \
     !defined(HUGE_SESSION_CACHE)

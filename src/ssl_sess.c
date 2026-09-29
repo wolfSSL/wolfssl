@@ -4525,16 +4525,26 @@ const unsigned char *wolfSSL_SESSION_get0_id_context(
 int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
                                  const unsigned char *sid, unsigned int sid_len)
 {
-    if (s == NULL) {
+    WOLFSSL_SESSION* sess = ClientSessionToSession(s);
+
+    if (sess == NULL) {
         return WOLFSSL_FAILURE;
     }
     if (sid_len > ID_LEN) {
         return WOLFSSL_FAILURE;
     }
+    if (sess != s) {
+        /* A client cache handle is keyed by its ID, so it can't change. */
+        if (sid_len == sess->sessionIDSz &&
+                XMEMCMP(sid, sess->sessionID, sid_len) == 0) {
+            return WOLFSSL_SUCCESS;
+        }
+        return WOLFSSL_FAILURE;
+    }
 
-    s->sessionIDSz = (byte)sid_len;
-    if (sid != s->sessionID) {
-        XMEMCPY(s->sessionID, sid, sid_len);
+    sess->sessionIDSz = (byte)sid_len;
+    if (sid != sess->sessionID) {
+        XMEMCPY(sess->sessionID, sid, sid_len);
     }
     return WOLFSSL_SUCCESS;
 }
@@ -4542,6 +4552,7 @@ int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
 int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
                          const unsigned char *sid_ctx, unsigned int sid_ctx_len)
 {
+    s = ClientSessionToSession(s);
     if (s == NULL) {
         return WOLFSSL_FAILURE;
     }
