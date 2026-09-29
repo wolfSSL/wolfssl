@@ -5933,7 +5933,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         #endif
         ssl->options.rejectTicket = 0;
+        /* Records that the handshake in progress took a ticket, and selects
+         * the retained session over a session id lookup. Only the current
+         * ClientHello may set it. */
+        ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
     #endif
+        /* A server keeps its session across the reset, and the cache lookup
+         * prefers this id over the one the ClientHello carries. The next
+         * client has not asked for that session, so the id goes; a client
+         * keeps it, being the side that resumes what it held. */
+        if ((ssl->options.side == WOLFSSL_SERVER_END) &&
+                (ssl->session != NULL)) {
+            ssl->session->haveAltSessionID = 0;
+            ForceZero(ssl->session->altSessionID, ID_LEN);
+        }
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;

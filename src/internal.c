@@ -41956,6 +41956,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* Reset to sane value for SCR */
         ssl->options.resuming = 0;
         ssl->arrays->sessionIDSz = 0;
+#ifdef HAVE_SESSION_TICKET
+        /* Set again below by TLSX_SessionTicket_Parse() when this ClientHello
+         * carries a ticket. HandleTlsResumption() takes the retained session
+         * instead of the presented session id when it is set, so a value left
+         * over from an earlier handshake on this object must not reach it. */
+        ssl->options.useTicket = 0;
+#endif
 
         /* protocol version, random and session id length check */
         if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
