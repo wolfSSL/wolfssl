@@ -2570,6 +2570,16 @@ static int test_ocsp_chain_stapling_timeout_ctx_ready(WOLFSSL_CTX* ctx)
     return EXPECT_RESULT();
 }
 
+static int test_ocsp_chain_stapling_timeout_client_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
 int test_ocsp_chain_stapling_timeout(void)
 {
     EXPECT_DECLS;
@@ -2607,6 +2617,8 @@ int test_ocsp_chain_stapling_timeout(void)
         }
 #endif
         test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready =
+            test_ocsp_chain_stapling_timeout_client_ctx_ready;
         test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
         test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
         test_ctx.s_cb.ctx_ready = test_ocsp_chain_stapling_timeout_ctx_ready;
