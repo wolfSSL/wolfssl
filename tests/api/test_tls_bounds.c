@@ -822,11 +822,14 @@ int test_TLS_hmac_bounds(void)
                     (word32)(WOLFSSL_MAX_32BIT - 32), 0, application_data, 1,
                     PEER_ORDER), WC_NO_ERR_TRACE(BUFFER_E));
 
-#ifdef WOLFSSL_TEST_STATIC_BUILD
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFSSL_NO_HASH_RAW) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         /* Hmac_UpdateFinal_CT()'s own "macLen <= 0" guard: force hash_size
          * to 0 for this call only. wc_HmacSetKey() accepts a zero-length
          * key (RFC 2104 permits an empty key), so ret stays 0 and this
-         * still reaches the constant-time path with macLen == 0.
+         * still reaches the constant-time path with macLen == 0. The
+         * build conditions match TLS_hmac()'s own: the other path,
+         * Hmac_UpdateFinal(), takes no macLen and has no such guard.
          *
          * The guard's other half, "macLen > sizeof(hmac->innerHash)"
          * (innerHash is WC_MAX_DIGEST_SIZE bytes), is excluded: macLen is
