@@ -13969,11 +13969,16 @@ int test_wc_AesEcb_RetCodeChecked(void)
 /* MC/DC pairs the 2026 upstream aes.c changes left open: the GcmInit/
  * GcmSetIV argument-clause tails, the zero-length key id, the CTR
  * leftover-keystream loop with an empty request, and the XTS unset-key
- * guard on both sides. */
+ * guard on both sides.
+ *
+ * Excluded under HAVE_SELFTEST: the CAVP self-test leg compiles the frozen
+ * wolfCrypt 4.1.0 aes.c, whose GCM-stream/XTS/CTR paths predate these
+ * guards, so the open aes.c this measures is not the one built (same
+ * exclusion as the AesFeatureCoverage GCM/CCM blocks). */
 int test_wc_AesReworkDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES)
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST)
     Aes        aes;
     byte       key16[16];
     byte       iv[WC_AES_BLOCK_SIZE];
@@ -14097,6 +14102,6 @@ int test_wc_AesReworkDecisionCoverage(void)
     ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#endif /* !NO_AES */
+#endif /* !NO_AES && !HAVE_SELFTEST */
     return EXPECT_RESULT();
 }
