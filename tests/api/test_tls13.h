@@ -60,6 +60,7 @@ int test_tls13_middlebox_compat_session_id(void);
 int test_tls13_middlebox_compat_server_ccs(void);
 int test_tls13_middlebox_compat_server_reuse(void);
 int test_tls13_middlebox_compat_hrr_ccs(void);
+int test_tls13_hrr_ch2_record_version(void);
 int test_tls13_middlebox_compat_server_ccs_retry(void);
 int test_tls13_middlebox_compat_hrr_ccs_retry(void);
 int test_tls13_middlebox_compat_client_ccs_retry(void);
@@ -194,6 +195,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_reuse), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs), \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_ch2_record_version), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs_retry), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs_retry), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_client_ccs_retry), \
