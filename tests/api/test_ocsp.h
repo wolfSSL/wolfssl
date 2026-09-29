@@ -30,6 +30,7 @@ int test_ocsp_status_request_scr(void);
 int test_ocsp_basic_verify(void);
 int test_ocsp_responder_keyhash_binding(void);
 int test_ocsp_response_parsing(void);
+int test_http_connect_blocking_mode(void);
 int test_ocsp_tls_cert_cb(void);
 int test_ocsp_status_request_v2_multi_revoked_single(void);
 int test_ocsp_cert_unknown_crl_fallback(void);

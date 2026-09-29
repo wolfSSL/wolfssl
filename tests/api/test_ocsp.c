@@ -283,6 +283,20 @@ int test_ocsp_response_parsing(void)
         DYNAMIC_TYPE_OCSP, NULL), OCSP_WANT_READ);
 
     XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_TIMEOUT);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = validHttpResp;
+    ioCtx.dataSz = (int)sizeof(validHttpResp) - 3;
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_TIMEOUT);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
     ioCtx.data = headerEarlyEndResp;
     ioCtx.dataSz = (int)sizeof(headerEarlyEndResp) - 1;
     ioCtx.maxChunk = 9;
@@ -298,6 +312,58 @@ int test_ocsp_response_parsing(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_OCSP && !NO_SHA */
+
+int test_http_connect_blocking_mode(void)
+{
+#if (defined(HAVE_OCSP) || (defined(HAVE_CRL) && defined(HAVE_CRL_IO))) && \
+    defined(HAVE_HTTP_CLIENT) && defined(HAVE_SOCKADDR) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_LWIP) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(SO_RCVTIMEO) && \
+    defined(SO_SNDTIMEO) && (defined(__unix__) || defined(__APPLE__))
+    EXPECT_DECLS;
+    SOCKET_T listener = SOCKET_INVALID;
+    SOCKET_T client = SOCKET_INVALID;
+    SOCKADDR_IN addr;
+    XSOCKLENT addrSz = (XSOCKLENT)sizeof(addr);
+    int ret;
+    int flags;
+
+    listener = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+    ExpectTrue(listener != SOCKET_INVALID);
+    if (listener != SOCKET_INVALID) {
+        XMEMSET(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        ret = XSOCKET_BIND(listener, (SOCKADDR*)&addr, sizeof(addr));
+        ExpectIntEQ(ret, 0);
+        if (ret == 0) {
+            ret = XSOCKET_LISTEN(listener, 1);
+            ExpectIntEQ(ret, 0);
+        }
+        if (ret == 0) {
+            ret = getsockname(listener, (SOCKADDR*)&addr, &addrSz);
+            ExpectIntEQ(ret, 0);
+        }
+        if (ret == 0) {
+            ExpectIntEQ(wolfIO_TcpConnect(&client, "127.0.0.1",
+                ntohs(addr.sin_port), 1), 0);
+            if (client != SOCKET_INVALID) {
+                flags = fcntl(client, F_GETFL, 0);
+                ExpectTrue(flags >= 0);
+                if (flags >= 0)
+                    ExpectIntEQ(flags & O_NONBLOCK, 0);
+            }
+        }
+    }
+    if (client != SOCKET_INVALID)
+        CloseSocket(client);
+    if (listener != SOCKET_INVALID)
+        CloseSocket(listener);
+    return EXPECT_SUCCESS();
+#else
+    return TEST_SKIPPED;
+#endif
+}
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA) && \
     !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
