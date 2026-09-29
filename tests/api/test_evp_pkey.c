@@ -1447,11 +1447,11 @@ int test_wolfSSL_EVP_PKEY_keygen(void)
 int test_wolfSSL_EVP_PKEY_keygen_reuse(void)
 {
     EXPECT_DECLS;
-/* wolfSSL_i2d_PrivateKey() needs OPENSSL_EXTRA plus !NO_ASN and !NO_PWDBASED,
- * and nothing here is OPENSSL_ALL only. */
+/* wolfSSL_i2d_PrivateKey() needs OPENSSL_EXTRA plus !NO_ASN, and nothing here
+ * is OPENSSL_ALL only. */
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
     defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_SELFTEST) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_ASN)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY* decoded = NULL;
     EVP_PKEY_CTX*     ctx = NULL;
@@ -1545,7 +1545,7 @@ int test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_pkcs8(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_CERTS) && !defined(NO_ASN)
     WOLFSSL_EVP_PKEY* wrapped = NULL;
     WOLFSSL_EVP_PKEY* fresh = NULL;
     WOLFSSL_EC_KEY*   ec = NULL;
@@ -1610,7 +1610,7 @@ int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void)
  * that half is the only coverage for the ECC_populate_EVP_PKEY() over-copy.
  * Gate on the union and keep the per-algorithm guards inside. */
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_ASN) && \
     ((!defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)) || defined(HAVE_ECC))
     const unsigned char* in;
     byte*             buf = NULL;
@@ -1701,7 +1701,7 @@ int test_wolfSSL_EVP_PKEY_get1_EC_KEY_reuse(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_CERTS) && !defined(NO_ASN)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EC_KEY*   ec1 = NULL;
     WOLFSSL_EC_KEY*   ec2 = NULL;
