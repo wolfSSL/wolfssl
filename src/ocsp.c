@@ -1228,6 +1228,17 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         goto error;
 
     if (resp->single != NULL) {
+        /* Free the whole SingleResponse chain, like
+         * wolfSSL_OCSP_RESPONSE_free(); FreeOcspEntry() only frees the
+         * entry's status chain, leaking any sibling entries chained on
+         * ->next when the object is reused for a multi-entry response. */
+        OcspEntry* nextSingle = resp->single->next;
+        while (nextSingle != NULL) {
+            OcspEntry* cur = nextSingle;
+            nextSingle = nextSingle->next;
+            FreeOcspEntry(cur, NULL);
+            XFREE(cur, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        }
         FreeOcspEntry(resp->single, NULL);
         XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
     }
