@@ -190,8 +190,8 @@ struct falcon_key {
 #ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
     byte* p;
     byte* k;
-    /* Allocated length of k. The release path zeroizes and must not take a
-     * length from key->level, which callers can set to anything. */
+    /* Allocated length of k. Every use of p and k checks key->level against
+     * it, since callers can write key->level directly. */
     word32 kSz;
 #else
     byte p[FALCON_MAX_PUB_KEY_SIZE];

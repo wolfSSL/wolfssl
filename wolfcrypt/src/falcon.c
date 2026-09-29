@@ -9082,11 +9082,11 @@ static void falcon_sm_ntt_p(word16* a, int n)
     }
 }
 
-static void falcon_sm_intt_p(word16* a, int n)
+static void falcon_sm_intt_p(word16* a, unsigned logn)
 {
-    int t = 1, m, i, j;
-    /* n divides p - 1, so n^-1 = p - (p - 1)/n. */
-    word32 ninv = FALCON_SM_P - (FALCON_SM_P - 1) / (word32)n;
+    int n = (int)MKN(logn), t = 1, m, i, j;
+    /* p - 1 = 5 * 2^13, so n^-1 = p - (p - 1)/n needs no division. */
+    word32 ninv = FALCON_SM_P - (5U << (13 - logn));
 
     for (m = n; m > 1; m >>= 1) {
         int h = m >> 1;
@@ -9185,7 +9185,7 @@ static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
             accp[u] = (word16)((k == 0) ? t : falcon_sm_csubp(accp[u] + t));
         }
     }
-    falcon_sm_intt_p(accp, n);
+    falcon_sm_intt_p(accp, logn);
 }
 
 /* In-place FFT of a self-adjoint polynomial of degree 2^logn from its first
@@ -9586,7 +9586,7 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
             falcon_sm_redp((word32)x[u] * ((word16*)w0)[u]) +
             falcon_sm_redp((word32)y[u] * ((word16*)w1)[u]));
     }
-    falcon_sm_intt_p(x, (int)n);
+    falcon_sm_intt_p(x, logn);
     s2 = w1;
     for (u = 0; u < n; u++) {
         s2[u] = (sword16)falcon_sm_center(x[u], FALCON_SM_P);
@@ -9667,31 +9667,59 @@ static int falcon_sm_sign_core(falcon_sampler_ctx* spc, falcon_sm_basis* b,
 }
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY && WOLFSSL_FALCON_SIGN_SMALLEST_MEM */
 
+#endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+
 /* ------------------------------------------------------------------------ */
 /* Public API                                                               */
 /* ------------------------------------------------------------------------ */
 
-static int falcon_level_params(byte level, unsigned* logn, int* n, word32* pubSz)
+static int falcon_level_params(const falcon_key* key, unsigned* logn, int* n,
+        word32* pubSz)
 {
-    switch (level) {
+    word32 keySz;
+
+    switch (key->level) {
 #ifndef WOLFSSL_NO_FALCON_LEVEL1
         case FALCON_LEVEL1:
             *logn = FALCON_LEVEL1_LOGN;
             *n = FALCON_LEVEL1_N;
             *pubSz = FALCON_LEVEL1_PUB_KEY_SIZE;
-            return 0;
+            keySz = FALCON_LEVEL1_KEY_SIZE;
+            break;
 #endif
 #ifndef WOLFSSL_NO_FALCON_LEVEL5
         case FALCON_LEVEL5:
             *logn = FALCON_LEVEL5_LOGN;
             *n = FALCON_LEVEL5_N;
             *pubSz = FALCON_LEVEL5_PUB_KEY_SIZE;
-            return 0;
+            keySz = FALCON_LEVEL5_KEY_SIZE;
+            break;
 #endif
         default:
             return BAD_FUNC_ARG;
     }
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+    /* A level written into the key directly must not outgrow p and k. */
+    if (key->kSz != keySz) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)keySz;
+#endif
+    return 0;
 }
+
+/* Nonzero when key->level is built and sizes the key's encoded buffers. */
+static int falcon_level_ok(const falcon_key* key)
+{
+    unsigned logn;
+    int n;
+    word32 pubSz;
+
+    return falcon_level_params(key, &logn, &n, &pubSz) == 0;
+}
+
+#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
 
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
 
@@ -9738,7 +9766,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     if (key == NULL || rng == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (falcon_level_params(key->level, &logn, &n, &pubSz) != 0) {
+    if (falcon_level_params(key, &logn, &n, &pubSz) != 0) {
         return BAD_FUNC_ARG;
     }
     keySz = (key->level == FALCON_LEVEL1) ? FALCON_LEVEL1_KEY_SIZE
@@ -9844,7 +9872,17 @@ static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
     (void)G;
     (void)scratch;
 
+    /* A cache built at another level: key->level was written directly. */
+#ifdef WC_FALCON_CACHE_PRIV_BASIS
+    if ((key->basis != NULL) && (key->basisSz != (word32)(4 * n))) {
+        falcon_cache_clear(key);
+    }
+#endif
 #ifdef WC_FALCON_CACHE_TREE
+    if ((key->expanded != NULL) && (key->expandedSz !=
+            (word32)(sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn)))) {
+        falcon_cache_clear(key);
+    }
     if (key->expanded == NULL) {
         word32 expandedSz =
             (word32)(sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn));
@@ -9966,7 +10004,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     if (!key->prvKeySet) {
         return BAD_FUNC_ARG;
     }
-    if (falcon_level_params(key->level, &logn, &n, &pubSz) != 0) {
+    if (falcon_level_params(key, &logn, &n, &pubSz) != 0) {
         return BAD_FUNC_ARG;
     }
     keySz  = (key->level == FALCON_LEVEL1) ? FALCON_LEVEL1_KEY_SIZE
@@ -10215,7 +10253,7 @@ int falcon_native_check_key(falcon_key* key)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (falcon_level_params(key->level, &logn, &n, &pubSz) != 0) {
+    if (falcon_level_params(key, &logn, &n, &pubSz) != 0) {
         return BAD_FUNC_ARG;
     }
     keySz = (key->level == FALCON_LEVEL1) ? FALCON_LEVEL1_KEY_SIZE
@@ -10258,16 +10296,10 @@ int falcon_native_check_key(falcon_key* key)
     }
 
     for (i = 0; i < n; i++) {
-        int x = (int)f[i];
-        if (x < 0) {
-            x += FALCON_Q;
-        }
-        ft[i] = (word16)x;
-        x = (int)g[i];
-        if (x < 0) {
-            x += FALCON_Q;
-        }
-        gt[i] = (word16)x;
+        ft[i] = (word16)((word32)(sword32)f[i] +
+            (FALCON_Q & (word32)((sword32)f[i] >> 31)));
+        gt[i] = (word16)((word32)(sword32)g[i] +
+            (FALCON_Q & (word32)((sword32)g[i] >> 31)));
     }
     falcon_get_tables(logn, &zetas, &izetas);
     falcon_ntt(ft, n, zetas);
@@ -10336,7 +10368,7 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     if (!key->pubKeySet) {
         return BAD_FUNC_ARG;
     }
-    if (falcon_level_params(key->level, &logn, &n, &pubSz) != 0) {
+    if (falcon_level_params(key, &logn, &n, &pubSz) != 0) {
         return BAD_FUNC_ARG;
     }
     heap = key->heap;
@@ -10949,7 +10981,7 @@ int wc_falcon_export_public(falcon_key* key,
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level != 1) && (key->level != 5)) {
+    if (!falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -10996,7 +11028,7 @@ int wc_falcon_import_public(const byte* in, word32 inLen,
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level != 1) && (key->level != 5)) {
+    if (!falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -11035,7 +11067,7 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
     word32 keySz;
     word32 concatSz;
 
-    if ((priv == NULL) || (key == NULL)) {
+    if ((priv == NULL) || (key == NULL) || !falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -11126,7 +11158,7 @@ int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level != 1) && (key->level != 5)) {
+    if (!falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -11173,7 +11205,7 @@ int wc_falcon_export_private(falcon_key* key, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level != 1) && (key->level != 5)) {
+    if (!falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -11536,7 +11568,7 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
 
 int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
-    if (key == NULL) {
+    if ((key == NULL) || !falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
@@ -11556,7 +11588,7 @@ int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
 
 int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
-    if (key == NULL) {
+    if ((key == NULL) || !falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 

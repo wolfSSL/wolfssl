@@ -58,7 +58,10 @@
 #include <math.h>
 
 static int wb_notes = 0;
+static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); wb_notes++; } while (0)
+#define WB_FAIL(msg) \
+    do { printf("  [wb][FAIL] %s\n", (msg)); wb_fail = 1; } while (0)
 #define WB_OK(msg)   do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if defined(HAVE_FALCON)
@@ -80,20 +83,20 @@ static void wb_comp_encode(void)
     /* both operands FALSE -> encodes, returns nonzero. */
     r = falcon_comp_encode(out, sizeof(out), x, logn);
     if (r == 0) {
-        WB_NOTE("comp_encode(in-range) expected nonzero");
+        WB_FAIL("comp_encode(in-range) expected nonzero");
     }
     /* left operand TRUE: x < -2047. */
     x[0] = -2048;
     r = falcon_comp_encode(out, sizeof(out), x, logn);
     if (r != 0) {
-        WB_NOTE("comp_encode(x<-2047) expected 0");
+        WB_FAIL("comp_encode(x<-2047) expected 0");
     }
     /* right operand TRUE (left FALSE): x > 2047. */
     x[0] = 0;
     x[1] = 2048;
     r = falcon_comp_encode(out, sizeof(out), x, logn);
     if (r != 0) {
-        WB_NOTE("comp_encode(x>2047) expected 0");
+        WB_FAIL("comp_encode(x>2047) expected 0");
     }
     WB_OK("falcon_comp_encode range operand pair exercised");
 }
@@ -116,30 +119,30 @@ static void wb_trim_i8(void)
     x[0] = 1; x[1] = 2;
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 5);
     if (r == 0) {
-        WB_NOTE("trim_i8_encode(valid) expected nonzero");
+        WB_FAIL("trim_i8_encode(valid) expected nonzero");
     }
     /* bits < 2 (cond0 TRUE). */
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 1);
     if (r != 0) {
-        WB_NOTE("trim_i8_encode(bits<2) expected 0");
+        WB_FAIL("trim_i8_encode(bits<2) expected 0");
     }
     /* bits > 8 (cond0 FALSE, cond1 TRUE). */
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 9);
     if (r != 0) {
-        WB_NOTE("trim_i8_encode(bits>8) expected 0");
+        WB_FAIL("trim_i8_encode(bits>8) expected 0");
     }
     /* encode range guard: bits=5 -> maxv=15, minv=-15.
      * x < minv (cond0 TRUE). */
     x[0] = -16; x[1] = 0;
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 5);
     if (r != 0) {
-        WB_NOTE("trim_i8_encode(x<minv) expected 0");
+        WB_FAIL("trim_i8_encode(x<minv) expected 0");
     }
     /* x > maxv (cond0 FALSE, cond1 TRUE). */
     x[0] = 0; x[1] = 16;
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 5);
     if (r != 0) {
-        WB_NOTE("trim_i8_encode(x>maxv) expected 0");
+        WB_FAIL("trim_i8_encode(x>maxv) expected 0");
     }
 
     /* --- decode: build a valid bits=5 encoding, then decode. This single
@@ -152,21 +155,21 @@ static void wb_trim_i8(void)
     x[0] = 3; x[1] = 4;
     r = falcon_trim_i8_encode(out, sizeof(out), x, logn, 5);
     if (r == 0) {
-        WB_NOTE("trim_i8_encode(for decode) expected nonzero");
+        WB_FAIL("trim_i8_encode(for decode) expected nonzero");
     }
     r = falcon_trim_i8_decode(dec, logn, 5, out, sizeof(out));
     if (r == 0) {
-        WB_NOTE("trim_i8_decode(valid) expected nonzero");
+        WB_FAIL("trim_i8_decode(valid) expected nonzero");
     }
     /* decode bits guard: bits < 2 (cond0 TRUE). */
     r = falcon_trim_i8_decode(dec, logn, 1, out, sizeof(out));
     if (r != 0) {
-        WB_NOTE("trim_i8_decode(bits<2) expected 0");
+        WB_FAIL("trim_i8_decode(bits<2) expected 0");
     }
     /* decode bits guard: bits > 8 (cond0 FALSE, cond1 TRUE). */
     r = falcon_trim_i8_decode(dec, logn, 9, out, sizeof(out));
     if (r != 0) {
-        WB_NOTE("trim_i8_decode(bits>8) expected 0");
+        WB_FAIL("trim_i8_decode(bits>8) expected 0");
     }
     WB_OK("falcon_trim_i8 encode/decode bits+range+loop pairs exercised");
 }
@@ -195,7 +198,7 @@ static void wb_privkey(void)
      * sklen<1 length check with sklen=0 -> BUFFER_E (no buffer deref). */
     ir = falcon_privkey_decode(sk, 0, f, g, F, logn);
     if (ir != WC_NO_ERR_TRACE(BUFFER_E)) {
-        WB_NOTE("privkey_decode(all-valid,sklen0) expected BUFFER_E");
+        WB_FAIL("privkey_decode(all-valid,sklen0) expected BUFFER_E");
     }
     /* NULL guard TRUE halves. */
     (void)falcon_privkey_decode(NULL, 10, f, g, F, logn);
@@ -209,7 +212,7 @@ static void wb_privkey(void)
     /* encode: all guards FALSE -> reaches max_sk<1 with max_sk=0 -> 0. */
     sr = falcon_privkey_encode(sk, 0, f, g, F, logn);
     if (sr != 0) {
-        WB_NOTE("privkey_encode(all-valid,max0) expected 0");
+        WB_FAIL("privkey_encode(all-valid,max0) expected 0");
     }
     /* NULL guard TRUE halves. */
     (void)falcon_privkey_encode(NULL, 10, f, g, F, logn);
@@ -237,44 +240,44 @@ static void wb_prng_sampler_init(WC_RNG* rng)
     /* prng_init both-FALSE: valid p + rng -> real init succeeds. */
     r = falcon_prng_init(&p, rng);
     if (r != 0) {
-        WB_NOTE("prng_init(valid) expected 0");
+        WB_FAIL("prng_init(valid) expected 0");
     }
     /* p==NULL (cond0 TRUE, early return before deref). */
     r = falcon_prng_init(NULL, rng);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("prng_init(p=NULL) expected BAD_FUNC_ARG");
+        WB_FAIL("prng_init(p=NULL) expected BAD_FUNC_ARG");
     }
     /* rng==NULL (cond0 FALSE, cond1 TRUE). */
     r = falcon_prng_init(&p, NULL);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("prng_init(rng=NULL) expected BAD_FUNC_ARG");
+        WB_FAIL("prng_init(rng=NULL) expected BAD_FUNC_ARG");
     }
 
     /* sampler_init both-FALSE (NULL guard) + both-FALSE (logn guard):
      * valid spc + rng + logn=9 -> proceeds to prng_init. */
     r = falcon_sampler_init(&spc, 9, rng);
     if (r != 0) {
-        WB_NOTE("sampler_init(valid) expected 0");
+        WB_FAIL("sampler_init(valid) expected 0");
     }
     /* spc==NULL (cond0 TRUE). */
     r = falcon_sampler_init(NULL, 9, rng);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sampler_init(spc=NULL) expected BAD_FUNC_ARG");
+        WB_FAIL("sampler_init(spc=NULL) expected BAD_FUNC_ARG");
     }
     /* rng==NULL (cond0 FALSE, cond1 TRUE). */
     r = falcon_sampler_init(&spc, 9, NULL);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sampler_init(rng=NULL) expected BAD_FUNC_ARG");
+        WB_FAIL("sampler_init(rng=NULL) expected BAD_FUNC_ARG");
     }
     /* logn < 1 (cond0 TRUE). */
     r = falcon_sampler_init(&spc, 0, rng);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sampler_init(logn<1) expected BAD_FUNC_ARG");
+        WB_FAIL("sampler_init(logn<1) expected BAD_FUNC_ARG");
     }
     /* logn > 10 (cond0 FALSE, cond1 TRUE). */
     r = falcon_sampler_init(&spc, 11, rng);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sampler_init(logn>10) expected BAD_FUNC_ARG");
+        WB_FAIL("sampler_init(logn>10) expected BAD_FUNC_ARG");
     }
     WB_OK("falcon_prng_init / falcon_sampler_init guard pairs exercised");
 }
@@ -295,19 +298,19 @@ static void wb_poly_big_to_small(void)
     /* both operands FALSE: z==0 in [-127,127]. */
     r = poly_big_to_small(d, s, 127, logn);
     if (r != 1) {
-        WB_NOTE("poly_big_to_small(in-range) expected 1");
+        WB_FAIL("poly_big_to_small(in-range) expected 1");
     }
     /* z < -lim (cond0 TRUE): bit30 set -> z = -(2^30). */
     s[0] = 0x40000000u;
     r = poly_big_to_small(d, s, 127, logn);
     if (r != 0) {
-        WB_NOTE("poly_big_to_small(z<-lim) expected 0");
+        WB_FAIL("poly_big_to_small(z<-lim) expected 0");
     }
     /* z > lim (cond0 FALSE, cond1 TRUE): z = 200. */
     s[0] = 200u;
     r = poly_big_to_small(d, s, 127, logn);
     if (r != 0) {
-        WB_NOTE("poly_big_to_small(z>lim) expected 0");
+        WB_FAIL("poly_big_to_small(z>lim) expected 0");
     }
     WB_OK("poly_big_to_small range operand pair exercised");
 }
@@ -367,7 +370,7 @@ static void wb_complete_private(void)
     g[0] = 127; F[0] = -97;
     r = falcon_complete_private(G, f, g, F, logn, NULL, NULL);
     if (r != 0) {
-        WB_NOTE("complete_private(in-range) expected 0");
+        WB_FAIL("complete_private(in-range) expected 0");
     }
     /* scratch != NULL: the borrow half of the scratch decision, which is the
      * one the signer uses. Same inputs, so the output must match the allocate
@@ -377,23 +380,23 @@ static void wb_complete_private(void)
     XMEMSET(scratch, 0, sizeof(scratch));
     r = falcon_complete_private(G, f, g, F, logn, NULL, scratch);
     if (r != 0) {
-        WB_NOTE("complete_private(borrowed scratch) expected 0");
+        WB_FAIL("complete_private(borrowed scratch) expected 0");
     }
     else if (XMEMCMP(G, Gref, sizeof(G)) != 0) {
-        WB_NOTE("complete_private(borrowed scratch) output differs from the "
+        WB_FAIL("complete_private(borrowed scratch) output differs from the "
                 "allocated-scratch output");
     }
     /* z > 127 (cond1 TRUE): a*b+q = 12290. */
     g[0] = 1; F[0] = 1;
     r = falcon_complete_private(G, f, g, F, logn, NULL, NULL);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("complete_private(z>127) expected BAD_FUNC_ARG");
+        WB_FAIL("complete_private(z>127) expected BAD_FUNC_ARG");
     }
     /* z < -127 (cond0 TRUE): a*b+q = -157. */
     g[0] = 127; F[0] = -98;
     r = falcon_complete_private(G, f, g, F, logn, NULL, NULL);
     if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("complete_private(z<-127) expected BAD_FUNC_ARG");
+        WB_FAIL("complete_private(z<-127) expected BAD_FUNC_ARG");
     }
 
     /* NULL/logn guard TRUE halves (each early-returns before any deref). */
@@ -430,22 +433,22 @@ static void wb_sm_complete_private(void)
 
     g[0] = 127; F[0] = -1;
     if (falcon_sm_complete_private(G, &b, scratch) != 0 || G[0] != -127) {
-        WB_NOTE("sm_complete_private(in-range) expected 0 and G[0] = -127");
+        WB_FAIL("sm_complete_private(in-range) expected 0 and G[0] = -127");
     }
     g[0] = 2; F[0] = 64;
     if (falcon_sm_complete_private(G, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sm_complete_private(G > 127) expected BAD_FUNC_ARG");
+        WB_FAIL("sm_complete_private(G > 127) expected BAD_FUNC_ARG");
     }
     g[0] = -2;
     if (falcon_sm_complete_private(G, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sm_complete_private(G < -127) expected BAD_FUNC_ARG");
+        WB_FAIL("sm_complete_private(G < -127) expected BAD_FUNC_ARG");
     }
     g[0] = 1; F[0] = 1; f[0] = 0;
     if (falcon_sm_complete_private(G, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        WB_NOTE("sm_complete_private(f not invertible) expected BAD_FUNC_ARG");
+        WB_FAIL("sm_complete_private(f not invertible) expected BAD_FUNC_ARG");
     }
     WB_OK("falcon_sm_complete_private range and invertibility exercised");
 }
@@ -470,19 +473,19 @@ static void wb_comp_decode(void)
     in[0] = 0x80; in[1] = 0x80;
     r = falcon_comp_decode(in, sizeof(in), x, logn);
     if (r != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
-        WB_NOTE("comp_decode(neg-zero) expected ASN_PARSE_E");
+        WB_FAIL("comp_decode(neg-zero) expected ASN_PARSE_E");
     }
     /* s != 0, mag != 0 : cond0 TRUE, cond1 FALSE -> accepted (-1). */
     in[0] = 0x81; in[1] = 0x80;
     r = falcon_comp_decode(in, sizeof(in), x, logn);
     if (r < 0) {
-        WB_NOTE("comp_decode(s!=0,mag!=0) expected accept");
+        WB_FAIL("comp_decode(s!=0,mag!=0) expected accept");
     }
     /* s == 0 : cond0 FALSE. */
     in[0] = 0x01; in[1] = 0x80;
     r = falcon_comp_decode(in, sizeof(in), x, logn);
     if (r < 0) {
-        WB_NOTE("comp_decode(s==0) expected accept");
+        WB_FAIL("comp_decode(s==0) expected accept");
     }
     WB_OK("falcon_comp_decode negative-zero operand pair exercised");
 }
@@ -503,7 +506,7 @@ static void wb_hash_to_point(void)
     XMEMSET(msg, 0, sizeof(msg));
     r = falcon_hash_to_point(NULL, msg, sizeof(msg), c, logn, NULL);
     if (r == 0) {
-        WB_NOTE("hash_to_point(nonce=NULL) expected error");
+        WB_FAIL("hash_to_point(nonce=NULL) expected error");
     }
     WB_OK("falcon_hash_to_point absorb error path exercised");
 }
@@ -558,16 +561,16 @@ static void wb_expand_and_ffsampling_guards(void)
     XMEMSET(escratch, 0, sizeof(escratch));
     r = falcon_expand_privkey(ereal, f8, g8, F8, G8, 2, NULL, NULL);
     if (r != 0) {
-        WB_NOTE("expand_privkey(allocated scratch) expected 0");
+        WB_FAIL("expand_privkey(allocated scratch) expected 0");
     }
     XMEMCPY(eref, ereal, sizeof(ereal));
     XMEMSET(ereal, 0, sizeof(ereal));
     r = falcon_expand_privkey(ereal, f8, g8, F8, G8, 2, NULL, escratch);
     if (r != 0) {
-        WB_NOTE("expand_privkey(borrowed scratch) expected 0");
+        WB_FAIL("expand_privkey(borrowed scratch) expected 0");
     }
     else if (XMEMCMP(ereal, eref, sizeof(ereal)) != 0) {
-        WB_NOTE("expand_privkey(borrowed scratch) output differs from the "
+        WB_FAIL("expand_privkey(borrowed scratch) output differs from the "
                 "allocated-scratch output");
     }
 
@@ -808,30 +811,30 @@ static void wb_native_roundtrip_level(WC_RNG* rng, byte level)
      * WOLFSSL_FALCON_DYNAMIC_KEYS that assignment is what allocates the
      * encoded key buffers, and the keygen below writes straight into them. */
     if (wc_falcon_init(&key) != 0) {
-        WB_NOTE("falcon_init failed; deep keygen paths skipped");
+        WB_FAIL("falcon_init failed; deep keygen paths skipped");
         return;
     }
     if (wc_falcon_set_level(&key, level) != 0) {
-        WB_NOTE("falcon_set_level failed; deep keygen paths skipped");
+        WB_FAIL("falcon_set_level failed; deep keygen paths skipped");
         wc_falcon_free(&key);
         return;
     }
 
     r = falcon_native_make_key(&key, rng);
     if (r != 0) {
-        WB_NOTE("native_make_key failed; deep keygen paths skipped");
+        WB_FAIL("native_make_key failed; deep keygen paths skipped");
         wc_falcon_free(&key);
         return;
     }
     r = falcon_native_sign_msg(msg, sizeof(msg), sig, &sigLen, &key, rng);
     if (r != 0) {
-        WB_NOTE("native_sign_msg failed; deep sign paths skipped");
+        WB_FAIL("native_sign_msg failed; deep sign paths skipped");
         wc_falcon_free(&key);
         return;
     }
     r = falcon_native_verify_msg(sig, sigLen, msg, sizeof(msg), &res, &key);
     if ((r != 0) || (res != 1)) {
-        WB_NOTE("native_verify_msg did not accept a self-signed message");
+        WB_FAIL("native_verify_msg did not accept a self-signed message");
     }
     wc_falcon_free(&key);
 }
@@ -887,7 +890,7 @@ static void wb_berexp_loop(WC_RNG* rng)
 
     XMEMSET(&p, 0, sizeof(p));
     if (falcon_prng_init(&p, rng) != 0) {
-        WB_NOTE("berexp: prng_init failed; loop-operand vector skipped");
+        WB_FAIL("berexp: prng_init failed; loop-operand vector skipped");
         return;
     }
 
@@ -938,13 +941,13 @@ static void wb_mkgauss_range(WC_RNG* rng)
 
     XMEMSET(&rc, 0, sizeof(rc));
     if (falcon_rng_init(&rc, rng, NULL) != 0) {
-        WB_NOTE("mkgauss: falcon_rng_init failed; range vectors skipped");
+        WB_FAIL("mkgauss: falcon_rng_init failed; range vectors skipped");
         return;
     }
     for (i = 0; i < 512; i++) {
         poly_small_mkgauss(&rc, f, 1);
         if (rc.err != 0) {
-            WB_NOTE("mkgauss: PRNG squeeze failed mid-run");
+            WB_FAIL("mkgauss: PRNG squeeze failed mid-run");
             break;
         }
     }
@@ -991,24 +994,24 @@ static int wb_check_key_case(falcon_key* key, sword8* poly, word16* h,
      * has to be set through the API that allocates them rather than assigned. */
     XMEMSET(key, 0, sizeof(*key));
     if (wc_falcon_init(key) != 0) {
-        WB_NOTE("check_key: init failed");
+        WB_FAIL("check_key: init failed");
         return 1;
     }
     if (wc_falcon_set_level(key, FALCON_LEVEL1) != 0) {
-        WB_NOTE("check_key: set_level failed");
+        WB_FAIL("check_key: set_level failed");
         wc_falcon_free(key);
         return 1;
     }
 
     if (falcon_privkey_encode(key->k, FALCON_LEVEL1_KEY_SIZE, poly, poly + n,
             poly + 2 * n, logn) != FALCON_LEVEL1_KEY_SIZE) {
-        WB_NOTE("check_key: privkey_encode did not fill the blob");
+        WB_FAIL("check_key: privkey_encode did not fill the blob");
     }
     else {
         key->p[0] = (byte)(FALCON_PUB_HEAD | logn);
         if (falcon_modq_encode(key->p + 1, FALCON_LEVEL1_PUB_KEY_SIZE - 1, h,
                 logn) == 0) {
-            WB_NOTE("check_key: modq_encode failed");
+            WB_FAIL("check_key: modq_encode failed");
         }
         else {
             ret = falcon_native_check_key(key);
@@ -1030,22 +1033,22 @@ static void wb_check_key_ntt_slots(void)
     poly = (sword8*)XMALLOC(3 * n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     h    = (word16*)XMALLOC(n * sizeof(word16), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if ((key == NULL) || (poly == NULL) || (h == NULL)) {
-        WB_NOTE("check_key: allocation failed; NTT-slot vectors skipped");
+        WB_FAIL("check_key: allocation failed; NTT-slot vectors skipped");
     }
     else {
         /* cond0 FALSE, cond1 FALSE: consistent (all-zero) relation. */
         if (wb_check_key_case(key, poly, h, 1, 0) != 0) {
-            WB_NOTE("check_key(f=1,h=0) expected acceptance");
+            WB_FAIL("check_key(f=1,h=0) expected acceptance");
         }
         /* cond0 FALSE, cond1 TRUE: invertible f but h*f != g. */
         if (wb_check_key_case(key, poly, h, 1, 1)
                 != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
-            WB_NOTE("check_key(f=1,h=1) expected a public-key mismatch");
+            WB_FAIL("check_key(f=1,h=1) expected a public-key mismatch");
         }
         /* cond0 TRUE: f == 0 is not invertible, so NTT(f) is zero. */
         if (wb_check_key_case(key, poly, h, 0, 0)
                 != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
-            WB_NOTE("check_key(f=0) expected a public-key mismatch");
+            WB_FAIL("check_key(f=0) expected a public-key mismatch");
         }
     }
     XFREE(h, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1145,7 +1148,7 @@ static void wb_solve_deepest_overflow(void)
     live = (word32*)XMALLOC(WB_SOLVE_WORDS * sizeof(word32), NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
     if ((scratch == NULL) || (live == NULL)) {
-        WB_NOTE("solve_NTRU_deepest: allocation failed; carry vectors skipped");
+        WB_FAIL("solve_NTRU_deepest: allocation failed; carry vectors skipped");
     }
     else {
         found[0] = found[1] = found[2] = found[3] = 0;
@@ -1160,13 +1163,13 @@ static void wb_solve_deepest_overflow(void)
                 }
                 XMEMSET(live, 0, WB_SOLVE_WORDS * sizeof(word32));
                 if (solve_NTRU_deepest(WB_DEEPEST_LOGN, f, g, live) != 0) {
-                    WB_NOTE("solve_NTRU_deepest: expected the carry rejection");
+                    WB_FAIL("solve_NTRU_deepest: expected the carry rejection");
                 }
                 found[want] = 1;
                 break;
             }
             if (!found[want]) {
-                WB_NOTE("solve_NTRU_deepest: no candidate for a carry pattern");
+                WB_FAIL("solve_NTRU_deepest: no candidate for a carry pattern");
             }
         }
     }
@@ -1202,7 +1205,7 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
     tmpbuf = (byte*)XMALLOC(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr), NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpbuf == NULL) {
-        WB_NOTE("solve_NTRU: allocation failed; lim vectors skipped");
+        WB_FAIL("solve_NTRU: allocation failed; lim vectors skipped");
         return;
     }
     for (tries = 0; tries < 8; tries++) {
@@ -1227,22 +1230,22 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
         }
     }
     if (!haveKey) {
-        WB_NOTE("solve_NTRU: keygen(logn=5) failed; lim vectors skipped");
+        WB_FAIL("solve_NTRU: keygen(logn=5) failed; lim vectors skipped");
     }
     else {
         /* cond0 TRUE: no coefficient of F can fit in [-0, 0]. */
         if (solve_NTRU(logn, Fout, Gout, f, g, 0, (word32*)tmpbuf) != 0) {
-            WB_NOTE("solve_NTRU(lim=0) expected the range rejection");
+            WB_FAIL("solve_NTRU(lim=0) expected the range rejection");
         }
         if (maxG > maxF) {
             /* cond0 FALSE, cond1 TRUE: F fits exactly, G overflows. */
             if (solve_NTRU(logn, Fout, Gout, f, g, maxF,
                     (word32*)tmpbuf) != 0) {
-                WB_NOTE("solve_NTRU(lim=max|F|) expected the G rejection");
+                WB_FAIL("solve_NTRU(lim=max|F|) expected the G rejection");
             }
         }
         else {
-            WB_NOTE("solve_NTRU: no key with max|G| > max|F| in 8 draws");
+            WB_FAIL("solve_NTRU: no key with max|G| > max|F| in 8 draws");
         }
     }
     ForceZero(tmpbuf, (word32)(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr)));
@@ -1273,7 +1276,7 @@ static void wb_solve_ntru_babai_clamp(WC_RNG* rng)
 
     for (i = 0; i < 256; i++) {
         if (falcon_keygen(rng, f, g, F, G, h, 3) != 0) {
-            WB_NOTE("solve_NTRU_intermediate: keygen(logn=3) failed");
+            WB_FAIL("solve_NTRU_intermediate: keygen(logn=3) failed");
             break;
         }
     }
@@ -1346,7 +1349,7 @@ static void wb_do_sign_tree_samplererr(void)
     /* (T,T): latched sampler error -> returns after the first rejection. */
     if (falcon_do_sign_tree(wb_samp_zero, NULL, s2, expanded, hm, WB_SIGN_LOGN,
             tmp, &err) != err) {
-        WB_NOTE("do_sign_tree(samplerErr set) expected the latched error");
+        WB_FAIL("do_sign_tree(samplerErr set) expected the latched error");
     }
     /* (F,-): no error pointer -> exhausts the restart bound. */
     (void)falcon_do_sign_tree(wb_samp_zero, NULL, s2, expanded, hm,
@@ -1383,12 +1386,12 @@ static void wb_sign_core_err(WC_RNG* rng)
     XMEMSET(hm, 0, sizeof(hm));
     if (falcon_expand_privkey(expanded, wb_basis_f, wb_basis_g, wb_basis_F,
             wb_basis_G, WB_SIGN_LOGN, NULL, NULL) != 0) {
-        WB_NOTE("sign_core: expand_privkey(test basis) failed");
+        WB_FAIL("sign_core: expand_privkey(test basis) failed");
         return;
     }
     XMEMSET(&spc, 0, sizeof(spc));
     if (falcon_sampler_init(&spc, WB_SIGN_LOGN, rng) != 0) {
-        WB_NOTE("sign_core: sampler_init failed; p.err vectors skipped");
+        WB_FAIL("sign_core: sampler_init failed; p.err vectors skipped");
         return;
     }
 
@@ -1409,7 +1412,7 @@ static void wb_sign_core_err(WC_RNG* rng)
     }
     spc.p.err = 0;
     if (!ok) {
-        WB_NOTE("sign_core: no accepted attempt with p.err latched");
+        WB_FAIL("sign_core: no accepted attempt with p.err latched");
     }
     wc_Shake256_Free(&spc.p.shake);
     ForceZero(&spc, sizeof(spc));
@@ -1442,7 +1445,7 @@ static void wb_do_sign_dyn_samplererr(void)
 
     if (falcon_do_sign_dyn(wb_samp_zero, NULL, s2, wb_basis_f, wb_basis_g,
             wb_basis_F, wb_basis_G, hm, WB_SIGN_LOGN, tmp, &err) != err) {
-        WB_NOTE("do_sign_dyn(samplerErr set) expected the latched error");
+        WB_FAIL("do_sign_dyn(samplerErr set) expected the latched error");
     }
     (void)falcon_do_sign_dyn(wb_samp_zero, NULL, s2, wb_basis_f, wb_basis_g,
             wb_basis_F, wb_basis_G, hm, WB_SIGN_LOGN, tmp, NULL);
@@ -1468,7 +1471,7 @@ static void wb_sign_dyn_core_err(WC_RNG* rng)
     XMEMSET(hm, 0, sizeof(hm));
     XMEMSET(&spc, 0, sizeof(spc));
     if (falcon_sampler_init(&spc, WB_SIGN_LOGN, rng) != 0) {
-        WB_NOTE("sign_dyn_core: sampler_init failed; p.err vectors skipped");
+        WB_FAIL("sign_dyn_core: sampler_init failed; p.err vectors skipped");
         return;
     }
 
@@ -1489,7 +1492,7 @@ static void wb_sign_dyn_core_err(WC_RNG* rng)
     }
     spc.p.err = 0;
     if (!ok) {
-        WB_NOTE("sign_dyn_core: no accepted attempt with p.err latched");
+        WB_FAIL("sign_dyn_core: no accepted attempt with p.err latched");
     }
     wc_Shake256_Free(&spc.p.shake);
     ForceZero(&spc, sizeof(spc));
@@ -1532,7 +1535,7 @@ static void wb_sm_do_sign_samplererr(void)
     XMEMSET(nonce, 7, sizeof(nonce));
     if (falcon_hash_to_point_absorb(&cst, nonce, msg, sizeof(msg), NULL)
             != 0) {
-        WB_NOTE("sm_do_sign: absorb failed; samplerErr vectors skipped");
+        WB_FAIL("sm_do_sign: absorb failed; samplerErr vectors skipped");
         return;
     }
     b.sk = NULL;
@@ -1542,7 +1545,7 @@ static void wb_sm_do_sign_samplererr(void)
     b.logn = WB_SM_LOGN;
     if (falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, &err)
             != err) {
-        WB_NOTE("sm_do_sign(samplerErr set) expected the latched error");
+        WB_FAIL("sm_do_sign(samplerErr set) expected the latched error");
     }
     (void)falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, NULL);
     (void)falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, &zero);
@@ -1623,7 +1626,7 @@ static void wb_sm_ldl_check(unsigned logn)
         wb_sm_ref[qn + j] = b - (ar * ar + ai * ai) / b;
     }
     if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-9) {
-        WB_NOTE("sm_ldl b or d differs from the split reference");
+        WB_FAIL("sm_ldl b or d differs from the split reference");
     }
     for (j = 0; j < hn; j++) {
         wb_sm_B[j] = fpr_of(wb_sm_rnd(-1000, 1000));
@@ -1641,7 +1644,7 @@ static void wb_sm_ldl_check(unsigned logn)
         wb_sm_ref[qn + j] = xr * li + xi * lr;
     }
     if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-9) {
-        WB_NOTE("sm_ldl l with sm_mul_ixadj differs from in * L10");
+        WB_FAIL("sm_ldl l with sm_mul_ixadj differs from in * L10");
     }
 }
 
@@ -1679,7 +1682,7 @@ static void wb_sm_transforms(unsigned logn)
         wb_sm_ref[j] = wb_sm_d(wb_sm_A[j]);
     }
     if (wb_sm_relerr(wb_sm_got, wb_sm_ref, hn) > 1e-12) {
-        WB_NOTE("sm_fft_selfadj differs from falcon_FFT");
+        WB_FAIL("sm_fft_selfadj differs from falcon_FFT");
     }
 
     /* Integer FFT, with c in the upper half of the output. */
@@ -1695,7 +1698,7 @@ static void wb_sm_transforms(unsigned logn)
         wb_sm_ref[j] = wb_sm_d(wb_sm_A[j]);
     }
     if (wb_sm_relerr(wb_sm_got, wb_sm_ref, n) > 1e-12) {
-        WB_NOTE("sm_fft_i32 differs from falcon_FFT");
+        WB_FAIL("sm_fft_i32 differs from falcon_FFT");
     }
 
     /* Every degree, so each table entry the tree levels read is used. */
@@ -1727,12 +1730,12 @@ static void wb_sm_transforms(unsigned logn)
     for (j = 0; j < n; j++) {
         xa[j] = (word16)falcon_sm_redp((word32)xa[j] * xb[j]);
     }
-    falcon_sm_intt_p(xa, (int)n);
+    falcon_sm_intt_p(xa, logn);
     for (j = 0; j < n; j++) {
         bad |= (xa[j] != (word16)ref[j]);
     }
     if (bad) {
-        WB_NOTE("sm_ntt_p product differs from the schoolbook product");
+        WB_FAIL("sm_ntt_p product differs from the schoolbook product");
     }
 
     /* CRT over the whole centred range. */
@@ -1747,7 +1750,7 @@ static void wb_sm_transforms(unsigned logn)
         bad |= (falcon_sm_crt(vq, vp) != v);
     }
     if (bad) {
-        WB_NOTE("sm_crt does not invert the residues");
+        WB_FAIL("sm_crt does not invert the residues");
     }
     WB_OK("smallest-mem transforms checked against the reference");
 }
@@ -1806,19 +1809,20 @@ static void wb_sm_sign_core_err(WC_RNG* rng)
     if (falcon_keygen(rng, basis, basis + WB_SM_N, basis + 2 * WB_SM_N,
             basis + 3 * WB_SM_N, h, WB_SM_LOGN) != 0 ||
             falcon_sampler_init(&spc, WB_SM_LOGN, rng) != 0) {
-        WB_NOTE("sm_sign_core: keygen or sampler_init failed; skipped");
+        WB_FAIL("sm_sign_core: keygen or sampler_init failed; skipped");
+        ForceZero(basis, sizeof(basis));
         return;
     }
     if (falcon_hash_to_point_absorb(&cst, nonce, msg, sizeof(msg), NULL)
             != 0) {
-        WB_NOTE("sm_sign_core: absorbing the target failed; skipped");
+        WB_FAIL("sm_sign_core: absorbing the target failed; skipped");
         wc_Shake256_Free(&spc.p.shake);
         ForceZero(&spc, sizeof(spc));
         ForceZero(basis, sizeof(basis));
         return;
     }
     if (falcon_sm_make_c(c, &cst, NULL, WB_SM_LOGN) != 0) {
-        WB_NOTE("sm_sign_core: squeezing the target failed; skipped");
+        WB_FAIL("sm_sign_core: squeezing the target failed; skipped");
         wc_Shake256_Free(&cst);
         wc_Shake256_Free(&spc.p.shake);
         ForceZero(&spc, sizeof(spc));
@@ -1842,12 +1846,13 @@ static void wb_sm_sign_core_err(WC_RNG* rng)
     }
     spc.p.err = 0;
     if (!ok) {
-        WB_NOTE("sm_sign_core: no accepted attempt with p.err latched");
+        WB_FAIL("sm_sign_core: no accepted attempt with p.err latched");
     }
     wc_Shake256_Free(&cst);
     wc_Shake256_Free(&spc.p.shake);
     ForceZero(&spc, sizeof(spc));
     ForceZero(basis, sizeof(basis));
+    ForceZero(tmp, sizeof(tmp));
     WB_OK("falcon_sm_sign_core (ret==0)&&(p.err!=0) operand pair exercised");
 }
 
@@ -1875,13 +1880,13 @@ static void wb_set_level_alloc_fail(void)
     XMEMSET(pub, 0xAB, sizeof(pub));
 
     if (wc_falcon_init(&key) != 0 || wc_falcon_set_level(&key, lvl) != 0) {
-        WB_NOTE("set_level alloc-fail setup failed; invariant not exercised");
+        WB_FAIL("set_level alloc-fail setup failed; invariant not exercised");
         return;
     }
     if (wc_falcon_import_public(pub, (word32)FALCON_MAX_PUB_KEY_SIZE,
             &key) != 0) {
         wc_falcon_free(&key);
-        WB_NOTE("set_level alloc-fail setup import failed");
+        WB_FAIL("set_level alloc-fail setup import failed");
         return;
     }
 
@@ -1891,28 +1896,28 @@ static void wb_set_level_alloc_fail(void)
     for (n = 1; n <= 2; n++) {
         mcdc_fa_arm(n);
         if (wc_falcon_set_level(&key, lvl) != WC_NO_ERR_TRACE(MEMORY_E)) {
-            WB_NOTE("set_level under allocation failure expected MEMORY_E");
+            WB_FAIL("set_level under allocation failure expected MEMORY_E");
         }
         mcdc_fa_disarm();
 
         if (key.level != 0 || key.pubKeySet != 0 || key.prvKeySet != 0) {
-            WB_NOTE("set_level left a level or key flag set after a failed "
+            WB_FAIL("set_level left a level or key flag set after a failed "
                     "allocation");
         }
         outLen = (word32)sizeof(out);
         if (wc_falcon_export_public(&key, out, &outLen) !=
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            WB_NOTE("export_public did not reject the emptied key");
+            WB_FAIL("export_public did not reject the emptied key");
         }
         if (wc_falcon_set_level(&key, lvl) != 0) {
-            WB_NOTE("set_level could not recover after an allocation failure");
+            WB_FAIL("set_level could not recover after an allocation failure");
             break;
         }
         /* set_level cleared pubKeySet, which the next pass has to see set for
          * the flag half of the check above to mean anything. */
         if (wc_falcon_import_public(pub, (word32)FALCON_MAX_PUB_KEY_SIZE,
                 &key) != 0) {
-            WB_NOTE("set_level alloc-fail re-import failed");
+            WB_FAIL("set_level alloc-fail re-import failed");
             break;
         }
     }
@@ -2002,7 +2007,7 @@ static void wb_getkeyoid_set_level_oom(WC_RNG* rng)
 
     der = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
-        WB_NOTE("GetKeyOID OOM: no DER buffer; not exercised");
+        WB_FAIL("GetKeyOID OOM: no DER buffer; not exercised");
         return;
     }
     XMEMSET(&key, 0, sizeof(key));
@@ -2010,7 +2015,7 @@ static void wb_getkeyoid_set_level_oom(WC_RNG* rng)
             (wc_falcon_set_level(&key, FALCON_MAX_LEVEL) != 0) ||
             (wc_falcon_make_key(&key, rng) != 0) ||
             ((derSz = wc_Falcon_KeyToDer(&key, der, derMax)) <= 0)) {
-        WB_NOTE("GetKeyOID OOM setup failed; not exercised");
+        WB_FAIL("GetKeyOID OOM setup failed; not exercised");
         wc_falcon_free(&key);
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return;
@@ -2022,18 +2027,18 @@ static void wb_getkeyoid_set_level_oom(WC_RNG* rng)
     if ((ret != 1) || (total == 0) || (wb_oid_live != 0) ||
             (algoID != ((FALCON_MAX_LEVEL == FALCON_LEVEL5) ? FALCON_LEVEL5k :
                                                                FALCON_LEVEL1k))) {
-        WB_NOTE("GetKeyOID did not identify the Falcon key unarmed");
+        WB_FAIL("GetKeyOID did not identify the Falcon key unarmed");
     }
     for (n = 0; n < total; n++) {
         ret = wb_oid_run(der, derSz, n, &algoID);
         if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
-            WB_NOTE("GetKeyOID hid a set_level MEMORY_E");
+            WB_FAIL("GetKeyOID hid a set_level MEMORY_E");
         }
         if (wb_oid_kCount != n + 1) {
-            WB_NOTE("GetKeyOID tried another level after MEMORY_E");
+            WB_FAIL("GetKeyOID tried another level after MEMORY_E");
         }
         if (wb_oid_live != 0) {
-            WB_NOTE("GetKeyOID leaked after a set_level MEMORY_E");
+            WB_FAIL("GetKeyOID leaked after a set_level MEMORY_E");
         }
     }
 
@@ -2103,7 +2108,7 @@ int main(void)
         WC_RNG rng;
         int haveRng = (wc_InitRng(&rng) == 0);
         if (!haveRng) {
-            WB_NOTE("wc_InitRng failed; RNG-dependent paths skipped");
+            WB_FAIL("wc_InitRng failed; RNG-dependent paths skipped");
         }
 
         wb_comp_encode();
@@ -2189,7 +2194,8 @@ int main(void)
             wc_FreeRng(&rng);
         }
     }
-    printf("done (%d note%s)\n", wb_notes, (wb_notes == 1) ? "" : "s");
+    printf("done (%d note%s, %s)\n", wb_notes, (wb_notes == 1) ? "" : "s",
+        wb_fail ? "with failures" : "ok");
     return 0;
 #endif
 }

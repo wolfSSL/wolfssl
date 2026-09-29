@@ -1133,6 +1133,102 @@ int test_wc_falcon_key_reuse(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * key->level written directly, bypassing wc_falcon_set_level: no copy may
+ * outgrow the key buffers, and a signing cache built at the old level is dropped.
+ */
+int test_wc_falcon_level_overwrite(void)
+{
+    EXPECT_DECLS;
+#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+    falcon_key key;
+    WC_RNG rng;
+    byte* sig = NULL;
+    byte* buf = NULL;
+    word32 sigLen;
+    word32 bufLen;
+    static const byte msg[] = "wolfSSL Falcon level overwrite";
+    const byte level = falcon_levels[0];
+    const byte other = (level == FALCON_LEVEL1) ? FALCON_LEVEL5 :
+                                                  FALCON_LEVEL1;
+    int res = 0;
+    int rngInited = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    sig = (byte*)XMALLOC(FALCON_LEVEL5_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = (byte*)XMALLOC(FALCON_LEVEL5_PRV_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+    ExpectNotNull(buf);
+    if (buf != NULL) {
+        XMEMSET(buf, 0, FALCON_LEVEL5_PRV_KEY_SIZE);
+    }
+
+    if (wc_InitRng(&rng) == 0) {
+        rngInited = 1;
+    }
+    ExpectIntEQ(rngInited, 1);
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+    /* Fills the signing caches at the key's own level. */
+    sigLen = FALCON_LEVEL5_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+
+    key.level = other;
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) || \
+    defined(WOLFSSL_NO_FALCON_LEVEL1) || defined(WOLFSSL_NO_FALCON_LEVEL5)
+    /* p and k are sized for the old level only. */
+    bufLen = FALCON_LEVEL5_PRV_KEY_SIZE;
+    ExpectIntEQ(wc_falcon_export_public(&key, buf, &bufLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_export_private_only(&key, buf, &bufLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_export_private(&key, buf, &bufLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_import_public(buf, (other == FALCON_LEVEL1) ?
+        FALCON_LEVEL1_PUB_KEY_SIZE : FALCON_LEVEL5_PUB_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_import_private_only(buf, (other == FALCON_LEVEL1) ?
+        FALCON_LEVEL1_KEY_SIZE : FALCON_LEVEL5_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_KeyToDer(&key, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
+    (void)bufLen;
+#endif
+    /* The old-level key bytes do not decode at this level. */
+    sigLen = FALCON_LEVEL5_SIG_SIZE;
+    ExpectIntNE(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+
+    /* Back at its own level the key signs again, from a rebuilt cache. */
+    key.level = level;
+    sigLen = FALCON_LEVEL5_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    wc_falcon_free(&key);
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    if (buf != NULL) {
+        ForceZero(buf, FALCON_LEVEL5_PRV_KEY_SIZE);
+    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && \
     defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
