@@ -800,15 +800,11 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 WOLFSSL_ABI
 void wolfSSL_free(WOLFSSL* ssl)
 {
-    void *heap = NULL;
     WOLFSSL_ENTER("wolfSSL_free");
 
     if (ssl) {
         WOLFSSL_MSG_EX("Free SSL: %p", (wc_ptr_t)ssl);
-        if (ssl->ctx != NULL) {
-            heap = ssl->ctx->heap;
-        }
-        FreeSSL(ssl, heap);
+        FreeSSL(ssl, ssl->heap);
     }
     else {
         WOLFSSL_MSG("Free SSL: wolfSSL_free already null");
