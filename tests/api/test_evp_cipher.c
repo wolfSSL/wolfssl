@@ -2069,6 +2069,41 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
     return EXPECT_RESULT();
 }
 
+int test_evp_cipher_aria_gcm_iv_required(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    byte key[ARIA_128_KEY_SIZE] = {0};
+    byte iv[GCM_NONCE_MID_SZ] = {0};
+    byte input[4] = {1, 2, 3, 4};
+    byte output[WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(sizeof(input))] = {0};
+    int len = 0;
+
+    ExpectNotNull(ctx);
+    if (ctx != NULL) {
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aria_128_gcm(), NULL,
+                                      key, NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+
+        iv[0] = 1;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfssl_EVP_aria_gcm(void)
 {
     int res = TEST_SKIPPED;

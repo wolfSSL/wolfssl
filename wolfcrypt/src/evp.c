@@ -1476,6 +1476,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case WC_ARIA_128_GCM_TYPE:
         case WC_ARIA_192_GCM_TYPE:
         case WC_ARIA_256_GCM_TYPE:
+            if (ctx->enc && ctx->cipher.aria.nonceSz == 0) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0)
              || (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -9137,6 +9145,8 @@ void wolfSSL_EVP_init(void)
             case WC_ARIA_256_GCM_TYPE :
                 WOLFSSL_MSG("ARIA GCM");
                 if (ctx->enc) {
+                    if (ctx->cipher.aria.nonceSz == 0)
+                        return WC_NO_ERR_TRACE(BAD_STATE_E);
                     ret = wc_AriaEncrypt(&ctx->cipher.aria, dst, src, len,
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
