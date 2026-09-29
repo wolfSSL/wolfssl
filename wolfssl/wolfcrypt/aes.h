@@ -36,6 +36,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/types.h>
 
+/* One tag length per key is a shall in SP 800-38D 5.2.1.2, so a FIPS 140-3
+ * v7 or later module is not allowed to build it out. */
+#if defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0)
+    #error "WOLFSSL_NO_AES_TAG_ASSOCIATION is not allowed in FIPS v7 or later"
+#endif
+
 #if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
     !defined(GCM_TABLE_4BIT)
     #define GCM_TABLE_4BIT

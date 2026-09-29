@@ -370,7 +370,7 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     on top of this.
 
     WOLFSSL_NO_AES_TAG_ASSOCIATION builds all of this out, which departs from
-    the requirement above.
+    the requirement above, so a FIPS v7 or later build refuses it.
 
     The first use of a key fixes its tag length even without this call. Set
     the key again through one of those two, or pass WC_NO_TAG_ASSOCIATION, to
