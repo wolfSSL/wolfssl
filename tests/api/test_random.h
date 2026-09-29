@@ -44,6 +44,7 @@ int test_wc_RNG_CustomRandBlock(void);
 int test_wc_RNG_DrbgDisable(void);
 int test_wc_DrbgDecisionCoverage(void);
 int test_wc_DrbgFeatureCoverage(void);
+int test_wc_DrbgReworkDecisionCoverage(void);
 int test_wc_Entropy_Get(void);
 
 #define TEST_RANDOM_DECLS                                           \
@@ -67,6 +68,7 @@ int test_wc_Entropy_Get(void);
     TEST_DECL_GROUP("random", test_wc_RNG_DrbgDisable),             \
     TEST_DECL_GROUP("random", test_wc_DrbgDecisionCoverage),        \
     TEST_DECL_GROUP("random", test_wc_DrbgFeatureCoverage),         \
+    TEST_DECL_GROUP("random", test_wc_DrbgReworkDecisionCoverage),  \
     TEST_DECL_GROUP("random", test_wc_Entropy_Get)
 
 #endif /* WOLFCRYPT_TEST_RANDOM_H */
