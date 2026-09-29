@@ -2084,7 +2084,15 @@ int test_evp_cipher_aria_gcm_iv_required(void)
     ExpectNotNull(ctx);
     if (ctx != NULL) {
         ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aria_128_gcm(), NULL,
-                                      key, NULL), WOLFSSL_SUCCESS);
+                                      NULL, NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, NULL),
+                    WOLFSSL_SUCCESS);
         ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
                                      sizeof(input)), WOLFSSL_SUCCESS);
         ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
