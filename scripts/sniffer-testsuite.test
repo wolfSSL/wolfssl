@@ -121,7 +121,7 @@ if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && \
         ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -q 'max fragment'
 then
     echo -e "\nStarting snifftest on a fragmented Certificate...\n"
-    SPLIT_PCAP=$(mktemp)
+    SPLIT_PCAP=$(mktemp "${TMPDIR:-/tmp}/wolfssl-sniffer.XXXXXX") || exit 1
     python3 - ./scripts/sniffer-static-rsa.pcap "$SPLIT_PCAP" <<'PY'
 import struct
 import sys
