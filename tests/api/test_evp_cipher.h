@@ -56,6 +56,7 @@ int test_wolfssl_EVP_aria_gcm(void);
 int test_wolfssl_EVP_sm4_ecb(void);
 int test_wolfssl_EVP_sm4_cbc(void);
 int test_wolfssl_EVP_sm4_ctr(void);
+int test_evp_cipher_sm4_gcm_message_iv(void);
 int test_wolfssl_EVP_sm4_gcm_zeroLen(void);
 int test_wolfssl_EVP_sm4_gcm(void);
 int test_wolfssl_EVP_sm4_ccm_zeroLen(void);
@@ -102,6 +103,7 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ecb),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ctr),                \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_sm4_gcm_message_iv),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_gcm_zeroLen),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_gcm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ccm_zeroLen),        \
