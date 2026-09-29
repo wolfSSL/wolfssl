@@ -2845,15 +2845,27 @@ endif()
 # Set processor-specific build macros
 # On Apple platforms CMAKE_SYSTEM_PROCESSOR can report the host CPU while the
 # compiler targets CMAKE_OSX_ARCHITECTURES (e.g. an arm64 iOS build on an Intel
-# Mac), so use the requested architecture. With more than one architecture
-# (universal binary) the target is not known and no processor-specific code is
-# built.
+# Mac), so use the requested architecture. Variants of one family (e.g.
+# arm64;arm64e or x86_64;x86_64h) are treated as that family. When families are
+# mixed (universal binary) the target is not known and no processor-specific
+# code is built.
 set(WOLFSSL_TARGET_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
-if(APPLE)
-    list(LENGTH CMAKE_OSX_ARCHITECTURES WOLFSSL_OSX_ARCH_COUNT)
-    if(WOLFSSL_OSX_ARCH_COUNT EQUAL 1)
-        set(WOLFSSL_TARGET_PROCESSOR "${CMAKE_OSX_ARCHITECTURES}")
-    elseif(WOLFSSL_OSX_ARCH_COUNT GREATER 1)
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    set(WOLFSSL_TARGET_PROCESSOR "")
+    set(WOLFSSL_OSX_ARCH_MIXED FALSE)
+    foreach(WOLFSSL_OSX_ARCH IN LISTS CMAKE_OSX_ARCHITECTURES)
+        if("${WOLFSSL_OSX_ARCH}" MATCHES "^arm64")
+            set(WOLFSSL_OSX_ARCH "arm64")
+        elseif("${WOLFSSL_OSX_ARCH}" MATCHES "^x86_64")
+            set(WOLFSSL_OSX_ARCH "x86_64")
+        endif()
+        if("${WOLFSSL_TARGET_PROCESSOR}" STREQUAL "")
+            set(WOLFSSL_TARGET_PROCESSOR "${WOLFSSL_OSX_ARCH}")
+        elseif(NOT "${WOLFSSL_TARGET_PROCESSOR}" STREQUAL "${WOLFSSL_OSX_ARCH}")
+            set(WOLFSSL_OSX_ARCH_MIXED TRUE)
+        endif()
+    endforeach()
+    if(WOLFSSL_OSX_ARCH_MIXED)
         set(WOLFSSL_TARGET_PROCESSOR "")
     endif()
 endif()
