@@ -247,7 +247,7 @@ static WC_MAYBE_UNUSED int AesAssociateTagSz(Aes* aes, word32 authTagSz)
     }
 
     if (authTagSz != aes->tagLen) {
-        WOLFSSL_MSG("AES tag size differs from the one associated with the key");
+        WOLFSSL_MSG("AES tag size is not the one associated with the key");
         return BAD_FUNC_ARG;
     }
 
@@ -15670,7 +15670,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
-
 
     key = (byte*)aes->key;
 

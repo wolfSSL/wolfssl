@@ -425,16 +425,13 @@ static int CmacAssociateTagSz(Cmac* cmac, word32 tagSz)
     }
 
     if (tagSz != cmac->aes.tagLen) {
-        WOLFSSL_MSG("CMAC tag size differs from the one associated with the key");
+        WOLFSSL_MSG("CMAC tag size is not the one associated with the key");
         return BAD_FUNC_ARG;
     }
 
     return 0;
 }
-#endif
 
-
-#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
 /* One tag length per key, per SP 800-38B 5.4, which gives a range not a
  * list. Pass WC_NO_TAG_ASSOCIATION to clear it.
  */

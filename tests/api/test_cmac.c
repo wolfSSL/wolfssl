@@ -335,13 +335,14 @@ int test_wc_CmacSetTagLen(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
     && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) \
+    && WC_CMAC_TAG_MIN_SZ < WC_CMAC_TAG_MAX_SZ \
     && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Cmac   cmac;
     byte   key[WC_AES_BLOCK_SIZE];
     byte   msg[WC_AES_BLOCK_SIZE];
     byte   tag[WC_AES_BLOCK_SIZE];
     word32 tagSz;
-    /* smallest length CMAC allows, so it never equals the one tied below */
+    /* smallest length CMAC allows, so never the one associated below */
     word32 otherSz = WC_CMAC_TAG_MIN_SZ;
 
     XMEMSET(key, 0, sizeof(key));
