@@ -58511,7 +58511,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve448_test(void)
 {
     WC_RNG  rng;
     wc_test_ret_t ret;
-    curve448_key userA, userB, pubKey;
+    WC_DECLARE_VAR(userA, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(userB, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(pubKey, curve448_key, 1, HEAP_HINT);
 
     WOLFSSL_ENTER("curve448_test");
 
@@ -58523,36 +58525,62 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve448_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    wc_curve448_init_ex(&userA, HEAP_HINT, devId);
-    wc_curve448_init_ex(&userB, HEAP_HINT, devId);
-    wc_curve448_init_ex(&pubKey, HEAP_HINT, devId);
+    WC_ALLOC_VAR(userA, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(userB, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(pubKey, curve448_key, 1, HEAP_HINT);
 
-    ret = curve448_keyagree_test(&rng, &userA, &userB, &pubKey);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if ((userA == NULL) ||
+        (userB == NULL) ||
+        (pubKey == NULL))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+        goto out;
+    }
+#endif
+
+    ret = wc_curve448_init_ex(userA, HEAP_HINT, devId);
     if (ret != 0)
-        return ret;
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_curve448_init_ex(userB, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_curve448_init_ex(pubKey, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = curve448_keyagree_test(&rng, userA, userB, pubKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #if defined(HAVE_CURVE448_SHARED_SECRET) && \
                                              defined(HAVE_CURVE448_KEY_IMPORT)
-    ret = curve448_kat_test(&rng, &userA, &userB);
+    ret = curve448_kat_test(&rng, userA, userB);
     if (ret != 0)
-        return ret;
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = curve448_check_public_test();
     if (ret != 0)
-        return ret;
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = curve448_noncanonical_test();
     if (ret != 0)
-        return ret;
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif /* HAVE_CURVE448_SHARED_SECRET && HAVE_CURVE448_KEY_IMPORT */
 
-    /* clean up keys when done */
-    wc_curve448_free(&pubKey);
-    wc_curve448_free(&userB);
-    wc_curve448_free(&userA);
+out:
 
     wc_FreeRng(&rng);
+    wc_curve448_free(pubKey);
+    wc_curve448_free(userB);
+    wc_curve448_free(userA);
+    WC_FREE_VAR(pubKey, HEAP_HINT);
+    WC_FREE_VAR(userB, HEAP_HINT);
+    WC_FREE_VAR(userA, HEAP_HINT);
 
-    return 0;
+    return ret;
 }
 #endif /* HAVE_CURVE448 */
 
