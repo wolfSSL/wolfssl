@@ -23002,6 +23002,13 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
     WOLFSSL_CTX* ctx = NULL;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1)
+    EVP_PKEY* pkey2 = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* derPtr = NULL;
+    int derSz = 0;
+#endif
 
 #if defined(WOLFSSL_KEY_GEN)
     unsigned char buff[4096];
@@ -23080,6 +23087,19 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_bench_mldsa_44_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+    /* Raw input can be encoded/decoded later */
+    ExpectIntEQ(BIO_pending(bio), 0);
+    ExpectIntGT(derSz = i2d_PrivateKey(pkey, &der), 0);
+    derPtr = der;
+    ExpectNotNull(pkey2 = d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &derPtr,
+        (long)derSz));
+    ExpectTrue(derPtr == der + derSz);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    EVP_PKEY_free(pkey2);
+    pkey2 = NULL;
+#endif
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -23142,6 +23162,19 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_bench_mldsa_65_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+    /* Raw input can be encoded/decoded later */
+    ExpectIntEQ(BIO_pending(bio), 0);
+    ExpectIntGT(derSz = i2d_PrivateKey(pkey, &der), 0);
+    derPtr = der;
+    ExpectNotNull(pkey2 = d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &derPtr,
+        (long)derSz));
+    ExpectTrue(derPtr == der + derSz);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    EVP_PKEY_free(pkey2);
+    pkey2 = NULL;
+#endif
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -23204,6 +23237,19 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_bench_mldsa_87_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+    /* Raw input can be encoded/decoded later */
+    ExpectIntEQ(BIO_pending(bio), 0);
+    ExpectIntGT(derSz = i2d_PrivateKey(pkey, &der), 0);
+    derPtr = der;
+    ExpectNotNull(pkey2 = d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &derPtr,
+        (long)derSz));
+    ExpectTrue(derPtr == der + derSz);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    EVP_PKEY_free(pkey2);
+    pkey2 = NULL;
+#endif
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -25338,6 +25384,104 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     EC_KEY_free(ephemeral_key);
     EC_GROUP_free(curve);
     BN_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ML-DSA encoding can be created by wolfSSL_i2d_PUBKEY() and not
+ * wolfSSL_i2d_PublicKey(), matching OpenSSL's API */
+static int test_wolfSSL_d2i_and_i2d_PUBKEY_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_ASN) && !defined(WOLFSSL_NO_ML_DSA_44)
+    EVP_PKEY* pkey = NULL;
+#ifndef NO_BIO
+    EVP_PKEY* bioPkey = NULL;
+    BIO* bio = NULL;
+#endif
+    byte* fileDer = NULL;
+    size_t fileDerSz = 0;
+    unsigned char* der = NULL;
+    unsigned char* tmp = NULL;
+    const unsigned char* p = NULL;
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    int derSz = 0;
+    size_t spkiSz = 0;
+#endif
+
+    ExpectIntEQ(load_file("./certs/mldsa/mldsa44_pub-spki.der", &fileDer,
+        &fileDerSz), 0);
+
+    p = fileDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)fileDerSz));
+
+    /* Size query and encode reproduce the stored SPKI */
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, NULL), (int)fileDerSz);
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &der), (int)fileDerSz);
+    ExpectBufEQ(der, fileDer, fileDerSz);
+
+    /* Pre-allocated buffer is filled and the pointer advanced */
+    tmp = der;
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &tmp), (int)fileDerSz);
+    ExpectBufEQ(der, fileDer, fileDerSz);
+    ExpectTrue(der + fileDerSz == tmp);
+
+#ifndef NO_BIO
+    /* BIO encode and decode reproduce the stored SPKI */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY_bio(bio, pkey), WOLFSSL_SUCCESS);
+    ExpectNotNull(bioPkey = wolfSSL_d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(BIO_pending(bio), 0);
+    tmp = NULL;
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(bioPkey, &tmp), (int)fileDerSz);
+    ExpectBufEQ(tmp, fileDer, fileDerSz);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    EVP_PKEY_free(bioPkey);
+    bioPkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+#endif
+
+    /* ML-DSA should not work with i2d_PublicKey */
+    ExpectIntLT(wolfSSL_i2d_PublicKey(pkey, NULL), 0);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    der = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(fileDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    fileDer = NULL;
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    /* A private + public key can be encoded as just the public half */
+    spkiSz = fileDerSz;
+    ExpectIntEQ(load_file("./certs/mldsa/mldsa44_oqskeypair.der", &fileDer,
+        &fileDerSz), 0);
+    p = fileDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)fileDerSz));
+    ExpectIntEQ(derSz = wolfSSL_i2d_PUBKEY(pkey, &der), (int)spkiSz);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* the public half decodes and re-encodes to the same SPKI */
+    p = der;
+    ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)derSz));
+    tmp = NULL;
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &tmp), derSz);
+    ExpectBufEQ(tmp, der, derSz);
+
+    XFREE(tmp, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(fileDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -43142,6 +43286,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey),
     TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey_ecc),
+    TEST_DECL(test_wolfSSL_d2i_and_i2d_PUBKEY_mldsa),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_d2i_PUBKEY),
     TEST_DECL(test_wolfSSL_i2d_PUBKEY_bio),
