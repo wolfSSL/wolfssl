@@ -14308,3 +14308,76 @@ int test_tls13_export_client_key_update(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A NewSessionTicket larger than the negotiated max fragment length must be
+ * split across records (RFC 8446 Section 5.1). With a 256 byte limit the
+ * ticket is split in builds whose internal ticket is large enough. */
+int test_tls13_new_session_ticket_max_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char readBuf[64];
+    int off;
+    int recSz = 0;
+    int recCnt = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Process the ticket sent at the end of the handshake. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    /* Each record holds at most 256 bytes plus content type and AEAD tag. */
+    for (off = 0; EXPECT_SUCCESS() && off + RECORD_HEADER_SZ <= test_ctx.c_len;
+            off += RECORD_HEADER_SZ + recSz) {
+        ExpectIntEQ(test_ctx.c_buff[off], application_data);
+        recSz = (test_ctx.c_buff[off + 3] << 8) | test_ctx.c_buff[off + 4];
+        ExpectIntLE(recSz, 256 + 1 + 16);
+        recCnt++;
+    }
+    ExpectIntEQ(off, test_ctx.c_len);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(ssl_c->session->ticketLen, 0);
+    /* Handshake header, lifetime, age add, nonce, ticket length and empty
+     * extensions add 18 bytes to the ticket. */
+    if (ssl_c->session->ticketLen + 18 > 256)
+        ExpectIntGE(recCnt, 2);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Resume with the reassembled ticket. */
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
