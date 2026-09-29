@@ -2752,6 +2752,81 @@ int test_wolfssl_EVP_sm4_gcm(void)
     return res;
 }
 
+int test_evp_cipher_sm4_ccm_message_iv(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CCM)
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    byte key[SM4_KEY_SIZE] = {0};
+    byte iv[GCM_NONCE_MID_SZ] = {0};
+    byte input[4] = {1, 2, 3, 4};
+    byte output[sizeof(input)] = {0};
+#if (defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(2,0))
+    byte generated[GCM_NONCE_MID_SZ] = {0};
+#endif
+    int len = 0;
+
+    iv[sizeof(iv) - 1] = 1;
+    ExpectNotNull(ctx);
+    if (ctx != NULL) {
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_ccm(), NULL,
+                                      key, iv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+
+        iv[0]++;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+
+        iv[0]++;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_Cipher(ctx, output, input, sizeof(input)),
+                    (int)sizeof(input));
+        ExpectBufNE(output, input, sizeof(input));
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+        ExpectIntEQ(EVP_CIPHER_CTX_reset(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ctx->authIvUsed, 0);
+        iv[0]++;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_ccm(), NULL, key, iv),
+                    WOLFSSL_SUCCESS);
+#if (defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(2,0))
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED,
+                                       -1, iv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN,
+                                       sizeof(generated), generated),
+                    WOLFSSL_FAILURE);
+#endif
+        ExpectIntEQ(EVP_Cipher(ctx, output, input, sizeof(input)),
+                    (int)sizeof(input));
+
+        EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfssl_EVP_sm4_ccm_zeroLen(void)
 {
     int res = TEST_SKIPPED;

@@ -1627,6 +1627,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 #endif
 #ifdef WOLFSSL_SM4_CCM
         case WC_SM4_CCM_TYPE:
+            if (ctx->enc && ctx->authIvUsed) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0) ||
                     (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -1641,6 +1649,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->authIn, ctx->authInSz);
 
                 if (ret == 0) {
+                    if (ctx->enc)
+                        ctx->authIvUsed = 1;
                     ret = WOLFSSL_SUCCESS;
                     *outl = ctx->authBufferLen;
                 }
@@ -6816,6 +6826,10 @@ void wolfSSL_EVP_init(void)
             case WOLFSSL_EVP_CTRL_GCM_IV_GEN:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
+#ifdef WOLFSSL_SM4_CCM
+                if (ctx->cipherType == WC_SM4_CCM_TYPE)
+                    break;
+#endif
                 if (!ctx->authIvGenEnable) {
                     WOLFSSL_MSG("Must use EVP_CTRL_AEAD_SET_IV_FIXED before "
                                 "EVP_CTRL_GCM_IV_GEN");
@@ -7085,8 +7099,12 @@ void wolfSSL_EVP_init(void)
             XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
             ctx->authIn = NULL;
             ctx->authInSz = 0;
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             ctx->authIvGenEnable = 0;
             ctx->authIncIv = 0;
+            ctx->authIvUsed = 0;
+#endif
 #endif
         }
 
@@ -7618,7 +7636,7 @@ void wolfSSL_EVP_init(void)
         int ret = 0;
 #if (defined(HAVE_AESCCM) && ((!defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))) || \
-    defined(WOLFSSL_SM4_GCM)
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
         int ivProvided = (iv != NULL);
 #endif
         (void)key;
@@ -8648,6 +8666,8 @@ void wolfSSL_EVP_init(void)
             if (iv != NULL) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
         }
 #endif
 #ifndef NO_DES3
@@ -9305,10 +9325,14 @@ void wolfSSL_EVP_init(void)
                 }
                 else if (src != NULL && dst != NULL) {
                     if (ctx->enc) {
+                        if (ctx->authIvUsed)
+                            return WC_NO_ERR_TRACE(BAD_STATE_E);
                         ret = wc_Sm4CcmEncrypt(&ctx->cipher.sm4, dst, src,
                                 len, ctx->iv, ctx->ivSz, ctx->authTag,
                                 ctx->authTagSz, ctx->authIn,
                                 ctx->authInSz);
+                        if (ret == 0)
+                            ctx->authIvUsed = 1;
                     }
                     else {
                         ret = wc_Sm4CcmDecrypt(&ctx->cipher.sm4, dst, src,
