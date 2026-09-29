@@ -15366,6 +15366,23 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                         dCert->pubKeySize);
                     break;
             #endif
+            #if defined(WOLFSSL_HAVE_MLDSA) && \
+                defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+                !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+                defined(WC_ENABLE_ASYM_KEY_EXPORT)
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case DILITHIUM_LEVEL2k:
+                case DILITHIUM_LEVEL3k:
+                case DILITHIUM_LEVEL5k:
+            #endif
+                case ML_DSA_44k:
+                case ML_DSA_65k:
+                case ML_DSA_87k:
+                    /* Raw key size does not distinguish draft from final, so
+                     * encode with the certificate's key OID */
+                    x509->key.pkey = wolfSSL_X509_get_pubkey(x509);
+                    break;
+            #endif
                 default:
                     x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
                         &dCert->publicKey, dCert->pubKeySize);

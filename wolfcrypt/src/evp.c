@@ -13550,9 +13550,72 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+/* PrintPubKeyMlDsa is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to parse a DER format ML-DSA public key specified in the second parameter.
+ * Parameters:
+ * out     bio to output dump data
+ * pkey    buffer holding public key data
+ * pkeySz  public key data size
+ * indent  the number of spaces for indent
+ * pctx    context(not used)
+ * Returns 1 on success, 0 on failure.
+*/
+static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
+    int indent, WOLFSSL_ASN1_PCTX* pctx)
+{
+    const byte* pub = NULL;
+    const char* nameStr = NULL;
+    word32  pubSz = 0;
+    word32  inOutIdx = 0;
+    int     keyType = ANONk;
+    int     res = WOLFSSL_SUCCESS;
+    char    line[32] = { 0 };
+    (void)pctx;
+
+    if (out == NULL || pkey == NULL || pkeySz <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* the cached key is a SubjectPublicKeyInfo, its OID gives the level */
+    if (DecodeAsymKeyPublic_Assign(pkey, &inOutIdx, (word32)pkeySz, &pub,
+            &pubSz, &keyType) != 0) {
+        res = WOLFSSL_FAILURE;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
+        res = nameStr != NULL;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = wolfSSL_BIO_write(out, nameStr, (int)XSTRLEN(nameStr)) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        XSTRNCPY(line, " Public-Key:\n", sizeof(line));
+        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* print pub element */
+        XSTRNCPY(line, "pub:\n", sizeof(line));
+        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* upper case */
+        res = PrintHexWithColon(out, pub, (int)pubSz, indent + 4, 0);
+    }
+
+    return res;
+}
+#endif /* WOLFSSL_HAVE_MLDSA && WC_ENABLE_ASYM_KEY_IMPORT */
+
 /* wolfSSL_EVP_PKEY_print_public parses the specified key then
  * outputs public key info in human readable format to the specified BIO.
- * White spaces of the same number which 'indent" gives, will be added to
+ * White spaces of the same number which 'indent' gives, will be added to
  * each line to output and ignores pctx parameter.
  * Parameters:
  * out     bio to output dump data
@@ -13561,7 +13624,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
  * pctx    context(not used)
  * Returns 1 on success, 0 or negative on error, -2 means specified key
  * algo is not supported.
- * Can handle RSA, ECC, DSA and DH public keys.
+ * Can handle RSA, ECC, DSA, DH and ML-DSA public keys.
  */
 int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     const WOLFSSL_EVP_PKEY* pkey, int indent, WOLFSSL_ASN1_PCTX* pctx)
@@ -13578,7 +13641,8 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
         return 0;
     }
 #if !defined(NO_RSA) || defined(HAVE_ECC) || !defined(NO_DSA) || \
-    defined(WOLFSSL_DH_EXTRA)
+    defined(WOLFSSL_DH_EXTRA) || \
+    (defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT))
     if (indent < 0) {
         indent = 0;
     }
@@ -13646,6 +13710,20 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                         pkey->pkey_sz,            /* raw pkey size */
                         indent,                   /* indent size */
                         keybits,                  /* bit length of the key */
+                        pctx);                    /* not used */
+#else
+            res = WOLFSSL_UNKNOWN;       /* not supported algo */
+#endif
+            break;
+
+        case WC_EVP_PKEY_DILITHIUM:
+
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+            res     = PrintPubKeyMlDsa(
+                        out,
+                        (byte*)(pkey->pkey.ptr),  /* buffer for pkey raw data */
+                        pkey->pkey_sz,            /* raw pkey size */
+                        indent,                   /* indent size */
                         pctx);                    /* not used */
 #else
             res = WOLFSSL_UNKNOWN;       /* not supported algo */

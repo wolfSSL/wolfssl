@@ -28,6 +28,7 @@ int test_wolfSSL_X509_get_X509_PUBKEY(void);
 int test_wolfSSL_X509_PUBKEY_RSA(void);
 int test_wolfSSL_X509_PUBKEY_EC(void);
 int test_wolfSSL_X509_PUBKEY_DSA(void);
+int test_wolfSSL_X509_PUBKEY_MLDSA(void);
 int test_wolfSSL_X509_PUBKEY_get(void);
 int test_wolfSSL_X509_set_pubkey(void);
 
@@ -36,6 +37,7 @@ int test_wolfSSL_X509_set_pubkey(void);
     TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_PUBKEY_RSA),             \
     TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_PUBKEY_EC),              \
     TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_PUBKEY_DSA),             \
+    TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_PUBKEY_MLDSA),           \
     TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_PUBKEY_get),             \
     TEST_DECL_GROUP("ossl_x509_pk", test_wolfSSL_X509_set_pubkey)
 
