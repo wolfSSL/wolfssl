@@ -113,6 +113,7 @@ int test_wc_AesGcm_MonteCarlo(void);
 int test_wc_AesCcm_MonteCarlo(void);
 int test_wc_AesCfb_MonteCarlo(void);
 int test_wc_AesOfb_MonteCarlo(void);
+int test_wc_AesReworkDecisionCoverage(void);
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);
@@ -192,6 +193,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
 
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
+    TEST_DECL_GROUP("aes", test_wc_AesReworkDecisionCoverage),  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV_RestartsStream),    \
     TEST_DECL_GROUP("aes", test_wc_AesEncryptDecryptDirect),    \
