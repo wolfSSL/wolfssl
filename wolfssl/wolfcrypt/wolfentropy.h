@@ -62,6 +62,10 @@
 
 /* For generating data for assessment. */
 WOLFSSL_API int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
+/* Full-width variant: each sample is the complete 64-bit time delta, in host
+ * byte order. Returns NOT_COMPILED_IN unless the time source is a free-running
+ * 64-bit counter. */
+WOLFSSL_API int wc_Entropy_GetRawEntropy64(word64* raw, int cnt);
 WOLFSSL_API int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
 WOLFSSL_API int wc_Entropy_OnDemandTest(void);
 
