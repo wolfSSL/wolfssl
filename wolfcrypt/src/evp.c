@@ -1533,6 +1533,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 else {
                     /* Clear IV, since IV reuse is not recommended for AES GCM. */
                     XMEMSET(ctx->iv, 0, ARIA_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -8470,6 +8471,8 @@ void wolfSSL_EVP_init(void)
             }
             if (ivProvided)
                 ctx->authIvUsed = 0;
+            else if (type != NULL)
+                ctx->authIvUsed = 1;
         }
     #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
             * HAVE_FIPS_VERSION >= 2 */
