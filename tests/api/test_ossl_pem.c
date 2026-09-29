@@ -714,6 +714,133 @@ int test_wolfSSL_PEM_PrivateKey_mldsa(void)
     return EXPECT_RESULT();
 }
 
+/* test ML-DSA keys survive a PEM -> DER -> PEM round trip unchanged.
+ *
+ * The files contain the 'both' form of ML-DSA-PrivateKey. The output should
+ * remain in this form rather than degrade to the 'expanded' form. */
+int test_wolfSSL_PEM_PrivateKey_mldsa_der(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(HAVE_PKCS8) && \
+    !defined(NO_PWDBASED) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    BIO*                 bio  = NULL;
+    EVP_PKEY*            pkey = NULL;
+    unsigned char*       der  = NULL;
+    unsigned char*       der2 = NULL;
+    const unsigned char* p    = NULL;
+    int                  derSz = 0;
+    int                  der2Sz = 0;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    char*                name = NULL;
+    char*                header = NULL;
+    unsigned char*       data = NULL;
+    long                 len = 0;
+#endif
+
+    /* PEM -> DER */
+    ExpectNotNull(bio = BIO_new_file("./certs/mldsa/mldsa44-key.pem", "rb"));
+    ExpectNotNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntGT(derSz = wolfSSL_i2d_PrivateKey(pkey, &der), 0);
+    BIO_free(bio);
+    bio = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* DER -> PEM */
+    p = der;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)derSz));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* PEM -> DER */
+    ExpectNotNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
+    ExpectIntGT(der2Sz = wolfSSL_i2d_PrivateKey(pkey, &der2), 0);
+    ExpectIntEQ(der2Sz, derSz);
+    ExpectBufEQ(der2, der, derSz);
+    BIO_free(bio);
+    bio = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(der2, NULL, DYNAMIC_TYPE_OPENSSL);
+    der2 = NULL;
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    /* Round trip through an encrypted PEM. The stored PKI is encrypted as-is
+     * rather than being wrapped a second time. */
+
+    /* DER -> ePEM */
+    p = der;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)derSz));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
+        (char*)"yassl123", 8, NULL, NULL), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* ePEM -> DER */
+    ExpectNotNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+        (void*)"yassl123"));
+    ExpectIntGT(der2Sz = wolfSSL_i2d_PrivateKey(pkey, &der2), 0);
+    ExpectIntEQ(der2Sz, derSz);
+    ExpectBufEQ(der2, der, derSz);
+    BIO_free(bio);
+    bio = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(der2, NULL, DYNAMIC_TYPE_OPENSSL);
+    der2 = NULL;
+
+    /* Round trip through d2i_PKCS8PrivateKey_bio, which takes the encrypted
+     * PKI as DER rather than PEM. */
+
+    /* DER -> ePEM */
+    p = der;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)derSz));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
+        (char*)"yassl123", 8, NULL, NULL), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* ePEM -> eDER */
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, &len), 1);
+    BIO_free(bio);
+    bio = NULL;
+
+    /* eDER -> DER */
+    ExpectNotNull(bio = BIO_new_mem_buf((void*)data, (int)len));
+    ExpectNotNull(pkey = d2i_PKCS8PrivateKey_bio(bio, NULL, NULL,
+        (void*)"yassl123"));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntGT(der2Sz = wolfSSL_i2d_PrivateKey(pkey, &der2), 0);
+    ExpectIntEQ(der2Sz, derSz);
+    ExpectBufEQ(der2, der, derSz);
+    BIO_free(bio);
+    bio = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    XFREE(der2, NULL, DYNAMIC_TYPE_OPENSSL);
+    der2 = NULL;
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_PEM_PrivateKey(void)
 {
     EXPECT_DECLS;
