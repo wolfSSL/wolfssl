@@ -263,7 +263,7 @@ int wc_AesSetTagLen(Aes* aes, word32 tagLen)
  * they never call this and it is allowed to go unused. */
 #ifndef WOLFSSL_NO_AES_TAG_ASSOCIATION
 
-/* ties the length to the key on first use, then requires a match
+/* associates the length with the key on first use, then requires a match
  */
 static WC_MAYBE_UNUSED int AesAssociateTagSz(Aes* aes, word32 authTagSz)
 {
@@ -289,7 +289,12 @@ static WC_MAYBE_UNUSED int AesAssociateTagSz(Aes* aes, word32 authTagSz)
 #else
 
 /* opted out, so a caller may use any length the mode itself allows */
-#define AesAssociateTagSz(aes, authTagSz) 0
+static WC_MAYBE_UNUSED int AesAssociateTagSz(Aes* aes, word32 authTagSz)
+{
+    (void)aes;
+    (void)authTagSz;
+    return 0;
+}
 
 #endif /* !WOLFSSL_NO_AES_TAG_ASSOCIATION */
 

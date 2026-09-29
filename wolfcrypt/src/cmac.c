@@ -566,20 +566,29 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
     #endif
     {
     #ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
-        /* this path returns without reaching wc_CmacFinal() */
-        if (key == NULL && outSz != NULL &&
-                CmacAssociateTagSz(cmac, *outSz) != 0) {
-            return BAD_FUNC_ARG;
-        }
-        /* a key here sets the key, so the old length stops applying */
-        if (key != NULL) {
-            cmac->aes.tagLen = WC_NO_TAG_ASSOCIATION;
+        /* this path returns without reaching wc_CmacFinal(), so check the
+         * length the same way that function does before associating it */
+        if (key == NULL && outSz != NULL) {
+            if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
+                return BUFFER_E;
+            }
+            if (CmacAssociateTagSz(cmac, *outSz) != 0) {
+                return BAD_FUNC_ARG;
+            }
         }
     #endif
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, in, inSz, out, outSz,
                 WC_CMAC_AES, NULL);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+    #ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
+            /* a key sets the key, so the length this call used becomes the
+             * one that key carries */
+            if (ret == 0 && key != NULL && outSz != NULL) {
+                cmac->aes.tagLen = *outSz;
+            }
+    #endif
             return ret;
+        }
 
          /* Clear CRYPTOCB_UNAVAILABLE return code */
         ret = 0;
@@ -674,8 +683,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
     }
 
 #ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
-    /* only tie a length when the caller hands in a keyed cmac, a key here
-     * means this call sets the key and clears any association */
+    /* only associate a length for a keyed cmac, a key here means this call
+     * sets both the key and the length that goes with it */
     if (key == NULL && CmacAssociateTagSz(cmac, checkSz) != 0) {
         return BAD_FUNC_ARG;
     }
