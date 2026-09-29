@@ -222,7 +222,12 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
     wc_AesSetKey should have been called with the iv set to NULL. This is only
     enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
     In nearly all use cases ECB mode is considered to be less secure. Please
-    avoid using ECB API’s directly whenever possible.
+    avoid using ECB API’s directly whenever possible. With WOLF_CRYPTO_CB, if
+    the AES object has a crypto callback device (devId), that device is asked
+    first to encrypt the block as a one-block ECB request. The software key is
+    used only if the device declines, and a device error is returned as-is.
+    With WOLF_CRYPTO_CB_FIND, the device find callback picks the device, so a
+    device can be asked even when the AES object has no devId.
 
     \return int integer values corresponding to wolfSSL error or success
     status
@@ -256,7 +261,12 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     wc_AesSetKey should have been called with the iv set to NULL. This is only
     enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
     In nearly all use cases ECB mode is considered to be less secure. Please
-    avoid using ECB API’s directly whenever possible.
+    avoid using ECB API’s directly whenever possible. With WOLF_CRYPTO_CB, if
+    the AES object has a crypto callback device (devId), that device is asked
+    first to decrypt the block as a one-block ECB request. The software key is
+    used only if the device declines, and a device error is returned as-is.
+    With WOLF_CRYPTO_CB_FIND, the device find callback picks the device, so a
+    device can be asked even when the AES object has no devId.
 
     \return int integer values corresponding to wolfSSL error or success
     status
