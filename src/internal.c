@@ -10145,9 +10145,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
     ssl->ws_peer_ca_names = NULL;
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    FreeSSL_StaticMemory(ssl);
-#endif /* WOLFSSL_STATIC_MEMORY */
 #ifdef OPENSSL_EXTRA
     /* Enough to free stack structure since WOLFSSL_CIPHER
      * isn't allocated separately. */
@@ -10188,6 +10185,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(ssl->peerSigSpec, ssl->heap, DYNAMIC_TYPE_TLSX);
 #endif
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* last, as everything above may still free through ssl->heap */
+    FreeSSL_StaticMemory(ssl);
+#endif /* WOLFSSL_STATIC_MEMORY */
 }
 
 /* Free any handshake resources no longer needed */
