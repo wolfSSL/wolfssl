@@ -273,20 +273,20 @@ jobs:
         if: ${{ ! matrix.build_only }}
         run: ./tests/unit.test --group falcon
 
-      # The white-box always exits 0 and reports failures as [wb] notes, so the
-      # notes that mean a failed check are what decide this step.
+      # The white-box exits 0 either way, as the MC/DC harness expects, and
+      # reports a failed check in its closing "done (..., with failures)" line.
       - name: Run the Falcon white-box (smallest-mem)
         if: ${{ ! matrix.build_only && contains(matrix.opts, 'smallest-mem') }}
         run: |
           set -o pipefail
           cp src/.libs/libwolfssl.a falcon-wb.a
           ar d falcon-wb.a "$(ar t falcon-wb.a | grep -E '_la-falcon\.o$')"
-          gcc -O1 -I. -Itests -DHAVE_CONFIG_H -DWOLFSSL_USE_OPTIONS_H \
-              ${{ matrix.cflags }} -o falcon-wb \
+          gcc -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all \
+              -fno-omit-frame-pointer -I. -Itests -DHAVE_CONFIG_H \
+              -DWOLFSSL_USE_OPTIONS_H ${{ matrix.cflags }} -o falcon-wb \
               tests/unit-mcdc/test_falcon_whitebox.c falcon-wb.a -lm -lpthread
           ./falcon-wb | tee falcon-wb.log
-          ! grep -E '\[wb\] .*(expected|differs|does not|no accepted|failed|skipped)' \
-              falcon-wb.log
+          ! grep -q 'with failures' falcon-wb.log
 
       # --group falcon misses the Falcon test in the signature group and every
       # caller of wc_falcon_set_level in the TLS and ASN paths, which a level

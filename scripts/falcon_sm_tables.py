@@ -44,6 +44,7 @@ This script is deterministic and takes no input. Run:
     python3 scripts/falcon_sm_tables.py --check    # diff against falcon.c
 """
 
+import argparse
 import os
 import re
 import struct
@@ -147,7 +148,12 @@ def parse_falcon_c(path, name):
 
 
 def main():
-    check = "--check" in sys.argv[1:]
+    parser = argparse.ArgumentParser(
+        description="Print the Falcon smallest-mem signer tables as C, or "
+                    "check the ones in wolfcrypt/src/falcon.c.")
+    parser.add_argument("--check", action="store_true",
+                        help="compare against falcon.c instead of printing")
+    check = parser.parse_args().check
     R, C, D = fft_tables()
     zetas, izetas = ntt_tables()
     tables = [
