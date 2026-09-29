@@ -741,18 +741,24 @@ int test_wolfSSL_inject_coalesced_read(void)
 
     ExpectIntEQ(wolfSSL_write(ssl_s, first, sizeof(first)), sizeof(first));
     ExpectIntEQ(wolfSSL_write(ssl_s, second, sizeof(second)), sizeof(second));
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (test_ctx.c_len <= RECORD_HEADER_SZ)
+        goto cleanup;
+    /* The record length occupies the final two header bytes. */
     firstRecordSz = RECORD_HEADER_SZ +
-        ((int)test_ctx.c_buff[3] << 8) + (int)test_ctx.c_buff[4];
+        ((int)test_ctx.c_buff[RECORD_HEADER_SZ - 2] << 8) +
+        (int)test_ctx.c_buff[RECORD_HEADER_SZ - 1];
     ExpectIntGT(test_ctx.c_len, firstRecordSz + RECORD_HEADER_SZ);
-    if (test_ctx.c_len > firstRecordSz + RECORD_HEADER_SZ) {
-        ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
-            firstRecordSz + RECORD_HEADER_SZ), WOLFSSL_SUCCESS);
-        test_memio_clear_buffer(&test_ctx, 1);
-        ExpectIntEQ(wolfSSL_read(ssl_c, received, sizeof(received)),
-            sizeof(received));
-        ExpectBufEQ(received, first, sizeof(first));
-    }
+    if (test_ctx.c_len <= firstRecordSz + RECORD_HEADER_SZ)
+        goto cleanup;
+    ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
+        firstRecordSz + RECORD_HEADER_SZ), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(wolfSSL_read(ssl_c, received, sizeof(received)),
+        sizeof(received));
+    ExpectBufEQ(received, first, sizeof(first));
 
+cleanup:
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
