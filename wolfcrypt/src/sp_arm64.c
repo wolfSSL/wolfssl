@@ -149,7 +149,8 @@
 
 #ifdef WOLFSSL_SP_ARM64_ASM
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
-/* Conditionally copy len bytes from a to r when copy is 1, in constant time. */
+/* Conditionally copy len bytes from a to r when copy is 1, in constant time.
+ * Reads r, so r must be initialized. */
 WC_MAYBE_UNUSED static void sp_cond_memcpy(void* r, const void* a, int copy,
     size_t len)
 {
