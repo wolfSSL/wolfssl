@@ -10851,7 +10851,7 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
             case WC_AES_192_CCM_TYPE :
             case WC_AES_256_CCM_TYPE :
                 WOLFSSL_MSG("AES CCM");
-                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, ctx->ivSz);
+                /* CCM encrypt/decrypt takes ctx->iv directly. */
                 break;
 #endif /* HAVE_AESCCM */
 #ifdef HAVE_AES_ECB

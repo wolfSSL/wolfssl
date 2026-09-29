@@ -1458,7 +1458,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.aes.reg, ctx->cipher.aes.nonceSz);
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                     ctx->authIncIv = 0;
                 }
             }
@@ -1466,10 +1466,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 *outl = 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
-                if (ctx->authIncIv) {
-                    ctx->authIncIv = 0;
-                }
-                else {
+                if (!ctx->enc || ctx->authIvUsed) {
                     /* Clear IV, since IV reuse is not recommended
                      * for AES CCM. */
                     XMEMSET(ctx->iv, 0, WC_AES_BLOCK_SIZE);
@@ -1605,8 +1602,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.sm4.iv, ctx->cipher.sm4.nonceSz);
-                    XMEMCPY(ctx->iv, ctx->cipher.sm4.iv, (size_t)ctx->ivSz);
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                     ctx->authIncIv = 0;
                 }
             }
@@ -7526,8 +7522,7 @@ void wolfSSL_EVP_init(void)
                         (word32)ctx->authInSz);
             }
             if (ctx->authIncIv) {
-                IncCtr((byte*)ctx->cipher.aes.reg,
-                       ctx->cipher.aes.nonceSz);
+                IncCtr(ctx->iv, (word32)ctx->ivSz);
                 ctx->authIncIv = 0;
             }
         }
@@ -9307,12 +9302,11 @@ void wolfSSL_EVP_init(void)
                                 ctx->authInSz);
                     }
                     if (ctx->authIncIv) {
-                        IncCtr((byte*)ctx->cipher.sm4.iv,
-                               ctx->cipher.sm4.nonceSz);
-                        XMEMCPY(ctx->iv, ctx->cipher.sm4.iv,
-                                (size_t)ctx->ivSz);
+                        IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
+                    if (ret == 0)
+                        ret = (int)len;
                 }
                 break;
 #endif
