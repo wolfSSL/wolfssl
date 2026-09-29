@@ -464,6 +464,115 @@ int test_wolfSSL_DisableExtendedMasterSecret_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test the EMS enable/require APIs: NULL pairs, the client/server/side-less
+ * method branches, and the handshake-state guard.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_EnableRequireExtendedMasterSecret_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctxSrv = NULL;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    WOLFSSL_CTX* ctxV23 = NULL;
+#endif
+#ifdef WOLFSSL_TLS13
+    WOLFSSL_CTX* ctx13 = NULL;
+#endif
+    WOLFSSL*  ssl = NULL;
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL*  sslSrv = NULL;
+#endif
+
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_RequireExtendedMasterSecret(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Client context: the re-arm branch is taken. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(ctx),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_RequireExtendedMasterSecret(ctx),
+        WOLFSSL_SUCCESS);
+
+    /* Server context: side is not the client end. */
+    ExpectNotNull(ctxSrv = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(ctxSrv),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_RequireExtendedMasterSecret(ctxSrv),
+        WOLFSSL_SUCCESS);
+
+    /* Side-less context: the method exists but arms nothing. */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    ExpectNotNull(ctxV23 = wolfSSL_CTX_new(wolfSSLv23_method()));
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(ctxV23),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_RequireExtendedMasterSecret(ctxV23),
+        WOLFSSL_SUCCESS);
+#endif
+
+    /* TLS 1.3 client: EMS is not allowed for the version. */
+#ifdef WOLFSSL_TLS13
+    ExpectNotNull(ctx13 = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_EnableExtendedMasterSecret(ctx13),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx13);
+#endif
+
+    /* Fresh objects: the state guard passes. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl), WOLFSSL_SUCCESS);
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    /* A server WOLFSSL needs a key and certificate set on the context. */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctxSrv, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctxSrv, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(sslSrv = wolfSSL_new(ctxSrv));
+    ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(sslSrv),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(sslSrv),
+        WOLFSSL_SUCCESS);
+    wolfSSL_free(sslSrv);
+#endif
+
+    if (EXPECT_SUCCESS()) {
+        /* A started handshake: the connect-state operand alone. */
+        ssl->options.connectState = 0x7f;
+        ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(ssl),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+
+        /* A started handshake: the accept-state operand alone. */
+        ssl->options.connectState = CONNECT_BEGIN;
+        ssl->options.acceptState = 0x7f;
+        ExpectIntEQ(wolfSSL_EnableExtendedMasterSecret(ssl),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctxSrv);
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    wolfSSL_CTX_free(ctxV23);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test setting the SNI host name and reading it back.
  *
  * @return  TEST_SUCCESS on success.
