@@ -7739,6 +7739,10 @@ static int test_tls13_hrr_ch2_record_version_run(byte pvMajor, byte pvMinor,
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_c,
         WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    /* The ChangeCipherSpec exception is only covered if one is present. */
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.s_buff, test_ctx.s_len), 1);
+#endif
 
     while (EXPECT_SUCCESS() && idx + RECORD_HEADER_SZ <= test_ctx.s_len) {
         if (test_ctx.s_buff[idx] == handshake) {
