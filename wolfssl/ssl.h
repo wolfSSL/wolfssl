@@ -3039,6 +3039,11 @@ enum {
     WOLFSSL_CRL_CHECK    = 2
 };
 
+/* OpenSSL values of X509_V_FLAG_CRL_CHECK(_ALL). WOLFSSL_CRL_CHECK is 0x2, the
+ * value of X509_V_FLAG_USE_CHECK_TIME. */
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK     0x4
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL 0x8
+
 /* Separated out from other enums because of size */
 enum {
     WOLFSSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,

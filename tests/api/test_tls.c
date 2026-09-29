@@ -514,6 +514,61 @@ int test_tls_peer_name_mismatch_verify_cb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+/* Handshake with verify param flags set on the client. No CRL is loaded, so
+ * the handshake fails when the flags turn on CRL checks. */
+static int test_param_flags_crl(unsigned long flags, int expectCrl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl_c),
+        flags), WOLFSSL_SUCCESS);
+
+    if (expectCrl) {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    if (ssl_c != NULL) {
+        ExpectIntEQ(SSL_CM(ssl_c)->crlEnabled, expectCrl);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* X509_V_FLAG_USE_CHECK_TIME in a verify param must not turn on CRL checks.
+ * It used to have the value of X509_V_FLAG_CRL_CHECK. */
+int test_tls_param_flags_crl_check(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+    ExpectIntEQ(test_param_flags_crl(WOLFSSL_USE_CHECK_TIME, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_param_flags_crl(WOLFSSL_X509_V_FLAG_CRL_CHECK, 1),
+        TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* One macro per group test_tls_get_peer_tmp_key() can exercise, so that the
  * helper below is never compiled without a caller. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \

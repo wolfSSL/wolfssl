@@ -17235,6 +17235,9 @@ static int AdjustCMForParams(WOLFSSL* ssl)
 
     param = wolfSSL_get0_param(ssl);
     flags = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    /* 0x2 in a param is X509_V_FLAG_USE_CHECK_TIME, but
+     * wolfSSL_X509_STORE_set_flags() reads it as WOLFSSL_CRL_CHECK. */
+    flags &= ~WOLFSSL_USE_CHECK_TIME;
 
     /* For now there is a possible contradiction of PARAM flags and store flags.
      * Do not disable CRL support if it has already been enabled with store. */

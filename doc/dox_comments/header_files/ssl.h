@@ -5657,7 +5657,9 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 
     \brief This function takes in a flag to change the behavior of the
     WOLFSSL_X509_STORE structure passed in. An example of a flag used
-    is WOLFSSL_CRL_CHECK.
+    is WOLFSSL_CRL_CHECK. X509_V_FLAG_CRL_CHECK and
+    X509_V_FLAG_CRL_CHECK_ALL enable CRL checking like WOLFSSL_CRL_CHECK and
+    WOLFSSL_CRL_CHECKALL.
 
     \return SSL_SUCCESS If no errors were encountered when setting the flag.
     \return <0 a negative value will be returned upon failure.
