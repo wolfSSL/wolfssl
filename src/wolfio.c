@@ -1326,11 +1326,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
     #define WOLFSSL_HTTP_REVOCATION_FETCH
 #endif
 
-#if defined(WOLFSSL_HTTP_REVOCATION_FETCH) && !defined(NO_ASN_TIME) && \
-    defined(HAVE_SOCKADDR) && \
-    defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
-    (defined(__unix__) || defined(__APPLE__) || defined(USE_WINDOWS_API))
-    #define WOLFSSL_HTTP_SOCKET_TIMEOUT
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+    #include <limits.h>
+    #include <poll.h>
 #endif
 
     #ifndef DEFAULT_TIMEOUT_SEC
@@ -1347,7 +1345,7 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
     #define io_timeout_sec 0
 #endif
 
-#ifdef HAVE_IO_TIMEOUT
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     void wolfIO_SetTimeout(int to_sec)
     {
         io_timeout_sec = to_sec;
@@ -1393,6 +1391,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
     int wolfIO_Select(SOCKET_T sockfd, int to_sec)
     {
         fd_set wfds;
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+        struct pollfd pfd;
+#endif
         int nfds = 0;
         struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
         int ret;
@@ -1402,10 +1403,31 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
     #ifndef USE_WINDOWS_API
         nfds = (int)sockfd + 1;
 
-        if ((sockfd < 0) || (sockfd >= FD_SETSIZE)) {
+        if (sockfd < 0) {
             WOLFSSL_MSG("socket fd out of FDSET range");
             return WOLFSSL_FATAL_ERROR;
         }
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+        if (sockfd >= FD_SETSIZE) {
+            pfd.fd = sockfd;
+            pfd.events = POLLOUT;
+            pfd.revents = 0;
+            ret = poll(&pfd, 1,
+                (to_sec > INT_MAX / 1000) ? INT_MAX : to_sec * 1000);
+            if (ret == 0)
+                return HTTP_TIMEOUT;
+            if (ret > 0 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) &&
+                XSOCKET_GETSOCKOPT(sockfd, SOL_SOCKET, SO_ERROR,
+                    (char*)&soErr, &soErrSz) == 0 && soErr == 0)
+                return 0;
+            return SOCKET_ERROR_E;
+        }
+#else
+        if (sockfd >= FD_SETSIZE) {
+            WOLFSSL_MSG("socket fd out of FDSET range");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
     #endif
 
         FD_ZERO(&wfds);
@@ -1453,7 +1475,7 @@ static int wolfIO_HttpFetchSetTimeout(WolfIoHttpFetchCtx* fetch,
 
     elapsed = LowResTimer() - fetch->startTime;
     if (elapsed >= (word32)fetch->timeoutSec)
-        return WOLFSSL_CBIO_ERR_TIMEOUT;
+        return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
     remaining = (word32)fetch->timeoutSec - elapsed;
     if (remaining > 86400U)
         remaining = 86400U;
@@ -1466,23 +1488,32 @@ static int wolfIO_HttpFetchSetTimeout(WolfIoHttpFetchCtx* fetch,
 #endif
     if (XSOCKET_SETSOCKOPT(fetch->sfd, SOL_SOCKET, option,
             (char*)&timeout, sizeof(timeout)) != 0)
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
     return 0;
 }
 #endif /* WOLFSSL_HTTP_SOCKET_TIMEOUT */
 
 static int wolfIO_HttpFetchSend(WolfIoHttpFetchCtx* fetch, char* buf, int sz)
 {
-    int ret = 0;
+    int ret;
+    int sent = 0;
+
+    while (sent < sz) {
 #ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
-    ret = wolfIO_HttpFetchSetTimeout(fetch, SO_SNDTIMEO);
+        ret = wolfIO_HttpFetchSetTimeout(fetch, SO_SNDTIMEO);
+        if (ret != 0)
+            return ret;
 #endif
-    if (ret != 0)
-        return ret;
-    ret = wolfIO_Send(fetch->sfd, buf, sz, 0);
-    if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_WRITE))
-        ret = WOLFSSL_CBIO_ERR_TIMEOUT;
-    return ret;
+        ret = wolfIO_Send(fetch->sfd, buf + sent, sz - sent, 0);
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_WRITE))
+            return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+        if (ret < 0)
+            return ret;
+        if (ret == 0)
+            return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
+        sent += ret;
+    }
+    return sent;
 }
 
 static int wolfIO_HttpFetchRecv(char* buf, int sz, void* ctx)
@@ -1496,7 +1527,7 @@ static int wolfIO_HttpFetchRecv(char* buf, int sz, void* ctx)
         return ret;
     ret = wolfIO_Recv(fetch->sfd, buf, sz, 0);
     if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ))
-        ret = WOLFSSL_CBIO_ERR_TIMEOUT;
+        ret = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
     return ret;
 }
 #endif /* WOLFSSL_HTTP_REVOCATION_FETCH */
