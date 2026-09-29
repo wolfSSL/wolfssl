@@ -3282,6 +3282,90 @@ int test_tls12_resume_ticket_wrong_suite(void)
     return EXPECT_RESULT();
 }
 
+/* options.useTicket says the handshake in progress accepted a session ticket,
+ * and HandleTlsResumption() reads it to take ssl->session instead of looking
+ * up the session id the client presented. It is per-handshake state, so an
+ * object reused with wolfSSL_clear() must not carry it into the next
+ * ClientHello: the retained session would be resumed for a client that never
+ * held it, keyed from the master secret wolfSSL_clear() wiped.
+ *
+ * The first handshake takes a ticket, so the flag is set. A second client then
+ * offers a session id that has been dropped from the cache, so nothing can
+ * legitimately resolve it: only the stale flag could still produce a
+ * resumption, and it must not. */
+int test_tls12_reuse_clears_use_ticket(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_c3 = NULL;
+    WOLFSSL *ssl_s = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    int useTicketAfterClear = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.useTicket, 1);
+
+    /* A session to offer next, taken from a server that issues no tickets so
+     * the second ClientHello carries a session id and no ticket extension.
+     * Nothing is modified in place: a session handed out by the cache may
+     * still be backed by it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s2, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c2));
+    ExpectIntEQ(sess->ticketLen, 0);
+    /* Drop it from the cache the two ends share in-process, so no lookup can
+     * legitimately resolve the id it offers. */
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_s2, sess), 1);
+
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    /* Read now, assert last: an expectation that fails here would skip the
+     * behavioural half below. */
+    if (ssl_s != NULL)
+        useTicketAfterClear = ssl_s->options.useTicket;
+
+    /* Existing CTXs are kept; only the third client object is created, and the
+     * reused server is pointed at the transport it shares with it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c3, NULL,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_s != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    }
+    ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
+    /* The handshake itself may fail: what matters is that the server did not
+     * hand this client the retained session. */
+    if ((ssl_c3 != NULL) && (ssl_s != NULL))
+        test_memio_do_handshake(ssl_c3, ssl_s, 10, NULL);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.resuming, 0);
+    ExpectIntEQ(useTicketAfterClear, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A ticket the server can't honor must fall back to a full handshake (RFC 5077
  * 3.4), even under a different suite than the cached ticket session - the
  * F-5811 suite check must not abort it. The second handshake uses a fresh
