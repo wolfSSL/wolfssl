@@ -1474,6 +1474,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended
                      * for AES CCM. */
                     XMEMSET(ctx->iv, 0, WC_AES_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1618,6 +1619,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended for SM4 GCM.
                      */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1679,6 +1681,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended
                      * for SM4 CCM. */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -7493,6 +7496,9 @@ void wolfSSL_EVP_init(void)
             wc_AesCcmSetNonce(&ctx->cipher.aes, iv, (word32)ctx->ivSz)) {
             WOLFSSL_MSG("wc_AesCcmSetNonce() failed");
             ret = WOLFSSL_FAILURE;
+        }
+        if (ret == WOLFSSL_SUCCESS && iv && iv != ctx->iv) {
+            XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
         }
         /*
          * OpenSSL clears this flag, which permits subsequent use of
