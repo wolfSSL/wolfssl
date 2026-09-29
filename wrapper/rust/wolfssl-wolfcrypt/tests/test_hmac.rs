@@ -55,23 +55,25 @@ fn test_hmac_sha256() {
     }
 }
 
-#[test]
-fn test_hmac_sha256_copy() {
+/// Advance an HMAC-SHA256 past "Hi ", fork it with `fork`, then check that
+/// both the fork and the original produce the RFC 4231 test case 1 tag once
+/// each has consumed the remaining "There".
+fn check_hmac_sha256_fork(fork: impl FnOnce(&mut HMAC) -> HMAC) {
     let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
     let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
 
     let mut hmac = HMAC::new(HMAC::TYPE_SHA256, key).expect("Error with new()");
     hmac.update(b"Hi ").expect("Error with update()");
 
-    let mut forked = hmac.copy().expect("Error with copy()");
+    let mut forked = fork(&mut hmac);
 
-    // The copy continues independently from the same point.
+    // The fork continues independently from the same point.
     forked.update(b"There").expect("Error with update()");
     let mut hash_forked = [0u8; SHA256::DIGEST_SIZE];
     forked.finalize(&mut hash_forked).expect("Error with finalize()");
     assert_eq!(hash_forked, *expected);
 
-    // The original is unaffected by the copy.
+    // The original is unaffected by the fork.
     hmac.update(b"There").expect("Error with update()");
     let mut hash_orig = [0u8; SHA256::DIGEST_SIZE];
     hmac.finalize(&mut hash_orig).expect("Error with finalize()");
@@ -79,22 +81,11 @@ fn test_hmac_sha256_copy() {
 }
 
 #[test]
+fn test_hmac_sha256_copy() {
+    check_hmac_sha256_fork(|hmac| hmac.copy().expect("Error with copy()"));
+}
+
+#[test]
 fn test_hmac_sha256_clone() {
-    let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
-    let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
-
-    let mut hmac = HMAC::new(HMAC::TYPE_SHA256, key).expect("Error with new()");
-    hmac.update(b"Hi ").expect("Error with update()");
-
-    let mut forked = hmac.clone();
-
-    forked.update(b"There").expect("Error with update()");
-    let mut hash_forked = [0u8; SHA256::DIGEST_SIZE];
-    forked.finalize(&mut hash_forked).expect("Error with finalize()");
-    assert_eq!(hash_forked, *expected);
-
-    hmac.update(b"There").expect("Error with update()");
-    let mut hash_orig = [0u8; SHA256::DIGEST_SIZE];
-    hmac.finalize(&mut hash_orig).expect("Error with finalize()");
-    assert_eq!(hash_orig, *expected);
+    check_hmac_sha256_fork(|hmac| hmac.clone());
 }
