@@ -1152,6 +1152,66 @@ static int wolfssl_i_mldsa_raw_to_der(wc_MlDsaKey* key, int priv, byte** der,
 
     return 0;
 }
+
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+/* Encode raw ML-DSA public key bytes as SubjectPublicKeyInfo
+ *
+ * @param [in]  raw    Raw public key bytes.
+ * @param [in]  rawSz  Number of raw bytes.
+ * @param [in]  oid    Key OID sum giving the parameter set.
+ * @param [out] der    Allocated buffer holding the DER encoding.
+ * @param [out] derSz  Size of the DER encoding in bytes.
+ * @param [in]  heap   Heap hint for the allocation.
+ * @return  0 on success.
+ * @return  WOLFSSL_FATAL_ERROR on failure.
+ */
+static int wolfssl_i_mldsa_raw_pub_to_der(const byte* raw, word32 rawSz,
+    int oid, byte** der, word32* derSz, void* heap)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    byte level;
+    WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, heap);
+
+    switch (oid) {
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            level = WC_ML_DSA_44_DRAFT;
+            break;
+        case DILITHIUM_LEVEL3k:
+            level = WC_ML_DSA_65_DRAFT;
+            break;
+        case DILITHIUM_LEVEL5k:
+            level = WC_ML_DSA_87_DRAFT;
+            break;
+    #endif
+        case ML_DSA_44k:
+            level = WC_ML_DSA_44;
+            break;
+        case ML_DSA_65k:
+            level = WC_ML_DSA_65;
+            break;
+        case ML_DSA_87k:
+            level = WC_ML_DSA_87;
+            break;
+        default:
+            return WOLFSSL_FATAL_ERROR;
+    }
+
+    WC_ALLOC_VAR_EX(mldsa, wc_MlDsaKey, 1, heap, DYNAMIC_TYPE_MLDSA,
+        return WOLFSSL_FATAL_ERROR);
+
+    if (wc_MlDsaKey_Init(mldsa, heap, INVALID_DEVID) == 0) {
+        if ((wc_MlDsaKey_SetParams(mldsa, level) == 0) &&
+                (wc_MlDsaKey_ImportPubRaw(mldsa, raw, rawSz) == 0)) {
+            ret = wolfssl_i_mldsa_raw_to_der(mldsa, 0, der, derSz, heap);
+        }
+        wc_MlDsaKey_Free(mldsa);
+    }
+    WC_FREE_VAR_EX(mldsa, heap, DYNAMIC_TYPE_MLDSA);
+
+    return ret;
+}
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY && WC_ENABLE_ASYM_KEY_EXPORT */
 #endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 
 /**
