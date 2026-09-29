@@ -9830,11 +9830,16 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
     /* avoid dereferencing a test value */
     if (ssl->heap != (void*)WOLFSSL_HEAP_TEST) {
     #endif
-        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
-    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
+        WOLFSSL_HEAP_HINT  poolHint;
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         WOLFSSL_HEAP*      ctx_heap;
+    #endif
 
+        /* ssl->ctx may have been swapped, so free into the creating pool */
+        XMEMSET(&poolHint, 0, sizeof(poolHint));
+        poolHint.memory = ssl_hint->memory;
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         ctx_heap = ssl_hint->memory;
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
@@ -9859,10 +9864,10 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
 
         /* check if tracking stats */
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
-            XFREE(ssl_hint->stats, heap, DYNAMIC_TYPE_SSL);
+            XFREE(ssl_hint->stats, &poolHint, DYNAMIC_TYPE_SSL);
         }
     #endif /* !WOLFSSL_STATIC_MEMORY_LEAN */
-        XFREE(ssl->heap, heap, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->heap, &poolHint, DYNAMIC_TYPE_SSL);
     #ifdef WOLFSSL_HEAP_TEST
     }
     #endif
@@ -10473,6 +10478,20 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 void FreeSSL(WOLFSSL* ssl, void* heap)
 {
     WOLFSSL_CTX* ctx = ssl->ctx;
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_HEAP_HINT poolHint;
+
+    /* wolfSSL_ResourceFree() frees ssl->heap, so keep only its pool */
+    if (heap != NULL && heap == ssl->heap
+    #ifdef WOLFSSL_HEAP_TEST
+            && heap != (void*)WOLFSSL_HEAP_TEST
+    #endif
+            ) {
+        XMEMSET(&poolHint, 0, sizeof(poolHint));
+        poolHint.memory = ((WOLFSSL_HEAP_HINT*)heap)->memory;
+        heap = &poolHint;
+    }
+#endif
     wolfSSL_ResourceFree(ssl);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(ssl, sizeof(*ssl));

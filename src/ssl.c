@@ -800,7 +800,7 @@ void wolfSSL_free(WOLFSSL* ssl)
 
     if (ssl) {
         WOLFSSL_MSG_EX("Free SSL: %p", (wc_ptr_t)ssl);
-        FreeSSL(ssl, ssl->ctx->heap);
+        FreeSSL(ssl, ssl->heap);
     }
     else {
         WOLFSSL_MSG("Free SSL: wolfSSL_free already null");
