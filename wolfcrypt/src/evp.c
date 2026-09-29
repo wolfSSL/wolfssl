@@ -1725,6 +1725,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
             || FIPS_VERSION_GE(2,0))
         byte tmp = 0;
+        int tagSz = ctx->authTagSz;
 
         /*
          * This flag needs to retain its value between wolfSSL_EVP_CipherFinal
@@ -1759,6 +1760,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
      defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))
+        /* Keep the tag length the cipher ran with for GET_TAG. */
+        ctx->authTagSz = tagSz;
         if (FALSE
         #ifdef HAVE_AESGCM
             || ctx->cipherType == WC_AES_128_GCM_TYPE ||
@@ -6914,6 +6917,14 @@ void wolfSSL_EVP_init(void)
                 {
                     if (arg <= 0 || arg > WC_AES_BLOCK_SIZE)
                         break;
+                }
+                /* A GCM tag may be cut to its leading bytes (SP 800-38D 7.1).
+                 * CCM binds the tag length into its first block (RFC 3610
+                 * section 2.2), so a cut down CCM tag is not a valid tag. */
+                if ((arg > ctx->authTagSz) || ((arg != ctx->authTagSz) &&
+                        (wolfSSL_EVP_CIPHER_CTX_mode(ctx) !=
+                         WOLFSSL_EVP_CIPH_GCM_MODE))) {
+                    break;
                 }
 
                 if (ptr != NULL) {

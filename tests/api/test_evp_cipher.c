@@ -1338,6 +1338,80 @@ int test_evp_cipher_aes_gcm(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+/* RFC 4106 section 6 and RFC 4309 section 3.3 allow short tags. A GCM tag
+ * may be cut to its leading bytes, a CCM tag may not.
+ */
+static int test_evp_aead_short_tag(const EVP_CIPHER* cipher, int tagSz)
+{
+    EXPECT_DECLS;
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte key[AES_128_KEY_SIZE];
+    byte iv[GCM_NONCE_MID_SZ];
+    byte plain[AES_BLOCK_SIZE];
+    byte ct[AES_BLOCK_SIZE];
+    byte out[AES_BLOCK_SIZE];
+    byte tag[AES_BLOCK_SIZE];
+    byte full[AES_BLOCK_SIZE];
+    int len = 0;
+
+    XMEMSET(key, 0xa5, sizeof(key));
+    XMEMSET(iv, 0x01, sizeof(iv));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    /* a full length tag: GCM hands out its leading bytes, CCM refuses */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+        (int)sizeof(full), full), 1);
+    if (EVP_CIPHER_mode(cipher) == EVP_CIPH_GCM_MODE) {
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, tagSz,
+            tag), 1);
+        ExpectBufEQ(tag, full, tagSz);
+    }
+    else {
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, tagSz,
+            tag), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* a short tag chosen first is the one the cipher produces */
+    XMEMSET(tag, 0, sizeof(tag));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tagSz, tag),
+        1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+        (int)sizeof(tag), tag), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, tagSz, tag),
+        1);
+    if (EVP_CIPHER_mode(cipher) == EVP_CIPH_GCM_MODE) {
+        ExpectBufEQ(tag, full, tagSz);
+    }
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tagSz, tag),
+        1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct, sizeof(ct)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    ExpectBufEQ(out, plain, sizeof(plain));
+    EVP_CIPHER_CTX_free(ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 int test_wolfssl_EVP_aes_gcm(void)
 {
     EXPECT_DECLS;
@@ -1491,6 +1565,10 @@ int test_wolfssl_EVP_aes_gcm(void)
 
         wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]);
     }
+#ifdef WOLFSSL_AES_128
+    /* RFC 4106 section 6 allows a 12 byte ICV */
+    ExpectIntEQ(test_evp_aead_short_tag(EVP_aes_128_gcm(), 12), TEST_SUCCESS);
+#endif
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
     return EXPECT_RESULT();
 }
@@ -1827,6 +1905,10 @@ int test_wolfssl_EVP_aes_ccm(void)
         ret = wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]);
         ExpectIntEQ(ret, 1);
     }
+#ifdef WOLFSSL_AES_128
+    /* RFC 4309 section 3.3 requires an 8 byte ICV */
+    ExpectIntEQ(test_evp_aead_short_tag(EVP_aes_128_ccm(), 8), TEST_SUCCESS);
+#endif
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESCCM */
     return EXPECT_RESULT();
 }
