@@ -545,9 +545,9 @@ struct Aes {
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
 
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
-    /* tag length this key is tied to, at the end so offsets do not move */
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+    /* tag length associated with the key, at the end so offsets do not move.
+     * Always present, so the opt-out cannot change the struct size. */
     word32 tagLen;
 #endif
 };
@@ -637,8 +637,8 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
 
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
      defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
-/* no tag length is tied to the key yet, also pass to wc_AesSetTagLen() or
- * wc_CmacSetTagLen() to clear one */
+/* no tag length is associated with the key yet, also pass to
+ * wc_AesSetTagLen() or wc_CmacSetTagLen() to clear one */
 enum {
     WC_NO_TAG_ASSOCIATION = 0
 };

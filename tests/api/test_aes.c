@@ -3695,8 +3695,8 @@ int test_wc_AesGcmStreamTagLen(void)
     ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
     ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher, plain, sizeof(plain),
         NULL, 0), 0);
-    /* RFC 5084 section 3.2 allows this length, but the key is tied to the
-     * full one */
+    /* RFC 5084 section 3.2 allows this length, but the full one is already
+     * associated with this key */
     ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, shortTagSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);

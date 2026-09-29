@@ -1359,7 +1359,7 @@ int test_evp_cipher_aes_gcm_tag_len(void)
     byte tag2[16];
     byte out[16];
     int len = 0;
-    /* allowed by RFC 5084 section 3.2, but not once 16 is tied to the key */
+    /* allowed by RFC 5084 section 3.2, but not once 16 is associated */
     const int shortTagSz = 12;
 
     XMEMSET(key, 0xa5, sizeof(key));
@@ -1382,7 +1382,7 @@ int test_evp_cipher_aes_gcm_tag_len(void)
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
 
-    /* the first verify ties 16 to the key, a shorter one is then refused */
+    /* the first verify associates 16, a shorter one is then refused */
     ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
     ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
     ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,

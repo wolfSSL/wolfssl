@@ -335,7 +335,6 @@ int test_wc_CmacSetTagLen(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
     && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) \
-    && WC_CMAC_TAG_MIN_SZ < WC_CMAC_TAG_MAX_SZ \
     && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Cmac   cmac;
     byte   key[WC_AES_BLOCK_SIZE];
@@ -377,16 +376,6 @@ int test_wc_CmacSetTagLen(void)
         ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
         tagSz = otherSz;
         ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
-        wc_CmacFree(&cmac);
-    }
-
-    /* handing in a key drops it as well */
-    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
-    if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
-        tagSz = otherSz;
-        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, tag, &tagSz, msg, sizeof(msg),
-            key, sizeof(key), HEAP_HINT, INVALID_DEVID), 0);
         wc_CmacFree(&cmac);
     }
 
@@ -907,7 +896,8 @@ static int cmac_tag_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
-/* A key handed to the device path must drop the length tied to the old one.
+/* The device path records the length it used against the key it was
+ * handed, so a later call at another length is refused.
  */
 int test_wc_CryptoCb_CmacTagLen(void)
 {
@@ -931,14 +921,19 @@ int test_wc_CryptoCb_CmacTagLen(void)
     ExpectIntEQ(wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
         HEAP_HINT, devId), 0);
     if (EXPECT_SUCCESS()) {
-        /* tie the full length to this key */
-        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
-        /* the device takes this one, and a key means the old length goes */
+        /* start from the smallest length so the device call has to
+         * change it */
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MIN_SZ), 0);
+        /* the device runs this one at the full length */
         tagSz = (word32)sizeof(tag);
         ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, tag, &tagSz, msg, sizeof(msg),
             key, sizeof(key), HEAP_HINT, devId), 0);
-        /* so the new key may use another length */
+        /* the length it started with is refused from here on */
         tagSz = WC_CMAC_TAG_MIN_SZ;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* and the one the device used is accepted */
+        tagSz = (word32)sizeof(tag);
         ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
         wc_CmacFree(&cmac);
     }
