@@ -86,7 +86,7 @@ pub(crate) enum RngHandle {
 impl RNG {
     /// Initialize a new `RNG` instance.
     ///
-    /// This function wraps the wolfssl library function `wc_InitRng`, which
+    /// This function wraps the wolfssl library function `wc_rng_new_ex`, which
     /// performs the necessary initialization for the RNG context.
     ///
     /// # Returns
@@ -99,7 +99,7 @@ impl RNG {
 
     /// Initialize a new `RNG` instance with optional heap and device ID.
     ///
-    /// This function wraps the wolfssl library function `wc_InitRng`, which
+    /// This function wraps the wolfssl library function `wc_rng_new_ex`, which
     /// performs the necessary initialization for the RNG context.
     ///
     /// # Parameters
