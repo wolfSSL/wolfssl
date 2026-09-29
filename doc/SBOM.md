@@ -412,6 +412,16 @@ make sbom
 
 Requires `python3` and `pyspdxtools` (`pip install spdx-tools`).
 
+Or with CMake:
+
+```sh
+cmake -B build
+cmake --build build --target sbom
+```
+
+Under CMake both tools are detected at configure time; if either is
+missing the `sbom` target is replaced by a stub that names it.
+
 ### 2.2 Full coverage: component identity + build provenance
 
 ```sh
@@ -563,7 +573,15 @@ make install-sbom        # installs to $(datadir)/doc/wolfssl/
 make uninstall-sbom      # removes the installed files
 ```
 
-The generated files are removed by `make clean`.
+Or with CMake (installs to `CMAKE_INSTALL_DOCDIR`, honoring `DESTDIR`):
+
+```sh
+cmake --build build --target install-sbom
+cmake --build build --target uninstall-sbom
+```
+
+The generated files are removed by `make clean` (autotools) or by
+`cmake --build build --target clean` (CMake).
 
 ### 2.7 Implementation notes
 
