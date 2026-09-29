@@ -29092,12 +29092,14 @@ int SendCertificateStatus(WOLFSSL* ssl)
                              * OCSP_INVALID_STATUS covers every other result
                              * the stapler could not turn into a usable
                              * response - an unreachable responder, or a
-                             * cached entry with no raw response kept;
-                             * stapling stays best-effort. */
+                             * cached entry with no raw response kept. A
+                             * responder timeout also leaves no response to
+                             * staple, so stapling stays best-effort. */
                             if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                                 ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
                                 ret == WC_NO_ERR_TRACE(OCSP_INVALID_STATUS) ||
-                                ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
+                                ret == WC_NO_ERR_TRACE(OCSP_NO_URL) ||
+                                ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT)) {
                                 ret = 0;
                             }
 
@@ -29126,11 +29128,13 @@ int SendCertificateStatus(WOLFSSL* ssl)
                      * OCSP_INVALID_STATUS covers every other result the
                      * stapler could not turn into a usable response - an
                      * unreachable responder, or a cached entry with no raw
-                     * response kept; stapling stays best-effort. */
+                     * response kept. A responder timeout also leaves no
+                     * response to staple, so stapling stays best-effort. */
                     if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                         ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
                         ret == WC_NO_ERR_TRACE(OCSP_INVALID_STATUS) ||
-                        ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
+                        ret == WC_NO_ERR_TRACE(OCSP_NO_URL) ||
+                        ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT)) {
                         ret = 0;
                     }
                 }
