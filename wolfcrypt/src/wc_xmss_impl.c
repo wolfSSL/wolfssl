@@ -1768,7 +1768,7 @@ static void wc_xmss_chain(XmssState* state, const byte* data,
  * @param [in]      cnt      Width of the batch.
  */
 static void wc_xmss_n_way_sha256(const word32* mid, const byte* data,
-    word32 blocks, byte* hash, int cnt)
+    word32 blocks, byte* hash, word32 cnt)
 {
     static const word32 init[WC_SHA256_DIGEST_SIZE / sizeof(word32)] = {
         0x6A09E667L, 0xBB67AE85L, 0x3C6EF372L, 0xA54FF53AL,
@@ -1778,13 +1778,13 @@ static void wc_xmss_n_way_sha256(const word32* mid, const byte* data,
     ALIGN64 word32 st[WC_SHA256_N_WAY_MAX_CNT *
                       (WC_SHA256_DIGEST_SIZE / sizeof(word32))];
     word32 b;
-    int i;
-    int m;
+    word32 i;
+    word32 m;
 
     if (mid == NULL) {
         mid = init;
     }
-    for (i = 0; i < (int)(WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
+    for (i = 0; i < (WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
         for (m = 0; m < cnt; m++) {
             st[i * cnt + m] = mid[i];
         }
@@ -1816,7 +1816,7 @@ static void wc_xmss_n_way_sha256(const word32* mid, const byte* data,
     for (m = 0; m < cnt; m++) {
         byte* h = hash + m * WC_SHA256_DIGEST_SIZE;
 
-        for (i = 0; i < (int)(WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
+        for (i = 0; i < (WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
             word32 v = st[i * cnt + m];
 
             h[i * 4 + 0] = (byte)(v >> 24);
@@ -1845,10 +1845,10 @@ static void wc_xmss_n_way_sha256(const word32* mid, const byte* data,
  * @param [in]      cnt      Width of the batch.
  */
 static void wc_xmss_n_way_shake(word64* st, const byte* data, word32 len,
-    word32 rate, byte* out, word32 outLen, int cnt)
+    word32 rate, byte* out, word32 outLen, word32 cnt)
 {
     word32 last = rate / 8 - 1;
-    int m;
+    word32 m;
 
     XMEMSET(st, 0, (size_t)cnt * 25 * sizeof(word64));
 
@@ -1987,7 +1987,7 @@ static void wc_xmss_n_way_pad(byte* blk)
 #endif /* WC_XMSS_SHA256_N_WAY */
 
 /* Lane has no chain to run. */
-#define XMSS_N_WAY_IDLE       (-1)
+#define XMSS_N_WAY_IDLE       (~(word32)0)
 
 /* Bytes of message SHAKE absorbs for one PRF or chain hash: three 32-byte
  * fields, comfortably inside one permutation at either SHAKE rate. */
@@ -2017,12 +2017,12 @@ static void wc_xmss_n_way_pad(byte* blk)
  */
 #ifdef WC_XMSS_SHA256_N_WAY
 static void wc_xmss_n_way_step_sha256_32(XmssState* state, const byte* addr,
-    const int* lchain, const int* lj, const byte* lval, int lanes)
+    const word32* lchain, const word32* lj, const byte* lval, word32 lanes)
 {
     byte* prf = state->n_way_buf;
     byte* f0 = state->n_way_buf;
     byte* f1 = state->n_way_buf + (size_t)lanes * WC_SHA256_BLOCK_SIZE;
-    int m;
+    word32 m;
 
     /* BM is computed before KEY only so that its blocks can be written
      * before KEY's digests overwrite the PRF blocks they share space with. */
@@ -2033,8 +2033,8 @@ static void wc_xmss_n_way_step_sha256_32(XmssState* state, const byte* addr,
             continue;
         }
         XMEMCPY(blk, addr, WC_XMSS_ADDR_LEN);
-        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_CHAIN, (word32)lchain[m]);
-        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_HASH, (word32)lj[m]);
+        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_CHAIN, lchain[m]);
+        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_HASH, lj[m]);
         XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_KEY_MASK, 1);
         wc_xmss_n_way_pad(blk);
     }
@@ -2096,14 +2096,14 @@ static void wc_xmss_n_way_step_sha256_32(XmssState* state, const byte* addr,
  * @param [in]      lanes    Width of the batch.
  */
 static void wc_xmss_n_way_step_shake_32(XmssState* state, const byte* addr,
-    const int* lchain, const int* lj, const byte* lval, int lanes)
+    const word32* lchain, const word32* lj, const byte* lval, word32 lanes)
 {
     byte* prf = state->n_way_buf;
     byte* f = state->n_way_buf + (size_t)lanes * XMSS_N_WAY_SHAKE_MSG_SZ;
     /* SHAKE-128 absorbs 168 bytes per permutation, SHAKE-256 136. */
     word32 rate = (state->params->hash == WC_HASH_TYPE_SHAKE128) ?
         WC_SHA3_128_BLOCK_SIZE : WC_SHA3_256_BLOCK_SIZE;
-    int m;
+    word32 m;
 
     /* ADRS of each lane at its own step, after the shared padding and seed. */
     for (m = 0; m < lanes; m++) {
@@ -2115,8 +2115,8 @@ static void wc_xmss_n_way_step_shake_32(XmssState* state, const byte* addr,
         XMEMCPY(prf + m * XMSS_N_WAY_SHAKE_MSG_SZ, state->prf_buf,
             2 * XMSS_SHA256_32_N);
         XMEMCPY(adrs, addr, WC_XMSS_ADDR_LEN);
-        XMSS_ADDR_SET_BYTE(adrs, XMSS_ADDR_CHAIN, (word32)lchain[m]);
-        XMSS_ADDR_SET_BYTE(adrs, XMSS_ADDR_HASH, (word32)lj[m]);
+        XMSS_ADDR_SET_BYTE(adrs, XMSS_ADDR_CHAIN, lchain[m]);
+        XMSS_ADDR_SET_BYTE(adrs, XMSS_ADDR_HASH, lj[m]);
         XMSS_ADDR_SET_BYTE(adrs, XMSS_ADDR_KEY_MASK, 0);
     }
 
@@ -2194,12 +2194,12 @@ static void wc_xmss_n_way_pad512(byte* blk, word32 used, word32 total)
  * @param [in]      lanes    Width of the batch.
  */
 static void wc_xmss_n_way_step_sha512_64(XmssState* state, const byte* addr,
-    const int* lchain, const int* lj, const byte* lval, int lanes)
+    const word32* lchain, const word32* lj, const byte* lval, word32 lanes)
 {
     byte* prf = state->n_way_buf;
     byte* f0 = state->n_way_buf;
     byte* f1 = state->n_way_buf + (size_t)lanes * WC_SHA512_BLOCK_SIZE;
-    int m;
+    word32 m;
 
     /* BM is computed before KEY only so that its blocks can be written
      * before KEY's digests overwrite the PRF blocks they share space with. */
@@ -2210,8 +2210,8 @@ static void wc_xmss_n_way_step_sha512_64(XmssState* state, const byte* addr,
             continue;
         }
         XMEMCPY(blk, addr, WC_XMSS_ADDR_LEN);
-        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_CHAIN, (word32)lchain[m]);
-        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_HASH, (word32)lj[m]);
+        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_CHAIN, lchain[m]);
+        XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_HASH, lj[m]);
         XMSS_ADDR_SET_BYTE(blk, XMSS_ADDR_KEY_MASK, 1);
         wc_xmss_n_way_pad512(blk, WC_XMSS_ADDR_LEN, XMSS_N_WAY_PRF_LEN_512);
     }
@@ -2265,7 +2265,7 @@ static void wc_xmss_n_way_step_sha512_64(XmssState* state, const byte* addr,
  * @param [in]      lanes    Width of the batch.
  */
 static void wc_xmss_n_way_step(XmssState* state, const byte* addr,
-    const int* lchain, const int* lj, const byte* lval, int lanes)
+    const word32* lchain, const word32* lj, const byte* lval, word32 lanes)
 {
 #ifdef WC_XMSS_SHA512_N_WAY
     if (state->params->hash == WC_HASH_TYPE_SHA512) {
@@ -2311,20 +2311,20 @@ static void wc_xmss_n_way_step(XmssState* state, const byte* addr,
  * @param [in, out] out    wots_len n-byte chain values, updated in place.
  */
 static void wc_xmss_chains_n_way(XmssState* state, const byte* addr,
-    const byte* start, const byte* end, int lanes, byte* out)
+    const byte* start, const byte* end, word32 lanes, byte* out)
 {
     word32 len = state->params->wots_len;
     /* Bytes of hash a chain carries: 32 for the SHA-256 and SHAKE sets, 64
      * for the SHA-512 ones. */
     word32 n = state->params->n;
     /* Chain each lane is running and where it is in it. */
-    int lchain[WC_XMSS_N_WAY_MAX_CNT];
-    int lj[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lchain[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lj[WC_XMSS_N_WAY_MAX_CNT];
     /* The chain value of each lane, which only reaches 'out' when done. */
     byte lval[WC_XMSS_N_WAY_MAX_CNT * WC_XMSS_MAX_N];
-    int next = 0;
+    word32 next = 0;
     int busy = 0;
-    int m;
+    word32 m;
 
     for (m = 0; m < lanes; m++) {
         lchain[m] = XMSS_N_WAY_IDLE;
@@ -2334,7 +2334,7 @@ static void wc_xmss_chains_n_way(XmssState* state, const byte* addr,
 
     for (;;) {
         /* Fill idle lanes. */
-        for (m = 0; (m < lanes) && (next < (int)len); m++) {
+        for (m = 0; (m < lanes) && (next < len); m++) {
             if (lchain[m] != XMSS_N_WAY_IDLE) {
                 continue;
             }
@@ -2354,13 +2354,13 @@ static void wc_xmss_chains_n_way(XmssState* state, const byte* addr,
         wc_xmss_n_way_step(state, addr, lchain, lj, lval, lanes);
 
         for (m = 0; m < lanes; m++) {
-            int c = lchain[m];
-            int cend;
+            word32 c = lchain[m];
+            word32 cend;
 
             if (c == XMSS_N_WAY_IDLE) {
                 continue;
             }
-            cend = (end == NULL) ? (int)(XMSS_WOTS_W - 1) : (int)end[c];
+            cend = (end == NULL) ? (XMSS_WOTS_W - 1) : end[c];
 
             if (lj[m] < cend) {
                 XMEMCPY(lval + m * n,
@@ -2418,21 +2418,21 @@ static void wc_xmss_chains_n_way(XmssState* state, const byte* addr,
  * @param [in, out] out    wots_len n-byte chain values, updated in place.
  */
 static void wc_xmss_pk_chains_n_way(XmssState* state, const byte* addr,
-    int lanes, byte* out)
+    word32 lanes, byte* out)
 {
     word32 len = state->params->wots_len;
     word32 n = state->params->n;
     /* Chain each lane runs and where it is in it - fixed here, but the step
      * function is shared with the scheduler, which needs them per lane. */
-    int lchain[WC_XMSS_N_WAY_MAX_CNT];
-    int lj[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lchain[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lj[WC_XMSS_N_WAY_MAX_CNT];
     /* The chain value of each lane, which only reaches 'out' when done. */
     byte lval[WC_XMSS_N_WAY_MAX_CNT * WC_XMSS_MAX_N];
     word32 i;
-    int m;
+    word32 m;
 
-    for (i = 0; i < len; i += (word32)lanes) {
-        int cnt = (int)(len - i);
+    for (i = 0; i < len; i += lanes) {
+        word32 cnt = (len - i);
         word32 j;
 
         if (cnt > lanes) {
@@ -2442,11 +2442,11 @@ static void wc_xmss_pk_chains_n_way(XmssState* state, const byte* addr,
          * hashed with the rest and their results thrown away, which keeps
          * every step three calls whatever the group size. */
         for (m = 0; m < lanes; m++) {
-            int c = (m < cnt) ? m : 0;
+            word32 c = (m < cnt) ? m : 0;
 
-            lchain[m] = (int)i + c;
+            lchain[m] = i + c;
             XMEMCPY(lval + m * n,
-                out + (size_t)(i + (word32)c) * n,
+                out + (size_t)(i + c) * n,
                 n);
         }
 
@@ -2454,7 +2454,7 @@ static void wc_xmss_pk_chains_n_way(XmssState* state, const byte* addr,
          * the step function takes a per-lane index, so fill it in. */
         for (j = 0; j < XMSS_WOTS_W - 1; j++) {
             for (m = 0; m < lanes; m++) {
-                lj[m] = (int)j;
+                lj[m] = j;
             }
 
             wc_xmss_n_way_step(state, addr, lchain, lj, lval, lanes);
@@ -2489,10 +2489,10 @@ static void wc_xmss_pk_chains_n_way(XmssState* state, const byte* addr,
  * @param [in]  l      Lane to read.
  * @param [out] out    n bytes of hash.
  */
-static void wc_xmss_n_way_fused_get(XmssState* state, int lanes, int l,
+static void wc_xmss_n_way_fused_get(XmssState* state, word32 lanes, word32 l,
     byte* out)
 {
-    int i;
+    word32 i;
 
 #ifdef WC_XMSS_SHAKE_N_WAY_FUSED
     if (XMSS_N_WAY_IS_SHAKE(state->params)) {
@@ -2523,7 +2523,7 @@ static void wc_xmss_n_way_fused_get(XmssState* state, int lanes, int l,
     }
 #endif
 #ifdef WC_XMSS_SHA256_N_WAY_FUSED
-    for (i = 0; i < (int)(state->params->n / 4); i++) {
+    for (i = 0; i < state->params->n / 4U; i++) {
         word32 v = state->n_way_st[i * lanes + l];
 
         out[i * 4 + 0] = (byte)(v >> 24);
@@ -2541,10 +2541,10 @@ static void wc_xmss_n_way_fused_get(XmssState* state, int lanes, int l,
  * @param [in]      l      Lane to write.
  * @param [in]      v      n bytes of hash.
  */
-static void wc_xmss_n_way_fused_set(XmssState* state, int lanes, int l,
+static void wc_xmss_n_way_fused_set(XmssState* state, word32 lanes, word32 l,
     const byte* v)
 {
-    int i;
+    word32 i;
 
 #ifdef WC_XMSS_SHAKE_N_WAY_FUSED
     if (XMSS_N_WAY_IS_SHAKE(state->params)) {
@@ -2575,7 +2575,7 @@ static void wc_xmss_n_way_fused_set(XmssState* state, int lanes, int l,
     }
 #endif
 #ifdef WC_XMSS_SHA256_N_WAY_FUSED
-    for (i = 0; i < (int)(state->params->n / 4); i++) {
+    for (i = 0; i < state->params->n / 4U; i++) {
         state->n_way_st[i * lanes + l] = ((word32)v[i * 4 + 0] << 24) |
                                        ((word32)v[i * 4 + 1] << 16) |
                                        ((word32)v[i * 4 + 2] <<  8) |
@@ -2597,7 +2597,7 @@ static void wc_xmss_n_way_fused_set(XmssState* state, int lanes, int l,
  * @param [in]      lanes   Width of the batch.
  */
 static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
-    const int* lchain, const int* lj, int lanes)
+    const word32* lchain, const word32* lj, word32 lanes)
 {
 #if defined(WC_XMSS_SHA256_N_WAY_FUSED) || defined(WC_XMSS_SHA512_N_WAY_FUSED)
     /* ADRS as SHA-2 message words.  SHAKE reads its message the other way
@@ -2609,11 +2609,11 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
     word32 idxv[2 * WC_XMSS_N_WAY_MAX_CNT];
     word32* chainv = idxv;
     word32* hashv = idxv + lanes;
-    int m;
-    int i;
+    word32 m;
+    word32 i;
 
 #if defined(WC_XMSS_SHA256_N_WAY_FUSED) || defined(WC_XMSS_SHA512_N_WAY_FUSED)
-    for (i = 0; i < (int)(WC_XMSS_ADDR_LEN / 4); i++) {
+    for (i = 0; i < (WC_XMSS_ADDR_LEN / 4); i++) {
         aw[i] = ((word32)addr[i * 4 + 0] << 24) |
                 ((word32)addr[i * 4 + 1] << 16) |
                 ((word32)addr[i * 4 + 2] <<  8) |
@@ -2623,8 +2623,8 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
     /* An idle lane is hashed with the rest and its result dropped, so any
      * chain address will do for it. */
     for (m = 0; m < lanes; m++) {
-        chainv[m] = (lchain[m] == XMSS_N_WAY_IDLE) ? 0 : (word32)lchain[m];
-        hashv[m] = (word32)lj[m];
+        chainv[m] = (lchain[m] == XMSS_N_WAY_IDLE) ? 0 : lchain[m];
+        hashv[m] = lj[m];
     }
 
 #ifdef WC_XMSS_SHAKE_N_WAY_FUSED
@@ -2637,13 +2637,13 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
         int k;
 
         /* padding || SEED, alike in every lane, as the message words. */
-        for (i = 0; i < (int)(2 * XMSS_SHA256_32_N / 8); i++) {
+        for (i = 0; i < 2U * XMSS_SHA256_32_N / 8U; i++) {
             pfx[i] = 0;
             for (k = 7; k >= 0; k--) {
                 pfx[i] = (pfx[i] << 8) | (word64)state->prf_buf[i * 8 + k];
             }
         }
-        for (i = 0; i < (int)(WC_XMSS_ADDR_LEN / 8); i++) {
+        for (i = 0; i < (WC_XMSS_ADDR_LEN / 8); i++) {
             adrs[i] = 0;
             for (k = 7; k >= 0; k--) {
                 adrs[i] = (adrs[i] << 8) | (word64)addr[i * 8 + k];
@@ -2680,7 +2680,7 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
 
         /* ADRS as this hash's words.  The kernel masks out the halves that
          * vary between lanes and fills them from chainv and hashv. */
-        for (i = 0; i < (int)(WC_XMSS_ADDR_LEN / 8); i++) {
+        for (i = 0; i < (WC_XMSS_ADDR_LEN / 8); i++) {
             adrs[i] = ((word64)aw[i * 2] << 32) | aw[i * 2 + 1];
         }
 
@@ -2701,7 +2701,7 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
          * than absorbed once, so it is passed in whole. */
         word32 pfx[(XMSS_SHA256_192_PAD_LEN + XMSS_SHA256_192_N) / 4];
 
-        for (i = 0; i < (int)(sizeof(pfx) / sizeof(pfx[0])); i++) {
+        for (i = 0; i < (sizeof(pfx) / sizeof(pfx[0])); i++) {
             const byte* b = state->prf_buf + i * 4;
 
             pfx[i] = ((word32)b[0] << 24) | ((word32)b[1] << 16) |
@@ -2745,15 +2745,15 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
  * @param [in, out] out    wots_len n-byte chain values, updated in place.
  */
 static void wc_xmss_chains_n_way_fused(XmssState* state, const byte* addr,
-    const byte* start, const byte* end, int lanes, byte* out)
+    const byte* start, const byte* end, word32 lanes, byte* out)
 {
-    int len = (int)state->params->wots_len;
+    word32 len = state->params->wots_len;
     word32 n = state->params->n;
-    int lchain[WC_XMSS_N_WAY_MAX_CNT];
-    int lj[WC_XMSS_N_WAY_MAX_CNT];
-    int next = 0;
+    word32 lchain[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lj[WC_XMSS_N_WAY_MAX_CNT];
+    word32 next = 0;
     int busy = 0;
-    int m;
+    word32 m;
 
     for (m = 0; m < lanes; m++) {
         lchain[m] = XMSS_N_WAY_IDLE;
@@ -2763,9 +2763,9 @@ static void wc_xmss_chains_n_way_fused(XmssState* state, const byte* addr,
     for (;;) {
         for (m = 0; m < lanes; m++) {
             while ((lchain[m] == XMSS_N_WAY_IDLE) && (next < len)) {
-                int cs = (start == NULL) ? 0 : (int)start[next];
-                int ce = (end == NULL) ? (int)(XMSS_WOTS_W - 1) :
-                                         (int)end[next];
+                word32 cs = (start == NULL) ? 0 : start[next];
+                word32 ce = (end == NULL) ? (XMSS_WOTS_W - 1) :
+                                         end[next];
 
                 if (cs >= ce) {
                     /* Nothing to hash: 'out' already holds the result. */
@@ -2787,13 +2787,13 @@ static void wc_xmss_chains_n_way_fused(XmssState* state, const byte* addr,
         wc_xmss_n_way_fused_step(state, addr, lchain, lj, lanes);
 
         for (m = 0; m < lanes; m++) {
-            int c = lchain[m];
-            int ce;
+            word32 c = lchain[m];
+            word32 ce;
 
             if (c == XMSS_N_WAY_IDLE) {
                 continue;
             }
-            ce = (end == NULL) ? (int)(XMSS_WOTS_W - 1) : (int)end[c];
+            ce = (end == NULL) ? (XMSS_WOTS_W - 1) : end[c];
             lj[m]++;
             if (lj[m] >= ce) {
                 wc_xmss_n_way_fused_get(state, lanes, m,
@@ -2817,18 +2817,18 @@ static void wc_xmss_chains_n_way_fused(XmssState* state, const byte* addr,
  * @param [in, out] out    wots_len n-byte chain values, updated in place.
  */
 static void wc_xmss_pk_chains_n_way_fused(XmssState* state, const byte* addr,
-    int lanes, byte* out)
+    word32 lanes, byte* out)
 {
-    int len = (int)state->params->wots_len;
+    word32 len = state->params->wots_len;
     word32 n = state->params->n;
-    int lchain[WC_XMSS_N_WAY_MAX_CNT];
-    int lj[WC_XMSS_N_WAY_MAX_CNT];
-    int i;
-    int m;
+    word32 lchain[WC_XMSS_N_WAY_MAX_CNT];
+    word32 lj[WC_XMSS_N_WAY_MAX_CNT];
+    word32 i;
+    word32 m;
 
     for (i = 0; i < len; i += lanes) {
-        int cnt = len - i;
-        int j;
+        word32 cnt = len - i;
+        word32 j;
 
         if (cnt > lanes) {
             cnt = lanes;
@@ -2836,7 +2836,7 @@ static void wc_xmss_pk_chains_n_way_fused(XmssState* state, const byte* addr,
         /* Lanes past the end of the group repeat its first chain and their
          * results are thrown away. */
         for (m = 0; m < lanes; m++) {
-            int c = (m < cnt) ? m : 0;
+            word32 c = (m < cnt) ? m : 0;
 
             lchain[m] = i + c;
             wc_xmss_n_way_fused_set(state, lanes, m,
@@ -2984,7 +2984,7 @@ static int wc_xmss_n_way_prf_midstate(XmssState* state, const byte* pk_seed)
  */
 static int wc_xmss_wots_chains_n_way(XmssState* state,
     const byte* pk_seed, const byte* addr, const byte* start, const byte* end,
-    int lanes, const byte* in, byte* out)
+    word32 lanes, const byte* in, byte* out)
 {
     const XmssParams* params = state->params;
     int ret = wc_xmss_n_way_prf_midstate(state, pk_seed);
@@ -3018,7 +3018,7 @@ static int wc_xmss_wots_chains_n_way(XmssState* state,
  * @return  0 on success.
  */
 static int wc_xmss_wots_pk_chains_n_way(XmssState* state,
-    const byte* pk_seed, const byte* addr, int lanes, byte* out)
+    const byte* pk_seed, const byte* addr, word32 lanes, byte* out)
 {
     int ret = wc_xmss_n_way_prf_midstate(state, pk_seed);
 
@@ -3053,9 +3053,8 @@ static int wc_xmss_wots_pk_chains_n_way(XmssState* state,
  * @return  Number of chains to step at once, or 0.
  */
 /* The AVX-512 kernels keep to AVX-512F, so the foundation bit alone is the
- * @param [in]      params   XMSS/MT parameters.
  * right test - see the note in wc_lms_impl.c. */
-static int wc_xmss_n_way_lanes(const XmssParams* params)
+static word32 wc_xmss_n_way_lanes(const XmssParams* params)
 {
     /* The 64-byte sets. */
     if ((params->pad_len == XMSS_SHA512_64_PAD_LEN) &&
@@ -3072,7 +3071,7 @@ static int wc_xmss_n_way_lanes(const XmssParams* params)
 
 #ifdef WC_XMSS_SHA256_N_WAY
     if (params->hash == WC_HASH_TYPE_SHA256) {
-        int lanes;
+        word32 lanes;
 
         /* Sixteen lanes beat even SHA-NI; eight lose to it.  See sha256.h. */
     #ifdef WOLFSSL_XMSS_HAVE_INTEL_AVX512
@@ -3236,7 +3235,7 @@ static void wc_xmss_wots_gen_pk(XmssState* state, const byte* sk,
     byte* addr_buf = state->encMsg;
     word32 i;
 #ifdef WC_XMSS_N_WAY
-    int lanes;
+    word32 lanes;
 #endif
 
     /* Ensure chain address is 0 and encode into a buffer. */
@@ -3348,7 +3347,7 @@ static void wc_xmss_wots_sign(XmssState* state, const byte* m,
     byte* addr_buf = state->pk;
     word32 i;
 #ifdef WC_XMSS_N_WAY
-    int lanes;
+    word32 lanes;
 #endif
 
     /* Convert message to base w and append checksum in base w. */
@@ -3459,7 +3458,7 @@ static void wc_xmss_wots_pk_from_sig(XmssState* state, const byte* sig,
     byte* addr_buf = state->stack;
     word32 i;
 #ifdef WC_XMSS_N_WAY
-    int lanes;
+    word32 lanes;
 #endif
 
     /* Convert message to base w and append checksum in base w. */

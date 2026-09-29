@@ -2496,7 +2496,7 @@ static word32 slhdsakey_shake256_set_seed_ha_x8(word64* fixed,
     const byte* seed, const byte* addr, int n)
 {
     int i;
-    int l;
+    word32 l;
     word32 o = 0;
 
     for (i = 0; i < n; i += 8) {
@@ -7921,7 +7921,7 @@ static int slhdsakey_hash_h_2_x8(const byte* pk_seed, byte* addr, byte* node,
     int ret = 0;
     word32 o;
     int i;
-    int j;
+    word32 j;
     WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
 
     (void)heap;
