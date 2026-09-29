@@ -730,6 +730,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #if !defined(NO_AES)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[WC_AES_BLOCK_SIZE];
+#elif defined(HAVE_ARIA)
+    ALIGN16 unsigned char  iv[ARIA_BLOCK_SIZE];
 #elif defined(WOLFSSL_SM4)
     ALIGN16 unsigned char  iv[SM4_BLOCK_SIZE];
 #elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -743,12 +745,13 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
 #if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_AESGCM) || \
+    defined(HAVE_ARIA) || \
     defined (WOLFSSL_AES_XTS) || (defined(HAVE_CHACHA) || \
     defined(HAVE_POLY1305) || defined(HAVE_AESCCM)) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     byte*   authBuffer;
     int     authBufferLen;
@@ -770,10 +773,11 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #endif
     int     authTagSz;
 #endif
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     WC_BITFIELD authIvGenEnable:1;
     WC_BITFIELD authIncIv:1;
+    WC_BITFIELD authIvUsed:1;
 #endif
 #endif
 };
