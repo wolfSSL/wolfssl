@@ -403,9 +403,20 @@ int test_wc_RNG_DRBG_Reseed(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Good Parameters. */
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    /* credited user-class reseeds of conformant instances are refused. */
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, entropySz),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, entropySz), 0);
+#endif
     ExpectIntEQ(wc_RNG_GenerateBlock(rng, entropy, entropySz), 0);
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, 0),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, entropy, 0), 0);
+#endif
     ExpectIntEQ(wc_RNG_GenerateBlock(rng, entropy, entropySz), 0);
 
     ExpectIntEQ(wc_FreeRng(rng), 0);
@@ -1247,7 +1258,12 @@ int test_wc_DrbgDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, NULL, sizeof(seed)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed)),
+                WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
+#else
     ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed)), 0);
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif

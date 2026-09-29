@@ -109,6 +109,7 @@
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/rng_bank.h>
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
@@ -11272,8 +11273,18 @@ int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
-    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
+    #if ((!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+         !defined(HAVE_SELFTEST)) || \
+        defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+        /* OpenSSL FIPS_drbg_reseed semantics: reseed from the module's
+         * source with adin as additional input.  (A credited user-class
+         * reseed of a conformant instance is refused with
+         * WC_RNG_RBGC_STRATUM_IMMUTABLE.) */
+        if (wc_RNG_DRBG_Reseed_Now(ctx->rng, adin, (word32)adinlen) == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    #elif !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+          (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
         if (wc_RNG_DRBG_Reseed(ctx->rng, adin, (word32)adinlen) == 0) {
             ret = WOLFSSL_SUCCESS;
         }

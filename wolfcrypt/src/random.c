@@ -1230,6 +1230,14 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     if ((nonce == NULL) && (nonceSz > 0))
         return BAD_FUNC_ARG;
 
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    /* When build settings forbid updating the RBGC stratum, we must refuse
+     * here, lest an RNG carrying the vetted ESV provenance marker be reseeded
+     * with an unvetted user seed. */
+    if (rng->RBGCStratum < WC_RNG_RBGC_USER_SEED_STRATUM)
+        return WRONG_TYPE_OBJECT_E;
+#endif
+
     ret = rng_lock_required_check(rng);
     if (ret != 0)
         return ret;
@@ -1249,27 +1257,39 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         goto out;
     }
 
+    /* Never allow an undersized seed to clear an invalidated state.  Note that
+     * the user seed is not evaluated by wc_RNG_TestSeed() -- calling
+     * wc_RNG_TestSeed() is the user's responsibility, and is inapplicable when
+     * wc_InitRngNonce_UserSeed() and wc_RNG_DRBG_Reseed_Nonce() are called from
+     * KAT tests.
+     */
+    {
+        /* Fail-open on an unreadable counter: the floor applies on positive
+         * evidence of a standing reseed obligation, and configurations with
+         * no counter (no DRBG) classify below as they always have. */
+        wc_drbg_reseed_ctr_t reseedCtr = 0;
+        (void)wc_RNG_DRBG_GetReseedCtr(rng, &reseedCtr);
+        if ((seedSz < WC_DRBG_SEED_SZ) &&
+            ((reseedCtr >= WC_RESEED_INTERVAL)
 #ifdef WC_RNG_HAVE_LOCK
-    /* Never allow an undersized seed to clear an invalidated state, and if
-     * invalidated, always assume potentially primary seed data -- test it with
-     * wc_RNG_TestSeed(). */
-    if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-        if (seedSz < WC_DRBG_SEED_SZ) {
-            ret = NEEDS_RECOVERY_E;
+             || (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+#endif
+            ))
+        {
+            ret = BAD_LENGTH_E;
             goto out;
         }
-        ret = wc_RNG_TestSeed(seed, seedSz);
-        if (ret != 0)
-            goto out;
     }
-#endif /* WC_RNG_HAVE_LOCK */
 
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz,
                            0 /* in_bracketed_consume */);
-#ifdef WC_RNG_HAVE_RBGC
+#if defined(WC_RNG_HAVE_RBGC) && !defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
     if (ret == 0) {
         /* User-supplied entropy is of unknown provenance.  In RBGC builds,
-         * represent that fact using WC_RNG_RBGC_USER_SEED_STRATUM, preventing confusion with RNGs seeded by the ESV . */
+         * represent that fact using WC_RNG_RBGC_USER_SEED_STRATUM, preventing
+         * confusion with RNGs seeded by the ESV .  (When
+         * WC_RNG_RBGC_STRATUM_IMMUTABLE, user reseeds of instances below the
+         * sentinel are refused above instead.) */
         rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
     }
 #endif
@@ -2854,6 +2874,7 @@ int wc_Sha512Drbg_IsDisabled(void)
  * latch is held) and frees the mutex.
  */
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
+                    const byte* userSeed, word32 userSeedSz,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
                     void* heap, int devId, WC_RNG* seedRng, word32 flags)
@@ -2872,23 +2893,38 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #endif
 #endif
 
-    (void)nonce;
-    (void)nonceSz;
-    (void)perso;
-    (void)persoSz;
-    /* seedRng is consumed only in the seed-acquisition arm; cast for
-     * configurations that compile that arm out. */
+    /* seed-related parameters are consumed only in the seed-acquisition arm;
+     * cast for configurations that compile that arm out: */
+    (void)userSeed;
     (void)seedRng;
 
     if (rng == NULL)
+        return BAD_FUNC_ARG;
+    if (userSeed == NULL && userSeedSz != 0)
         return BAD_FUNC_ARG;
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
     if (perso == NULL && persoSz != 0)
         return BAD_FUNC_ARG;
+    if ((userSeedSz > 0) && (seedRng != NULL))
+        return BAD_FUNC_ARG;
+#ifndef WC_RNG_HAVE_RBGC
+    if (seedRng != NULL)
+        return NOT_COMPILED_IN;
+    /* user seed requires marking WC_RNG.RBGCStratum with
+     * WC_RNG_RBGC_USER_SEED_STRATUM. */
+    if (userSeedSz > 0)
+        return NOT_COMPILED_IN;
+#endif
 
-    /* Checked before the build tests below, so a contradictory request is
-     * refused the same way everywhere rather than depending on the build. */
+#ifdef HAVE_HASHDRBG
+    if ((userSeedSz > 0) && (userSeedSz < WC_DRBG_SEED_SZ))
+        return BAD_LENGTH_E;
+#else
+    (void)userSeed;
+    (void)userSeedSz;
+#endif
+
     if ((flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK) &&
         (flags & (WC_RNG_INIT_FLAG_NO_AUTO_LOCK |
                   WC_RNG_INIT_FLAG_USE_FULL_MUTEX)))
@@ -2940,14 +2976,18 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     }
 
 #ifdef WC_RNG_HAVE_RBGC
-    if (seedRng == NULL)
-        rng->RBGCStratum = 0;
-    else {
+    if (userSeedSz > 0) {
+        rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
+    }
+    else if (seedRng != NULL) {
         if (seedRng->RBGCStratum >= WC_MAX_SINT_OF(int))
             return SEQ_OVERFLOW_E;
         else if (seedRng->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
             return SEQ_OVERFLOW_E;
         rng->RBGCStratum = seedRng->RBGCStratum + 1;
+    }
+    else {
+        rng->RBGCStratum = 0;
     }
 #endif
 
@@ -3043,9 +3083,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         rng->status = DRBG_OK;
     #endif
 #ifdef WC_RNG_HAVE_RBGC
-        /* undo stratum increment */
-        if (seedRng != NULL)
-            rng->RBGCStratum = 0;
+        /* undo stratum, if any */
+        rng->RBGCStratum = 0;
 #endif
         return 0;
     }
@@ -3230,6 +3269,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
              * is then identical to the primary seed path. */
             ret = wc_RNG_GenerateBlock(seedRng, seed, seedSz);
         }
+        else if (userSeedSz > 0) {
+            /* User-seeded instantiation -- no provenance. */
+            XMEMSET(seed, 0, seedSz);
+            XMEMCPY(seed, userSeed, (userSeedSz > seedSz) ? seedSz : userSeedSz);
+        }
         else {
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
@@ -3268,9 +3312,12 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
             rng->status = DRBG_FAILED;
         }
 
-        /* Health-check the primary seed -- RBGC seed is implicitly healthy. */
+        /* Health-check the primary seed -- RBGC seed is implicitly healthy,
+         * and a user-supplied seed claims no entropy, so the source health
+         * tests don't govern it (and would spuriously refuse structured
+         * material). */
 
-        if ((ret == 0) && (seedRng == NULL)) {
+        if ((ret == 0) && (seedRng == NULL) && (userSeedSz == 0)) {
             ret = wc_RNG_TestSeed(seed, seedSz);
             #if defined(DEBUG_WOLFSSL)
             if (ret != 0) {
@@ -3487,7 +3534,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    ret = _InitRng(*rng, NULL, 0, nonce, nonceSz, NULL, 0, heap, devId, NULL,
                    WC_RNG_INIT_FLAG_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
@@ -3514,21 +3561,21 @@ void wc_rng_free(WC_RNG* rng)
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, NULL, 0, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
@@ -3536,20 +3583,35 @@ int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, NULL, 0, nonce, nonceSz, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL, flags);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL, flags);
 }
 
 int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                         const byte *perso, word32 persoSz,
                         void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, nonce, nonceSz, perso, persoSz,
+    return _InitRng(rng, NULL, 0, nonce, nonceSz, perso, persoSz,
+                    heap, devId, NULL, flags);
+}
+
+int wc_InitRngNonce_UserSeed(WC_RNG* rng, const byte* seed, word32 seedSz,
+                             const byte* nonce, word32 nonceSz,
+                             const byte *perso, word32 persoSz,
+                             void* heap, int devId, word32 flags)
+{
+    if (seed == NULL)
+        return BAD_FUNC_ARG;
+#ifdef HAVE_HASHDRBG
+    if (seedSz < WC_DRBG_SEED_SZ)
+        return BAD_LENGTH_E;
+#endif
+    return _InitRng(rng, seed, seedSz, nonce, nonceSz, perso, persoSz,
                     heap, devId, NULL, flags);
 }
 
@@ -4599,7 +4661,7 @@ static WARN_UNUSED_RESULT int SpawnRngRBGC(
         child = *new_child_heap;
     }
 
-    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, parent->heap,
+    ret = _InitRng(child, NULL, 0, nonce, nonceSz, perso, persoSz, parent->heap,
     #if defined(WOLF_CRYPTO_CB)
                    parent->devId,
     #else
@@ -4679,6 +4741,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_RNG_RBGC_STRATUM_IMMUTABLE
+    if (credited && (rng->RBGCStratum == 0))
+        return WRONG_TYPE_OBJECT_E;
+#endif
+
     ret = rng_lock_required_check(rng);
     if (ret != 0)
         return ret;
@@ -4725,7 +4792,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_ReseedRBGC_local(
             ret = Hash_DRBG_Reseed(rng, seed, SEED_SZ, nonce, nonceSz,
                                    0 /* in_bracketed_consume */);
             if (ret == 0) {
+    #ifndef WC_RNG_RBGC_STRATUM_IMMUTABLE
                 rng->RBGCStratum = root->RBGCStratum + 1;
+    #endif
     #ifdef WC_RNG_DEBUG_STATS
                 ++rng->_stats_RBGC_reseeds;
     #endif
@@ -4765,6 +4834,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     devId = rng->devId;
 #endif
+
     ret = wc_RNG_HealthTestLocal(rng, 1, rng->heap, devId);
     if (ret == 0) {
     #if defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -4827,7 +4897,8 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                                    additional, additionalSz,
                                    0 /* in_bracketed_consume */);
 
-        #ifdef WC_RNG_HAVE_RBGC
+        #if defined(WC_RNG_HAVE_RBGC) && \
+            !defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
             if (ret == 0)
                 rng->RBGCStratum = 0;
         #endif
@@ -5037,6 +5108,14 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
 
     if ((rng == NULL) || (n == 0) || (rng == root))
         return BAD_FUNC_ARG;
+
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    if ((root != NULL) &&
+        (rng->RBGCStratum == 0))
+    {
+        return WRONG_TYPE_OBJECT_E;
+    }
+#endif
 
     /* Note, rng need not be locked -- that's the whole point of the
      * banked-next-seed aperture protocol.  However, the two aperture lanes
@@ -5534,7 +5613,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_Nonce_local(
     #endif
     #ifdef WC_RNG_HAVE_RBGC
             if (ret == 0) {
+            #ifndef WC_RNG_RBGC_STRATUM_IMMUTABLE
                 rng->RBGCStratum = *nextSeedRBGCStratum_p;
+            #endif
                 *nextSeedRBGCStratum_p = 0;
             }
     #endif
