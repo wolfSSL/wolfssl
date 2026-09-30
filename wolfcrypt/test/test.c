@@ -8010,7 +8010,7 @@ exit:
     /* this is a software only variant of SHA3 not supported by external
      * hardware devices */
 #if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
-#if FIPS_VERSION3_GE(7,0,0)
+#ifdef WOLFSSL_NO_KECCAK256
     {
         /* Keccak-256 is a different hash from SHA3-256, so the module refuses
          * the flag rather than accepting it and hashing with the other one

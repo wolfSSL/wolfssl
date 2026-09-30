@@ -1230,8 +1230,8 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     !defined(WOLFSSL_WIDE_BYTE)
     xorbuf(sha3->s, sha3->t, sha3->i);
     /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
-     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
-#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
+     * Keccak-256 0x01 pad is excluded from a certifiable build (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_NO_KECCAK256)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1241,8 +1241,8 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 #else
     sha3->t[rate - 1]  = 0x00;
     /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
-     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
-#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
+     * Keccak-256 0x01 pad is excluded from a certifiable build (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_NO_KECCAK256)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -2122,7 +2122,7 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
-#if FIPS_VERSION3_GE(7,0,0)
+#ifdef WOLFSSL_NO_KECCAK256
     /* Keccak-256 is a different hash from SHA3-256, so refuse the request
      * instead of accepting it and hashing with the other one (FIPS 202 6.1).
      * Checked first, so the answer does not depend on having a context. */
