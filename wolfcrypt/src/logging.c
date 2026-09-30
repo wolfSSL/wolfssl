@@ -1775,6 +1775,7 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d", error);
         }
         else {
+            int len;
             #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
             /* If running in compatibility mode do not add want read and
                want right to error queue */
@@ -1783,9 +1784,13 @@ void WOLFSSL_ERROR(int error)
             #endif
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */
-            (void)XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d line:%u file:%s",
-                    error, line, file);
+            len = XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d line:%u file:",
+                    error, line);
+            if ((len > 0) && (len < (int)sizeof(buffer))) {
+                (void)XSNPRINTF(buffer + len, sizeof(buffer) - (size_t)len,
+                        "%.*s", (int)sizeof(buffer) - 1 - len, file);
+            }
 
             if (wc_AddErrorNode(error, (int)line, buffer, (char*)file) != 0) {
                 WOLFSSL_MSG("Error creating logging node");
