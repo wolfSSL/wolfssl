@@ -3730,6 +3730,10 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
 #ifndef WC_LINUXKM_DRBG_REINIT_TRIES
     #define WC_LINUXKM_DRBG_REINIT_TRIES 3
 #endif
+/* Zero would silently turn off recovery rather than bounding it. */
+#if WC_LINUXKM_DRBG_REINIT_TRIES < 1
+    #error WC_LINUXKM_DRBG_REINIT_TRIES must be at least 1
+#endif
 
 #ifdef WC_RNG_HAVE_POOL
 wc_static_assert(WC_LINUXKM_DRBG_SMALL_LIMIT <= WC_LINUXKM_RNG_POOL_SIZE);

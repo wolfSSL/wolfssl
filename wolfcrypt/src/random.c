@@ -2643,24 +2643,16 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #if defined(WC_RNG_SEED_APT_CUTOFF_PER_WINDOW) && (WC_RNG_SEED_APT_WINDOW > 512)
     #error WC_RNG_SEED_APT_WINDOW must be 1 to 512 unless WC_RNG_SEED_APT_CUTOFF is set
 #endif
-/* A caller-supplied cutoff is compared against the window unchanged, so one
- * above it can never be reached and leaves the seed on the RCT alone.  The
- * window is min(seedSz, WC_RNG_SEED_APT_WINDOW), so this catches only the
- * statically visible case; a cutoff above the seed size still goes unseen. */
+/* A caller-supplied cutoff above the window can never be reached at any seed
+ * size, so it is refused here.  A cutoff the window allows but a given seed
+ * does not is not a build-time property: the window is min(seedSz, WINDOW) and
+ * seedSz is the caller's, so that case is left to the runtime skip below. */
 #ifndef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
-    /* The smallest window the module ever judges is its own reseed seed, and
-     * that size is a constant here, so bound the cutoff by it rather than by
-     * the 512 cap: a value between the two compiles but can never fire. */
-    #if (SEED_SZ + SEED_BLOCK_SZ) < WC_RNG_SEED_APT_WINDOW
-        #define WC_RNG_SEED_APT_MIN_WINDOW (SEED_SZ + SEED_BLOCK_SZ)
-    #else
-        #define WC_RNG_SEED_APT_MIN_WINDOW WC_RNG_SEED_APT_WINDOW
-    #endif
     #if WC_RNG_SEED_APT_CUTOFF < 2
         #error WC_RNG_SEED_APT_CUTOFF must be at least 2
     #endif
-    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_MIN_WINDOW
-        #error WC_RNG_SEED_APT_CUTOFF exceeds the seed size and can never fire
+    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_WINDOW
+        #error WC_RNG_SEED_APT_CUTOFF exceeds the window and can never fire
     #endif
 #endif
 
@@ -4981,7 +4973,6 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                     "ERROR: wc_GenerateSeed() in PollAndReSeed() failed with "
                     "err %d", ret);
     #endif
-                ret = ReseedSourceFailure(ret);
             }
         #endif
         }
