@@ -1721,7 +1721,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         WOLFSSL_MSG("Responder tcp connect failed");
         CloseSocket(*sockfd);
         *sockfd = SOCKET_INVALID;
-        return (ret == HTTP_TIMEOUT) ? HTTP_TIMEOUT : WOLFSSL_FATAL_ERROR;
+        return (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT)) ?
+            WC_NO_ERR_TRACE(HTTP_TIMEOUT) : WOLFSSL_FATAL_ERROR;
     }
     return ret;
 #else
@@ -2714,7 +2715,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                 XFREE(*ocspRespBuf, ctx, DYNAMIC_TYPE_OCSP);
                 *ocspRespBuf = NULL;
             }
-            if (ret == HTTP_TIMEOUT)
+            if (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT))
                 ret = WOLFSSL_CBIO_ERR_TIMEOUT;
             XFREE(httpBuf, ctx, DYNAMIC_TYPE_OCSP);
         }
@@ -2834,7 +2835,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
             }
             if (sfd != SOCKET_INVALID)
                 CloseSocket(sfd);
-            if (ret == HTTP_TIMEOUT)
+            if (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT))
                 ret = WOLFSSL_CBIO_ERR_TIMEOUT;
             XFREE(httpBuf, crl->heap, DYNAMIC_TYPE_CRL);
         }
