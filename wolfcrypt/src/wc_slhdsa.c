@@ -195,6 +195,12 @@ wc_static_assert(SLHDSA_MAX_MSG_SZ <= 255);
     #define SLHDSA_NEED_WOTS_SK_BUF
 #endif
 
+/* Tree nodes of an iteratively computed FORS or XMSS subtree root. */
+#define SLHDSA_FORS_NODES_SZ        ((SLHDSA_MAX_A + 1) * SLHDSA_MAX_N)
+#define SLHDSA_XMSS_NODES_SZ        ((SLHDSA_MAX_H_M + 2) * SLHDSA_MAX_N)
+/* Signing uses one buffer for both FORS and XMSS nodes. */
+wc_static_assert(SLHDSA_FORS_NODES_SZ >= SLHDSA_XMSS_NODES_SZ);
+
 #ifndef WC_SLHDSA_ALL_NO_256F
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               49
@@ -6002,12 +6008,14 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
  * @param [in, out]  adrs     HashAddress - WOTS HASH.
  * @param [out]      node     Root node.
  * @param [in]       sk_buf   Buffer for the WOTS+ chain values.
+ * @param [in]       nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
-    int z, const byte* pk_seed, word32* adrs, byte* node, byte* sk_buf)
+    int z, const byte* pk_seed, word32* adrs, byte* node, byte* sk_buf,
+    byte* nodes_buf)
 {
     int ret = 0;
 
@@ -6021,66 +6029,59 @@ static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
         ret = slhdsakey_wots_pkgen(key, sk_seed, pk_seed, adrs, node, sk_buf);
     }
     else {
-        WC_DECLARE_VAR(nodes, byte, (SLHDSA_MAX_H_M + 2) * SLHDSA_MAX_N,
-            key->heap);
+        byte* nodes = nodes_buf;
         word32 j;
         word32 k;
         word32 m = (word32)1U << z;
         byte n = key->params->n;
 
-        WC_ALLOC_VAR_EX(nodes, byte, (SLHDSA_MAX_H_M + 2) * SLHDSA_MAX_N,
-            key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
-        if (ret == 0) {
-            /* For each node at bottom of tree. */
-            for (j = 0; j < m; j++) {
-                /* Step 2: Copy the address for WOTS HASH. */
-                HA_SetTypeAndClearNotKPA(adrs, HA_WOTS_HASH);
-                /* Step 3: Set key pair address. */
-                HA_SetKeyPairAddress(adrs, m * (word32)i + j);
-                /* Step 4: Generate WOTS+ public key. */
-                ret = slhdsakey_wots_pkgen(key, sk_seed, pk_seed, adrs,
-                    nodes + ((word32)z - 1U + (j & 1U)) * n, sk_buf);
-                if (ret != 0) {
-                    break;
-                }
+        /* For each node at bottom of tree. */
+        for (j = 0; j < m; j++) {
+            /* Step 2: Copy the address for WOTS HASH. */
+            HA_SetTypeAndClearNotKPA(adrs, HA_WOTS_HASH);
+            /* Step 3: Set key pair address. */
+            HA_SetKeyPairAddress(adrs, m * (word32)i + j);
+            /* Step 4: Generate WOTS+ public key. */
+            ret = slhdsakey_wots_pkgen(key, sk_seed, pk_seed, adrs,
+                nodes + ((word32)z - 1U + (j & 1U)) * n, sk_buf);
+            if (ret != 0) {
+                break;
+            }
 
-                /* For intermediate nodes. */
-                for (k = (word32)z - 1U; k > 0; k--) {
-                    if (((j >> ((word32)z - 1U - k)) & 1U) == 1U) {
-                        /* Step 6 and 7 have been done.  */
-                        /* Steps 8-10: Step type, height and index for TREE. */
-                        HA_SetTypeAndClear(adrs, HA_TREE);
-                        HA_SetTreeHeight(adrs, (word32)z - k);
-                        HA_SetTreeIndex(adrs,
-                                        (m * (word32)i + j) >> ((word32)z - k));
-                        /* Step 11: Calculate node from two below. */
-                        ret = HASH_H(key, pk_seed, adrs, nodes + k * n, n,
-                                nodes +
-                                  (k - 1U + ((j >> ((word32)z - k)) & 1U)) * n);
-                        if (ret != 0) {
-                            break;
-                        }
-                    }
-                    else {
+            /* For intermediate nodes. */
+            for (k = (word32)z - 1U; k > 0; k--) {
+                if (((j >> ((word32)z - 1U - k)) & 1U) == 1U) {
+                    /* Step 6 and 7 have been done.  */
+                    /* Steps 8-10: Step type, height and index for TREE. */
+                    HA_SetTypeAndClear(adrs, HA_TREE);
+                    HA_SetTreeHeight(adrs, (word32)z - k);
+                    HA_SetTreeIndex(adrs,
+                                    (m * (word32)i + j) >> ((word32)z - k));
+                    /* Step 11: Calculate node from two below. */
+                    ret = HASH_H(key, pk_seed, adrs, nodes + k * n, n,
+                            nodes +
+                              (k - 1U + ((j >> ((word32)z - k)) & 1U)) * n);
+                    if (ret != 0) {
                         break;
                     }
                 }
-                if (ret != 0) {
+                else {
                     break;
                 }
             }
-            if (ret == 0) {
-                /* Root node into output. */
-                /* Steps 8-10: Step type, height and index for TREE. */
-                HA_SetTypeAndClear(adrs, HA_TREE);
-                HA_SetTreeHeight(adrs, z);
-                HA_SetTreeIndex(adrs, i);
-                /* Step 11: Calculate node from two below. */
-                ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
+            if (ret != 0) {
+                break;
             }
         }
-
-        WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
+        if (ret == 0) {
+            /* Root node into output. */
+            /* Steps 8-10: Step type, height and index for TREE. */
+            HA_SetTypeAndClear(adrs, HA_TREE);
+            HA_SetTreeHeight(adrs, z);
+            HA_SetTreeIndex(adrs, i);
+            /* Step 11: Calculate node from two below. */
+            ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
+        }
     }
 
     return ret;
@@ -6112,12 +6113,14 @@ static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
  * @param [in, out]  adrs     HashAddress - WOTS HASH.
  * @param [out]      node     Root node.
  * @param [in]       sk_buf   Buffer for the WOTS+ chain values.
+ * @param [in]       nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
-    int z, const byte* pk_seed, word32* adrs, byte* node, byte* sk_buf)
+    int z, const byte* pk_seed, word32* adrs, byte* node, byte* sk_buf,
+    byte* nodes_buf)
 {
     int ret;
     byte nodes[2 * SLHDSA_MAX_N];
@@ -6136,11 +6139,11 @@ static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
 
         /* Step 6: Calculate left node recursively. */
         ret = slhdsakey_xmss_node(key, sk_seed, 2 * i, z - 1, pk_seed, adrs,
-            nodes, sk_buf);
+            nodes, sk_buf, nodes_buf);
         if (ret == 0) {
             /* Step 7: Calculate right node recursively. */
             ret = slhdsakey_xmss_node(key, sk_seed, 2 * i + 1, z - 1, pk_seed,
-                adrs, nodes + n, sk_buf);
+                adrs, nodes + n, sk_buf, nodes_buf);
         }
         if (ret == 0) {
             /* Steps 8-10: Step type, height and index for TREE. */
@@ -6179,13 +6182,14 @@ static int slhdsakey_xmss_node(SlhDsaKey* key, const byte* sk_seed, int i,
  * @param [out] sig_xmss  XMSS signature.
  *                        len n-byte nodes and h' authentication nodes.
  * @param [in]  sk_buf    Buffer for the WOTS+ chain values.
+ * @param [in]  nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_xmss_sign(SlhDsaKey* key, const byte* m,
     const byte* sk_seed, word32 idx, const byte* pk_seed, word32* adrs,
-    byte* sig_xmss, byte* sk_buf)
+    byte* sig_xmss, byte* sk_buf, byte* nodes_buf)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     byte n = key->params->n;
@@ -6202,7 +6206,7 @@ static int slhdsakey_xmss_sign(SlhDsaKey* key, const byte* m,
         word32 k = i ^ 1;
         /* Step 3: Calculate authentication node. */
         ret = slhdsakey_xmss_node(key, sk_seed, (int)k, j, pk_seed, adrs,
-            auth, sk_buf);
+            auth, sk_buf, nodes_buf);
         if (ret != 0) {
             break;
         }
@@ -6352,13 +6356,14 @@ static int slhdsakey_xmss_pk_from_sig(SlhDsaKey* key, word32 idx,
  * @param [in]  idx_tree  Tree address.
  * @param [in]  idx_leaf  Key pair address.
  * @param [out] sig_ht    Hypertree signature - d x n-byte nodes.
+ * @param [in]  nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_ht_sign(SlhDsaKey* key, const byte* pk_fors,
     const byte* sk_seed, const byte* pk_seed, word32* idx_tree, word32 idx_leaf,
-    byte* sig_ht)
+    byte* sig_ht, byte* nodes_buf)
 {
     int ret = 0;
     HashAddress adrs;
@@ -6385,7 +6390,7 @@ static int slhdsakey_ht_sign(SlhDsaKey* key, const byte* pk_fors,
         HA_SetTreeAddress(adrs, idx_tree);
         /* Step 3: Compute XMSS signature. */
         ret = slhdsakey_xmss_sign(key, pk_fors, sk_seed, idx_leaf, pk_seed,
-            adrs, sig_ht, sk_buf);
+            adrs, sig_ht, sk_buf, nodes_buf);
     }
     if (ret == 0) {
         /* Step 5: Compute root/public key from signature. */
@@ -6407,7 +6412,7 @@ static int slhdsakey_ht_sign(SlhDsaKey* key, const byte* pk_fors,
             HA_SetTreeAddress(adrs, idx_tree);
             /* Step 11: Compute XMSS signature. */
             ret = slhdsakey_xmss_sign(key, root, sk_seed, idx_leaf, pk_seed,
-                adrs, sig_ht, sk_buf);
+                adrs, sig_ht, sk_buf, nodes_buf);
             if (ret != 0) {
                 break;
             }
@@ -7461,12 +7466,13 @@ static int slhdsakey_fors_node_x4(SlhDsaKey* key, const byte* sk_seed, word32 i,
  * @param [in]  pk_seed  Public key seed.
  * @param [in]  adrs     FORS tree HashAddress.
  * @param [out] node     n-byte root node.
+ * @param [in]  nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
-    word32 z, const byte* pk_seed, word32* adrs, byte* node)
+    word32 z, const byte* pk_seed, word32* adrs, byte* node, byte* nodes_buf)
 {
     int ret = 0;
     byte n = key->params->n;
@@ -7486,73 +7492,66 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
     }
     /* Step 6: Non leaf node. */
     else {
-        WC_DECLARE_VAR(nodes, byte, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N,
-            key->heap);
+        byte* nodes = nodes_buf;
         word32 j;
         word32 k;
         word32 m = (word32)1U << z;
 
-        WC_ALLOC_VAR_EX(nodes, byte, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N,
-            key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
-        if (ret == 0) {
-            /* For all leaf nodes. */
-            for (j = 0; j < m; j++) {
-                word32 o = ((word32)z - 1U + (j & 1U)) * n;
-                /* Step 2: Generate private key value for index. */
-                ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs,
-                    m * (word32)i + j, nodes + o);
-                if (ret != 0) {
-                    break;
-                }
-                /* Step 3: Set tree height to zero. */
-                HA_SetTreeHeight(adrs, 0);
-                /* Step 4: Set tree index. */
-                HA_SetTreeIndex(adrs, m * (word32)i + j);
-                /* Step 5: Compute node from public key seed, address and value.
-                 */
-                ret = HASH_F(key, pk_seed, adrs, nodes + o, n,
-                    nodes + o);
-                if (ret != 0) {
-                    break;
-                }
+        /* For all leaf nodes. */
+        for (j = 0; j < m; j++) {
+            word32 o = ((word32)z - 1U + (j & 1U)) * n;
+            /* Step 2: Generate private key value for index. */
+            ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs,
+                m * (word32)i + j, nodes + o);
+            if (ret != 0) {
+                break;
+            }
+            /* Step 3: Set tree height to zero. */
+            HA_SetTreeHeight(adrs, 0);
+            /* Step 4: Set tree index. */
+            HA_SetTreeIndex(adrs, m * (word32)i + j);
+            /* Step 5: Compute node from public key seed, address and value.
+             */
+            ret = HASH_F(key, pk_seed, adrs, nodes + o, n,
+                nodes + o);
+            if (ret != 0) {
+                break;
+            }
 
-                /* For each intermediate node as soon as left and right have
-                 * been computed. */
-                for (k = (word32)z - 1U; k > 0; k--) {
-                    /* Check if this is the right node at a height. */
-                    if (((j >> ((word32)z - 1U - k)) & 1U) == 1U) {
-                        /* Step 9: Set tree height. */
-                        HA_SetTreeHeight(adrs, (word32)z - k);
-                        /* Step 10: Set tree index. */
-                        HA_SetTreeIndex(adrs,
-                                        (m * (word32)i + j) >> ((word32)z - k));
-                        /* Step 11: Compute node from public key seed, address
-                         * and left and right nodes. */
-                        ret = HASH_H(key, pk_seed, adrs, nodes + k * n, n,
-                                nodes +
-                                  (k - 1U + ((j >> ((word32)z - k)) & 1U)) * n);
-                        if (ret != 0) {
-                            break;
-                        }
-                    }
-                    /* Left node - can go no higher. */
-                    else {
+            /* For each intermediate node as soon as left and right have
+             * been computed. */
+            for (k = (word32)z - 1U; k > 0; k--) {
+                /* Check if this is the right node at a height. */
+                if (((j >> ((word32)z - 1U - k)) & 1U) == 1U) {
+                    /* Step 9: Set tree height. */
+                    HA_SetTreeHeight(adrs, (word32)z - k);
+                    /* Step 10: Set tree index. */
+                    HA_SetTreeIndex(adrs,
+                                    (m * (word32)i + j) >> ((word32)z - k));
+                    /* Step 11: Compute node from public key seed, address
+                     * and left and right nodes. */
+                    ret = HASH_H(key, pk_seed, adrs, nodes + k * n, n,
+                            nodes +
+                              (k - 1U + ((j >> ((word32)z - k)) & 1U)) * n);
+                    if (ret != 0) {
                         break;
                     }
                 }
-            }
-            if (ret == 0) {
-                /* Step 9: Set tree height. */
-                HA_SetTreeHeight(adrs, z);
-                /* Step 10: Set tree index. */
-                HA_SetTreeIndex(adrs, i);
-                /* Step 11: Compute node from public key seed, address
-                 * and nodes. */
-                ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
+                /* Left node - can go no higher. */
+                else {
+                    break;
+                }
             }
         }
-
-        WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
+        if (ret == 0) {
+            /* Step 9: Set tree height. */
+            HA_SetTreeHeight(adrs, z);
+            /* Step 10: Set tree index. */
+            HA_SetTreeIndex(adrs, i);
+            /* Step 11: Compute node from public key seed, address
+             * and nodes. */
+            ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
+        }
     }
 
     return ret;
@@ -7585,12 +7584,13 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
  * @param [in]  pk_seed  Public key seed.
  * @param [in]  adrs     FORS tree HashAddress.
  * @param [out] node     n-byte root node.
+ * @param [in]  nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
-    word32 z, const byte* pk_seed, word32* adrs, byte* node)
+    word32 z, const byte* pk_seed, word32* adrs, byte* node, byte* nodes_buf)
 {
     int ret;
     byte n = key->params->n;
@@ -7613,11 +7613,11 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
 
         /* Step 7: Compute left node. */
         ret = slhdsakey_fors_node_c(key, sk_seed, 2 * i + 0, z - 1, pk_seed,
-            adrs, nodes);
+            adrs, nodes, nodes_buf);
         if (ret == 0) {
             /* Step 8: Compute right node. */
             ret = slhdsakey_fors_node_c(key, sk_seed, 2 * i + 1, z - 1, pk_seed,
-                adrs, nodes + n);
+                adrs, nodes + n, nodes_buf);
         }
         if (ret == 0) {
             /* Step 9: Set tree height. */
@@ -7656,12 +7656,14 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
  * @param [in]       pk_seed   Public key seed.
  * @param [inm out]  adrs      FORS tree HashAddress.
  * @param [out]      sig_fors  FORS signature.
+ * @param [in]       nodes_buf Buffer for the tree nodes.
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
-    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors,
+    byte* nodes_buf)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     byte* sig_start = sig_fors;
@@ -7730,7 +7732,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
                 /* Step 7: Compute authentication node into signature. */
                 ret = slhdsakey_fors_node_c(key, sk_seed,
                     ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
-                    sig_fors);
+                    sig_fors, nodes_buf);
                 if (ret != 0) {
                     /* At j == 0 this slot holds a private key value. */
                     ForceZero(sig_fors, n);
@@ -9050,20 +9052,34 @@ static int slhdsakey_root_from_seed(SlhDsaKey* key, byte* root)
     HashAddress adrs;
 #ifdef SLHDSA_NEED_WOTS_SK_BUF
     WC_DECLARE_VAR(sk_buf, byte, SLHDSA_WOTS_SK_SZ, key->heap);
-
-    WC_ALLOC_VAR_EX(sk_buf, byte, SLHDSA_WOTS_SK_SZ, key->heap,
-        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
 #else
     byte* sk_buf = NULL;
+#endif
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    WC_DECLARE_VAR(nodes, byte, SLHDSA_XMSS_NODES_SZ, key->heap);
+#else
+    byte* nodes = NULL;
+#endif
+
+#ifdef SLHDSA_NEED_WOTS_SK_BUF
+    WC_ALLOC_VAR_EX(sk_buf, byte, SLHDSA_WOTS_SK_SZ, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+#endif
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_XMSS_NODES_SZ, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
 #endif
 
     if (ret == 0) {
         HA_Init(adrs);
         HA_SetLayerAddress(adrs, key->params->d - 1);
         ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
-            key->sk + 2 * key->params->n, adrs, root, sk_buf);
+            key->sk + 2 * key->params->n, adrs, root, sk_buf, nodes);
     }
 
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
+#endif
 #ifdef SLHDSA_NEED_WOTS_SK_BUF
     WC_FREE_VAR_EX(sk_buf, key->heap, DYNAMIC_TYPE_SLHDSA);
 #endif
@@ -9280,18 +9296,30 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
 #ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
 {
-    int ret;
+    int ret = 0;
     HashAddress adrs;
     word32 t[3];
     word32 l;
     byte pk_fors[SLHDSA_MAX_N];
     byte n = key->params->n;
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    WC_DECLARE_VAR(nodes, byte, SLHDSA_FORS_NODES_SZ, key->heap);
+#else
+    byte* nodes = NULL;
+#endif
 
     /* Steps 1, 7-13: Set address based on message digest. */
     slhdsakey_set_ha_from_md(key, md, adrs, t, &l);
 
-    /* Step 14: FORS sign message. */
-    ret = slhdsakey_fors_sign(key, md, key->sk, key->sk + 2 * n, adrs, sig);
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_FORS_NODES_SZ, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+#endif
+    if (ret == 0) {
+        /* Step 14: FORS sign message. */
+        ret = slhdsakey_fors_sign(key, md, key->sk, key->sk + 2 * n, adrs, sig,
+            nodes);
+    }
     if (ret == 0) {
         /* Step 16: FORS public key from signature. */
         ret = slhdsakey_fors_pk_from_sig(key, sig, md, key->sk + 2 * n, adrs,
@@ -9302,9 +9330,16 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
     if (ret == 0) {
         /* Steps 17-18: Hypertree sign FORS public key. */
         ret = slhdsakey_ht_sign(key, pk_fors, key->sk, key->sk + 2 * n, t, l,
-            sig);
+            sig, nodes);
     }
 
+#ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
+    /* A failed FORS node hash leaves a private leaf in the buffer. */
+    if ((ret != 0) && WC_VAR_OK(nodes)) {
+        ForceZero(nodes, SLHDSA_FORS_NODES_SZ);
+    }
+    WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
+#endif
     return ret;
 }
 
