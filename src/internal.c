@@ -42360,9 +42360,13 @@ int ClientAuthRequired(const WOLFSSL* ssl)
         ssl->options.resuming = 0;
         ssl->arrays->sessionIDSz = 0;
 #ifdef HAVE_SESSION_TICKET
-        /* Only this ClientHello may set them, in TLSX_SessionTicket_Parse(). */
-        ssl->options.useTicket = 0;
-        ssl->options.createTicket = 0;
+        /* Only this ClientHello may set them, in TLSX_SessionTicket_Parse(),
+         * which ignores the extension during SCR - so an SCR hello inherits
+         * the connection's. */
+        if (!IsSCR(ssl)) {
+            ssl->options.useTicket = 0;
+            ssl->options.createTicket = 0;
+        }
 #endif
 
         /* protocol version, random and session id length check */
