@@ -8210,21 +8210,21 @@ exit:
 }
 #endif
 
-/* Only where a refusal is certain to be seen: the AVX2 lane pinned, no C
- * fallback, and no fuzzer failing claims at random. */
+/* Only where a refusal is certain to be seen: the AVX2 lane pinned, no switch
+ * to the C block, and no fuzzer refusing saves at random. */
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
     !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
     !defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP) && \
     !defined(WOLFSSL_X86_BUILD) && !defined(WC_SHA3_NO_ASM) && \
     defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2) && \
     defined(__GNUC__)
-    #define SHA3_256_CLAIM_RETRY_TEST
+    #define SHA3_256_NO_SWITCH_TO_C
 #endif
 
-#ifdef SHA3_256_CLAIM_RETRY_TEST
-/* A refused vector-register claim must leave the context usable: the retry has
+#ifdef SHA3_256_NO_SWITCH_TO_C
+/* A refused vector-register save must leave the context usable: the retry has
  * to return the same digest, not one built from a half-absorbed state. */
-static wc_test_ret_t sha3_256_claim_retry_test(void)
+static wc_test_ret_t sha3_256_no_switch_to_c_test(void)
 {
     wc_Sha3 sha;
     byte ref[WC_SHA3_256_DIGEST_SIZE];
@@ -8232,7 +8232,7 @@ static wc_test_ret_t sha3_256_claim_retry_test(void)
     wc_test_ret_t ret;
     int inited = 0;
 
-    /* Without AVX2 the pinned lane never runs, so no claim is made to refuse. */
+    /* Without AVX2 the pinned lane never runs, so there is no save to refuse. */
     if (!__builtin_cpu_supports("avx2"))
         return 0;
 
@@ -8278,7 +8278,7 @@ out:
         wc_Sha3_256_Free(&sha);
     return ret;
 }
-#endif /* SHA3_256_CLAIM_RETRY_TEST */
+#endif /* SHA3_256_NO_SWITCH_TO_C */
 
 static wc_test_ret_t sha3_256_test(void)
 {
@@ -8307,8 +8307,8 @@ static wc_test_ret_t sha3_256_test(void)
     if ((ret = sha3_256_reset_test(&sha)) != 0)
         goto out;
 #endif
-#ifdef SHA3_256_CLAIM_RETRY_TEST
-    if ((ret = sha3_256_claim_retry_test()) != 0)
+#ifdef SHA3_256_NO_SWITCH_TO_C
+    if ((ret = sha3_256_no_switch_to_c_test()) != 0)
         goto out;
 #endif
     ret = 0;
