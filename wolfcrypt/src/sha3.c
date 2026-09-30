@@ -962,10 +962,14 @@ static int InitSha3(wc_Sha3* sha3)
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
         }
+#if !defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
+        /* AVX2 without BMI2.  Only live in the plain build: the overrides
+         * either select AVX2 above or disable it outright. */
         else if (SHA3_USE_AVX2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
+#endif
         else {
             SHA3_BLOCK = BlockSha3;
             SHA3_BLOCK_N = NULL;
