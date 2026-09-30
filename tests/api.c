@@ -22592,13 +22592,8 @@ static int test_wolfSSL_sigalg_info(void)
     return EXPECT_RESULT();
 }
 
-/* peerAuthOk rides along with a serialized session, so an external cache that
- * stores sessions with i2d and reloads them with d2i keeps the client-auth
- * outcome and can still resume where a certificate is required. It is the last
- * field, and d2i has never required the blob to be consumed exactly, so the
- * two compatibility directions both work: a blob written before the field
- * existed is short and leaves the zero a new session starts with, and an older
- * library reading a new blob ignores the trailing byte. */
+/* peerAuthOk is the last field, so a blob written before it existed is simply
+ * short and an older reader ignores the trailing byte. */
 static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
 {
     EXPECT_DECLS;
@@ -22630,10 +22625,18 @@ static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
     wolfSSL_SESSION_free(restored);
     restored = NULL;
 
-    /* A blob written before the field existed is one byte shorter; the import
-     * must still succeed and must not claim the peer authenticated. */
+    /* One byte shorter, as written before the field existed: must import and
+     * must not claim the peer authenticated. */
     ptr = der;
     ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz - 1));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 0);
+    wolfSSL_SESSION_free(restored);
+    restored = NULL;
+
+    /* A length past the blob must not read whatever follows it. */
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz + 8));
     if (restored != NULL)
         ExpectIntEQ(restored->peerAuthOk, 0);
     wolfSSL_SESSION_free(restored);

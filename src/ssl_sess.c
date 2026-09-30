@@ -2941,8 +2941,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    /* peerAuthOk. Last and unconditional: a reader built before this field
-     * stops at the end of the fields above and ignores the trailing byte. */
+    /* peerAuthOk, last so an older reader stops before it. */
     size += OPAQUE8_LEN;
 
     if (p != NULL) {
@@ -3346,12 +3345,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    /* peerAuthOk, appended after every field above. A blob written before this
-     * field existed simply ends here, and the session keeps the zero a freshly
-     * allocated one carries, which declines resumption where a client
-     * certificate is required. */
-    if (i - idx >= OPAQUE8_LEN) {
-        s->peerAuthOk = data[idx++];
+    /* Absent from a blob written before the field existed, which leaves the
+     * zero a new session carries. */
+    if (i - idx == OPAQUE8_LEN) {
+        s->peerAuthOk = (data[idx++] != 0);
     }
     (void)idx;
 
@@ -3927,15 +3924,9 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
-    /* Server side only: on a client these same flags describe the server
-     * certificate the client verified, which is a different statement, and
-     * nothing reads the field on that side. Leaving a client session at zero
-     * keeps one meaning for the field, so a session reaching a server through
-     * a store shared with a client cannot assert an authenticated peer.
-     * A resumed connection sends no Certificate, so it has nothing of its own
-     * to record and keeps what it inherited. Only a verified client
-     * certificate counts: the peerAuthGood grants made when the connection
-     * does not ask for one do not. */
+    /* Server only: on a client these flags describe the server certificate,
+     * a different statement that nothing reads. A resumed connection sends no
+     * Certificate, so it keeps what it inherited. */
     if (!ssl->options.resuming &&
             (ssl->options.side == WOLFSSL_SERVER_END)) {
         session->peerAuthOk = (byte)(ssl->options.havePeerCert &&

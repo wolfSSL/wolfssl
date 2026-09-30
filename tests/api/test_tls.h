@@ -58,6 +58,9 @@ int test_tls_version_mask_alert_record(void);
 int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
+int test_tls12_clear_resets_options(void);
+int test_tls12_resume_ticket_mutual_auth(void);
+int test_tls13_resume_psk_post_handshake_auth(void);
 int test_tls13_resume_psk_client_auth(void);
 int test_tls13_resume_psk_client_auth_ok(void);
 int test_tls12_ext_cache_client_auth_resume(void);
@@ -128,6 +131,9 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls_version_error_alert_mapping),          \
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
+        TEST_DECL_GROUP("tls", test_tls12_clear_resets_options),               \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_mutual_auth),          \
+        TEST_DECL_GROUP("tls", test_tls13_resume_psk_post_handshake_auth),     \
         TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth),             \
         TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth_ok),          \
         TEST_DECL_GROUP("tls", test_tls12_ext_cache_client_auth_resume),       \
