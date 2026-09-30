@@ -2418,6 +2418,21 @@ WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
 WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
+/* Is this connection authenticating with a PSK? TLS 1.3 uses the extension,
+ * earlier versions a PSK cipher suite. */
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
+    !defined(NO_PSK))
+    #define SSL_USING_PSK(ssl) \
+        ((ssl)->options.usingPSK_cipher || (ssl)->options.pskNegotiated)
+#else
+    #define SSL_USING_PSK(ssl) ((ssl)->options.usingPSK_cipher)
+#endif
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk);
+#else
+/* Only a TLS server asks for a certificate, so only it can require one. */
+#define ClientAuthRequired(ssl, usingPsk) 0
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -3998,12 +4013,20 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
+/* Bits of InternalTicket.flags. Bit 0 is where this byte has always held
+ * haveEMS, so sizeof(InternalTicket) and every offset are unchanged and an
+ * older ticket parses with the newer bits clear. An older peer handed a ticket
+ * carrying bit 1 copies the whole byte into haveEMS and fails the handshake
+ * cleanly, so a shared TLS 1.2 ticket key needs matching versions. */
+#define WOLFSSL_TICKET_FLAG_EMS       0x01
+#define WOLFSSL_TICKET_FLAG_PEER_AUTH 0x02
+
 typedef struct InternalTicket {
     ProtocolVersion pv;                    /* version when ticket created */
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-    byte            haveEMS;               /* have extended master secret */
+    byte            flags;                 /* WOLFSSL_TICKET_FLAG_* */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
@@ -5407,6 +5430,9 @@ struct WOLFSSL_SESSION {
                              * WOLFSSL_MFL_2_8  (6) */
 #endif /* HAVE_MAX_FRAGMENT */
     byte               isSetup:1;
+    /* Client presented a certificate and proved key possession. Server
+     * sessions only; shares isSetup's byte so the layout is unchanged. */
+    byte               peerAuthOk:1;
 };
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \

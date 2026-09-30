@@ -5969,6 +5969,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 (ssl->session != NULL)) {
             ssl->session->haveAltSessionID = 0;
             ForceZero(ssl->session->altSessionID, ID_LEN);
+            ssl->session->peerAuthOk = 0;
         }
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;

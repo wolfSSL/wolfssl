@@ -1091,11 +1091,11 @@ int wolfSSL_accept(WOLFSSL* ssl)
     case ACCEPT_SECOND_REPLY_DONE :
         #ifndef NO_CERTS
         /* SERVER: When not resuming and verifying peer but no certificate
-         * received and not failing when not received then peer auth good.
+         * received and none was required then peer auth good.
          */
         if ((!ssl->options.resuming) && (ssl->options.verifyPeer) &&
                 (!ssl->options.havePeerCert) &&
-                (!ssl->options.failNoCert)) {
+                (!ClientAuthRequired(ssl, ssl->options.usingPSK_cipher))) {
             ssl->options.peerAuthGood = 1;
         }
         #endif /* !NO_CERTS  */
