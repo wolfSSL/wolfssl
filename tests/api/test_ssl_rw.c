@@ -806,6 +806,70 @@ int test_wolfSSL_inject_app_data_partial_record(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_clear() drops application data left unread by the
+ * previous connection.
+ *
+ * clearOutputBuffer points into the input buffer. If it survived the clear,
+ * the next handshake would report APP_DATA_READY forever, and a later read
+ * would return the old connection's data from a freed buffer.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_clear_app_data_pending(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) \
+    && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg1[] = "hello world";
+    const char msg2[] = "second connection";
+    char reply[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Read only part of the data so the rest is left pending. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg1, (int)sizeof(msg1)),
+        (int)sizeof(msg1));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, 1), 1);
+    ExpectIntEQ(wolfSSL_pending(ssl_c), (int)sizeof(msg1) - 1);
+
+    /* Reuse the client object for a new connection to a new server. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_pending(ssl_c), 0);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* The handshake is not blocked by the old data. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Only the new connection's data is returned. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg2, (int)sizeof(msg2)),
+        (int)sizeof(msg2));
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg2));
+    ExpectBufEQ(reply, msg2, sizeof(msg2));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a renegotiation does not read input while decrypted application
  * data is still waiting to be read.
  *

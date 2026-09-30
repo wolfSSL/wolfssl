@@ -34,6 +34,7 @@ int test_wolfSSL_rw_info_callback(void);
 int test_wolfSSL_write_ex_partial(void);
 int test_wolfSSL_inject_app_data_ready(void);
 int test_wolfSSL_inject_app_data_partial_record(void);
+int test_wolfSSL_clear_app_data_pending(void);
 int test_wolfSSL_rehandshake_app_data_pending(void);
 int test_wolfSSL_rehandshake_app_data_partial_record(void);
 int test_wolfSSL_accept_early_data_pending(void);
@@ -56,6 +57,7 @@ int test_wolfSSL_write_dup_err(void);
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_inject_app_data_ready),         \
         TEST_DECL_GROUP("ssl_rw",                                              \
             test_wolfSSL_inject_app_data_partial_record),                      \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_clear_app_data_pending),        \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_rehandshake_app_data_pending),  \
         TEST_DECL_GROUP("ssl_rw",                                              \
             test_wolfSSL_rehandshake_app_data_partial_record),                 \

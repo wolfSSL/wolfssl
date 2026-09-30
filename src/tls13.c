@@ -16589,7 +16589,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             /* Get the response/s from the server. */
             while (ssl->options.serverState <
                     SERVER_HELLOVERIFYREQUEST_COMPLETE) {
-                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                 }
@@ -16662,7 +16662,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #endif
                 }
 #endif /* WOLFSSL_DTLS13 */
-                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                 }
@@ -16792,7 +16792,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case WAIT_FINISHED_ACK:
             if (ssl->options.dtls) {
                 while (ssl->options.serverState != SERVER_FINISHED_ACKED) {
-                    if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                    if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -17965,7 +17965,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             /* get client_hello */
 
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-                if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                if ((ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -18019,7 +18019,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
                 ssl->options.clientState = CLIENT_HELLO_RETRY;
                 while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-                    if ((ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                    if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -18176,7 +18176,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_PRE_TICKET_SENT :
             while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
-                if ( (ssl->error = ProcessReplyHandshake(ssl)) < 0) {
+                if ( (ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }

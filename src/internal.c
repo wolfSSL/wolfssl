@@ -25566,10 +25566,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     if (ssl->error != 0 &&
         ssl->error != WC_NO_ERR_TRACE(WANT_READ) &&
         ssl->error != WC_NO_ERR_TRACE(WANT_WRITE)
-    #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13) || \
-        defined(WOLFSSL_EARLY_DATA)
         && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
-    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
@@ -25581,6 +25578,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     ) {
         WOLFSSL_MSG("ProcessReply retry in error state, not allowed");
         return ssl->error;
+    }
+
+    if (ssl->buffers.clearOutputBuffer.length > 0) {
+        WOLFSSL_MSG("Application data pending, read it before processing "
+                    "more records");
+        return APP_DATA_READY;
     }
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
@@ -26518,36 +26521,16 @@ int ProcessReply(WOLFSSL* ssl)
     return ProcessReplyEx(ssl, 0);
 }
 
-/* Process a reply from within a handshake function.
- *
- * Decrypted application data waiting to be read is held in inputBuffer, or in
- * decompBuffer with compression. Processing more records would overwrite it
- * or free it, so the application is asked to read it first. This happens
- * during a secure renegotiation, while early data is unread or when DTLS 1.3
- * returned application data while waiting for an ACK. ReceiveData() only calls
- * ProcessReply() when no data is pending, so it does not need this check.
- *
- * @param [in, out] ssl  SSL/TLS object.
- * @return  APP_DATA_READY when application data must be read first.
- * @return  Otherwise, as ProcessReply().
- */
-int ProcessReplyHandshake(WOLFSSL* ssl)
-{
-    if (ssl->buffers.clearOutputBuffer.length > 0) {
-        WOLFSSL_MSG("Application data pending, read it before the handshake "
-                    "continues");
-        return APP_DATA_READY;
-    }
-
-    return ProcessReply(ssl);
-}
-
 int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
     int ret;
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
-    defined(WOLFSSL_RW_THREADED)
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    /* With application data pending, APP_DATA_READY means DoProcessReplyEx()
+     * returned before reading any record. */
+    int appDataPending = (ssl->buffers.clearOutputBuffer.length > 0);
+#ifdef WOLFSSL_RW_THREADED
     int locked;
+#endif
 #endif
 
     ret = DoProcessReplyEx(ssl, allowSocketErr);
@@ -26555,11 +26538,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
     if (ssl->options.dtls) {
         /* Don't clear pending peer if we are going to re-enter
-         * DoProcessReplyEx */
+         * DoProcessReplyEx or no record was processed. */
         if (ret != WC_NO_ERR_TRACE(WANT_READ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                 && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
+                && !(appDataPending &&
+                     ret == WC_NO_ERR_TRACE(APP_DATA_READY))
             ) {
         #ifdef WOLFSSL_RW_THREADED
             /* Drop the pending peer even when the lock cannot be taken, as
@@ -29935,10 +29920,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 #ifdef WOLFSSL_ASYNC_CRYPT
             && error != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
-#if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13) || \
-    defined(WOLFSSL_EARLY_DATA)
             && error != WC_NO_ERR_TRACE(APP_DATA_READY)
-#endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return error;
@@ -47299,11 +47281,9 @@ void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
         return;
     }
 #endif
-#if defined(WOLFSSL_EARLY_DATA)
     if (err == WC_NO_ERR_TRACE(APP_DATA_READY)) {
         return;
     }
-#endif
     if (err == WC_NO_ERR_TRACE(WANT_WRITE) ||
             err == WC_NO_ERR_TRACE(WANT_READ)) {
         return;

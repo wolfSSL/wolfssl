@@ -746,6 +746,90 @@ int test_wolfSSL_dtls_set_pending_peer_not_newest(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a pending peer survives a handshake call that returns early
+ * because application data is still waiting to be read.
+ *
+ * No record is read in that call, so the pending peer must still be there for
+ * the next record, which moves the connection to the new address.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_dtls_pending_peer_app_data_pending(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char peer[10];
+    unsigned int peerSz;
+    byte msg[32];
+    byte reply[sizeof(msg)];
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg); i++) {
+        msg[i] = (byte)i;
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)), 1);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Leave application data buffered by reading less than was written. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, 8), 8);
+    ExpectIntGT(wolfSSL_pending(ssl_c), 0);
+
+    /* The peer moves. The renegotiation stops before reading any record. */
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl_c, (void*)"123", 4), 1);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(APP_DATA_READY));
+    if (ssl_c != NULL) {
+        ExpectNotNull(ssl_c->buffers.dtlsCtx.pendingPeer.sa);
+    }
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_c, peer, &peerSz), 0);
+
+    /* The server answers the ClientHello. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Read the pending data, then let the renegotiation complete. */
+    XMEMSET(reply, 0, sizeof(reply));
+    ExpectIntEQ(wolfSSL_read(ssl_c, reply, (int)sizeof(reply)),
+        (int)sizeof(msg) - 8);
+    ExpectBufEQ(reply, msg + 8, sizeof(msg) - 8);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The first record read after the data was drained moved the peer. */
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_c, peer, &peerSz), 1);
+    ExpectIntEQ(peerSz, 4);
+    ExpectStrEQ(peer, "123");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
 /* Set up a DTLS 1.3 connection, optionally negotiating CID, and drain all
