@@ -43,3 +43,21 @@ jobs:
         ./wolfssl_consumer
         cd ..
         rm -rf build
+
+# build and install wolfssl via CMake, then run the same consumer test
+    - name: Build wolfssl with CMake
+      run: |
+        cmake -B build-cmake -DWOLFSSL_INSTALL=yes \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install-cmake"
+        cmake --build build-cmake -j $(nproc)
+        cmake --install build-cmake
+
+    - name: CMake consumer test (CMake install)
+      run: |
+        mkdir -p cmake/consumer/build
+        cd cmake/consumer/build
+        cmake -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install-cmake" ..
+        cmake --build .
+        ./wolfssl_consumer
+        cd ..
+        rm -rf build

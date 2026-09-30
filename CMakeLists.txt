@@ -5123,7 +5123,7 @@ if(WOLFSSL_INSTALL)
 
     write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake"
-    VERSION "${wolfssl_VERSION_MAJOR}.${wolfssl_VERSION_MINOR}"
+    VERSION "${wolfssl_VERSION}"
     COMPATIBILITY AnyNewerVersion
     )
 
