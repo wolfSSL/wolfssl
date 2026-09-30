@@ -143,7 +143,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="${LOG_DIR}/${ZVER_SLUG}-${RUN_SLUG}_${TIMESTAMP}.log"
 ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts"
 mkdir -p "${ARTIFACTS_DIR}"
-chmod 0755 "${ARTIFACTS_DIR}"
+chmod 0777 "${ARTIFACTS_DIR}"
 
 echo "==> wolfSSL repo:   ${WOLFSSL_REPO}"
 echo "==> wolfSSL branch: ${WOLFSSL_BRANCH}"
