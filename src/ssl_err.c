@@ -149,7 +149,7 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
         const char* reason = NULL;
         int ret;
         int line = 0;
-        char buf[WOLFSSL_MAX_ERROR_SZ * 2];
+        char buf[WOLFSSL_MAX_ERROR_SZ * 2 + 64];
 
         WOLFSSL_ENTER("wolfSSL_ERR_print_errors");
 
@@ -164,8 +164,9 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
             const char* r = wolfSSL_ERR_reason_error_string(
                 (unsigned long)(0 - ret));
             if (XSNPRINTF(buf, sizeof(buf),
-                          "error:%d:wolfSSL library:%s:%s:%d\n",
-                          ret, r, file, line)
+                          "error:%d:wolfSSL library:%.*s:%.*s:%d\n",
+                          ret, WOLFSSL_MAX_ERROR_SZ - 1, r,
+                          WOLFSSL_MAX_ERROR_SZ - 1, file, line)
                 >= (int)sizeof(buf))
             {
                 WOLFSSL_MSG("Buffer overrun formatting error message");

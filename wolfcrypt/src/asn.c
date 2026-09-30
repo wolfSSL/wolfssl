@@ -16003,6 +16003,8 @@ int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
 {
     struct tm t;
     int idx = 0;
+    char tmp[64];
+    int tmpLen;
 
     if (!ExtractDate(date, (unsigned char)format, &t, &idx, dateLen)) {
         return 0;
@@ -16034,13 +16036,13 @@ int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
     }
     idx = 4; /* use idx now for char buffer */
 
-    if (XSNPRINTF(buf + idx, (size_t)(len - idx), "%2d %02d:%02d:%02d %d GMT",
-              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900)
-        >= len - idx)
-    {
+    tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%2d %02d:%02d:%02d %d GMT",
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900);
+    if ((tmpLen < 0) || (tmpLen >= len - idx)) {
         WOLFSSL_MSG("buffer overrun in GetTimeString");
         return 0;
     }
+    XMEMCPY(buf + idx, tmp, (size_t)tmpLen + 1);
 
     return 1;
 }
