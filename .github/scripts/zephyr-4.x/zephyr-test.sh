@@ -316,10 +316,10 @@ build_app() {
 
     # Stage Membrowse inputs if the host mounted a writable /artifacts
     if [[ -d /artifacts && -w /artifacts ]]; then
-        mkdir -p "/artifacts/${name}"
+        mkdir -p "/artifacts/${name}" || return 1
         for f in zephyr.elf linker.cmd zephyr.map; do
             if [[ -f "${build_dir}/zephyr/${f}" ]]; then
-                cp "${build_dir}/zephyr/${f}" "/artifacts/${name}/"
+                cp "${build_dir}/zephyr/${f}" "/artifacts/${name}/" || return 1
             fi
         done
     fi
