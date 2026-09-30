@@ -23,6 +23,7 @@
 #define TESTS_API_SSL_CERT_H
 
 int test_wolfSSL_cert_api_arg_guards(void);
+int test_ssl_cert_decision_coverage(void);
 int test_wolfSSL_crl_ocsp_api_arg_guards(void);
 int test_wolfSSL_ocsp_stapling_accessors(void);
 int test_wolfSSL_crl_io_mock(void);
@@ -127,6 +128,7 @@ int test_wolfSSL_small_cert_verify_sig_error(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_pathological_files),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep), \
+        TEST_DECL_GROUP("ssl_cert", test_ssl_cert_decision_coverage)
 
 #endif /* TESTS_API_SSL_CERT_H */
