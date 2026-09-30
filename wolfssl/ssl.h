@@ -2012,7 +2012,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
 #endif
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -6307,7 +6307,7 @@ WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_find(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, const WOLFSSL_CIPHER* toFind);
 WOLFSSL_API void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx);
 #endif

@@ -51,7 +51,7 @@ int test_wolfSSL_sk_new_free_node(void)
 int test_wolfSSL_sk_push_get_node(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
     WOLFSSL_STACK* stack = NULL;
     WOLFSSL_STACK* node1 = NULL;
     WOLFSSL_STACK* node2 = NULL;
@@ -105,8 +105,7 @@ int test_wolfSSL_sk_free(void)
 int test_wolfSSL_sk_push_pop(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_STACK* stack = NULL;
     unsigned char data_1[1] = { 1 };
     unsigned char data_2[1] = { 2 };
@@ -144,8 +143,7 @@ int test_wolfSSL_sk_push_pop(void)
 int test_wolfSSL_sk_delete(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_STACK* stack = NULL;
     unsigned char data_1[1] = { 1 };
     unsigned char data_2[1] = { 2 };
@@ -181,8 +179,7 @@ int test_wolfSSL_sk_delete(void)
 int test_wolfSSL_sk_insert(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_STACK* stack = NULL;
     unsigned char data_1[1] = { 1 };
     unsigned char data_2[1] = { 2 };
@@ -496,7 +493,7 @@ int test_wolfssl_sk_WOLFSSL_STRING(void)
 int test_wolfssl_lh_retrieve(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL)
     WOLFSSL_STACK* stack = NULL;
     unsigned char data_1[1] = { 1 };
 
