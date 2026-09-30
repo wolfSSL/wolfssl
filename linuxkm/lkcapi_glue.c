@@ -543,6 +543,33 @@ static int linuxkm_lkcapi_register(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
     REGISTER_ALG(cbcAesAlg, skcipher, linuxkm_test_aescbc);
+    /* Instantiate the kernel cts template over our cbc(aes) now, so that
+     * cts(cbc(aes)) (krb5 aes-sha2 enctypes, e.g. libceph aes256k) resolves
+     * to it instead of a native cts driver. The instance persists after
+     * the tfm is freed, and dies with cbcAesAlg on unregister: a registered
+     * instance holds no cra_refcnt on cbcAesAlg (crypto_register_instance()
+     * drops its spawn refs), so UNREGISTER_ALG()'s refcount gate still sees
+     * 1, and crypto_unregister_skcipher() removes the instance through
+     * crypto_remove_spawns().
+     */
+    #if IS_ENABLED(CONFIG_CRYPTO_CTS)
+    if (cbcAesAlg_loaded) {
+        struct crypto_skcipher *cts_tfm =
+            crypto_alloc_skcipher("cts(cbc-aes" WOLFKM_AES_DRIVER_SUFFIX ")", 0, 0);
+        if (IS_ERR(cts_tfm)) {
+            pr_err("ERROR: instantiating cts(cbc-aes" WOLFKM_AES_DRIVER_SUFFIX
+                   ") failed: %d\n", (int)PTR_ERR(cts_tfm));
+            seen_err = -EINVAL;
+        }
+        else {
+            crypto_free_skcipher(cts_tfm);
+            ret = check_skcipher_driver_masking(NULL, "cts(cbc(aes))",
+                                        "cts(cbc-aes" WOLFKM_AES_DRIVER_SUFFIX ")");
+            if (ret)
+                seen_err = ret;
+        }
+    }
+    #endif /* CONFIG_CRYPTO_CTS */
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCTR
     REGISTER_ALG(ctrAesAlg, skcipher, linuxkm_test_aesctr);
