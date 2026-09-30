@@ -3133,6 +3133,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
     XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
     ctx->suites = NULL;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    wolfSSL_sk_CIPHER_free(ctx->suitesStack);
+    ctx->suitesStack = NULL;
+#endif
 
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -3967,7 +3972,7 @@ int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx)
     if (ctx->suites == NULL) {
         ret = AllocateCtxSuites(ctx);
         if (ret == 0)
-            InitSSL_CTX_Suites(ctx);
+            InitSSL_CTX_Suites(ctx, ctx->suites);
     }
     if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0) {
         WOLFSSL_MSG("Failed to unlock CTX mutex after suites init");
@@ -7493,7 +7498,8 @@ static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
     }
 }
 
-void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
+/* Derive the default suites of ctx into suites. */
+void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx, Suites* suites)
 {
     int keySz = 0;
     byte havePSK = 0;
@@ -7511,7 +7517,7 @@ void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
 #ifndef NO_CERTS
     keySz = ctx->privateKeySz;
 #endif
-    InitSuites_EitherSide(ctx->suites, ctx->method->version, keySz,
+    InitSuites_EitherSide(suites, ctx->method->version, keySz,
             haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, ctx->haveECC,
             ctx->haveStaticECC,
             haveAnon, ctx->method->side);
@@ -31641,6 +31647,26 @@ int GetCipherNamesSize(void)
 #endif
 }
 
+/* Get the index of the suite in cipher_names, skipping name aliases.
+ * Returns -1 when the suite is not known. */
+int GetCipherNamesIdx(byte cipherSuite0, byte cipherSuite)
+{
+    int i;
+
+    for (i = 0; i < GetCipherNamesSize(); i++) {
+        if ((cipher_names[i].cipherSuite0 == cipherSuite0) &&
+            (cipher_names[i].cipherSuite  == cipherSuite)
+#ifndef NO_CIPHER_SUITE_ALIASES
+            && (!(cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+#endif
+            ) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 
 const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite)
 {
@@ -31679,21 +31705,9 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
     if (cipher == NULL || n == NULL)
         return NULL;
 
-    offset = cipher->offset;
-
-    /* offset is not set via wolfSSL_get_current_cipher(), so resolve it from
-     * the always-populated suite bytes. */
-    for (i = 0; i < GetCipherNamesSize(); i++) {
-        if (cipher_names[i].cipherSuite0 == cipher->cipherSuite0 &&
-            cipher_names[i].cipherSuite  == cipher->cipherSuite
-        #ifndef NO_CIPHER_SUITE_ALIASES
-            && (!(cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
-        #endif
-            ) {
-            offset = (unsigned long)i;
-            break;
-        }
-    }
+    /* Resolve from the suite bytes, which every cipher has. */
+    i = GetCipherNamesIdx(cipher->cipherSuite0, cipher->cipherSuite);
+    offset = (i >= 0) ? (unsigned long)i : cipher->offset;
 
     if (offset >= (unsigned long)GetCipherNamesSize())
         return NULL;

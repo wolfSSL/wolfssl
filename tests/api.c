@@ -20019,6 +20019,21 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
                 ExpectStrEQ(descFind, descStack);
                 ExpectNull(XSTRSTR(descFind, "unknown"));
             }
+            /* SSL_get_current_cipher() reuses that object. It must describe
+             * the session again, not the suite looked up above. */
+            if ((found != NULL) && (absent != NULL)) {
+                char descFind[MAX_DESCRIPTION_SZ];
+                char descCur[MAX_DESCRIPTION_SZ];
+
+                XMEMSET(descFind, 0, sizeof(descFind));
+                XMEMSET(descCur, 0, sizeof(descCur));
+                ExpectNotNull(SSL_CIPHER_description(found, descFind,
+                    (int)sizeof(descFind)));
+                ExpectNotNull(SSL_CIPHER_description(
+                    SSL_get_current_cipher(sslLtd), descCur,
+                    (int)sizeof(descCur)));
+                ExpectStrNE(descCur, descFind);
+            }
 #endif
         }
 

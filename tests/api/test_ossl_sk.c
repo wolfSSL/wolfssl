@@ -29,7 +29,9 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #include <wolfssl/openssl/lhash.h>
+#include <wolfssl/openssl/ssl.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_sk.h>
 
@@ -484,3 +486,281 @@ int test_wolfssl_lh_retrieve(void)
     return EXPECT_RESULT();
 }
 
+
+/*******************************************************************************
+ * SSL_CTX_get_ciphers() - stack of the ciphers configured on a CTX
+ ******************************************************************************/
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+/* A new SSL of ctx must report the same list, entry for entry. */
+static int test_ctx_ciphers_match_ssl(WOLFSSL_CTX* ctx,
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* ctxSk)
+{
+    EXPECT_DECLS;
+    WOLFSSL* ssl = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sslSk = NULL;
+    int num = 0;
+    int i;
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(sslSk = wolfSSL_get_ciphers_compat(ssl));
+    ExpectIntGT(num = wolfSSL_sk_SSL_CIPHER_num(ctxSk), 0);
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sslSk), num);
+    for (i = 0; EXPECT_SUCCESS() && (i < num); i++) {
+        const WOLFSSL_CIPHER* c = wolfSSL_sk_SSL_CIPHER_value(ctxSk, i);
+        const WOLFSSL_CIPHER* s = wolfSSL_sk_SSL_CIPHER_value(sslSk, i);
+        char cDesc[256];
+        char sDesc[256];
+
+        ExpectNotNull(c);
+        ExpectNotNull(s);
+        if ((c == NULL) || (s == NULL))
+            break;
+        ExpectIntEQ(c->cipherSuite0, s->cipherSuite0);
+        ExpectIntEQ(c->cipherSuite, s->cipherSuite);
+        ExpectStrEQ(wolfSSL_CIPHER_get_name(c), wolfSSL_CIPHER_get_name(s));
+        ExpectTrue(c->ssl == NULL);
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        /* Same bookkeeping, so the same description. */
+        ExpectIntEQ(c->in_stack, s->in_stack);
+        ExpectIntEQ((int)c->offset, (int)s->offset);
+        ExpectNotNull(wolfSSL_CIPHER_description(c, cDesc,
+            (int)sizeof(cDesc)));
+        ExpectNotNull(wolfSSL_CIPHER_description(s, sDesc,
+            (int)sizeof(sDesc)));
+        ExpectStrEQ(cDesc, sDesc);
+    #else
+        /* No session to describe. */
+        ExpectNull(wolfSSL_CIPHER_description(c, cDesc,
+            (int)sizeof(cDesc)));
+        (void)sDesc;
+    #endif
+    }
+
+    wolfSSL_free(ssl);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+/* The entry at idx must be the suite s0/s. Its name is the IANA one unless
+ * built to report internal names. */
+static int test_ctx_cipher_at(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx,
+    byte s0, byte s, const char* iana, const char* name)
+{
+    EXPECT_DECLS;
+    const WOLFSSL_CIPHER* c = NULL;
+    const char* got = NULL;
+
+    ExpectNotNull(c = wolfSSL_sk_SSL_CIPHER_value(sk, idx));
+    if (c != NULL) {
+        ExpectIntEQ(c->cipherSuite0, s0);
+        ExpectIntEQ(c->cipherSuite, s);
+    }
+    ExpectNotNull(got = wolfSSL_CIPHER_get_name(c));
+    ExpectTrue((got != NULL) &&
+        ((XSTRCMP(got, iana) == 0) || (XSTRCMP(got, name) == 0)));
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Default list of a new CTX, before any SSL derives it. */
+int test_wolfSSL_CTX_get_ciphers_default(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    Suites* suites = NULL;
+    int num = 0;
+    int i;
+
+    ExpectNull(wolfSSL_CTX_get_ciphers_compat(NULL));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (ctx != NULL)
+        suites = ctx->suites;
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntGT(num = wolfSSL_sk_SSL_CIPHER_num(sk), 0);
+    /* Reading the list must not derive the CTX suites. */
+    ExpectTrue((ctx != NULL) && (ctx->suites == suites));
+    /* Owned by the CTX: same stack while the list is unchanged. */
+    ExpectPtrEq(wolfSSL_CTX_get_ciphers_compat(ctx), sk);
+
+    /* TLS 1.3 suites are preferred, as in OpenSSL. */
+    for (i = 1; EXPECT_SUCCESS() && (i < num); i++) {
+        const WOLFSSL_CIPHER* prev = wolfSSL_sk_SSL_CIPHER_value(sk, i - 1);
+        const WOLFSSL_CIPHER* cur = wolfSSL_sk_SSL_CIPHER_value(sk, i);
+
+        ExpectNotNull(prev);
+        ExpectNotNull(cur);
+        ExpectFalse((prev != NULL) && (cur != NULL) &&
+            (prev->cipherSuite0 != TLS13_BYTE) &&
+            (cur->cipherSuite0 == TLS13_BYTE));
+    }
+#if defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    {
+        const char* name;
+        int tls13 = -1;
+        int tls12 = -1;
+
+        for (i = 0; i < num; i++) {
+            name = wolfSSL_CIPHER_get_name(wolfSSL_sk_SSL_CIPHER_value(sk, i));
+            if (name == NULL)
+                continue;
+            if ((XSTRCMP(name, "TLS_AES_128_GCM_SHA256") == 0) ||
+                    (XSTRCMP(name, "TLS13-AES128-GCM-SHA256") == 0)) {
+                tls13 = i;
+            }
+            if ((XSTRCMP(name, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256") == 0) ||
+                    (XSTRCMP(name, "ECDHE-RSA-AES128-GCM-SHA256") == 0)) {
+                tls12 = i;
+            }
+        }
+        ExpectIntGE(tls13, 0);
+        ExpectIntGT(tls12, tls13);
+    }
+#endif
+
+    /* A new SSL derives the CTX suites and reports the same list. */
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+    ExpectNotNull(ctx->suites);
+    /* The derived suites are the defaults reported: the stack is kept. */
+    ExpectPtrEq(wolfSSL_CTX_get_ciphers_compat(ctx), sk);
+#if !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY))
+    ExpectPtrEq(SSL_CTX_get_ciphers(ctx), sk);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The list follows SSL_CTX_set_cipher_list(), in the order set. */
+int test_wolfSSL_CTX_get_ciphers_set_list(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+
+    /* An OpenSSL keyword list. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "HIGH"), WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+    /* TLS 1.2 only, so the list is exactly the one set. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx,
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384"),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), 2);
+    ExpectIntEQ(test_ctx_cipher_at(sk, 0, ECC_BYTE,
+        TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256"), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx_cipher_at(sk, 1, ECC_BYTE,
+        TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+
+    /* Setting the list again frees the old stack. The new one has the new
+     * order and no stale entries. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx,
+        "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), 2);
+    ExpectIntEQ(test_ctx_cipher_at(sk, 0, ECC_BYTE,
+        TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384"), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx_cipher_at(sk, 1, ECC_BYTE,
+        TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256"), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx,
+        "ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), 1);
+    ExpectIntEQ(test_ctx_cipher_at(sk, 0, ECC_BYTE,
+        TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256"), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+
+    /* A rejected list changes nothing: the stack is kept. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "NOT-A-CIPHER"),
+        WOLFSSL_FAILURE);
+    ExpectPtrEq(wolfSSL_CTX_get_ciphers_compat(ctx), sk);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Version options filter the list. NULL, not an empty stack, when nothing is
+ * left, as SSL_get_ciphers() returns. */
+int test_wolfSSL_CTX_get_ciphers_versions(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+    /* Only TLS 1.2 left: same list as an SSL restricted the same way. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(wolfSSL_CTX_get_ciphers_compat(ctx));
+    (void)wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+    if (sk != NULL) {
+        const WOLFSSL_CIPHER* c = wolfSSL_sk_SSL_CIPHER_value(sk, 0);
+
+        ExpectTrue((c != NULL) && (c->cipherSuite0 != TLS13_BYTE));
+    }
+    /* TLS 1.3 back on: the list is rebuilt with its suites. */
+    (void)wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    /* The only suite needs TLS 1.2, which is turned off. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx,
+        "ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    (void)wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_2);
+    ExpectNull(wolfSSL_CTX_get_ciphers_compat(ctx));
+    (void)wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_NO_TLSv1_2);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), 1);
+    wolfSSL_CTX_free(ctx);
+#endif
+
+    (void)ctx;
+    (void)sk;
+#endif
+    return EXPECT_RESULT();
+}

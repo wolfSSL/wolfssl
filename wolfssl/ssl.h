@@ -6108,6 +6108,8 @@ WOLFSSL_API void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_CTX_get_ciphers_compat(
+    const WOLFSSL_CTX *ctx);
 WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
     const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
 WOLFSSL_API int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx,
