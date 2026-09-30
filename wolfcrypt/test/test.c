@@ -68585,6 +68585,32 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
+
+#ifndef NO_SHA256
+    /* HashML-DSA: the pre-hash APIs take a digest plus its hash type, and
+     * reach a crypto callback with a preHashType other than NONE. */
+    {
+        byte digest[WC_SHA256_DIGEST_SIZE];
+
+        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        sigLen = wc_MlDsaKey_SigSize(key);
+        ret = wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen, digest,
+            (word32)sizeof(digest), WC_HASH_TYPE_SHA256, rng);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0, digest,
+            (word32)sizeof(digest), WC_HASH_TYPE_SHA256, &res);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (res != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
+    }
+#endif
 #endif
 #endif
 
@@ -88643,6 +88669,13 @@ typedef struct {
     int dhAgreeUnavail;    /* when set, DH agree declines the op so the
                             * CRYPTOCB_UNAVAILABLE software fallback runs */
 #endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    int mldsaKeyGenCount; /* ML-DSA keygen callback invocations */
+    int mldsaSignCount;   /* ML-DSA sign callback invocations */
+    int mldsaVerifyCount; /* ML-DSA verify callback invocations */
+    int mldsaSignHashCount;   /* ML-DSA pre-hash sign invocations */
+    int mldsaVerifyHashCount; /* ML-DSA pre-hash verify invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -90894,6 +90927,108 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->exampleVar++;
         }
     #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+    #ifdef WOLFSSL_HAVE_MLDSA
+    #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) {
+            if ((info->pk.pqc_sig_kg.type == WC_PQC_SIG_TYPE_MLDSA) &&
+                (info->pk.pqc_sig_kg.key != NULL)) {
+                wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_sig_kg.key;
+                int shakeDevId = key->shake.devId;
+
+                /* set devId to invalid, so software is used */
+                key->devId = INVALID_DEVID;
+                key->shake.devId = INVALID_DEVID;
+
+                ret = wc_MlDsaKey_MakeKey(key, info->pk.pqc_sig_kg.rng);
+
+                /* reset devId */
+                key->devId = devIdArg;
+                key->shake.devId = shakeDevId;
+                myCtx->mldsaKeyGenCount++;
+            }
+        }
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_CTX)
+        /* WOLFSSL_MLDSA_NO_CTX makes Sign() and SignCtx() with an empty
+         * context indistinguishable here, so leave both to software. */
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) {
+            if ((info->pk.pqc_sign.type == WC_PQC_SIG_TYPE_MLDSA) &&
+                (info->pk.pqc_sign.key != NULL)) {
+                wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_sign.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_sign.preHashType;
+                int shakeDevId = key->shake.devId;
+
+                key->devId = INVALID_DEVID;
+                key->shake.devId = INVALID_DEVID;
+
+                if (phType == WC_HASH_TYPE_NONE) {
+                    ret = wc_MlDsaKey_SignCtx(key,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.out, info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+                        info->pk.pqc_sign.rng);
+                }
+                else {
+                    ret = wc_MlDsaKey_SignCtxHash(key,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.out, info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+                        (int)phType, info->pk.pqc_sign.rng);
+                }
+
+                key->devId = devIdArg;
+                key->shake.devId = shakeDevId;
+                if (phType == WC_HASH_TYPE_NONE)
+                    myCtx->mldsaSignCount++;
+                else
+                    myCtx->mldsaSignHashCount++;
+            }
+        }
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_MLDSA_NO_CTX)
+        /* Omitted under WOLFSSL_MLDSA_NO_CTX; see the sign branch. */
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) {
+            if ((info->pk.pqc_verify.type == WC_PQC_SIG_TYPE_MLDSA) &&
+                (info->pk.pqc_verify.key != NULL)) {
+                wc_MlDsaKey* key = (wc_MlDsaKey*)info->pk.pqc_verify.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_verify.preHashType;
+                int shakeDevId = key->shake.devId;
+
+                key->devId = INVALID_DEVID;
+                key->shake.devId = INVALID_DEVID;
+
+                /* SIG_VERIFY_E passes back unchanged; it reports a bad sig. */
+                if (phType == WC_HASH_TYPE_NONE) {
+                    ret = wc_MlDsaKey_VerifyCtx(key,
+                        info->pk.pqc_verify.sig, info->pk.pqc_verify.siglen,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg, info->pk.pqc_verify.msglen,
+                        info->pk.pqc_verify.res);
+                }
+                else {
+                    ret = wc_MlDsaKey_VerifyCtxHash(key,
+                        info->pk.pqc_verify.sig, info->pk.pqc_verify.siglen,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg, info->pk.pqc_verify.msglen,
+                        (int)phType, info->pk.pqc_verify.res);
+                }
+
+                key->devId = devIdArg;
+                key->shake.devId = shakeDevId;
+                if (phType == WC_HASH_TYPE_NONE)
+                    myCtx->mldsaVerifyCount++;
+                else
+                    myCtx->mldsaVerifyHashCount++;
+            }
+        }
+    #endif
+    #endif /* WOLFSSL_HAVE_MLDSA */
     #ifdef WOLFSSL_HAVE_MLKEM
     #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
@@ -93884,6 +94019,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.dhAgreeCount = 0;
     myCtx.dhAgreeUnavail = 0;
 #endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    myCtx.mldsaKeyGenCount = 0;
+    myCtx.mldsaSignCount = 0;
+    myCtx.mldsaVerifyCount = 0;
+    myCtx.mldsaSignHashCount = 0;
+    myCtx.mldsaVerifyHashCount = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -94485,8 +94627,46 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = frodokem_test();
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
-    if (ret == 0)
+    if (ret == 0) {
+        /* Counters confirm the cb branches ran, so a silent SW fallback
+         * cannot mask a dispatch regression.  Only mldsa_param_test() signs
+         * and it needs !NO_MAKE_KEY.  FIPS forces FIPS_INVALID_DEVID. */
+        myCtx.mldsaKeyGenCount = 0;
+        myCtx.mldsaSignCount = 0;
+        myCtx.mldsaVerifyCount = 0;
+        myCtx.mldsaSignHashCount = 0;
+        myCtx.mldsaVerifyHashCount = 0;
+
         ret = mldsa_test();
+
+    #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(HAVE_FIPS)
+        if ((ret == 0) && (myCtx.mldsaKeyGenCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+        !defined(WOLFSSL_MLDSA_NO_CTX) && !defined(HAVE_FIPS)
+        if ((ret == 0) && (myCtx.mldsaSignCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        !defined(WOLFSSL_MLDSA_NO_CTX) && !defined(HAVE_FIPS)
+        if ((ret == 0) && (myCtx.mldsaVerifyCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+        /* The pre-hash arms are reached only by the HashML-DSA round trip in
+         * mldsa_param_test(), so they need !NO_MAKE_KEY and SHA-256 too. */
+    #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+        !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        !defined(WOLFSSL_MLDSA_NO_CTX) && !defined(NO_SHA256) && \
+        !defined(HAVE_FIPS)
+        if ((ret == 0) && (myCtx.mldsaSignHashCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+        if ((ret == 0) && (myCtx.mldsaVerifyHashCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+    }
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
     if (ret == 0) {
