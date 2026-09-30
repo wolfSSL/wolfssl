@@ -9591,50 +9591,19 @@ static enum wc_MACAlgorithm GetNewSAHashAlgo(int typeIn)
     }
 }
 
-#ifdef HAVE_ECC
-/* Curve the ECDSA signature schemes pair with each hash (RFC 8446 4.2.3). */
-static WC_INLINE int EccCurveFromHashAlgo(byte hashAlgo)
-{
-    switch (hashAlgo) {
-#ifndef NO_SHA256
-        case sha256_mac:
-            return ECC_SECP256R1;
-#endif
-#ifdef WOLFSSL_SHA384
-        case sha384_mac:
-            return ECC_SECP384R1;
-#endif
-#ifdef WOLFSSL_SHA512
-        case sha512_mac:
-            return ECC_SECP521R1;
-#endif
-        default:
-            return ECC_CURVE_INVALID;
-    }
-}
-#endif /* HAVE_ECC */
-
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
  * hashalgo  The hash algorithm.
  * hsType    The signature type.
- * eccCurve  Curve the scheme names, ECC_CURVE_INVALID if it names none.
  * returns INVALID_PARAMETER if not recognized and 0 otherwise.
  */
 static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
-                                       byte* hsType, int* eccCurve)
+                                       byte* hsType)
 {
     int ret = 0;
 #if defined(WOLFSSL_HAVE_SLHDSA)
     byte slhType;
-#endif
-
-#ifdef HAVE_ECC
-    /* Set by the arms whose scheme names a curve. */
-    *eccCurve = ECC_CURVE_INVALID;
-#else
-    (void)eccCurve;
 #endif
 
     switch (input[0]) {
@@ -9643,7 +9612,6 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             if (input[1] == SM2_SA_MINOR) {
                 *hsType = sm2_sa_algo;
                 *hashAlgo = sm3_mac;
-                *eccCurve = ECC_SM2P256V1;
             }
             else
                 ret = INVALID_PARAMETER;
@@ -9680,18 +9648,10 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             }
     #endif
     #ifdef HAVE_ECC_BRAINPOOL
-            /* RFC 8734 3: each of these names its own curve. */
-            else if (input[1] == ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR) {
+            else if ((input[1] == ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR) ||
+                     (input[1] == ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR) ||
+                     (input[1] == ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR)) {
                 *hsType = ecc_dsa_sa_algo;
-                *eccCurve = ECC_BRAINPOOLP256R1;
-            }
-            else if (input[1] == ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR) {
-                *hsType = ecc_dsa_sa_algo;
-                *eccCurve = ECC_BRAINPOOLP384R1;
-            }
-            else if (input[1] == ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR) {
-                *hsType = ecc_dsa_sa_algo;
-                *eccCurve = ECC_BRAINPOOLP512R1;
             }
     #endif
             else
@@ -9749,12 +9709,6 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];
-#ifdef HAVE_ECC
-            /* RFC 8446 4.2.3: each ECDSA scheme pairs one curve with one
-             * hash. The hybrid schemes below name these same curves. */
-            if (*hsType == ecc_dsa_sa_algo)
-                *eccCurve = EccCurveFromHashAlgo(*hashAlgo);
-#endif
             break;
     }
 
@@ -9770,8 +9724,7 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
  * returns INVALID_PARAMETER if not recognized and 0 otherwise.
  */
 static WC_INLINE int DecodeTls13HybridSigAlg(byte* input, byte* hashAlg,
-                                             byte *sigAlg, byte *altSigAlg,
-                                             int* eccCurve)
+                                             byte *sigAlg, byte *altSigAlg)
 {
 
     if (input[0] != HYBRID_SA_MAJOR) {
@@ -9851,14 +9804,6 @@ static WC_INLINE int DecodeTls13HybridSigAlg(byte* input, byte* hashAlg,
     else {
         return INVALID_PARAMETER;
     }
-
-#ifdef HAVE_ECC
-    /* Every hybrid scheme naming an ECDSA curve pairs it with the same hash
-     * the ECDSA schemes do. */
-    *eccCurve = EccCurveFromHashAlgo(*hashAlg);
-#else
-    (void)eccCurve;
-#endif
 
     return 0;
 }
@@ -12476,46 +12421,41 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
 }
 
 #ifdef HAVE_ECC
-/* Whether some signature scheme names this curve. EncodeSigAlg only has a
- * scheme of its own for these; a key on any other curve is sent under the
- * plain ECDSA scheme matching its size. */
-static int EccCurveHasSigAlgo(int curveId)
-{
-    switch (curveId) {
-        case ECC_SECP256R1:
-        case ECC_SECP384R1:
-        case ECC_SECP521R1:
-#ifdef HAVE_ECC_BRAINPOOL
-        case ECC_BRAINPOOLP256R1:
-        case ECC_BRAINPOOLP384R1:
-        case ECC_BRAINPOOLP512R1:
-#endif
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-        case ECC_SM2P256V1:
-#endif
-            return 1;
-        default:
-            return 0;
-    }
-}
-
 /* An ECDSA SignatureScheme names a curve as well as a hash, so the peer key
  * has to be on the curve the announced scheme names (RFC 8446 4.4.3).
- * expCurve is that curve, as reported by the signature algorithm decoder.
  *
- * A curve no scheme names is only ever sent under the plain ECDSA scheme for
- * its size, so those are held to the size alone.
- *
- * returns 1 when the peer key's curve agrees with the announced scheme. */
-static int EccPeerCurveMatchesSigAlgo(WOLFSSL* ssl, int expCurve)
+ * returns 1 when the peer key's group agrees with the announced hash. */
+static int EccPeerCurveMatchesSigAlgo(WOLFSSL* ssl, byte hashAlgo,
+                                      byte sigAlgo)
 {
     ecc_key* key = ssl->peerEccDsaKey;
 
     if ((key == NULL) || (key->dp == NULL))
         return 0;
-    if (EccCurveHasSigAlgo(key->dp->id))
-        return key->dp->id == expCurve;
-    return CmpEccStrength(ssl->options.peerHashAlgo, key->dp->size) == 0;
+
+    /* A curve with a scheme of its own has to be used with it, or a same
+     * sized curve would satisfy any of them. */
+#ifdef HAVE_ECC_BRAINPOOL
+    if ((key->dp->oidSum == ECC_BRAINPOOLP256R1_OID) ||
+        (key->dp->oidSum == ECC_BRAINPOOLP384R1_OID) ||
+        (key->dp->oidSum == ECC_BRAINPOOLP512R1_OID)) {
+        if (sigAlgo != ecc_brainpool_sa_algo)
+            return 0;
+    }
+    else
+#endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (key->dp->oidSum == ECC_SM2P256V1_OID) {
+        if (sigAlgo != sm2_sa_algo)
+            return 0;
+    }
+    else
+#endif
+    if (sigAlgo != ecc_dsa_sa_algo) {
+        return 0;
+    }
+
+    return CmpEccStrength(hashAlgo, key->dp->size) == 0;
 }
 #endif /* HAVE_ECC */
 
@@ -12724,10 +12664,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             int validSigAlgo;
             const Suites* suites = WOLFSSL_SUITES(ssl);
             word16 i;
-            /* Curve the announced scheme names; ECC_CURVE_INVALID (-1) when
-             * it names none. Declared even without ECC built, as the decoders
-             * take its address. */
-            int expEccCurve = -1;
 
             /* Signature algorithm. */
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
@@ -12763,15 +12699,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
 
                 ret = DecodeTls13SigAlg(input + args->idx,
-                        &ssl->options.peerHashAlgo, &ssl->options.peerSigAlgo,
-                        &expEccCurve);
+                        &ssl->options.peerHashAlgo, &ssl->options.peerSigAlgo);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
             }
             else {
                 ret = DecodeTls13HybridSigAlg(input + args->idx,
                                               &ssl->options.peerHashAlgo,
                                               &ssl->options.peerSigAlgo,
-                                              &args->altSigAlgo, &expEccCurve);
+                                              &args->altSigAlgo);
             }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
@@ -12930,10 +12865,15 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
         #ifdef HAVE_ECC
             if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
+                byte curveHash = 0, curveSig = 0;
                 WOLFSSL_MSG("Peer sent ECC sig");
+                /* DecodeTls13SigAlg folds the brainpool schemes onto
+                 * ecc_dsa_sa_algo; DecodeSigAlg keeps them apart. */
+                DecodeSigAlg(input + args->begin, &curveHash, &curveSig);
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
                                ssl->peerEccDsaKeyPresent &&
-                               EccPeerCurveMatchesSigAlgo(ssl, expEccCurve);
+                               EccPeerCurveMatchesSigAlgo(ssl, curveHash,
+                                                          curveSig);
             }
         #endif
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -12941,7 +12881,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Peer sent SM2 sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
                                ssl->peerEccDsaKeyPresent &&
-                               EccPeerCurveMatchesSigAlgo(ssl, expEccCurve);
+                               EccPeerCurveMatchesSigAlgo(ssl,
+                                   ssl->options.peerHashAlgo,
+                                   ssl->options.peerSigAlgo);
             }
         #endif
         #ifdef HAVE_FALCON
@@ -13367,8 +13309,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     (ssl->peerEccDsaKeyPresent)) {
                     WOLFSSL_MSG("Doing ECC peer cert alt verify");
                     if (!EccPeerCurveMatchesSigAlgo(ssl,
-                            EccCurveFromHashAlgo(
-                                ssl->options.peerHashAlgo))) {
+                            ssl->options.peerHashAlgo, ecc_dsa_sa_algo)) {
                         ERROR_OUT(SIG_VERIFY_E, exit_dcv);
                     }
                     ret = EccVerify(ssl, sig, args->altSignatureSz,
