@@ -292,6 +292,10 @@ ECC Curve Sizes:
     #include <xsecure_ellipticclient.h>
 #endif
 
+#ifdef TI_MCU_PLUS_SDK
+    #include <strings.h>
+#endif
+
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -4416,10 +4420,6 @@ int wc_ecc_get_curve_size_from_id(int curve_id)
         return ECC_BAD_ARG_E;
     return ecc_sets[curve_idx].size;
 }
-
-#ifndef strcasecmp
-int strcasecmp(const char *s1, const char *s2);
-#endif
 
 /* Returns the curve index that corresponds to a given curve name in
  * ecc_sets[] of ecc.c

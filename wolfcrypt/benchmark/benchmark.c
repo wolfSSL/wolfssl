@@ -3127,7 +3127,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     /* machine parseable CSV */
     #ifdef HAVE_GET_CYCLES
-            printf("%s", "\"sym\",Algorithm,HW/SW,block_size,bytes_total,"
+            printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,"
                 WOLFSSL_FIXED_TIME_UNIT "econds_total,"
                 WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
                 ",cycles_total,Cycles per byte,"
@@ -3139,7 +3139,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #endif
                 );
     #else
-            printf("%s", "\"sym\",Algorithm,HW/SW,block_size,bytes_total,"
+            printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,"
                 WOLFSSL_FIXED_TIME_UNIT "econds_total,"
                 WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
                 ",cycles_total,"
@@ -3250,9 +3250,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #ifdef WOLFSSL_ESPIDF
         #ifdef HAVE_GET_CYCLES
             (void)XSNPRINTF(msg, sizeof(msg),
-                            "sym,%s,%s,%lu,%lu," FLT_FMT "," FLT_FMT ",%llu,", desc,
+                            "sym,%s,%s,%lu," FLT_FMT "," FLT_FMT ",%lu,", desc,
                             BENCH_DEVID_GET_NAME(useDeviceID),
-                            bench_size,
                             bytes_processed, FLT_FMT_ARGS(total),
                             FLT_FMT_ARGS(persec),
                             (long unsigned int) total_cycles);
@@ -3265,18 +3264,17 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #else
         #ifdef HAVE_GET_CYCLES
             (void)XSNPRINTF(msg, sizeof(msg),
-                            "sym,%s,%s,%lu,%llu," FLT_FMT "," FLT_FMT ",%llu,", desc,
+                            "sym,%s,%s,%llu," FLT_FMT "," FLT_FMT ",%llu,", desc,
                             BENCH_DEVID_GET_NAME(useDeviceID),
-                            bench_size,
-                            bytes_processed, FLT_FMT_ARGS(total),
-                            FLT_FMT_ARGS(persec), total_cycles);
+                            (unsigned long long)bytes_processed,
+                            FLT_FMT_ARGS(total), FLT_FMT_ARGS(persec),
+                            (unsigned long long)total_cycles);
         #else
             (void)XSNPRINTF(msg, sizeof(msg),
-                            "sym,%s,%s,%lu,%llu," FLT_FMT "," FLT_FMT ",", desc,
+                            "sym,%s,%s,%llu," FLT_FMT "," FLT_FMT ",", desc,
                             BENCH_DEVID_GET_NAME(useDeviceID),
-                            bench_size,
-                            bytes_processed, FLT_FMT_ARGS(total),
-                            FLT_FMT_ARGS(persec));
+                            (unsigned long long)bytes_processed,
+                            FLT_FMT_ARGS(total), FLT_FMT_ARGS(persec));
         #endif
     #endif
 #elif defined(BENCH_DEVID)

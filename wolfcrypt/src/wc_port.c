@@ -1302,6 +1302,9 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
     #endif
+    #if defined(WOLFSSL_TI_AM64X_R5)
+        ti_sa2ul_port_cleanup();
+    #endif
     /* Unregister before sl_se_deinit(). wc_CryptoCb_Cleanup() further down
      * would also clear the device, but it runs after the SE is torn down, so
      * the unregister command would reach the callback with no SE behind it. */

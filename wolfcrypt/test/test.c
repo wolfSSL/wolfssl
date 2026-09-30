@@ -357,6 +357,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 
 #ifdef TI_MCU_PLUS_SDK
 # include "kernel/nortos/dpl/common/printf.h"
+# undef printf
 # define printf printf_
 #endif
 
