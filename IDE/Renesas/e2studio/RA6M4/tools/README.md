@@ -99,8 +99,8 @@ example_keys/
 +-- rsa_public.pem           matching public key, used to verify the signature
 +-- generate_SignedCA.sh     sign + verify + convert to C, in one step (Linux/macOS/Git Bash)
 +-- generate_SignedCA.bat    Windows cmd.exe/PowerShell wrapper (calls the .sh via Git Bash)
-+-- ca-cert.der.sign         pre-generated: RSA-PSS signature over certs/ca-cert.der
-+-- ca-cert.der.c            pre-generated: the above, as a C byte array
-+-- ca-ecc-cert.der.sign     pre-generated: RSA-PSS signature over certs/ca-ecc-cert.der
-+-- ca-ecc-cert.der.c        pre-generated: the above, as a C byte array
 ```
+
+Running the script above also writes `<name>.der.sign` and `<name>.der.c` next to it
+(e.g. `ca-cert.der.sign`/`ca-cert.der.c`, `ca-ecc-cert.der.sign`/`ca-ecc-cert.der.c`) --
+these are generated output, not checked into this tree.

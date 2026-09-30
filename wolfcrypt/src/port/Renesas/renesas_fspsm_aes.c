@@ -340,6 +340,7 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     uint8_t  delta;
     uint8_t  aadDelta;
     int      initOk = 0;
+    int      updateOk = 0;
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
 
@@ -508,7 +509,8 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                                                                 &out_len_tmp);
                 out_len += out_len_tmp;
             }
-            if (ret != FSP_SUCCESS) {
+            updateOk = (ret == FSP_SUCCESS);
+            if (!updateOk) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmEncryptUpdate2: failed");
                 ret = -1;
             }
@@ -537,7 +539,7 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             #endif
                           aTagBuf);
 
-            if (ret == FSP_SUCCESS) {
+            if (ret == FSP_SUCCESS && updateOk) {
             #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
                 out_len += out_len_tmp;
                 dataLen = out_len;
@@ -554,7 +556,9 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 }
             }
             else {
-                WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
+                if (ret != FSP_SUCCESS) {
+                    WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
+                }
                 ret = -1;
             }
             }
@@ -613,6 +617,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     uint8_t  delta;
     uint8_t  aadDelta;
     int      initOk = 0;
+    int      updateOk = 0;
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
 
@@ -771,7 +776,8 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                                         plainBuf, sz, NULL, 0UL, &out_len_tmp);
                 out_len += out_len_tmp;
             }
-            if (ret != FSP_SUCCESS) {
+            updateOk = (ret == FSP_SUCCESS);
+            if (!updateOk) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptUpdate: failed in decrypt");
                 ret = -1;
             }
@@ -800,7 +806,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                         aTagBuf,
                         min(16, authTagSz));
 
-            if (ret == FSP_SUCCESS) {
+            if (ret == FSP_SUCCESS && updateOk) {
             #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
                 out_len += out_len_tmp;
                 dataLen = out_len;
@@ -814,20 +820,21 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                     XMEMCPY(out, plainBuf, dataLen);
                 }
             }
-            else {
+            else if (ret != FSP_SUCCESS) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
-                /* A bad/tampered auth tag is reported by the hardware as one
-                 * of these FSP-specific codes, not a generic failure -- the
-                 * wolfCrypt API contract requires AES_GCM_AUTH_E specifically
-                 * here (callers, and wolfcrypt_test()'s tampered-tag test,
-                 * distinguish "authentication failed" from other errors). */
-                if (ret == FSP_ERR_CRYPTO_SCE_AUTHENTICATION ||
-                    ret == FSP_ERR_CRYPTO_AUTHENTICATION_FAILED) {
+                /* Only map to AES_GCM_AUTH_E if Update actually succeeded. */
+                if (updateOk &&
+                    (ret == FSP_ERR_CRYPTO_SCE_AUTHENTICATION ||
+                     ret == FSP_ERR_CRYPTO_AUTHENTICATION_FAILED)) {
                     ret = AES_GCM_AUTH_E;
                 }
                 else {
                     ret = -1;
                 }
+            }
+            else {
+                /* Final reported success, but Update had already failed. */
+                ret = -1;
             }
             }
         }
