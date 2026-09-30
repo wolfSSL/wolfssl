@@ -7098,6 +7098,16 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
             if (ret == 0)
                 DoClientTicketFinalize(ssl, current->it, current->sess);
+            /* This is the PSK path, so failNoCertxPSK excuses it. */
+            if (ret == 0 && ClientAuthRequired(ssl, 1) &&
+            #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                    /* Deferred, so this handshake asks for nothing. */
+                    !ssl->options.verifyPostHandshake &&
+            #endif
+                    !ssl->session->peerAuthOk) {
+                WOLFSSL_MSG("Ticket session lacks client auth, skipping PSK");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
             if (current->sess_free_cb != NULL) {
                 current->sess_free_cb(ssl, current->sess,
                         &current->sess_free_cb_ctx);
@@ -13708,11 +13718,11 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_START(WC_FUNC_FINISHED_DO);
     WOLFSSL_ENTER("DoTls13Finished");
 
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    !defined(NO_WOLFSSL_SERVER)
     /* verify the client sent certificate if required */
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-            (!ssl->options.resuming || TLS13_AFTER_HANDSHAKE(ssl)) &&
-            (ssl->options.mutualAuth || ssl->options.failNoCert)) {
+    if ((!ssl->options.resuming || TLS13_AFTER_HANDSHAKE(ssl)) &&
+            ClientAuthRequired(ssl, SSL_USING_PSK(ssl))) {
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
         if (ssl->options.isPSK && !TLS13_AFTER_HANDSHAKE(ssl)) {
             WOLFSSL_MSG("TLS v1.3 client used PSK but cert required. Allowing "
@@ -18378,13 +18388,14 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_ACCEPT_FINISHED_DONE :
             /* SERVER: When not resuming and verifying peer but no certificate
-             * received and not failing when not received then peer auth good.
+             * received and none was required then peer auth good.
              */
             if (!ssl->options.resuming && ssl->options.verifyPeer &&
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                 !ssl->options.verifyPostHandshake &&
         #endif
-                !ssl->options.havePeerCert && !ssl->options.failNoCert) {
+                !ssl->options.havePeerCert &&
+                !ClientAuthRequired(ssl, SSL_USING_PSK(ssl))) {
                 ssl->options.peerAuthGood = 1;
             }
             /* SERVER: check peer authentication. */
