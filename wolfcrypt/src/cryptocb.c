@@ -2107,7 +2107,14 @@ int wc_CryptoCb_PqcStatefulSigVerify(const byte* sig, word32 sigSz,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key, word32* sigsLeft)
@@ -2474,7 +2481,14 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen, const byte* mprime,
@@ -2509,7 +2523,14 @@ int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen, const byte* mprime,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    ret = wc_CryptoCb_TranslateErrorCode(ret);
+    /* A device may write *res and then fail or decline; any non-zero
+     * return reports the signature as invalid. */
+    if ((ret != 0) && (res != NULL)) {
+        *res = 0;
+    }
+
+    return ret;
 }
 
 int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
