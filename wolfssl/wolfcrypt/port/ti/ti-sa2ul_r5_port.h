@@ -37,8 +37,6 @@
 #endif
 
 int ti_sa2ul_port_init(void);
-void ti_sa2ul_Sha256Teardown(wc_Sha256* sha256);
-void ti_sa2ul_Sha512Teardown(wc_Sha512* sha512);
 void ti_sa2ul_soc_uid(uint8_t *uid);
 int ti_sa2ul_trng_get(byte* output, word32 sz);
 

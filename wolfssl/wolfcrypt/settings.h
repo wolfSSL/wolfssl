@@ -2517,14 +2517,10 @@
 #endif
 
 #ifdef WOLFSSL_TI_AM64X_R5
-    #define HAVE_AES_ECB
-    #define NO_AES_192
     #define NO_DEV_RANDOM
-    #define WOLFSSL_AES_128
-    #define WOLFSSL_AES_256
-    #define WOLFSSL_AES_DIRECT
-    #define WOLFSSL_CMAC
-    #define WOLFSSL_SHA512
+    #ifndef TI_MCU_PLUS_SDK
+        #define TI_MCU_PLUS_SDK
+    #endif
     #define WOLFSSL_SHA512_HASHTYPE
     #ifndef WOLF_CRYPTO_CB
         #define WOLF_CRYPTO_CB
