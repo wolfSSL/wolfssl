@@ -98,6 +98,12 @@
     #define WC_MLDSA_CACHE_MATRIX_A
 #endif
 
+/* wc_MlDsaKey_MakePublicKey() is available. */
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    #define WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -717,6 +723,10 @@ WOLFSSL_API
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+WOLFSSL_API
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+#endif
 
 /* Legacy sign API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
