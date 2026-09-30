@@ -6642,6 +6642,7 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
             slhdsakey_shake256_get_hash_x4(state, node, n);
         }
 
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -7091,6 +7092,9 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    if (ret != 0) {
+        ForceZero(nodes, sizeof(nodes));
+    }
     return ret;
 }
 
@@ -7224,6 +7228,10 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    /* The leaves are private until hashed. */
+    if ((ret != 0) && WC_VAR_OK(nodes)) {
+        ForceZero(nodes, (1 << SLHDSA_MAX_FORS_NODE_DEPTH) * SLHDSA_MAX_N);
+    }
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     return ret;
 }
@@ -7596,6 +7604,9 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             HA_SetTreeIndex(adrs, i);
             /* Step 11: Compute node from public key seed, address and nodes. */
             ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
+        }
+        if (ret != 0) {
+            ForceZero(nodes, sizeof(nodes));
         }
     }
 
@@ -9247,6 +9258,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
 static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
 {
     int ret = 0;
+    byte* sig_fors = sig;
     HashAddress adrs;
     word32 t[3];
     word32 l;
@@ -9281,6 +9293,10 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
         /* Steps 17-18: Hypertree sign FORS public key. */
         ret = slhdsakey_ht_sign(key, pk_fors, key->sk, key->sk + 2 * n, t, l,
             sig, nodes);
+    }
+    /* A partial signature can hold private FORS and WOTS+ values. */
+    if (ret != 0) {
+        ForceZero(sig_fors, key->params->sigLen - n);
     }
 
 #ifndef WOLFSSL_WC_SLHDSA_RECURSIVE
