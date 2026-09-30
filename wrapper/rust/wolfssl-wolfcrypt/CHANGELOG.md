@@ -15,6 +15,10 @@ Breaking changes:
   rand_core::UnwrapErr to keep the previous panic-on-failure behavior
 - Ed25519 and Ed448 no longer implement the signature crate's Keypair trait;
   use the new SigningKey types instead
+- MlDsa::LEVEL_44, MlDsa::LEVEL_65 and MlDsa::LEVEL_87 are now gated on the
+  mldsa_level2, mldsa_level3 and mldsa_level5 cfgs, so selecting a parameter
+  set the library was not built with is a compile error instead of a runtime
+  NOT_COMPILED_IN
 
 New features:
 
@@ -31,11 +35,11 @@ Fixes and improvements:
   shared reference. The wolfSSL context is now held in an UnsafeCell
 - Fix a panic in Keypair::verifying_key() for Ed25519 and Ed448 keys with no
   public key, such as after new() or import_private_only()
-
-Fixes and improvements:
-
 - Validate PBKDF2 and scrypt password hash output length against the PHC
   minimum before running the KDF
+- Fix detection of the built-in ML-DSA parameter sets: the mldsa_level2,
+  mldsa_level3 and mldsa_level5 cfgs probed the WC_MLDSA_NN_KEY_SIZE macros,
+  which wc_mldsa.h defines unconditionally, so all three were always enabled
 
 ## v2.2.0
 

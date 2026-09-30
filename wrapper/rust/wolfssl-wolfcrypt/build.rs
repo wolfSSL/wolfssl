@@ -678,9 +678,13 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export_public");
     check_cfg(&binding, "wc_MlDsaKey_ExportPrivRaw", "mldsa_export_private");
     check_cfg(&binding, "wc_MlDsaKey_CheckKey", "mldsa_check_key");
-    check_cfg(&binding, "WC_MLDSA_44_KEY_SIZE", "mldsa_level2");
-    check_cfg(&binding, "WC_MLDSA_65_KEY_SIZE", "mldsa_level3");
-    check_cfg(&binding, "WC_MLDSA_87_KEY_SIZE", "mldsa_level5");
+    /* The WC_MLDSA_NN_* size macros are defined unconditionally by
+     * wc_mldsa.h, so their presence says nothing about which parameter sets
+     * were built in.  The PARAMS_ML_DSA_NN_* macros are the ones guarded by
+     * WOLFSSL_NO_ML_DSA_NN, so probe those instead. */
+    check_cfg(&binding, "PARAMS_ML_DSA_44_K", "mldsa_level2");
+    check_cfg(&binding, "PARAMS_ML_DSA_65_K", "mldsa_level3");
+    check_cfg(&binding, "PARAMS_ML_DSA_87_K", "mldsa_level5");
 
     /* mlkem / ML-KEM */
     check_cfg(&binding, "wc_MlKemKey_New", "mlkem");
