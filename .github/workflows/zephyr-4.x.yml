@@ -40,12 +40,8 @@ jobs:
           sparse-checkout: .github/scripts/zephyr-4.x
           fetch-depth: 1
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" || true
-          docker system prune -af || true
-          df -h /
+      - name: Show free disk space
+        run: df -h /
 
       - name: Resolve wolfSSL repo and branch
         id: src
@@ -127,12 +123,8 @@ jobs:
           sparse-checkout: .github/scripts/zephyr-4.x
           fetch-depth: 1
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" || true
-          docker system prune -af || true
-          df -h /
+      - name: Show free disk space
+        run: df -h /
 
       - name: Resolve wolfSSL repo and branch
         id: src
