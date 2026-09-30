@@ -3972,6 +3972,241 @@ int test_wolfSSL_session_ticket_oversized_peer_cert(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(SESSION_CERTS) && \
+    defined(KEEP_PEER_CERT) && defined(OPENSSL_EXTRA) && \
+    ((defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+      !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+     (defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+      (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))))
+/* Retry an application data read or write that an async wait interrupted. */
+static int test_chain_io(WOLFSSL* ssl, int doWrite, char* buf, int sz)
+{
+    int ret;
+    int tries = 0;
+
+    do {
+        ret = doWrite ? wolfSSL_write(ssl, buf, sz) :
+                        wolfSSL_read(ssl, buf, sz);
+    } while ((ret < 0) && (++tries < 100) &&
+        (wolfSSL_get_error(ssl, ret) == WC_NO_ERR_TRACE(WC_PENDING_E)));
+
+    return ret;
+}
+
+/* Whether an X509 holds the given DER. */
+static int test_chain_x509_is(WOLFSSL_X509* x509, const byte* der, int derSz)
+{
+    const byte* got = NULL;
+    int gotSz = 0;
+
+    if (x509 != NULL) {
+        got = wolfSSL_X509_get_der(x509, &gotSz);
+    }
+
+    return (got != NULL) && (gotSz == derSz) &&
+        (XMEMCMP(got, der, (size_t)derSz) == 0);
+}
+
+/* Whether the session chain, and the views built from it, name the peer's
+ * certificate alone. */
+static int test_chain_holds_only_peer(WOLFSSL* ssl)
+{
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+    const byte* der = NULL;
+    int derSz = 0;
+    int ret = 0;
+
+    if ((peer != NULL) && (wolfSSL_get_chain_count(chain) == 1)) {
+        der = wolfSSL_X509_get_der(peer, &derSz);
+        ret = (der != NULL) && (derSz == wolfSSL_get_chain_length(chain, 0)) &&
+            (XMEMCMP(der, wolfSSL_get_chain_cert(chain, 0),
+                (size_t)derSz) == 0);
+    }
+    /* Before the stack: building it on a server replaces the session peer. */
+    if (ret) {
+        ret = test_chain_x509_is(wolfSSL_SESSION_get0_peer(ssl->session), der,
+            derSz);
+    }
+    if (ret && (ssl->options.side == WOLFSSL_CLIENT_END)) {
+        ret = test_chain_x509_is(wolfSSL_sk_X509_value(
+            wolfSSL_get_peer_cert_chain(ssl), 0), der, derSz);
+    }
+    wolfSSL_X509_free(peer);
+
+    return ret;
+}
+#endif
+
+/* Test that each TLS 1.3 post-handshake authentication replaces the session
+ * chain rather than appending to it, and that a declined one keeps it.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_session_chain_tls13_pha(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(WOLFSSL_TLS13) && defined(SESSION_CERTS) && \
+    defined(KEEP_PEER_CERT) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "ping";
+    char buf[sizeof(msg)];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliEccCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* A different identity each round, so a stale first slot shows. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c,
+            (i == 0) ? cliCertFile : cliEccCertFile, WOLFSSL_FILETYPE_PEM),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c,
+            (i == 0) ? cliKeyFile : cliEccKeyFile, WOLFSSL_FILETYPE_PEM),
+            WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_chain_io(ssl_s, 1, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(test_chain_io(ssl_c, 0, buf, (int)sizeof(buf)),
+            (int)sizeof(msg));
+        ExpectIntEQ(test_chain_io(ssl_c, 1, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(test_chain_io(ssl_s, 0, buf, (int)sizeof(buf)),
+            (int)sizeof(msg));
+        ExpectIntEQ(test_chain_holds_only_peer(ssl_s), 1);
+    }
+
+    /* An empty Certificate leaves the identity verified last in place. */
+    ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_io(ssl_s, 1, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_io(ssl_c, 0, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_io(ssl_c, 1, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_io(ssl_s, 0, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_holds_only_peer(ssl_s), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(SESSION_CERTS) && \
+    defined(KEEP_PEER_CERT) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
+static int test_chain_resume_declined_run(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "ping";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Let the client take delivery of the NewSessionTicket. */
+    ExpectIntEQ(test_chain_io(ssl_s, 1, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_io(ssl_c, 0, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_chain_holds_only_peer(ssl_c), 1);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* A server that cannot resume the session and has another certificate. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(method_s()));
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx_s,
+        WOLFSSL_SESS_CACHE_OFF), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, eccCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, eccKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+    ExpectIntEQ(test_chain_holds_only_peer(ssl_c), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that a full handshake after a declined resumption does not keep the
+ * chain of the session that was offered.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_session_chain_resume_declined(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(SESSION_CERTS) && \
+    defined(KEEP_PEER_CERT) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_chain_resume_declined_run(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_chain_resume_declined_run(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
  * mock has no other caller, so a wider condition here leaves it defined and
  * unused, which -Werror=unused-function rejects. Keep the two in step.
