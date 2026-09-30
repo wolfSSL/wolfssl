@@ -58,6 +58,9 @@ int test_tls_version_mask_alert_record(void);
 int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
+int test_tls12_ext_cache_client_auth_resume(void);
+int test_tls12_resume_ticket_client_auth(void);
+int test_tls12_resume_ticket_client_auth_ok(void);
 int test_tls12_reuse_clears_use_ticket(void);
 int test_tls12_resume_ticket_decline_fallback(void);
 int test_tls12_ticket_dropped_on_bad_finished(void);
@@ -123,6 +126,9 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls_version_error_alert_mapping),          \
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
+        TEST_DECL_GROUP("tls", test_tls12_ext_cache_client_auth_resume),       \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_client_auth),          \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_client_auth_ok),       \
         TEST_DECL_GROUP("tls", test_tls12_reuse_clears_use_ticket),            \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \
         TEST_DECL_GROUP("tls", test_tls12_ticket_dropped_on_bad_finished),     \

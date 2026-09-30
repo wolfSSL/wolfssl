@@ -22592,6 +22592,58 @@ static int test_wolfSSL_sigalg_info(void)
     return EXPECT_RESULT();
 }
 
+/* peerAuthOk rides along with a serialized session, so an external cache that
+ * stores sessions with i2d and reloads them with d2i keeps the client-auth
+ * outcome and can still resume where a certificate is required. It is the last
+ * field, and d2i has never required the blob to be consumed exactly, so the
+ * two compatibility directions both work: a blob written before the field
+ * existed is short and leaves the zero a new session starts with, and an older
+ * library reading a new blob ignores the trailing byte. */
+static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* restored = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* ptr = NULL;
+    unsigned char* pp = NULL;
+    int sz = 0;
+
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (sess != NULL) {
+        sess->peerAuthOk = 1;
+        sess->isSetup = 1;
+    }
+    ExpectIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, NULL)), 0);
+    ExpectNotNull(der = (unsigned char*)XMALLOC((size_t)sz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    pp = der;
+    ExpectIntGT(wolfSSL_i2d_SSL_SESSION(sess, &pp), 0);
+
+    /* Round trip keeps it. */
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 1);
+    wolfSSL_SESSION_free(restored);
+    restored = NULL;
+
+    /* A blob written before the field existed is one byte shorter; the import
+     * must still succeed and must not claim the peer authenticated. */
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz - 1));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 0);
+    wolfSSL_SESSION_free(restored);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_d2i_SSL_SESSION_bounds_check(void)
 {
     EXPECT_DECLS;
@@ -45044,6 +45096,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
     TEST_DECL(test_wolfSSL_sigalg_info),
     /* Can't memory test as tcp_connect aborts. */
+    TEST_DECL(test_wolfSSL_i2d_SSL_SESSION_peer_auth),
     TEST_DECL(test_wolfSSL_d2i_SSL_SESSION_bounds_check),
     TEST_DECL(test_wolfSSL_sk_GENERAL_NAME),
     TEST_DECL(test_wolfSSL_sk_GENERAL_NAME_new_null),

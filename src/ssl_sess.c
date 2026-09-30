@@ -2941,6 +2941,9 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+    /* peerAuthOk. Last and unconditional: a reader built before this field
+     * stops at the end of the fields above and ignores the trailing byte. */
+    size += OPAQUE8_LEN;
 
     if (p != NULL) {
         unsigned char *data;
@@ -3036,6 +3039,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+        data[idx++] = sess->peerAuthOk;
     }
 #endif
 
@@ -3342,6 +3346,13 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+    /* peerAuthOk, appended after every field above. A blob written before this
+     * field existed simply ends here, and the session keeps the zero a freshly
+     * allocated one carries, which declines resumption where a client
+     * certificate is required. */
+    if (i - idx >= OPAQUE8_LEN) {
+        s->peerAuthOk = data[idx++];
+    }
     (void)idx;
 
     if (sess != NULL) {
@@ -3916,6 +3927,14 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
+    /* A resumed connection sends no Certificate, so it has nothing of its own
+     * to record and keeps what it inherited. Only a full handshake decides
+     * this, and only a verified client certificate counts: the peerAuthGood
+     * grants made when the connection does not ask for one do not. */
+    if (!ssl->options.resuming) {
+        session->peerAuthOk = (byte)(ssl->options.havePeerCert &&
+                                     ssl->options.havePeerVerify);
+    }
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */

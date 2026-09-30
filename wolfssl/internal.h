@@ -3877,12 +3877,22 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
+/* Bits of InternalTicket.flags. Bit 0 is where this byte has always carried
+ * the extended-master-secret flag, so a ticket minted before the other bits
+ * were defined reads back with them clear, which is the conservative answer
+ * for each. Adding a bit here rather than a field keeps sizeof(InternalTicket)
+ * and every field offset fixed, so such a ticket still decrypts and parses. */
+#define WOLFSSL_TICKET_FLAG_EMS       0x01
+/* Peer presented and passed certificate verification on the session this was
+ * minted from. */
+#define WOLFSSL_TICKET_FLAG_PEER_AUTH 0x02
+
 typedef struct InternalTicket {
     ProtocolVersion pv;                    /* version when ticket created */
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-    byte            haveEMS;               /* have extended master secret */
+    byte            flags;                 /* WOLFSSL_TICKET_FLAG_* */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
@@ -5207,6 +5217,10 @@ struct WOLFSSL_SESSION {
 
     byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
+    /* Server side: the client presented and passed certificate verification
+     * when this session was established. Placed after heap so
+     * wolfSSL_DupSession carries it; zero means not established that way. */
+    byte               peerAuthOk;
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
