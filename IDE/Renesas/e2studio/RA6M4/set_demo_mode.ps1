@@ -49,7 +49,7 @@ $content = Get-Content -Raw -Path $file
 # double-wrap an already-commented line (e.g. match "#define X" inside
 # "/*#define X*/").
 foreach ($m in $macroMap.Values) {
-    $content = $content.Replace("/*#define $m*/", "#define $m")
+    $content = $content -replace "/\*[ \t]*#define[ \t]+$m[ \t]*\*/", "#define $m"
 }
 
 # Pass 2: comment out every macro except the selected one.
