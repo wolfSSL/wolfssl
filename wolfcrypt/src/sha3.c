@@ -934,11 +934,15 @@ static int InitSha3(wc_Sha3* sha3)
         int cpuid_flags_were_updated = cpuid_get_flags_ex(&cpuid_flags);
 #ifdef WC_C_DYNAMIC_FALLBACK
         (void)cpuid_flags_were_updated;
+#ifdef SHA3_CLAIM_FALLBACK
+        /* Same gate as the claim-failure sites: a certifiable build must not
+         * pick a second permutation, so it leaves the choice to cpuid. */
         if (! CAN_SAVE_VECTOR_REGISTERS()) {
             SHA3_BLOCK = BlockSha3;
             SHA3_BLOCK_N = NULL;
         }
         else
+#endif
 #else
         if ((! cpuid_flags_were_updated) && (SHA3_BLOCK != NULL)) {
         }
