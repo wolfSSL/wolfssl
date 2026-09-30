@@ -52,7 +52,10 @@ static Crypto_Handle handle;
 static Crypto_Context cryptoCtx XALIGNED(SA2UL_CACHELINE_ALIGNMENT);
 static uint32_t socUid[UID_LEN_WORDS];
 static int socUidAvail = 0;
+
 static uint32_t sa2ulHardwareMutex = MUTEX_ARM_UNLOCKED;
+static XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextParams scParams;
+static XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextObject scObj;
 
 static int ti_sa2ul_lock_mutex(void)
 {
@@ -286,7 +289,6 @@ static int check_aes_keylength(word32 keylen)
 static int ti_sa2ul_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
@@ -315,24 +317,26 @@ static int ti_sa2ul_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
     XMEMCPY(&scParams.key[0], aes->devKey, aes->keylen);
     XMEMCPY(&scParams.iv[0], aes->reg, AES_IV_SIZE);
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
 
+    ForceZero(scParams.key, sizeof(scParams.key));
+
     if (ret == 0) {
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
 
         XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
+    (void)SA2UL_contextFree(&scObj);
 
     ti_sa2ul_unlock_mutex();
 
@@ -343,7 +347,6 @@ static int ti_sa2ul_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
 static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
     byte tmp_iv[WC_AES_BLOCK_SIZE];
 
     if (aes == NULL)
@@ -373,26 +376,28 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
     XMEMCPY(&scParams.key[0], aes->devKey, aes->keylen);
     XMEMCPY(&scParams.iv[0], aes->reg, AES_IV_SIZE);
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
+
+    ForceZero(scParams.key, sizeof(scParams.key));
 
     if (ret == 0) {
         XMEMCPY(tmp_iv, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
 
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
 
         XMEMCPY(aes->reg, tmp_iv, WC_AES_BLOCK_SIZE);
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
+    (void)SA2UL_contextFree(&scObj);
 
     ti_sa2ul_unlock_mutex();
 
@@ -405,7 +410,6 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
 static int ti_sa2ul_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
@@ -434,22 +438,24 @@ static int ti_sa2ul_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
     XMEMCPY(&scParams.key[0], aes->devKey, aes->keylen);
     XMEMCPY(&scParams.iv[0], aes->reg, AES_IV_SIZE);
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
 
+    ForceZero(scParams.key, sizeof(scParams.key));
+
     if (ret == 0) {
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
+    (void)SA2UL_contextFree(&scObj);
 
     ti_sa2ul_unlock_mutex();
 
@@ -460,7 +466,6 @@ static int ti_sa2ul_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
 static int ti_sa2ul_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
@@ -489,22 +494,24 @@ static int ti_sa2ul_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
     XMEMCPY(&scParams.key[0], aes->devKey, aes->keylen);
     XMEMCPY(&scParams.iv[0], aes->reg, AES_IV_SIZE);
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
 
+    ForceZero(scParams.key, sizeof(scParams.key));
+
     if (ret == 0) {
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
+    (void)SA2UL_contextFree(&scObj);
 
     ti_sa2ul_unlock_mutex();
 
@@ -520,11 +527,12 @@ static void _override_iv_with_ghash(Aes* aes, const byte* iv, word32 ivSz)
     byte ivtmp[WC_AES_BLOCK_SIZE];
 
     GHASH(&aes->gcm, NULL, 0, iv, ivSz, ivtmp, WC_AES_BLOCK_SIZE);
-    XMEMCPY(aes->scObj.ctxPrms.iv, ivtmp, WC_AES_BLOCK_SIZE);
-    _64byteReverseWords((uint32_t*)&sc, (uint32_t*)&aes->scObj.secCtx, sizeof(sc));
+    XMEMCPY(scObj.ctxPrms.iv, ivtmp, WC_AES_BLOCK_SIZE);
+    _64byteReverseWords((uint32_t*)&sc, (uint32_t*)&scObj.secCtx, sizeof(sc));
     _u8LeToU32(sc.u.enc.encAux3, ivtmp, WC_AES_BLOCK_SIZE);
-    _64byteReverseWords((uint32_t*)&aes->scObj.secCtx, (uint32_t*)&sc, sizeof(sc));
-    CacheP_wbInv(&aes->scObj.secCtx, sizeof(sc), CacheP_TYPE_ALLD);
+    _64byteReverseWords((uint32_t*)&scObj.secCtx, (uint32_t*)&sc, sizeof(sc));
+    CacheP_wbInv(&scObj.secCtx, sizeof(sc), CacheP_TYPE_ALLD);
+    ForceZero(&sc, sizeof(sc));
 }
 
 static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
@@ -534,7 +542,6 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
@@ -571,13 +578,15 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
         scParams.aadLen = 0;
     }
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
+
+    ForceZero(scParams.key, sizeof(scParams.key));
 
     if (ret == 0) {
         if (ivSz != GCM_NONCE_MID_SZ) {
@@ -586,17 +595,13 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
 
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
-
-    ti_sa2ul_unlock_mutex();
-
     if (ret == 0 && authTag != NULL) {
         if (authInSz <= sizeof(scParams.aad)) {
-            XMEMCPY(authTag, aes->scObj.computedHash, authTagSz);
+            XMEMCPY(authTag, scObj.computedHash, authTagSz);
         }
         else {
             ALIGN16 byte initialCounter[WC_AES_BLOCK_SIZE];
@@ -610,13 +615,17 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
                 initialCounter[WC_AES_BLOCK_SIZE-1] = 1;
             }
             else {
-                XMEMCPY(initialCounter, aes->scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
+                XMEMCPY(initialCounter, scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
             }
             ret = wc_AesEncryptDirect(aes, scratch, initialCounter);
             if (ret == 0)
                 xorbuf(authTag, scratch, authTagSz);
         }
     }
+
+    (void)SA2UL_contextFree(&scObj);
+
+    ti_sa2ul_unlock_mutex();
 
     return ret;
 }
@@ -629,7 +638,6 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz)
 {
     int ret = 0;
-    SA2UL_ContextParams scParams;
 
     if (aes == NULL)
         return BAD_FUNC_ARG;
@@ -666,13 +674,15 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
         scParams.aadLen = 0;
     }
     scParams.inputLen = sz;
-    aes->scObj.totalLengthInBytes = sz;
+    scObj.totalLengthInBytes = sz;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &aes->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ret = WC_HW_E;
     }
+
+    ForceZero(scParams.key, sizeof(scParams.key));
 
     if (ret == 0) {
         if (ivSz != GCM_NONCE_MID_SZ) {
@@ -681,17 +691,13 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 
         CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
-        if (SA2UL_contextProcess(&aes->scObj, in, sz, out) != SystemP_SUCCESS)
+        if (SA2UL_contextProcess(&scObj, in, sz, out) != SystemP_SUCCESS)
             ret = WC_HW_E;
     }
 
-    (void)SA2UL_contextFree(&aes->scObj);
-
-    ti_sa2ul_unlock_mutex();
-
     if (ret == 0 && authTag != NULL) {
         if (authInSz <= sizeof(scParams.aad)) {
-            if (ConstantCompare(authTag, aes->scObj.computedHash, authTagSz) != 0)
+            if (ConstantCompare(authTag, scObj.computedHash, authTagSz) != 0)
                 ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
         }
         else {
@@ -707,7 +713,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
                 initialCounter[WC_AES_BLOCK_SIZE-1] = 1;
             }
             else {
-                XMEMCPY(initialCounter, aes->scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
+                XMEMCPY(initialCounter, scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
             }
             ret = wc_AesEncryptDirect(aes, scratch, initialCounter);
             if (ret == 0) {
@@ -717,6 +723,10 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
             }
         }
     }
+
+    (void)SA2UL_contextFree(&scObj);
+
+    ti_sa2ul_unlock_mutex();
 
     return ret;
 }
@@ -736,8 +746,6 @@ static byte hash_scratch[HASH_SCRATCH_SIZE] XALIGNED(SA2UL_CACHELINE_ALIGNMENT);
 #ifndef NO_SHA256
 static int ti_sa2ul_InitSha256_ctx(wc_Sha256* sha256)
 {
-    SA2UL_ContextParams scParams;
-
     if (ti_sa2ul_lock_mutex() != 0) {
         /* mark as copy so we continue to fall back to software */
         sha256->flags |= WC_HASH_FLAG_ISCOPY;
@@ -750,46 +758,43 @@ static int ti_sa2ul_InitSha256_ctx(wc_Sha256* sha256)
     scParams.hashAlg  = SA2UL_HASH_ALG_SHA2_256;
     /* default length to all ff's, final will override when known */
     scParams.inputLen = 0xffffffffUL;
-    sha256->scObj.totalLengthInBytes = 0xffffffffUL;
+    scObj.totalLengthInBytes = 0xffffffffUL;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &sha256->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ti_sa2ul_unlock_mutex();
         return WC_HW_E;
     }
+
+    sha256->ctx = (void *)&scObj;
 
     return 0;
 }
 
 static void ti_sa2ul_Sha256Free_ctx(wc_Sha256* sha256)
 {
-    (void)SA2UL_contextFree(&sha256->scObj);
+    (void)SA2UL_contextFree(&scObj);
+
+    sha256->ctx = NULL;
 
     ti_sa2ul_unlock_mutex();
 }
 
 void ti_sa2ul_Sha256Teardown(wc_Sha256* sha256)
 {
-    if (sha256 != NULL) {
+    if (sha256 != NULL && sha256->ctx == (void*)&scObj) {
        /* hash will be finalized in sw via fallback, but we need the driver
         * to tear down the context in hw.  To do that, we update the context
         * length and push some final arbitrary data.  It will not affect
         * the hash */
-        if ((sha256->flags & WC_HASH_FLAG_ISCOPY) == 0 &&
-            sha256->scObj.txBytesCnt != 0)
-        {
-            byte buffer[WC_SHA256_DIGEST_SIZE];
-            sha256->scObj.ctxPrms.inputLen = sha256->scObj.txBytesCnt +
-                                                WC_SHA256_DIGEST_SIZE;
-            sha256->scObj.totalLengthInBytes = sha256->scObj.txBytesCnt +
-                                                WC_SHA256_DIGEST_SIZE;
-            CacheP_wbInv((void *)buffer, WC_SHA256_DIGEST_SIZE, CacheP_TYPE_ALLD);
-            SA2UL_contextProcess(&sha256->scObj, buffer,
-                                WC_SHA256_DIGEST_SIZE, hash_scratch);
-            ti_sa2ul_Sha256Free_ctx(sha256);
-        }
-        XMEMSET(&sha256->scObj, 0, sizeof(sha256->scObj));
+        byte buffer[WC_SHA256_DIGEST_SIZE];
+        scObj.ctxPrms.inputLen = scObj.txBytesCnt + WC_SHA256_DIGEST_SIZE;
+        scObj.totalLengthInBytes = scObj.txBytesCnt + WC_SHA256_DIGEST_SIZE;
+        CacheP_wbInv((void *)buffer, WC_SHA256_DIGEST_SIZE, CacheP_TYPE_ALLD);
+        SA2UL_contextProcess(&scObj, buffer,
+                            WC_SHA256_DIGEST_SIZE, hash_scratch);
+        ti_sa2ul_Sha256Free_ctx(sha256);
     }
 }
 
@@ -806,7 +811,7 @@ static int ti_sa2ul_Sha256Hash(wc_Sha256* sha256, const byte* in,
     if ((sha256->flags & WC_HASH_FLAG_ISCOPY) != 0)
         return CRYPTOCB_UNAVAILABLE;
 
-    if (sha256->scObj.txBytesCnt == 0 &&
+    if (sha256->ctx != (void*)&scObj &&
         inSz + sha256->buffLen >= WC_SHA256_BLOCK_SIZE)
     {
         ret = ti_sa2ul_InitSha256_ctx(sha256);
@@ -828,12 +833,12 @@ static int ti_sa2ul_Sha256Hash(wc_Sha256* sha256, const byte* in,
             if (sha256->buffLen == WC_SHA256_BLOCK_SIZE) {
                 CacheP_wbInv((void *)buffer, WC_SHA256_BLOCK_SIZE,
                              CacheP_TYPE_ALLD);
-                if (SA2UL_contextProcess(&sha256->scObj, buffer,
+                if (SA2UL_contextProcess(&scObj, buffer,
                         WC_SHA256_BLOCK_SIZE, hash_scratch) != SystemP_SUCCESS)
                 {
                     return WC_HW_E;
                 }
-                XMEMCPY(sha256->digest, &sha256->scObj.computedHash,
+                XMEMCPY(sha256->digest, &scObj.computedHash,
                         WC_SHA256_DIGEST_SIZE);
                 /* final will fall back to sw, and sw needs bytes reversed */
                 ByteReverseWords(sha256->digest, sha256->digest,
@@ -846,11 +851,11 @@ static int ti_sa2ul_Sha256Hash(wc_Sha256* sha256, const byte* in,
             blocksLen = min(sizeof(hash_scratch),
                             inSz & ~((word32)WC_SHA256_BLOCK_SIZE-1));
             CacheP_wbInv((void *)in, blocksLen, CacheP_TYPE_ALLD);
-            if (SA2UL_contextProcess(&sha256->scObj, in, blocksLen,
+            if (SA2UL_contextProcess(&scObj, in, blocksLen,
                                      hash_scratch) != SystemP_SUCCESS) {
                 return WC_HW_E;
             }
-            XMEMCPY(sha256->digest, &sha256->scObj.computedHash,
+            XMEMCPY(sha256->digest, &scObj.computedHash,
                     WC_SHA256_DIGEST_SIZE);
             ByteReverseWords(sha256->digest, sha256->digest,
                              WC_SHA256_DIGEST_SIZE);
@@ -877,8 +882,6 @@ static int ti_sa2ul_Sha256Hash(wc_Sha256* sha256, const byte* in,
 #ifdef WOLFSSL_SHA512
 static int ti_sa2ul_InitSha512_ctx(wc_Sha512* sha512)
 {
-    SA2UL_ContextParams scParams;
-
     if (ti_sa2ul_lock_mutex() != 0) {
         /* mark as copy so we continue to fall back to software */
         sha512->flags |= WC_HASH_FLAG_ISCOPY;
@@ -891,47 +894,45 @@ static int ti_sa2ul_InitSha512_ctx(wc_Sha512* sha512)
     scParams.hashAlg  = SA2UL_HASH_ALG_SHA2_512;
     /* default length to all ff's, final will override when known */
     scParams.inputLen = 0xffffffffUL;
-    sha512->scObj.totalLengthInBytes = 0xffffffffUL;
+    scObj.totalLengthInBytes = 0xffffffffUL;
 
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
-                           &sha512->scObj, &scParams) != SystemP_SUCCESS)
+                           &scObj, &scParams) != SystemP_SUCCESS)
     {
         ti_sa2ul_unlock_mutex();
         return WC_HW_E;
     }
+
+    sha512->ctx = (void *)&scObj;
 
     return 0;
 }
 
 static void ti_sa2ul_Sha512Free_ctx(wc_Sha512* sha512)
 {
-    (void)SA2UL_contextFree(&sha512->scObj);
+    (void)SA2UL_contextFree(&scObj);
+
+    sha512->ctx = NULL;
 
     ti_sa2ul_unlock_mutex();
 }
 
 void ti_sa2ul_Sha512Teardown(wc_Sha512* sha512)
 {
-    if (sha512 != NULL) {
+    if (sha512 != NULL && sha512->ctx == (void*)&scObj) {
        /* hash will be finalized in sw via fallback, but we need the driver
         * to tear down the context in hw.  To do that, we update the context
         * length and push some final arbitrary data.  It will not affect
         * the hash */
-        if (sha512->hashType == WC_HASH_TYPE_SHA512 &&
-            (sha512->flags & WC_HASH_FLAG_ISCOPY) == 0 &&
-            sha512->scObj.txBytesCnt != 0)
-        {
-            byte buffer[WC_SHA512_DIGEST_SIZE];
-            sha512->scObj.ctxPrms.inputLen = sha512->scObj.txBytesCnt +
-                                                WC_SHA512_DIGEST_SIZE;
-            sha512->scObj.totalLengthInBytes = sha512->scObj.txBytesCnt +
-                                                WC_SHA512_DIGEST_SIZE;
-            CacheP_wbInv((void *)buffer, WC_SHA512_DIGEST_SIZE, CacheP_TYPE_ALLD);
-            SA2UL_contextProcess(&sha512->scObj, buffer,
-                                WC_SHA512_DIGEST_SIZE, hash_scratch);
-            ti_sa2ul_Sha512Free_ctx(sha512);
-        }
-        XMEMSET(&sha512->scObj, 0, sizeof(sha512->scObj));
+        byte buffer[WC_SHA512_DIGEST_SIZE];
+        scObj.ctxPrms.inputLen = scObj.txBytesCnt +
+                                            WC_SHA512_DIGEST_SIZE;
+        scObj.totalLengthInBytes = scObj.txBytesCnt +
+                                            WC_SHA512_DIGEST_SIZE;
+        CacheP_wbInv((void *)buffer, WC_SHA512_DIGEST_SIZE, CacheP_TYPE_ALLD);
+        SA2UL_contextProcess(&scObj, buffer,
+                            WC_SHA512_DIGEST_SIZE, hash_scratch);
+        ti_sa2ul_Sha512Free_ctx(sha512);
     }
 }
 
@@ -950,7 +951,7 @@ static int ti_sa2ul_Sha512Hash(wc_Sha512* sha512, const byte* in,
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    if (sha512->scObj.txBytesCnt == 0 &&
+    if (sha512->ctx != (void*)&scObj &&
         inSz + sha512->buffLen >= WC_SHA512_BLOCK_SIZE)
     {
         ret = ti_sa2ul_InitSha512_ctx(sha512);
@@ -971,12 +972,12 @@ static int ti_sa2ul_Sha512Hash(wc_Sha512* sha512, const byte* in,
             inSz -= partialLen;
             if (sha512->buffLen == WC_SHA512_BLOCK_SIZE) {
                 CacheP_wbInv((void *)buffer, WC_SHA512_BLOCK_SIZE, CacheP_TYPE_ALLD);
-                if (SA2UL_contextProcess(&sha512->scObj, buffer,
+                if (SA2UL_contextProcess(&scObj, buffer,
                       WC_SHA512_BLOCK_SIZE, hash_scratch) != SystemP_SUCCESS)
                 {
                     return WC_HW_E;
                 }
-                XMEMCPY(sha512->digest, &sha512->scObj.computedHash,
+                XMEMCPY(sha512->digest, &scObj.computedHash,
                         WC_SHA512_DIGEST_SIZE);
                 /* final will fall back to sw, and sw needs bytes reversed */
                 ByteReverseWords64(sha512->digest, sha512->digest,
@@ -989,11 +990,11 @@ static int ti_sa2ul_Sha512Hash(wc_Sha512* sha512, const byte* in,
             blocksLen = min(sizeof(hash_scratch),
                             inSz & ~((word32)WC_SHA512_BLOCK_SIZE-1));
             CacheP_wbInv((void *)in, blocksLen, CacheP_TYPE_ALLD);
-            if (SA2UL_contextProcess(&sha512->scObj, in, blocksLen,
+            if (SA2UL_contextProcess(&scObj, in, blocksLen,
                                      hash_scratch) != SystemP_SUCCESS) {
                 return WC_HW_E;
             }
-            XMEMCPY(sha512->digest, &sha512->scObj.computedHash,
+            XMEMCPY(sha512->digest, &scObj.computedHash,
                     WC_SHA512_DIGEST_SIZE);
             ByteReverseWords64(sha512->digest, sha512->digest,
                                WC_SHA512_DIGEST_SIZE);

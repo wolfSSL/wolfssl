@@ -3346,6 +3346,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 
 #endif /* WOLFSSL_USE_ESP32_CRYPT_HASH_HW */
 
+#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+    dst->ctx = NULL;
+#endif
+
 #ifdef WOLFSSL_HASH_FLAGS
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif

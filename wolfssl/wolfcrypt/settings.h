@@ -2506,6 +2506,9 @@
     #define HAVE_AES_ECB
     #define NO_AES_192
     #define NO_DEV_RANDOM
+    #ifndef TI_MCU_PLUS_SDK
+        #define TI_MCU_PLUS_SDK
+    #endif
     #define WOLFSSL_AES_128
     #define WOLFSSL_AES_256
     #define WOLFSSL_AES_DIRECT
