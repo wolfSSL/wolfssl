@@ -6890,12 +6890,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
             if (ret == 0)
                 DoClientTicketFinalize(ssl, current->it, current->sess);
-            if (ret == 0 && ssl->options.verifyPeer &&
-                    ssl->options.failNoCert && !ssl->session->peerAuthOk) {
-                /* This connection requires a client certificate and the
-                 * ticket's session never presented one. Skip this PSK, the
-                 * way a binding mismatch does, so the next candidate or a
-                 * full handshake can serve it. */
+            if (ret == 0 && ClientAuthRequired(ssl) &&
+                    !ssl->session->peerAuthOk) {
                 WOLFSSL_MSG("Ticket session lacks client auth, skipping PSK");
                 ret = WOLFSSL_FATAL_ERROR;
             }

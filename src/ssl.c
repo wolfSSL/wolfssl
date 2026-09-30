@@ -5800,6 +5800,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
+        /* Per-connection budgets, not cumulative across a reused object. */
+        ssl->options.alertCount = 0;
+        ssl->options.emptyRecordCount = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -5823,8 +5826,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
+        ssl->fragOffset = 0;
+        ssl->options.buildingMsg = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
@@ -5933,26 +5937,16 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         #endif
         ssl->options.rejectTicket = 0;
-        /* Records that the handshake in progress took a ticket, and selects
-         * the retained session over a session id lookup. Only the current
-         * ClientHello may set it. */
         ssl->options.useTicket = 0;
         ssl->options.createTicket = 0;
     #endif
-        /* A server keeps its session across the reset, and the cache lookup
-         * prefers this id over the one the ClientHello carries. The next
-         * client has not asked for that session, so the id goes; a client
-         * keeps it, being the side that resumes what it held. */
+        /* A server keeps its session across the reset, but the next client
+         * has not asked for it. A client is the side that resumes what it
+         * held, so it keeps both. */
         if ((ssl->options.side == WOLFSSL_SERVER_END) &&
                 (ssl->session != NULL)) {
             ssl->session->haveAltSessionID = 0;
             ForceZero(ssl->session->altSessionID, ID_LEN);
-            /* The recorded client-auth outcome describes the connection that
-             * just ended. Whatever resumes next re-establishes it from the
-             * ticket it presents or the session the lookup finds, so a value
-             * left here could only be inherited by a session it does not
-             * belong to - including one a session-secret callback supplies,
-             * which carries no such record of its own. */
             ssl->session->peerAuthOk = 0;
         }
     #ifdef WOLFSSL_EARLY_DATA

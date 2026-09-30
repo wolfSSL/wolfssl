@@ -2312,6 +2312,9 @@ WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
 WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl);
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -3829,14 +3832,12 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
-/* Bits of InternalTicket.flags. Bit 0 is where this byte has always carried
- * the extended-master-secret flag, so a ticket minted before the other bits
- * were defined reads back with them clear, which is the conservative answer
- * for each. Adding a bit here rather than a field keeps sizeof(InternalTicket)
- * and every field offset fixed, so such a ticket still decrypts and parses. */
+/* Bits of InternalTicket.flags. Bit 0 is where this byte has always held
+ * haveEMS, so sizeof(InternalTicket) and every offset are unchanged and an
+ * older ticket parses with the newer bits clear. An older peer handed a ticket
+ * carrying bit 1 copies the whole byte into haveEMS and fails the handshake
+ * cleanly, so a shared TLS 1.2 ticket key needs matching versions. */
 #define WOLFSSL_TICKET_FLAG_EMS       0x01
-/* Peer presented and passed certificate verification on the session this was
- * minted from. */
 #define WOLFSSL_TICKET_FLAG_PEER_AUTH 0x02
 
 typedef struct InternalTicket {
@@ -5158,11 +5159,8 @@ struct WOLFSSL_SESSION {
 
     byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
-    /* The client presented and passed certificate verification when this
-     * session was established. Only ever set on a server session; a client
-     * leaves it zero, since on that side the same flags describe the server
-     * certificate and no client-side code reads this. Placed after heap so
-     * wolfSSL_DupSession carries it; zero means not established that way. */
+    /* Client presented a certificate and proved key possession. Server
+     * sessions only; after heap so wolfSSL_DupSession carries it. */
     byte               peerAuthOk;
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */

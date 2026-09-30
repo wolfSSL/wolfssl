@@ -41624,8 +41624,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
             }
-            else if (ssl->options.verifyPeer && ssl->options.failNoCert &&
-                    !session->peerAuthOk) {
+            else if (ClientAuthRequired(ssl) && !session->peerAuthOk) {
                 WOLFSSL_MSG("Session lacks client auth, do full handshake");
                 ssl->options.resuming = 0;
                 ssl->options.peerAuthGood = 0;
@@ -41665,6 +41664,25 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 
 #endif /* OLD_HELLO_ALLOWED */
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+/* Would a full handshake on this connection require a verified client
+ * certificate? Mirrors DoClientKeyExchange, the empty-Certificate rule in
+ * ProcessPeerCerts and DoTls13Finished. */
+int ClientAuthRequired(const WOLFSSL* ssl)
+{
+    if (ssl->options.side != WOLFSSL_SERVER_END)
+        return 0;
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* Sends no CertificateRequest in the handshake, so it records no
+     * outcome to inherit. */
+    if (ssl->options.verifyPostHandshake)
+        return 0;
+#endif
+    return ssl->options.mutualAuth ||
+           (ssl->options.verifyPeer && ssl->options.failNoCert);
+}
+#endif /* !NO_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -41714,9 +41732,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
                 ) {
             int secretSz = SECRET_LEN;
-            if (ssl->options.verifyPeer && ssl->options.failNoCert &&
-                    !ssl->session->peerAuthOk) {
-                WOLFSSL_MSG("Session lacks client auth, do full handshake");
+            /* The secret comes from the callback, and nothing records an auth
+             * outcome for it. */
+            if (ClientAuthRequired(ssl)) {
+                WOLFSSL_MSG("Session secret callback cannot assert client auth,"
+                            " do full handshake");
                 ssl->options.resuming = 0;
                 ssl->options.peerAuthGood = 0;
                 return ret;
@@ -41768,11 +41788,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ssl->options.resuming = 0;
             return ret;
         }
-        if (ssl->options.verifyPeer && ssl->options.failNoCert &&
-                !session->peerAuthOk) {
-            /* This connection requires a client certificate and the resumed
-             * session never presented one. A full handshake sends a
-             * CertificateRequest instead. */
+        if (ClientAuthRequired(ssl) && !session->peerAuthOk) {
             WOLFSSL_MSG("Session lacks client auth, do full handshake");
             ssl->options.resuming = 0;
             ssl->options.peerAuthGood = 0;
@@ -41981,11 +41997,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         ssl->options.resuming = 0;
         ssl->arrays->sessionIDSz = 0;
 #ifdef HAVE_SESSION_TICKET
-        /* Set again below by TLSX_SessionTicket_Parse() when this ClientHello
-         * carries a ticket. HandleTlsResumption() takes the retained session
-         * instead of the presented session id when it is set, so a value left
-         * over from an earlier handshake on this object must not reach it. */
+        /* Only this ClientHello may set them, in TLSX_SessionTicket_Parse(). */
         ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
 #endif
 
         /* protocol version, random and session id length check */
@@ -43474,11 +43488,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->suite[0] = ssl->options.cipherSuite0;
         it->suite[1] = ssl->options.cipherSuite;
 
-        /* Both arms below only add to this, so start from a known value: an
-         * async re-entry may not have re-zeroed the ticket buffer.
-         * A ticket minted on a resumed connection carries what the session it
-         * resumed recorded, because no Certificate flows in an abbreviated
-         * handshake and the option flags describe nothing here. */
+        /* Both arms below only add to this, and an async re-entry may not
+         * have re-zeroed the buffer. A resumed connection sends no
+         * Certificate, so it carries what it resumed. */
         it->flags = 0;
         if (ssl->options.resuming ? ssl->session->peerAuthOk :
                 (ssl->options.havePeerCert && ssl->options.havePeerVerify)) {

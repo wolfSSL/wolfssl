@@ -163,8 +163,8 @@
     #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
     /* for persistence, if changes to layout need to increment and modify
        save_session_cache() and restore_session_cache and memory versions too */
-    /* 4: WOLFSSL_SESSION gained peerAuthOk. The sessionSz header field does not
-     *    always catch it, since padding can absorb the byte. */
+    /* 4: WOLFSSL_SESSION gained peerAuthOk; padding can hide it from
+     *    the sessionSz check. */
     #define WOLFSSL_CACHE_VERSION 4
 
     /* Session Cache Header information */
