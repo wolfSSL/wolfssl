@@ -1464,6 +1464,86 @@ int test_tls12_dhe_renegotiate_larger_prime(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(HAVE_AESGCM) && defined(HAVE_ECC) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_FFDHE_2048) && \
+    !defined(WOLFSSL_REQUIRE_FFDHE) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_HARDEN_TLS)
+#define TEST_TLS12_DHE_REUSE_PRIME_CHECK
+/* A reused client has to test the prime of every server it talks to, no matter
+ * how the first handshake's parameters were checked. */
+static int test_tls12_dhe_reuse_prime(int firstFfdhe)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte p[256];
+    byte g[1];
+    word32 pSz = (word32)sizeof(p);
+    word32 gSz = (word32)sizeof(g);
+    int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+
+    ExpectIntEQ(wc_DhCopyNamedKey(WOLFSSL_FFDHE_2048, p, &pSz, g, &gSz, NULL,
+        NULL), 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    /* No FFDHE offer, so the server sends its own parameters. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    if (firstFfdhe) {
+        ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, (int)pSz, g, (int)gSz),
+            WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+        NULL, wolfTLSv1_2_server_method), 0);
+
+    /* ffdhe2048 p is 2 mod 3, so p - 2 is an odd composite. */
+    p[pSz - 1] -= 2;
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, (int)pSz, g, (int)gSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEnableDhKeyTest(ssl_s, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls12_dhe_reuse_prime_check(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS12_DHE_REUSE_PRIME_CHECK
+    ExpectIntEQ(test_tls12_dhe_reuse_prime(0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls12_dhe_reuse_prime(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_ske_sig_param_binding(void)
 {
     EXPECT_DECLS;
