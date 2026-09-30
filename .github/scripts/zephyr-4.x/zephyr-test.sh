@@ -12,6 +12,7 @@
 #   -t, --target <board>   Board target
 #   -s, --sample <name>    Sample/test app to build
 #   -d, --subdir <dir>     App subdir under zephyr/ (samples or tests; default samples)
+#   -m, --modules <list>   West modules to fetch besides wolfSSL (default: all)
 #   -v, --verbose          Verbose compile output (show full compiler commands)
 #   -W, --werror           Build with -Werror (treat warnings as errors)
 #   --commit <sha>         Checkout specific commit after fetching branch
@@ -51,6 +52,7 @@ ZEPHYR_VERSION="v4.1.0"
 BOARD_TARGET="native_sim"
 SAMPLE_NAME="wolfssl_tls_sock"
 SUBDIR="samples"
+WEST_MODULES=""
 INTERACTIVE=0
 VERBOSE=0
 WERROR=0
@@ -95,6 +97,7 @@ while [[ $# -gt 0 ]]; do
         -t|--target)  BOARD_TARGET="$2"; shift 2 ;;
         -s|--sample)  SAMPLE_NAME="$2"; shift 2 ;;
         -d|--subdir)  SUBDIR="$2"; shift 2 ;;
+        -m|--modules) WEST_MODULES="$2"; shift 2 ;;
         -v|--verbose) VERBOSE=1; shift ;;
         -W|--werror) WERROR=1; shift ;;
         --commit) WOLFSSL_COMMIT="$2"; shift 2 ;;
@@ -128,6 +131,7 @@ echo "==> Zephyr version: ${ZEPHYR_VERSION}"
 echo "==> Board target:   ${BOARD_TARGET}"
 echo "==> Sample:         ${SUBDIR}/${SAMPLE_NAME}"
 echo "==> Docker image:   ${DOCKER_IMAGE}"
+[[ -n "$WEST_MODULES" ]] && echo "==> Modules:        ${WEST_MODULES}"
 [[ -n "$WOLFSSL_COMMIT" ]] && echo "==> Commit:         ${WOLFSSL_COMMIT}"
 [[ "$WERROR" == "1" ]] && echo "==> Werror:         enabled"
 [[ -n "$CMAKE_EXTRA" ]] && echo "==> CMake args:     ${CMAKE_EXTRA}"
@@ -148,6 +152,7 @@ ZEPHYR_VERSION="__ZEPHYR_VERSION__"
 BOARD_TARGET="__BOARD_TARGET__"
 SAMPLE_NAME="__SAMPLE_NAME__"
 SUBDIR="__SUBDIR__"
+WEST_MODULES="__WEST_MODULES__"
 WOLFSSL_REPO="__WOLFSSL_REPO__"
 WOLFSSL_BRANCH="__WOLFSSL_BRANCH__"
 WOLFSSL_COMMIT="__WOLFSSL_COMMIT__"
@@ -182,10 +187,14 @@ echo "==> [container] Updated west.yml:"
 grep -A2 "wolfssl" west.yml
 cd ..
 
-# --- 3. Update all modules (including wolfSSL) ---
+# --- 3. Update modules (including wolfSSL) ---
 echo "==> [container] Running west update..."
 export GIT_TERMINAL_PROMPT=0
-west update -n -o=--depth=1
+if [[ -n "$WEST_MODULES" ]]; then
+    west update -n -o=--depth=1 wolfssl ${WEST_MODULES}
+else
+    west update -n -o=--depth=1
+fi
 
 # --- 3b. Checkout specific commit if requested ---
 if [[ -n "$WOLFSSL_COMMIT" ]]; then
@@ -349,6 +358,7 @@ BUILD_SCRIPT="${BUILD_SCRIPT//__ZEPHYR_VERSION__/$ZEPHYR_VERSION}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__BOARD_TARGET__/$BOARD_TARGET}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__SAMPLE_NAME__/$SAMPLE_NAME}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__SUBDIR__/$SUBDIR}"
+BUILD_SCRIPT="${BUILD_SCRIPT//__WEST_MODULES__/$WEST_MODULES}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_REPO__/$WOLFSSL_REPO}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_BRANCH__/$WOLFSSL_BRANCH}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_COMMIT__/$WOLFSSL_COMMIT}"

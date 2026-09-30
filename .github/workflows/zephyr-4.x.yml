@@ -16,6 +16,10 @@ permissions:
   contents: read
 # END OF COMMON SECTION
 
+env:
+  # West modules the builds need besides wolfSSL; the rest are not fetched
+  ZEPHYR_MODULES: cmsis cmsis_6 hal_nxp picolibc
+
 jobs:
   build:
     name: ${{ matrix.zephyr-ref }} | ${{ matrix.board }} | ${{ matrix.sample }}${{ matrix.extra-conf != '' && ' | extlibc' || '' }}
@@ -68,6 +72,7 @@ jobs:
             -r "${{ steps.src.outputs.repo }}" \
             -b "${{ steps.src.outputs.branch }}" \
             -z "${{ matrix.zephyr-ref }}" \
+            -m "${ZEPHYR_MODULES}" \
             -t "${{ matrix.board }}" \
             -s "${{ matrix.sample }}" \
             $EXTRA_CONF_ARG
@@ -148,6 +153,7 @@ jobs:
             -r "${{ steps.src.outputs.repo }}" \
             -b "${{ steps.src.outputs.branch }}" \
             -z "${{ matrix.zephyr-ref }}" \
+            -m "${ZEPHYR_MODULES}" \
             -t native_sim \
             -d tests \
             -s wolfssl_condvar \
