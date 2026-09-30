@@ -6966,6 +6966,7 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
     int  nameCount = 0;
     char scratch[MAX_WIDTH];
     int  len;
+    const char* str;
 
     if (bio == NULL || entry == NULL) {
         return WOLFSSL_FAILURE;
@@ -6989,13 +6990,15 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             }
         }
 
+        str = NULL;
         if (entry->type == ASN_DNS_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "DNS:%s", entry->name);
+            len = XSNPRINTF(scratch, MAX_WIDTH, "DNS:");
+            str = entry->name;
         }
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         else if (entry->type == ASN_IP_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
-                    entry->ipString);
+            len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:");
+            str = entry->ipString;
         }
     #else
         else if (entry->type == ASN_IP_TYPE) {
@@ -7007,8 +7010,8 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
     #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
         else if (entry->type == ASN_RFC822_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "email:%s",
-                    entry->name);
+            len = XSNPRINTF(scratch, MAX_WIDTH, "email:");
+            str = entry->name;
         }
         else if (entry->type == ASN_DIR_TYPE) {
             len = X509PrintDirType(scratch, MAX_WIDTH, entry);
@@ -7020,13 +7023,13 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             }
         }
         else if (entry->type == ASN_URI_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
-                entry->name);
+            len = XSNPRINTF(scratch, MAX_WIDTH, "URI:");
+            str = entry->name;
         }
     #ifdef WOLFSSL_RID_ALT_NAME
         else if (entry->type == ASN_RID_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
-                entry->ridString);
+            len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:");
+            str = entry->ridString;
         }
     #else
         else if (entry->type == ASN_RID_TYPE) {
@@ -7052,6 +7055,12 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
         if (wolfSSL_BIO_write(bio, scratch, (int)XSTRLEN(scratch))
                 <= 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+        /* Names can exceed scratch, so write them to the BIO directly. */
+        if ((str != NULL) && (str[0] != '\0') &&
+                (wolfSSL_BIO_write(bio, str, (int)XSTRLEN(str)) <= 0)) {
             ret = WOLFSSL_FAILURE;
             break;
         }

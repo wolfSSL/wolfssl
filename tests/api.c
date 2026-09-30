@@ -31808,6 +31808,48 @@ static int test_wolfSSL_X509_print_dir_altname(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_long_altname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
+    /* Each name is longer than the print path's MAX_WIDTH scratch buffer. */
+    static const int types[] = { ASN_DNS_TYPE, ASN_RFC822_TYPE, ASN_URI_TYPE };
+    char  name[201];
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char* data = NULL;
+    int   len  = 0;
+    char  buf[8192];
+    size_t i;
+
+    XMEMSET(name, 'a', sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+
+    for (i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+        ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_add_altname(x509, name, types[i]),
+            WOLFSSL_SUCCESS);
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+        /* Memory BIO data is not NUL-terminated; copy into a bounded buffer. */
+        ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+        ExpectIntLT(len, (int)sizeof(buf));
+        if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+            XMEMCPY(buf, data, (size_t)len);
+            buf[len] = '\0';
+            ExpectNotNull(XSTRSTR(buf, name));
+        }
+        BIO_free(bio);
+        bio = NULL;
+        X509_free(x509);
+        x509 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -43772,6 +43814,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
+    TEST_DECL(test_wolfSSL_X509_print_long_altname),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 
