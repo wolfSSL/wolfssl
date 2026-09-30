@@ -1,0 +1,17 @@
+# Builds run by zephyr-4.x.yml for each Zephyr version:
+# <board> <app under zephyr/> [Kconfig overlay in this directory]
+native_sim          samples/wolfssl_tls_sock
+native_sim          samples/wolfssl_tls_sock    external_libc.conf
+native_sim          samples/wolfssl_test
+native_sim          samples/wolfssl_test        external_libc.conf
+native_sim          samples/wolfssl_benchmark
+native_sim          samples/wolfssl_benchmark   external_libc.conf
+# external_libc overlay is native_sim-only in the original Jenkins matrix
+frdm_rw612/rw612    samples/wolfssl_tls_sock
+frdm_rw612/rw612    samples/wolfssl_test
+frdm_rw612/rw612    samples/wolfssl_benchmark
+# Native k_mutex/k_thread/k_condvar ztest (no POSIX). native_sim only, since it
+# reads the native_sim RTC, and not in zephyr.yml, whose older Zephyr versions
+# lack native_sim or clash with ztest on POSIX headers
+native_sim          tests/wolfssl_condvar
+native_sim          tests/wolfssl_condvar       crypto_only.conf
