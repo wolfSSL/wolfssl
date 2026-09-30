@@ -3148,7 +3148,9 @@ int test_tls12_clear_resets_options(void)
         ssl_s->options.shutdownDone = fresh->options.shutdownDone;
         /* Reset only under WOLFSSL_ASYNC_CRYPT. */
         ssl_s->options.asyncState   = fresh->options.asyncState;
-#ifndef NO_DH
+        /* Same condition the fields are declared under. */
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         ssl_s->options.dhDoKeyTest  = fresh->options.dhDoKeyTest;
         ssl_s->options.dhKeyTested  = fresh->options.dhKeyTested;
 #endif
