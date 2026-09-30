@@ -878,7 +878,7 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
         return BAD_FUNC_ARG;
 
     if (!sub) {
-        /* Make sure it isn't already present, while keeping the first
+        /* Make sure it isn't already present, while keeping the last
          * open spot. */
         for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
             if (ssl->keys.peerSeq[i].peerId == INVALID_PEER_ID)
