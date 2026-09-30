@@ -8492,11 +8492,6 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
 fi
 
-# Set cSHAKE / KMAC flags. Both are built on SHAKE, so re-check here (after any
-# later logic - e.g. FIPS < 6 - may have force-disabled SHAKE) and fail with a
-# clear configure error rather than a confusing compile-time #error. KMAC
-# implies cSHAKE (ENABLED_CSHAKE was set above), so the SHAKE check on the
-# cSHAKE branch also covers KMAC.
 # An explicit --enable-kmac/--enable-cshake against a validated module version
 # fails here, with the clear configure error this file's convention calls for,
 # rather than building a module that silently excludes them (SP 800-185).
@@ -8510,6 +8505,11 @@ then
     fi
 fi
 
+# Set cSHAKE / KMAC flags. Both are built on SHAKE, so re-check here (after any
+# later logic - e.g. FIPS < 6 - may have force-disabled SHAKE) and fail with a
+# clear configure error rather than a confusing compile-time #error. KMAC
+# implies cSHAKE (ENABLED_CSHAKE was set above), so the SHAKE check on the
+# cSHAKE branch also covers KMAC.
 if test "$ENABLED_CSHAKE" != "no"
 then
     if test "$ENABLED_SHAKE128" = "no" && test "$ENABLED_SHAKE256" = "no"
