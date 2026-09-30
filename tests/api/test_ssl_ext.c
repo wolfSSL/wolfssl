@@ -2384,3 +2384,343 @@ int test_wolfSSL_session_lifecycle_guards(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Decision-coverage driver for the public-API guards in src/ssl.c that the
+ * null-burndown and handshake tests leave unpaired. Each block names the
+ * source line:condition-index it closes. Struct pokes are the white-box
+ * mechanism; the pairs are chosen so each boolean operand independently
+ * toggles the guard outcome. */
+int test_ssl_api_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    char buf[64];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(ssl->arrays != NULL);
+
+    /* --- 2509:1 wolfSSL_Init: initRefCount == 0 (second call -> refcount>0) */
+    (void)wolfSSL_Init();
+
+    /* --- 1187:0/1 wolfSSL_get_cipher_list: priority >= size || < 0 ------ */
+    (void)wolfSSL_get_cipher_list(0);
+    (void)wolfSSL_get_cipher_list(10000);
+    (void)wolfSSL_get_cipher_list(-1);
+
+    /* --- 1644:0/1 wolfSSL_CTX_GetDevId: ctx != NULL && devId == INVALID -- */
+    (void)wolfSSL_CTX_GetDevId(NULL, ssl);
+    (void)wolfSSL_CTX_GetDevId(ctx, NULL);
+    (void)wolfSSL_CTX_GetDevId(ctx, ssl);
+    {
+        WOLFSSL* dssl = wolfSSL_new(ctx);
+
+        ExpectNotNull(dssl);
+        dssl->devId = 0x1234;
+        (void)wolfSSL_CTX_GetDevId(ctx, dssl);
+        wolfSSL_free(dssl);
+    }
+
+    /* --- 1688:0/1 wolfSSL_get_error: error == ZERO_RETURN || shutdownDone */
+    ssl->error = 0;
+    ssl->options.shutdownDone = 0;
+    (void)wolfSSL_get_error(ssl, 0);
+    ssl->error = WC_NO_ERR_TRACE(ZERO_RETURN);
+    (void)wolfSSL_get_error(ssl, 0);
+    ssl->error = 0;
+    ssl->options.shutdownDone = 1;
+    (void)wolfSSL_get_error(ssl, 0);
+    ssl->error = WC_NO_ERR_TRACE(ZERO_RETURN);
+    (void)wolfSSL_get_error(ssl, 0);
+    ssl->error = 0;
+    ssl->options.shutdownDone = 0;
+
+    /* --- 1708:0/1 wolfSSL_get_alert_history: ssl && h ------------------- */
+    {
+        WOLFSSL_ALERT_HISTORY h;
+
+        XMEMSET(&h, 0, sizeof(h));
+        (void)wolfSSL_get_alert_history(NULL, &h);
+        (void)wolfSSL_get_alert_history(ssl, NULL);
+        (void)wolfSSL_get_alert_history(ssl, &h);
+    }
+
+    /* --- 1730:0/1 wolfSSL_FreeArrays: ssl && handShakeState == DONE ------ */
+    ssl->options.handShakeState = NULL_STATE;
+    wolfSSL_FreeArrays(ssl);
+    ssl->options.handShakeState = HANDSHAKE_DONE;
+    wolfSSL_FreeArrays(ssl);
+    wolfSSL_FreeArrays(NULL);
+    ssl->options.handShakeState = NULL_STATE;
+
+    /* --- 1804:0/1/2/3 GetMacSecret: (CLIENT&&!v)||(SERVER&&v) ----------- */
+    (void)wolfSSL_GetMacSecret(ssl, 1);
+    (void)wolfSSL_GetMacSecret(ssl, 0);
+    {
+        WOLFSSL* nssl = wolfSSL_new(ctx);
+
+        ExpectNotNull(nssl);
+        nssl->options.side = WOLFSSL_NEITHER_END;
+        (void)wolfSSL_GetMacSecret(nssl, 1);
+        (void)wolfSSL_GetMacSecret(nssl, 0);
+        wolfSSL_free(nssl);
+    }
+#ifndef NO_WOLFSSL_SERVER
+    {
+        WOLFSSL_CTX* sctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        WOLFSSL* sssl = NULL;
+
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(sctx, svrKeyFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(sctx, svrCertFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectNotNull(sssl = wolfSSL_new(sctx));
+        (void)wolfSSL_GetMacSecret(sssl, 1);
+        (void)wolfSSL_GetMacSecret(sssl, 0);
+        /* 5837:0 side==SERVER row for the EMS re-arm guard */
+        wolfSSL_clear(sssl);
+        wolfSSL_free(sssl);
+        wolfSSL_CTX_free(sctx);
+    }
+#endif
+
+    /* --- 2241/2242 RestoreDowngrade: versionSet && ctx, failNoPSK||!min --- */
+    ssl->options.versionSet = 0;
+    (void)wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2);
+    ssl->options.versionSet = 1;
+    (void)wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2);
+    ssl->options.failNoPSK = 1;
+    (void)wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2);
+    ssl->options.failNoPSK = 0;
+    /* !minVersionSet=T row needs the OPENSSL_EXTRA set_min_proto_version
+     * path; uncloseable in this build (SetMinVersion always sets it to 1) */
+    ssl->options.versionSet = 0;
+    {
+        WOLFSSL* cssl = wolfSSL_new(ctx);
+
+        ExpectNotNull(cssl);
+        cssl->options.versionSet = 1;
+        cssl->ctx = NULL;
+        (void)wolfSSL_SetMinVersion(cssl, WOLFSSL_TLSV1_2);
+        cssl->ctx = ctx;
+        wolfSSL_free(cssl);
+    }
+
+    /* --- 3325:0/1 wolfSSL_set_cipher_list: ssl==NULL || ssl->ctx==NULL --- */
+    (void)wolfSSL_set_cipher_list(NULL, "ALL");
+    (void)wolfSSL_set_cipher_list(ssl, "ALL");
+    {
+        WOLFSSL* cssl = wolfSSL_new(ctx);
+
+        ExpectNotNull(cssl);
+        cssl->ctx = NULL;
+        (void)wolfSSL_set_cipher_list(cssl, "ALL");
+        cssl->ctx = ctx;
+        wolfSSL_free(cssl);
+    }
+
+    /* --- 3399/3417/3428/3437 export_keying_material --------------------- */
+#ifdef HAVE_KEYING_MATERIAL
+    {
+        byte out[32];
+        byte ctxbuf[8];
+        WOLFSSL* kssl = wolfSSL_new(ctx);
+
+        XMEMSET(ctxbuf, 0, sizeof(ctxbuf));
+        ExpectNotNull(kssl);
+        kssl->options.handShakeDone = 1;
+        /* 3399: use_ctx && len>0 && (use_ctx ? ctx==NULL : 0) */
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, ctxbuf, (word32)sizeof(ctxbuf), 1);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, NULL, 1, 1);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, NULL, 0, 1);
+        /* 3417: use_ctx && contextLen > MAX_16BIT */
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, ctxbuf, (word32)sizeof(ctxbuf), 1);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, ctxbuf, (word32)(WOLFSSL_MAX_16BIT + 1), 1);
+        /* 3428: saveArrays==0 || arrays==NULL (needs 3417 to pass) */
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, NULL, 0, 0);
+        wolfSSL_KeepArrays(kssl);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "label", 5, NULL, 0, 0);
+        {
+            Arrays* saved = kssl->arrays;
+
+            kssl->arrays = NULL;
+            (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+                "label", 5, NULL, 0, 0);
+            kssl->arrays = saved;
+        }
+        /* 3437: forbidden label (needs 3428 to pass). The labels are the
+         * TLS PRF names; "master" is too short, "master secrex" is the
+         * same length with a mismatching tail. */
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "master secret", 13, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "master", 6, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(kssl, out, sizeof(out),
+            "master secrex", 13, NULL, 0, 0);
+        kssl->options.handShakeDone = 0;
+        wolfSSL_free(kssl);
+    }
+#endif
+
+    /* --- 3860/3869/3876/3892/3898/3904/3908 IsValidFQDN crafted names ---- */
+    ExpectIntEQ(wolfssl_local_IsValidFQDN(NULL, 0), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("x", 0), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a.com", 5), 1);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a.com", 300), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN(".com", 4), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a-.com", 6), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a.com-", 6), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a.b_c", 5), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("1.2", 3), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a[.com", 6), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a/.com", 6), 0);
+    ExpectIntEQ(wolfssl_local_IsValidFQDN("a.com..", 7), 0);
+
+    /* --- 3927:0/1 wolfSSL_check_domain_name: !valid && != "localhost" ---- */
+    (void)wolfSSL_check_domain_name(ssl, "localhost");
+    (void)wolfSSL_check_domain_name(ssl, "a..com");
+    (void)wolfSSL_check_domain_name(ssl, "a.com");
+
+    /* --- 4166/4177/4203:0/1 PSK identity: ssl==NULL || arrays==NULL ------ */
+    (void)wolfSSL_get_psk_identity_hint(NULL);
+    (void)wolfSSL_get_psk_identity_hint(ssl);
+    (void)wolfSSL_get_psk_identity(NULL);
+    (void)wolfSSL_get_psk_identity(ssl);
+    (void)wolfSSL_use_psk_identity_hint(NULL, "h");
+    (void)wolfSSL_use_psk_identity_hint(ssl, "h");
+    {
+        WOLFSSL* pssl = wolfSSL_new(ctx);
+        Arrays* saved;
+
+        ExpectNotNull(pssl);
+        saved = pssl->arrays;
+        pssl->arrays = NULL;
+        (void)wolfSSL_get_psk_identity_hint(pssl);
+        (void)wolfSSL_get_psk_identity(pssl);
+        (void)wolfSSL_use_psk_identity_hint(pssl, "h");
+        pssl->arrays = saved;
+        wolfSSL_free(pssl);
+    }
+
+    /* --- 5837:0/1 wolfSSL_clear EMS re-arm: side==CLIENT && !disableEMS -- */
+    ssl->options.disableEMS = 1;
+    wolfSSL_clear(ssl);
+    ssl->options.disableEMS = 0;
+    wolfSSL_clear(ssl);
+
+    /* --- 6208:1 wolfSSL_session_reused: resuming || resumed -------------- */
+    ssl->options.resuming = 1;
+    ssl->options.resumed = 0;
+    (void)wolfSSL_session_reused(ssl);
+    ssl->options.resuming = 0;
+    ssl->options.resumed = 1;
+    (void)wolfSSL_session_reused(ssl);
+    ssl->options.resuming = 1;
+    ssl->options.resumed = 1;
+    (void)wolfSSL_session_reused(ssl);
+    ssl->options.resuming = 0;
+    ssl->options.resumed = 0;
+
+    /* --- 6363:0/1 CIPHER_get_version: cipher && cipher->ssl -------------- */
+    {
+        WOLFSSL_CIPHER c;
+
+        XMEMSET(&c, 0, sizeof(c));
+        (void)wolfSSL_CIPHER_get_version(NULL);
+        c.ssl = NULL;
+        (void)wolfSSL_CIPHER_get_version(&c);
+        c.ssl = ssl;
+        (void)wolfSSL_CIPHER_get_version(&c);
+    }
+
+    /* --- 6397:0/1/2/3 get_cipher_suite_from_name: 4-NULL ----------------- */
+    {
+        byte c0 = 0, c1 = 0;
+        int flags = 0;
+
+        (void)wolfSSL_get_cipher_suite_from_name(NULL, &c0, &c1, &flags);
+        (void)wolfSSL_get_cipher_suite_from_name("AES128-SHA", NULL, &c1,
+                &flags);
+        (void)wolfSSL_get_cipher_suite_from_name("AES128-SHA", &c0, NULL,
+                &flags);
+        (void)wolfSSL_get_cipher_suite_from_name("AES128-SHA", &c0, &c1,
+                NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("AES128-SHA", &c0, &c1,
+                &flags);
+    }
+
+    /* --- 6413:0/1 CIPHER_get_id: cipher && cipher->ssl ------------------- */
+    {
+        WOLFSSL_CIPHER c;
+
+        XMEMSET(&c, 0, sizeof(c));
+        (void)wolfSSL_CIPHER_get_id(NULL);
+        c.ssl = NULL;
+        (void)wolfSSL_CIPHER_get_id(&c);
+        c.ssl = ssl;
+        (void)wolfSSL_CIPHER_get_id(&c);
+    }
+
+    /* --- 6656:1/6662:1 get_curve_name X25519/X448: OID && cName==NULL ---- */
+#if defined(HAVE_CURVE25519) && defined(HAVE_FFDHE)
+    ssl->namedGroup = 0;
+    ssl->ecdhCurveOID = ECC_X25519_OID;
+    (void)wolfSSL_get_curve_name(ssl);
+    ssl->namedGroup = WOLFSSL_FFDHE_2048;
+    (void)wolfSSL_get_curve_name(ssl);
+    ssl->namedGroup = 0;
+    ssl->ecdhCurveOID = 0;
+#endif
+#if defined(HAVE_CURVE448) && defined(HAVE_FFDHE)
+    ssl->namedGroup = 0;
+    ssl->ecdhCurveOID = ECC_X448_OID;
+    (void)wolfSSL_get_curve_name(ssl);
+    ssl->namedGroup = WOLFSSL_FFDHE_2048;
+    (void)wolfSSL_get_curve_name(ssl);
+    ssl->namedGroup = 0;
+    ssl->ecdhCurveOID = 0;
+#endif
+
+    /* --- 7639:0/1 FindHashSig loop: set_options version change ----------- */
+#ifdef WOLFSSL_TLS13
+    {
+        WOLFSSL_CTX* t13 = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+        WOLFSSL* tssl = wolfSSL_new(t13);
+
+        ExpectNotNull(tssl);
+        (void)wolfSSL_set_cipher_list(tssl, "ALL");
+        (void)wolfSSL_set_options(tssl, WOLFSSL_OP_NO_TLSv1_3);
+        wolfSSL_free(tssl);
+        wolfSSL_CTX_free(t13);
+    }
+#endif
+
+    /* --- 7827:0/1/2 SSL_renegotiate_pending: s&&done&&state!=DONE -------- */
+    (void)wolfSSL_SSL_renegotiate_pending(NULL);
+    ssl->options.handShakeDone = 0;
+    (void)wolfSSL_SSL_renegotiate_pending(ssl);
+    ssl->options.handShakeDone = 1;
+    ssl->options.handShakeState = HANDSHAKE_DONE;
+    (void)wolfSSL_SSL_renegotiate_pending(ssl);
+    ssl->options.handShakeState = SERVER_HELLODONE_COMPLETE;
+    (void)wolfSSL_SSL_renegotiate_pending(ssl);
+    ssl->options.handShakeDone = 0;
+    ssl->options.handShakeState = NULL_STATE;
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
