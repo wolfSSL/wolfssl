@@ -15190,25 +15190,20 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                 j = 0;
                 /* Append each number of dotted form. */
                 for (i = 0; (word32)i < tmpSize; i++) {
-                    if (j >= MAX_OID_SZ) {
-                        return BUFFER_E;
-                    }
+                    char arc[8];
 
                     if ((word32)i < tmpSize - 1) {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d.", tmpName[i]);
+                        ret = XSNPRINTF(arc, sizeof(arc), "%d.", tmpName[i]);
                     }
                     else {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d", tmpName[i]);
+                        ret = XSNPRINTF(arc, sizeof(arc), "%d", tmpName[i]);
                     }
 
-                    if (ret >= 0) {
-                        j += ret;
-                    }
-                    else {
+                    if ((ret < 0) || (ret >= MAX_OID_SZ - j)) {
                         return BUFFER_E;
                     }
+                    XMEMCPY(oidName + j, arc, (size_t)ret);
+                    j += ret;
                 }
                 ret = 0;
                 finalName = oidName;
@@ -22340,6 +22335,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     word32 val, inIdx = 0, outIdx = 0;
     int w = 0;
     int cnt = 0;
+    char arc[12];
 
     if (out == NULL || in == NULL || outSz < 4 || inSz < 2)
         return BAD_FUNC_ARG;
@@ -22349,11 +22345,12 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     /* The first byte expands into b/40 dot b%40. */
     val = in[inIdx++];
 
-    w = XSNPRINTF(out, outSz, "%u.%u", val / 40, val % 40);
-    if (w < 0) {
+    w = XSNPRINTF(arc, sizeof(arc), "%u.%u", val / 40, val % 40);
+    if (w < 0 || (word32)w > outSz) {
         w = BUFFER_E;
         goto exit;
     }
+    XMEMCPY(out, arc, (size_t)w);
     outIdx += (word32)w;
     val = 0;
 
@@ -22372,11 +22369,12 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
         else {
             /* write val as text into out */
             val += in[inIdx];
-            w = XSNPRINTF(out + outIdx, outSz - outIdx, ".%u", val);
+            w = XSNPRINTF(arc, sizeof(arc), ".%u", val);
             if (w < 0 || (word32)w > outSz - outIdx) {
                 w = BUFFER_E;
                 goto exit;
             }
+            XMEMCPY(out + outIdx, arc, (size_t)w);
             outIdx += (word32)w;
             val = 0;
             cnt = 0;
