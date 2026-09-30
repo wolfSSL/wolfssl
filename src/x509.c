@@ -9942,8 +9942,8 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     }
 
     if (ret == 0 && crl->crlList->crlNumberSet) {
-        char dec_string[49]; /* 20 octets can express numbers up to approx
-                                49 decimal digits */
+        /* Each octet needs under 2.5 decimal digits, plus the NUL. */
+        char dec_string[CRL_MAX_NUM_SZ * 5 / 2 + 1];
         int freeMp = 0;
     #ifdef WOLFSSL_SMALL_STACK
         mp_int* dec_num = (mp_int*)XMALLOC(sizeof(*dec_num), NULL,
@@ -9981,12 +9981,16 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             ret = WOLFSSL_FAILURE;
         }
 
-        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 8, "",
-            dec_string) >= MAX_WIDTH) {
+        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH, "%*s", indent + 8, "")
+                >= MAX_WIDTH) {
             ret = WOLFSSL_FAILURE;
         }
 
-        if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        if (ret == 0 &&
+                ((wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) ||
+                 (wolfSSL_BIO_write(bio, dec_string,
+                     (int)XSTRLEN(dec_string)) <= 0) ||
+                 (wolfSSL_BIO_write(bio, "\n", 1) <= 0))) {
             ret = WOLFSSL_FAILURE;
         }
 
