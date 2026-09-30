@@ -357,6 +357,13 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
+    /* aadDelta below pads authInSz up to a whole AES block; reject sizes
+     * where authInSz + aadDelta would overflow word32 and under-allocate
+     * aadBuf relative to the XMEMCPY into it. */
+    if (authInSz > (word32)0xFFFFFFFFU - (WC_AES_BLOCK_SIZE - 1)) {
+        return BAD_FUNC_ARG;
+    }
+
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
@@ -619,6 +626,13 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     /* sanity check */
     if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 ||
         info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* aadDelta below pads authInSz up to a whole AES block; reject sizes
+     * where authInSz + aadDelta would overflow word32 and under-allocate
+     * aadBuf relative to the XMEMCPY into it. */
+    if (authInSz > (word32)0xFFFFFFFFU - (WC_AES_BLOCK_SIZE - 1)) {
         return BAD_FUNC_ARG;
     }
 
