@@ -88,6 +88,11 @@ jobs:
             SKIP_LTESTS: >-
               exit-status rekey multiplex forward-control channel-timeout
               connection-timeout
+          - git_ref: 'V_10_5_P1'
+            osp_ver: '10.5p1'
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex forward-control channel-timeout
+              connection-timeout
     name: ${{ matrix.osp_ver }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
