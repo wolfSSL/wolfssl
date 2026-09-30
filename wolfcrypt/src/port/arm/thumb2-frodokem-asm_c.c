@@ -64,10 +64,19 @@ WC_OMIT_FRAME_POINTER void frodokem_add_thumb2(word16* a, const word16* b,
     register word16* a __asm__ ("r0") = (word16*)a_p;
     register const word16* b __asm__ ("r1") = (const word16*)b_p;
     register int qmask __asm__ ("r2") = (int)qmask_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)a, (void*)(size_t)b,
+        (void*)(size_t)qmask
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "ORR	%[qmask], %[qmask], %[qmask], LSL #16\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "ORR	r2, r2, r2, LSL #16\n\t"
         "MOV	r3, #32\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -75,11 +84,11 @@ WC_OMIT_FRAME_POINTER void frodokem_add_thumb2(word16* a, const word16* b,
 #else
     "L_frodokem_add_thumb2_blk_%=:\n\t"
 #endif
-        "LDR	r4, [%[a]]\n\t"
-        "LDR	r5, [%[b]], #4\n\t"
+        "LDR	r4, [r0]\n\t"
+        "LDR	r5, [r1], #4\n\t"
         "SADD16	r4, r4, r5\n\t"
-        "AND	r4, r4, %[qmask]\n\t"
-        "STR	r4, [%[a]], #4\n\t"
+        "AND	r4, r4, r2\n\t"
+        "STR	r4, [r0], #4\n\t"
         "SUBS	r3, r3, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_add_thumb2_blk_%=\n\t"
@@ -88,15 +97,26 @@ WC_OMIT_FRAME_POINTER void frodokem_add_thumb2(word16* a, const word16* b,
 #else
         "BNE.N	L_frodokem_add_thumb2_blk_%=\n\t"
 #endif
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b), [qmask] "+r" (qmask)
         :
-#else
-        :
-        : [a] "r" (a), [b] "r" (b), [qmask] "r" (qmask)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    a = (word16*)(size_t)L_asm_args[0];
+    b = (const word16*)(size_t)L_asm_args[1];
+    qmask = (int)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -113,13 +133,26 @@ WC_OMIT_FRAME_POINTER void frodokem_sa_accum_thumb2(word16* out,
     register const word16* row __asm__ ("r2") = (const word16*)row_p;
     register int j __asm__ ("r3") = (int)j_p;
     register int n __asm__ ("r4") = (int)n_p;
+#else
+    void* L_asm_args[5] = {(void*)(size_t)out, (void*)(size_t)s,
+        (void*)(size_t)row, (void*)(size_t)j, (void*)(size_t)n
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[n]}\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r4, [sp]\n\t"
         "LSL	r4, r4, #1\n\t"
-        "ADD	r5, %[s], %[j], LSL #1\n\t"
+        "ADD	r5, r1, r3, LSL #1\n\t"
         "MOV	r8, #8\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -129,7 +162,7 @@ WC_OMIT_FRAME_POINTER void frodokem_sa_accum_thumb2(word16* out,
 #endif
         "LDRH	r9, [r5]\n\t"
         "ADD	r5, r5, r4\n\t"
-        "MOV	r6, %[row]\n\t"
+        "MOV	r6, r2\n\t"
         "LSR	r7, r4, #2\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -137,13 +170,13 @@ WC_OMIT_FRAME_POINTER void frodokem_sa_accum_thumb2(word16* out,
 #else
     "L_frodokem_sa_accum_thumb2_k_%=:\n\t"
 #endif
-        "LDR	r11, [%[out]]\n\t"
+        "LDR	r11, [r0]\n\t"
         "LDR	r10, [r6], #4\n\t"
         "SMULBB	r12, r9, r10\n\t"
         "SMULBT	lr, r9, r10\n\t"
         "PKHBT	r12, r12, lr, LSL #16\n\t"
         "SADD16	r11, r11, r12\n\t"
-        "STR	r11, [%[out]], #4\n\t"
+        "STR	r11, [r0], #4\n\t"
         "SUBS	r7, r7, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_sa_accum_thumb2_k_%=\n\t"
@@ -160,19 +193,35 @@ WC_OMIT_FRAME_POINTER void frodokem_sa_accum_thumb2(word16* out,
 #else
         "BNE.N	L_frodokem_sa_accum_thumb2_i_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[n]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [s] "+r" (s), [row] "+r" (row), [j] "+r" (j),
           [n] "+r" (n)
         :
-#else
-        :
-        : [out] "r" (out), [s] "r" (s), [row] "r" (row), [j] "r" (j),
-          [n] "r" (n)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12",
             "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (word16*)(size_t)L_asm_args[0];
+    s = (const word16*)(size_t)L_asm_args[1];
+    row = (const word16*)(size_t)L_asm_args[2];
+    j = (int)(size_t)L_asm_args[3];
+    n = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -189,14 +238,27 @@ WC_OMIT_FRAME_POINTER void frodokem_as_accum_thumb2(word16* out,
     register const word16* row __asm__ ("r2") = (const word16*)row_p;
     register int i __asm__ ("r3") = (int)i_p;
     register int n __asm__ ("r4") = (int)n_p;
+#else
+    void* L_asm_args[5] = {(void*)(size_t)out, (void*)(size_t)s,
+        (void*)(size_t)row, (void*)(size_t)i, (void*)(size_t)n
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[n]}\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r4, [sp]\n\t"
         "LSL	r4, r4, #1\n\t"
-        "ADD	r5, %[out], %[i], LSL #4\n\t"
-        "MOV	r6, %[s]\n\t"
+        "ADD	r5, r0, r3, LSL #4\n\t"
+        "MOV	r6, r1\n\t"
         "MOV	r9, #8\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -205,7 +267,7 @@ WC_OMIT_FRAME_POINTER void frodokem_as_accum_thumb2(word16* out,
     "L_frodokem_as_accum_thumb2_c_%=:\n\t"
 #endif
         "MOV	r11, #0\n\t"
-        "MOV	r7, %[row]\n\t"
+        "MOV	r7, r2\n\t"
         "MOV	r8, r6\n\t"
         "LSR	r10, r4, #2\n\t"
         "\n"
@@ -238,19 +300,35 @@ WC_OMIT_FRAME_POINTER void frodokem_as_accum_thumb2(word16* out,
 #else
         "BNE.N	L_frodokem_as_accum_thumb2_c_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[n]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [s] "+r" (s), [row] "+r" (row), [i] "+r" (i),
           [n] "+r" (n)
         :
-#else
-        :
-        : [out] "r" (out), [s] "r" (s), [row] "r" (row), [i] "r" (i),
-          [n] "r" (n)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12",
             "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (word16*)(size_t)L_asm_args[0];
+    s = (const word16*)(size_t)L_asm_args[1];
+    row = (const word16*)(size_t)L_asm_args[2];
+    i = (int)(size_t)L_asm_args[3];
+    n = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -267,11 +345,24 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
     register const word16* s __asm__ ("r2") = (const word16*)s_p;
     register int n __asm__ ("r3") = (int)n_p;
     register int qmask __asm__ ("r4") = (int)qmask_p;
+#else
+    void* L_asm_args[5] = {(void*)(size_t)out, (void*)(size_t)b,
+        (void*)(size_t)s, (void*)(size_t)n, (void*)(size_t)qmask
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[qmask]}\n\t"
-        "MOV	r4, %[b]\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	r4, r1\n\t"
         "MOV	r8, #8\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -279,7 +370,7 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
 #else
     "L_frodokem_mul_bs_thumb2_i_%=:\n\t"
 #endif
-        "MOV	r5, %[s]\n\t"
+        "MOV	r5, r2\n\t"
         "MOV	r9, #8\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -290,7 +381,7 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
         "MOV	r11, #0\n\t"
         "MOV	r6, r4\n\t"
         "MOV	r7, r5\n\t"
-        "LSR	r10, %[n], #1\n\t"
+        "LSR	r10, r3, #1\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_frodokem_mul_bs_thumb2_j:\n\t"
@@ -311,9 +402,9 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
         "LDR	r12, [sp]\n\t"
         "ORR	r12, r12, r12, LSL #16\n\t"
         "AND	r11, r11, r12\n\t"
-        "STRH	r11, [%[out]]\n\t"
-        "ADD	%[out], %[out], #2\n\t"
-        "ADD	r5, r5, %[n], LSL #1\n\t"
+        "STRH	r11, [r0]\n\t"
+        "ADD	r0, r0, #2\n\t"
+        "ADD	r5, r5, r3, LSL #1\n\t"
         "SUBS	r9, r9, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_mul_bs_thumb2_c_%=\n\t"
@@ -322,7 +413,7 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
 #else
         "BNE.N	L_frodokem_mul_bs_thumb2_c_%=\n\t"
 #endif
-        "ADD	r4, r4, %[n], LSL #1\n\t"
+        "ADD	r4, r4, r3, LSL #1\n\t"
         "SUBS	r8, r8, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_mul_bs_thumb2_i_%=\n\t"
@@ -331,19 +422,35 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_bs_thumb2(word16* out, const word16* b,
 #else
         "BNE.N	L_frodokem_mul_bs_thumb2_i_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[qmask]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [b] "+r" (b), [s] "+r" (s), [n] "+r" (n),
           [qmask] "+r" (qmask)
         :
-#else
-        :
-        : [out] "r" (out), [b] "r" (b), [s] "r" (s), [n] "r" (n),
-          [qmask] "r" (qmask)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12",
             "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (word16*)(size_t)L_asm_args[0];
+    b = (const word16*)(size_t)L_asm_args[1];
+    s = (const word16*)(size_t)L_asm_args[2];
+    n = (int)(size_t)L_asm_args[3];
+    qmask = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -360,14 +467,27 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_thumb2(word16* out,
     register const word16* s __asm__ ("r2") = (const word16*)s_p;
     register int n __asm__ ("r3") = (int)n_p;
     register int qmask __asm__ ("r4") = (int)qmask_p;
+#else
+    void* L_asm_args[5] = {(void*)(size_t)out, (void*)(size_t)b,
+        (void*)(size_t)s, (void*)(size_t)n, (void*)(size_t)qmask
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[qmask]}\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "LSL	r11, %[n], #1\n\t"
+        "LSL	r11, r3, #1\n\t"
         "STR	r11, [sp, #4]\n\t"
-        "STR	%[b], [sp]\n\t"
+        "STR	r1, [sp]\n\t"
         "MOV	r4, #8\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -376,13 +496,13 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_thumb2(word16* out,
     "L_frodokem_mul_add_sb_plus_e_thumb2_i_%=:\n\t"
 #endif
         "LDR	r11, [sp, #4]\n\t"
-        "ADD	%[n], %[s], r11\n\t"
-        "LDR	%[b], [sp]\n\t"
-        "MOV	r5, %[s]\n\t"
-        "LDR	r6, [%[out]]\n\t"
-        "LDR	r7, [%[out], #4]\n\t"
-        "LDR	r8, [%[out], #8]\n\t"
-        "LDR	r9, [%[out], #12]\n\t"
+        "ADD	r3, r2, r11\n\t"
+        "LDR	r1, [sp]\n\t"
+        "MOV	r5, r2\n\t"
+        "LDR	r6, [r0]\n\t"
+        "LDR	r7, [r0, #4]\n\t"
+        "LDR	r8, [r0, #8]\n\t"
+        "LDR	r9, [r0, #12]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_frodokem_mul_add_sb_plus_e_thumb2_j:\n\t"
@@ -391,28 +511,28 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_thumb2(word16* out,
 #endif
         "LDRH	r10, [r5]\n\t"
         "ADD	r5, r5, #2\n\t"
-        "LDR	r11, [%[b]]\n\t"
+        "LDR	r11, [r1]\n\t"
         "SMULBB	r12, r10, r11\n\t"
         "SMULBT	lr, r10, r11\n\t"
         "PKHBT	r12, r12, lr, LSL #16\n\t"
         "SADD16	r6, r6, r12\n\t"
-        "LDR	r11, [%[b], #4]\n\t"
+        "LDR	r11, [r1, #4]\n\t"
         "SMULBB	r12, r10, r11\n\t"
         "SMULBT	lr, r10, r11\n\t"
         "PKHBT	r12, r12, lr, LSL #16\n\t"
         "SADD16	r7, r7, r12\n\t"
-        "LDR	r11, [%[b], #8]\n\t"
+        "LDR	r11, [r1, #8]\n\t"
         "SMULBB	r12, r10, r11\n\t"
         "SMULBT	lr, r10, r11\n\t"
         "PKHBT	r12, r12, lr, LSL #16\n\t"
         "SADD16	r8, r8, r12\n\t"
-        "LDR	r11, [%[b], #12]\n\t"
+        "LDR	r11, [r1, #12]\n\t"
         "SMULBB	r12, r10, r11\n\t"
         "SMULBT	lr, r10, r11\n\t"
         "PKHBT	r12, r12, lr, LSL #16\n\t"
         "SADD16	r9, r9, r12\n\t"
-        "ADD	%[b], %[b], #16\n\t"
-        "CMP	r5, %[n]\n\t"
+        "ADD	r1, r1, #16\n\t"
+        "CMP	r5, r3\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_mul_add_sb_plus_e_thumb2_j_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -426,12 +546,12 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_thumb2(word16* out,
         "AND	r7, r7, r11\n\t"
         "AND	r8, r8, r11\n\t"
         "AND	r9, r9, r11\n\t"
-        "STR	r6, [%[out]]\n\t"
-        "STR	r7, [%[out], #4]\n\t"
-        "STR	r8, [%[out], #8]\n\t"
-        "STR	r9, [%[out], #12]\n\t"
-        "ADD	%[out], %[out], #16\n\t"
-        "MOV	%[s], %[n]\n\t"
+        "STR	r6, [r0]\n\t"
+        "STR	r7, [r0, #4]\n\t"
+        "STR	r8, [r0, #8]\n\t"
+        "STR	r9, [r0, #12]\n\t"
+        "ADD	r0, r0, #16\n\t"
+        "MOV	r2, r3\n\t"
         "SUBS	r4, r4, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_frodokem_mul_add_sb_plus_e_thumb2_i_%=\n\t"
@@ -441,19 +561,35 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_thumb2(word16* out,
         "BNE.N	L_frodokem_mul_add_sb_plus_e_thumb2_i_%=\n\t"
 #endif
         "ADD	sp, sp, #8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[qmask]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [b] "+r" (b), [s] "+r" (s), [n] "+r" (n),
           [qmask] "+r" (qmask)
         :
-#else
-        :
-        : [out] "r" (out), [b] "r" (b), [s] "r" (s), [n] "r" (n),
-          [qmask] "r" (qmask)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12",
             "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (word16*)(size_t)L_asm_args[0];
+    b = (const word16*)(size_t)L_asm_args[1];
+    s = (const word16*)(size_t)L_asm_args[2];
+    n = (int)(size_t)L_asm_args[3];
+    qmask = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_HAVE_FRODOKEM */
