@@ -16305,7 +16305,10 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
             pkcs7->stream->expected = (word32)encryptedContentSz +
-                    MAX_LENGTH_SZ + ASN_TAG_SZ + ASN_TAG_SZ + ASN_INDEF_END_SZ;
+                    MAX_LENGTH_SZ + ASN_TAG_SZ + ASN_TAG_SZ;
+            if (pkcs7->stream->indefEci) {
+                pkcs7->stream->expected += ASN_INDEF_END_SZ;
+            }
             if (indefContent) {
                 pkcs7->stream->expected = WC_PKCS7_FRAG_LOOKAHEAD;
             }
