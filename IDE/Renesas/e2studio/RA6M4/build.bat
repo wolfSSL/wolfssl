@@ -84,9 +84,9 @@ if not "%MODE%"=="" (
     echo  Setting demo mode: %MODE%
     echo ============================================================
     powershell -NoProfile -ExecutionPolicy Bypass -File "%BASEDIR%set_demo_mode.ps1" -Mode %MODE%
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo [ERROR] Failed to set demo mode.
-        exit /b %ERRORLEVEL%
+        exit /b 1
     )
     echo.
 )

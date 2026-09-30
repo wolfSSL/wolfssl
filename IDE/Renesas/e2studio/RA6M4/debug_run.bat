@@ -58,6 +58,7 @@ del "%JLINK_LOG%" > nul 2>&1
 (
     echo r
     echo g
+    echo sleep !QC_DELAY_MS!
     echo qc
 ) > "%JLINK_CMD%"
 "%JLINK%" -device %DEVICE% -if SWD -speed 4000 -autoconnect 1 -ExitOnError 1 -CommandFile "%JLINK_CMD%" -Log "%JLINK_LOG%"
@@ -96,6 +97,7 @@ REM target keeps running standalone after that.
     echo loadfile "%TARGET_SREC%"
     echo r
     echo g
+    echo sleep !QC_DELAY_MS!
     echo qc
 ) > "%JLINK_CMD%"
 "%JLINK%" -device %DEVICE% -if SWD -speed 4000 -autoconnect 1 -ExitOnError 1 -CommandFile "%JLINK_CMD%" -Log "%JLINK_LOG%"
