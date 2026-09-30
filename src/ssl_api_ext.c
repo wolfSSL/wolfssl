@@ -180,6 +180,138 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #endif /* HAVE_SNI */
 
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+
+/* Maximum content size accepted by the native API. The library wraps the
+ * content with a DER SEQUENCE header (up to MAX_SEQ_SZ bytes) and the wire
+ * entry length is itself a 16-bit field, so content is capped at
+ * WOLFSSL_MAX_16BIT - MAX_SEQ_SZ bytes. */
+#define WOLFSSL_CA_NAME_MAX_CONTENT_SZ (WOLFSSL_MAX_16BIT - MAX_SEQ_SZ)
+
+/* Add a CA distinguished name to advertise in the TLS 1.3
+ * certificate_authorities extension on the object.
+ *
+ * @param [in] ssl   SSL/TLS object.
+ * @param [in] dn    DER-encoded Name content (no SEQUENCE header).
+ * @param [in] dnSz  Length of dn in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl or dn is NULL, or dnSz is out of range.
+ * @return  Negative value on error.
+ */
+int wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz)
+{
+    if (ssl == NULL || dn == NULL || dnSz == 0 ||
+            dnSz > WOLFSSL_CA_NAME_MAX_CONTENT_SZ)
+        return BAD_FUNC_ARG;
+
+    return TLSX_CertificateAuthorities_Add(&ssl->ws_ca_names,
+                                           dn, (word16)dnSz, ssl->heap);
+}
+
+/* Add a CA distinguished name to advertise in the TLS 1.3
+ * certificate_authorities extension on the context.
+ *
+ * @param [in] ctx   SSL/TLS context object.
+ * @param [in] dn    DER-encoded Name content (no SEQUENCE header).
+ * @param [in] dnSz  Length of dn in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ctx or dn is NULL, or dnSz is out of range.
+ * @return  Negative value on error.
+ */
+int wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz)
+{
+    if (ctx == NULL || dn == NULL || dnSz == 0 ||
+            dnSz > WOLFSSL_CA_NAME_MAX_CONTENT_SZ)
+        return BAD_FUNC_ARG;
+
+    return TLSX_CertificateAuthorities_Add(&ctx->ws_ca_names,
+                                           dn, (word16)dnSz, ctx->heap);
+}
+
+/* Free all CA distinguished names set on the object.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ */
+void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return;
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_ca_names, ssl->heap);
+    ssl->ws_ca_names = NULL;
+}
+
+/* Free all CA distinguished names set on the context.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ */
+void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return;
+    TLSX_CertificateAuthorities_FreeAll(ctx->ws_ca_names, ctx->heap);
+    ctx->ws_ca_names = NULL;
+}
+
+/* Get the number of CA distinguished names received from the peer's
+ * certificate_authorities extension.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  Count of peer CA names, or 0 when ssl is NULL.
+ */
+int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl)
+{
+    int count = 0;
+    CertificateAuthority* cur;
+
+    if (ssl == NULL)
+        return 0;
+    for (cur = ssl->ws_peer_ca_names; cur != NULL; cur = cur->next)
+        count++;
+    return count;
+}
+
+/* Copy a peer CA distinguished name by index.
+ *
+ * @param [in]  ssl      SSL/TLS object.
+ * @param [in]  idx      Zero-based index of the peer CA name.
+ * @param [out] outDn    Buffer to receive the DN content, or NULL to query
+ *                       the length.
+ * @param [in]  outDnSz  Size of outDn in bytes.
+ * @return  Length of the DN content on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or idx is out of range.
+ * @return  BUFFER_E when outDn is too small.
+ */
+int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz)
+{
+    CertificateAuthority* cur;
+    int i;
+
+    if (ssl == NULL || idx < 0)
+        return BAD_FUNC_ARG;
+
+    cur = ssl->ws_peer_ca_names;
+    for (i = 0; i < idx && cur != NULL; i++)
+        cur = cur->next;
+    if (cur == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outDn == NULL)
+        return (int)cur->dnSz;
+
+    if (outDnSz < cur->dnSz)
+        return BUFFER_E;
+
+    XMEMCPY(outDn, cur->dn, cur->dnSz);
+    return (int)cur->dnSz;
+}
+
+#endif /* !NO_CERTS && !WOLFSSL_NO_CA_NAMES && WOLFSSL_TLS13 */
+
+
 #ifdef HAVE_TRUSTED_CA
 
 /* Set the Trusted CA Indication extension on the object.
