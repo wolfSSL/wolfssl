@@ -136,7 +136,7 @@
 #ifdef USE_INTEL_SPEEDUP
     /* Block-function selection when USE_INTEL_SPEEDUP: BMI2, then AVX2, then
      * the C block.  BMI2 is preferred because its block uses general
-     * registers only and so needs no vector-register claim; AVX2 goes first
+     * registers only and so needs no vector-register save; AVX2 goes first
      * only when WOLFSSL_SHA3_AVX2 explicitly asks for it.  (Single-stream
      * AVX-512 is vpermt2q-bound and slower than BMI2 everywhere measured, so
      * it is not built - see scripts sha3_avx512.rb.)
@@ -163,18 +163,19 @@
     #define SHA3_NEEDS_VREG_CLAIM
 #endif
 
-/* A certifiable build carries one Keccak permutation, so a refused claim is an
- * error there instead of a switch to the C block; dev builds keep the switch.
- * WOLFSSL_FIPS_DEV covers both dev and dev-no-post. */
+/* Whether a refused SAVE_VECTOR_REGISTERS2() may switch this call to the C
+ * block.  A certifiable build carries one Keccak permutation, so there it is an
+ * error instead; dev and dev-no-post keep the switch (WOLFSSL_FIPS_DEV covers
+ * both). */
 #if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK) && \
     !(FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV))
-    #define SHA3_CLAIM_FALLBACK
+    #define SHA3_MAY_SWITCH_TO_C
 #endif
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
     !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
     /* armv8-32-sha3-asm.S has a NEON block (vpush d8-d15) and an integer-only
-     * one under WOLFSSL_ARMASM_NO_NEON; only the NEON block needs a claim. */
+     * one under WOLFSSL_ARMASM_NO_NEON; only the NEON block needs the save. */
     #define SHA3_BLOCK_VREGS(f) 1
     #define SHA3_NEEDS_VREG_CLAIM
 #endif
@@ -934,9 +935,9 @@ static int InitSha3(wc_Sha3* sha3)
         int cpuid_flags_were_updated = cpuid_get_flags_ex(&cpuid_flags);
 #ifdef WC_C_DYNAMIC_FALLBACK
         (void)cpuid_flags_were_updated;
-#ifdef SHA3_CLAIM_FALLBACK
-        /* Same gate as the claim-failure sites: a certifiable build must not
-         * pick a second permutation, so it leaves the choice to cpuid. */
+#ifdef SHA3_MAY_SWITCH_TO_C
+        /* Same gate as the places that handle a refused save: a certifiable
+         * build must not pick a second permutation, so cpuid alone decides. */
         if (! CAN_SAVE_VECTOR_REGISTERS()) {
             SHA3_BLOCK = BlockSha3;
             SHA3_BLOCK_N = NULL;
@@ -957,7 +958,7 @@ static int InitSha3(wc_Sha3* sha3)
         else
 #endif
         /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
-         * it needs no vector-register claim. */
+         * it needs no vector-register save. */
         if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
@@ -1040,7 +1041,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef SHA3_CLAIM_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
             ret = 0;
@@ -1217,7 +1218,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef SHA3_CLAIM_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2399,7 +2400,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef SHA3_CLAIM_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2716,7 +2717,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef SHA3_CLAIM_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
 #else
             return ret;
