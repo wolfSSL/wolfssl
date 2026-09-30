@@ -6,11 +6,21 @@ Breaking changes:
 
 - Curve25519Key::generate() now takes ownership of the RNG instead of borrowing
   it; the key holds the RNG for its lifetime
+- MlDsa::LEVEL_44, MlDsa::LEVEL_65 and MlDsa::LEVEL_87 are now gated on the
+  mldsa_level2, mldsa_level3 and mldsa_level5 cfgs, so selecting a parameter
+  set the library was not built with is a compile error instead of a runtime
+  NOT_COMPILED_IN
 
 New features:
 
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
+
+Fixes and improvements:
+
+- Fix detection of the built-in ML-DSA parameter sets: the mldsa_level2,
+  mldsa_level3 and mldsa_level5 cfgs probed the WC_MLDSA_NN_KEY_SIZE macros,
+  which wc_mldsa.h defines unconditionally, so all three were always enabled
 
 ## v2.2.0
 
