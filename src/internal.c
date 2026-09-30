@@ -41623,7 +41623,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             if (!session) {
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
-            } else {
+            }
+            else if (ssl->options.verifyPeer && ssl->options.failNoCert &&
+                    !session->peerAuthOk) {
+                WOLFSSL_MSG("Session lacks client auth, do full handshake");
+                ssl->options.resuming = 0;
+                ssl->options.peerAuthGood = 0;
+            }
+            else {
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;
@@ -41707,6 +41714,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
                 ) {
             int secretSz = SECRET_LEN;
+            if (ssl->options.verifyPeer && ssl->options.failNoCert &&
+                    !ssl->session->peerAuthOk) {
+                WOLFSSL_MSG("Session lacks client auth, do full handshake");
+                ssl->options.resuming = 0;
+                ssl->options.peerAuthGood = 0;
+                return ret;
+            }
             WOLFSSL_MSG("Calling session secret callback");
             ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                        RAN_LEN);
@@ -41752,6 +41766,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (!session) {
             WOLFSSL_MSG("Session lookup for resume failed");
             ssl->options.resuming = 0;
+            return ret;
+        }
+        if (ssl->options.verifyPeer && ssl->options.failNoCert &&
+                !session->peerAuthOk) {
+            /* This connection requires a client certificate and the resumed
+             * session never presented one. A full handshake sends a
+             * CertificateRequest instead. */
+            WOLFSSL_MSG("Session lacks client auth, do full handshake");
+            ssl->options.resuming = 0;
+            ssl->options.peerAuthGood = 0;
             return ret;
         }
 #if defined(HAVE_SESSION_TICKET) && \
@@ -43450,6 +43474,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->suite[0] = ssl->options.cipherSuite0;
         it->suite[1] = ssl->options.cipherSuite;
 
+        /* Both arms below only add to this, so start from a known value: an
+         * async re-entry may not have re-zeroed the ticket buffer.
+         * A ticket minted on a resumed connection carries what the session it
+         * resumed recorded, because no Certificate flows in an abbreviated
+         * handshake and the option flags describe nothing here. */
+        it->flags = 0;
+        if (ssl->options.resuming ? ssl->session->peerAuthOk :
+                (ssl->options.havePeerCert && ssl->options.havePeerVerify)) {
+            it->flags |= WOLFSSL_TICKET_FLAG_PEER_AUTH;
+        }
+
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);
     #endif
@@ -43464,7 +43499,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifndef NO_ASN_TIME
             c32toa(LowResTimer(), it->timestamp);
 #endif
-            it->haveEMS = (byte) ssl->options.haveEMS;
+            if (ssl->options.haveEMS)
+                it->flags |= WOLFSSL_TICKET_FLAG_EMS;
         }
         else {
 #ifdef WOLFSSL_TLS13
@@ -44004,6 +44040,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef HAVE_ALPN
         XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
+        /* After the DupSession above, which would otherwise overwrite it. */
+        ssl->session->peerAuthOk =
+            (it->flags & WOLFSSL_TICKET_FLAG_PEER_AUTH) ? 1 : 0;
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->arrays == NULL)
@@ -44011,7 +44050,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
             /* Copy the haveExtendedMasterSecret property from the ticket to
              * the saved session, so the property may be checked later. */
-            ssl->session->haveEMS = it->haveEMS;
+            ssl->session->haveEMS =
+                (it->flags & WOLFSSL_TICKET_FLAG_EMS) ? 1 : 0;
             ato32((const byte*)&it->timestamp, &ssl->session->bornOn);
 #ifndef NO_RESUME_SUITE_CHECK
             ssl->session->cipherSuite0 = it->suite[0];
@@ -44092,7 +44132,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         c32toa((word32)(milliBornOn >> 32), it->timestamp);
         c32toa((word32)milliBornOn        , it->timestamp + OPAQUE32_LEN);
 #endif
-        it->haveEMS = (byte)sess->haveEMS;
+        it->flags = (byte)((sess->haveEMS ? WOLFSSL_TICKET_FLAG_EMS : 0) |
+            (sess->peerAuthOk ? WOLFSSL_TICKET_FLAG_PEER_AUTH : 0));
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
         if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {

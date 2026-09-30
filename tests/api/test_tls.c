@@ -3098,6 +3098,245 @@ int test_tls12_resume_ticket_wrong_suite(void)
     return EXPECT_RESULT();
 }
 
+/* The client-auth outcome has to survive an external session cache, which
+ * stores sessions with wolfSSL_i2d_SSL_SESSION and reloads them with
+ * wolfSSL_d2i_SSL_SESSION. The server here keeps no internal cache, so the
+ * only way the second handshake can resume is through the deserialized
+ * session, and it requires a client certificate, so it only resumes if the
+ * recorded outcome came back with it. Session-id resumption, not a ticket:
+ * a ticket carries the outcome itself and would not exercise the serializer. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_EXT_CACHE) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+static byte test_extcache_der[2048];
+static int  test_extcache_derSz = 0;
+static int  test_extcache_gets  = 0;
+
+static int test_extcache_new_cb(WOLFSSL* ssl, WOLFSSL_SESSION* sess)
+{
+    unsigned char* p = test_extcache_der;
+    int sz;
+
+    (void)ssl;
+    sz = wolfSSL_i2d_SSL_SESSION(sess, NULL);
+    if ((sz > 0) && (sz <= (int)sizeof(test_extcache_der))) {
+        sz = wolfSSL_i2d_SSL_SESSION(sess, &p);
+        if (sz > 0)
+            test_extcache_derSz = sz;
+    }
+    return 0;
+}
+
+static WOLFSSL_SESSION* test_extcache_get_cb(WOLFSSL* ssl,
+    const unsigned char* id, int len, int* ref)
+{
+    const unsigned char* p = test_extcache_der;
+
+    (void)ssl;
+    (void)id;
+    (void)len;
+    test_extcache_gets++;
+    /* A fresh object each time, so wolfSSL owns it. */
+    *ref = 0;
+    if (test_extcache_derSz <= 0)
+        return NULL;
+    return wolfSSL_d2i_SSL_SESSION(NULL, &p, (long)test_extcache_derSz);
+}
+#endif
+
+int test_tls12_ext_cache_client_auth_resume(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_EXT_CACHE) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    test_extcache_derSz = 0;
+    test_extcache_gets  = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* CTXs first: the credentials must be in place before the objects that
+     * inherit them are created. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+                WOLFSSL_SUCCESS);
+    /* Only the external cache answers a lookup. */
+    if (ctx_s != NULL) {
+        wolfSSL_CTX_set_session_cache_mode(ctx_s,
+            WOLFSSL_SESS_CACHE_SERVER | WOLFSSL_SESS_CACHE_NO_INTERNAL);
+        wolfSSL_CTX_sess_set_new_cb(ctx_s, test_extcache_new_cb);
+        wolfSSL_CTX_sess_set_get_cb(ctx_s, test_extcache_get_cb);
+    }
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->session->peerAuthOk, 1);
+    /* The cache callback serialized it. */
+    ExpectIntGT(test_extcache_derSz, 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Resume: the server can only get the session back through d2i. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s2,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntGT(test_extcache_gets, 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A session ticket is not proof that the client authenticated: the server
+ * grants options.peerAuthGood on resumption, and the abbreviated handshake
+ * sends no CertificateRequest, so a ticket minted where no client certificate
+ * was asked for would satisfy a connection that requires one. Servers sharing
+ * one ticket key across differing verify policies, or tightening a policy
+ * without rotating the key, are the exposure.
+ *
+ * The ticket here is minted under WOLFSSL_VERIFY_NONE by a client holding no
+ * certificate, then replayed against a connection set to
+ * WOLFSSL_VERIFY_PEER|WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT on the same CTX, so
+ * the ticket key is the same. The server has to decline the resumption; the
+ * full handshake it falls back to then rejects the client for having no
+ * certificate. */
+int test_tls12_resume_ticket_client_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Mint: no client certificate is loaded and none is asked for. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(sess->ticketLen, 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->session->peerAuthOk, 0);
+
+    /* Replay against a connection that requires a client certificate. Same
+     * server CTX, so the ticket decrypts. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s2,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+
+    /* Extra rounds: the declined resumption turns into a full handshake. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c2, ssl_s2, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 0);
+    if (ssl_s2 != NULL) {
+        ExpectIntEQ(ssl_s2->options.resuming, 0);
+        /* Rejected for the missing certificate, not accepted off the ticket. */
+        ExpectIntEQ(ssl_s2->error, WC_NO_ERR_TRACE(NO_PEER_CERT));
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The same session, resumed by a client that does present its certificate,
+ * must still abbreviate: the gate above must not cost legitimate mTLS
+ * resumption its session reuse. */
+int test_tls12_resume_ticket_client_auth_ok(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* CTXs only: the credentials have to be in place before the objects that
+     * inherit them are created. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->session->peerAuthOk, 1);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s2,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* options.useTicket says the handshake in progress accepted a session ticket,
  * and HandleTlsResumption() reads it to take ssl->session instead of looking
  * up the session id the client presented. It is per-handshake state, so an
@@ -3139,6 +3378,8 @@ int test_tls12_reuse_clears_use_ticket(void)
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
     ExpectNotNull(sess = wolfSSL_get1_session(ssl_c2));
+    /* Guards the premise rather than the fix: with a ticket the resumption
+     * would be legitimate and the stale flag would never be consulted. */
     ExpectIntEQ(sess->ticketLen, 0);
     /* Drop it from the cache the two ends share in-process, so no lookup can
      * legitimately resolve the id it offers. */
