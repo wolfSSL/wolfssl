@@ -7,7 +7,7 @@
 * Reduced Falcon's peak signing heap by about 21%, halved the verify working set, and moved the SHAKE states and ASN public-key buffers off the stack. by @Frauschi
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
-* Sped up SLH-DSA SHA2 hashing by compressing directly from the cached PK.seed midstate, and reused one WOTS+ chain buffer per signature and key generation, so a SHAKE-128s signature under `WOLFSSL_SMALL_STACK` makes about 220 allocations instead of about 3800. by @Frauschi
+* Sped up SLH-DSA SHA2 hashing by compressing directly from the cached PK.seed midstate, and reused one WOTS+ chain buffer and one tree node buffer per signature, so a SHAKE-128s signature under `WOLFSSL_SMALL_STACK` makes 10 allocations instead of about 3800, and 1 instead of about 210 with `WOLFSSL_WC_SLHDSA_SMALL_MEM`. by @Frauschi
 
 ## Build System and Portability
 
