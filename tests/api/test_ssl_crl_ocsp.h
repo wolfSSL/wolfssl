@@ -30,6 +30,7 @@ int test_wolfSSL_tlsext_status_type(void);
 int test_wolfSSL_CTX_tlsext_status_cb(void);
 int test_wolfSSL_tlsext_status_ocsp_resp(void);
 int test_wolfSSL_OCSP_parse_url_api(void);
+int test_ssl_crl_ocsp_decision_coverage(void);
 
 #define TEST_SSL_CRL_OCSP_DECLS                                                \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_ocsp_url_api),            \
@@ -37,6 +38,7 @@ int test_wolfSSL_OCSP_parse_url_api(void);
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_tlsext_status_type),      \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_CTX_tlsext_status_cb),    \
         TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_tlsext_status_ocsp_resp), \
-        TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_OCSP_parse_url_api)
+        TEST_DECL_GROUP("ssl_crl_ocsp", test_wolfSSL_OCSP_parse_url_api), \
+        TEST_DECL_GROUP("ssl_crl_ocsp", test_ssl_crl_ocsp_decision_coverage)
 
 #endif /* TESTS_API_SSL_CRL_OCSP_H */
