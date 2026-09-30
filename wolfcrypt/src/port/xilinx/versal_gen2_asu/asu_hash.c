@@ -373,8 +373,9 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
         return BAD_FUNC_ARG;
     }
 #ifdef WOLF_CRYPTO_CB_SHAKE_XOF
-    /* No sponge state is kept here, so the host runs absorb and squeeze. */
-    if (info->hash.shakeOp != WC_SHAKE_OP_NONE) {
+    /* No sponge state is kept here, so a software absorb would miss saved
+     * updates. Leave all of SHAKE256 to software. */
+    if (info->hash.type == WC_HASH_TYPE_SHAKE256) {
         return CRYPTOCB_UNAVAILABLE;
     }
 #endif

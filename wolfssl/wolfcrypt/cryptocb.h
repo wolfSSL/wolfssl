@@ -30,7 +30,7 @@
 
 /* Defines the Crypto Callback interface version, for compatibility */
 /* Increment this when Crypto Callback interface changes are made */
-#define CRYPTO_CB_VER   3
+#define CRYPTO_CB_VER   4
 
 
 #ifdef WOLF_CRYPTO_CB
@@ -264,6 +264,7 @@ enum wc_ShakeOp {
     WC_SHAKE_OP_SQUEEZE = 2
 };
 
+/* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES

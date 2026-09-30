@@ -91905,6 +91905,7 @@ static int myCryptoCbFind(int currentId, int algoType)
 #define SHAKE_CB_XOF_BLOCKS 2
 static wc_test_ret_t shake_cb_xof_test(myCryptoDevCtx* myCtx, int decline,
     int (*initFn)(wc_Shake*, void*, int),
+    int (*updateFn)(wc_Shake*, const byte*, word32),
     int (*absorbFn)(wc_Shake*, const byte*, word32),
     int (*squeezeFn)(wc_Shake*, byte*, word32),
     void (*freeFn)(wc_Shake*))
@@ -91936,7 +91937,12 @@ static wc_test_ret_t shake_cb_xof_test(myCryptoDevCtx* myCtx, int decline,
             ret = WC_TEST_RET_ENC_EC(ret);
             break;
         }
-        ret = absorbFn(shake, shakeIn, (word32)sizeof(shakeIn));
+        /* Update first so a declined absorb continues from device state. */
+        ret = updateFn(shake, shakeIn, (word32)sizeof(shakeIn) / 2);
+        if (ret == 0) {
+            ret = absorbFn(shake, shakeIn + sizeof(shakeIn) / 2,
+                (word32)sizeof(shakeIn) / 2);
+        }
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
         if (ret == 0) {
@@ -93393,14 +93399,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         for (decline = 0; decline <= 1 && ret == 0; decline++) {
 #ifdef WOLFSSL_SHAKE128
             ret = shake_cb_xof_test(&myCtx, decline, wc_InitShake128,
-                wc_Shake128_Absorb, wc_Shake128_SqueezeBlocks,
-                wc_Shake128_Free);
+                wc_Shake128_Update, wc_Shake128_Absorb,
+                wc_Shake128_SqueezeBlocks, wc_Shake128_Free);
 #endif
 #ifdef WOLFSSL_SHAKE256
             if (ret == 0)
                 ret = shake_cb_xof_test(&myCtx, decline, wc_InitShake256,
-                    wc_Shake256_Absorb, wc_Shake256_SqueezeBlocks,
-                    wc_Shake256_Free);
+                    wc_Shake256_Update, wc_Shake256_Absorb,
+                    wc_Shake256_SqueezeBlocks, wc_Shake256_Free);
 #endif
         }
     }
