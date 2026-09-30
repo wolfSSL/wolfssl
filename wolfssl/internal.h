@@ -2314,6 +2314,9 @@ WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl);
+#else
+/* No client certificate can be asked for, so none can be required. */
+#define ClientAuthRequired(ssl) 0
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);

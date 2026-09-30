@@ -41673,7 +41673,7 @@ int ClientAuthRequired(const WOLFSSL* ssl)
 {
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return 0;
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Sends no CertificateRequest in the handshake, so it records no
      * outcome to inherit. */
     if (ssl->options.verifyPostHandshake)
