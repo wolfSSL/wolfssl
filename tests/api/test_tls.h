@@ -124,6 +124,8 @@ int test_chain_verify_cb_min_key(void);
 int test_chain_verify_cb_dtls(void);
 int test_chain_verify_cb_stapling(void);
 int test_record_size_matches_build_message(void);
+int test_internal_SetSSL_CTX_DecisionCoverage(void);
+int test_internal_CheckVersion_DecisionCoverage(void);
 int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
@@ -244,6 +246,8 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_postauth),           \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_min_key),                  \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_dtls),                     \
-        TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling)
+        TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling),                 \
+        TEST_DECL_GROUP("tls", test_internal_SetSSL_CTX_DecisionCoverage),     \
+        TEST_DECL_GROUP("tls", test_internal_CheckVersion_DecisionCoverage)
 
 #endif /* TESTS_API_TEST_TLS_H */
