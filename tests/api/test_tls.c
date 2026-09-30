@@ -3368,7 +3368,8 @@ int test_tls12_resume_ticket_mutual_auth(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS)
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_c2 = NULL, *ssl_s2 = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -3410,7 +3411,8 @@ int test_tls13_resume_psk_post_handshake_auth(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(HAVE_SESSION_TICKET) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
-    !defined(NO_CERTS) && !defined(NO_RSA)
+    !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -3466,7 +3468,8 @@ int test_tls13_resume_psk_client_auth(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_SESSION_CACHE) && !defined(NO_CERTS)
+    !defined(NO_SESSION_CACHE) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -3515,7 +3518,8 @@ int test_tls13_resume_psk_client_auth_ok(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_SESSION_CACHE) && !defined(NO_CERTS) && !defined(NO_RSA)
+    !defined(NO_SESSION_CACHE) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -3569,7 +3573,8 @@ int test_tls13_resume_psk_client_auth_ok(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_EXT_CACHE) && !defined(NO_SESSION_CACHE) && \
-    !defined(NO_CERTS) && !defined(NO_RSA)
+    !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
 static byte test_extcache_der[2048];
 static int  test_extcache_derSz = 0;
 static int  test_extcache_gets  = 0;
@@ -3612,7 +3617,8 @@ int test_tls12_ext_cache_client_auth_resume(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_EXT_CACHE) && !defined(NO_SESSION_CACHE) && \
-    !defined(NO_CERTS) && !defined(NO_RSA)
+    !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
@@ -3678,7 +3684,8 @@ int test_tls12_resume_ticket_client_auth(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS)
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
@@ -3732,7 +3739,8 @@ int test_tls12_resume_ticket_client_auth_ok(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
@@ -3817,7 +3825,9 @@ int test_tls12_reuse_clears_use_ticket(void)
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     if (ssl_s != NULL) {
         ExpectIntEQ(ssl_s->options.useTicket, 1);
+#ifndef WOLFSSL_NO_CLIENT_AUTH
         ExpectIntEQ(ssl_s->session->peerAuthOk, 1);
+#endif
     }
     /* A different statement on the client, and unread there. */
     if (ssl_c != NULL)
