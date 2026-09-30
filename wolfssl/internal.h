@@ -5217,8 +5217,10 @@ struct WOLFSSL_SESSION {
 
     byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
-    /* Server side: the client presented and passed certificate verification
-     * when this session was established. Placed after heap so
+    /* The client presented and passed certificate verification when this
+     * session was established. Only ever set on a server session; a client
+     * leaves it zero, since on that side the same flags describe the server
+     * certificate and no client-side code reads this. Placed after heap so
      * wolfSSL_DupSession carries it; zero means not established that way. */
     byte               peerAuthOk;
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
