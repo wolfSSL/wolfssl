@@ -658,7 +658,7 @@ L_sha256_len_neon_start:
 	add	w4, w4, w13
 	add	x3, x3, #0x40
 	subs	x24, x24, #1
-	bne	L_sha256_len_neon_start
+	b.ne	L_sha256_len_neon_start
 	# Round 0
 	mov	w14, v0.s[0]
 	ror	w12, w8, #6
@@ -1037,7 +1037,7 @@ L_sha256_len_neon_start:
 	add	w4, w4, w15
 	subs	w2, w2, #0x40
 	sub	x3, x3, #0xc0
-	bne	L_sha256_len_neon_begin
+	b.ne	L_sha256_len_neon_begin
 	str	w4, [x0]
 	str	w5, [x0, #4]
 	str	w6, [x0, #8]
@@ -1244,7 +1244,7 @@ L_sha256_len_crypto_begin:
 	add	v0.4s, v0.4s, v2.4s
 	add	v1.4s, v1.4s, v3.4s
 	subs	w2, w2, #0x40
-	bne	L_sha256_len_crypto_begin
+	b.ne	L_sha256_len_crypto_begin
 	# Store digest back
 	st1	{v0.4s, v1.4s}, [x0]
 	ldp	d8, d9, [x29, #16]

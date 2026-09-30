@@ -458,21 +458,21 @@ fe_invert_nct PROC
 	mov	x17, xzr
 	mov	x22, #0xff
 	cmp	x9, #0
-	beq	L_fe_invert_nct_num_bits_init_v_0
+	b.eq	L_fe_invert_nct_num_bits_init_v_0
 	mov	x24, #0x100
 	clz	x23, x9
 	sub	x23, x24, x23
 	b	L_fe_invert_nct_num_bits_init_v_3
 L_fe_invert_nct_num_bits_init_v_0
 	cmp	x8, #0
-	beq	L_fe_invert_nct_num_bits_init_v_1
+	b.eq	L_fe_invert_nct_num_bits_init_v_1
 	mov	x24, #0xc0
 	clz	x23, x8
 	sub	x23, x24, x23
 	b	L_fe_invert_nct_num_bits_init_v_3
 L_fe_invert_nct_num_bits_init_v_1
 	cmp	x7, #0
-	beq	L_fe_invert_nct_num_bits_init_v_2
+	b.eq	L_fe_invert_nct_num_bits_init_v_2
 	mov	x24, #0x80
 	clz	x23, x7
 	sub	x23, x24, x23
@@ -483,7 +483,7 @@ L_fe_invert_nct_num_bits_init_v_2
 	sub	x23, x24, x23
 L_fe_invert_nct_num_bits_init_v_3
 	tst	x6, #1
-	bne	L_fe_invert_nct_loop
+	b.ne	L_fe_invert_nct_loop
 L_fe_invert_nct_even_init_v_0
 	extr	x6, x7, x6, #1
 	extr	x7, x8, x7, #1
@@ -491,7 +491,7 @@ L_fe_invert_nct_even_init_v_0
 	lsr	x9, x9, #1
 	sub	x23, x23, #1
 	ands	x24, x14, #1
-	beq	L_fe_invert_nct_even_init_v_1
+	b.eq	L_fe_invert_nct_even_init_v_1
 	adds	x14, x14, x19
 	adcs	x15, x15, x20
 	adcs	x16, x16, x20
@@ -503,26 +503,26 @@ L_fe_invert_nct_even_init_v_1
 	extr	x16, x17, x16, #1
 	extr	x17, x24, x17, #1
 	tst	x6, #1
-	beq	L_fe_invert_nct_even_init_v_0
+	b.eq	L_fe_invert_nct_even_init_v_0
 L_fe_invert_nct_loop
 	cmp	x22, #1
-	beq	L_fe_invert_nct_u_done
+	b.eq	L_fe_invert_nct_u_done
 	cmp	x23, #1
-	beq	L_fe_invert_nct_v_done
+	b.eq	L_fe_invert_nct_v_done
 	cmp	x22, x23
-	bhi	L_fe_invert_nct_u_larger
-	bcc	L_fe_invert_nct_v_larger
+	b.hi	L_fe_invert_nct_u_larger
+	b.cc	L_fe_invert_nct_v_larger
 	cmp	x5, x9
-	bhi	L_fe_invert_nct_u_larger
-	bcc	L_fe_invert_nct_v_larger
+	b.hi	L_fe_invert_nct_u_larger
+	b.cc	L_fe_invert_nct_v_larger
 	cmp	x4, x8
-	bhi	L_fe_invert_nct_u_larger
-	bcc	L_fe_invert_nct_v_larger
+	b.hi	L_fe_invert_nct_u_larger
+	b.cc	L_fe_invert_nct_v_larger
 	cmp	x3, x7
-	bhi	L_fe_invert_nct_u_larger
-	bcc	L_fe_invert_nct_v_larger
+	b.hi	L_fe_invert_nct_u_larger
+	b.cc	L_fe_invert_nct_v_larger
 	cmp	x2, x6
-	bcc	L_fe_invert_nct_v_larger
+	b.cc	L_fe_invert_nct_v_larger
 L_fe_invert_nct_u_larger
 	subs	x2, x2, x6
 	sbcs	x3, x3, x7
@@ -532,28 +532,28 @@ L_fe_invert_nct_u_larger
 	sbcs	x11, x11, x15
 	sbcs	x12, x12, x16
 	sbcs	x13, x13, x17
-	bcs	L_fe_invert_nct_sub_uv
+	b.cs	L_fe_invert_nct_sub_uv
 	adds	x10, x10, x19
 	adcs	x11, x11, x20
 	adcs	x12, x12, x20
 	adc	x13, x13, x21
 L_fe_invert_nct_sub_uv
 	cmp	x5, #0
-	beq	L_fe_invert_nct_nct_num_bits_u_0
+	b.eq	L_fe_invert_nct_nct_num_bits_u_0
 	mov	x24, #0x100
 	clz	x22, x5
 	sub	x22, x24, x22
 	b	L_fe_invert_nct_nct_num_bits_u_3
 L_fe_invert_nct_nct_num_bits_u_0
 	cmp	x4, #0
-	beq	L_fe_invert_nct_nct_num_bits_u_1
+	b.eq	L_fe_invert_nct_nct_num_bits_u_1
 	mov	x24, #0xc0
 	clz	x22, x4
 	sub	x22, x24, x22
 	b	L_fe_invert_nct_nct_num_bits_u_3
 L_fe_invert_nct_nct_num_bits_u_1
 	cmp	x3, #0
-	beq	L_fe_invert_nct_nct_num_bits_u_2
+	b.eq	L_fe_invert_nct_nct_num_bits_u_2
 	mov	x24, #0x80
 	clz	x22, x3
 	sub	x22, x24, x22
@@ -570,7 +570,7 @@ L_fe_invert_nct_even_u_0
 	lsr	x5, x5, #1
 	sub	x22, x22, #1
 	ands	x24, x10, #1
-	beq	L_fe_invert_nct_even_u_1
+	b.eq	L_fe_invert_nct_even_u_1
 	adds	x10, x10, x19
 	adcs	x11, x11, x20
 	adcs	x12, x12, x20
@@ -582,7 +582,7 @@ L_fe_invert_nct_even_u_1
 	extr	x12, x13, x12, #1
 	extr	x13, x24, x13, #1
 	tst	x2, #1
-	beq	L_fe_invert_nct_even_u_0
+	b.eq	L_fe_invert_nct_even_u_0
 	b	L_fe_invert_nct_loop
 L_fe_invert_nct_v_larger
 	subs	x6, x6, x2
@@ -593,28 +593,28 @@ L_fe_invert_nct_v_larger
 	sbcs	x15, x15, x11
 	sbcs	x16, x16, x12
 	sbcs	x17, x17, x13
-	bcs	L_fe_invert_nct_sub_vu
+	b.cs	L_fe_invert_nct_sub_vu
 	adds	x14, x14, x19
 	adcs	x15, x15, x20
 	adcs	x16, x16, x20
 	adc	x17, x17, x21
 L_fe_invert_nct_sub_vu
 	cmp	x9, #0
-	beq	L_fe_invert_nct_nct_num_bits_v_0
+	b.eq	L_fe_invert_nct_nct_num_bits_v_0
 	mov	x24, #0x100
 	clz	x23, x9
 	sub	x23, x24, x23
 	b	L_fe_invert_nct_nct_num_bits_v_3
 L_fe_invert_nct_nct_num_bits_v_0
 	cmp	x8, #0
-	beq	L_fe_invert_nct_nct_num_bits_v_1
+	b.eq	L_fe_invert_nct_nct_num_bits_v_1
 	mov	x24, #0xc0
 	clz	x23, x8
 	sub	x23, x24, x23
 	b	L_fe_invert_nct_nct_num_bits_v_3
 L_fe_invert_nct_nct_num_bits_v_1
 	cmp	x7, #0
-	beq	L_fe_invert_nct_nct_num_bits_v_2
+	b.eq	L_fe_invert_nct_nct_num_bits_v_2
 	mov	x24, #0x80
 	clz	x23, x7
 	sub	x23, x24, x23
@@ -631,7 +631,7 @@ L_fe_invert_nct_even_v_0
 	lsr	x9, x9, #1
 	sub	x23, x23, #1
 	ands	x24, x14, #1
-	beq	L_fe_invert_nct_even_v_1
+	b.eq	L_fe_invert_nct_even_v_1
 	adds	x14, x14, x19
 	adcs	x15, x15, x20
 	adcs	x16, x16, x20
@@ -643,7 +643,7 @@ L_fe_invert_nct_even_v_1
 	extr	x16, x17, x16, #1
 	extr	x17, x24, x17, #1
 	tst	x6, #1
-	beq	L_fe_invert_nct_even_v_0
+	b.eq	L_fe_invert_nct_even_v_0
 	b	L_fe_invert_nct_loop
 L_fe_invert_nct_u_done
 	str	x10, [x0]
@@ -1024,7 +1024,7 @@ L_fe_invert1
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert1
+	b.ne	L_fe_invert1
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -1118,7 +1118,7 @@ L_fe_invert2
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert2
+	b.ne	L_fe_invert2
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -1212,7 +1212,7 @@ L_fe_invert3
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert3
+	b.ne	L_fe_invert3
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -1306,7 +1306,7 @@ L_fe_invert4
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert4
+	b.ne	L_fe_invert4
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -1400,7 +1400,7 @@ L_fe_invert5
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert5
+	b.ne	L_fe_invert5
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -1494,7 +1494,7 @@ L_fe_invert6
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert6
+	b.ne	L_fe_invert6
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -1588,7 +1588,7 @@ L_fe_invert7
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert7
+	b.ne	L_fe_invert7
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -1682,7 +1682,7 @@ L_fe_invert8
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x20, x20, #1
-	bne	L_fe_invert8
+	b.ne	L_fe_invert8
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]
@@ -2714,7 +2714,7 @@ L_curve25519_base_bits
 	adc	x13, x13, xzr
 	subs	x24, x24, #1
 	cmp	x24, #3
-	bge	L_curve25519_base_bits
+	b.ge	L_curve25519_base_bits
 	; Conditional Swap
 	subs	xzr, xzr, x2, lsl 63
 	ldp	x25, x26, [x29, #16]
@@ -3216,7 +3216,7 @@ L_curve25519_base_3
 	stp	x25, x26, [x29, #16]
 	stp	x27, x28, [x29, #32]
 	subs	x24, x24, #1
-	bge	L_curve25519_base_3
+	b.ge	L_curve25519_base_3
 	; Invert
 	add	x0, x29, #48
 	add	x1, x29, #16
@@ -3328,7 +3328,7 @@ L_curve25519_base_inv_1
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_1
+	b.ne	L_curve25519_base_inv_1
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -3422,7 +3422,7 @@ L_curve25519_base_inv_2
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_2
+	b.ne	L_curve25519_base_inv_2
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -3516,7 +3516,7 @@ L_curve25519_base_inv_3
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_3
+	b.ne	L_curve25519_base_inv_3
 	; Store
 	stp	x6, x7, [x29, #144]
 	stp	x8, x9, [x29, #160]
@@ -3610,7 +3610,7 @@ L_curve25519_base_inv_4
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_4
+	b.ne	L_curve25519_base_inv_4
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -3704,7 +3704,7 @@ L_curve25519_base_inv_5
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_5
+	b.ne	L_curve25519_base_inv_5
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -3798,7 +3798,7 @@ L_curve25519_base_inv_6
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_6
+	b.ne	L_curve25519_base_inv_6
 	; Store
 	stp	x6, x7, [x29, #144]
 	stp	x8, x9, [x29, #160]
@@ -3892,7 +3892,7 @@ L_curve25519_base_inv_7
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_7
+	b.ne	L_curve25519_base_inv_7
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -3986,7 +3986,7 @@ L_curve25519_base_inv_8
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_base_inv_8
+	b.ne	L_curve25519_base_inv_8
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -5249,7 +5249,7 @@ L_curve25519_bits
 	adc	x13, x13, x27
 	subs	x24, x24, #1
 	cmp	x24, #3
-	bge	L_curve25519_bits
+	b.ge	L_curve25519_bits
 	; Conditional Swap
 	subs	xzr, xzr, x23, lsl 63
 	ldp	x25, x26, [x29, #16]
@@ -5751,7 +5751,7 @@ L_curve25519_3
 	stp	x25, x26, [x29, #16]
 	stp	x27, x28, [x29, #32]
 	subs	x24, x24, #1
-	bge	L_curve25519_3
+	b.ge	L_curve25519_3
 	; Invert
 	add	x0, x29, #48
 	add	x1, x29, #16
@@ -5863,7 +5863,7 @@ L_curve25519_inv_1
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_1
+	b.ne	L_curve25519_inv_1
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -5957,7 +5957,7 @@ L_curve25519_inv_2
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_2
+	b.ne	L_curve25519_inv_2
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -6051,7 +6051,7 @@ L_curve25519_inv_3
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_3
+	b.ne	L_curve25519_inv_3
 	; Store
 	stp	x6, x7, [x29, #144]
 	stp	x8, x9, [x29, #160]
@@ -6145,7 +6145,7 @@ L_curve25519_inv_4
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_4
+	b.ne	L_curve25519_inv_4
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -6239,7 +6239,7 @@ L_curve25519_inv_5
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_5
+	b.ne	L_curve25519_inv_5
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -6333,7 +6333,7 @@ L_curve25519_inv_6
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_6
+	b.ne	L_curve25519_inv_6
 	; Store
 	stp	x6, x7, [x29, #144]
 	stp	x8, x9, [x29, #160]
@@ -6427,7 +6427,7 @@ L_curve25519_inv_7
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_7
+	b.ne	L_curve25519_inv_7
 	; Store
 	stp	x6, x7, [x29, #112]
 	stp	x8, x9, [x29, #128]
@@ -6521,7 +6521,7 @@ L_curve25519_inv_8
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x24, x24, #1
-	bne	L_curve25519_inv_8
+	b.ne	L_curve25519_inv_8
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -6797,7 +6797,7 @@ L_fe_pow22523_1
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_1
+	b.ne	L_fe_pow22523_1
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]
@@ -6891,7 +6891,7 @@ L_fe_pow22523_2
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_2
+	b.ne	L_fe_pow22523_2
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]
@@ -6985,7 +6985,7 @@ L_fe_pow22523_3
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_3
+	b.ne	L_fe_pow22523_3
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -7079,7 +7079,7 @@ L_fe_pow22523_4
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_4
+	b.ne	L_fe_pow22523_4
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]
@@ -7173,7 +7173,7 @@ L_fe_pow22523_5
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_5
+	b.ne	L_fe_pow22523_5
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]
@@ -7267,7 +7267,7 @@ L_fe_pow22523_6
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_6
+	b.ne	L_fe_pow22523_6
 	; Store
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
@@ -7361,7 +7361,7 @@ L_fe_pow22523_7
 	adcs	x8, x12, x15
 	adc	x9, x13, x16
 	subs	x23, x23, #1
-	bne	L_fe_pow22523_7
+	b.ne	L_fe_pow22523_7
 	; Store
 	stp	x6, x7, [x29, #48]
 	stp	x8, x9, [x29, #64]

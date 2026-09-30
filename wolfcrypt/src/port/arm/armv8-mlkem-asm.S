@@ -8840,7 +8840,7 @@ _mlkem_cmp_neon:
 	orr	v10.16b, v10.16b, v2.16b
 	orr	v11.16b, v11.16b, v3.16b
 	subs	w2, w2, #0x300
-	beq	L_mlkem_aarch64_cmp_neon_done
+	b.eq	L_mlkem_aarch64_cmp_neon_done
 	ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
 	ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	eor	v0.16b, v0.16b, v4.16b
@@ -8892,7 +8892,7 @@ _mlkem_cmp_neon:
 	orr	v10.16b, v10.16b, v2.16b
 	orr	v11.16b, v11.16b, v3.16b
 	subs	w2, w2, #0x140
-	beq	L_mlkem_aarch64_cmp_neon_done
+	b.eq	L_mlkem_aarch64_cmp_neon_done
 	ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
 	ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	eor	v0.16b, v0.16b, v4.16b
@@ -9602,9 +9602,9 @@ _mlkem_rej_uniform_neon:
 	ldr	q3, [x5]
 	ldr	q2, [x6]
 	subs	wzr, w1, #0
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	subs	wzr, w1, #16
-	blt	L_mlkem_rej_uniform_loop_4
+	b.lt	L_mlkem_rej_uniform_loop_4
 L_mlkem_rej_uniform_loop_16:
 	ld3	{v4.8b, v5.8b, v6.8b}, [x2], #24
 	zip1	v4.16b, v4.16b, v1.16b
@@ -9646,16 +9646,16 @@ L_mlkem_rej_uniform_loop_16:
 	add	x0, x0, x11, lsl 1
 	add	x12, x12, x11
 	subs	w3, w3, #24
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	sub	w10, w1, w12
 	subs	x10, x10, #16
-	blt	L_mlkem_rej_uniform_loop_4
+	b.lt	L_mlkem_rej_uniform_loop_4
 	b	L_mlkem_rej_uniform_loop_16
 L_mlkem_rej_uniform_loop_4:
 	subs	w10, w1, w12
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	subs	x10, x10, #4
-	blt	L_mlkem_rej_uniform_loop_lt_4
+	b.lt	L_mlkem_rej_uniform_loop_lt_4
 	ldr	x4, [x2], #6
 	lsr	x5, x4, #12
 	lsr	x6, x4, #24
@@ -9685,7 +9685,7 @@ L_mlkem_rej_uniform_loop_4:
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	w3, w3, #6
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	b	L_mlkem_rej_uniform_loop_4
 L_mlkem_rej_uniform_loop_lt_4:
 	ldr	x4, [x2], #6
@@ -9702,30 +9702,30 @@ L_mlkem_rej_uniform_loop_lt_4:
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	strh	w5, [x0]
 	subs	xzr, x5, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	strh	w6, [x0]
 	subs	xzr, x6, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	strh	w7, [x0]
 	subs	xzr, x7, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	subs	w3, w3, #6
-	beq	L_mlkem_rej_uniform_done
+	b.eq	L_mlkem_rej_uniform_done
 	b	L_mlkem_rej_uniform_loop_lt_4
 L_mlkem_rej_uniform_done:
 	mov	x0, x12
@@ -10047,7 +10047,7 @@ L_SHA3_transform_blocksx3_crypto_begin:
 	mov	v30.d[1], x0
 	eor	x1, x1, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_transform_blocksx3_crypto_begin
+	b.ne	L_SHA3_transform_blocksx3_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -10396,7 +10396,7 @@ L_SHA3_shake128_blocksx3_seed_crypto_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake128_blocksx3_seed_crypto_begin
+	b.ne	L_SHA3_shake128_blocksx3_seed_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -10745,7 +10745,7 @@ L_SHA3_shake256_blocksx3_seed_crypto_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake256_blocksx3_seed_crypto_begin
+	b.ne	L_SHA3_shake256_blocksx3_seed_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -11158,7 +11158,7 @@ L_SHA3_transform_blocksx3_neon_begin:
 	mov	v30.d[1], x0
 	eor	x1, x1, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_transform_blocksx3_neon_begin
+	b.ne	L_SHA3_transform_blocksx3_neon_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -11592,7 +11592,7 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake128_blocksx3_seed_neon_begin
+	b.ne	L_SHA3_shake128_blocksx3_seed_neon_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -12026,7 +12026,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake256_blocksx3_seed_neon_begin
+	b.ne	L_SHA3_shake256_blocksx3_seed_neon_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
