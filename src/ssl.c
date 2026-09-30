@@ -5947,6 +5947,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 (ssl->session != NULL)) {
             ssl->session->haveAltSessionID = 0;
             ForceZero(ssl->session->altSessionID, ID_LEN);
+            /* The recorded client-auth outcome describes the connection that
+             * just ended. Whatever resumes next re-establishes it from the
+             * ticket it presents or the session the lookup finds, so a value
+             * left here could only be inherited by a session it does not
+             * belong to - including one a session-secret callback supplies,
+             * which carries no such record of its own. */
+            ssl->session->peerAuthOk = 0;
         }
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;

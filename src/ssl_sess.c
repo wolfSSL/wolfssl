@@ -3806,11 +3806,17 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
-    /* A resumed connection sends no Certificate, so it has nothing of its own
-     * to record and keeps what it inherited. Only a full handshake decides
-     * this, and only a verified client certificate counts: the peerAuthGood
-     * grants made when the connection does not ask for one do not. */
-    if (!ssl->options.resuming) {
+    /* Server side only: on a client these same flags describe the server
+     * certificate the client verified, which is a different statement, and
+     * nothing reads the field on that side. Leaving a client session at zero
+     * keeps one meaning for the field, so a session reaching a server through
+     * a store shared with a client cannot assert an authenticated peer.
+     * A resumed connection sends no Certificate, so it has nothing of its own
+     * to record and keeps what it inherited. Only a verified client
+     * certificate counts: the peerAuthGood grants made when the connection
+     * does not ask for one do not. */
+    if (!ssl->options.resuming &&
+            (ssl->options.side == WOLFSSL_SERVER_END)) {
         session->peerAuthOk = (byte)(ssl->options.havePeerCert &&
                                      ssl->options.havePeerVerify);
     }
