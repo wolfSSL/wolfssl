@@ -36121,6 +36121,10 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
 
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    ssl->options.dhKeyTested = 0;
+#endif
     ssl->buffers.serverDH_P.buffer =
         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_P.buffer) {
@@ -36305,7 +36309,7 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ssl->namedGroup = group;
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
-        ssl->options.dhDoKeyTest = 0;
+        ssl->options.dhKeyTested = 1;
     #endif
     }
 #endif /* HAVE_FFDHE */
