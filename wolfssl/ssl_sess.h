@@ -120,7 +120,7 @@
 
     #ifndef NO_CLIENT_CACHE
         #ifndef CLIENT_SESSIONS_MULTIPLIER
-            #ifdef NO_SESSION_CACHE_REF
+            #if defined(NO_SESSION_CACHE_REF) || SESSION_ROWS > (65535 / 8)
                 #define CLIENT_SESSIONS_MULTIPLIER 1
             #else
                 /* ClientSession objects are lightweight (compared to
@@ -135,6 +135,9 @@
                                 (SESSIONS_PER_ROW * CLIENT_SESSIONS_MULTIPLIER)
         #define CLIENT_SESSION_ROWS (SESSION_ROWS * CLIENT_SESSIONS_MULTIPLIER)
 
+        #if CLIENT_SESSIONS_MULTIPLIER < 1
+            #error CLIENT_SESSIONS_MULTIPLIER must be a positive integer
+        #endif
         #if CLIENT_SESSIONS_PER_ROW > 65535
             #error CLIENT_SESSIONS_PER_ROW too big, lower CLIENT_SESSIONS_MULTIPLIER
         #endif

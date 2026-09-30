@@ -28,10 +28,12 @@
 
   Two consequences of the new default worth planning for.  The `ClientCache`
   is sized by `CLIENT_SESSIONS_MULTIPLIER`, which is 1 under
-  `NO_SESSION_CACHE_REF` and 8 without it, so a build that previously left the
-  macro unset gets a client cache 8x smaller (and correspondingly cheaper).
-  Define `CLIENT_SESSIONS_MULTIPLIER` to any value to choose the size
-  yourself.  Because that cache is part of the `PERSIST_SESSION_CACHE` image,
+  `NO_SESSION_CACHE_REF` and 8 without it.  It scales both the rows and the
+  columns, so a build that previously left the macro unset gets 8x fewer rows
+  and 8x fewer columns, a client cache with 64x fewer slots (2112 down to 33
+  with the default cache size).  Define `CLIENT_SESSIONS_MULTIPLIER` to a
+  positive integer to choose the size yourself; the resulting rows and columns
+  must each stay at or below 65535.  Because that cache is part of the `PERSIST_SESSION_CACHE` image,
   `WOLFSSL_CACHE_VERSION` goes to 4 and the header now records the client
   cache rows and columns, so an image written by a build with different
   dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
