@@ -534,8 +534,8 @@ static int linuxkm_lkcapi_register(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     REGISTER_ALG(ecbAesAlg, skcipher, linuxkm_test_aesecb);
 #endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
-    REGISTER_ALG(aesCipherAlg, km_cipher, linuxkm_test_aes_cipher);
+#ifdef LINUXKM_LKCAPI_REGISTER_AESDIRECT
+    REGISTER_ALG(aesDirectAlg, km_cipher, linuxkm_test_aesdirect);
 #endif
 
 /* SHA algs must be registered before PK algs, to make the crypto_default_rng
@@ -935,8 +935,8 @@ static int linuxkm_lkcapi_unregister(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     UNREGISTER_ALG(ecbAesAlg, skcipher);
 #endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
-    UNREGISTER_ALG(aesCipherAlg, km_cipher);
+#ifdef LINUXKM_LKCAPI_REGISTER_AESDIRECT
+    UNREGISTER_ALG(aesDirectAlg, km_cipher);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1

@@ -45,7 +45,7 @@
     defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESECB) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESCMAC) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AES_CIPHER) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESDIRECT) || \
     defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)
 
     #ifdef NO_AES
@@ -107,7 +107,7 @@
 #define WOLFKM_AESOFB_NAME   "ofb(aes)"
 #define WOLFKM_AESECB_NAME   "ecb(aes)"
 #define WOLFKM_AESCMAC_NAME  "cmac(aes)"
-#define WOLFKM_AES_CIPHER_NAME "aes"
+#define WOLFKM_AESDIRECT_NAME "aes"
 
 #if defined(WOLFSSL_X86_64_BUILD) && (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES))
     #if !defined(NO_AVX512_SUPPORT)
@@ -139,7 +139,7 @@
 #define WOLFKM_AESOFB_DRIVER ("ofb-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESECB_DRIVER ("ecb-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESCMAC_DRIVER ("cmac-aes" WOLFKM_AES_DRIVER_SUFFIX)
-#define WOLFKM_AES_CIPHER_DRIVER ("aes" WOLFKM_AES_DRIVER_SUFFIX)
+#define WOLFKM_AESDIRECT_DRIVER ("aes" WOLFKM_AES_DRIVER_SUFFIX)
 
 #ifdef HAVE_AES_CBC
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
@@ -290,12 +290,12 @@
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
          defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
          (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_AES))) && \
-        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AES_CIPHER) &&           \
-        !defined(LINUXKM_LKCAPI_REGISTER_AES_CIPHER)
-        #define LINUXKM_LKCAPI_REGISTER_AES_CIPHER
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESDIRECT) &&            \
+        !defined(LINUXKM_LKCAPI_REGISTER_AESDIRECT)
+        #define LINUXKM_LKCAPI_REGISTER_AESDIRECT
     #endif
 #else
-    #undef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
+    #undef LINUXKM_LKCAPI_REGISTER_AESDIRECT
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)) && defined(LINUXKM_LKCAPI_REGISTER_AESCMAC)
@@ -339,8 +339,8 @@
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
     static int  linuxkm_test_aescmac(void);
 #endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
-    static int  linuxkm_test_aes_cipher(void);
+#ifdef LINUXKM_LKCAPI_REGISTER_AESDIRECT
+    static int  linuxkm_test_aesdirect(void);
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
@@ -348,7 +348,7 @@
     defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESECB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AES_CIPHER) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESDIRECT) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESGCM) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESCCM) || \
@@ -365,7 +365,7 @@
 #endif
 
 #if defined(LINUXKM_LKCAPI_NEED_AES_SKCIPHER_COMMON_FUNCS) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AES_CIPHER)
+    defined(LINUXKM_LKCAPI_REGISTER_AESDIRECT)
     #define LINUXKM_LKCAPI_NEED_AES_SETKEY_COMMON_FUNCS
 #endif
 
@@ -3279,7 +3279,7 @@ static int ecbAesAlg_loaded = 0;
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
 
-#ifdef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
+#ifdef LINUXKM_LKCAPI_REGISTER_AESDIRECT
 
 /* crypto_cipher_setkey() and crypto_cipher_{en,de}crypt_one(), used by the
  * self-test, are in the CRYPTO_INTERNAL namespace since 5.12.
@@ -3307,30 +3307,30 @@ static inline void crypto_unregister_km_cipher(struct km_cipher_alg *alg)
     crypto_unregister_alg(&alg->base);
 }
 
-static int km_AesCipherInit(struct crypto_tfm *tfm)
+static int km_AesDirectInit(struct crypto_tfm *tfm)
 {
     struct km_AesCtx * ctx = crypto_tfm_ctx(tfm);
-    return km_AesInitCommon(ctx, WOLFKM_AES_CIPHER_DRIVER, 1);
+    return km_AesInitCommon(ctx, WOLFKM_AESDIRECT_DRIVER, 1);
 }
 
-static void km_AesCipherExit(struct crypto_tfm *tfm)
+static void km_AesDirectExit(struct crypto_tfm *tfm)
 {
     struct km_AesCtx * ctx = crypto_tfm_ctx(tfm);
     km_AesExitCommon(ctx);
 }
 
-static int km_AesCipherSetKey(struct crypto_tfm *tfm, const u8 *in_key,
+static int km_AesDirectSetKey(struct crypto_tfm *tfm, const u8 *in_key,
                               unsigned int key_len)
 {
     struct km_AesCtx * ctx = crypto_tfm_ctx(tfm);
-    return km_AesSetKeyCommon(ctx, in_key, key_len, WOLFKM_AES_CIPHER_DRIVER);
+    return km_AesSetKeyCommon(ctx, in_key, key_len, WOLFKM_AESDIRECT_DRIVER);
 }
 
 /* One block, through the same wc_AesEcb*() calls and shared key schedule
  * (copy_p 0) as ecbAesAlg.  cia_encrypt and cia_decrypt cannot report an
  * error, so on failure the output block is zeroed rather than left unset.
  */
-static void km_AesCipherCrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src,
+static void km_AesDirectCrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src,
                               int decrypt_p)
 {
     struct km_AesCtx * ctx = crypto_tfm_ctx(tfm);
@@ -3347,43 +3347,43 @@ static void km_AesCipherCrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src,
 
     if (unlikely(err)) {
         pr_err_ratelimited("%s: wc_AesEcb%s failed: %d\n",
-                           WOLFKM_AES_CIPHER_DRIVER,
+                           WOLFKM_AESDIRECT_DRIVER,
                            decrypt_p ? "Decrypt" : "Encrypt", err);
         memset(dst, 0, WC_AES_BLOCK_SIZE);
     }
 }
 
-static void km_AesCipherEncrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void km_AesDirectEncrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-    km_AesCipherCrypt(tfm, dst, src, 0);
+    km_AesDirectCrypt(tfm, dst, src, 0);
 }
 
-static void km_AesCipherDecrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void km_AesDirectDecrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-    km_AesCipherCrypt(tfm, dst, src, 1);
+    km_AesDirectCrypt(tfm, dst, src, 1);
 }
 
-static struct km_cipher_alg aesCipherAlg = {
-    .base.cra_name        = WOLFKM_AES_CIPHER_NAME,
-    .base.cra_driver_name = WOLFKM_AES_CIPHER_DRIVER,
+static struct km_cipher_alg aesDirectAlg = {
+    .base.cra_name        = WOLFKM_AESDIRECT_NAME,
+    .base.cra_driver_name = WOLFKM_AESDIRECT_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
     .base.cra_flags       = CRYPTO_ALG_TYPE_CIPHER,
     .base.cra_blocksize   = WC_AES_BLOCK_SIZE,
     .base.cra_ctxsize     = sizeof(struct km_AesCtx),
     .base.cra_module      = THIS_MODULE,
-    .base.cra_init        = km_AesCipherInit,
-    .base.cra_exit        = km_AesCipherExit,
+    .base.cra_init        = km_AesDirectInit,
+    .base.cra_exit        = km_AesDirectExit,
     .base.cra_u.cipher    = {
         .cia_min_keysize  = AES_128_KEY_SIZE,
         .cia_max_keysize  = AES_256_KEY_SIZE,
-        .cia_setkey       = km_AesCipherSetKey,
-        .cia_encrypt      = km_AesCipherEncrypt,
-        .cia_decrypt      = km_AesCipherDecrypt,
+        .cia_setkey       = km_AesDirectSetKey,
+        .cia_encrypt      = km_AesDirectEncrypt,
+        .cia_decrypt      = km_AesDirectDecrypt,
     },
 };
-static int aesCipherAlg_loaded = 0;
+static int aesDirectAlg_loaded = 0;
 
-#endif /* LINUXKM_LKCAPI_REGISTER_AES_CIPHER */
+#endif /* LINUXKM_LKCAPI_REGISTER_AESDIRECT */
 
 /* cipher tests, cribbed from test.c, with supplementary LKCAPI tests: */
 
@@ -5311,12 +5311,12 @@ static int linuxkm_test_aesecb(void) {
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
 
-#ifdef LINUXKM_LKCAPI_REGISTER_AES_CIPHER
+#ifdef LINUXKM_LKCAPI_REGISTER_AESDIRECT
 
 /* FIPS-197 Appendix C.1 (AES-128) and C.3 (AES-256) known answers, run through
  * the kernel API so the test covers the registration as well as wolfCrypt.
  */
-static int linuxkm_test_aes_cipher(void) {
+static int linuxkm_test_aesdirect(void) {
     static const u8 key[32] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -5344,10 +5344,10 @@ static int linuxkm_test_aes_cipher(void) {
     size_t i;
     int ret = 0;
 
-    tfm = crypto_alloc_cipher(WOLFKM_AES_CIPHER_NAME, 0, 0);
+    tfm = crypto_alloc_cipher(WOLFKM_AESDIRECT_NAME, 0, 0);
     if (IS_ERR(tfm)) {
         pr_err("error: allocating AES cipher algorithm %s failed: %d\n",
-               WOLFKM_AES_CIPHER_DRIVER, PTR_ERR(tfm));
+               WOLFKM_AESDIRECT_DRIVER, PTR_ERR(tfm));
         return (int)PTR_ERR(tfm);
     }
 
@@ -5355,9 +5355,9 @@ static int linuxkm_test_aes_cipher(void) {
     {
         const char *driver_name =
             crypto_tfm_alg_driver_name(crypto_cipher_tfm(tfm));
-        if (strcmp(driver_name, WOLFKM_AES_CIPHER_DRIVER)) {
+        if (strcmp(driver_name, WOLFKM_AESDIRECT_DRIVER)) {
             pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-                   WOLFKM_AES_CIPHER_NAME, driver_name, WOLFKM_AES_CIPHER_DRIVER);
+                   WOLFKM_AESDIRECT_NAME, driver_name, WOLFKM_AESDIRECT_DRIVER);
             ret = -ENOENT;
             goto out;
         }
@@ -5374,14 +5374,14 @@ static int linuxkm_test_aes_cipher(void) {
         crypto_cipher_encrypt_one(tfm, buf, pt);
         if (memcmp(buf, kat[i].ct, sizeof(buf))) {
             pr_err("error: %s AES-%u encrypt known answer mismatch\n",
-                   WOLFKM_AES_CIPHER_DRIVER, kat[i].key_len * 8);
+                   WOLFKM_AESDIRECT_DRIVER, kat[i].key_len * 8);
             ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
             goto out;
         }
         crypto_cipher_decrypt_one(tfm, buf, buf);
         if (memcmp(buf, pt, sizeof(buf))) {
             pr_err("error: %s AES-%u decrypt known answer mismatch\n",
-                   WOLFKM_AES_CIPHER_DRIVER, kat[i].key_len * 8);
+                   WOLFKM_AESDIRECT_DRIVER, kat[i].key_len * 8);
             ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
             goto out;
         }
@@ -5392,7 +5392,7 @@ out:
     return ret;
 }
 
-#endif /* LINUXKM_LKCAPI_REGISTER_AES_CIPHER */
+#endif /* LINUXKM_LKCAPI_REGISTER_AESDIRECT */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
 
