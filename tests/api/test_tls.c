@@ -1355,6 +1355,60 @@ int test_tls12_dhe_rsa_pss_sigalg(void)
     return EXPECT_RESULT();
 }
 
+int test_tls12_dhe_renegotiate_larger_prime(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_DH) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_HARDEN_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte readBuf[16];
+    byte p[256];
+    byte g[1];
+    word32 pSz = (word32)sizeof(p);
+    word32 gSz = (word32)sizeof(g);
+    int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+
+    ExpectIntEQ(wc_DhCopyNamedKey(WOLFSSL_FFDHE_2048, p, &pSz, g, &gSz, NULL,
+        NULL), 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    /* No FFDHE offer, so the server sends its own 1024-bit parameters. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_GetDhKey_Sz(ssl_c), 1024);
+
+    ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, (int)pSz, g, (int)gSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_GetDhKey_Sz(ssl_c), 2048);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_ske_sig_param_binding(void)
 {
     EXPECT_DECLS;
