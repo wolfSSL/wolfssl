@@ -15001,6 +15001,23 @@ WC_MAYBE_UNUSED static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
     }
 }
 
+#ifdef SESSION_CERTS
+/* Empty the session chain and drop the compatibility views built from it. */
+WC_MAYBE_UNUSED static void ResetSessionCertChain(WOLFSSL* ssl)
+{
+    ssl->session->chain.count = 0;
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    ssl->session->altChain.count = 0;
+#endif
+#ifdef OPENSSL_EXTRA
+    wolfSSL_X509_free(ssl->session->peer);
+    ssl->session->peer = NULL;
+    wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+    ssl->peerCertChain = NULL;
+#endif
+}
+#endif
+
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(WOLFSSL_ACERT)
@@ -18328,6 +18345,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
 
+        #ifdef SESSION_CERTS
+            /* Replace any earlier or resumed chain; an empty post-handshake
+             * answer keeps the one the handshake verified. */
+            if (listSz > 0) {
+                ResetSessionCertChain(ssl);
+            }
+        #endif
+
             WOLFSSL_MSG("Loading peer's cert chain");
             /* first put cert chain into buffer so can verify top down
                we're sent bottom up */
@@ -19618,10 +19643,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
 #endif
     {
-        ssl->session->chain.count = 0;
-#ifdef WOLFSSL_ALT_CERT_CHAINS
-        ssl->session->altChain.count = 0;
-#endif
+        ResetSessionCertChain(ssl);
     }
 #endif /* SESSION_CERTS */
 
