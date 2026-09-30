@@ -2479,6 +2479,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 word32 buf[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
                 ByteReverseWords(buf, sha256->digest, WC_SHA256_DIGEST_SIZE);
                 XMEMCPY(hash, buf, WC_SHA256_DIGEST_SIZE);
+                ForceZero(buf, sizeof(buf));
             }
         #endif
             else {
