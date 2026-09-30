@@ -1338,6 +1338,7 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || defined(WOLFSSL_MLDSA_CHECK_KEY) || \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) || \
     (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
      defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM))
 
@@ -1485,6 +1486,7 @@ static int mldsa_decode_eta_4_bits(const byte* p, sword32* s)
 #endif
 
 #if defined(WOLFSSL_MLDSA_CHECK_KEY) || \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) || \
     (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
      defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
@@ -1579,7 +1581,8 @@ static int mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
     return ret;
 }
 #endif
-#endif /* !WOLFSSL_MLDSA_NO_SIGN || WOLFSSL_MLDSA_CHECK_KEY */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN || WOLFSSL_MLDSA_CHECK_KEY ||
+        * WC_MLDSA_HAVE_MAKE_PUBLIC_KEY */
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 /* Encode t into t0 and t1.
@@ -13022,6 +13025,367 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
     return mldsa_key_from_seed_dev(key, seed, 1);
 }
+
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
+/* Encoded size of one polynomial of t0 and of t1. */
+#define MLDSA_T0_POLY_ENC_SZ    (MLDSA_D * MLDSA_N / 8)
+#define MLDSA_T1_POLY_ENC_SZ    (MLDSA_U * MLDSA_N / 8)
+/* Buffer headroom required for AVX2 encoder. Do not reduce to 0. */
+#define MLDSA_POLY_ENC_SLACK    8
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+/* Polynomials encoded per call. Two keeps the paired AVX-512 encoder, which
+ * needs an even count, in use. */
+#define MLDSA_T_ENC_POLYS       2
+#else
+/* t is calculated a polynomial at a time. */
+#define MLDSA_T_ENC_POLYS       1
+#endif
+/* Encode scratch size for MLDSA_T_ENC_POLYS polynomials of t0. */
+#define MLDSA_T0_ENC_SCRATCH_SZ \
+    ((MLDSA_T_ENC_POLYS * MLDSA_T0_POLY_ENC_SZ) + MLDSA_POLY_ENC_SLACK)
+
+/* Encode t into t1 and check its t0 against the private key's t0.
+ *
+ * t1 is written straight into the public key, which has the encoder's
+ * headroom as in key generation. t0 is encoded into scratch,
+ * MLDSA_T_ENC_POLYS polynomials at a time.
+ *
+ * @param [in]      t      Vector t (k polynomials), made positive.
+ * @param [in]      k      Number of polynomials in t.
+ * @param [in]      t0p    Encoded t0 from the private key to compare against.
+ * @param [out]     t1     Buffer to write encoded t1 into.
+ * @param [in, out] t0Enc  Encode scratch of MLDSA_T0_ENC_SCRATCH_SZ bytes.
+ * @param [in, out] diff   Non-zero bits are accumulated on a t0 mismatch.
+ * @return  0 on success.
+ * @return  Negative when encoding fails.
+ */
+static int mldsa_encode_t_check(const sword32* t, byte k, const byte* t0p,
+    byte* t1, byte* t0Enc, int* diff)
+{
+    int ret = 0;
+    unsigned int i;
+    unsigned int n;
+
+    for (i = 0; i < (unsigned int)k; i += n) {
+        n = (unsigned int)k - i;
+        if (n > MLDSA_T_ENC_POLYS) {
+            n = MLDSA_T_ENC_POLYS;
+        }
+        ret = mldsa_vec_encode_t0_t1(t + ((size_t)i * MLDSA_N), (byte)n, t0Enc,
+            t1 + ((size_t)i * MLDSA_T1_POLY_ENC_SZ));
+        if (ret != 0) {
+            break;
+        }
+
+        /* Accumulate rather than break early so the work stays independent
+         * of where a mismatch falls. */
+        *diff |= ConstantCompare(t0Enc,
+            t0p + ((size_t)i * MLDSA_T0_POLY_ENC_SZ),
+            (int)(n * MLDSA_T0_POLY_ENC_SZ));
+    }
+
+    return ret;
+}
+
+/* Check the public key against the private key's tr, which is H(pk).
+ *
+ * @param [in, out] key  ML-DSA key with both halves set.
+ * @return  0 when the public key belongs to the private key.
+ * @return  PUBLIC_KEY_E when it does not.
+ * @return  Negative on hash error.
+ */
+static int mldsa_check_pub_tr(wc_MlDsaKey* key)
+{
+    int ret;
+    byte trCalc[MLDSA_TR_SZ];
+    const byte* tr = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ;
+
+    ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, trCalc,
+        MLDSA_TR_SZ);
+    if ((ret == 0) && (ConstantCompare(trCalc, tr, MLDSA_TR_SZ) != 0)) {
+        ret = PUBLIC_KEY_E;
+    }
+
+    return ret;
+}
+
+/* Derive the public key (rho || t1) from the private key.
+ *
+ * @param [in, out] key  ML-DSA key with the private key set and no public key.
+ * @return  0 on success.
+ * @return  PUBLIC_KEY_E when the derived key does not match the private key.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int mldsa_make_pub_key(wc_MlDsaKey* key)
+{
+    int ret = 0;
+    const wc_MlDsaParams* params = key->params;
+    sword32* s1 = NULL;
+    sword32* t  = NULL;
+    sword32* a  = NULL;
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+    sword32* s2 = NULL;
+#else
+    sword32* s2t = NULL;
+    sword64* t64 = NULL;
+    byte* h = NULL;
+#endif
+    WC_DECLARE_VAR(t0Enc, byte, MLDSA_T0_ENC_SCRATCH_SZ, NULL);
+    unsigned int allocSz = 0;
+    int diff = 0;
+
+#ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+    ret = mldsa_alloc_pub_buf(key);
+#endif
+
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+#ifndef WC_MLDSA_FIXED_ARRAY
+    /* Importing or generating the private key allocates the matrix cache,
+     * so this only guards against a key without one. */
+    if ((ret == 0) && (key->a == NULL)) {
+        key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_MLDSA);
+        if (key->a == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            key->aSet = 0;
+        }
+    }
+#endif
+    if (ret == 0) {
+        a = key->a;
+    }
+#endif
+
+    /* s1, s2 and t are always local: the private-vector cache holds the
+     * NTT-domain vectors the next sign reuses, so it is left intact. */
+    if (ret == 0) {
+        /* s1-l, s2-k, t-k. Note: t has same size as s2 */
+        allocSz = (unsigned int)params->s1Sz + params->s2Sz +
+            params->s2Sz;
+#ifndef WC_MLDSA_CACHE_MATRIX_A
+        /* A-KxL */
+        allocSz += params->aSz;
+#endif
+
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
+        if (s1 == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            s2 = s1 + params->s1Sz / sizeof(*s1);
+            t  = s2 + params->s2Sz / sizeof(*s2);
+#ifndef WC_MLDSA_CACHE_MATRIX_A
+            a  = t  + params->s2Sz / sizeof(*t);
+#endif
+        }
+    }
+#else
+    /* Matrix A is expanded a polynomial at a time, so any cache is left
+     * alone. */
+    if (ret == 0) {
+        /* s1-l, t-1, s2-1, a-1, [t64], h. h is last as its size may be
+         * odd. */
+        allocSz = (unsigned int)params->s1Sz +
+            3U * (unsigned int)MLDSA_POLY_SIZE +
+            (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
+    #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+        /* t64 */
+        allocSz += 2U * (unsigned int)MLDSA_POLY_SIZE;
+    #endif
+
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
+        if (s1 == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            t   = s1 + params->s1Sz / sizeof(*s1);
+            s2t = t + MLDSA_N;
+            a   = s2t + MLDSA_N;
+        #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+            t64 = (sword64*)(a + MLDSA_N);
+            h   = (byte*)(t64 + MLDSA_N);
+        #else
+            h   = (byte*)(a + MLDSA_N);
+        #endif
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        /* MLDSA_T_ENC_POLYS polynomials of encode scratch, so up to about
+         * 850 bytes on the stack unless WOLFSSL_SMALL_STACK asks for it to
+         * be allocated. */
+        WC_ALLOC_VAR_EX(t0Enc, byte, MLDSA_T0_ENC_SCRATCH_SZ, key->heap,
+            DYNAMIC_TYPE_MLDSA, ret = MEMORY_E);
+    }
+
+    if (ret == 0) {
+        const byte* rho = key->k;
+        const byte* s1p = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ +
+            MLDSA_TR_SZ;
+        const byte* s2p = s1p + params->s1EncSz;
+        const byte* t0p = s2p + params->s2EncSz;
+        byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
+
+        XMEMCPY(key->p, rho, MLDSA_PUB_SEED_SZ);
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+        /* Clear cached NTT(t1) since key->p is being rewritten,
+         * preventing reused keys from verifying against a stale t1. */
+        key->pubVecSet = 0;
+#endif
+
+        ret = mldsa_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+        if (ret == 0) {
+            ret = mldsa_vec_decode_eta_bits(s2p, params->eta, s2,
+                params->k);
+        }
+
+        /* Expand matrix A, unless already cached. */
+    #ifdef WC_MLDSA_CACHE_MATRIX_A
+        if ((ret == 0) && (!key->aSet))
+    #else
+        if (ret == 0)
+    #endif
+        {
+            ret = mldsa_expand_a(&key->shake, rho, params->k, params->l,
+                a, key->heap);
+        #ifdef WC_MLDSA_CACHE_MATRIX_A
+            key->aSet = (ret == 0);
+        #endif
+        }
+
+        /* Calculate t = NTT-1(A o NTT(s1)) + s2 */
+        if (ret == 0) {
+            ret = mldsa_calc_t(t, a, s1, s2, params->k, params->l);
+        }
+        /* Make t positive for decomposing. */
+        if (ret == 0) {
+            ret = mldsa_vec_make_pos(t, params->k);
+        }
+        /* Encode t1 into the public key and check the derived t0 against
+         * the private key's authentic t0. (Since t0/t1 split t,
+         * derivation faults are caught here). */
+        if (ret == 0) {
+            ret = mldsa_encode_t_check(t, params->k, t0p, t1, t0Enc, &diff);
+        }
+#else
+        if (ret == 0) {
+            ret = mldsa_vec_ntt_small_full(s1, params->l);
+        }
+        if (ret == 0) {
+            byte aseed[MLDSA_GEN_A_SEED_SZ];
+            word32 s2Stride = (word32)params->s2EncSz / params->k;
+            unsigned int r;
+
+            XMEMCPY(aseed, rho, MLDSA_PUB_SEED_SZ);
+            for (r = 0; (ret == 0) && (r < params->k); r++) {
+                /* Calculate row r of t = NTT-1(A o NTT(s1)) + s2 */
+                ret = mldsa_calc_t_row(&key->shake, aseed, (byte)r, s1,
+                    params->l, s2p + (r * s2Stride), params->eta, t, s2t, a,
+                    h, t64);
+                /* Encode row r of t1 into the public key and check row r
+                 * of the derived t0 against the private key's t0. */
+                if (ret == 0) {
+                    ret = mldsa_encode_t_check(t, 1,
+                        t0p + (r * MLDSA_T0_POLY_ENC_SZ),
+                        t1 + (r * MLDSA_T1_POLY_ENC_SZ), t0Enc, &diff);
+                }
+            }
+        }
+#endif
+        if ((ret == 0) && (diff != 0)) {
+            ret = PUBLIC_KEY_E;
+        }
+
+        /* Once t0 matches, also verify the derived public key against the
+         * private key's authentic 'tr' hash. Combined with the t0 check,
+         * every bit of derived t is verified. */
+        if (ret == 0) {
+            ret = mldsa_check_pub_tr(key);
+        }
+        if (ret == 0) {
+            key->pubKeySet = 1;
+        }
+        else {
+            /* Don't leave a partial or mismatched public key behind. */
+            XMEMSET(key->p, 0, params->pkSz);
+        }
+    }
+
+    /* --- Cleanup --------------------------------------------------- */
+    if (s1 != NULL) {
+#ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+        /* s1, s2 and t at the front are secret; any A after is public. */
+        ForceZero(s1, (unsigned int)params->s1Sz + (2U * params->s2Sz));
+#else
+        /* The public a and h sit between and after the secret s1, t, s2 and
+         * t64, so zeroize the entire allocation. */
+        ForceZero(s1, allocSz);
+#endif
+        XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
+    }
+    /* t0 is private key material, so scrub the encode buffer. */
+    if (WC_VAR_OK(t0Enc)) {
+        ForceZero(t0Enc, MLDSA_T0_ENC_SCRATCH_SZ);
+    }
+    WC_FREE_VAR_EX(t0Enc, key->heap, DYNAMIC_TYPE_MLDSA);
+
+    return ret;
+}
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
+
+/* Derive the public key (rho || t1) from the private key.
+ *
+ * When the public key is already set it is only checked against the private
+ * key's tr.
+ *
+ * @param [in, out] key  ML-DSA key with the private key set.
+ * @return  0 on success, or when the set public key matches tr.
+ * @return  BAD_FUNC_ARG when key is NULL, or the private key or parameters
+ *          are not set.
+ * @return  PUBLIC_KEY_E when the public key does not match the private key.
+ * @return  NO_VALID_DEVID when the software implementation is not compiled
+ *          in.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key)
+{
+    int ret = 0;
+
+    /* Derivation needs the local private key bytes: a devId-bound key with
+     * imported private material derives in software, while a key that only
+     * references a device-held private key (id/label) has prvKeySet == 0. */
+    if ((key == NULL) || (!key->prvKeySet) || (key->params == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    /* No software check or derivation, and no device operation for it. */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    /* A private-only import leaves any earlier public key set, so check
+     * that it belongs to this private key before reporting success. */
+    if ((ret == 0) && key->pubKeySet) {
+        ret = mldsa_check_pub_tr(key);
+    }
+    else if (ret == 0) {
+        ret = mldsa_make_pub_key(key);
+    }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
+
+    return ret;
+}
+#endif /* WC_MLDSA_HAVE_MAKE_PUBLIC_KEY */
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_SIGN
