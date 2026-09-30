@@ -83,6 +83,7 @@ jobs:
   build:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     # Teensy is allowed to fail: its board index lives at pjrc.com, which is
     # chronically unreachable from GitHub Actions runner egress IPs (DNS
     # timeouts / connection refused). A pjrc.com outage should not block PRs
