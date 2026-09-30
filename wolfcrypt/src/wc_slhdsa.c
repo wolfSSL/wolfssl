@@ -740,6 +740,29 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
 /* Size of compressed HashAddress (ADRS^c) per FIPS 205 Section 11.2. */
 #define SLHDSA_HAC_SZ   22
 
+/* Compress the block after the PK.seed midstate directly. */
+#if !defined(WOLFSSL_SLHDSA_FULL_HASH) && \
+    defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    !(defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FIND))
+    #define SLHDSA_SHA2_BLOCK_HASH
+#endif
+
+#ifdef SLHDSA_SHA2_BLOCK_HASH
+/* The direct path writes wc_Sha256's digest and block buffer in place. */
+wc_static_assert(sizeof(((wc_Sha256*)0)->buffer) == WC_SHA256_BLOCK_SIZE);
+wc_static_assert(sizeof(((wc_Sha256*)0)->digest) == WC_SHA256_DIGEST_SIZE);
+
+/* A registered callback expects to see every update, and holds the state
+ * itself, so a claimed midstate has no digest to restore. */
+#ifdef WOLF_CRYPTO_CB
+    #define SLHDSA_SHA256_RAW_OK(key)   \
+        (((key)->hash.sha2.sha256.devId == INVALID_DEVID) && \
+         ((key)->hash.sha2.sha256_mid.devId == INVALID_DEVID))
+#else
+    #define SLHDSA_SHA256_RAW_OK(key)   1
+#endif
+#endif /* SLHDSA_SHA2_BLOCK_HASH */
+
 /* Encode a compressed HashAddress (ADRS^c).
  *
  * FIPS 205. Section 11.2.
@@ -824,6 +847,183 @@ static int slhdsakey_precompute_sha2_midstates(SlhDsaKey* key)
     return ret;
 }
 
+/* Largest message is n bytes for F and PRF, 2n for H at category 1; both
+ * leave room for the padding and length in the block after the midstate. */
+wc_static_assert(SLHDSA_HAC_SZ + 32 + 1 + 8 <= WC_SHA256_BLOCK_SIZE);
+
+#ifdef SLHDSA_SHA2_BLOCK_HASH
+/* Hash the block following the pre-computed SHA-256 midstate.
+ *
+ * F, H and PRF are each one block past the midstate, so the compressed
+ * address, message and padding are built directly and compressed once.
+ *
+ * @param [in]  key       SLH-DSA key.
+ * @param [in]  address   Encoded compressed HashAddress.
+ * @param [in]  m1        First message part.
+ * @param [in]  m1_len    Length of first message part.
+ * @param [in]  m2        Second message part, may be NULL.
+ * @param [in]  m2_len    Length of second message part.
+ * @param [out] hash      Buffer to hold hash output.
+ * @param [in]  hash_len  Number of bytes of hash to output.
+ * @return  0 on success.
+ * @return  BUFFER_E when the message does not fit the block with its padding.
+ */
+static int slhdsakey_sha256_block_hash(SlhDsaKey* key, const byte* address,
+    const byte* m1, byte m1_len, const byte* m2, byte m2_len, byte* hash,
+    byte hash_len)
+{
+    int ret;
+    byte* block = (byte*)key->hash.sha2.sha256.buffer;
+    word32 len = (word32)SLHDSA_HAC_SZ + m1_len + m2_len;
+    /* Length covers the midstate block as well as this one. */
+    word32 bits = (WC_SHA256_BLOCK_SIZE + len) * 8;
+
+    /* Message, padding byte and 8 length bytes have to share one block. */
+    if (len + 1 + 8 > WC_SHA256_BLOCK_SIZE) {
+        return BUFFER_E;
+    }
+
+    XMEMCPY(block, address, SLHDSA_HAC_SZ);
+    XMEMCPY(block + SLHDSA_HAC_SZ, m1, m1_len);
+    if (m2_len > 0) {
+        XMEMCPY(block + SLHDSA_HAC_SZ + m1_len, m2, m2_len);
+    }
+    /* SHA-256 padding. */
+    block[len] = 0x80;
+    XMEMSET(block + len + 1, 0, WC_SHA256_BLOCK_SIZE - 8 - (len + 1));
+    c32toa(0, block + WC_SHA256_BLOCK_SIZE - 8);
+    c32toa(bits, block + WC_SHA256_BLOCK_SIZE - 4);
+
+    /* Restore the midstate and compress. */
+    XMEMCPY(key->hash.sha2.sha256.digest, key->hash.sha2.sha256_mid.digest,
+        WC_SHA256_DIGEST_SIZE);
+    ret = wc_Sha256HashBlock(&key->hash.sha2.sha256, block, key->sha2Digest);
+    if (ret == 0) {
+        XMEMCPY(hash, key->sha2Digest, hash_len);
+    }
+
+    return ret;
+}
+#endif /* SLHDSA_SHA2_BLOCK_HASH */
+
+/* Hash the compressed address and message from the SHA-256 or SHA-512
+ * midstate with the streaming API.
+ *
+ * @param [in]  key       SLH-DSA key.
+ * @param [in]  sha512    Use SHA-512 when non-zero, otherwise SHA-256.
+ * @param [in]  address   Encoded compressed HashAddress.
+ * @param [in]  m1        First message part.
+ * @param [in]  m1_len    Length of first message part.
+ * @param [in]  m2        Second message part, may be NULL.
+ * @param [in]  m2_len    Length of second message part.
+ * @param [out] hash      Buffer to hold hash output.
+ * @param [in]  hash_len  Number of bytes of hash to output.
+ * @return  0 on success.
+ */
+static int slhdsakey_sha2_api_hash(SlhDsaKey* key, int sha512,
+    const byte* address, const byte* m1, byte m1_len, const byte* m2,
+    byte m2_len, byte* hash, byte hash_len)
+{
+    int ret;
+    int i;
+    const byte* data[3];
+    word32 len[3];
+    byte* digest = key->sha2Digest;
+#ifdef WC_SLHDSA_NEED_SHA512
+    byte digest512[WC_SHA512_DIGEST_SIZE];
+#endif
+
+    data[0] = address;
+    len[0] = SLHDSA_HAC_SZ;
+    data[1] = m1;
+    len[1] = m1_len;
+    data[2] = m2;
+    len[2] = m2_len;
+
+#ifdef WC_SLHDSA_NEED_SHA512
+    if (sha512) {
+        digest = digest512;
+        if (key->hash.sha2.sha512_inited) {
+            wc_Sha512Free(&key->hash.sha2.sha512);
+            key->hash.sha2.sha512_inited = 0;
+        }
+        ret = wc_Sha512Copy(&key->hash.sha2.sha512_mid,
+            &key->hash.sha2.sha512);
+        if (ret == 0) {
+            key->hash.sha2.sha512_inited = 1;
+        }
+        for (i = 0; (ret == 0) && (i < 3); i++) {
+            if (len[i] > 0) {
+                ret = wc_Sha512Update(&key->hash.sha2.sha512, data[i], len[i]);
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Sha512Final(&key->hash.sha2.sha512, digest);
+        }
+    }
+    else
+#endif
+    {
+        (void)sha512;
+        /* Not every wc_Sha256Copy() frees its destination. */
+        if (key->hash.sha2.sha256_inited) {
+            wc_Sha256Free(&key->hash.sha2.sha256);
+            key->hash.sha2.sha256_inited = 0;
+        }
+        ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid,
+            &key->hash.sha2.sha256);
+        if (ret == 0) {
+            key->hash.sha2.sha256_inited = 1;
+        }
+        for (i = 0; (ret == 0) && (i < 3); i++) {
+            if (len[i] > 0) {
+                ret = wc_Sha256Update(&key->hash.sha2.sha256, data[i], len[i]);
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
+        }
+    }
+    if (ret == 0) {
+        XMEMCPY(hash, digest, hash_len);
+    }
+
+    return ret;
+}
+
+/* Hash the compressed address and message with SHA-256.
+ *
+ * @param [in]  key       SLH-DSA key.
+ * @param [in]  address   Encoded compressed HashAddress.
+ * @param [in]  m1        First message part.
+ * @param [in]  m1_len    Length of first message part.
+ * @param [in]  m2        Second message part, may be NULL.
+ * @param [in]  m2_len    Length of second message part.
+ * @param [out] hash      Buffer to hold hash output.
+ * @param [in]  hash_len  Number of bytes of hash to output.
+ * @return  0 on success.
+ */
+static int slhdsakey_sha256_hash(SlhDsaKey* key, const byte* address,
+    const byte* m1, byte m1_len, const byte* m2, byte m2_len, byte* hash,
+    byte hash_len)
+{
+#ifdef SLHDSA_SHA2_BLOCK_HASH
+    if (!key->hash.sha2.sha256_inited) {
+        int ret = wc_InitSha256(&key->hash.sha2.sha256);
+        if (ret != 0) {
+            return ret;
+        }
+        key->hash.sha2.sha256_inited = 1;
+    }
+    if (SLHDSA_SHA256_RAW_OK(key)) {
+        return slhdsakey_sha256_block_hash(key, address, m1, m1_len, m2,
+            m2_len, hash, hash_len);
+    }
+#endif
+    return slhdsakey_sha2_api_hash(key, 0, address, m1, m1_len, m2, m2_len,
+        hash, hash_len);
+}
+
 /* SHA2 F function.
  *
  * FIPS 205. Section 11.2.
@@ -842,39 +1042,14 @@ static int slhdsakey_precompute_sha2_midstates(SlhDsaKey* key)
 static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
     const word32* adrs, const byte* m, byte n, byte* hash)
 {
-    int ret;
     byte address[SLHDSA_HAC_SZ];
-    byte* digest = key->sha2Digest;
 
     (void)pk_seed;
 
     /* Encode compressed address. */
     HA_Encode_Compressed(adrs, address);
 
-    /* Restore SHA-256 midstate. */
-
-    if (key->hash.sha2.sha256_inited) {
-        wc_Sha256Free(&key->hash.sha2.sha256);
-        key->hash.sha2.sha256_inited = 0;
-    }
-    ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid, &key->hash.sha2.sha256);
-    if (ret == 0) {
-        key->hash.sha2.sha256_inited = 1;
-        /* Update with compressed ADRS and message. */
-        ret = wc_Sha256Update(&key->hash.sha2.sha256, address, SLHDSA_HAC_SZ);
-    }
-    if (ret == 0) {
-        ret = wc_Sha256Update(&key->hash.sha2.sha256, m, n);
-    }
-    if (ret == 0) {
-        ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
-    }
-    if (ret == 0) {
-        /* Truncate to n bytes. */
-        XMEMCPY(hash, digest, n);
-    }
-
-    return ret;
+    return slhdsakey_sha256_hash(key, address, m, n, NULL, 0, hash, n);
 }
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
@@ -905,54 +1080,14 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
 
     if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: use SHA-256. */
-        byte digest[WC_SHA256_DIGEST_SIZE];
-
-        if (key->hash.sha2.sha256_inited) {
-            wc_Sha256Free(&key->hash.sha2.sha256);
-            key->hash.sha2.sha256_inited = 0;
-        }
-        ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid,
-            &key->hash.sha2.sha256);
-        if (ret == 0) {
-            key->hash.sha2.sha256_inited = 1;
-            ret = wc_Sha256Update(&key->hash.sha2.sha256, address,
-                SLHDSA_HAC_SZ);
-        }
-        if (ret == 0) {
-            ret = wc_Sha256Update(&key->hash.sha2.sha256, node, 2U * n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
-        }
-        if (ret == 0) {
-            XMEMCPY(hash, digest, n);
-        }
+        ret = slhdsakey_sha256_hash(key, address, node, (byte)(2 * n), NULL, 0,
+            hash, n);
     }
 #ifdef WC_SLHDSA_NEED_SHA512
     else {
         /* Categories 3, 5: use SHA-512. */
-        byte digest[WC_SHA512_DIGEST_SIZE];
-
-        if (key->hash.sha2.sha512_inited) {
-            wc_Sha512Free(&key->hash.sha2.sha512);
-            key->hash.sha2.sha512_inited = 0;
-        }
-        ret = wc_Sha512Copy(&key->hash.sha2.sha512_mid,
-            &key->hash.sha2.sha512);
-        if (ret == 0) {
-            key->hash.sha2.sha512_inited = 1;
-            ret = wc_Sha512Update(&key->hash.sha2.sha512, address,
-                SLHDSA_HAC_SZ);
-        }
-        if (ret == 0) {
-            ret = wc_Sha512Update(&key->hash.sha2.sha512, node, 2U * n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha512Final(&key->hash.sha2.sha512, digest);
-        }
-        if (ret == 0) {
-            XMEMCPY(hash, digest, n);
-        }
+        ret = slhdsakey_sha2_api_hash(key, 1, address, node, (byte)(2 * n),
+            NULL, 0, hash, n);
     }
 #endif
 
@@ -960,15 +1095,15 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
 }
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
-/* SHA2 H function with two separate n-byte halves.
+/* SHA2 H function over two separate n-byte messages.
  *
- * Same as slhdsakey_hash_h_sha2 but M2 = m1 || m2.
+ * FIPS 205. Section 11.2.
  *
  * @param [in]  key      SLH-DSA key.
  * @param [in]  pk_seed  Public key seed (unused - midstate).
  * @param [in]  adrs     HashAddress.
- * @param [in]  m1       First n bytes of message.
- * @param [in]  m2       Second n bytes of message.
+ * @param [in]  m1       First message of n bytes.
+ * @param [in]  m2       Second message of n bytes.
  * @param [in]  n        Number of bytes in hash output.
  * @param [out] hash     Buffer to hold hash output.
  * @return  0 on success.
@@ -986,60 +1121,12 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
 
     if (SLHDSA_SHA2_USE_SHA256(n)) {
         /* Category 1: use SHA-256. */
-        byte digest[WC_SHA256_DIGEST_SIZE];
-
-        if (key->hash.sha2.sha256_inited) {
-            wc_Sha256Free(&key->hash.sha2.sha256);
-            key->hash.sha2.sha256_inited = 0;
-        }
-        ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid,
-            &key->hash.sha2.sha256);
-        if (ret == 0) {
-            key->hash.sha2.sha256_inited = 1;
-            ret = wc_Sha256Update(&key->hash.sha2.sha256, address,
-                SLHDSA_HAC_SZ);
-        }
-        if (ret == 0) {
-            ret = wc_Sha256Update(&key->hash.sha2.sha256, m1, n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha256Update(&key->hash.sha2.sha256, m2, n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
-        }
-        if (ret == 0) {
-            XMEMCPY(hash, digest, n);
-        }
+        ret = slhdsakey_sha256_hash(key, address, m1, n, m2, n, hash, n);
     }
 #ifdef WC_SLHDSA_NEED_SHA512
     else {
         /* Categories 3, 5: use SHA-512. */
-        byte digest[WC_SHA512_DIGEST_SIZE];
-
-        if (key->hash.sha2.sha512_inited) {
-            wc_Sha512Free(&key->hash.sha2.sha512);
-            key->hash.sha2.sha512_inited = 0;
-        }
-        ret = wc_Sha512Copy(&key->hash.sha2.sha512_mid,
-            &key->hash.sha2.sha512);
-        if (ret == 0) {
-            key->hash.sha2.sha512_inited = 1;
-            ret = wc_Sha512Update(&key->hash.sha2.sha512, address,
-                SLHDSA_HAC_SZ);
-        }
-        if (ret == 0) {
-            ret = wc_Sha512Update(&key->hash.sha2.sha512, m1, n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha512Update(&key->hash.sha2.sha512, m2, n);
-        }
-        if (ret == 0) {
-            ret = wc_Sha512Final(&key->hash.sha2.sha512, digest);
-        }
-        if (ret == 0) {
-            XMEMCPY(hash, digest, n);
-        }
+        ret = slhdsakey_sha2_api_hash(key, 1, address, m1, n, m2, n, hash, n);
     }
 #endif
 
@@ -1064,46 +1151,14 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
 static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
     const byte* sk_seed, const word32* adrs, byte n, byte* hash)
 {
-    int ret;
     byte address[SLHDSA_HAC_SZ];
-    byte digest[WC_SHA256_DIGEST_SIZE];
 
     (void)pk_seed;
 
     /* Encode compressed address. */
     HA_Encode_Compressed(adrs, address);
 
-    /* Restore SHA-256 midstate. */
-    if (key->hash.sha2.sha256_inited) {
-        wc_Sha256Free(&key->hash.sha2.sha256);
-        key->hash.sha2.sha256_inited = 0;
-    }
-    ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid, &key->hash.sha2.sha256);
-    if (ret == 0) {
-        key->hash.sha2.sha256_inited = 1;
-        ret = wc_Sha256Update(&key->hash.sha2.sha256, address, SLHDSA_HAC_SZ);
-    }
-    if (ret == 0) {
-        ret = wc_Sha256Update(&key->hash.sha2.sha256, sk_seed, n);
-    }
-    if (ret == 0) {
-        ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
-        /* digest now holds the secret PRF output (WOTS+/FORS key); register it
-         * before it is copied out so any later exit is covered. */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("slhdsa prf digest", digest, sizeof(digest));
-#endif
-    }
-    if (ret == 0) {
-        XMEMCPY(hash, digest, n);
-    }
-
-    /* digest holds the secret PRF output (WOTS+/FORS key). */
-    ForceZero(digest, sizeof(digest));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(digest, sizeof(digest));
-#endif
-    return ret;
+    return slhdsakey_sha256_hash(key, address, sk_seed, n, NULL, 0, hash, n);
 }
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
