@@ -347,6 +347,11 @@ int wc_CAAM_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (blocks > 0) {
         ret = wc_CAAM_AesCbcCtrCommon(aes, out, in, blocks * WC_AES_BLOCK_SIZE,
             CAAM_ENC, CAAM_AESCTR);
+        if (ret != 0) {
+            /* the counter was not advanced, so do not run the leftover
+             * handler below against stale state */
+            return ret;
+        }
 
         out += blocks * WC_AES_BLOCK_SIZE;
         in  += blocks * WC_AES_BLOCK_SIZE;
@@ -400,6 +405,11 @@ static int wc_CAAM_AesEcbCommon(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     blocks = sz / WC_AES_BLOCK_SIZE;
+
+    if (blocks == 0) {
+        /* zero length is a no-op, the same as the software AES-ECB path */
+        return 0;
+    }
 
     if (wc_AesGetKeySize(aes, &keySz) != 0 && aes->blackKey == 0) {
         return BAD_FUNC_ARG;
