@@ -1395,10 +1395,13 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         struct pollfd pfd;
 #endif
         int nfds = 0;
-        struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
+        struct timeval timeout;
         int ret;
         int soErr = 0;
         XSOCKLENT soErrSz = (XSOCKLENT)sizeof(soErr);
+
+        timeout.tv_sec = (to_sec > 0) ? to_sec : 0;
+        timeout.tv_usec = 0;
 
     #ifndef USE_WINDOWS_API
         nfds = (int)sockfd + 1;
