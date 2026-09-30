@@ -62,7 +62,10 @@ endif
 
 WOLFSSL_ASFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CCASFLAGS) $(CCASFLAGS)
 
-WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(src_libwolfssl_la_OBJECTS)))))
+# Strip libtool's per-target object prefix so Kbuild sees the real object
+# names.  The innermost patsubst covers the wolfcrypt/src/port/arm/ assembly,
+# which the others do not reach.
+WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(patsubst wolfcrypt/src/port/arm/src_libwolfssl_la-%, wolfcrypt/src/port/arm/%, $(src_libwolfssl_la_OBJECTS))))))
 
 ifeq "$(ENABLED_CRYPT_TESTS)" "yes"
     WOLFSSL_OBJ_FILES+=wolfcrypt/test/test.o
