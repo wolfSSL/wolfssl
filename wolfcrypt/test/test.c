@@ -68501,7 +68501,8 @@ out:
     !defined(WC_MLDSA_FIXED_ARRAY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
 /* Regression test for sign path matrix A cache allocation.
  *
  * mldsa_sign_with_seed_mu() previously stored the result of XMALLOC for
@@ -68595,7 +68596,7 @@ out:
 }
 #endif /* WC_MLDSA_CACHE_MATRIX_A && !WC_MLDSA_FIXED_ARRAY &&
         * !WOLFSSL_MLDSA_NO_MAKE_KEY && !WOLFSSL_MLDSA_NO_SIGN &&
-        * !WOLFSSL_MLDSA_NO_VERIFY */
+        * !WOLFSSL_MLDSA_NO_VERIFY && !WOLFSSL_MLDSA_SIGN_SMALL_MEM */
 
 
 #if (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
@@ -69605,7 +69606,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
     !defined(WC_MLDSA_FIXED_ARRAY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
 #ifndef WOLFSSL_NO_ML_DSA_44
     ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_44, &rng);
     if (ret != 0)

@@ -1399,6 +1399,13 @@ int test_mldsa_check_key(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(checkKey, WC_ML_DSA_87), 0);
 #endif
     ExpectIntEQ(wc_MlDsaKey_MakeKey(checkKey, &rng), 0);
+    /* A freshly generated key checks out. Small-mem key generation never
+     * caches A, so this also covers CheckKey allocating the matrix cache. */
+    ExpectIntEQ(wc_MlDsaKey_CheckKey(checkKey), 0);
+    /* Regenerating into the same object must not reuse the A that CheckKey
+     * just cached for the previous key. */
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(checkKey, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_CheckKey(checkKey), 0);
 
     ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -7776,6 +7783,92 @@ int test_mldsa_make_key_from_seed(void)
 #endif
 
     wc_MlDsaKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Regenerating a key into the same object must not sign or verify with the
+ * vectors cached for the previous key. */
+int test_mldsa_make_key_twice(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
+    wc_MlDsaKey* verifyKey;
+    WC_RNG rng;
+    byte* sig;
+    byte* pub;
+    word32 sigLen;
+    word32 pubLen;
+    byte msg[] = "make key twice";
+    int res;
+    int i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    verifyKey = (wc_MlDsaKey*)XMALLOC(sizeof(*verifyKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(verifyKey);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+    pub = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pub);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+#endif
+
+    /* The first pass fills the caches; the second must not reuse them. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+
+        sigLen = MLDSA_MAX_SIG_SIZE;
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, msg,
+            sizeof(msg), &rng), 0);
+
+        /* Same object: uses any cached public vector. */
+        res = 0;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+
+        /* Fresh object with only the new public key: catches a signature
+         * made from cached private vectors of the previous key. */
+        pubLen = MLDSA_MAX_PUB_KEY_SIZE;
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pub, &pubLen), 0);
+        if (verifyKey != NULL) {
+            XMEMSET(verifyKey, 0, sizeof(*verifyKey));
+        }
+        ExpectIntEQ(wc_MlDsaKey_Init(verifyKey, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(verifyKey,
+            (key != NULL) ? key->level : 0), 0);
+        ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(verifyKey, pub, pubLen), 0);
+        res = 0;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(verifyKey, sig, sigLen, NULL, 0,
+            msg, sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+        wc_MlDsaKey_Free(verifyKey);
+    }
+
+    wc_MlDsaKey_Free(key);
+    wc_FreeRng(&rng);
+    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(verifyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();

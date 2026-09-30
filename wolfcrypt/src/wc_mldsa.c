@@ -9247,6 +9247,18 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Public key and private key are available. */
         key->prvKeySet = 1;
         key->pubKeySet = 1;
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+        /* Matrix A is streamed, not cached; drop any A of a previous key. */
+        key->aSet = 0;
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+        /* Private vectors are not available as they were overwritten. */
+        key->privVecsSet = 0;
+#endif
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+        /* Public vector, t1, is not available as it was not created. */
+        key->pubVecSet = 0;
+#endif
     }
 
     /* Zeroize the whole buffer before freeing. It holds the private vectors
@@ -12898,7 +12910,23 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 #if !defined(WC_MLDSA_CACHE_MATRIX_A)
             a  = t1 + params->s2Sz / sizeof(*t1);
 #else
-            a = key->a;
+        #ifndef WC_MLDSA_FIXED_ARRAY
+            /* key->a is still NULL after small-mem key generation, which
+             * never caches A. */
+            if (key->a == NULL) {
+                key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+                    DYNAMIC_TYPE_MLDSA);
+                if (key->a == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    key->aSet = 0;
+                }
+            }
+        #endif
+            if (ret == 0) {
+                a = key->a;
+            }
 #endif
         }
     }
