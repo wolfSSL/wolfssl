@@ -3805,6 +3805,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
         EarlyDataStatus(ssl);
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        /* print before ret is checked: ECH status is always significant */
+        if (echPublicName != NULL)
+            PrintEchStatus(ssl);
+#endif
         if (ret != WOLFSSL_SUCCESS) {
             err = wolfSSL_get_error(ssl, ret);
             LOG_ERROR("SSL_accept error %d, %s\n", err,
