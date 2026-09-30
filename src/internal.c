@@ -40296,6 +40296,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                         pSz = wc_DhGetNamedKeyMinSize(ssl->namedGroup);
 
+                        /* A retained buffer's length is the last key's size. */
+                        if (ssl->buffers.serverDH_Priv.buffer != NULL &&
+                                ssl->buffers.serverDH_Priv.length < pSz) {
+                            ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                      ssl->buffers.serverDH_Priv.length);
+                            XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+                                  DYNAMIC_TYPE_PRIVATE_KEY);
+                            ssl->buffers.serverDH_Priv.buffer = NULL;
+                        }
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in wolfSSL_ResourceFree and
                              * FreeHandshakeResources */
@@ -40387,6 +40396,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                                 ssl->buffers.serverDH_P.length;
                         }
 
+                        /* A retained buffer's length is the last key's size. */
+                        if (ssl->buffers.serverDH_Priv.buffer != NULL &&
+                                ssl->buffers.serverDH_Priv.length <
+                                    ssl->buffers.serverDH_P.length) {
+                            ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                      ssl->buffers.serverDH_Priv.length);
+                            XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+                                  DYNAMIC_TYPE_PRIVATE_KEY);
+                            ssl->buffers.serverDH_Priv.buffer = NULL;
+                        }
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in wolfSSL_ResourceFree
                              * and FreeHandshakeResources
