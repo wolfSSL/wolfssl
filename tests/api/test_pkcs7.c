@@ -4720,9 +4720,8 @@ int test_wc_PKCS7_MultipleRecipients(void)
     int outSz = 4096;
     int encodedSz = 0;
     int encoded3Sz = 0;
-    int b, i, j;
+    int b, i, j, k;
 #ifndef NO_PKCS7_STREAM
-    int k;
     const int chunks[] = { 1, 13, 32 };
 #endif
     WOLFSSL_SMALL_STACK_STATIC const byte content[] = {
@@ -4990,6 +4989,67 @@ int test_wc_PKCS7_MultipleRecipients(void)
             wc_PKCS7_Free(pkcs7);
         }
     #endif /* !NO_PKCS7_STREAM */
+
+        /* A set one byte short leaves the last RecipientInfo running into
+         * the EncryptedContentInfo; whole and in chunks. */
+        for (k = 0; k < 2; k++) {
+            wc_PKCS7* pkcs7 = NULL;
+            int setOff = 0;
+            int setLen;
+            int fed = 0;
+            int chunk = (k == 0) ? encodedSz : 128;
+            int shortSz = -1;
+
+            if (EXPECT_FAIL())
+                break;
+
+            /* version 0, then the SET with a two-byte length */
+            for (i = 0; i + 7 <= encodedSz; i++) {
+                if ((out[i] == 0x02) && (out[i + 1] == 0x01) &&
+                        (out[i + 2] == 0x00) && (out[i + 3] == 0x31) &&
+                        (out[i + 4] == 0x82)) {
+                    setOff = i + 5;
+                    break;
+                }
+            }
+            ExpectIntGT(setOff, 0);
+            XMEMCPY(out3, out, (size_t)encodedSz);
+            setLen = ((int)out3[setOff] << 8) | out3[setOff + 1];
+            setLen--;
+            out3[setOff]     = (byte)(setLen >> 8);
+            out3[setOff + 1] = (byte)setLen;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert3, cert3Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key3;
+                pkcs7->privateKeySz = key3Sz;
+            }
+            while ((pkcs7 != NULL) && (fed < encodedSz)) {
+                int n = ((encodedSz - fed) < chunk) ? (encodedSz - fed)
+                                                    : chunk;
+            #ifdef HAVE_AESGCM
+                if (j == 1) {
+                    shortSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                        out3 + fed, (word32)n, decoded, sizeof(decoded));
+                }
+                else
+            #endif
+                {
+                    shortSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out3 + fed,
+                        (word32)n, decoded, sizeof(decoded));
+                }
+                fed += n;
+                if (shortSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                    break;
+            }
+            ExpectIntEQ(shortSz, WC_NO_ERR_TRACE(ASN_PARSE_E));
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+        }
     }
 
 #if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)

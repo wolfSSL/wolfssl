@@ -13890,6 +13890,12 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 }
 
 
+/* return 1 when a RecipientInfo of length bytes at idx runs past setEnd */
+static int wc_PKCS7_RecipientPastSet(word32 idx, int length, word32 setEnd)
+{
+    return (setEnd != 0) && ((idx > setEnd) || ((word32)length > setEnd - idx));
+}
+
 /* decode ASN.1 RecipientInfos SET, return 0 on success, < 0 on error */
 /* setEnd is in/out, non-NULL: index just past the last RecipientInfo, or 0
  * when unknown. Without it a KeyTransRecipientInfo cannot be told from the
@@ -14022,6 +14028,9 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
         /* remove RecipientInfo, if we don't have a SEQUENCE, back up idx to
          * last good saved one */
         if (GetSequence_ex(pkiMsg, idx, &length, pkiMsgSz, NO_USER_CHECK) > 0) {
+            if (wc_PKCS7_RecipientPastSet(*idx, length, *setEnd)) {
+                return ASN_PARSE_E;
+            }
 
         #ifndef NO_RSA
             /* found ktri */
@@ -14071,6 +14080,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                 if (GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
                             NO_USER_CHECK) < 0)
                     return ASN_PARSE_E;
+                if (wc_PKCS7_RecipientPastSet(*idx, length, *setEnd))
+                    return ASN_PARSE_E;
 
                 if (GetMyVersion(pkiMsg, idx, &version, pkiMsgSz) < 0) {
                     *idx = savedIdx;
@@ -14097,8 +14108,10 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
             } else if (tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2)) {
                 (*idx)++;
 
-                if (GetLength_ex(pkiMsg, idx, &version, pkiMsgSz,
+                if (GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
                             NO_USER_CHECK) < 0)
+                    return ASN_PARSE_E;
+                if (wc_PKCS7_RecipientPastSet(*idx, length, *setEnd))
                     return ASN_PARSE_E;
 
                 if (GetMyVersion(pkiMsg, idx, &version, pkiMsgSz) < 0) {
@@ -14127,8 +14140,10 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
         #if !defined(NO_PWDBASED) && !defined(NO_SHA)
                 (*idx)++;
 
-                if (GetLength_ex(pkiMsg, idx, &version, pkiMsgSz,
+                if (GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
                             NO_USER_CHECK) < 0)
+                    return ASN_PARSE_E;
+                if (wc_PKCS7_RecipientPastSet(*idx, length, *setEnd))
                     return ASN_PARSE_E;
 
                 if (GetMyVersion(pkiMsg, idx, &version, pkiMsgSz) < 0) {
