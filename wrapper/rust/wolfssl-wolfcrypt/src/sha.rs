@@ -144,6 +144,9 @@ impl SHA {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_ShaFree(&mut self.wc_sha); }
         let rc = unsafe { sys::wc_InitSha_ex(&mut self.wc_sha, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -355,6 +358,9 @@ impl SHA224 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha224Free(&mut self.wc_sha224); }
         let rc = unsafe { sys::wc_InitSha224_ex(&mut self.wc_sha224, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -566,6 +572,9 @@ impl SHA256 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha256Free(&mut self.wc_sha256); }
         let rc = unsafe { sys::wc_InitSha256_ex(&mut self.wc_sha256, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -799,6 +808,9 @@ impl SHA384 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha384Free(&mut self.wc_sha384); }
         let rc = unsafe { sys::wc_InitSha384_ex(&mut self.wc_sha384, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -1032,6 +1044,9 @@ impl SHA512 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha512Free(&mut self.wc_sha512); }
         let rc = unsafe { sys::wc_InitSha512_ex(&mut self.wc_sha512, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -1243,6 +1258,9 @@ impl SHA3_224 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha3_224_Free(&mut self.wc_sha3); }
         let rc = unsafe { sys::wc_InitSha3_224(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -1454,6 +1472,9 @@ impl SHA3_256 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha3_256_Free(&mut self.wc_sha3); }
         let rc = unsafe { sys::wc_InitSha3_256(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -1665,6 +1686,9 @@ impl SHA3_384 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha3_384_Free(&mut self.wc_sha3); }
         let rc = unsafe { sys::wc_InitSha3_384(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -1876,6 +1900,9 @@ impl SHA3_512 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Sha3_512_Free(&mut self.wc_sha3); }
         let rc = unsafe { sys::wc_InitSha3_512(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
@@ -2089,6 +2116,9 @@ impl SHAKE128 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Shake128_Free(&mut self.wc_shake); }
         let rc = unsafe {
             sys::wc_InitShake128(&mut self.wc_shake, heap, dev_id)
         };
@@ -2367,6 +2397,9 @@ impl SHAKE256 {
             Some(dev_id) => dev_id,
             None => sys::INVALID_DEVID,
         };
+        // Free any resources held by a previous initialization before
+        // re-initializing.
+        unsafe { sys::wc_Shake256_Free(&mut self.wc_shake); }
         let rc = unsafe {
             sys::wc_InitShake256(&mut self.wc_shake, heap, dev_id)
         };
