@@ -3282,56 +3282,6 @@ int test_tls12_resume_ticket_wrong_suite(void)
     return EXPECT_RESULT();
 }
 
-/* The recorded client-auth outcome is per-connection state, so an object put
- * back into service with wolfSSL_clear() must not still be holding the
- * previous peer's. Whatever resumes next re-establishes it from the ticket it
- * presents or the session the lookup finds; a session-secret callback supplies
- * no such record, so a value left here would be inherited by a session it does
- * not describe. */
-int test_tls12_reuse_clears_peer_auth(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_CERTS) && !defined(NO_RSA)
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    /* CTXs first: the credentials must be in place before the objects that
-     * inherit them are created. */
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
-                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
-                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
-                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
-                WOLFSSL_SUCCESS);
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-    wolfSSL_set_verify(ssl_s,
-        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    if (ssl_s != NULL)
-        ExpectIntEQ(ssl_s->session->peerAuthOk, 1);
-    /* The client verified the server, but that is a different statement and
-     * nothing reads the field on that side, so its session stays at zero. */
-    if (ssl_c != NULL)
-        ExpectIntEQ(ssl_c->session->peerAuthOk, 0);
-
-    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
-    if (ssl_s != NULL)
-        ExpectIntEQ(ssl_s->session->peerAuthOk, 0);
-
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
-#endif
-    return EXPECT_RESULT();
-}
-
 /* TLS 1.3 counterpart of test_tls12_resume_ticket_client_auth: the PSK the
  * server offers itself must not stand in for the client certificate this
  * connection requires. DoPreSharedKeys has to skip the identity, leaving a full
@@ -3690,30 +3640,54 @@ int test_tls12_resume_ticket_client_auth_ok(void)
  * ClientHello: the retained session would be resumed for a client that never
  * held it, keyed from the master secret wolfSSL_clear() wiped.
  *
- * The first handshake takes a ticket, so the flag is set. A second client then
- * offers a session id that has been dropped from the cache, so nothing can
- * legitimately resolve it: only the stale flag could still produce a
- * resumption, and it must not. */
+ * The recorded client-auth outcome leaks the same way, and a session-secret
+ * callback supplies no record of its own, so a value left there would be
+ * inherited by a session it does not describe.
+ *
+ * The first handshake takes a ticket and authenticates the client, so both are
+ * set. A second client then offers a session id that has been dropped from the
+ * cache, so nothing can legitimately resolve it: only stale state could still
+ * produce a resumption, and it must not. */
 int test_tls12_reuse_clears_use_ticket(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE)
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_c3 = NULL;
     WOLFSSL *ssl_s = NULL, *ssl_s2 = NULL;
     WOLFSSL_SESSION* sess = NULL;
     struct test_memio_ctx test_ctx;
     int useTicketAfterClear = -1;
+    int peerAuthAfterClear = -1;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* CTXs first: the credentials must be in place before the objects that
+     * inherit them are created. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+                WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    if (ssl_s != NULL)
+    if (ssl_s != NULL) {
         ExpectIntEQ(ssl_s->options.useTicket, 1);
+        ExpectIntEQ(ssl_s->session->peerAuthOk, 1);
+    }
+    /* The client verified the server, but that is a different statement and
+     * nothing reads the field on that side, so its session stays at zero. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->session->peerAuthOk, 0);
 
     /* A session to offer next, taken from a server that issues no tickets so
      * the second ClientHello carries a session id and no ticket extension.
@@ -3734,8 +3708,10 @@ int test_tls12_reuse_clears_use_ticket(void)
     ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
     /* Read now, assert last: an expectation that fails here would skip the
      * behavioural half below. */
-    if (ssl_s != NULL)
+    if (ssl_s != NULL) {
         useTicketAfterClear = ssl_s->options.useTicket;
+        peerAuthAfterClear = ssl_s->session->peerAuthOk;
+    }
 
     /* Existing CTXs are kept; only the third client object is created, and the
      * reused server is pointed at the transport it shares with it. */
@@ -3755,6 +3731,7 @@ int test_tls12_reuse_clears_use_ticket(void)
     if (ssl_s != NULL)
         ExpectIntEQ(ssl_s->options.resuming, 0);
     ExpectIntEQ(useTicketAfterClear, 0);
+    ExpectIntEQ(peerAuthAfterClear, 0);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
