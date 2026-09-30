@@ -270,6 +270,43 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 /*!
     \ingroup ML_DSA
 
+    \brief Derives public key for a wc_MlDsaKey with private key set.
+    If the public key is already set, it is only checked against the
+    private key's tr (H(pk)); use wc_MlDsaKey_CheckKey() for a full key pair
+    check. The private key is still required: a public-only key returns
+    BAD_FUNC_ARG.
+    Available when WC_MLDSA_HAVE_MAKE_PUBLIC_KEY is defined: that is, when
+    WOLFSSL_MLDSA_ASSIGN_KEY, WOLFSSL_MLDSA_NO_MAKE_KEY and
+    WOLFSSL_MLDSA_VERIFY_ONLY are not defined.
+
+    Derivation is always done in software from the local private key bytes,
+    including for a key initialized with a devId: a key whose private key was
+    imported with wc_MlDsaKey_ImportPrivRaw() (or generated in software)
+    derives normally. A key that only references a private key held on a
+    device (wc_MlDsaKey_InitId() / wc_MlDsaKey_InitLabel()) has no local
+    private bytes, so it returns BAD_FUNC_ARG.
+    On PUBLIC_KEY_E an already set public key is left in place; set the
+    matching public key, or re-initialize the key, before deriving.
+
+    \return 0 on success or already set.
+    \return BAD_FUNC_ARG if invalid args or the private key is not set.
+    \return MEMORY_E on allocation failure.
+    \return PUBLIC_KEY_E if the public key does not match the private key's
+    tr or, when derived, its t0.
+    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_MLDSA.
+    \return Other negative on error.
+
+    \param [in,out] key Pointer to wc_MlDsaKey.
+
+    \sa wc_MlDsaKey_ImportPrivRaw
+    \sa wc_MlDsaKey_MakeKey
+    \sa wc_MlDsaKey_CheckKey
+*/
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+
+/*!
+    \ingroup ML_DSA
+
     \brief Signs a message with ML-DSA using the FIPS 204
     randomized-with-context signing API. Pass ctx=NULL and ctxLen=0
     for an empty context.
