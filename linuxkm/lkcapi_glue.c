@@ -112,6 +112,16 @@
     #undef WC_LINUXKM_C_FALLBACK_IN_SHIMS
 #endif
 
+/* With one lane and no fallback, the save has to be available in every context
+ * the kernel may call us from.  The module's own XSAVE/FXSAVE area supplies it
+ * in hardirq and NMI as well (linuxkm/x86_vector_register_glue.c). */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) &&                     \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_DEV_NO_POST) &&  \
+    defined(CONFIG_X86) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    !defined(WC_SVR_USE_NATIVE_REG_BUFS)
+    #error FIPS v7 LKCAPI needs WC_SVR_USE_NATIVE_REG_BUFS: one lane, no fallback.
+#endif
+
 #if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(CAN_SAVE_VECTOR_REGISTERS)
     #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but CAN_SAVE_VECTOR_REGISTERS is missing.
 #endif
