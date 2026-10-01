@@ -128,6 +128,40 @@ enum EncPkcs8Types {
     ENC_PKCS8_ALG_DES3      = 652
 };
 
+/* Hash for key identifiers (SKID, AKID, internal name and key hashes), as
+ * CalcHashId_ex() takes it. SHA-1 for interoperability while it is in the
+ * build, then SHA-256, then a SHA-3 size. */
+#if !defined(NO_SHA256) && (defined(NO_SHA) || defined(WC_ASN_HASH_SHA256))
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA256
+    #define WC_ASN_KEYID_SZ 32 /* WC_SHA256_DIGEST_SIZE */
+#elif !defined(NO_SHA)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA
+    #define WC_ASN_KEYID_SZ 20 /* WC_SHA_DIGEST_SIZE */
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA3_256
+    #define WC_ASN_KEYID_SZ 32 /* WC_SHA3_256_DIGEST_SIZE */
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA3_384
+    #define WC_ASN_KEYID_SZ 48 /* WC_SHA3_384_DIGEST_SIZE */
+#else
+    /* No hash available; the size is only a buffer floor. */
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_NONE
+    #define WC_ASN_KEYID_SZ 32
+#endif
+
+/* Set when a key identifier hash is available. */
+#if !defined(NO_SHA) || !defined(NO_SHA256) || (defined(WOLFSSL_SHA3) && \
+    (!defined(WOLFSSL_NOSHA3_256) || !defined(WOLFSSL_NOSHA3_384)))
+    #define WC_ASN_KEYID_HASH
+#endif
+
+/* Cert key identifier buffers: 32-byte floor, widened for a larger hash. */
+#if WC_ASN_KEYID_SZ > 32
+    #define WC_CTC_MAX_KEYID_SIZE WC_ASN_KEYID_SZ
+#else
+    #define WC_CTC_MAX_KEYID_SIZE 32
+#endif
+
 /* Certificate file Type */
 enum CertType {
     CERT_TYPE       = 0,
@@ -228,8 +262,8 @@ enum Ctc_Misc {
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
-    CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
+    CTC_MAX_SKID_SIZE = WC_CTC_MAX_KEYID_SIZE,
+    CTC_MAX_AKID_SIZE = WC_CTC_MAX_KEYID_SIZE,
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
     CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
                                                  * enough for at least two
