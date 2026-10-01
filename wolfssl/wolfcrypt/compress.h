@@ -119,8 +119,8 @@ WOLFSSL_API int wc_CompressionData_InitDeComp(wc_CompressionData* cd,
         const byte* data, word32 compSz, word32 uncompSz,
         word16 alg);
 
-/* Init a new wc_CompressionData object from decompressed data. This initial data
- * buffer is not owned by the wc_CompressionData object and is the
+/* Init a new wc_CompressionData object from decompressed data. This initial
+ * data buffer is not owned by the wc_CompressionData object and is the
  * responsibility of the caller.
  *
  * Note: if reusing a wc_CompressionData object it must have
@@ -163,7 +163,7 @@ WOLFSSL_API int wc_CompressionData_Compress(wc_CompressionData* data);
  * @param out output buffer compressed data will land in with space for
  * compressed data
  * @param outSz size of output buffer
- * @returns number of bytes written on success or negaitve error code otherwise
+ * @returns number of bytes written on success or negative error code otherwise
  */
 WOLFSSL_API int wc_CompressionData_CompToBuf(const wc_CompressionData* data,
         byte* out, word32 outSz);
@@ -173,10 +173,10 @@ WOLFSSL_API int wc_CompressionData_CompToBuf(const wc_CompressionData* data,
  * from a previous *_Compress call it is owned by this object and is freed.
  * If it is the buffer from the *_InitDeComp call it is not freed.
  *
- * @param data initialized wc_CompressionData object that set for compression
+ * @param data initialized wc_CompressionData object set for decompression
  * @return 0 on success or negative value on error.
- * Compressed data is in wc_CompressionData on success along with context
- * about the compression.
+  * Decompressed data is in wc_CompressionData on success along with context
+  * about the decompression
  */
 WOLFSSL_API int wc_CompressionData_DeCompress(wc_CompressionData* data);
 
@@ -187,7 +187,7 @@ WOLFSSL_API int wc_CompressionData_DeCompress(wc_CompressionData* data);
  * @param out output buffer decompressed data will land in with space for
  * decompressed data
  * @param outSz size of output buffer
- * @returns number of bytes written on success or negaitve error code otherwise
+ * @returns number of bytes written on success or negative error code otherwise
  */
 WOLFSSL_API int wc_CompressionData_DeCompToBuf(const wc_CompressionData* data,
         byte* out, word32 outSz);

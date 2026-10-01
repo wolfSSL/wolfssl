@@ -359,7 +359,8 @@ int wc_CompressionData_InitDeComp(wc_CompressionData* cd,
 
     XMEMSET(cd, 0, sizeof(*cd));
 
-    if (data == NULL || uncompSz == 0 || !wc_IsCompressionAlgSupported(alg)) {
+    if (data == NULL || compSz == 0 || uncompSz == 0 ||
+            !wc_IsCompressionAlgSupported(alg)) {
         return BAD_FUNC_ARG;
     }
 

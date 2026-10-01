@@ -233,7 +233,8 @@ byte wc_IsCompressionAlgSupported(word16 alg);
     If reusing an object, call wc_CompressionData_Free on it first.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if cd or data is NULL, uncompSz is 0, or alg is not
+    \return BAD_FUNC_ARG if cd or data is NULL, compSz is 0, uncompSz is 0,
+    or alg is not
     supported
 
     \param cd object to initialize

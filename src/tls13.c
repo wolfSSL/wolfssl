@@ -11122,7 +11122,6 @@ static int SendTls13CertificateRecords(WOLFSSL* ssl, const Tls13CertMsg* msg)
         i += copySz;
         ssl->fragOffset += copySz;
         length -= (sword32)copySz;
-        fragSz -= copySz;
 
         if ((int)i - RECORD_HEADER_SZ < 0) {
             WOLFSSL_MSG("Send Cert bad inputSz");
@@ -11209,7 +11208,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 static int BuildTls13CertMsg(WOLFSSL* ssl, const Tls13CertMsg* msg,
                              byte** out)
 {
-    byte* buf = (byte*)XMALLOC(msg->payloadSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* buf = (byte*)XMALLOC(msg->payloadSz, ssl->heap,
+                               DYNAMIC_TYPE_TMP_BUFFER);
 
     if (buf == NULL)
         return MEMORY_ERROR;
@@ -11294,7 +11294,8 @@ static int SendTls13CompressedCertificate(WOLFSSL* ssl)
         /* else make a new object */
         else {
             ssl->compressedCert = (wc_CompressionData*)XMALLOC(
-                    sizeof(*ssl->compressedCert), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    sizeof(*ssl->compressedCert), ssl->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
             if (ssl->compressedCert == NULL) {
                 XFREE(certMsg, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_ERROR;
@@ -12971,7 +12972,7 @@ int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
 
         if ((ret = wc_CompressionData_DeCompress(ssl->compressedCert)) != 0) {
             WOLFSSL_MSG("Could not decompress cert");
-            if (ret == MEMORY_E)
+            if (ret == WC_NO_ERR_TRACE(MEMORY_E))
                 ERROR_OUT(ret, exit_dcc);
             SendAlert(ssl, alert_fatal, bad_certificate);
             ERROR_OUT(DECOMPRESS_E, exit_dcc);

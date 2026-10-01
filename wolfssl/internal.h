@@ -2091,12 +2091,12 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #endif
 #endif
 
-/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and other relveant
+/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and other relevant
  * macros*/
 #if defined(WOLFSSL_CERT_COMPRESSION) && defined (HAVE_TLS_EXTENSIONS) && \
     (!defined(WOLFSSL_TLS13) || !defined(HAVE_LIBZ) || defined(NO_CERTS))
     #error WOLFSSL_CERT_COMPRESSION needs WOLFSSL_TLS13, HAVE_LIBZ, not \
-    NO_CERTS, and HAVE_TLS_HAVE_TLS_EXTENSIONS.
+    NO_CERTS, and HAVE_TLS_EXTENSIONS.
 #endif
 
 /* Max certificate extensions in TLS1.3 */
