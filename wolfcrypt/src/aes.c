@@ -8388,6 +8388,16 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 SAVE_VECTOR_REGISTERS(return _svr_ret;);
             }
     #endif
+    #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+        !defined(__aarch64__)
+            /* Same reason: the 32-bit Arm wrapper claims after the drain. */
+        #ifdef WOLFSSL_ARM32_AES_DISPATCH
+            if (aes->use_aes_hw_crypto)
+        #endif
+            {
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            }
+    #endif
 
             /* consume any unused bytes left in aes->tmp */
             processed = min(aes->left, sz);
@@ -8417,6 +8427,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 int _svr_ret = AES_CTR_encrypt_AARCH32(in, out, sz,
                     (byte*)aes->reg, (byte*)aes->key, (byte*)aes->tmp,
                     &aes->left, aes->rounds);
+                RESTORE_VECTOR_REGISTERS();
                 if (_svr_ret != 0) {
                     return _svr_ret;
                 }
@@ -8428,6 +8439,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 int _svr_ret = AES_CTR_encrypt_AARCH32(in, out, sz,
                     (byte*)aes->reg, (byte*)aes->key, (byte*)aes->tmp,
                     &aes->left, aes->rounds);
+                RESTORE_VECTOR_REGISTERS();
                 if (_svr_ret != 0) {
                     return _svr_ret;
                 }
