@@ -10958,6 +10958,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                         }
                     }
                 } /* for i */
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -10976,7 +10977,6 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                             goto exit_hmac;
                         }
                     }
-                    RECORD_MULTI_VALUE_STATS();
                 } /* for i */
             } while (pending > 0);
         } while (bench_stats_check(start)
@@ -11013,8 +11013,8 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                             goto exit_hmac;
                         }
                     }
-                    RECORD_MULTI_VALUE_STATS();
                 } /* for i */
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
