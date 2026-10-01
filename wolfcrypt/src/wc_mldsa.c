@@ -11678,11 +11678,15 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             #endif
                 {
             #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
-                    ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
-                        key->h);
+                    if (ret == 0) {
+                        ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
+                            key->h);
+                    }
             #else
-                    ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
-                        block);
+                    if (ret == 0) {
+                        ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
+                            block);
+                    }
             #endif
                     a = aBuf;
                 }
