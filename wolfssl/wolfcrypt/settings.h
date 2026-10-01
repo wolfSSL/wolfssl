@@ -4847,7 +4847,9 @@
 #if (defined(_WC_BUILDING_SP_X86_64_C) || \
      defined(_WC_BUILDING_WC_MLKEM_POLY_C) || \
      defined(_WC_BUILDING_WC_MLDSA_C) || \
-     defined(_WC_BUILDING_WC_SLHDSA_C)) && \
+     defined(_WC_BUILDING_WC_SLHDSA_C) || \
+     defined(_WC_BUILDING_WC_LMS_IMPL_C) || \
+     defined(_WC_BUILDING_WC_XMSS_IMPL_C)) && \
     defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
     !defined(DEBUG_FORCE_VECTOR_REGISTER_ACCESS_FUZZING)
     #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
