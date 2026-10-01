@@ -57,6 +57,11 @@
 
 #include <stdio.h>
 
+/* WOLF_CRYPTO_CB fault device: answers WC_PENDING_E to one selected cipher
+ * operation, so the wc_AesGcmEncrypt_ex / wc_AesCcmEncrypt_ex nonce-advance
+ * guard's PENDING arm is reached without a real asynchronous backend. */
+#include "mcdc_fault_cryptocb.h"
+
 #ifndef INVALID_DEVID
     #define INVALID_DEVID (-2)
 #endif
@@ -1173,6 +1178,114 @@ static void wb_aarch64_ctr_leftover(void)
 { WB_NOTE("aarch64 base CTR body not compiled in this variant; skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * GCM/CCM _ex nonce-advance PENDING arms.
+ *
+ *   if (ret == 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E))   (15190 GCM, 16046 CCM)
+ *
+ * ret is the return of the inner wc_AesGcmEncrypt / wc_AesCcmEncrypt. The
+ * ret==0 arm is the ordinary software path; the PENDING arm needs the inner
+ * op to report WC_PENDING_E, which only an asynchronous backend does. A real
+ * async backend is unavailable here, so the WOLF_CRYPTO_CB fault device
+ * (mcdc_fault_cryptocb.h) answers WC_PENDING_E to the one cipher op: the _ex
+ * wrapper is called on an Aes whose devId routes the inner encrypt through the
+ * device. The baseline (device uninstalled) supplies the ret==0 row; the armed
+ * device supplies the PENDING row.
+ * ------------------------------------------------------------------------- */
+static void wb_gcmccm_pending(void)
+{
+#if defined(HAVE_AESGCM) && defined(HAVE_AESCCM) && defined(WOLF_CRYPTO_CB)
+    Aes      aes;
+    WC_RNG   rng;
+    byte     key[16];
+    byte     in[32];
+    byte     out[32];
+    byte     iv[12];
+    byte     tag[16];
+    byte     aad[8];
+
+    XMEMSET(key, 0x11, sizeof(key));
+    XMEMSET(in,  0x22, sizeof(in));
+    XMEMSET(out, 0,    sizeof(out));
+    XMEMSET(iv,  0x33, sizeof(iv));
+    XMEMSET(tag, 0,    sizeof(tag));
+    XMEMSET(aad, 0x44, sizeof(aad));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed (GCM/CCM PENDING skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* Zero the device table (a zeroed slot has devId==0, not INVALID_DEVID,
+     * so registration finds no free slot until this runs). */
+    wc_CryptoCb_Init();
+
+    /* GCM: baseline (ret==0) then PENDING. */
+    mcdc_cb_uninstall();
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesGcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 0, &rng) == 0) {
+        (void)wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+    mcdc_cb_install();
+    mcdc_cb_fail_algo(WC_ALGO_TYPE_CIPHER, WC_PENDING_E);
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesGcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 0, &rng) == 0) {
+        (void)wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+    /* Third row: a plain (non-PENDING) error makes the decision FALSE, which
+     * is the missing half of each operand's MC/DC pair (ret==0 and ret==PENDING
+     * both leave the decision TRUE). */
+    mcdc_cb_fail_algo(WC_ALGO_TYPE_CIPHER, WC_HW_E);
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesGcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesGcmSetIV(&aes, sizeof(iv), NULL, 0, &rng) == 0) {
+        (void)wc_AesGcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+
+    /* CCM: baseline (ret==0) then PENDING. */
+    mcdc_cb_disarm();
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesCcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesCcmSetNonce(&aes, iv, sizeof(iv)) == 0) {
+        (void)wc_AesCcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+    mcdc_cb_fail_algo(WC_ALGO_TYPE_CIPHER, WC_PENDING_E);
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesCcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesCcmSetNonce(&aes, iv, sizeof(iv)) == 0) {
+        (void)wc_AesCcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+    /* Third row: plain error -> decision FALSE (see the GCM note). */
+    mcdc_cb_fail_algo(WC_ALGO_TYPE_CIPHER, WC_HW_E);
+    if (wc_AesInit(&aes, NULL, MCDC_CB_DEVID) == 0 &&
+        wc_AesCcmSetKey(&aes, key, sizeof(key)) == 0 &&
+        wc_AesCcmSetNonce(&aes, iv, sizeof(iv)) == 0) {
+        (void)wc_AesCcmEncrypt_ex(&aes, out, in, sizeof(in),
+            iv, sizeof(iv), tag, sizeof(tag), aad, sizeof(aad));
+        wc_AesFree(&aes);
+    }
+    mcdc_cb_uninstall();
+
+    wc_FreeRng(&rng);
+    WB_NOTE("GCM/CCM _ex PENDING nonce-advance arms exercised");
+#else
+    WB_NOTE("GCM/CCM/WOLF_CRYPTO_CB not all on; PENDING arms skipped");
+#endif
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1195,6 +1308,7 @@ int main(void)
     wb_ccm_roll_auth_ret();
     wb_ccm_aesni_dispatch();
     wb_aarch64_ctr_leftover();
+    wb_gcmccm_pending();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
