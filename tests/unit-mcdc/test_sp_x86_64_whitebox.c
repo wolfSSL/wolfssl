@@ -325,6 +325,93 @@ static void wb_run_ecc_curve(int curve_id, int fieldSz, const char* label)
 #endif
 }
 
+/* A refused save must stop work that uses vector registers and must not stop
+ * work that does not.  On the base lane the only xmm user is the
+ * cache-resistant table lookup, which runs when ct is set, and ECDSA verify
+ * passes ct == 0.  Caller clears AVX2 so the base lane is the one driven. */
+static void wb_run_ecc_verify_no_save(int curve_id, int fieldSz,
+    const char* label)
+{
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    ecc_key keyA;
+    WC_RNG  rng;
+    byte    sig[ECC_MAX_SIG_SIZE];
+    word32  sigLen = (word32)sizeof(sig);
+    int     verifyRes = 0;
+    int     ret;
+
+    XMEMSET(&keyA, 0, sizeof(keyA));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    if (wc_ecc_init(&keyA) != 0) {
+        WB_NOTE("wc_ecc_init failed (verify without a save)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed (verify without a save)");
+        wb_fail = 1;
+        wc_ecc_free(&keyA);
+        return;
+    }
+
+    /* Key and signature are made with the save allowed. */
+    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+        WB_NOTE("wc_ecc_make_key_ex failed (verify without a save)");
+        wb_fail = 1;
+    }
+    else if (wc_ecc_sign_hash(wb_digest, (word32)sizeof(wb_digest), sig,
+            &sigLen, &rng, &keyA) != 0) {
+        WB_NOTE("wc_ecc_sign_hash failed (verify without a save)");
+        wb_fail = 1;
+    }
+    else {
+        wb_intr_ret = 1;
+        ret = wc_ecc_verify_hash(sig, sigLen, wb_digest,
+            (word32)sizeof(wb_digest), &verifyRes, &keyA);
+        wb_intr_ret = 0;
+
+        if (ret != 0) {
+            printf("  [wb] FAIL: %s stopped on a save it never needed\n",
+                   label);
+            wb_contract_fail = 1;
+        }
+        else if (verifyRes != 1) {
+            printf("  [wb] FAIL: %s rejected a good signature\n", label);
+            wb_contract_fail = 1;
+        }
+        else {
+            WB_NOTE(label);
+        }
+    }
+
+    wc_FreeRng(&rng);
+    wc_ecc_free(&keyA);
+#else
+    (void)curve_id;
+    (void)fieldSz;
+    (void)label;
+    WB_NOTE("HAVE_ECC_SIGN/VERIFY not both defined; verify-without-save skipped");
+#endif
+}
+
+static void wb_run_ecc_no_save(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    wb_run_ecc_verify_no_save(ECC_SECP256R1, 32,
+        "P-256 verify with the save refused on the base lane");
+#endif
+#ifdef WOLFSSL_SP_384
+    wb_run_ecc_verify_no_save(ECC_SECP384R1, 48,
+        "P-384 verify with the save refused on the base lane");
+#endif
+#ifdef WOLFSSL_SP_521
+    wb_run_ecc_verify_no_save(ECC_SECP521R1, 66,
+        "P-521 verify with the save refused on the base lane");
+#endif
+}
+
 static void wb_run_ecc(void)
 {
 #ifndef WOLFSSL_SP_NO_256
@@ -350,6 +437,10 @@ static void wb_run_ecc(void)
 }
 #else
 static void wb_run_ecc(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_SP_ECC/HAVE_ECC not both defined; ECC skipped");
+}
+static void wb_run_ecc_no_save(void)
 {
     WB_NOTE("WOLFSSL_HAVE_SP_ECC/HAVE_ECC not both defined; ECC skipped");
 }
@@ -2032,6 +2123,12 @@ int main(void)
             printf("  [wb] FAIL: nothing was seen failing, so this check proves nothing\n");
             wb_contract_fail = 1;
         }
+
+        /* The other half of the contract: with AVX2 cleared, ECDSA verify
+         * needs no vector registers, so a refused save must not stop it. */
+        cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_AVX2);
+        wb_run_ecc_no_save();
+        cpuid_select_flags(real);
 
         wb_run_rsa_free();
 
