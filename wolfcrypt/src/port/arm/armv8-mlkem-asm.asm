@@ -23,7 +23,7 @@
 ;   cd ../scripts
 ;   ruby ./kyber/kyber.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-mlkem-asm.asm
-	IF :DEF:WOLFSSL_HAVE_MLKEM
+	IF :DEF:WOLFSSL_HAVE_MLKEM :LAND: :LNOT::DEF:WOLF_CRYPTO_CB_ONLY_MLKEM
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_mlkem_aarch64_consts

@@ -2074,8 +2074,10 @@ int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type, int keySize, void* key)
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -2108,8 +2110,10 @@ int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -2144,8 +2148,10 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);

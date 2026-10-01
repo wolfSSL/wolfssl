@@ -4872,6 +4872,14 @@ int test_wc_mlkem_cb_free(void)
  * filled with it proves nothing wrote to it. */
 #define TEST_MLKEM_CB_FILL 0xA5
 
+/* What an operation the device declines returns: the software result, or
+ * no device when there is no software to fall back to. */
+#ifdef WC_MLKEM_HAVE_NATIVE
+    #define TEST_MLKEM_CB_DECLINED 0
+#else
+    #define TEST_MLKEM_CB_DECLINED WC_NO_ERR_TRACE(NO_VALID_DEVID)
+#endif
+
 typedef struct {
     int calls;   /* KEM callbacks seen */
     int ret;     /* what the callback returns */
@@ -4910,6 +4918,34 @@ static int mlkem_cb_untouched(const byte* buf, word32 len)
     }
     return 1;
 }
+
+#ifndef WC_MLKEM_HAVE_NATIVE
+/* Set a private key without key generation. All-zero key material decodes
+ * once the stored H(ek) matches, since dk is dk_PKE || ek || H(ek) || z. */
+static int mlkem_cb_load_key(MlKemKey* key)
+{
+    byte dk[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    word32 dkLen = 0;
+    word32 ekLen = 0;
+    word32 hOff;
+    int ret;
+
+    XMEMSET(dk, 0, sizeof(dk));
+    ret = wc_MlKemKey_PrivateKeySize(key, &dkLen);
+    if (ret == 0) {
+        ret = wc_MlKemKey_PublicKeySize(key, &ekLen);
+    }
+    if (ret == 0) {
+        hOff = dkLen - 2 * WC_ML_KEM_SYM_SZ;
+        ret = wc_Sha3_256Hash(dk + hOff - ekLen, ekLen, dk + hOff);
+    }
+    if (ret == 0) {
+        ret = wc_MlKemKey_DecodePrivateKey(key, dk, dkLen);
+    }
+
+    return ret;
+}
+#endif /* !WC_MLKEM_HAVE_NATIVE */
 #endif /* TEST_MLKEM_CB_PENDING */
 
 /* A crypto callback that returns WC_PENDING_E for a KEM operation is asking
@@ -4929,7 +4965,9 @@ int test_wc_mlkem_cb_pending_rejected(void)
     WC_RNG rng;
     byte* ctGood = NULL;
     byte* ct = NULL;
+#ifdef WC_MLKEM_HAVE_NATIVE
     byte ssGood[WC_ML_KEM_SS_SZ];
+#endif
     byte ss[WC_ML_KEM_SS_SZ];
     word32 ctLen = 0;
     int rngInit = 0;
@@ -4945,8 +4983,8 @@ int test_wc_mlkem_cb_pending_rejected(void)
     ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
 
-    /* A software key pair and a valid ciphertext to decapsulate, made before
-     * any callback is registered. */
+    /* A key pair and a ciphertext to decapsulate, made before any callback
+     * is registered. */
     ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
         INVALID_DEVID), 0);
     if (EXPECT_SUCCESS()) {
@@ -4956,8 +4994,17 @@ int test_wc_mlkem_cb_pending_rejected(void)
     ExpectNotNull(ctGood = (byte*)XMALLOC(ctLen, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(ct = (byte*)XMALLOC(ctLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+#ifdef WC_MLKEM_HAVE_NATIVE
     ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
     ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ctGood, ssGood, &rng), 0);
+#else
+    /* Pending is refused before the key or ciphertext is read, so a decoded
+     * key and a zero ciphertext do. */
+    ExpectIntEQ(mlkem_cb_load_key(key), 0);
+    if (ctGood != NULL) {
+        XMEMSET(ctGood, 0, ctLen);
+    }
+#endif
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_PENDING_DEVID,
         mlkem_cb_pending_cb, &seen), 0);
@@ -4996,10 +5043,15 @@ int test_wc_mlkem_cb_pending_rejected(void)
     /* Declining still falls through to software, and the software result is
      * the one the key pair was built with. */
     seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
-    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen), 0);
-    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ctGood, ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        TEST_MLKEM_CB_DECLINED);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen),
+        TEST_MLKEM_CB_DECLINED);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ctGood, ctLen),
+        TEST_MLKEM_CB_DECLINED);
+#ifdef WC_MLKEM_HAVE_NATIVE
     ExpectIntEQ(XMEMCMP(ss, ssGood, sizeof(ss)), 0);
+#endif
     ExpectIntEQ(seen.calls, 7);
 
     if (keyInit) {
@@ -5028,11 +5080,13 @@ int test_wc_mlkem_cb_pending_rejected(void)
 
     /* Declining key generation still reaches the software path. */
     seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), TEST_MLKEM_CB_DECLINED);
     ExpectIntEQ(seen.calls, 9);
+#ifdef WC_MLKEM_HAVE_NATIVE
     if (key != NULL) {
         ExpectIntEQ(key->flags & MLKEM_FLAG_BOTH_SET, MLKEM_FLAG_BOTH_SET);
     }
+#endif
 
     if (keyInit) {
         wc_MlKemKey_Free(key);

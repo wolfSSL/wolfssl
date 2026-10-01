@@ -65295,7 +65295,12 @@ out:
 
             XMEMSET(buf, 0, bufLen);
             r = wc_MlKemKey_Decapsulate(key, ss, buf, ctLen);
+        #ifdef WOLFSSL_SWDEV
+            /* swdev serves keys that have no device of their own. */
+            if (r != 0)
+        #else
             if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+        #endif
                 ret = WC_TEST_RET_ENC_NC;
         }
 #endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
