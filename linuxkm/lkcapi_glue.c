@@ -97,7 +97,13 @@
     #define LKCAPI_HAVE_ARCH_ACCEL
 #endif
 
-#if defined(LKCAPI_HAVE_ARCH_ACCEL) &&                   \
+/* v7 pins one lane per algorithm, so the shims keep no second key schedule.
+ * Tried and failed to make a refused save reach one: skcipher from hardirq is
+ * refused (crypto/skcipher.c:449), softirq always has SIMD (fpu/core.c:76). */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #undef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+#elif defined(LKCAPI_HAVE_ARCH_ACCEL) &&                 \
     (!defined(WC_C_DYNAMIC_FALLBACK) ||                  \
      (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))) && \
     !defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS)
