@@ -4750,11 +4750,14 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     !defined(WOLFSSL_WC_SLHDSA_SMALL)
         /* The SHA-2 sets batch sixteen chains of SHA-256. */
         if (SLHDSA_IS_SHA2(key->params->param) &&
-                IS_INTEL_AVX512(cpuid_flags) &&
-                (SAVE_VECTOR_REGISTERS2() == 0)) {
-            ret = slhdsakey_wots_pkgen_chain_sha2_x16(key, sk_seed, pk_seed,
-                adrs, sk_adrs);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX512(cpuid_flags)) {
+            /* CPUID picks the lane; a refused save is an error, not the C lane. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                ret = slhdsakey_wots_pkgen_chain_sha2_x16(key, sk_seed,
+                    pk_seed, adrs, sk_adrs);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -5211,11 +5214,14 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     !defined(WOLFSSL_WC_SLHDSA_SMALL)
         /* The SHA-2 sets batch sixteen chains of SHA-256. */
         if (SLHDSA_IS_SHA2(key->params->param) &&
-                IS_INTEL_AVX512(cpuid_flags) &&
-                (SAVE_VECTOR_REGISTERS2() == 0)) {
-            ret = slhdsakey_wots_sign_chain_sha2_x16(key, msg, sk_seed,
-                pk_seed, adrs, sk_adrs, sig);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX512(cpuid_flags)) {
+            /* CPUID picks the lane; a refused save is an error, not the C lane. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                ret = slhdsakey_wots_sign_chain_sha2_x16(key, msg, sk_seed,
+                    pk_seed, adrs, sk_adrs, sig);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -5880,11 +5886,14 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
     !defined(WOLFSSL_WC_SLHDSA_SMALL)
         /* The SHA-2 sets batch sixteen chains of SHA-256. */
     if (SLHDSA_IS_SHA2(key->params->param) &&
-            IS_INTEL_AVX512(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0)) {
-        ret = slhdsakey_wots_pk_from_sig_sha2_x16(key, sig, msg,
-            pk_seed, adrs, pk_sig);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX512(cpuid_flags)) {
+        /* CPUID picks the lane; a refused save is an error, not the C lane. */
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            ret = slhdsakey_wots_pk_from_sig_sha2_x16(key, sig, msg,
+                pk_seed, adrs, pk_sig);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
