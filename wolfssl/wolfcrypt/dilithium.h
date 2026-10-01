@@ -83,6 +83,11 @@
 #ifndef WOLF_CRYPT_DILITHIUM_H
 #define WOLF_CRYPT_DILITHIUM_H
 
+/* Read the build configuration before deriving any option: an application
+ * that reaches this header before settings.h would otherwise translate an
+ * empty option set and get a different wc_MlDsaKey layout than the library. */
+#include <wolfssl/wolfcrypt/types.h>
+
 /* === Sub-config build-gate translations =============================== */
 
 /* The two sub-gates that <wolfssl/certs_test.h> (auto-generated, no
@@ -148,17 +153,6 @@
 #ifdef WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM
     #ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
         #define WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
-    #endif
-#endif
-#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
-    /* Smallest verify RAM: on top of the small-mem, no-malloc path, stream the
-     * signature's z vector one polynomial at a time instead of pinning the whole
-     * l-vector (~6 KB for ML-DSA-87) at the cost of a per-row z decode+NTT. */
-    #ifndef WOLFSSL_MLDSA_VERIFY_SMALL_MEM
-        #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
-    #endif
-    #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
-        #define WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     #endif
 #endif
 #ifdef WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM
@@ -361,6 +355,8 @@
         !defined(WOLFSSL_MLDSA_NO_SIGN)
     #define WOLFSSL_MLDSA_PRIVATE_KEY
 #endif
+/* wc_CheckPrivateKey() needs this to match an ML-DSA certificate to its
+ * private key. */
 #if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
         defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
         !defined(WOLFSSL_MLDSA_NO_CHECK_KEY) && \
@@ -427,6 +423,9 @@
 #endif
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
     #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#endif
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && !defined(WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM)
+    #define WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM
 #endif
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) && !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC)
     #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC

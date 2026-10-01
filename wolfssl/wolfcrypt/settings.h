@@ -3824,7 +3824,7 @@
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-      defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+      defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
@@ -3837,7 +3837,7 @@
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-      defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+      defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
@@ -5412,10 +5412,17 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-/* If no malloc then make sure the valid Dilithium settings are used */
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_NO_MALLOC)
-    #undef  WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    #define WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+/* If no malloc then make sure the valid ML-DSA settings are used */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_NO_MALLOC)
+    #undef  WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+    #define WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+    /* The pinned buffers only exist under the small memory verify; without it
+     * every verification fails with MEMORY_E. */
+    #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        !defined(WOLFSSL_MLDSA_VERIFY_ALLOW_MALLOC)
+        #undef  WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+        #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+    #endif
 #endif
 
 #if defined(WOLFSSL_HAVE_MLKEM) && \

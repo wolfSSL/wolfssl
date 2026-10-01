@@ -2459,6 +2459,19 @@ then
     ENABLED_MLDSA87=yes
 fi
 
+# Likewise, naming only a parameter set, for example --enable-mldsa=44,
+# selects no operation, which would disable everything. verify-only names an
+# operation, so it is unaffected.
+if test "$ENABLED_MLDSA" != "no" && \
+   test "$ENABLED_MLDSA_MAKE_KEY" = "no" && \
+   test "$ENABLED_MLDSA_SIGN" = "no" && \
+   test "$ENABLED_MLDSA_VERIFY" = "no"
+then
+    ENABLED_MLDSA_MAKE_KEY=yes
+    ENABLED_MLDSA_SIGN=yes
+    ENABLED_MLDSA_VERIFY=yes
+fi
+
 # XMSS
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],

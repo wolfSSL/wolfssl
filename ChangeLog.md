@@ -1,5 +1,10 @@
 # wolfSSL Release (unreleased)
 
+## Behavioral Changes
+
+* `WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM` no longer implies `WOLFSSL_MLDSA_VERIFY_NO_MALLOC`: the smallest memory verify allocates its scratch instead of pinning it in `wc_MlDsaKey`. Define `WOLFSSL_MLDSA_VERIFY_NO_MALLOC` as well to keep it heapless. by @Frauschi
+* `WOLFSSL_NO_MALLOC` now also selects the ML-DSA small memory verify, so heapless verification works instead of failing with `MEMORY_E`; each `wc_MlDsaKey` grows by about 12 kB. `WOLFSSL_MLDSA_VERIFY_ALLOW_MALLOC` keeps the allocating verify. by @Frauschi
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -7,6 +12,11 @@
 * Reduced Falcon's peak signing heap by about 21%, halved the verify working set, and moved the SHAKE states and ASN public-key buffers off the stack. by @Frauschi
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
+* Fixed `WC_MLDSA_CACHE_PUB_VECTORS` not building with `WOLFSSL_MLDSA_VERIFY_NO_MALLOC`; the verify scratch member `t1` is now `vt1`. by @Frauschi
+* Reduced ML-DSA small memory heap use and added `WOLFSSL_MLDSA_SIGN_SMALLEST_MEM`, which roughly halves the signing peak. by @Frauschi
+* Sped up ML-DSA small memory signing by transforming each polynomial of y once; `WOLFSSL_MLDSA_SMALL_MEM_POLY64` no longer affects signing. by @Frauschi
+* Fixed `--enable-mldsa=<level>` building no ML-DSA operations. by @Frauschi
+* Fixed ML-DSA small memory key generation keeping the caches (`WC_MLDSA_CACHE_*`) of the key it replaced, which broke its signatures. by @Frauschi
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
