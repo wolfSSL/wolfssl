@@ -6434,9 +6434,11 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_id");
 
-    if (cipher && cipher->ssl) {
-        cipher_id = (word16)(cipher->ssl->options.cipherSuite0 << 8) |
-                     cipher->ssl->options.cipherSuite;
+    /* Read the suite of this entry: stack entries and SSL_CIPHER_find()
+     * results are not the negotiated suite. */
+    if (cipher != NULL) {
+        cipher_id = (word16)((word16)cipher->cipherSuite0 << 8) |
+                     cipher->cipherSuite;
     }
 
     return cipher_id;
@@ -9497,6 +9499,13 @@ static WC_INLINE int CipherMinMaxCheck(byte minDowngrade, unsigned long mask,
 
     if (i < 0)
         return 1;
+    /* Suites are tagged with TLS minors. Map DTLS to the matching TLS. */
+    if (minDowngrade == DTLS_MINOR)
+        minDowngrade = TLSv1_1_MINOR;
+    else if (minDowngrade == DTLSv1_2_MINOR)
+        minDowngrade = TLSv1_2_MINOR;
+    else if (minDowngrade == DTLSv1_3_MINOR)
+        minDowngrade = TLSv1_3_MINOR;
     /* Check min version */
     if (cipher_names[i].minor < minDowngrade) {
         if (minDowngrade <= TLSv1_2_MINOR &&

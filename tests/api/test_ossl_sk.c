@@ -520,6 +520,11 @@ static int test_ctx_ciphers_match_ssl(WOLFSSL_CTX* ctx,
         ExpectIntEQ(c->cipherSuite, s->cipherSuite);
         ExpectStrEQ(wolfSSL_CIPHER_get_name(c), wolfSSL_CIPHER_get_name(s));
         ExpectTrue(c->ssl == NULL);
+        /* The ID is the suite of the entry, not of a session. */
+        ExpectIntEQ((int)wolfSSL_CIPHER_get_id(c),
+            ((int)c->cipherSuite0 << 8) | c->cipherSuite);
+        ExpectIntEQ((int)wolfSSL_CIPHER_get_id(s),
+            (int)wolfSSL_CIPHER_get_id(c));
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         /* Same bookkeeping, so the same description. */
         ExpectIntEQ(c->in_stack, s->in_stack);
@@ -757,6 +762,16 @@ int test_wolfSSL_CTX_get_ciphers_versions(void)
     ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
     ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), 1);
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+    /* DTLS versions are filtered as the matching TLS ones. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers_compat(ctx));
+    ExpectIntEQ(test_ctx_ciphers_match_ssl(ctx, sk), TEST_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
     (void)ctx;
