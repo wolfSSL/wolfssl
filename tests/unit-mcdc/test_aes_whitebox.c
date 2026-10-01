@@ -297,7 +297,7 @@ static void wb_aesnew_common(void)
  * is set, so calling the *_aesni updaters directly is state-consistent.
  * ASSERT_SAVED_VECTOR_REGISTERS is a no-op unless WOLFSSL_CHECK_VECTOR_REGISTERS.
  * ------------------------------------------------------------------------- */
-#ifdef WC_AESNI_GCM
+#ifdef WOLFSSL_AESNI
 static void wb_aesni(void)
 {
     {   /* key-expansion !userKey / !aes halves */
@@ -331,7 +331,8 @@ static void wb_aesni(void)
         }
     }
 
-#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+/* The key-expansion pairs above are plain AES-NI; only this group is GCM. */
+#if defined(WC_AESNI_GCM) && defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
     {   /* AES-NI GCM streaming ptr guards; both halves within this binary */
         Aes  aes;
         byte key[16], iv[12], in[16], out[16];

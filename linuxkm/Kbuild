@@ -300,6 +300,7 @@ ifeq ($(CONFIG_ARM),y)
 # compiled out, such as the SHA-3 assembly under WC_SHA3_NO_ASM.
 $(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) -march=armv8-a -mfpu=crypto-neon-fp-armv8 -Wa,--noexecstack
 $(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-y += -march=armv8-a -mfpu=crypto-neon-fp-armv8
+$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-remove-y += -mgeneral-regs-only
 $(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
 endif
 

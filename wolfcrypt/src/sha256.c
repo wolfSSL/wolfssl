@@ -1500,6 +1500,9 @@ static WC_INLINE int Transform_Sha256_Len_crypto_arm32(wc_Sha256* sha256,
     return 0;
 }
 #endif
+/* Guarded exactly as armv8-32-sha256-asm_c.c guards the assembly it calls, so
+ * a wrapper exists only where its implementation does. */
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static WC_INLINE int Transform_Sha256_Len_neon_arm32(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
@@ -1509,12 +1512,15 @@ static WC_INLINE int Transform_Sha256_Len_neon_arm32(wc_Sha256* sha256,
     return 0;
 }
 #endif
+#endif
+#if !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) || defined(WOLFSSL_ARMASM_NO_NEON)
 static WC_INLINE int Transform_Sha256_Len_base_arm32(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
     Transform_Sha256_Len_base(sha256, data, len);
     return 0;
 }
+#endif
 
 #ifdef SHA256_ARM32_DISPATCH
 

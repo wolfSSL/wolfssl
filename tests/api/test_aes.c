@@ -5736,6 +5736,9 @@ int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
     byte tag[WC_AES_BLOCK_SIZE];
     word32 i;
 
+    /* Zeroed first: the tag is only filled by a call inside ExpectIntEQ, which
+     * does not run once an earlier expectation has failed. */
+    XMEMSET(tag, 0, sizeof(tag));
     for (i = 0; i < (word32)sizeof(pt); i++) {
         pt[i] = (byte)(0x40 + i);
     }

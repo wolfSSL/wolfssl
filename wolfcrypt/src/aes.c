@@ -179,8 +179,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WC_AES_GCM_C_SVR_END()   WC_AES_ARM64_SVR_END()
 #elif defined(WOLFSSL_AESNI) && !defined(WC_AESNI_GCM)
     #ifdef WC_C_DYNAMIC_FALLBACK
-    /* Same answer the 64-bit AES-NI GCM path gives: a refused claim drops this
-     * request to the C block.  A FIPS build never defines this macro. */
+    /* A refused claim drops this object to the C block and leaves it there; the
+     * C path keeps its own key copy. */
     #define WC_AES_GCM_C_SVR_BEGIN()                                       \
         do { if (aes->use_aesni) {                                         \
                  if (SAVE_VECTOR_REGISTERS2() != 0)                        \
