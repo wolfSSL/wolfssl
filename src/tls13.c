@@ -16107,8 +16107,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.asyncReplayMsg = 1;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO) || \
-    defined(WOLFSSL_HAVE_HS_SUSPEND)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* if suspended, offset index so this msg will be processed again */
     /* NOTE: check this now before other calls can overwrite ret */
     if (IsHsSuspendErr(ret) && *inOutIdx > 0) {
