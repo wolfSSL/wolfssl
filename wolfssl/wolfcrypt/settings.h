@@ -2504,6 +2504,7 @@
 
 #ifdef WOLFSSL_TI_AM64X_R5
     #define HAVE_AES_ECB
+    #define HAVE_AESGCM
     #define NO_AES_192
     #define NO_DEV_RANDOM
     #ifndef TI_MCU_PLUS_SDK

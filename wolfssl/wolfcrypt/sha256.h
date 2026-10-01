@@ -247,9 +247,6 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
-#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
-    void *ctx;
-#endif
 };
 
 #ifndef WC_SHA256_TYPE_DEFINED
