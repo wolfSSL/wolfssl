@@ -273,7 +273,7 @@ static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 }
 
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
 /* TLSX_Push's first allocation is the list node. Fail that one so the
  * direct free above runs. Later allocations in this call are allowed. */
 TEST_TLS_PARSE_UNUSED
@@ -2763,7 +2763,7 @@ int test_TLSX_KeyShare_gen(void)
         }
 #endif
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
         /* Key is generated. The next allocation, the list node, fails. */
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -2819,7 +2819,7 @@ int test_TLSX_KeyShare_gen(void)
             test_tls_parse_free_kse(ssl, kse);
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
         /* Key is generated. The next allocation, the list node, fails. */
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -2870,7 +2870,7 @@ int test_TLSX_KeyShare_gen(void)
             test_tls_parse_free_kse(ssl, kse);
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
         /* Key is generated. The next allocation, the list node, fails. */
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -2913,7 +2913,7 @@ int test_TLSX_KeyShare_gen(void)
             test_tls_parse_free_kse(ssl, kse);
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(WOLFSSL_DEBUG_MEMORY)
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
         /* Key is generated. The next allocation, the list node, fails. */
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
