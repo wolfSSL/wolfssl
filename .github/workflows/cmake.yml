@@ -111,6 +111,67 @@ jobs:
         cd ..
         rm -rf build
 
+# Option plumbing: a declared option must reach both the library and
+# options.h, and a -D that is not an option must reach neither.
+    - name: Check option to options.h plumbing
+      run: |
+        mkdir build
+        cd build
+        cmake -DWOLFSSL_CRYPT_ONLY=yes .. 2>&1 | tee cfg.log
+        grep -q '^#define WOLFCRYPT_ONLY$' wolfssl/options.h
+        grep -q '^#define NO_TLS$' wolfssl/options.h
+        # TLS-layer options default off, as with --enable-cryptonly, but the
+        # TLS 1.3 KDFs stay.
+        ! grep -q '^#define HAVE_SNI$' wolfssl/options.h
+        ! grep -q '^#define WOLFSSL_DTLS$' wolfssl/options.h
+        grep -q '^#define WOLFSSL_TLS13$' wolfssl/options.h
+        ! grep -q 'is not a wolfSSL build option' cfg.log
+        cmake --build .
+
+        cd ..
+        rm -rf build
+        mkdir build
+        cd build
+        # Adding cryptonly to a directory configured without it must take the
+        # TLS layer out too, not leave the previous defaults cached.
+        cmake .. > /dev/null
+        grep -q '^#define HAVE_SNI$' wolfssl/options.h
+        cmake -DWOLFSSL_CRYPT_ONLY=yes .. > /dev/null
+        ! grep -q '^#define HAVE_SNI$' wolfssl/options.h
+        grep -q '^#define NO_TLS$' wolfssl/options.h
+
+        cd ..
+        rm -rf build
+        mkdir build
+        cd build
+        # Cryptonly wins over a TLS-layer option asked for alongside it.
+        cmake -DWOLFSSL_CRYPT_ONLY=yes -DWOLFSSL_DTLS=yes .. > /dev/null
+        ! grep -q '^#define WOLFSSL_DTLS$' wolfssl/options.h
+
+        cd ..
+        rm -rf build
+        mkdir build
+        cd build
+        # An option declared with a raw CACHE entry rather than add_option must
+        # survive the stray-define guard, including across a reconfigure.
+        cmake -DWOLFSSL_HARDEN_TLS=128 .. 2>&1 | tee cfg.log
+        grep -q '^#define WOLFSSL_HARDEN_TLS 128$' wolfssl/options.h
+        ! grep -q 'is not a wolfSSL build option' cfg.log
+        cmake . > /dev/null
+        grep -q '^#define WOLFSSL_HARDEN_TLS 128$' wolfssl/options.h
+
+        cd ..
+        rm -rf build
+        mkdir build
+        cd build
+        # WOLFSSL_STATICMEMORY is the option; this spelling is not one.
+        cmake -DWOLFSSL_STATIC_MEMORY=yes .. 2>&1 | tee cfg.log
+        grep -q 'WOLFSSL_STATIC_MEMORY is not a wolfSSL build option' cfg.log
+        ! grep -q '^#define WOLFSSL_STATIC_MEMORY$' wolfssl/options.h
+
+        cd ..
+        rm -rf build
+
 # CMake build with user_settings.h
     - name: Build wolfssl with user_settings.h
       run: |
