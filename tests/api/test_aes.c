@@ -6683,6 +6683,27 @@ int test_wc_AesUnalignedBuffers(void)
         wc_AesFree(&aes);
     }
 #endif
+#if defined(HAVE_AES_ECB) && defined(HAVE_AES_DECRYPT)
+    {
+        /* The bulk block routine has a separate decrypt entry, so cover it too. */
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key32, 16, NULL, AES_DECRYPTION), 0);
+        ExpectIntEQ(wc_AesEcbDecrypt(&aes, ref, in, sz), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesEcbDecrypt(&aes, out + offOut, in + offIn,
+                    sz), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesFree(&aes);
+    }
+#endif
 #ifdef WOLFSSL_AES_XTS
     {
         static const byte tweak[WC_AES_BLOCK_SIZE] = {
@@ -6701,6 +6722,31 @@ int test_wc_AesUnalignedBuffers(void)
                 XMEMSET(out, 0, sizeof(out));
                 ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out + offOut, in + offIn,
                     sz, tweak, sizeof(tweak)), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesXtsFree(&xaes);
+    }
+#endif
+#if defined(WOLFSSL_AES_XTS) && defined(HAVE_AES_DECRYPT)
+    {
+        static const byte tweak2[WC_AES_BLOCK_SIZE] = {
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+        };
+        XtsAes xaes;
+        XMEMSET(&xaes, 0, sizeof(xaes));
+        ExpectIntEQ(wc_AesXtsSetKey(&xaes, key32, sizeof(key32),
+            AES_DECRYPTION, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsDecrypt(&xaes, ref, in, sz, tweak2,
+            sizeof(tweak2)), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out + offOut, in + offIn,
+                    sz, tweak2, sizeof(tweak2)), 0);
                 ExpectBufEQ(out + offOut, ref, sz);
                 XMEMMOVE(in, in + offIn, sz);
             }
