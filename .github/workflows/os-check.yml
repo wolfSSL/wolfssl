@@ -148,9 +148,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-    # !cancelled() keeps this job alive when seed_gate is skipped (every
-    # event but a master push); a declined gate skips the seed.
-    if: ${{ !cancelled() && (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && (github.event_name != 'push' || github.ref != 'refs/heads/master' || needs.seed_gate.outputs.seed == 'true') }}
+    # !cancelled() keeps this job alive when seed_gate is skipped.
+    if: ${{ !cancelled() && (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Measured cold on a completely empty cache (2026-08-03): ~102
     # thread-minutes per shard / 4 worker threads, i.e. 24-27 min of wall
@@ -162,17 +161,23 @@ jobs:
     timeout-minutes: 60
     env:
       CCACHE_MAXSIZE: 500M
+      # Skip every step of a declined seed so the job shows success.
+      SEED_DECLINED: ${{ needs.seed_gate.outputs.seed == 'false' }}
     steps:
       - uses: actions/checkout@v5
+        if: ${{ env.SEED_DECLINED != 'true' }}
 
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
       - uses: actions/setup-python@v6
+        if: ${{ env.SEED_DECLINED != 'true' }}
         with:
           python-version: '3.x'
       - run: pip install 'tlslite-ng==0.8.2'
+        if: ${{ env.SEED_DECLINED != 'true' }}
 
       - name: Install dependencies
+        if: ${{ env.SEED_DECLINED != 'true' }}
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap ccache gcc-multilib zlib1g-dev
@@ -182,12 +187,14 @@ jobs:
       # which would stop the test scripts from re-execing under
       # bwrap --unshare-net (their port-isolation mechanism).
       - name: Allow unprivileged user namespaces (for bwrap)
+        if: ${{ env.SEED_DECLINED != 'true' }}
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       # ccache's default cache dir (XDG ~/.cache/ccache) is what the
       # actions/cache step below saves; pin it explicitly so the two
       # cannot drift apart (e.g. if a later change sets CCACHE_DIR).
       - name: Pin ccache directory
+        if: ${{ env.SEED_DECLINED != 'true' }}
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
       # PRs restore the cache a seed run writes but never save it, so PR
@@ -198,7 +205,7 @@ jobs:
       # using CCACHE_RECACHE. Restore would bring the stale cache entry to the
       # top of the Github LRU, above newly written entries.
       - name: Restore ccache
-        if: ${{ !(github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
+        if: ${{ env.SEED_DECLINED != 'true' && !(github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
@@ -212,10 +219,11 @@ jobs:
             os-check-linux-ccache-
 
       - name: Force fresh compiles on a reseed
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
+        if: ${{ env.SEED_DECLINED != 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
         run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
       - name: autogen
+        if: ${{ env.SEED_DECLINED != 'true' }}
         run: |
           ccache -z
           ./autogen.sh
@@ -238,6 +246,7 @@ jobs:
       # CRLs under certs/crl/, which would race through the shared VPATH
       # certs symlink.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
+        if: ${{ env.SEED_DECLINED != 'true' }}
         run: |
           .github/scripts/parallel-make-check.py \
             ${{ (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
@@ -249,7 +258,7 @@ jobs:
       # `seed` ticked) refresh the master-scoped ccache that PR runs restore
       # above; PR and release-branch runs never save, so PRs add nothing.
       - name: Save ccache (seed only)
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
+        if: ${{ env.SEED_DECLINED != 'true' && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
@@ -259,7 +268,7 @@ jobs:
       # entries which do not go through this flow.
       - name: Prune this shard's stale seeds
         continue-on-error: true
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
+        if: ${{ env.SEED_DECLINED != 'true' && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -284,7 +293,7 @@ jobs:
           done
 
       - name: ccache stats
-        if: always()
+        if: ${{ always() && env.SEED_DECLINED != 'true' }}
         run: ccache -s || true
 
       - name: Upload logs on failure
