@@ -1528,7 +1528,8 @@ enum KeyIdType {
     #define WOLFSSL_IP6_ADDR_LEN 16
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
-/* No allocator: reference key/alt-name data in the source DER, not copies. */
+/* No allocator: parse by referencing key/alt-name data in the source DER
+ * rather than copies, and encode from the stack. */
 #if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_USER) && !defined(WOLFSSL_STATIC_MEMORY)
     #define WC_ASN_NO_HEAP

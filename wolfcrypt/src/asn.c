@@ -194,10 +194,11 @@ ASN Options:
  * WOLFSSL_X509_TINY:        Minimal-extension profile. Compiles out optional
     X.509 extension decoders behind per-feature WOLFSSL_X509_TINY_<F> add-back
     macros. Requires WOLFSSL_ASN_TEMPLATE (enforced with #error).
- * WC_ASN_NO_HEAP:           Zero-allocation cert parse: reference key/alt-name
-    data in the source DER instead of heap copies, so the source buffer must
-    outlive the DecodedCert. Auto-defined when WOLFSSL_NO_MALLOC and
-    NO_WOLFSSL_MEMORY are set without XMALLOC_USER or WOLFSSL_STATIC_MEMORY.
+ * WC_ASN_NO_HEAP:           Zero-allocation cert parse and encode. Parsing
+    references key/alt-name data in the source DER instead of heap copies, so
+    the source buffer must outlive the DecodedCert; encoding works from the
+    stack. Auto-defined when WOLFSSL_NO_MALLOC and NO_WOLFSSL_MEMORY are set
+    without XMALLOC_USER or WOLFSSL_STATIC_MEMORY.
     Limitation: IP and registeredID SAN entries need a parsed string form that
     has no in-place source, so such certs are rejected with ASN_PARSE_E. SAN
     DNS_entry.name is NOT NUL-terminated in this mode; only .len is authoritative.
@@ -277,6 +278,7 @@ ASN Options:
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -28706,6 +28708,12 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
 
 #endif /* WOLFSSL_CERT_GEN */
 
+/* Bound for wc_SetExtKeyUsage()'s value. Every known usage name, comma
+ * separated, is 78 bytes today. */
+#ifndef WC_ASN_EKU_STR_MAX
+#define WC_ASN_EKU_STR_MAX 128
+#endif
+
 #ifdef WOLFSSL_CERT_GEN
 
 #ifndef NO_ASN_TIME
@@ -28941,6 +28949,15 @@ struct {
 
 #define EKU_OID_LO      1
 #define EKU_OID_HI      6
+
+#ifdef WC_ASN_NO_HEAP
+/* EKU template items: the SEQUENCE, one per known usage, plus OID slots. */
+#ifdef WOLFSSL_EKU_OID
+    #define WC_ASN_EKU_MAX_ITEMS (1 + EKU_OID_HI + CTC_MAX_EKU_NB)
+#else
+    #define WC_ASN_EKU_MAX_ITEMS (1 + EKU_OID_HI)
+#endif
+#endif
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 /* encode Extended Key Usage (RFC 5280 4.2.1.12), return total bytes written */
@@ -28949,6 +28966,11 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
 {
     /* TODO: consider calculating size of OBJECT_IDs, setting length into
      * SEQUENCE, encode SEQUENCE, encode OBJECT_IDs into buffer.  */
+#ifdef WC_ASN_NO_HEAP
+    /* cnt below is a compile-time bound, so these fit on the stack. */
+    ASNSetData dataASNbuf[WC_ASN_EKU_MAX_ITEMS];
+    ASNItem    extKuASNbuf[WC_ASN_EKU_MAX_ITEMS];
+#endif
     ASNSetData* dataASN;
     ASNItem* extKuASN = NULL;
     int asnIdx = 1;
@@ -28961,6 +28983,10 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     cnt += CTC_MAX_EKU_NB;
 #endif
 
+#ifdef WC_ASN_NO_HEAP
+    dataASN = dataASNbuf;
+    extKuASN = extKuASNbuf;
+#else
     /* Allocate memory for dynamic data items. */
     dataASN = (ASNSetData*)XMALLOC(cnt * sizeof(ASNSetData), cert->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -28975,6 +29001,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
             ret = MEMORY_E;
         }
     }
+#endif
 
     if (ret == 0) {
         /* Copy Sequence into dynamic ASN.1 template. */
@@ -29043,9 +29070,11 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
         ret = (int)sz;
     }
 
+#ifndef WC_ASN_NO_HEAP
     /* Dispose of allocated data. */
     XFREE(extKuASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(dataASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -29414,24 +29443,38 @@ int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage, void* heap)
     char *token, *str, *ptr;
     word32 len = 0;
     byte usage = 0;
+#ifdef WC_ASN_NO_HEAP
+    char strBuf[WC_ASN_EKU_STR_MAX + 1];
+#endif
 
     if (value == NULL || extKeyUsage == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* duplicate string (including terminator) */
+    /* duplicate string (including terminator); XSTRTOK writes into it */
     len = (word32)XSTRLEN(value);
+#ifdef WC_ASN_NO_HEAP
+    (void)heap;
+    if (len > WC_ASN_EKU_STR_MAX) {
+        return BUFFER_E;
+    }
+    str = strBuf;
+#else
     str = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL) {
         return MEMORY_E;
     }
+#endif
     XMEMCPY(str, value, len + 1);
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+    #ifndef WC_ASN_NO_HEAP
         XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return EXTKEYUSAGE_E;
     }
+    /* Adding a usage name here may need WC_ASN_EKU_STR_MAX raised. */
     while (token != NULL) {
         if (!XSTRCASECMP(token, "any"))
             usage |= EXTKEYUSE_ANY;
@@ -29455,7 +29498,9 @@ int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage, void* heap)
         token = XSTRTOK(NULL, ",", &ptr);
     }
 
+#ifndef WC_ASN_NO_HEAP
     XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (ret == 0) {
         *extKeyUsage = usage;
@@ -29522,6 +29567,20 @@ enum {
 
 /* Number of items in ASN.1 template for the SEQUENCE around the RDNs. */
 #define nameASN_Length (sizeof(nameASN) / sizeof(ASNItem))
+
+#ifdef WC_ASN_NO_HEAP
+    /* Name components per certificate name. Lower to trade components for
+     * stack; SetNameEx() returns BUFFER_E when a name needs more. */
+    #ifndef WC_ASN_MAX_NAME_ENTRIES
+        #ifdef WOLFSSL_MULTI_ATTRIB
+            #define WC_ASN_MAX_NAME_ENTRIES (NAME_ENTRIES + CTC_MAX_ATTRIB)
+        #else
+            #define WC_ASN_MAX_NAME_ENTRIES NAME_ENTRIES
+        #endif
+    #endif
+    #define WC_ASN_NAME_MAX_ITEMS \
+        (nameASN_Length + rdnASN_Length * (word32)WC_ASN_MAX_NAME_ENTRIES)
+#endif
 
 static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
         int maxIdx, CertName* name)
@@ -29654,11 +29713,16 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 {
     /* TODO: consider calculating size of entries, putting length into
      * SEQUENCE, encode SEQUENCE, encode entries into buffer.  */
-    ASNSetData* dataASN = NULL; /* Can't use DECL_ASNSETDATA. Always dynamic. */
+    /* Can't use DECL_ASNSETDATA: item count is only known at run time. */
+    ASNSetData* dataASN = NULL;
     ASNItem*    namesASN = NULL;
     word32      items = 0;
     int         ret = 0;
     word32      sz = 0;
+#ifdef WC_ASN_NO_HEAP
+    ASNSetData  dataASNbuf[WC_ASN_NAME_MAX_ITEMS];
+    ASNItem     namesASNbuf[WC_ASN_NAME_MAX_ITEMS];
+#endif
 
     /* Calculate length of name entries and size for allocating. */
     ret = SetNameRdnItems(NULL, NULL, 0, name);
@@ -29674,6 +29738,14 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
         return 0;
     }
 
+#ifdef WC_ASN_NO_HEAP
+    if (items > WC_ASN_NAME_MAX_ITEMS) {
+        WOLFSSL_MSG("Name needs more entries than WC_ASN_MAX_NAME_ENTRIES");
+        return BUFFER_E;
+    }
+    dataASN = dataASNbuf;
+    namesASN = namesASNbuf;
+#else
     /* Allocate dynamic data items. */
     dataASN = (ASNSetData*)XMALLOC(items * sizeof(ASNSetData), heap,
                                    DYNAMIC_TYPE_TMP_BUFFER);
@@ -29688,6 +29760,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
             ret = MEMORY_E;
         }
     }
+#endif
 
     if (ret == 0) {
         /* Clear the dynamic data. */
@@ -29722,8 +29795,10 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
         }
     }
 
+#ifndef WC_ASN_NO_HEAP
     XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     (void)heap;
     return ret;
 }
@@ -32904,6 +32979,9 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  void* mlKemKey,
                                  int kid_type)
 {
+#ifdef WC_ASN_NO_HEAP
+    byte  bufOnStack[MAX_PUBLIC_KEY_SZ];
+#endif
     byte *buf;
     int   bufferSz, ret;
     word32 bufSz = MAX_PUBLIC_KEY_SZ;
@@ -32927,9 +33005,17 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         bufSz = MLKEM_MAX_PUB_KEY_DER_SIZE;
     }
 #endif
+#ifdef WC_ASN_NO_HEAP
+    if (bufSz > (word32)sizeof(bufOnStack)) {
+        /* The PQC keys above ask for more than the stack buffer holds. */
+        return NOT_COMPILED_IN;
+    }
+    buf = bufOnStack;
+#else
     buf = (byte *)XMALLOC(bufSz, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
+#endif
 
     /* Public Key */
     bufferSz = -1;
@@ -32987,7 +33073,9 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #endif
 
     if (bufferSz <= 0) {
+    #ifndef WC_ASN_NO_HEAP
         XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return PUBLIC_KEY_E;
     }
 
@@ -33011,7 +33099,9 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     #endif
     }
 
+#ifndef WC_ASN_NO_HEAP
     XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 
@@ -34014,17 +34104,29 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
     word32 idx = 0, nb_val;
     char *token, *str, *ptr;
     word32 len;
+    /* NULL when str is the stack buffer, so XFREE below is then a no-op */
+    char *strAlloc = NULL;
+#ifdef WC_ASN_NO_HEAP
+    char strBuf[CTC_MAX_CERTPOL_SZ];
+#endif
 
     (void)heap;
 
     if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
         return BAD_FUNC_ARG;
 
-    /* duplicate string (including terminator) */
+    /* duplicate string (including terminator); XSTRTOK writes into it */
     len = (word32)XSTRLEN(in);
-    str = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (str == NULL)
+#ifdef WC_ASN_NO_HEAP
+    if (len >= sizeof(strBuf))
+        return BUFFER_E;
+    str = strBuf;
+#else
+    strAlloc = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (strAlloc == NULL)
         return MEMORY_E;
+    str = strAlloc;
+#endif
     XMEMCPY(str, in, len+1);
 
     nb_val = 0;
@@ -34037,7 +34139,7 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 
         if (nb_val == 0) {
             if (val > 2) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return ASN_OBJECT_ID_E;
             }
 
@@ -34045,12 +34147,12 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
         }
         else if (nb_val == 1) {
             if (val > 127) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return ASN_OBJECT_ID_E;
             }
 
             if (idx > *outSz) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return BUFFER_E;
             }
 
@@ -34069,7 +34171,7 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
             }
 
             if ((idx+(word32)i) >= *outSz) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return BUFFER_E;
             }
 
@@ -34086,7 +34188,7 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 
     *outSz = idx;
 
-    XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(strAlloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
 #endif /* WOLFSSL_CERT_EXT || OPENSSL_EXTRA */

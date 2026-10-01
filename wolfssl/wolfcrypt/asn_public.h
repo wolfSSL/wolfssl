@@ -224,12 +224,12 @@ enum Ctc_Misc {
     CTC_FILETYPE_ASN1 =     2,
     CTC_FILETYPE_PEM  =     1,
     CTC_FILETYPE_DEFAULT =  2,
+    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
     CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
     CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
                                                  * enough for at least two
