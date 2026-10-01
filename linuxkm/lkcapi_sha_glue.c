@@ -4299,11 +4299,11 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
         for (;;) {
             size_t n = min_t(size_t, iov_iter_count(iter), block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
-                                           NULL, 0, block, n, 0 /* pr */);
+                                           NULL, 0, block, (word32)n, 0 /* pr */);
 #if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
             if (ret == -WC_NO_ERR_TRACE(EAGAIN))
                 ForceZero(block, n);
-            ret = rng_invalidation_post_check(__func__, ret);
+            ret = rng_invalidation_post_check(__func__, (int)ret);
             if (ret == -WC_NO_ERR_TRACE(EAGAIN)) {
                 continue;
             }
@@ -4402,11 +4402,11 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
         for (;;) {
             size_t n = min_t(size_t, nbytes - total_copied, block_size);
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
-                                           NULL, 0, block, n, 0 /* pr */);
+                                           NULL, 0, block, (word32)n, 0 /* pr */);
 #if defined(WC_LINUXKM_HAVE_RNG_INVALIDATION) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
             if (ret == -WC_NO_ERR_TRACE(EAGAIN))
                 ForceZero(block, n);
-            ret = rng_invalidation_post_check(__func__, ret);
+            ret = rng_invalidation_post_check(__func__, (int)ret);
             if (ret == -WC_NO_ERR_TRACE(EAGAIN))
                 continue;
 #endif

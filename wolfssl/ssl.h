@@ -5268,7 +5268,7 @@ WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
 
 
 #if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 WOLFSSL_API int wolfSSL_disable_cookie(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_enable_cookie(WOLFSSL* ssl);
 #endif

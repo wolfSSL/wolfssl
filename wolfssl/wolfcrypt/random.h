@@ -535,6 +535,10 @@ enum wc_RngHealthState {
 #endif
 wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
 
+#if defined(HAVE_FIPS) && !defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    #define WC_RNG_RBGC_STRATUM_IMMUTABLE
+#endif
+
 #ifdef WC_RNG_WANT_DEBUG_STATS
     #define WC_RNG_DEBUG_STATS
 #endif
@@ -844,6 +848,11 @@ WOLFSSL_API int  wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonc
                                      void* heap, int devId, word32 flags);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
+WOLFSSL_API int  wc_InitRngNonce_UserSeed(WC_RNG* rng,
+                                          const byte* seed, word32 seedSz,
+                                          const byte* nonce, word32 nonceSz,
+                                          const byte *perso, word32 persoSz,
+                                          void* heap, int devId, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);

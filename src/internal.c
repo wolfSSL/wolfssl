@@ -13262,6 +13262,8 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     int readSize;
     int ret;
 
+    XMEMSET(&hdrInfo, 0, sizeof(hdrInfo));
+
     readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
 
     if (readSize < DTLS_UNIFIED_HEADER_MIN_SZ)
