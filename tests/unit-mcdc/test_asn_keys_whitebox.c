@@ -54,6 +54,17 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The vectors below decode the DER test keys/certs from certs_test.h, which
+ * only compiles those arrays when the cert-buffer macros are set. The campaign
+ * build defines them; define them here too (idempotent) so this TU is
+ * self-contained and builds under a plain configuration as well. */
+#ifndef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+#endif
+#ifndef USE_CERT_BUFFERS_256
+    #define USE_CERT_BUFFERS_256
+#endif
+
 #include <wolfssl/certs_test.h>
 
 static int wb_fail = 0;
@@ -730,14 +741,18 @@ static void wb_get_key_oid(void) { WB_NOTE("HAVE_PKCS8/12 off; wc_GetKeyOID skip
  * Section A10: wc_EncryptPKCS8Key_ex() argument/salt/version checks.
  *
  * ARGUED UNREACHABLE, do not re-open (suite the exclusion record +
- * db/exclusions.json): :10805 BOTH operands. GetAlgoV2() (asn.c:10713-10748)
+ * db/exclusions.json): :10852 BOTH operands. GetAlgoV2() (asn.c:10251-10297)
  * assigns *oid on every switch arm that returns 0 and leaves the caller's
  * initialiser untouched only on the default arm, which returns ALGO_ID_E.
- * encOid == NULL at :10805 therefore implies ret != 0, so the AND is never
+ * encOid == NULL at :10852 therefore implies ret != 0, so the AND is never
  * true: cond 1 has no true row and cond 0 has no (true, true) row.
- *   :10724  key==NULL||outSz==NULL||password==NULL
- *   :10731  ret==0 && (salt==NULL||saltSz==0)
- *   :10735  ret==0 && version==PKCS5v2
+ *   :10839  key==NULL||outSz==NULL||password==NULL
+ *   :10846  ret==0 && (salt==NULL||saltSz==0)
+ *   :10850  ret==0 && version==PKCS5v2
+ * The PBES1 vectors need !NO_DES3 (CheckAlgo's PBES1 arms are DES-only).
+ * Under NO_DES3 the version!=PKCS5v2 rows of :10850/:11666 come from no
+ * arm - PBES2 is the only ret==0 arm - a build-config residual covered by
+ * DES-enabled builds.
  * ===================================================================== */
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED)
 static void wb_encrypt_pkcs8_key_ex(void)
@@ -751,7 +766,7 @@ static void wb_encrypt_pkcs8_key_ex(void)
     XMEMSET(key, 0x11, sizeof(key));
     XMEMSET(salt, 0x22, sizeof(salt));
 
-    WB_NOTE("wc_EncryptPKCS8Key_ex(): key/outSz/password NULL OR [:10724]");
+    WB_NOTE("wc_EncryptPKCS8Key_ex(): key/outSz/password NULL OR [:10839]");
     ret = wc_EncryptPKCS8Key_ex(NULL, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES1_SHA1_DES, 0, NULL, 0, 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "key==NULL");
@@ -762,71 +777,87 @@ static void wb_encrypt_pkcs8_key_ex(void)
             PKCS5, PBES1_SHA1_DES, 0, NULL, 0, 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "password==NULL");
 
-    WB_NOTE("wc_EncryptPKCS8Key_ex(): ret==0&&(salt==NULL||saltSz==0) [:10731]; "
-            "ret==0&&version==PKCS5v2 [:10735] (size-only calls, out==NULL)");
-    /* PBES1 (PKCS5, non-PBES2): version!=PKCS5v2 -> :10735 2nd operand false.
-     * salt provided -> :10731 both operands false. */
+    WB_NOTE("wc_EncryptPKCS8Key_ex(): ret==0&&(salt==NULL||saltSz==0) [:10846]; "
+            "ret==0&&version==PKCS5v2 [:10850] (size-only calls, out==NULL)");
+#ifndef NO_DES3
+    /* PBES1 (PKCS5, non-PBES2): version!=PKCS5v2 -> :10850 2nd operand false.
+     * salt provided -> :10846 both operands false. */
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            "PBES1, salt provided (10731 both false, 10735 false)");
-    /* PBES1, salt==NULL -> :10731 1st operand of inner OR true (genSalt path
+            "PBES1, salt provided (10846 both false, 10850 false)");
+    /* PBES1, salt==NULL -> :10846 1st operand of inner OR true (genSalt path
      * needs RNG later, but out==NULL returns before RNG is touched). */
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES1_SHA1_DES, 0, NULL, 0, 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            "PBES1, salt==NULL (10731 salt==NULL true)");
+            "PBES1, salt==NULL (10846 salt==NULL true)");
+#endif
 #ifdef WOLFSSL_AES_128
-    /* PBES2 (pbeOid==PBES2): version==PKCS5v2 -> :10735 true. */
+    /* PBES2 (pbeOid==PBES2): version==PKCS5v2 -> :10850 true. */
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
-    WB_CHECK(ret != 0, "PBES2 (10735 version==PKCS5v2 true; the PBES2 path "
+    WB_CHECK(ret != 0, "PBES2 (10850 version==PKCS5v2 true; the PBES2 path "
             "reaches the CBC-IV RNG call even for a size-only request, so a "
             "NULL rng is rejected rather than returning LENGTH_ONLY_E)");
+    /* PBES2, salt==NULL / saltSz==0: the :10846 rows PBES1 supplies in DES
+     * builds. Both fail at the CBC-IV RNG call with a NULL rng, after the
+     * guard has already set genSalt - the rows stand. */
+    outSz = 0;
+    ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
+            PKCS5, PBES2, AES128CBCb, NULL, 0, 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, "PBES2, salt==NULL (10846 salt==NULL true)");
+    outSz = 0;
+    ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
+            PKCS5, PBES2, AES128CBCb, salt, 0, 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, "PBES2, saltSz==0 (10846 saltSz==0 true)");
 #endif
 
     /* EncryptContent() directly: outSz==NULL sets ret before the PKCS#5
-     * version dispatch, driving :11531's leading operand false. The two
-     * calls above already supply its true rows through
-     * wc_EncryptPKCS8Key_ex(). */
-    WB_NOTE("EncryptContent(): ret==0 && version==PKCS5v2 [:11531]");
+     * version dispatch, driving :11666's leading operand false. The calls
+     * above already supply its true rows through wc_EncryptPKCS8Key_ex(). */
+    WB_NOTE("EncryptContent(): ret==0 && version==PKCS5v2 [:11666]");
     ret = EncryptContent(key, sizeof(key), NULL, NULL, "pw", 2, PKCS5,
             PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
-            ":11531 1st operand false (outSz==NULL)");
+            ":11666 1st operand false (outSz==NULL)");
+#ifndef NO_DES3
     outSz = 0;
     ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
             PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            ":11531 2nd operand false (PBES1)");
+            ":11666 2nd operand false (PBES1)");
+#endif
 #ifdef WOLFSSL_AES_128
     outSz = 0;
     ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
             PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
-    WB_CHECK(ret != 0, ":11531 both operands true (PBES2 dispatch)");
+    WB_CHECK(ret != 0, ":11666 both operands true (PBES2 dispatch)");
 #endif
 
-    /* :10799 third operand (`saltSz == 0`). Every public caller passes a
+#ifndef NO_DES3
+    /* :10846 third operand (`saltSz == 0`). Every public caller passes a
      * salt pointer together with its real length, or neither; a non-NULL
      * pointer with a zero length is the combination the OR's second operand
      * exists for. The salt-provided call above is the row it pairs against. */
-    WB_NOTE("wc_EncryptPKCS8Key_ex(): salt pointer with saltSz==0 [:10799"
+    WB_NOTE("wc_EncryptPKCS8Key_ex(): salt pointer with saltSz==0 [:10846"
             " third operand]");
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES1_SHA1_DES, 0, salt, 0, 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            ":10799 salt != NULL with saltSz == 0 still generates a salt");
+            ":10846 salt != NULL with saltSz == 0 still generates a salt");
+#endif
 
-    /* :11650 second operand's false row. The size-only calls above all set
+    /* :11697 second operand's false row. The size-only calls above all set
      * ret to LENGTH_ONLY_E at the preceding `out == NULL` branch, so they
      * never reach this check with ret == 0; only a real encode with a large
      * enough buffer does. PBES1 needs no RNG (the CBC IV is derived from the
      * password), so this runs with rng == NULL. */
-    WB_NOTE("EncryptContent(): full encode into a big-enough buffer [:11650"
+    WB_NOTE("EncryptContent(): full encode into a big-enough buffer [:11697"
             " second operand false]");
     outSz = 0;
     (void)EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
@@ -834,18 +865,18 @@ static void wb_encrypt_pkcs8_key_ex(void)
     if (outSz > 1 && outSz <= sizeof(encOut)) {
         word32 room = outSz - 1;
 
-        /* Both halves of :11650's second operand have to be in THIS binary:
+        /* Both halves of :11697's second operand have to be in THIS binary:
          * the too-small row lives in test_asn_fault_whitebox.c as well, but
          * a pair completed across two binaries proves nothing. */
         ret = EncryptContent(key, sizeof(key), encOut, &room, "pw", 2, PKCS5,
                 PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
-                ":11650 second operand true (one byte short)");
+                ":11697 second operand true (one byte short)");
 
         room = (word32)sizeof(encOut);
         ret = EncryptContent(key, sizeof(key), encOut, &room, "pw", 2, PKCS5,
                 PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
-        WB_CHECK(ret > 0, ":11650 PBES1 encode succeeds with room to spare");
+        WB_CHECK(ret > 0, ":11697 PBES1 encode succeeds with room to spare");
     }
     else {
         WB_NOTE("PBES1 size query out of range; :11650 row skipped");
