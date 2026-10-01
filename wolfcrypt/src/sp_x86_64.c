@@ -10870,6 +10870,22 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
 }
 #endif /* FP_ECC */
 
+/* Save only when the cache-resistant table lookup will run, because that is
+ * the only user of xmm outside the avx2 lane. */
+#ifdef WC_NO_CACHE_RESISTANT
+#define SP_ECC_CT_SAVE(ct)      0
+#define SP_ECC_CT_RESTORE(ct)   WC_DO_NOTHING
+#else
+#define SP_ECC_CT_SAVE(ct)      ((ct) ? SAVE_VECTOR_REGISTERS2() : 0)
+#define SP_ECC_CT_RESTORE(ct)          \
+    do {                               \
+        if (ct) {                      \
+            RESTORE_VECTOR_REGISTERS();\
+        }                              \
+    }                                  \
+    while (0)
+#endif
+
 
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
@@ -10888,12 +10904,11 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    /* xmm table lookups run only when ct is set; the save is taken on every
-     * call on purpose, so both lanes keep one shape. */
-    int err = SAVE_VECTOR_REGISTERS2();
+    /* Only the cache-resistant table lookup uses xmm on this lane. */
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 #else
@@ -10940,7 +10955,7 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        err = SAVE_VECTOR_REGISTERS2();
+        err = SP_ECC_CT_SAVE(ct);
         if (err == 0) {
             sp_ecc_get_cache_256(g, &cache);
             if (cache->cnt == 2)
@@ -10953,7 +10968,7 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
                 err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
                         map, ct, heap);
             }
-            RESTORE_VECTOR_REGISTERS();
+            SP_ECC_CT_RESTORE(ct);
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_256_lock);
@@ -11833,11 +11848,11 @@ static const sp_table_entry_256 p256_table[64] = {
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_256_ecc_mulmod_stripe_4(r, &p256_base, p256_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
@@ -24019,11 +24034,11 @@ static int sp_256_ecc_mulmod_add_only_4(sp_point_256* r, const sp_point_256* g,
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_256_ecc_mulmod_add_only_4(r, NULL, p256_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
@@ -30012,12 +30027,11 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    /* xmm table lookups run only when ct is set; the save is taken on every
-     * call on purpose, so both lanes keep one shape. */
-    int err = SAVE_VECTOR_REGISTERS2();
+    /* Only the cache-resistant table lookup uses xmm on this lane. */
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 #else
@@ -30064,7 +30078,7 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        err = SAVE_VECTOR_REGISTERS2();
+        err = SP_ECC_CT_SAVE(ct);
         if (err == 0) {
             sp_ecc_get_cache_384(g, &cache);
             if (cache->cnt == 2)
@@ -30077,7 +30091,7 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
                 err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
                         map, ct, heap);
             }
-            RESTORE_VECTOR_REGISTERS();
+            SP_ECC_CT_RESTORE(ct);
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_384_lock);
@@ -30960,11 +30974,11 @@ static const sp_table_entry_384 p384_table[64] = {
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_384_ecc_mulmod_stripe_6(r, &p384_base, p384_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
@@ -48960,11 +48974,11 @@ static int sp_384_ecc_mulmod_add_only_6(sp_point_384* r, const sp_point_384* g,
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_384_ecc_mulmod_add_only_6(r, NULL, p384_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
@@ -54862,12 +54876,11 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    /* xmm table lookups run only when ct is set; the save is taken on every
-     * call on purpose, so both lanes keep one shape. */
-    int err = SAVE_VECTOR_REGISTERS2();
+    /* Only the cache-resistant table lookup uses xmm on this lane. */
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 #else
@@ -54914,7 +54927,7 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        err = SAVE_VECTOR_REGISTERS2();
+        err = SP_ECC_CT_SAVE(ct);
         if (err == 0) {
             sp_ecc_get_cache_521(g, &cache);
             if (cache->cnt == 2)
@@ -54927,7 +54940,7 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
                 err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
                         map, ct, heap);
             }
-            RESTORE_VECTOR_REGISTERS();
+            SP_ECC_CT_RESTORE(ct);
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_521_lock);
@@ -55936,11 +55949,11 @@ static const sp_table_entry_521 p521_table[64] = {
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
@@ -89996,11 +90009,11 @@ static int sp_521_ecc_mulmod_add_only_9(sp_point_521* r, const sp_point_521* g,
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    int err = SAVE_VECTOR_REGISTERS2();
+    int err = SP_ECC_CT_SAVE(ct);
     if (err == 0) {
         err = sp_521_ecc_mulmod_add_only_9(r, NULL, p521_table,
                                          k, map, ct, heap);
-        RESTORE_VECTOR_REGISTERS();
+        SP_ECC_CT_RESTORE(ct);
     }
     return err;
 }
