@@ -13682,12 +13682,19 @@ fi
 # our use of enum constructs to define fungible constants.
 if test "$KERNEL_MODE_DEFAULTS" != "yes"
 then
-    # Probe with ac_c_werror_flag (fail on any stderr output), not -Werror:
-    # ccache reorders -Werror after the -Wno- option, so gcc accepts it with
-    # only a warning.
+    # Probe the positive form. GCC reports an unknown -Wno- option only when
+    # some other diagnostic is also present, so an empty conftest accepts
+    # -Wno-deprecated-enum-enum-conversion on compilers that do not know it
+    # (pre-GCC-11). The positive -W form is rejected immediately when unknown.
+    #
+    # Keep ac_c_werror_flag. AX_CHECK_COMPILE_FLAG ignores warnings, and on
+    # GCC 11+ as C this option warns that it is valid for C++/ObjC++ but not
+    # for C. Passing -Werror on the command line does not catch that under
+    # ccache, which reorders -Werror after the warning option.
+    # ac_c_werror_flag fails the test on any stderr, independent of order.
     ax_save_c_werror_flag=$ac_c_werror_flag
     ac_c_werror_flag=yes
-    AX_CHECK_COMPILE_FLAG([-Wno-deprecated-enum-enum-conversion],
+    AX_CHECK_COMPILE_FLAG([-Wdeprecated-enum-enum-conversion],
       [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
     ac_c_werror_flag=$ax_save_c_werror_flag
 fi
