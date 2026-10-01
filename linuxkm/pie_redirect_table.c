@@ -56,7 +56,7 @@ const struct wolfssl_linuxkm_pie_redirect_table
 /* The container may hold no undefined symbol (linuxkm/Kbuild:301), so define
  * these here.  arm64 forwards to the kernel's __memcpy()/__memset()
  * (arch/arm64/lib/memcpy.S:243, memset.S:206); the loops run before that. */
-#if defined(CONFIG_MIPS) || defined(CONFIG_ARM64)
+#if defined(CONFIG_MIPS) || defined(CONFIG_ARM64) || defined(CONFIG_ARM)
     #undef memcpy
     void *memcpy(void *dest, const void *src, size_t n) {
         char *dest_i = (char *)dest;

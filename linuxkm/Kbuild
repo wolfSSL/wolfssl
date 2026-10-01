@@ -299,7 +299,9 @@ ifeq ($(CONFIG_ARM),y)
 # --noexecstack keeps the GNU-stack note on an object whose whole body is
 # compiled out, such as the SHA-3 assembly under WC_SHA3_NO_ASM.
 $(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) -march=armv8-a -mfpu=crypto-neon-fp-armv8 -Wa,--noexecstack
-$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-y += -march=armv8-a -mfpu=crypto-neon-fp-armv8
+# The kernel builds with -msoft-float; NEON in a C file needs softfp, as
+# arch/arm/lib/Makefile does for xor-neon.o.
+$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-y += -march=armv8-a -mfpu=crypto-neon-fp-armv8 -mfloat-abi=softfp
 $(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-remove-y += -mgeneral-regs-only
 $(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
 endif
