@@ -10339,6 +10339,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     if (ret == 0) {
                         ret = mldsa_ntt_full(y_ntt_t);
                     }
+                    if (ret != 0) {
+                        break;
+                    }
                     /* Matrix multiply. */
                 #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
                     if (s == 0) {
