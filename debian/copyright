@@ -52,13 +52,6 @@ Copyright:
 License: GPL-3+-with-autoconf
 
 Files:
- m4/ax_check_library.m4
-Copyright:
- 2012 Brian Aker <brian@tangent.org>
- 2010 Diego Elio Petteno` <flameeyes@gmail.com>
-License: GPL-3+-with-autoconf
-
-Files:
  m4/ax_append_flag.m4
  m4/ax_check_compile_flag.m4
  m4/ax_check_link_flag.m4
