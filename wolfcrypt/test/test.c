@@ -1256,6 +1256,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cts_test(void);
     defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
 static wc_test_ret_t certreq_no_malloc_test(void);
 #endif
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+static wc_test_ret_t keyid_test(void);
+#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -3444,6 +3449,15 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("CERTREQ NOMALLOC test failed!\n", ret);
     else
         TEST_PASS("CERTREQ NOMALLOC test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+    if ( (ret = keyid_test()) != 0)
+        TEST_FAIL("CERT KEYID test failed!\n", ret);
+    else
+        TEST_PASS("CERT KEYID test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
@@ -39197,6 +39211,67 @@ static wc_test_ret_t certreq_no_malloc_test(void)
 #endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ && WOLFSSL_CERT_EXT &&
         * HAVE_ECC && USE_CERT_BUFFERS_256 && !NO_SHA256 */
 
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+/* Cert SKID and AKID buffers are sized for the selected key identifier
+ * hash. */
+static wc_test_ret_t keyid_test(void)
+{
+    static Cert    cert;
+    static ecc_key key;
+    word32        idx = 0;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("keyid_test");
+
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+                                 (word32)sizeof_ecc_key_der_256);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0) {
+        ret = wc_InitCert_ex(&cert, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (ret == 0) {
+        ret = wc_SetSubjectKeyIdFromPublicKey(&cert, NULL, &key);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if ((ret == 0) && ((cert.skidSz <= 0) ||
+                       (cert.skidSz > (int)CTC_MAX_SKID_SIZE))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#if !defined(WOLFSSL_SM2) || !defined(WOLFSSL_SM3)
+    /* SM builds size KEYID_SIZE for SM3 but may use another hash, so only
+     * check equality in the plain case. */
+    if ((ret == 0) && (cert.skidSz != (int)KEYID_SIZE))
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+
+    if (ret == 0) {
+        ret = wc_SetAuthKeyIdFromPublicKey(&cert, NULL, &key);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if ((ret == 0) && ((cert.akidSz <= 0) ||
+                       (cert.akidSz > (int)CTC_MAX_AKID_SIZE))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    if ((ret == 0) && (cert.akidSz != cert.skidSz))
+        ret = WC_TEST_RET_ENC_NC;
+
+    wc_ecc_free(&key);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_EXT && HAVE_ECC &&
+        * USE_CERT_BUFFERS_256 && WC_ASN_KEYID_HASH */
 
 #if defined(WOLFSSL_TEST_CERT) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_ECC_SECP)
@@ -44648,9 +44723,8 @@ static wc_test_ret_t hkdf_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif
 {
-    wc_test_ret_t ret = 0;
-
 #if !defined(NO_SHA) || !defined(NO_SHA256)
+    wc_test_ret_t ret = 0;
     int L;
     byte prk[WC_MAX_DIGEST_SIZE];
     byte okm1[42];

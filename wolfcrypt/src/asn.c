@@ -110,6 +110,7 @@ ASN Options:
     cost of taking up more memory. Adds initials, givenname, dnQualifer for
     example.
  * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
+    An OCSP CertID carries those hashes, so this selects its hash too.
  * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
  *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
@@ -14366,6 +14367,12 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
 }
 #endif
 
+#ifdef WOLFSSL_CERT_EXT
+/* Cert key identifier buffers must hold what CalcHashId_ex() writes. */
+wc_static_assert((int)KEYID_SIZE <= (int)CTC_MAX_SKID_SIZE);
+wc_static_assert((int)KEYID_SIZE <= (int)CTC_MAX_AKID_SIZE);
+#endif
+
 /* Return the hash algorithm to use with the signature algorithm.
  *
  * @param [in] oidSum  Signature id.
@@ -14383,11 +14390,7 @@ int HashIdAlg(word32 oidSum)
         return WC_SM3;
     }
 #endif
-#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
-    return WC_SHA256;
-#else
-    return WC_SHA;
-#endif
+    return WC_ASN_KEYID_HASH_TYPE;
 }
 
 /* Calculate hash of the id using the SHA-1 or SHA-256.
@@ -14401,13 +14404,7 @@ int HashIdAlg(word32 oidSum)
 int CalcHashId(const byte* data, word32 len, byte* hash)
 {
     /* Use default hash algorithm. */
-    return CalcHashId_ex(data, len, hash,
-#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
-        WC_SHA256
-#else
-        WC_SHA
-#endif
-        );
+    return CalcHashId_ex(data, len, hash, WC_ASN_KEYID_HASH_TYPE);
 }
 
 /* Calculate hash of the id using the SHA-1 or SHA-256.
@@ -14418,40 +14415,102 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+/* Fit a digest into the caller's KEYID_SIZE buffer: refuse one that is too
+ * long and zero the tail a shorter one leaves. Both operands are constants,
+ * so the arms fold away where the sizes match. */
+#define WC_ASN_KEYID_FIT(hash, digestSz, ret)                       \
+    do {                                                            \
+        if ((int)KEYID_SIZE < (int)(digestSz)) {                    \
+            (ret) = BUFFER_E;                                       \
+        }                                                           \
+        else {                                                      \
+            if ((int)KEYID_SIZE > (int)(digestSz)) {                \
+                XMEMSET((hash) + (digestSz), 0,                     \
+                    (size_t)((int)KEYID_SIZE - (int)(digestSz)));   \
+            }                                                       \
+            (ret) = 0;                                              \
+        }                                                           \
+    } while (0)
+
 int CalcHashId_ex(const byte* data, word32 len, byte* hash, int hashAlg)
 {
     int ret;
 
+    switch (hashAlg) {
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    if (hashAlg == WC_SM3) {
-        ret = wc_Sm3Hash(data, len, hash);
-    }
-    else
+    case WC_SM3:
+        WC_ASN_KEYID_FIT(hash, WC_SM3_DIGEST_SIZE, ret);
+        if (ret == 0) {
+            ret = wc_Sm3Hash(data, len, hash);
+        }
+        break;
 #endif
-#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
-    if (hashAlg == WC_SHA256) {
-        ret = wc_Sha256Hash(data, len, hash);
-    }
-    else
-#elif !defined(NO_SHA)
-    if (hashAlg == WC_SHA) {
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-        XMEMSET(hash + WC_SHA_DIGEST_SIZE, 0, KEYID_SIZE - WC_SHA_DIGEST_SIZE);
-    #endif
-        ret = wc_ShaHash(data, len, hash);
-    }
-    else
-#else
-    (void)data;
-    (void)len;
-    (void)hash;
+#ifndef NO_SHA
+    case WC_SHA:
+        WC_ASN_KEYID_FIT(hash, WC_SHA_DIGEST_SIZE, ret);
+        if (ret == 0) {
+            ret = wc_ShaHash(data, len, hash);
+        }
+        break;
 #endif
+#ifndef NO_SHA256
+    case WC_SHA256:
+        WC_ASN_KEYID_FIT(hash, WC_SHA256_DIGEST_SIZE, ret);
+        if (ret == 0) {
+            ret = wc_Sha256Hash(data, len, hash);
+        }
+        break;
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    case WC_SHA3_256:
     {
+        wc_Sha3 sha3[1]; /* on the stack: this path must not allocate */
+
+        WC_ASN_KEYID_FIT(hash, WC_SHA3_256_DIGEST_SIZE, ret);
+        if (ret == 0) {
+            ret = wc_InitSha3_256(sha3, NULL, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_256_Update(sha3, data, len);
+            if (ret == 0) {
+                ret = wc_Sha3_256_Final(sha3, hash);
+            }
+            wc_Sha3_256_Free(sha3);
+        }
+        break;
+    }
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    case WC_SHA3_384:
+    {
+        wc_Sha3 sha3[1]; /* on the stack: this path must not allocate */
+
+        WC_ASN_KEYID_FIT(hash, WC_SHA3_384_DIGEST_SIZE, ret);
+        if (ret == 0) {
+            ret = wc_InitSha3_384(sha3, NULL, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_384_Update(sha3, data, len);
+            if (ret == 0) {
+                ret = wc_Sha3_384_Final(sha3, hash);
+            }
+            wc_Sha3_384_Free(sha3);
+        }
+        break;
+    }
+#endif
+    default:
+        (void)data;
+        (void)len;
+        (void)hash;
         ret = NOT_COMPILED_IN;
+        break;
     }
 
     return ret;
 }
+
+#undef WC_ASN_KEYID_FIT
 
 #ifndef NO_CERTS
 /* Get the hash of the id using the SHA-1 or SHA-256.
@@ -38136,13 +38195,13 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
     XMEMSET(req, 0, sizeof(OcspRequest));
     req->heap = heap;
 
-#ifdef NO_SHA
-    req->hashAlg = SHA256h;
-#else
-    req->hashAlg = SHAh;
-#endif
+    req->hashAlg = wc_HashGetOID(OCSP_DIGEST);
 
     if (cert) {
+        /* CertID.hashAlgorithm names the hash the issuer hashes were made
+         * with (RFC 6960 4.1.1), which is per certificate in an SM build. */
+        req->hashAlg = wc_HashGetOID(
+            wc_HashTypeConvert(HashIdAlg(cert->signatureOID)));
         XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
         XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
 
