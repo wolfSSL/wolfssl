@@ -2829,7 +2829,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
@@ -2847,7 +2847,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
         ctr0 += mlkem_rej_uniform_ins(a + ctr0, MLKEM_N - ctr0, rand,
@@ -2957,7 +2957,7 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
@@ -2975,7 +2975,7 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
         ctr[0] += mlkem_rej_uniform_ins(a + ctr[0], MLKEM_N - ctr[0], rand,
@@ -3252,11 +3252,11 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (1 << 8) + 1;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_SCR(state, state + 25);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_SCR(state, state + 25);
         ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
@@ -3396,11 +3396,11 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (3 << 8) + 3;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_SCR(state, state + 25);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_SCR(state, state + 25);
         ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
@@ -3620,7 +3620,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK(shake256, state);
         }
 
         /* Copy the state as output. */
@@ -3666,7 +3666,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
     word32 len64 = seedLen / 8;
 
     readUnalignedWords64(state, seed, len64);
@@ -3685,7 +3685,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     else
 #endif
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_ST(state);
     }
     XMEMCPY(out, state, outLen);
 
@@ -3712,7 +3712,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
     word32 len64 = seedLen / 8;
 
     readUnalignedWords64(state, seed, len64);
@@ -3720,7 +3720,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(out, state, outLen);
 
     /* state holds secret KDF output. */
@@ -4827,7 +4827,7 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     else
 #endif /* !WC_SHA3_NO_ASM */
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK(prf, state);
     }
     mlkem_cbd_eta2_ins(p, (byte*)state);
 
@@ -5289,15 +5289,15 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
     /* ETA3_RAND_SIZE is larger than the SHAKE-256 rate - two squeezes are
      * needed, so the state cannot be squeezed in place over the output. */
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
 
     readUnalignedWords64(state, seed, 4);
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(rand                 , state, SHA3_256_BYTES);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(rand + SHA3_256_BYTES, state, ETA3_RAND_SIZE - SHA3_256_BYTES);
 
     /* state is secret-seeded; caller zeroizes rand. */
@@ -5373,7 +5373,7 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
     rand[4] = 0x1f00 + o;
     XMEMSET(rand + 5, 0, sizeof(*rand) * (25 - 5));
     rand[16] = W64LIT(0x8000000000000000);
-    BlockSha3(rand);
+    WC_SHA3_BLOCK_SCR(rand, rand + 25);
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
