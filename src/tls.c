@@ -1827,6 +1827,7 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
 
     XMEMCPY(alpn->protocol_name, protocol_name, protocol_nameSz);
     alpn->protocol_name[protocol_nameSz] = 0;
+    alpn->protocol_nameSz = protocol_nameSz;
 
     (void)heap;
 
@@ -1866,7 +1867,7 @@ static word16 TLSX_ALPN_GetSize(ALPN *list)
         list = alpn->next;
 
         length++; /* protocol name length is on one byte */
-        length += (word32)XSTRLEN(alpn->protocol_name);
+        length += (word32)alpn->protocol_nameSz;
 
         if (length > WOLFSSL_MAX_16BIT) {
             return 0;
@@ -1886,7 +1887,7 @@ static word16 TLSX_ALPN_Write(ALPN *list, byte *output)
     while ((alpn = list)) {
         list = alpn->next;
 
-        length = (word16)XSTRLEN(alpn->protocol_name);
+        length = alpn->protocol_nameSz;
 
         /* protocol name length */
         output[offset++] = (byte)length;
@@ -1913,8 +1914,8 @@ static ALPN* TLSX_ALPN_Find(ALPN *list, char *protocol_name, word16 size)
 
     alpn = list;
     while (alpn != NULL && (
-           (word16)XSTRLEN(alpn->protocol_name) != size ||
-           XSTRNCMP(alpn->protocol_name, protocol_name, size)))
+           alpn->protocol_nameSz != size ||
+           XMEMCMP(alpn->protocol_name, protocol_name, size)))
         alpn = alpn->next;
 
     return alpn;
@@ -2238,7 +2239,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     }
 
     *data = alpn->protocol_name;
-    *dataSz = (word16)XSTRLEN((char*)*data);
+    *dataSz = alpn->protocol_nameSz;
 
     return WOLFSSL_SUCCESS;
 }
