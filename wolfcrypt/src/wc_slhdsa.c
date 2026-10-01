@@ -7626,6 +7626,8 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
                     ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
                     sig_fors);
                 if (ret != 0) {
+                    /* At j == 0 this slot holds a private key value. */
+                    ForceZero(sig_fors, n);
                     break;
                 }
                 /* Step 9: Move signature to after authentication node. */
@@ -7648,6 +7650,8 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
                     ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
                     sig_fors);
                 if (ret != 0) {
+                    /* At j == 0 this slot holds a private key value. */
+                    ForceZero(sig_fors, n);
                     break;
                 }
                 /* Step 9: Move signature to after authentication node. */
