@@ -30073,10 +30073,10 @@ int test_mldsa_encode_w1_large_values(void)
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
     defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
-    /* Pin dispatch to the C path: under SVR2 fuzzing the two calls can
-     * otherwise take different (AVX2 vs C) implementations, which are only
-     * specified - and only equal - on the valid input domain. */
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+    /* Let every save succeed for this test.  A refused save is an error that
+     * writes nothing, so two refused calls would compare equal while encoding
+     * nothing; pinning saves ON keeps one lane for both calls instead. */
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
 #endif
 
     /* ---- 6-bit encoding (mldsa_encode_w1_88 path) ---- */
@@ -30093,8 +30093,8 @@ int test_mldsa_encode_w1_large_values(void)
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_mldsa_encode_w1_88(w1, enc_a);
-            wc_mldsa_encode_w1_88(w1, enc_b);
+            ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+            ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
 
             /* Determinism: same input must produce same output */
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
@@ -30106,8 +30106,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_88(w1, enc_a);
-        wc_mldsa_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern: each element differs */
@@ -30116,8 +30116,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_88(w1, enc_a);
-        wc_mldsa_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
@@ -30136,8 +30136,8 @@ int test_mldsa_encode_w1_large_values(void)
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_mldsa_encode_w1_32(w1, enc_a);
-            wc_mldsa_encode_w1_32(w1, enc_b);
+            ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+            ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
 
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
         }
@@ -30148,8 +30148,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_32(w1, enc_a);
-        wc_mldsa_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern */
@@ -30158,8 +30158,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_32(w1, enc_a);
-        wc_mldsa_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
