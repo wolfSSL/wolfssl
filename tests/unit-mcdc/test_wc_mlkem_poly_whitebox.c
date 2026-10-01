@@ -60,9 +60,8 @@
  * exactly that, so defining it here -- BEFORE any wolfSSL header is pulled in
  * by the .c below -- routes all 58 SAVE_VECTOR_REGISTERS2() sites through a
  * variable this file controls, using the library's own hook rather than
- * overriding a macro behind its back. Setting it non-zero makes each dispatch
- * fall through to the portable C path, which is what the operand's false side
- * selects on a platform that really can refuse.
+ * overriding a macro behind its back. Setting it non-zero refuses the save,
+ * which each dispatch reports as an error rather than switching lanes.
  *
  * The file uses only SAVE_VECTOR_REGISTERS2(); the SAVE_VECTOR_REGISTERS(
  * fail_clause) form, whose expansion also changes under this hook, appears
@@ -72,14 +71,14 @@
  * the save-refused answer at a CHOSEN call index instead of only "always" or
  * "never".  Two dispatch guards nest inside one another:
  *
- *     mlkem_gen_matrix()                 if (IS_INTEL_AVX2(..) && save == 0)
+ *     mlkem_gen_matrix()                 if (IS_INTEL_AVX2(..)) save
  *       mlkem_gen_matrix_k3_avx2()         for (..) { if (IS_INTEL_BMI2(..))
- *                                                    else if (IS_INTEL_AVX2(..)
- *                                                          && save == 0)
+ *                                                    else if (IS_INTEL_AVX2(..))
+ *                                                        save
  *
- * so the inner guard's operands can only be reached when the OUTER one was
- * already satisfied.  A process-wide "always refuse" therefore never lets the
- * inner site run at all, and its false side would stay unreachable.  Letting
+ * so the inner save can only be reached when the OUTER one was already
+ * granted.  A process-wide "always refuse" therefore never lets the inner
+ * site run at all, and its refusal branch would stay unreachable.  Letting
  * call 0..n-1 succeed and calls >= n refuse gives the inner site a genuine
  * (T,F) row while the outer one still took (T,T).
  *
