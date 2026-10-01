@@ -125,7 +125,7 @@
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
 #else
-    void (*sha3_block)(word64 *s) = NULL;
+    WC_SHA3_BLOCK_FN sha3_block = NULL;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c) = NULL;
     #define SHA3_BLOCK sha3_block
@@ -134,6 +134,25 @@
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WC_SHA3_SCRATCH_W
+/* The asm block functions keep no round scratch; give them the C signature
+ * so one function pointer type serves both. */
+static void sha3_block_avx2_scr(word64* s, void* scratch)
+{
+    (void)scratch;
+    sha3_block_avx2(s);
+}
+static void sha3_block_bmi2_scr(word64* s, void* scratch)
+{
+    (void)scratch;
+    sha3_block_bmi2(s);
+}
+    #define SHA3_BLOCK_AVX2_FN sha3_block_avx2_scr
+    #define SHA3_BLOCK_BMI2_FN sha3_block_bmi2_scr
+#else
+    #define SHA3_BLOCK_AVX2_FN sha3_block_avx2
+    #define SHA3_BLOCK_BMI2_FN sha3_block_bmi2
+#endif
     /* Block-function selection when USE_INTEL_SPEEDUP: BMI2, then AVX2, then
      * the C block.  BMI2 is preferred because its block uses general
      * registers only and so needs no vector-register save; AVX2 goes first
@@ -151,7 +170,7 @@
 #if defined(WOLFSSL_SHA3_NO_AVX2)
     #define SHA3_BLOCK_VREGS(f) 0
 #else
-    #define SHA3_BLOCK_VREGS(f) ((f) == sha3_block_avx2)
+    #define SHA3_BLOCK_VREGS(f) ((f) == SHA3_BLOCK_AVX2_FN)
 #endif
 #endif
 
@@ -182,6 +201,19 @@
 
 #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
     !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
+
+/* The state and the scratch never overlap; tell the compiler so the lanes can
+ * stay in registers across the round macros as they did with local arrays. */
+#if defined(__GNUC__) || defined(__clang__)
+    #define WC_SHA3_RESTRICT __restrict__
+#elif defined(_MSC_VER)
+    #define WC_SHA3_RESTRICT __restrict
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+    #define WC_SHA3_RESTRICT restrict
+#else
+    #define WC_SHA3_RESTRICT
+#endif
+
 
 #ifdef WOLFSSL_SHA3_SMALL
 /* Rotate a 64-bit value left.
@@ -348,11 +380,19 @@ while (0)
  *
  * s  The state.
  */
+#ifdef WC_SHA3_SCRATCH_W
+void BlockSha3(word64* WC_SHA3_RESTRICT s, void* scratch)
+{
+    byte i, x, y;
+    word64 t0, t1;
+    word64* WC_SHA3_RESTRICT b = (word64*)scratch;
+#else
 void BlockSha3(word64* s)
 {
     byte i, x, y;
     word64 t0, t1;
     word64 b[5];
+#endif
 
     for (i = 0; i < 24; i++)
     {
@@ -745,18 +785,30 @@ while (0)
         WC_SHA3_CHI(DL, DH, 20);                                  \
     } while (0)
 
-void BlockSha3(word64* s)
+#ifdef WC_SHA3_SCRATCH_W
+void BlockSha3(word64* WC_SHA3_RESTRICT s, void* scratch)
 {
     /* Process the 25 little-endian lanes as 32-bit halves to avoid 64-bit
      * helper calls.  XMEMCPY in/out (aliasing s through word32* is strict-
      * aliasing UB); st[2k] is lane k's low half, st[2k+1] the high half.
      * Round constants are split with shifts for the same reason. */
+    word32* WC_SHA3_RESTRICT st = (word32*)scratch;
+    word32* WC_SHA3_RESTRICT sl = st + 50;
+    word32* WC_SHA3_RESTRICT sh = st + 75;
+    word32* WC_SHA3_RESTRICT nl = st + 100;
+    word32* WC_SHA3_RESTRICT nh = st + 125;
+    word32* WC_SHA3_RESTRICT bl = st + 150;
+    word32* WC_SHA3_RESTRICT bh = st + 155;
+#else
+void BlockSha3(word64* s)
+{
     word32 st[50];
     word32 sl[25], sh[25], nl[25], nh[25], bl[5], bh[5];
+#endif
     word32 i, k;
     word64 rc;
 
-    XMEMCPY(st, s, sizeof(st));
+    XMEMCPY(st, s, 25 * sizeof(word64));
     for (k = 0; k < 25; k++) {
         sl[k] = st[2 * k];
         sh[k] = st[2 * k + 1];
@@ -775,7 +827,7 @@ void BlockSha3(word64* s)
         st[2 * k]     = sl[k];
         st[2 * k + 1] = sh[k];
     }
-    XMEMCPY(s, st, sizeof(st));
+    XMEMCPY(s, st, 25 * sizeof(word64));
 }
 
 #undef WC_SHA3_RL
@@ -785,10 +837,17 @@ void BlockSha3(word64* s)
 
 #else /* !WC_SHA3_SPLIT64 */
 
+#ifdef WC_SHA3_SCRATCH_W
+void BlockSha3(word64* WC_SHA3_RESTRICT s, void* scratch)
+{
+    word64* WC_SHA3_RESTRICT n = (word64*)scratch;
+    word64* WC_SHA3_RESTRICT b = n + 25;
+#else
 void BlockSha3(word64* s)
 {
     word64 n[25];
     word64 b[5];
+#endif
     word64 t0;
 #ifndef SHA3_BY_SPEC
     word64 t1;
@@ -952,7 +1011,7 @@ static int InitSha3(wc_Sha3* sha3)
 #if defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
         /* WOLFSSL_SHA3_AVX2 asks for AVX2 ahead of BMI2. */
         if (SHA3_USE_AVX2(cpuid_flags)) {
-            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK = SHA3_BLOCK_AVX2_FN;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
         else
@@ -960,14 +1019,14 @@ static int InitSha3(wc_Sha3* sha3)
         /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
          * it needs no vector-register save. */
         if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
-            SHA3_BLOCK = sha3_block_bmi2;
+            SHA3_BLOCK = SHA3_BLOCK_BMI2_FN;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
         }
 #if !defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
         /* AVX2 without BMI2.  Only live in the plain build: the overrides
          * either select AVX2 above or disable it outright. */
         else if (SHA3_USE_AVX2(cpuid_flags)) {
-            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK = SHA3_BLOCK_AVX2_FN;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
 #endif
@@ -1009,6 +1068,15 @@ void BlockSha3(word64* s)
 }
 #endif
 
+/* Run the block function on a context's state with the context's scratch. */
+#if defined(SHA3_FUNC_PTR) && defined(WC_SHA3_SCRATCH_W)
+    #define SHA3_BLOCK_RUN(o) (*sha3_block)((o)->s, (o)->scratch)
+#elif defined(SHA3_FUNC_PTR)
+    #define SHA3_BLOCK_RUN(o) (*sha3_block)((o)->s)
+#else
+    #define SHA3_BLOCK_RUN(o) WC_SHA3_BLOCK(o, (o)->s)
+#endif
+
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -1028,7 +1096,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 #endif
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WC_C_DYNAMIC_FALLBACK
-    void (*sha3_block)(word64 *s) = SHA3_BLOCK;
+    WC_SHA3_BLOCK_FN sha3_block = SHA3_BLOCK;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c) = SHA3_BLOCK_N;
 #endif
@@ -1101,11 +1169,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
             total_check += p;
         #endif
     #endif
-        #ifdef SHA3_FUNC_PTR
-            (*sha3_block)(sha3->s);
-        #else
-            BlockSha3(sha3->s);
-        #endif
+        SHA3_BLOCK_RUN(sha3);
             sha3->i = 0;
         }
     }
@@ -1139,11 +1203,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
         }
     #endif
 #endif
-    #ifdef SHA3_FUNC_PTR
-        (*sha3_block)(sha3->s);
-    #else
-        BlockSha3(sha3->s);
-    #endif
+    SHA3_BLOCK_RUN(sha3);
         len -= p * 8U;
         data += p * 8U;
     }
@@ -1206,7 +1266,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     word32 check = 0;
 #endif
 #if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
-    void (*sha3_block)(word64 *s) = SHA3_BLOCK;
+    WC_SHA3_BLOCK_FN sha3_block = SHA3_BLOCK;
 #endif
 
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
@@ -1272,11 +1332,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 #endif
 
     for (j = 0; l - j >= rate; j += rate) {
-    #ifdef SHA3_FUNC_PTR
-        (*sha3_block)(sha3->s);
-    #else
-        BlockSha3(sha3->s);
-    #endif
+    SHA3_BLOCK_RUN(sha3);
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
     #elif defined(WOLFSSL_WIDE_BYTE)
@@ -1286,11 +1342,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     #endif
     }
     if (j != l) {
-    #ifdef SHA3_FUNC_PTR
-        (*sha3_block)(sha3->s);
-    #else
-        BlockSha3(sha3->s);
-    #endif
+    SHA3_BLOCK_RUN(sha3);
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64(sha3->s, sha3->s, rate);
         XMEMCPY(hash + j, sha3->s, l - j);
@@ -1650,6 +1702,9 @@ static void wc_Sha3Wipe(wc_Sha3* sha3)
 #else
     ForceZero(sha3->s, sizeof(sha3->s));
     ForceZero(sha3->t, sizeof(sha3->t));
+#ifdef WC_SHA3_SCRATCH_W
+    ForceZero(sha3->scratch, sizeof(sha3->scratch));
+#endif
     sha3->i = 0;
 #endif
 }
@@ -2424,7 +2479,7 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
 int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
 #if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
-    void (*sha3_block)(word64 *s);
+    WC_SHA3_BLOCK_FN sha3_block;
 #endif
 
     if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
@@ -2465,11 +2520,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 #endif
 
     for (; (blockCnt > 0); blockCnt--) {
-    #ifdef SHA3_FUNC_PTR
-        (*sha3_block)(shake->s);
-    #else
-        BlockSha3(shake->s);
-    #endif
+    SHA3_BLOCK_RUN(shake);
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)out, shake->s, WC_SHA3_128_COUNT * 8);
     #elif defined(WOLFSSL_WIDE_BYTE)
@@ -2773,7 +2824,7 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
 int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
 #if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
-    void (*sha3_block)(word64 *s);
+    WC_SHA3_BLOCK_FN sha3_block;
 #endif
 
     if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
@@ -2814,11 +2865,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 #endif
 
     for (; (blockCnt > 0); blockCnt--) {
-    #ifdef SHA3_FUNC_PTR
-        (*sha3_block)(shake->s);
-    #else
-        BlockSha3(shake->s);
-    #endif
+    SHA3_BLOCK_RUN(shake);
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)out, shake->s, WC_SHA3_256_COUNT * 8);
     #elif defined(WOLFSSL_WIDE_BYTE)
