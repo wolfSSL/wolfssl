@@ -47,9 +47,9 @@
  * the binary always returns 0 so the harness keeps the variant.
  */
 
-/* SAVE_VECTOR_REGISTERS2() gates every SIMD dispatch in this file. In a
- * userspace build types.h resolves it to the literal 0, so "(0 == 0)" is
- * structurally true and that operand has no false side at all -- it is real
+/* SAVE_VECTOR_REGISTERS2() is taken by every SIMD lane in this file, and a
+ * refusal is returned as an error. In a userspace build types.h resolves it
+ * to the literal 0, so the refusal branch is unreachable -- it is real
  * only where the save can be refused (the kernel-module build, where it
  * becomes WC_CHECK_FOR_INTR_SIGNALS()). That is the #ifndef extension point
  * types.h offers, so defining it here -- BEFORE any wolfSSL header is reached
@@ -942,7 +942,7 @@ static void wb_dispatch_rows(void)
         { CPUID_INTEL, CPUID_AVX512_BW,            0 },  /* F set, BW clear  */
         { CPUID_INTEL, CPUID_AVX512_BW,            1 },  /* BW clear, refuse */
         /* The AVX512 matrix/mask dispatches read
-         *   USE_INTEL_AVX512(f) && IS_INTEL_BMI2(f) && (save == 0)
+         *   USE_INTEL_AVX512(f) && IS_INTEL_BMI2(f)
          * so their BMI2 operand only takes its false side on a row that keeps
          * AVX512 and drops BMI2 -- dropping both together (further down)
          * never evaluates it. */
