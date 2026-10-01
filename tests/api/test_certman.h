@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_CertManagerAPI(void);
+int test_certman_decision_coverage(void);
 int test_wolfSSL_CertManagerLoadCABuffer(void);
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
@@ -125,6 +126,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerCheckCRL_would_block),                      \
     TEST_DECL_GROUP("certman",                                             \
-        test_wolfSSL_CertManagerVerify_crl_date_callback)
+        test_wolfSSL_CertManagerVerify_crl_date_callback),                      \
+    TEST_DECL_GROUP("certman", test_certman_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */
