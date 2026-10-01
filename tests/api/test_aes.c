@@ -5214,6 +5214,77 @@ int test_wc_GmacUpdate(void)
     return EXPECT_RESULT();
 } /* END test_wc_GmacUpdate */
 
+/* A failed AES-GCM decrypt must not hand back the plaintext it computed. */
+int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
+{
+    EXPECT_DECLS;
+/* Only the software, AES-NI and Arm lanes wipe; the offload back ends and the
+ * ACVP harness build return the computed plaintext.  A FIPS build before v7,
+ * and a --enable-selftest build, compile an older boundary aes.c that has no
+ * wipe. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_BARE) && \
+    !defined(STM32_CRYPTO_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
+    !defined(WOLFSSL_RISCV_ASM) && \
+    !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) && \
+    !defined(FREESCALE_LTC_AES_GCM) && !defined(ACVP_VECTOR_TESTING) && \
+    !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+    !defined(WOLFSSL_TI_CRYPT)
+    static const byte key[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    static const byte iv[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62
+    };
+    Aes aes;
+    byte pt[WC_AES_BLOCK_SIZE * 5];
+    byte ct[sizeof(pt)];
+    byte dec[sizeof(pt)];
+    byte zeros[sizeof(pt)];
+    byte tag[WC_AES_BLOCK_SIZE];
+    word32 i;
+
+    /* Zeroed first: the tag is only filled by a call inside ExpectIntEQ, which
+     * does not run once an earlier expectation has failed. */
+    XMEMSET(tag, 0, sizeof(tag));
+    for (i = 0; i < (word32)sizeof(pt); i++) {
+        pt[i] = (byte)(0x40 + i);
+    }
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(&aes, 0, sizeof(aes));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, ct, pt, sizeof(pt), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), 0);
+
+    /* Corrupt the tag: the decrypt must fail and dec must be all zero. */
+    tag[0] ^= 0x01;
+    XMEMSET(dec, 0xff, sizeof(dec));
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    ExpectBufEQ(dec, zeros, sizeof(dec));
+
+    /* Control: the good tag recovers the plaintext, so the zeros were a wipe. */
+    tag[0] ^= 0x01;
+    XMEMSET(dec, 0, sizeof(dec));
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), 0);
+    ExpectBufEQ(dec, pt, sizeof(pt));
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*******************************************************************************
  * AES-CCM
  ******************************************************************************/
@@ -5698,80 +5769,9 @@ int test_wc_AesCcmEncrypt_ex_NonceUnique(void)
  * AES-XTS
  ******************************************************************************/
 
-/* A failed AES-GCM decrypt must not hand back the plaintext it computed. */
-int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
-{
-    EXPECT_DECLS;
-/* Only the software, AES-NI and Arm lanes wipe; the offload back ends and the
- * ACVP harness build return the computed plaintext.  A FIPS build before v7,
- * and a --enable-selftest build, compile an older boundary aes.c that has no
- * wipe. */
-#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
-    !defined(HAVE_SELFTEST) && \
-    !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
-    defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG) && \
-    !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
-    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_BARE) && \
-    !defined(STM32_CRYPTO_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
-    !defined(WOLFSSL_RISCV_ASM) && \
-    !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) && \
-    !defined(FREESCALE_LTC_AES_GCM) && !defined(ACVP_VECTOR_TESTING) && \
-    !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
-    static const byte key[] = {
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
-    };
-    static const byte iv[] = {
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-        0x38, 0x39, 0x61, 0x62
-    };
-    Aes aes;
-    byte pt[WC_AES_BLOCK_SIZE * 5];
-    byte ct[sizeof(pt)];
-    byte dec[sizeof(pt)];
-    byte zeros[sizeof(pt)];
-    byte tag[WC_AES_BLOCK_SIZE];
-    word32 i;
-
-    /* Zeroed first: the tag is only filled by a call inside ExpectIntEQ, which
-     * does not run once an earlier expectation has failed. */
-    XMEMSET(tag, 0, sizeof(tag));
-    for (i = 0; i < (word32)sizeof(pt); i++) {
-        pt[i] = (byte)(0x40 + i);
-    }
-    XMEMSET(zeros, 0, sizeof(zeros));
-    XMEMSET(&aes, 0, sizeof(aes));
-
-    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
-    ExpectIntEQ(wc_AesGcmEncrypt(&aes, ct, pt, sizeof(pt), iv, sizeof(iv),
-        tag, sizeof(tag), NULL, 0), 0);
-
-    /* Corrupt the tag: the decrypt must fail and dec must be all zero. */
-    tag[0] ^= 0x01;
-    XMEMSET(dec, 0xff, sizeof(dec));
-    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
-        tag, sizeof(tag), NULL, 0), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
-    ExpectBufEQ(dec, zeros, sizeof(dec));
-
-    /* Control: the good tag recovers the plaintext, so the zeros were a wipe. */
-    tag[0] ^= 0x01;
-    XMEMSET(dec, 0, sizeof(dec));
-    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
-        tag, sizeof(tag), NULL, 0), 0);
-    ExpectBufEQ(dec, pt, sizeof(pt));
-    wc_AesFree(&aes);
-#endif
-    return EXPECT_RESULT();
-}
-
 /*
  * test function for wc_AesXtsSetKey()
  */
-
 int test_wc_AesXtsSetKey(void)
 {
     EXPECT_DECLS;
@@ -6797,7 +6797,7 @@ int test_wc_AesXtsDataUnitLimit(void)
     ExpectIntEQ(wc_AesXtsEncrypt(&aes, buf, buf, limit + WC_AES_BLOCK_SIZE,
         tweak, tweakLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesXtsFree(&aes);
-#if FIPS_VERSION3_GE(6,0,0) && defined(HAVE_AES_DECRYPT)
+#ifdef HAVE_AES_DECRYPT
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_DECRYPTION, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesXtsDecrypt(&aes, buf, buf, limit + WC_AES_BLOCK_SIZE,

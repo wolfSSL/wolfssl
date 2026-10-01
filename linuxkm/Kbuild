@@ -154,8 +154,8 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
     ifndef NO_PIE_FLAG
       ifeq ($(KERNEL_ARCH),arm)
-        ifeq "$(VERSION)" ""
-            $(error $$VERSION is unset, cannot tell whether the target kernel predates 5.11.)
+        ifeq "$(and $(VERSION),$(PATCHLEVEL))" ""
+            $(error $$VERSION or $$PATCHLEVEL is unset; supply NO_PIE_FLAG=1 for a target kernel before 5.11, else NO_PIE_FLAG=0.)
         endif
         ifeq "$(HAVE_INTCMP)" "yes"
           ifeq ($(intcmp $(VERSION),5,1,0,0),1)
@@ -320,6 +320,8 @@ ifndef OBJCOPY
     OBJCOPY := objcopy
 endif
 
+# 32-bit Arm asm keeps its constant tables in .text, so the OBJECT check below
+# skips wolfCrypt's text sections; x86 and arm64 keep theirs in rodata.
 RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	if [[ "$(quiet)" != "silent_" ]]; then \
 	    echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '; \
@@ -436,8 +438,6 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	    echo '  wolfCrypt .{text,data,rodata,bss} sections containerized to .{text,data,rodata}_wolfcrypt'; \
 	fi
 endif
-# The 32-bit Arm assembler keeps its constant tables in the text section, so an
-# OBJECT symbol there is expected; x86 and arm64 keep theirs in rodata.
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.

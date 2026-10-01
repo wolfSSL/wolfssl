@@ -9156,9 +9156,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
                 /* local[] holds the raw key; wipe it on this early return. */
                 ForceZero(local, sizeof(local));
     #endif
-    #ifdef WOLFSSL_AESGCM_STREAM
-                aes->gcmKeySet = 0;
-    #endif
+                WC_AES_GCM_UNKEY(aes);
                 return _svr_ret;
             }
             /* Undo the assembly's reflection so the stored H is plain H for the
@@ -9178,9 +9176,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
                 /* local[] holds the raw key; wipe it on this early return. */
                 ForceZero(local, sizeof(local));
     #endif
-    #ifdef WOLFSSL_AESGCM_STREAM
-                aes->gcmKeySet = 0;
-    #endif
+                WC_AES_GCM_UNKEY(aes);
                 return _svr_ret;
             }
             /* Undo the assembly's reflection so the stored H is plain H for the
@@ -19561,10 +19557,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 #endif
 #if FIPS_VERSION3_GE(6,0,0)
-    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-     * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-     * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-     */
+    /* SP 800-38E section 4: a data unit is at most 2^20 AES blocks. */
     if (newTweakBytes > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
     {
         WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
@@ -19888,10 +19881,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
-    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-     * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-     * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-     */
+    /* SP 800-38E section 4: a data unit is at most 2^20 AES blocks. */
     if (sz > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK) {
         WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
         return BAD_FUNC_ARG;
@@ -20186,10 +20176,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 #endif
 #if FIPS_VERSION3_GE(6,0,0)
-    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-     * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-     * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-     */
+    /* SP 800-38E section 4: a data unit is at most 2^20 AES blocks. */
     if (newTweakBytes > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
     {
         WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");

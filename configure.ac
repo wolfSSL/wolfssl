@@ -4245,7 +4245,7 @@ fi
 if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
    { test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_AESEAX" = "yes"; }
 then
-    AC_MSG_ERROR([AES-SIV and AES-EAX are not in the FIPS module boundary: drop --enable-aessiv, --enable-aeseax or --enable-chrony from a FIPS v7 build.])
+    AC_MSG_ERROR([AES-SIV and AES-EAX are not in the FIPS module boundary: drop --enable-aessiv, --enable-aeseax, --enable-chrony or --enable-all-nonfips-crypto from a FIPS v7 build.])
 fi
 
 # AES-GCM-SIV (RFC 8452)

@@ -4927,8 +4927,8 @@
 
 /* A 32-bit Arm crypto-extension build otherwise compiles base and crypto AES
  * and SHA-256 and picks at run time; a FIPS build keeps one implementation. */
-#if (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
-     defined(WOLFSSL_FIPS_DEV)) && \
+#if ((defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)) || \
+     defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
     defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
     !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
@@ -4995,7 +4995,6 @@
     (defined(CURVE25519_SMALL) || defined(ED25519_SMALL))
     #error "CURVE25519_SMALL/ED25519_SMALL are incompatible with the Intel x64 curve25519/ed25519 assembly (CURVED25519_X64); define NO_CURVED25519_X64 to keep the small implementation, or remove the SMALL settings to use the assembly"
 #endif
-
 
 #if defined(WOLFSSL_ARMASM)
     #ifdef __aarch64__

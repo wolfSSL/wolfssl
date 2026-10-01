@@ -366,7 +366,7 @@ static void wb_aesni(void)
     WB_NOTE("AES-NI internal ptr-guard pairs exercised");
 }
 #else
-static void wb_aesni(void) { WB_NOTE("WC_AESNI_GCM off; AES-NI GCM internals skipped"); }
+static void wb_aesni(void) { WB_NOTE("WOLFSSL_AESNI off; AES-NI internals skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
