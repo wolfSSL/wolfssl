@@ -9971,7 +9971,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 if (WC_VAR_OK(w1e))
                 {
                     if (ret == 0) {
-                        ret = mldsa_vec_encode_w1(w1, params->k, params->gamma2, w1e);
+                        ret = mldsa_vec_encode_w1(w1, params->k,
+                            params->gamma2, w1e);
                     }
                     if (ret == 0) {
                         /* Step 15: Hash mu and encoded w1.
@@ -9999,7 +10000,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                             s2 + i * MLDSA_N);
                         /* Step 22: w0 - cs2 */
                         if (ret == 0) {
-                            ret = mldsa_sub(w0 + i * MLDSA_N, cs2 + i * MLDSA_N);
+                            ret = mldsa_sub(w0 + i * MLDSA_N,
+                                cs2 + i * MLDSA_N);
                         }
                         /* Step 23: Check w0 - cs2 has low enough values. */
                         if (ret == 0) {
@@ -11432,7 +11434,8 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         }
         /* Step 11: Use hint to give full w1. */
         if (ret == 0) {
-            ret = mldsa_vec_use_hint(w, params->k, params->gamma2, params->omega, h);
+            ret = mldsa_vec_use_hint(w, params->k, params->gamma2,
+                params->omega, h);
         }
         /* Step 12: Encode w1. */
         if (ret == 0) {
@@ -11563,7 +11566,8 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #else
         /* Step 2: Decode z from signature. */
         if (ret == 0) {
-            ret = mldsa_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
+            ret = mldsa_vec_decode_gamma1(ze, params->l,
+                params->gamma1_bits, z);
         }
         if (ret == 0) {
             ret = mldsa_vec_check_low(z, params->l, hi, &valid);
