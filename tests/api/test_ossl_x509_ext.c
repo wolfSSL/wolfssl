@@ -824,6 +824,7 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
     WOLFSSL_ASN1_STRING* str = NULL;
     XFILE file = XBADFILE;
 #ifndef WOLFSSL_OLD_EXTDATA_FMT
+    unsigned char* utf8 = NULL;
     const byte ext_data[] = {
         0x04, 0x14, 0xB3, 0x11, 0x32, 0xC9, 0x92, 0x98,
         0x84, 0xE2, 0xC9, 0xF8, 0xD0, 0x3B, 0x6E, 0x03,
@@ -843,6 +844,11 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
 #ifndef WOLFSSL_OLD_EXTDATA_FMT
     ExpectIntEQ(str->length, sizeof (ext_data));
     ExpectBufEQ(str->data, ext_data, sizeof (ext_data));
+    /* Data is NUL terminated like any other ASN1_STRING. */
+    ExpectIntEQ(str->data[str->length], '\0');
+    ExpectIntEQ(wolfSSL_ASN1_STRING_to_UTF8(&utf8, str), sizeof (ext_data));
+    ExpectBufEQ(utf8, ext_data, sizeof (ext_data));
+    XFREE(utf8, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
 
     wolfSSL_X509_free(x509);
