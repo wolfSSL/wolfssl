@@ -331,7 +331,8 @@ static void wb_check_hint_inner_loops(void)
 /* ------------------------------------------------------------------ *
  * mldsa_make_hint_88 / _32 / mldsa_make_hint: the 3-way compound
  *   (s>LOW) || (s<-LOW) || ((s==-LOW) && (w1!=0))
- * and the too-many-hints guard (idx>OMEGA -> -1), plus mldsa_make_hint's
+ * and the too-many-hints guard (idx>OMEGA -> *valid = 0), plus
+ * mldsa_make_hint's
  * gamma2 dispatch (88 arm / 32 arm / neither).
  * ------------------------------------------------------------------ */
 #ifndef WOLFSSL_MLDSA_NO_SIGN
@@ -342,6 +343,7 @@ static void wb_make_hint_88(void)
     sword32 w1[MLDSA_N];
     byte    h[256];
     byte    idx;
+    int     valid;
     unsigned int j;
     int ret;
     const sword32 low = (sword32)MLDSA_Q_LOW_88;
@@ -353,7 +355,7 @@ static void wb_make_hint_88(void)
 
     /* All three operands FALSE for every coefficient -> no hint, idx stays 0. */
     idx = 0;
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
     if ((ret != 0) || (idx != 0)) {
         WB_NOTE("mldsa_make_hint_88(no-hint) unexpected");
     }
@@ -361,7 +363,7 @@ static void wb_make_hint_88(void)
     /* First operand TRUE (s > LOW). */
     idx = 0;
     s[1] = low + 1;
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_88(s>LOW) unexpected");
     }
@@ -370,7 +372,7 @@ static void wb_make_hint_88(void)
     idx = 0;
     s[1] = 0;
     s[2] = -low - 1;
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_88(s<-LOW) unexpected");
     }
@@ -380,7 +382,7 @@ static void wb_make_hint_88(void)
     s[2] = 0;
     s[3] = -low;
     w1[3] = 1;
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_88(s==-LOW,w1!=0) unexpected");
     }
@@ -389,7 +391,7 @@ static void wb_make_hint_88(void)
      * (independence of the w1!=0 operand). */
     idx = 0;
     w1[3] = 0;
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
     if ((ret != 0) || (idx != 0)) {
         WB_NOTE("mldsa_make_hint_88(s==-LOW,w1==0) unexpected");
     }
@@ -400,9 +402,9 @@ static void wb_make_hint_88(void)
         s[j] = low + 1;
         w1[j] = 0;
     }
-    ret = mldsa_make_hint_88(s, w1, h, &idx);
-    if (ret != -1) {
-        WB_NOTE("mldsa_make_hint_88(too-many) expected -1");
+    ret = mldsa_make_hint_88(s, w1, h, &idx, &valid);
+    if ((ret != 0) || (valid != 0)) {
+        WB_NOTE("mldsa_make_hint_88(too-many) expected valid = 0");
     }
     WB_OK("mldsa_make_hint_88 operand + overflow pairs exercised");
 }
@@ -415,6 +417,7 @@ static void wb_make_hint_32(void)
     sword32 w1[MLDSA_N];
     byte    h[256];
     byte    idx;
+    int     valid;
     unsigned int j;
     int ret;
     const sword32 low = (sword32)MLDSA_Q_LOW_32;
@@ -427,7 +430,7 @@ static void wb_make_hint_32(void)
 
     /* No hint. */
     idx = 0;
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
     if ((ret != 0) || (idx != 0)) {
         WB_NOTE("mldsa_make_hint_32(no-hint) unexpected");
     }
@@ -435,7 +438,7 @@ static void wb_make_hint_32(void)
     /* s > LOW. */
     idx = 0;
     s[1] = low + 1;
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_32(s>LOW) unexpected");
     }
@@ -444,7 +447,7 @@ static void wb_make_hint_32(void)
     idx = 0;
     s[1] = 0;
     s[2] = -low - 1;
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_32(s<-LOW) unexpected");
     }
@@ -454,7 +457,7 @@ static void wb_make_hint_32(void)
     s[2] = 0;
     s[3] = -low;
     w1[3] = 1;
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
     if ((ret != 0) || (idx != 1)) {
         WB_NOTE("mldsa_make_hint_32(s==-LOW,w1!=0) unexpected");
     }
@@ -462,7 +465,7 @@ static void wb_make_hint_32(void)
     /* (s == -LOW) && (w1 == 0) -> no hint. */
     idx = 0;
     w1[3] = 0;
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
     if ((ret != 0) || (idx != 0)) {
         WB_NOTE("mldsa_make_hint_32(s==-LOW,w1==0) unexpected");
     }
@@ -472,9 +475,9 @@ static void wb_make_hint_32(void)
     for (j = 0; j < MLDSA_N; j++) {
         s[j] = low + 1;
     }
-    ret = mldsa_make_hint_32(s, w1, omega, h, &idx);
-    if (ret != -1) {
-        WB_NOTE("mldsa_make_hint_32(too-many) expected -1");
+    ret = mldsa_make_hint_32(s, w1, omega, h, &idx, &valid);
+    if ((ret != 0) || (valid != 0)) {
+        WB_NOTE("mldsa_make_hint_32(too-many) expected valid = 0");
     }
     WB_OK("mldsa_make_hint_32 operand + overflow pairs exercised");
 }
