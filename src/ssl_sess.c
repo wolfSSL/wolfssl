@@ -2543,6 +2543,86 @@ WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL* ssl, byte* masterSecret,
 
 #endif /* NO_SESSION_CACHE */
 
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
+/* Does freeing a session's ex_data call anything? Only then can two cache
+ * entries holding the same ex_data free it twice. */
+static int SessionExDataHasFree(void)
+{
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    return 1;
+#elif defined(HAVE_EX_DATA_CRYPTO)
+    const CRYPTO_EX_cb_ctx* cb;
+
+    for (cb = crypto_ex_cb_ctx_session; cb != NULL; cb = cb->next) {
+        if (cb->free_func != NULL)
+            return 1;
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+
+/* Move ex_data ownership from the cache entry of ssl->session to the
+ * session. */
+static void SessionTakeExData(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION* session = ssl->session;
+    WOLFSSL_SESSION* sess = NULL;
+    const byte* id;
+    word32 row = 0;
+
+    if (session->ownExData || SslSessionCacheOff(ssl, session) ||
+            !SessionExDataHasFree()) {
+        return;
+    }
+#ifdef HAVE_EXT_CACHE
+    if (ssl->options.internalCacheOff)
+        return;
+#endif
+
+    id = session->sessionID;
+    if (session->haveAltSessionID)
+        id = session->altSessionID;
+
+    if (TlsSessionCacheGetAndWrLock(id, &sess, &row, ssl->options.side) != 0 ||
+            sess == NULL) {
+        return;
+    }
+    if (sess->ownExData) {
+        XMEMCPY(&session->ex_data, &sess->ex_data,
+                sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        session->ownExData = 1;
+        sess->ownExData = 0;
+    }
+    TlsSessionCacheUnlockRow(row);
+}
+#endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
+
+/* Give ssl->session a new random ID to cache it under. The entry for the old
+ * ID may own the ex_data the session holds a copy of. Move it to the session
+ * first so the entry added for the new ID is the only owner. */
+int SessionNewAltId(WOLFSSL* ssl)
+{
+    byte id[ID_LEN];
+    int ret;
+
+    ret = wc_RNG_GenerateBlock(ssl->rng, id, ID_LEN);
+    if (ret != 0)
+        return ret;
+#if defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
+    SessionTakeExData(ssl);
+#endif
+    XMEMCPY(ssl->session->altSessionID, id, ID_LEN);
+    ssl->session->haveAltSessionID = 1;
+    return 0;
+}
+#endif /* !NO_TLS && WOLFSSL_TLS13 && HAVE_SESSION_TICKET &&
+        * !NO_WOLFSSL_SERVER */
+
 #ifdef OPENSSL_EXTRA
 
    /* returns previous set cache size which stays constant */

@@ -14833,11 +14833,9 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         genAltSessionID = 0;
 #endif
     if (genAltSessionID) {
-        ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
-                                   ID_LEN);
+        ret = SessionNewAltId(ssl);
         if (ret != 0)
             return ret;
-        ssl->session->haveAltSessionID = 1;
     }
 
     if (!ssl->options.noTicketTls13) {
