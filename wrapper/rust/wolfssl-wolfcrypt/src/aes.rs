@@ -2455,8 +2455,10 @@ impl XTS {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the encryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the encryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     ///
     /// # Returns
     ///
@@ -2472,8 +2474,10 @@ impl XTS {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the decryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the decryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     ///
     /// # Returns
     ///
@@ -2802,8 +2806,10 @@ impl XTSStream {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the encryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the encryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     /// * `tweak`: Tweak value to use for the encryption operation.
     ///
     /// # Returns
@@ -2836,8 +2842,10 @@ impl XTSStream {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the decryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the decryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     /// * `tweak`: Tweak value to use for the decryption operation.
     ///
     /// # Returns
