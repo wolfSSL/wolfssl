@@ -1575,8 +1575,31 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
             sk = ext->ext_sk;
             while (sk != NULL) {
                 if (sk->type == STACK_TYPE_GEN_NAME && sk->data.gn) {
+                    /* Only the string backed GENERAL_NAME types hold a
+                     * WOLFSSL_ASN1_STRING in the union. otherName, dirName
+                     * and registeredID carry other objects there. */
+                    switch (sk->data.gn->type) {
+                        case WOLFSSL_GEN_EMAIL:
+                        case WOLFSSL_GEN_DNS:
+                        case WOLFSSL_GEN_URI:
+                        case WOLFSSL_GEN_IPADD:
+                        case WOLFSSL_GEN_IA5:
+                            break;
+                        default:
+                            WOLFSSL_MSG("Unsupported GENERAL_NAME type");
+                            sk = sk->next;
+                            continue;
+                    }
                     /* str is GENERAL_NAME for subject alternative name ext */
                     str = sk->data.gn->d.ia5;
+                    if (str == NULL) {
+                        /* Skip it like an unsupported type above: a name
+                         * built through the API can carry the type without
+                         * the string. */
+                        WOLFSSL_MSG("NULL GENERAL_NAME string");
+                        sk = sk->next;
+                        continue;
+                    }
                     len = str->length + 2; /* + 2 for NULL char and "," */
                     if (len > tmpSz) {
                         WOLFSSL_MSG("len greater than buffer size");
