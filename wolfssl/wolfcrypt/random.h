@@ -820,6 +820,14 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 #ifndef WC_NO_RNG
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG) && \
+    defined(BUILDING_WOLFSSL)
+/* Fixed seed start for the module's own known answer tests.  seedSz must be
+ * over SEED_BLOCK_SZ and no more than WC_DRBG_MAX_SEED_SZ; the leading
+ * SEED_BLOCK_SZ bytes are checked but do not reach the DRBG. */
+WOLFSSL_LOCAL int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed,
+                                      word32 seedSz);
+#endif
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 
 #define WC_RNG_INIT_FLAG_NONE            0
