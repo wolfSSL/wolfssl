@@ -15870,6 +15870,39 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         return wolfSSL_X509_NAME_ENTRY_get_object(e);
     }
 
+    #define NAME_NUL_ESC_SZ  4
+
+    /* Escape a value by its length; NUL becomes "\x00".
+     * out NULL: return length needed. Returns BUFFER_E if it doesn't fit. */
+    static int AddEntryValue(char* out, int outSz, const unsigned char* val,
+            int valSz)
+    {
+        int i;
+        int sz = 0;
+
+        for (i = 0; (val != NULL) && (i < valSz); i++) {
+            int need = NAME_NUL_ESC_SZ;
+
+            if (val[i] != '\0')
+                need = (int)X509CertEscapeName(NULL, (const char*)&val[i], 1);
+
+            if (need > INT_MAX - sz)
+                return BUFFER_E;
+            if (out != NULL) {
+                if (need > outSz - sz)
+                    return BUFFER_E;
+                if (val[i] == '\0')
+                    XMEMCPY(out + sz, "\\x00", NAME_NUL_ESC_SZ);
+                else
+                    (void)X509CertEscapeName(out + sz, (const char*)&val[i],
+                        1);
+            }
+            sz += need;
+        }
+
+        return sz;
+    }
+
     /* add all entry of type "nid" to the buffer "fullName" and advance "idx"
      * since number of entries is small, a brute force search is used here
      * returns the number of entries added
@@ -15902,16 +15935,12 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 
                 data = wolfSSL_ASN1_STRING_data(e->value);
                 if (data != NULL) {
-                    sz = (int)XSTRLEN((const char*)data);
-                    if ((fullNameSz - (word32)*idx) >=
-                            X509CertEscapeName(NULL, (const char*)data,
-                                (word32)sz)) {
-                        *idx += (int)X509CertEscapeName(fullName + *idx,
-                                (const char*)data, (word32)sz);
-                    }
-                    else {
-                        return BUFFER_E;
-                    }
+                    sz = AddEntryValue(fullName + *idx,
+                        (int)(fullNameSz - (word32)*idx), data,
+                        wolfSSL_ASN1_STRING_length(e->value));
+                    if (sz < 0)
+                        return sz;
+                    *idx += sz;
                 }
 
                 ret++;
@@ -15937,6 +15966,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 WOLFSSL_ASN1_OBJECT* obj;
                 const char* data;
                 word32 intermediateVal = 0;
+                int valLen;
 
                 e = &name->entry[i];
                 obj = X509NameEntryObject(e);
@@ -15955,11 +15985,12 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 }
                 /* Certain characters need to be escaped, so ask for the
                  * length of the value once escaped. */
-                intermediateVal = X509CertEscapeName(NULL, data,
-                    (word32)XSTRLEN(data));
-                if (intermediateVal > (word32)INT_MAX - 1 - totalLen)
+                valLen = AddEntryValue(NULL, 0, (const unsigned char*)data,
+                    wolfSSL_ASN1_STRING_length(e->value));
+                if ((valLen < 0) ||
+                        ((word32)valLen > (word32)INT_MAX - 1 - totalLen))
                     return BUFFER_E;
-                totalLen += intermediateVal;
+                totalLen += (word32)valLen;
             }
         }
 

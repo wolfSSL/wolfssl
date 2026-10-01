@@ -1355,3 +1355,51 @@ int test_wolfSSL_X509_NAME_oneline_escape(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Embedded NUL in a name entry value is escaped by X509_NAME_oneline(). */
+int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    static const unsigned char nulCn[] = {
+        'a', 'd', 'm', 'i', 'n', 0x00, '.', 'e', 'v', 'i', 'l', '.', 'c', 'o',
+        'm'
+    };
+    static const unsigned char plainCn[] = "admin";
+    static const unsigned char country[] = "US";
+    static const unsigned char org[] = "Corp";
+    X509_NAME* legit = NULL;
+    X509_NAME* spoof = NULL;
+    char* legitLine = NULL;
+    char* spoofLine = NULL;
+
+    ExpectNotNull(legit = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_commonName,
+        V_ASN1_UTF8STRING, plainCn, 5, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(spoof = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_commonName,
+        V_ASN1_UTF8STRING, nulCn, (int)sizeof(nulCn), -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(legitLine = X509_NAME_oneline(legit, NULL, 0));
+    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, NULL, 0));
+    ExpectStrEQ(legitLine, "/C=US/CN=admin/O=Corp");
+    ExpectStrNE(spoofLine, legitLine);
+    ExpectNotNull(XSTRSTR(spoofLine, ".evil.com"));
+    ExpectIntNE(X509_NAME_cmp(legit, spoof), 0);
+
+    XFREE(legitLine, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(spoofLine, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_NAME_free(legit);
+    X509_NAME_free(spoof);
+#endif
+    return EXPECT_RESULT();
+}
