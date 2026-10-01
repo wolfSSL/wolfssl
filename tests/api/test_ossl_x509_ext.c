@@ -1872,6 +1872,37 @@ int test_wolfSSL_X509V3_EXT_print(void)
         X509_free(x509);
     }
 
+#ifdef WOLFSSL_FPKI
+    {
+        /* rid-cert.der SAN: otherName (UPN), registeredID, DNS, URI and a
+         * second otherName. With WOLFSSL_FPKI the otherName entries are put
+         * in the GENERAL_NAME stack and must not be read as an ASN1_STRING. */
+        const char* ridCert = "./certs/rid-cert.der";
+        X509* x509 = NULL;
+        BIO* bio = NULL;
+        X509_EXTENSION* ext = NULL;
+        char buf[256];
+        int loc = 0;
+        int len = 0;
+
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(ridCert,
+            WOLFSSL_FILETYPE_ASN1));
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+        ExpectIntGT(loc = X509_get_ext_by_NID(x509, NID_subject_alt_name, -1),
+            -1);
+        ExpectNotNull(ext = X509_get_ext(x509, loc));
+        ExpectIntEQ(X509V3_EXT_print(bio, ext, 0, 0), 1);
+
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntGT(len = BIO_read(bio, buf, sizeof(buf) - 1), 0);
+        ExpectNotNull(XSTRSTR(buf, "www.example.org"));
+
+        BIO_free(bio);
+        X509_free(x509);
+    }
+#endif /* WOLFSSL_FPKI */
+
     {
         BIO* bio = NULL;
         X509_EXTENSION* ext = NULL;
