@@ -71,6 +71,35 @@
  *     longer a residual -- tests/unit-mcdc/test_random_fault_whitebox.c
  *     now drives both operands of both chains with mcdc_fault_hash.h.
  *
+ * Structurally unreachable leaves (argued, do not re-open):
+ *
+ *   - wc_RNG_DRBG_GetReseedCtr() "drbgType==SHA256 && drbg != NULL" (1354,
+ *     cond 1) and the SHA-512 twin (1360, both conds), and the same pair in
+ *     Hash_DRBG_StirGenerate() (2522 cond 1, 2528 cond 1): every path into
+ *     these checks goes through wc_RNG_DRBG_Present(), which already
+ *     requires the matching drbg pointer to be non-NULL, and the SHA-256
+ *     block in GetReseedCtr returns before the SHA-512 check. At 1360 the
+ *     only reachable row is (true, true); at 2528 the (true, false) row
+ *     needs drbgType==SHA512 with drbg512==NULL, which Present() rejects.
+ *   - Hash_DRBG_Generate()/Hash512_DRBG_Generate()'s
+ *     "(thisV != drbg->V) && (thisV != NULL)" (1790/2390, cond 1): thisV is
+ *     initialised NULL, the additional-input path either assigns a live
+ *     shadow/scratch pointer or returns before the loop, and the
+ *     no-additional path assigns drbg->V. At the ForceZero site thisV is
+ *     always non-NULL; the second operand is a defensive check.
+ *   - _InitRng()'s "ret==0 && (flags & USE_FULL_MUTEX)" guard (3366, the
+ *     flag operand): without WC_RNG_HAVE_LOCK_FULL_MUTEX the flag is
+ *     refused at the entry with NOT_COMPILED_IN before the guard, so the
+ *     flag-true rows are a build-config residual in this variant (the
+ *     ret==0 operand is paired by the seed-failure vectors in
+ *     test_random_fault_whitebox.c).
+ *   - _InitRng()'s auto-lock compound (3443-3445, the OR operand): the
+ *     build configuration does not define WC_RNG_AUTO_LOCK_DEFAULT_OFF, so
+ *     WC_RNG_AUTO_LOCK_DEFAULT is the constant 1 and the OR never takes its
+ *     false side. The USE_AUTO_LOCK operand row IS driven (flags vector in
+ *     test_random_fault_whitebox.c); the constant disjunct is a
+ *     build-config residual.
+ *
  * This white-box #includes random.c directly to reach these file-static
  * helpers and drives both sides of each leaf in the same binary (a single
  * clang MC/DC bitmap does not merge independence pairs across separately
@@ -696,6 +725,129 @@ static void wb_generate_seed_guard(void)
 { WB_NOTE("this variant compiles a different wc_GenerateSeed arm; skipped"); }
 #endif
 
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
+/* ========================================================================
+ * Static-entry rows the public API cannot present:
+ *
+ *   :2550  rng==NULL || seed==NULL             (seed==NULL row)
+ *   :2566  ret==0 && nonce!=NULL && nonceSz>0  (ret!=0 row)
+ *   :3273  ret==0 && seedRng==NULL             (seedRng!=NULL row)
+ *
+ * :3273: every public entry (wc_InitRng*, wc_rng_new*) passes
+ * seedRng==NULL, so the false row is driven by calling _InitRng() directly
+ * with a live parent. :2566: the first StirGenerate must fail while a live
+ * nonce is pending -- reseed-saturate the DRBG so Hash_DRBG_Generate()
+ * returns DRBG_NEED_RESEED before the nonce chunk is evaluated.
+ * ===================================================================== */
+static void wb_stir_nonce_local(void)
+{
+    WC_RNG  rng;
+    byte    seed[DRBG_SEED_LEN];
+    byte    nonce[16];
+    int     ret;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(seed, 0x5a, sizeof(seed));
+    XMEMSET(nonce, 0x3c, sizeof(nonce));
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        WB_NOTE("setup wc_InitRng failed; stir-nonce rows skipped");
+        return;
+    }
+
+    /* :2550 rows: (rng==NULL) and (rng!=NULL, seed==NULL). */
+    if (wc_RNG_DRBG_Stir_Nonce_local(NULL, seed, sizeof(seed),
+                                     nonce, sizeof(nonce)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("stir-nonce rng==NULL not rejected");
+        wb_fail = 1;
+    }
+    if (wc_RNG_DRBG_Stir_Nonce_local(&rng, NULL, 0,
+                                     nonce, sizeof(nonce)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("stir-nonce seed==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* Baseline: all-valid stir, nonce chunk evaluated with ret==0. */
+    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+                                       nonce, sizeof(nonce));
+    if (ret != 0) {
+        WB_NOTE("stir-nonce valid call failed");
+        wb_fail = 1;
+    }
+
+    /* :2566 nonce-operand rows: ret==0 with nonce==NULL and with
+     * nonce!=NULL/nonceSz==0, pairing the nonce-true baseline above. */
+    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+                                       NULL, 0);
+    if (ret != 0) {
+        WB_NOTE("stir-nonce no-nonce call failed");
+        wb_fail = 1;
+    }
+    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+                                       nonce, 0);
+    if (ret != 0) {
+        WB_NOTE("stir-nonce zero-length-nonce call failed");
+        wb_fail = 1;
+    }
+
+    /* :2566 ret!=0 row: reseed due, live nonce pending. The active DRBG is
+     * SHA-512 in builds that define WOLFSSL_DRBG_SHA512, so saturate
+     * whichever one the init picked. */
+    if (rng.drbgType == WC_DRBG_SHA512) {
+        ((DRBG_SHA512_internal *)rng.drbg512)->reseedCtr = WC_RESEED_INTERVAL;
+    }
+    else {
+        ((DRBG_internal *)rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
+    }
+    ret = wc_RNG_DRBG_Stir_Nonce_local(&rng, seed, sizeof(seed),
+                                       nonce, sizeof(nonce));
+    if (ret == 0) {
+        WB_NOTE("stir-nonce with saturated reseed counter succeeded");
+        wb_fail = 1;
+    }
+
+    (void)wc_FreeRng(&rng);
+    WB_NOTE("stir-nonce static-entry rows driven");
+}
+
+static void wb_init_rng_seed_rng(void)
+{
+    WC_RNG  parent;
+    WC_RNG  child;
+    int     ret;
+
+    XMEMSET(&parent, 0, sizeof(parent));
+    XMEMSET(&child, 0, sizeof(child));
+    ret = wc_InitRng(&parent);
+    if (ret != 0) {
+        WB_NOTE("setup wc_InitRng failed; seedRng row skipped");
+        return;
+    }
+
+    /* :3273 seedRng!=NULL row: the seed is drawn from the parent's generate
+     * function and its health test is skipped -- the exact branch the row
+     * selects. */
+    ret = _InitRng(&child, NULL, 0, NULL, 0, NULL, INVALID_DEVID, &parent,
+                   WC_RNG_INIT_FLAG_NONE);
+    if (ret != 0) {
+        WB_NOTE("_InitRng with seedRng failed");
+        wb_fail = 1;
+    }
+    else {
+        (void)wc_FreeRng(&child);
+    }
+    (void)wc_FreeRng(&parent);
+    WB_NOTE("_InitRng seedRng row driven");
+}
+#else
+static void wb_stir_nonce_local(void)
+{ WB_NOTE("HAVE_HASHDRBG/NO_SHA256 off; stir-nonce rows skipped"); }
+static void wb_init_rng_seed_rng(void)
+{ WB_NOTE("HAVE_HASHDRBG/NO_SHA256 off; seedRng row skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -716,6 +868,8 @@ int main(void)
     wb_generate_seed_guard();
     wb_hash_gen_alloc_guard();
     wb_hash512_gen_alloc_guard();
+    wb_stir_nonce_local();
+    wb_init_rng_seed_rng();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * suite treats a nonzero exit as a failed variant and discards its
