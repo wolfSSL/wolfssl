@@ -5037,3 +5037,70 @@ int test_wc_mlkem_cb_pending_rejected(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A refused save while re-decoding a public key must leave the key unusable,
+ * not holding one key's polynomials with another key's seed. */
+int test_wc_mlkem_decode_pubkey_refused_save(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS)
+    MlKemKey* kA = NULL;
+    MlKemKey* kB = NULL;
+    MlKemKey* k = NULL;
+    WC_RNG rng;
+    byte pkA[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte pkB[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    word32 pubLen = 0;
+    int ret = 0;
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(kB = (MlKemKey*)XMALLOC(sizeof(*kB), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(k = (MlKemKey*)XMALLOC(sizeof(*k), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlKemKey_Init(kA, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(kB, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(k, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kA, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kB, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(kA, &pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(kA, pkA, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(kB, pkB, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(k, pkA, pubLen), 0);
+
+    if (EXPECT_SUCCESS()) {
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(
+            WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E));
+        ret = wc_MlKemKey_DecodePublicKey(k, pkB, pubLen);
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    }
+    /* Only a build whose decode takes a save is refused here. */
+    if (ret != 0) {
+        ExpectIntNE(wc_MlKemKey_Encapsulate(k, ct, ss, &rng), 0);
+    }
+
+    wc_MlKemKey_Free(k);
+    wc_MlKemKey_Free(kB);
+    wc_MlKemKey_Free(kA);
+    XFREE(k, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(kB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(kA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
