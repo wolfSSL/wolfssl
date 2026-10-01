@@ -26,6 +26,8 @@ int test_utils_memio_move_message(void);
 int test_tls12_unexpected_ccs(void);
 int test_tls12_early_server_ccs(void);
 int test_tls13_unexpected_ccs(void);
+int test_tls13_plaintext_record_version_ignored(void);
+int test_tls_record_version_still_checked(void);
 int test_tls_record_overflow_alert(void);
 int test_tls_peer_name_mismatch_verify_cb(void);
 int test_tls_peer_name_mismatch_verify_result(void);
@@ -81,6 +83,8 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls12_unexpected_ccs),                     \
         TEST_DECL_GROUP("tls", test_tls12_early_server_ccs),                   \
         TEST_DECL_GROUP("tls", test_tls13_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls13_plaintext_record_version_ignored),   \
+        TEST_DECL_GROUP("tls", test_tls_record_version_still_checked),         \
         TEST_DECL_GROUP("tls", test_tls_record_overflow_alert),                \
         TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_cb),         \
         TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_result),     \
