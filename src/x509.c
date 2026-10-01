@@ -1196,18 +1196,16 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
             return NULL;
         }
-        ext->value.data = (char*)XMALLOC(length, NULL,
-            DYNAMIC_TYPE_ASN1);
-        ext->value.isDynamic = 1;
-        if (ext->value.data == NULL) {
-            WOLFSSL_MSG("Failed to malloc ASN1_STRING data");
+        /* Copy with wolfSSL_ASN1_STRING_set() so the data is NUL terminated
+         * like every other ASN1_STRING. */
+        if (wolfSSL_ASN1_STRING_set(&ext->value, input + tmpIdx, length)
+                != 1) {
+            WOLFSSL_MSG("Failed to set ASN1_STRING data");
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(cert);
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
             return NULL;
         }
-        XMEMCPY(ext->value.data,input+tmpIdx,length);
-        ext->value.length = length;
 
         break; /* Got the Extension. Now exit while loop. */
 
