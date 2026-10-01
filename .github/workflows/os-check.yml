@@ -68,7 +68,7 @@ jobs:
   # the ccache.
   seed_gate:
     name: seed needed
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name == 'push') && (github.ref == 'refs/heads/master') }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.ref == 'refs/heads/master') && (github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -106,7 +106,11 @@ jobs:
           wide+='|wolfcrypt/src/misc\.c|configure\.ac|m4/.*|.*\.am'
           wide+='|\.github/configs/os-check-.*\.json'
           wide+='|\.github/workflows/os-check\.yml)$'
-          if [ "$last" = incomplete ]; then
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            # A seed of an already seeded commit would fail to save.
+            [ "$base" != "$SHA" ] || seed=false
+            echo "last seed ${base:0:10}, commit ${SHA:0:10}, seeding: $seed"
+          elif [ "$last" = incomplete ]; then
             # Fewer than four shard seeds exist, so there is no complete set
             # to compare against; comparing with the previous push instead
             # would keep declining the seed that would refill it.
