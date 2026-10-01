@@ -1978,7 +1978,9 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 
         /* Decapsulate the cipher text into polynomial.
          * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
-        ret = mlkem_decapsulate(key->priv, w, u, v, (int)k);
+        if (ret == 0) {
+            ret = mlkem_decapsulate(key->priv, w, u, v, (int)k);
+        }
     }
     if (ret == 0) {
 
