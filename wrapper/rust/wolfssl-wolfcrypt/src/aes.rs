@@ -2091,7 +2091,7 @@ impl GCMStream {
     ///
     /// # Parameters
     ///
-    /// * `din`: Data to encrypt.
+    /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
     ///   the buffer must match that of the `din` buffer.
     /// * `auth`: Authentication data input.
