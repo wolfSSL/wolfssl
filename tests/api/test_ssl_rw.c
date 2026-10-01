@@ -848,6 +848,9 @@ int test_wolfSSL_clear_app_data_pending(void)
     ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
     wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
     wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+#ifndef NO_DH
+    SetDH(ssl_s);
+#endif
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
 
