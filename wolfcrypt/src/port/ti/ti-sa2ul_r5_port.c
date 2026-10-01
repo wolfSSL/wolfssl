@@ -137,15 +137,19 @@ static int ti_sa2ul_trng_init_nrbg(void)
 
 static int ti_sa2ul_trng_get_nrbg(byte* output, word32 sz)
 {
+    int ret = 0;
+    uint32_t random[RNG_NUM_DWORDS];
+
     if (output == NULL && sz != 0)
-        return -1;
+        return BAD_FUNC_ARG;
 
     while (sz) {
-        uint32_t random[RNG_NUM_DWORDS];
         uint8_t *ptr = (uint8_t *)random;
         int copy_len;
-        if (RNG_read(rngHandle, random) != RNG_RETURN_SUCCESS)
-            return -1;
+        if (RNG_read(rngHandle, random) != RNG_RETURN_SUCCESS) {
+            ret = WC_HW_E;
+            goto cleanup_out;
+        }
         copy_len = RNG_NUM_DWORDS * 4;
         if (sz < copy_len)
             copy_len = sz;
@@ -154,7 +158,9 @@ static int ti_sa2ul_trng_get_nrbg(byte* output, word32 sz)
         sz -= copy_len;
     }
 
-    return 0;
+cleanup_out:
+    ForceZero(random, sizeof(random));
+    return ret;
 }
 
 #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
@@ -165,6 +171,9 @@ static int ti_sa2ul_trng_init_drbg(void)
     if (_getSocUid() == 0) {
         /* seed (384 bits) = 128-bit nonce + 256-bit uid */
         XMEMCPY(&initialSeed[4], socUid, sizeof(socUid));
+
+        RNG_close(rngHandle);
+        rngHandle = NULL;
         gRngConfig[0].attrs->mode = RNG_DRBG_MODE;
         gRngConfig[0].attrs->seedValue = initialSeed;
         gRngConfig[0].attrs->seedSizeInDwords =
@@ -177,6 +186,8 @@ static int ti_sa2ul_trng_init_drbg(void)
 #define TRNG_TIMEOUT_US (100000ULL) /* 100 ms */
 static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
 {
+    int ret = 0;
+    uint32_t random[RNG_NUM_DWORDS];
     CSL_Cp_aceTrngRegs *pTrngRegs = (CSL_Cp_aceTrngRegs *)gRngConfig[0].attrs->rngBaseAddr;
 
     if (output == NULL && sz != 0)
@@ -184,7 +195,6 @@ static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
 
     while (sz) {
         uint32_t val;
-        uint32_t random[RNG_NUM_DWORDS];
         uint8_t *ptr = (uint8_t *)random;
         int copy_len;
         uint64_t start_time;
@@ -193,7 +203,8 @@ static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
         start_time = ClockP_getTimeUsec();
         do {
             if (ClockP_getTimeUsec() - start_time > TRNG_TIMEOUT_US) {
-                return WC_HW_E;
+                ret = WC_HW_E;
+                goto cleanup_out;
             }
             val = CSL_REG_RD(&pTrngRegs->TRNG_STATUS);
         } while ((val & CSL_CP_ACE_TRNG_STATUS_READY_MASK) !=
@@ -220,7 +231,9 @@ static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
         sz -= copy_len;
     }
 
-    return 0;
+cleanup_out:
+    ForceZero(random, sizeof(random));
+    return ret;
 }
 #endif /* WOLFSSL_TI_AM64X_RNG_CTR_DRBG */
 
