@@ -4937,15 +4937,25 @@
     #ifndef WOLFSSL_ARMASM_NO_NEON_IMPL
         #define WOLFSSL_ARMASM_NO_NEON_IMPL
     #endif
-    /* The kernel module is the system random source and is entered from every
-     * context, so its SHA-2 runs on the scalar lanes and SHA-3 in C. */
+    /* The kernel module's DRBG runs SHA-512, and reseeds through wolfEntropy's
+     * SHA-3, from hardirq, where NEON is never usable. */
     #ifdef WOLFSSL_LINUXKM
-        #ifndef WOLFSSL_ARMASM_NO_NEON
-            #define WOLFSSL_ARMASM_NO_NEON
+        #ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
+            #define WOLFSSL_ARMASM_SHA512_NO_NEON
         #endif
-        #ifndef WC_SHA3_NO_ASM
-            #define WC_SHA3_NO_ASM
+        #ifndef WOLFSSL_ARMASM_SHA3_NO_NEON
+            #define WOLFSSL_ARMASM_SHA3_NO_NEON
         #endif
+    #endif
+#endif
+
+/* WOLFSSL_ARMASM_NO_NEON drops every NEON body, SHA-512's and SHA-3's too. */
+#ifdef WOLFSSL_ARMASM_NO_NEON
+    #ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
+        #define WOLFSSL_ARMASM_SHA512_NO_NEON
+    #endif
+    #ifndef WOLFSSL_ARMASM_SHA3_NO_NEON
+        #define WOLFSSL_ARMASM_SHA3_NO_NEON
     #endif
 #endif
 

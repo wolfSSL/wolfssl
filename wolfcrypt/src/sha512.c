@@ -1688,7 +1688,7 @@ static void Sha512_SetTransform(void)
 
 static int transform_check = 0;
 
-#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_SHA512_NO_NEON)
 /* The 32-bit Arm NEON transform runs on the d registers, so a kernel module
  * must hold the vector registers around it. */
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
@@ -1716,7 +1716,7 @@ static int Transform_Sha512_Len_neon_arm32(wc_Sha512* sha512,
     return 0;
 }
 #endif
-#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_SHA512_NO_NEON)
 static int Transform_Sha512_base(wc_Sha512* sha512, const byte* data)
 {
     Transform_Sha512_Len_base(sha512, data, WC_SHA512_BLOCK_SIZE);
@@ -1749,7 +1749,7 @@ static void Sha512_SetTransform(void)
     if (transform_check)
         return;
 
-#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_SHA512_NO_NEON)
     {
         Transform_Sha512_p = Transform_Sha512_neon;
         Transform_Sha512_Len_p = Transform_Sha512_Len_neon_arm32;
