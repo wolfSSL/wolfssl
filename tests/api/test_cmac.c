@@ -863,9 +863,12 @@ int test_wc_CryptoCb_CmacFree(void)
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_CmacFree */
 
+/* The device below only answers CMAC, so software has to run the AES for it.
+ * WOLF_CRYPTO_CB_ONLY_AES removes the software AES, so skip it there. */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
     defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 /* Device that does the work in software. The one-shot branch returns before
  * wc_CmacFinal(), which is the path that used to keep a stale tag length. */
@@ -905,6 +908,7 @@ int test_wc_CryptoCb_CmacTagLen(void)
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
     defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     int    devId = 4461;
     Cmac   cmac;
