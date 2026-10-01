@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_CertManagerAPI(void);
+int test_certman_decision_coverage(void);
 int test_wolfSSL_CertManagerLoadCABuffer(void);
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
@@ -109,6 +110,7 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
     TEST_DECL_GROUP("certman",                                             \
-        test_wolfSSL_CertManagerNameConstraint_skid_disambiguates)
+        test_wolfSSL_CertManagerNameConstraint_skid_disambiguates), \
+    TEST_DECL_GROUP("certman", test_certman_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */
