@@ -5260,7 +5260,12 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
           "dsa_with_SHA256"},
         #endif
     #endif /* NO_DSA */
-
+    #ifdef WOLFSSL_HAVE_UNSIGNED
+        /* RFC 9925 - Unsigned Certificates */
+        { CTC_UNSIGNED, CTC_UNSIGNED, oidSigType,
+            "id-alg-unsigned", "id-alg-unsigned" },
+    #endif /* WOLFSSL_HAVE_UNSIGNED */
+        
         /* oidKeyType */
     #ifndef NO_DSA
         { WC_NID_dsa, DSAk, oidKeyType, "DSA", "dsaEncryption"},

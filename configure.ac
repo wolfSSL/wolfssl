@@ -1482,6 +1482,9 @@ then
     # Handle as many subject/issuer name OIDs as possible
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_NAME_ALL"
 
+    # RFC 9925 unsigned certificates (id-alg-unsigned)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_UNSIGNED"
+
     # More thorough error queue usage.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERBOSE_ERRORS"
 fi

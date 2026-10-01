@@ -4934,6 +4934,10 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
     /* RFC 9802 id-alg-xmssmt-hashsig: 1.3.6.1.5.5.7.6.35 */
     static const byte sigXmssMtOid[] = {43, 6, 1, 5, 5, 7, 6, 35};
 #endif /* WOLFSSL_HAVE_XMSS */
+#ifdef WOLFSSL_HAVE_UNSIGNED
+    /* RFC 9925 id-alg-unsigned: 1.3.6.1.5.5.7.6.36 */
+    static const byte sigUnsignedOid[] = {43, 6, 1, 5, 5, 7, 6, 36};
+#endif /* WOLFSSL_HAVE_UNSIGNED */
 
 /* keyType */
 #ifndef NO_DSA
@@ -6214,6 +6218,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigXmssMtOid);
                     break;
             #endif /* WOLFSSL_HAVE_XMSS */
+            #ifdef WOLFSSL_HAVE_UNSIGNED
+                case CTC_UNSIGNED:
+                    oid = sigUnsignedOid;
+                    *oidSz = sizeof(sigUnsignedOid);
+                    break;
+            #endif /* WOLFSSL_HAVE_UNSIGNED */
                 default:
                     break;
             }
@@ -16953,6 +16963,9 @@ static WC_INLINE int IsSigAlgoNoParams(word32 algoOID)
               || (algoOID == XMSSk)
               || (algoOID == XMSSMTk)
         #endif
+        #ifdef WOLFSSL_HAVE_UNSIGNED
+              || (algoOID == CTC_UNSIGNED)
+        #endif
     );
 }
 
@@ -17763,6 +17776,14 @@ int ConfirmSignature(SignatureCtx* sigCtx,
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
+#ifdef WOLFSSL_HAVE_UNSIGNED
+    /* RFC 9925 - Unsigned Certificates should always fail verification */
+    if (sigOID == CTC_UNSIGNED) {
+        WOLFSSL_MSG("Unsigned certificate: signature always invalid");
+        WOLFSSL_ERROR_VERBOSE(ASN_SIG_CONFIRM_E);
+        return ASN_SIG_CONFIRM_E;
+    }
+#endif /* WOLFSSL_HAVE_UNSIGNED */
 
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
@@ -23678,6 +23699,23 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
             ret = ASN_SIG_OID_E;
         }
+    #ifdef WOLFSSL_HAVE_UNSIGNED
+        /* RFC 9925 - Unsigned Certificate */
+        else if (cert->signatureOID == CTC_UNSIGNED) {
+            if ((cert->sigLength != 0) ||
+                (dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS_NULL].tag != 0) ||
+                (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0)
+            #ifdef WC_RSA_PSS
+                || (dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS].tag != 0)
+                || (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)
+            #endif
+                ) {
+                    WOLFSSL_MSG("Unsigned cert: signature must be empty");
+                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                    ret = ASN_PARSE_E;
+            }
+        }
+    #endif /* WOLFSSL_HAVE_UNSIGNED */
         /* Parameters not allowed after ECDSA or EdDSA algorithm OID. */
         else if (IsSigAlgoNoParams(cert->signatureOID)) {
         #ifndef WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED
