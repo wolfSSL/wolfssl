@@ -14715,6 +14715,47 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         * HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Length of the escape a NUL byte is written as. */
+    #define NAME_NUL_ESC_SZ  4
+
+    /* Write a name entry value into a one line name, taking its length from
+     * the entry rather than from the data, and writing a NUL byte as "\x00"
+     * as OpenSSL's X509_NAME_oneline() does. Treating the value as a C string
+     * drops everything from a NUL on and lets the rest of the name follow it,
+     * so two different names can read the same.
+     *
+     * out   - buffer for the value, NULL to only get the length
+     * outSz - space available in out, ignored when out is NULL
+     *
+     * Returns the number of bytes written, or needed when out is NULL.
+     * Returns BUFFER_E when the value does not fit or the length would
+     * overflow.
+     */
+    static int AddEntryValue(char* out, int outSz, const unsigned char* val,
+            int valSz)
+    {
+        int i;
+        int sz = 0;
+
+        for (i = 0; (val != NULL) && (i < valSz); i++) {
+            int need = (val[i] == '\0') ? NAME_NUL_ESC_SZ : 1;
+
+            if (need > INT_MAX - sz)
+                return BUFFER_E;
+            if (out != NULL) {
+                if (need > outSz - sz)
+                    return BUFFER_E;
+                if (need == 1)
+                    out[sz] = (char)val[i];
+                else
+                    XMEMCPY(out + sz, "\\x00", NAME_NUL_ESC_SZ);
+            }
+            sz += need;
+        }
+
+        return sz;
+    }
+
     /* add all entry of type "nid" to the buffer "fullName" and advance "idx"
      * since number of entries is small, a brute force search is used here
      * returns the number of entries added
@@ -14747,15 +14788,16 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 
                 data = wolfSSL_ASN1_STRING_data(e->value);
                 if (data != NULL) {
-                    sz = (int)XSTRLEN((const char*)data);
-                    XMEMCPY(fullName + *idx, data, sz);
+                    sz = AddEntryValue(fullName + *idx, fullNameSz - *idx,
+                        data, wolfSSL_ASN1_STRING_length(e->value));
+                    if (sz < 0)
+                        return sz;
                     *idx += sz;
                 }
 
                 ret++;
             }
         }
-        (void)fullNameSz;
         return ret;
     }
 
@@ -14764,7 +14806,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
      * returns 0 on success */
     static int RebuildFullName(WOLFSSL_X509_NAME* name)
     {
-        int totalLen = 0, i, idx, entryCount = 0;
+        int totalLen = 0, i, idx, entryCount = 0, valLen;
 
         if (name == NULL)
             return BAD_FUNC_ARG;
@@ -14779,8 +14821,20 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 if (obj == NULL)
                     return BAD_FUNC_ARG;
 
-                totalLen += (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
-                totalLen += wolfSSL_ASN1_STRING_length(e->value);
+                /* Each addition is checked against the room left below
+                 * INT_MAX - 1, so that totalLen + 1 (the NUL added later)
+                 * stays a positive int. */
+                valLen = (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
+                if (valLen > INT_MAX - 1 - totalLen)
+                    return BUFFER_E;
+                totalLen += valLen;
+
+                valLen = AddEntryValue(NULL, 0,
+                    wolfSSL_ASN1_STRING_data(e->value),
+                    wolfSSL_ASN1_STRING_length(e->value));
+                if ((valLen < 0) || (valLen > INT_MAX - 1 - totalLen))
+                    return BUFFER_E;
+                totalLen += valLen;
             }
         }
 
