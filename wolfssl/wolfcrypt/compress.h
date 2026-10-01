@@ -119,8 +119,8 @@ WOLFSSL_API int wc_CompressionData_InitDeComp(wc_CompressionData* cd,
         const byte* data, word32 compSz, word32 uncompSz,
         word16 alg);
 
-/* Init a new wc_CompressionData object from decompressed data. This initial data
- * buffer is not owned by the wc_CompressionData object and is the
+/* Init a new wc_CompressionData object from decompressed data. This initial
+ * data buffer is not owned by the wc_CompressionData object and is the
  * responsibility of the caller.
  *
  * Note: if reusing a wc_CompressionData object it must have
