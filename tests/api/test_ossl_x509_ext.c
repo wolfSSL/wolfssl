@@ -750,6 +750,74 @@ int test_wolfSSL_X509_stack_extensions(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_X509_get0_extensions() returns a stack the X509 owns, so a later
+ * call must hand back the same objects: an application holding an
+ * X509_EXTENSION from an earlier call still reads through it. The encodings
+ * the compat layer could not convert - here an explicit "critical FALSE",
+ * which the certificate parser accepts - used to make the entry count differ
+ * from X509_get_ext_count() and the getter rebuild the stack every call. */
+int test_wolfSSL_X509_get0_extensions_stable(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC)
+    /* keyUsage extension: OID 2.5.29.15 then BOOLEAN TRUE. */
+    static const byte keyUsageCrit[] = {
+        0x06, 0x03, 0x55, 0x1d, 0x0f, 0x01, 0x01, 0xff
+    };
+    WOLFSSL_X509* x509 = NULL;
+    const WOLFSSL_STACK* sk1 = NULL;
+    const WOLFSSL_STACK* sk2 = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    const unsigned char* p = NULL;
+    byte* der = NULL;
+    word32 derSz = 0;
+    word32 i;
+    int found = 0;
+    XFILE f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN("./certs/server-ecc.der", "rb")) != XBADFILE);
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if ((f != XBADFILE) && (der != NULL)) {
+        derSz = (word32)XFREAD(der, 1, FOURK_BUF, f);
+    }
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    ExpectIntGT(derSz, sizeof(keyUsageCrit));
+
+    /* Turn the critical flag into an explicit FALSE. */
+    for (i = 0; (der != NULL) && (i + sizeof(keyUsageCrit) <= derSz); i++) {
+        if (XMEMCMP(der + i, keyUsageCrit, sizeof(keyUsageCrit)) == 0) {
+            der[i + sizeof(keyUsageCrit) - 1] = 0x00;
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    p = der;
+    ExpectNotNull(x509 = wolfSSL_d2i_X509(NULL, &p, (int)derSz));
+
+    ExpectNotNull(sk1 = wolfSSL_X509_get0_extensions(x509));
+    ExpectIntEQ(X509v3_get_ext_count(sk1),
+        wolfSSL_X509_get_ext_count(x509));
+    /* The extension that was turned into an explicit FALSE is still there. */
+    ExpectIntGE(X509v3_get_ext_by_NID(sk1, NID_key_usage, -1), 0);
+    ExpectNotNull(ext = X509v3_get_ext(sk1, 0));
+
+    /* Second call must not release what the first one returned. */
+    ExpectNotNull(sk2 = wolfSSL_X509_get0_extensions(x509));
+    ExpectPtrEq(sk1, sk2);
+    ExpectNotNull(wolfSSL_X509_EXTENSION_get_object(ext));
+    ExpectPtrEq(X509v3_get_ext(sk2, 0), ext);
+
+    wolfSSL_X509_free(x509);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_EXTENSION_new(void)
 {
     EXPECT_DECLS;
