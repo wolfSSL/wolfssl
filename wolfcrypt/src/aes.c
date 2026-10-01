@@ -12970,8 +12970,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_POP;
 
-    /* Not required by SP 800-38D; wipe the output on a failed tag anyway so
-     * unauthenticated plaintext is never handed back. */
+    /* Wipe the output on a failed tag so unauthenticated plaintext is not
+     * handed back.  The hardware backends above return before this point. */
 #if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) && \
       defined(ACVP_VECTOR_TESTING))
     if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E) && out != NULL && sz > 0) {
