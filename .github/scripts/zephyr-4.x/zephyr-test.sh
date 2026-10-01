@@ -12,11 +12,14 @@
 #   -t, --target <board>   Board target
 #   -s, --sample <name>    Sample/test app to build
 #   -d, --subdir <dir>     App subdir under zephyr/ (samples or tests; default samples)
+#   -m, --modules <list>   West modules to fetch besides wolfSSL (default: all)
+#   -l, --list <file>      Build each "<board> <app> [overlay]" line of <file>
+#                          in one workspace, instead of -t/-s/-d/--extra-conf
 #   -v, --verbose          Verbose compile output (show full compiler commands)
 #   -W, --werror           Build with -Werror (treat warnings as errors)
 #   --commit <sha>         Checkout specific commit after fetching branch
 #   -c, --cmake-args <str> Extra CMake args passed after -- to west build
-#   --extra-conf <file>    Extra Kconfig overlay (copied into container)
+#   --extra-conf <file>    Extra Kconfig overlay (its directory is mounted)
 #   -i, --interactive      Drop into interactive shell
 #   -h, --help             Show this help
 #
@@ -29,6 +32,9 @@
 #
 #   # Test with Zephyr 4.3.0 on native_sim
 #   ./zephyr-test.sh -z v4.3.0
+#
+#   # Run all CI builds for Zephyr 4.3.0 in one container
+#   ./zephyr-test.sh -z v4.3.0 -l builds.txt
 #
 #   # Interactive shell to debug
 #   ./zephyr-test.sh -z v4.3.0 -i
@@ -51,12 +57,14 @@ ZEPHYR_VERSION="v4.1.0"
 BOARD_TARGET="native_sim"
 SAMPLE_NAME="wolfssl_tls_sock"
 SUBDIR="samples"
+WEST_MODULES=""
 INTERACTIVE=0
 VERBOSE=0
 WERROR=0
 WOLFSSL_COMMIT=""
 CMAKE_EXTRA=""
 EXTRA_CONF=""
+BUILD_LIST=""
 CONTAINER_NAME=""  # set dynamically after arg parsing
 
 GHCR="ghcr.io/zephyrproject-rtos/zephyr-build"
@@ -95,6 +103,8 @@ while [[ $# -gt 0 ]]; do
         -t|--target)  BOARD_TARGET="$2"; shift 2 ;;
         -s|--sample)  SAMPLE_NAME="$2"; shift 2 ;;
         -d|--subdir)  SUBDIR="$2"; shift 2 ;;
+        -m|--modules) WEST_MODULES="$2"; shift 2 ;;
+        -l|--list)    BUILD_LIST="$2"; shift 2 ;;
         -v|--verbose) VERBOSE=1; shift ;;
         -W|--werror) WERROR=1; shift ;;
         --commit) WOLFSSL_COMMIT="$2"; shift 2 ;;
@@ -107,27 +117,41 @@ while [[ $# -gt 0 ]]; do
 done
 
 DOCKER_IMAGE=$(select_docker_image "$ZEPHYR_VERSION")
-
-# Build a unique container name from version, board, sample, and PID to avoid collisions
-ZVER_SLUG="${ZEPHYR_VERSION#v}"
-BOARD_SLUG="${BOARD_TARGET//\//-}"
-CONTAINER_NAME="wolfssl-zephyr-${ZVER_SLUG}-${BOARD_SLUG}-${SAMPLE_NAME}-$$"
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# One "<board> <app> [overlay]" line per build; overlays are read from CONF_DIR
+CONF_DIR="${SCRIPT_DIR}"
+if [[ -n "$BUILD_LIST" ]]; then
+    BUILDS=$(grep -Ev '^[[:space:]]*(#|$)' "$BUILD_LIST")
+    CONF_DIR="$(cd "$(dirname "$BUILD_LIST")" && pwd)"
+    RUN_SLUG="$(basename "$BUILD_LIST" .txt)"
+else
+    BUILDS="${BOARD_TARGET} ${SUBDIR}/${SAMPLE_NAME} ${EXTRA_CONF##*/}"
+    if [[ -n "$EXTRA_CONF" ]]; then
+        CONF_DIR="$(cd "$(dirname "$EXTRA_CONF")" && pwd)"
+    fi
+    RUN_SLUG="${BOARD_TARGET//\//-}-${SAMPLE_NAME}"
+fi
+
+# Unique container name from version, builds, and PID to avoid collisions
+ZVER_SLUG="${ZEPHYR_VERSION#v}"
+CONTAINER_NAME="wolfssl-zephyr-${ZVER_SLUG}-${RUN_SLUG}-$$"
+
 LOG_DIR="${SCRIPT_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="${LOG_DIR}/${BOARD_SLUG}_${TIMESTAMP}.log"
-ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts/${BOARD_SLUG}-${SAMPLE_NAME}"
+LOG_FILE="${LOG_DIR}/${ZVER_SLUG}-${RUN_SLUG}_${TIMESTAMP}.log"
+ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts"
 mkdir -p "${ARTIFACTS_DIR}"
-chmod 0755 "${ARTIFACTS_DIR}"
+chmod 0777 "${ARTIFACTS_DIR}"
 
 echo "==> wolfSSL repo:   ${WOLFSSL_REPO}"
 echo "==> wolfSSL branch: ${WOLFSSL_BRANCH}"
 echo "==> Zephyr version: ${ZEPHYR_VERSION}"
-echo "==> Board target:   ${BOARD_TARGET}"
-echo "==> Sample:         ${SUBDIR}/${SAMPLE_NAME}"
+echo "==> Builds:"
+echo "${BUILDS}" | sed 's/^/      /'
 echo "==> Docker image:   ${DOCKER_IMAGE}"
+[[ -n "$WEST_MODULES" ]] && echo "==> Modules:        ${WEST_MODULES}"
 [[ -n "$WOLFSSL_COMMIT" ]] && echo "==> Commit:         ${WOLFSSL_COMMIT}"
 [[ "$WERROR" == "1" ]] && echo "==> Werror:         enabled"
 [[ -n "$CMAKE_EXTRA" ]] && echo "==> CMake args:     ${CMAKE_EXTRA}"
@@ -148,6 +172,8 @@ ZEPHYR_VERSION="__ZEPHYR_VERSION__"
 BOARD_TARGET="__BOARD_TARGET__"
 SAMPLE_NAME="__SAMPLE_NAME__"
 SUBDIR="__SUBDIR__"
+WEST_MODULES="__WEST_MODULES__"
+BUILDS="__BUILDS__"
 WOLFSSL_REPO="__WOLFSSL_REPO__"
 WOLFSSL_BRANCH="__WOLFSSL_BRANCH__"
 WOLFSSL_COMMIT="__WOLFSSL_COMMIT__"
@@ -155,8 +181,6 @@ INTERACTIVE="__INTERACTIVE__"
 VERBOSE="__VERBOSE__"
 WERROR="__WERROR__"
 CMAKE_EXTRA="__CMAKE_EXTRA__"
-EXTRA_CONF="__EXTRA_CONF__"
-EXTRA_CONF_CONTENT="__EXTRA_CONF_CONTENT__"
 
 WORKDIR="/workdir"
 cd "$WORKDIR"
@@ -182,10 +206,14 @@ echo "==> [container] Updated west.yml:"
 grep -A2 "wolfssl" west.yml
 cd ..
 
-# --- 3. Update all modules (including wolfSSL) ---
+# --- 3. Update modules (including wolfSSL) ---
 echo "==> [container] Running west update..."
 export GIT_TERMINAL_PROMPT=0
-west update -n -o=--depth=1
+if [[ -n "$WEST_MODULES" ]]; then
+    west update -n -o=--depth=1 wolfssl ${WEST_MODULES}
+else
+    west update -n -o=--depth=1
+fi
 
 # --- 3b. Checkout specific commit if requested ---
 if [[ -n "$WOLFSSL_COMMIT" ]]; then
@@ -228,6 +256,87 @@ if [[ -z "${ZEPHYR_SDK_INSTALL_DIR:-}" ]]; then
 fi
 
 # --- 5. Build or interactive ---
+SUCCESS_RE="Benchmark complete\|Test complete\|Client Return: 0"
+SUCCESS_RE="${SUCCESS_RE}\|PROJECT EXECUTION SUCCESSFUL"
+RUN_TIMEOUT=300  # 5 minutes
+
+# Run an emulator build until it prints a success string or times out
+run_app() {
+    local board="$1" build_dir="$2"
+    local run_log="${build_dir}/run_output.log"
+    local elapsed=0 pid
+
+    echo "==> [container] Running sample on ${board}..."
+    # New process group, so the kill below also stops the app itself
+    setsid west build -d "${build_dir}" -t run > "${run_log}" 2>&1 &
+    pid=$!
+
+    while kill -0 "${pid}" 2>/dev/null; do
+        if grep -q "${SUCCESS_RE}" "${run_log}" 2>/dev/null; then
+            echo "==> [container] App completed successfully!"
+            break
+        fi
+        if [[ $elapsed -ge $RUN_TIMEOUT ]]; then
+            echo "==> [container] TIMEOUT: app did not complete" \
+                 "within ${RUN_TIMEOUT}s"
+            break
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    kill -- "-${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+
+    cat "${run_log}"
+
+    if ! grep -q "${SUCCESS_RE}" "${run_log}"; then
+        echo "==> [container] App exited without a success string"
+        return 1
+    fi
+}
+
+# Called with || so set -e does not apply; check each step
+build_app() {
+    local board="$1" app="$2" conf="$3" name="$4"
+    local build_dir="build/${name}"
+    local args="${CMAKE_ARGS}"
+    local f
+
+    if [[ -n "$conf" ]]; then
+        args="${args} -DOVERLAY_CONFIG=/conf/${conf}"
+    fi
+
+    echo "==> [container] Building ${app} for ${board}..."
+    west build -p always -d "${build_dir}" -b "${board}" \
+        "modules/crypto/wolfssl/zephyr/${app}" \
+        ${args:+-- $args} || return 1
+
+    echo ""
+    echo "==> [container] Build succeeded!"
+
+    # Stage Membrowse inputs if the host mounted a writable /artifacts
+    if [[ -d /artifacts && -w /artifacts ]]; then
+        mkdir -p "/artifacts/${name}" || return 1
+        for f in zephyr.elf linker.cmd zephyr.map; do
+            if [[ -f "${build_dir}/zephyr/${f}" ]]; then
+                cp "${build_dir}/zephyr/${f}" "/artifacts/${name}/" || return 1
+            fi
+        done
+    fi
+
+    case "${board}" in
+        native_sim*|qemu_*)
+            run_app "${board}" "${build_dir}" || return 1
+            ;;
+        *)
+            echo "==> [container] Board '${board}' is not an emulator" \
+                 "target, skipping run."
+            echo "    Build artifacts are in:" \
+                 "${WORKDIR}/zephyrproject/${build_dir}/zephyr/"
+            ;;
+    esac
+}
+
 if [[ "$INTERACTIVE" == "1" ]]; then
     echo ""
     echo "=========================================="
@@ -245,13 +354,6 @@ if [[ "$INTERACTIVE" == "1" ]]; then
     echo ""
     exec /bin/bash
 else
-    if [[ -n "$EXTRA_CONF" ]]; then
-        echo "$EXTRA_CONF_CONTENT" > /workdir/zephyrproject/extra.conf
-        echo "==> [container] Extra conf written to /workdir/zephyrproject/extra.conf"
-        cat /workdir/zephyrproject/extra.conf
-    fi
-
-    echo "==> [container] Building sample: ${SAMPLE_NAME} for ${BOARD_TARGET}..."
     CMAKE_ARGS=""
     if [[ "$VERBOSE" == "1" ]]; then
         CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_VERBOSE_MAKEFILE=ON"
@@ -263,83 +365,28 @@ else
         CMAKE_ARGS="${CMAKE_ARGS} ${CMAKE_EXTRA}"
     fi
 
-    if [[ -n "$EXTRA_CONF" ]]; then
-        CMAKE_ARGS="${CMAKE_ARGS} -DOVERLAY_CONFIG=/workdir/zephyrproject/extra.conf"
+    # Keep going after a failed build and report all failures at the end
+    mapfile -t BUILD_LINES <<< "${BUILDS}"
+    FAILED=()
+    for LINE in "${BUILD_LINES[@]}"; do
+        read -r BOARD APP CONF <<< "${LINE}"
+        NAME="${BOARD//\//-}-${APP##*/}${CONF:+-${CONF%.conf}}"
+        echo "::group::${NAME}"
+        RC=0
+        build_app "${BOARD}" "${APP}" "${CONF}" "${NAME}" || RC=$?
+        echo "::endgroup::"
+        if [[ $RC -ne 0 ]]; then
+            echo "::error::Zephyr ${ZEPHYR_VERSION} ${NAME} failed"
+            FAILED+=("${NAME}")
+        fi
+    done
+
+    if [[ ${#FAILED[@]} -ne 0 ]]; then
+        echo "==> [container] ${#FAILED[@]} of ${#BUILD_LINES[@]} failed:"
+        printf '    %s\n' "${FAILED[@]}"
+        exit 1
     fi
-
-    west build -p always -b "${BOARD_TARGET}" \
-        "modules/crypto/wolfssl/zephyr/${SUBDIR}/${SAMPLE_NAME}" \
-        ${CMAKE_ARGS:+-- $CMAKE_ARGS}
-
-    echo ""
-    echo "==> [container] Build succeeded!"
-
-    # Stage Membrowse-relevant artifacts on the host-mounted volume.
-    # /artifacts is bind-mounted by the host wrapper; if it isn't writable
-    # (e.g. interactive runs without the mount), skip silently.
-    if [[ -d /artifacts && -w /artifacts ]]; then
-        BUILD_OUT="${WORKDIR}/zephyrproject/build/zephyr"
-        if [[ -f "${BUILD_OUT}/zephyr.elf" ]]; then
-            cp "${BUILD_OUT}/zephyr.elf" /artifacts/zephyr.elf
-        fi
-        if [[ -f "${BUILD_OUT}/linker.cmd" ]]; then
-            cp "${BUILD_OUT}/linker.cmd" /artifacts/linker.cmd
-        fi
-        # Map file enables Membrowse library/object attribution
-        if [[ -f "${BUILD_OUT}/zephyr.map" ]]; then
-            cp "${BUILD_OUT}/zephyr.map" /artifacts/zephyr.map
-        fi
-    fi
-
-    # Run the app for emulator targets and watch for completion
-    case "${BOARD_TARGET}" in
-        native_sim*|qemu_*)
-            echo "==> [container] Running sample on ${BOARD_TARGET}..."
-            RUN_TIMEOUT=300  # 5 minutes
-            RUN_LOG="/tmp/run_output.log"
-            APP_RC=1
-
-            west build -t run > "${RUN_LOG}" 2>&1 &
-            RUN_PID=$!
-
-            ELAPSED=0
-            while kill -0 "${RUN_PID}" 2>/dev/null; do
-                if [[ $ELAPSED -ge $RUN_TIMEOUT ]]; then
-                    echo "==> [container] TIMEOUT: app did not complete within ${RUN_TIMEOUT}s"
-                    kill "${RUN_PID}" 2>/dev/null || true
-                    wait "${RUN_PID}" 2>/dev/null || true
-                    cat "${RUN_LOG}"
-                    exit 1
-                fi
-                # Check for success strings
-                if grep -q "Benchmark complete\|Test complete\|Client Return: 0\|PROJECT EXECUTION SUCCESSFUL" "${RUN_LOG}" 2>/dev/null; then
-                    echo "==> [container] App completed successfully!"
-                    APP_RC=0
-                    kill "${RUN_PID}" 2>/dev/null || true
-                    wait "${RUN_PID}" 2>/dev/null || true
-                    break
-                fi
-                sleep 2
-                ELAPSED=$((ELAPSED + 2))
-            done
-
-            cat "${RUN_LOG}"
-
-            if [[ $APP_RC -ne 0 ]]; then
-                # Process exited on its own - check if it printed a success string
-                if grep -q "Benchmark complete\|Test complete\|Client Return: 0\|PROJECT EXECUTION SUCCESSFUL" "${RUN_LOG}" 2>/dev/null; then
-                    APP_RC=0
-                else
-                    echo "==> [container] App exited without a success string"
-                    exit 1
-                fi
-            fi
-            ;;
-        *)
-            echo "==> [container] Board '${BOARD_TARGET}' is not an emulator target, skipping run."
-            echo "    Build artifacts are in: ${WORKDIR}/zephyrproject/build/zephyr/"
-            ;;
-    esac
+    echo "==> [container] All ${#BUILD_LINES[@]} builds passed"
 fi
 INNER_SCRIPT
 )
@@ -349,6 +396,8 @@ BUILD_SCRIPT="${BUILD_SCRIPT//__ZEPHYR_VERSION__/$ZEPHYR_VERSION}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__BOARD_TARGET__/$BOARD_TARGET}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__SAMPLE_NAME__/$SAMPLE_NAME}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__SUBDIR__/$SUBDIR}"
+BUILD_SCRIPT="${BUILD_SCRIPT//__WEST_MODULES__/$WEST_MODULES}"
+BUILD_SCRIPT="${BUILD_SCRIPT//__BUILDS__/$BUILDS}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_REPO__/$WOLFSSL_REPO}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_BRANCH__/$WOLFSSL_BRANCH}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WOLFSSL_COMMIT__/$WOLFSSL_COMMIT}"
@@ -356,14 +405,6 @@ BUILD_SCRIPT="${BUILD_SCRIPT//__INTERACTIVE__/$INTERACTIVE}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__VERBOSE__/$VERBOSE}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__WERROR__/$WERROR}"
 BUILD_SCRIPT="${BUILD_SCRIPT//__CMAKE_EXTRA__/$CMAKE_EXTRA}"
-if [[ -n "$EXTRA_CONF" ]]; then
-    EXTRA_CONF_CONTENT=$(cat "$EXTRA_CONF")
-    BUILD_SCRIPT="${BUILD_SCRIPT//__EXTRA_CONF__/yes}"
-    BUILD_SCRIPT="${BUILD_SCRIPT//__EXTRA_CONF_CONTENT__/$EXTRA_CONF_CONTENT}"
-else
-    BUILD_SCRIPT="${BUILD_SCRIPT//__EXTRA_CONF__/}"
-    BUILD_SCRIPT="${BUILD_SCRIPT//__EXTRA_CONF_CONTENT__/}"
-fi
 
 # Clean up container on exit (covers crashes, interrupts, and normal exit)
 cleanup() {
@@ -379,6 +420,7 @@ DOCKER_ARGS=(
     --name "${CONTAINER_NAME}"
     --rm
     -v "${ARTIFACTS_DIR}:/artifacts"
+    -v "${CONF_DIR}:/conf:ro"
 )
 
 if [[ "$INTERACTIVE" == "1" ]]; then
@@ -399,9 +441,9 @@ else
         echo "Zephyr:     ${ZEPHYR_VERSION}"
         echo "Repo:       ${WOLFSSL_REPO}"
         echo "Branch:     ${WOLFSSL_BRANCH}"
-        echo "Board:      ${BOARD_TARGET}"
-        echo "Sample:     ${SAMPLE_NAME}"
         echo "Docker:     ${DOCKER_IMAGE}"
+        echo "Builds:"
+        echo "${BUILDS}"
         echo "==================================="
         echo ""
     } > "${LOG_FILE}"
