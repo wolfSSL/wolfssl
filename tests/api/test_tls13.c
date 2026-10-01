@@ -13336,6 +13336,59 @@ int test_tls13_send_session_ticket_psk_modes(void)
     return EXPECT_RESULT();
 }
 
+/* A psk_ke handshake, where preMasterSz is 0, must leave no handshake secret
+ * behind in preMasterSecret. */
+int test_tls13_hs_secret_zeroized_psk_ke(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    byte zeros[ENCRYPT_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_fnp_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_fnp_server_cb);
+
+    /* No key_share, so preMasterSz is zero when DeriveHandshakeSecret runs. */
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.noPskDheKe, 1);
+    ExpectIntEQ(ssl_c->arrays->preMasterSz, 0);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
@@ -13546,6 +13599,99 @@ int test_tls13_new_session_ticket_keeps_ems(void)
 
     if (EXPECT_SUCCESS() && ssl_c != NULL)
         ExpectIntEQ(ssl_c->options.haveEMS, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An X25519 handshake under TLS_AES_256_GCM_SHA384, where preMasterSz is 32
+ * and the handshake secret 48 bytes, must leave none of it in preMasterSecret.
+ */
+int test_tls13_hs_secret_zeroized_sha384(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_CURVE25519) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    byte zeros[ENCRYPT_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "TLS13-AES256-GCM-SHA384"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_X25519),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->specs.hash_size, WC_SHA384_DIGEST_SIZE);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A TLS 1.3 handshake must leave no early secret behind in arrays->secret. */
+int test_tls13_early_secret_zeroized(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte zeros[SECRET_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->secret, zeros, SECRET_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->secret, zeros, SECRET_LEN), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -13783,7 +13929,53 @@ int test_tls13_ignore_legacy_record_version(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+
 #endif /* !WOLFSSL_NO_TLS12 */
 #endif /* WOLFSSL_TLS13 && HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}
+
+/* An external PSK handshake must leave no PSK behind in arrays->psk_key. */
+int test_tls13_psk_key_zeroized(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Covers both psk_key and secret, as MAX_PSK_KEY_LEN is user-defined. */
+    byte zeros[MAX_PSK_KEY_LEN > SECRET_LEN ? MAX_PSK_KEY_LEN : SECRET_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_fnp_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_fnp_server_cb);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->options.isPSK, 1);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->secret, zeros, SECRET_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->secret, zeros, SECRET_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
     return EXPECT_RESULT();
 }
