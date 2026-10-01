@@ -2543,6 +2543,8 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
+        /* A failed decode below must not leave the old key usable. */
+        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET);
         /* Decode public key and check public key matches parameters. */
         ret = mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
     }
