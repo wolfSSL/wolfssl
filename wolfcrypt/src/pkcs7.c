@@ -3232,6 +3232,8 @@ static int wc_PKCS7_EncodeContentStreamHelper(wc_PKCS7* pkcs7, int cipherType,
     byte   encContentOutOct[MAX_OCTET_STR_SZ];
     word32 encContentOutOctSz = 0;
 
+    (void)aes;
+
     switch (cipherType) {
         case WC_CIPHER_NONE:
             XMEMCPY(encContentOut, contentData, (word32)contentDataSz);
@@ -3244,7 +3246,7 @@ static int wc_PKCS7_EncodeContentStreamHelper(wc_PKCS7* pkcs7, int cipherType,
             }
             break;
 
-    #ifndef NO_AES
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         case WC_CIPHER_AES_CBC:
             ret = wc_AesCbcEncrypt(aes, encContentOut,
                 contentData, (word32)contentDataSz);
@@ -3472,7 +3474,7 @@ static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
                 }
                 break;
 
-        #ifndef NO_AES
+        #if !defined(NO_AES) && defined(HAVE_AES_CBC)
             case WC_CIPHER_AES_CBC:
                 ret = wc_AesCbcEncrypt(aes, out, in, (word32)inSz);
                 break;
@@ -10100,6 +10102,8 @@ static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, word32 encryptOID,
     Des  *des;
     Des3 *des3;
 #endif
+
+    (void)ivSz;
 
     if (iv == NULL)
         return BAD_FUNC_ARG;

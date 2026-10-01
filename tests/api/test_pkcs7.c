@@ -4910,7 +4910,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         serverRet = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, serverDecodedData,
             sizeof(serverDecodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(serverRet, ALGO_ID_E);
     #else
         ExpectIntGT(serverRet, 0);
@@ -4930,7 +4930,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(ret, ALGO_ID_E);
     #else
         ExpectIntGT(ret, 0);
@@ -4958,7 +4958,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         XMEMSET(decodedData, 0, sizeof(decodedData));
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(ret, ALGO_ID_E);
     #else
         ExpectTrue(ret < 0 || ret != serverRet ||
@@ -5367,23 +5367,20 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     }
 #endif
 #ifdef HAVE_AES_KEYWRAP
-    if (pkcs7 != NULL) {
+    /* output only holds an encoding if a test vector was compiled in. */
+    if (pkcs7 != NULL && testSz > 0) {
         tempWrd32 = pkcs7->privateKeySz;
         pkcs7->privateKeySz = 0;
-    }
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    if (pkcs7 != NULL) {
+        ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         pkcs7->privateKeySz = tempWrd32;
 
         tmpBytePtr = pkcs7->privateKey;
         pkcs7->privateKey = NULL;
-    }
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    if (pkcs7 != NULL) {
+        ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         pkcs7->privateKey = tmpBytePtr;
     }
 #endif
@@ -5479,7 +5476,7 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 
 
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
 static int wasAESKeyWrapCbCalled = 0;
 static int wasAESKeyUnwrapCbCalled = 0;
 
@@ -5509,7 +5506,7 @@ int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
     static const char input[] = "Test input for AES key wrapping";
     PKCS7 * pkcs7 = NULL;
     byte * eccCert = NULL;
@@ -6243,11 +6240,13 @@ int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
                     ExpectIntEQ(XMEMCMP(out, "test", 4), 0);
                 }
                 if (test_messages[test_msg].msg_content_type == ENCRYPTED_DATA) {
-#ifndef NO_PKCS7_ENCRYPTED_DATA
+#if defined(NO_PKCS7_ENCRYPTED_DATA)
+                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ASN_PARSE_E));
+#elif !defined(HAVE_AES_CBC)
+                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ALGO_ID_E));
+#else
                     ExpectIntGT(result, 0);
                     ExpectIntEQ(XMEMCMP(out, "testencrypt", 11), 0);
-#else
-                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
                 }
             }
