@@ -83,6 +83,7 @@ jobs:
   build:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     # Teensy is allowed to fail: its board index lives at pjrc.com, which is
     # chronically unreachable from GitHub Actions runner egress IPs (DNS
     # timeouts / connection refused). A pjrc.com outage should not block PRs
@@ -134,14 +135,8 @@ jobs:
       REPO_OWNER: ${{ github.repository_owner }}
 
     steps:
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo apt-get clean
-          df -h
+      - name: Disk space before build
+        run: df -h /
 
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -402,36 +397,6 @@ jobs:
           popd
           # End Compile Arduino Sketches for Various Boards
 
-      - name: Cleanup to Save Disk Space
+      - name: Disk space after build
         if: always()
-        run: |
-          echo "Disk usage before cleanup:"
-          df -h
-          echo ""
-          echo "Cleaning up build artifacts and temporary files..."
-
-          # Clean up Arduino build artifacts
-          find ~/Arduino -name "*.hex" -delete 2>/dev/null || true
-          find ~/Arduino -name "*.elf" -delete 2>/dev/null || true
-          find ~/Arduino -name "*.bin" -delete 2>/dev/null || true
-          find ~/Arduino -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
-
-          rm -rf ~/.arduino15/packages/esp32/tools || true
-          rm -rf ~/.arduino15/packages/esp32/hardware || true
-          rm -rf ~/.espressif || true
-
-          # Clean up staging directories
-          rm -rf ~/.arduino15/staging/* || true
-          rm -rf ~/.cache/arduino/* || true
-
-          # Clean up git clone of wolfssl-examples
-          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
-          rm -rf "$GITHUB_WORK/wolfssl-examples-publish" || true
-
-          # Clean up any temporary files in workspace
-          find "$GITHUB_WORKSPACE" -name "*.o" -delete 2>/dev/null || true
-          find "$GITHUB_WORKSPACE" -name "*.a" -delete 2>/dev/null || true
-
-          echo ""
-          echo "Disk usage after cleanup:"
-          df -h
+        run: df -h /
