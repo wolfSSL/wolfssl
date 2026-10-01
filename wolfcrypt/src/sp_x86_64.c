@@ -7827,6 +7827,22 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_ECC
+/* Save only when the cache-resistant table lookup will run, because that is
+ * the only user of xmm outside the avx2 lane. */
+#ifdef WC_NO_CACHE_RESISTANT
+#define SP_ECC_CT_SAVE(ct)      0
+#define SP_ECC_CT_RESTORE(ct)   WC_DO_NOTHING
+#else
+#define SP_ECC_CT_SAVE(ct)      ((ct) ? SAVE_VECTOR_REGISTERS2() : 0)
+#define SP_ECC_CT_RESTORE(ct)          \
+    do {                               \
+        if (ct) {                      \
+            RESTORE_VECTOR_REGISTERS();\
+        }                              \
+    }                                  \
+    while (0)
+#endif
+
 #ifndef WOLFSSL_SP_NO_256
 
 /* Point structure to use. */
@@ -10869,22 +10885,6 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
     sp_cache_256_last = i;
 }
 #endif /* FP_ECC */
-
-/* Save only when the cache-resistant table lookup will run, because that is
- * the only user of xmm outside the avx2 lane. */
-#ifdef WC_NO_CACHE_RESISTANT
-#define SP_ECC_CT_SAVE(ct)      0
-#define SP_ECC_CT_RESTORE(ct)   WC_DO_NOTHING
-#else
-#define SP_ECC_CT_SAVE(ct)      ((ct) ? SAVE_VECTOR_REGISTERS2() : 0)
-#define SP_ECC_CT_RESTORE(ct)          \
-    do {                               \
-        if (ct) {                      \
-            RESTORE_VECTOR_REGISTERS();\
-        }                              \
-    }                                  \
-    while (0)
-#endif
 
 
 /* Multiply the base point of P256 by the scalar and return the result.
