@@ -2764,7 +2764,9 @@ int test_TLSX_KeyShare_gen(void)
 #endif
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
-        /* Key is generated. The next allocation, the list node, fails. */
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
@@ -2820,7 +2822,9 @@ int test_TLSX_KeyShare_gen(void)
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
-        /* Key is generated. The next allocation, the list node, fails. */
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
@@ -2871,7 +2875,9 @@ int test_TLSX_KeyShare_gen(void)
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
-        /* Key is generated. The next allocation, the list node, fails. */
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
@@ -2914,7 +2920,9 @@ int test_TLSX_KeyShare_gen(void)
         }
 #if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
-        /* Key is generated. The next allocation, the list node, fails. */
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
