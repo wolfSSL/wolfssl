@@ -408,6 +408,335 @@ static void wb_sign_internal_msg_argchecks(void)
     WB_NOTE("slhdsakey_sign_internal_msg arg-check independence pairs "
         "exercised");
 }
+
+/* The NULL-chain and flag-guard independence pairs of the sign/verify
+ * wrappers. The public API tests reach these with valid arguments (the TRUE
+ * side of every guard); the per-clause FALSE rows need crafted arguments the
+ * API tests never pass, and the flag-guard TRUE rows need a full keygen +
+ * sign/verify, which this file pays for once with the smallest compiled-in
+ * parameter set.
+ *
+ * slhdsakey_sign_external() / slhdsakey_signhash_external() are driven
+ * directly: their guard-passing rows would otherwise run a full signature,
+ * and the addRnd==NULL check terminates them right after the guards. */
+static void wb_guard_rows(void)
+{
+    SlhDsaKey        key;
+    SlhDsaParameters fakeParams;
+    WC_RNG           rng;
+    byte             m[8];
+    byte             h2[WC_SHA256_DIGEST_SIZE];
+    byte             ctx[3];
+    byte             sig[WC_SLHDSA_MAX_SIG_LEN];
+    byte             addRnd[32];
+    word32           sigSz;
+    int              param;
+    int              ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&fakeParams, 0, sizeof(fakeParams));
+    fakeParams.n = 16;
+    fakeParams.sigLen = (word32)sizeof(sig);
+    key.params = &fakeParams;
+    XMEMSET(m, 0xAA, sizeof(m));
+    XMEMSET(h2, 0x66, sizeof(h2));
+    XMEMSET(ctx, 0x44, sizeof(ctx));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(addRnd, 0x55, sizeof(addRnd));
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; flag-guard rows skipped");
+        return;
+    }
+
+    /* ---- slhdsakey_sign_external() NULL chain ----
+     * Clauses: key==NULL | params==NULL | (ctx==NULL)&&(ctxSz>0) |
+     * (msg==NULL)&&(msgSz!=0) | sig==NULL | sigSz==NULL. Baseline: all false
+     * (ends at addRnd==NULL, pre-crypto); each other row flips one clause. */
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, m, 0, sig, &sigSz, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external baseline unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(NULL, NULL, 0, m, 0, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external key==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    key.params = NULL;
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, m, 0, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external params==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    key.params = &fakeParams;
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, (byte)sizeof(ctx), m, 0, sig,
+            &sigSz, addRnd) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external ctx==NULL,ctxSz>0 unexpected ret");
+        wb_fail = 1;
+    }
+    /* ctx!=NULL with ctxSz>0: the (ctx==NULL)&&(ctxSz>0) compound is false,
+     * the guard passes -- the ctxSz>0 clause's independence row. */
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, ctx, (byte)sizeof(ctx), m, 0, sig,
+            &sigSz, NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external ctx!=NULL,ctxSz>0 unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, NULL, (word32)sizeof(m), sig,
+            &sigSz, addRnd) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external msg==NULL,msgSz!=0 unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, m, 0, NULL, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external sig==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, m, 0, sig, NULL, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("sign_external sigSz==NULL unexpected ret");
+        wb_fail = 1;
+    }
+
+    /* ---- wc_SlhDsaKey_Sign() sig==NULL clause ---- */
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_Sign(&key, NULL, 0, m, sizeof(m), NULL, &sigSz, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("Sign sig==NULL unexpected ret");
+        wb_fail = 1;
+    }
+
+    /* ---- wc_SlhDsaKey_Verify() sig==NULL clause ---- */
+    if (wc_SlhDsaKey_Verify(&key, NULL, 0, m, sizeof(m), NULL, 0)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("Verify sig==NULL unexpected ret");
+        wb_fail = 1;
+    }
+
+    /* ---- slhdsakey_signhash_external() NULL chain ----
+     * Clauses: key==NULL | params==NULL | (ctx==NULL)&&(ctxSz>0) |
+     * hash==NULL | sig==NULL | sigSz==NULL. */
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external baseline unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(NULL, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external key==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    key.params = NULL;
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external params==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    key.params = &fakeParams;
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, (byte)sizeof(ctx), m,
+            sizeof(m), WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external ctx==NULL,ctxSz>0 unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, 0, NULL, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external hash==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, NULL, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external sig==NULL unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (slhdsakey_signhash_external(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, NULL, addRnd)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("signhash_external sigSz==NULL unexpected ret");
+        wb_fail = 1;
+    }
+
+    /* ---- flag guards: (ret == 0) && ((flags & FLAG) == 0) ----
+     * Clause 1 FALSE row: a NULL-chain failure (sig==NULL) leaves ret != 0
+     * at the guard. One call per wrapper. */
+    sigSz = sizeof(sig);
+    (void)wc_SlhDsaKey_SignWithRandom(&key, NULL, 0, m, sizeof(m), NULL,
+        &sigSz, addRnd);
+    (void)wc_SlhDsaKey_SignMsgWithRandom(&key, m, sizeof(m), NULL, &sigSz,
+        addRnd);
+    sigSz = sizeof(sig);
+    (void)wc_SlhDsaKey_SignHashWithRandom(&key, NULL, 0, m, sizeof(m),
+        WC_HASH_TYPE_SHA256, NULL, &sigSz, addRnd);
+    sigSz = sizeof(sig);
+    (void)wc_SlhDsaKey_SignHash(&key, NULL, 0, m, sizeof(m),
+        WC_HASH_TYPE_SHA256, NULL, &sigSz, NULL);
+    (void)wc_SlhDsaKey_Verify(&key, NULL, 0, m, sizeof(m), NULL, 0);
+    (void)wc_SlhDsaKey_VerifyMsg(&key, m, sizeof(m), NULL, 0);
+    (void)wc_SlhDsaKey_VerifyHash(&key, NULL, 0, m, sizeof(m),
+        WC_HASH_TYPE_SHA256, NULL, 0);
+
+    /* Clause 2 TRUE row: a key with the right parameters but no key
+     * material passes the argument checks and dies at the flag guard with
+     * MISSING_KEY. One call per wrapper. */
+    key.flags = 0;
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignWithRandom(&key, NULL, 0, m, sizeof(m), sig,
+            &sigSz, addRnd) != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("SignWithRandom flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignMsgWithRandom(&key, m, sizeof(m), sig, &sigSz,
+            addRnd) != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("SignMsgWithRandom flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignHashWithRandom(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("SignHashWithRandom flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignHash(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, &rng)
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("SignHash flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    if (wc_SlhDsaKey_Verify(&key, NULL, 0, m, sizeof(m), sig, sizeof(sig))
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("Verify flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    if (wc_SlhDsaKey_VerifyMsg(&key, m, sizeof(m), sig, sizeof(sig))
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("VerifyMsg flag guard unexpected ret");
+        wb_fail = 1;
+    }
+    if (wc_SlhDsaKey_VerifyHash(&key, NULL, 0, m, sizeof(m),
+            WC_HASH_TYPE_SHA256, sig, sizeof(sig))
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("VerifyHash flag guard unexpected ret");
+        wb_fail = 1;
+    }
+
+    /* Clause 2 FALSE rows: a real key carries the flags, the guards pass
+     * and the operations run to completion. One keygen on the smallest
+     * compiled-in set, shared by all six wrappers. */
+    XMEMSET(&key, 0, sizeof(key));
+    param = -1;
+#ifndef WC_SLHDSA_ALL_NO_128F
+    param = SLHDSA_SHAKE128F;
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WC_SLHDSA_ALL_NO_128F)
+    if (param < 0)
+        param = SLHDSA_SHA2_128F;
+#endif
+#ifndef WC_SLHDSA_ALL_NO_128S
+    if (param < 0)
+        param = SLHDSA_SHAKE128S;
+#endif
+    if (param < 0) {
+        WB_NOTE("no 128-bit parameter set compiled in; TRUE rows skipped");
+        wc_FreeRng(&rng);
+        return;
+    }
+    if (wc_SlhDsaKey_Init(&key, (enum SlhDsaParam)param, NULL, INVALID_DEVID)
+            != 0 || wc_SlhDsaKey_MakeKey(&key, &rng) != 0) {
+        WB_NOTE("keygen failed; flag-guard TRUE rows skipped");
+        wc_FreeRng(&rng);
+        wc_SlhDsaKey_Free(&key);
+        return;
+    }
+
+    sigSz = sizeof(sig);
+    ret = wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), m,
+        sizeof(m), sig, &sigSz, addRnd);
+    if (ret != 0) {
+        WB_NOTE("SignWithRandom full sign failed");
+        wb_fail = 1;
+    }
+    /* Verify immediately: the next signs overwrite sig. */
+    if (wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), m, sizeof(m),
+            sig, sigSz) != 0) {
+        WB_NOTE("Verify full verify failed");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignMsgWithRandom(&key, m, sizeof(m), sig, &sigSz,
+            addRnd) != 0) {
+        WB_NOTE("SignMsgWithRandom full sign failed");
+        wb_fail = 1;
+    }
+    /* VerifyMsg immediately: the next signs overwrite sig. */
+    if (wc_SlhDsaKey_VerifyMsg(&key, m, sizeof(m), sig, sigSz) != 0) {
+        WB_NOTE("VerifyMsg full verify failed");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignHashWithRandom(&key, ctx, (byte)sizeof(ctx), h2,
+            sizeof(h2), WC_HASH_TYPE_SHA256, sig, &sigSz, addRnd) != 0) {
+        WB_NOTE("SignHashWithRandom full sign failed");
+        wb_fail = 1;
+    }
+    sigSz = sizeof(sig);
+    if (wc_SlhDsaKey_SignHash(&key, ctx, (byte)sizeof(ctx), h2, sizeof(h2),
+            WC_HASH_TYPE_SHA256, sig, &sigSz, &rng) != 0) {
+        WB_NOTE("SignHash full sign failed");
+        wb_fail = 1;
+    }
+    if (wc_SlhDsaKey_VerifyHash(&key, ctx, (byte)sizeof(ctx), h2, sizeof(h2),
+            WC_HASH_TYPE_SHA256, sig, sigSz) != 0) {
+        WB_NOTE("VerifyHash full verify failed");
+        wb_fail = 1;
+    }
+
+    /* slhdsakey_validate_prehash(): clause 1 (hashSz != expectedLen) FALSE
+     * partner needs ret != 0 at the check. From the public API the switch
+     * default is unreachable in the campaign build: check_hash_for_n
+     * rejects every hash type the switch does not compile in, and
+     * validate_prehash runs only when that check passed. The white-box
+     * includes the TU, so call the static directly with a type the switch
+     * rejects (MD5 is off in every campaign variant; the enum member is
+     * unconditional). */
+    {
+        const byte* oid = NULL;
+        byte        oidLen = 0;
+
+        if (slhdsakey_validate_prehash(sizeof(h2), WC_HASH_TYPE_MD5, &oid,
+                &oidLen) != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            WB_NOTE("validate_prehash MD5 unexpected ret");
+            wb_fail = 1;
+        }
+    }
+
+    wc_SlhDsaKey_Free(&key);
+    wc_FreeRng(&rng);
+
+    WB_NOTE("slhdsa guard independence pairs exercised");
+}
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
@@ -431,6 +760,7 @@ int main(void)
 #endif
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     wb_sign_internal_msg_argchecks();
+    wb_guard_rows();
 #endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness

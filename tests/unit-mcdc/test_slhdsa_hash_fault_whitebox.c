@@ -101,6 +101,7 @@
 #define MCDC_FH_WITH_SHA_INIT
 
 #include "mcdc_fault_hash.h"
+#include "mcdc_fault_alloc.h"
 
 /* wc_slhdsa.c is #included AFTER the interposers are installed. */
 #include <wolfcrypt/src/wc_slhdsa.c>
@@ -477,6 +478,100 @@ static void wb_init_rows(int param)
     printf("  [wb] param %d: init hash-object rows exercised\n", param);
 }
 
+/* slhdsakey_precompute_sha2_midstates()'s "(ret == 0) && (n > 16)" clause-1
+ * FALSE row: the SHA-256 midstate setup (init/update) must fail. The
+ * midstate calls sit at the TAIL of MakeKey (precompute runs after the WOTS/
+ * FORS/hypertree keygen, whose hundreds of hash calls push it past the dense
+ * head of wb_sweep_makekey), so arm the last WB_PRECOMP_TAIL primitive calls
+ * of a baseline keygen. */
+#define WB_PRECOMP_TAIL 16
+
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+static void wb_precompute_fault_rows(int param)
+{
+    long       k, n;
+    SlhDsaKey  k2;
+
+    mcdc_fh_disarm();
+    XMEMSET(&k2, 0, sizeof(k2));
+    if (wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+            INVALID_DEVID) == 0) {
+        if (wc_SlhDsaKey_MakeKey(&k2, &wb_rng) == 0) {
+            k = mcdc_fh_seen();
+            for (n = k - (long)WB_PRECOMP_TAIL; (n <= k) && !wb_expired();
+                    n++) {
+                SlhDsaKey k3;
+
+                XMEMSET(&k3, 0, sizeof(k3));
+                if (wc_SlhDsaKey_Init(&k3, (enum SlhDsaParam)param, NULL,
+                        INVALID_DEVID) == 0) {
+                    mcdc_fh_arm(n);
+                    (void)wc_SlhDsaKey_MakeKey(&k3, &wb_rng);
+                    mcdc_fh_disarm();
+                    wc_SlhDsaKey_Free(&k3);
+                }
+            }
+        }
+        wc_SlhDsaKey_Free(&k2);
+    }
+    printf("  [wb] param %d: precompute midstate-fault rows exercised\n",
+            param);
+}
+#endif
+
+/* slhdsakey_h_msg_sha2()'s "(ret == 0) && (hdr != NULL)" / "(ret == 0) &&
+ * (ctxSz > 0) && (ctx != NULL)" clause-1 FALSE rows: the SHA-256_2 init and
+ * its first updates sit within the first few primitive calls of a sign (the
+ * M' computation runs before the WOTS+ signing), so a dense head over sign
+ * faults them. The SHAKE-family variants take a different h function; these
+ * rows only exist in the SHA-2 build. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+static void wb_h_msg_fault_rows(int param)
+{
+    long n;
+    int  ret;
+
+    mcdc_fh_disarm();
+    for (n = 1; (n <= 16L) && !wb_expired(); n++) {
+        byte   s2[WC_SLHDSA_MAX_SIG_LEN];
+        word32 l2 = (word32)sizeof(s2);
+        mcdc_fh_arm(n);
+        ret = wc_SlhDsaKey_Sign(&wb_key, wb_ctx, (word32)sizeof(wb_ctx),
+            wb_msg, (word32)sizeof(wb_msg), s2, &l2, &wb_rng);
+        mcdc_fh_disarm();
+        (void)ret;
+    }
+    printf("  [wb] param %d: h_msg_sha2-fault rows exercised\n", param);
+}
+#endif
+
+/* slhdsakey_wots_pkgen_chain_c()'s "(ret != 0) && WC_VAR_OK(sk)" clause-2
+ * FALSE row: the sk buffer's allocation itself must fail, so the variable is
+ * not OK while ret != 0. The sk allocation is among the first allocations of
+ * MakeKey (WOTS+ pkgen runs before the hypertree), so a dense head over the
+ * allocator finds it. */
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && !defined(MCDC_FA_UNAVAILABLE)
+static void wb_pkgen_alloc_rows(int param)
+{
+    long n;
+
+    mcdc_fa_install();
+    for (n = 1; (n <= 24L) && !wb_expired(); n++) {
+        SlhDsaKey k2;
+        XMEMSET(&k2, 0, sizeof(k2));
+        if (wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+                INVALID_DEVID) == 0) {
+            mcdc_fa_arm((int)n);
+            (void)wc_SlhDsaKey_MakeKey(&k2, &wb_rng);
+            mcdc_fa_disarm();
+            wc_SlhDsaKey_Free(&k2);
+        }
+    }
+    mcdc_fa_restore();
+    printf("  [wb] param %d: pkgen alloc-fail rows exercised\n", param);
+}
+#endif
+
 /* Import/export + DER encode/decode: the ASN-side residuals
  * (`(key->params != NULL) && ...`, `while (ret == 0 && *inOutIdx < seqEnd)`)
  * live here and cost nothing to drive. */
@@ -604,6 +699,16 @@ static void wb_run_param(int param)
         wb_sweep_checkkey(param);
     if (!wb_expired())
         wb_sweep_makekey(param);
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    if (!wb_expired())
+        wb_precompute_fault_rows(param);
+    if (!wb_expired())
+        wb_h_msg_fault_rows(param);
+#endif
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && !defined(MCDC_FA_UNAVAILABLE)
+    if (!wb_expired())
+        wb_pkgen_alloc_rows(param);
+#endif
 
     mcdc_fh_disarm();
     wc_SlhDsaKey_Free(&wb_key);
