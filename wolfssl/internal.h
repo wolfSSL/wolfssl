@@ -5580,9 +5580,11 @@ enum asyncState {
     #define WOLFSSL_HAVE_HS_SUSPEND
 #endif
 
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
 /* True for error codes that suspend handshake processing instead of failing
  * it. Only the codes whose feature is compiled in are recognized. */
 WOLFSSL_LOCAL int IsHsSuspendErr(int err);
+#endif
 
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
 /* Non-zero when the context or object is configured for something the chain

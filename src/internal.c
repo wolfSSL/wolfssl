@@ -651,23 +651,25 @@ int IsTLS_ex(const ProtocolVersion pv)
 }
 
 
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
 int IsHsSuspendErr(int err)
 {
+    switch (err) {
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (err == WC_NO_ERR_TRACE(WC_PENDING_E))
-        return 1;
+    case WC_NO_ERR_TRACE(WC_PENDING_E):
 #endif
 #ifdef WOLFSSL_NONBLOCK_OCSP
-    if (err == WC_NO_ERR_TRACE(OCSP_WANT_READ))
-        return 1;
+    case WC_NO_ERR_TRACE(OCSP_WANT_READ):
 #endif
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
-    if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E))
-        return 1;
+    case WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E):
 #endif
-    (void)err;
-    return 0;
+        return 1;
+    default:
+        return 0;
+    }
 }
+#endif /* WOLFSSL_HAVE_HS_SUSPEND */
 
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
 /* DTLS, raw public keys and verifying a stapled OCSP response are not
@@ -18591,10 +18593,15 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
  * decoded; judging its content is the chain verify callback's job. */
 static int IsCertContentErr(int err)
 {
-    return (err == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) ||
-           (err == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) ||
-           (err == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) ||
-           (err == WC_NO_ERR_TRACE(KEYUSAGE_E));
+    switch (err) {
+    case WC_NO_ERR_TRACE(ASN_CRIT_EXT_E):
+    case WC_NO_ERR_TRACE(ASN_SIG_OID_E):
+    case WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E):
+    case WC_NO_ERR_TRACE(KEYUSAGE_E):
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 /* Decode every certificate the peer sent, verifying nothing. The chain verify
