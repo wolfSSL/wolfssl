@@ -692,6 +692,19 @@ static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 /* operand-dependent timing on platforms whose shift is data dependent.      */
 /* ------------------------------------------------------------------------- */
 
+/* Return x unchanged but opaque to the optimizer, so that masks derived from
+ * it are not turned into conditional branches. */
+static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
+{
+#if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+    __asm__ __volatile__("" : "+r"(x));
+#else
+    volatile word32 v = x;
+    x = v;
+#endif
+    return x;
+}
+
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
 {
@@ -885,7 +898,8 @@ sword64 fpr_floor(fpr x)
     /* If the true shift count was 64 or more, replace xi with 0 (nonnegative)
      * or -1 (negative). This also fixes the bogus implicit-bit assumption for
      * a zero input. */
-    xi ^= (xi ^ -(sword64)t) & -(sword64)((word32)(63 - cc) >> 31);
+    xi ^= (xi ^ -(sword64)t)
+          & -(sword64)fpr_ct_opaque32((word32)(63 - cc) >> 31);
     return xi;
 }
 
@@ -929,6 +943,7 @@ fpr fpr_add(fpr x, fpr y)
     za = (x & m) - (y & m);
     cs = (word32)(za >> 63)
          | ((1U - (word32)(((word64)0 - za) >> 63)) & (word32)(x >> 63));
+    cs = fpr_ct_opaque32(cs);
     m = (x ^ y) & ((word64)0 - (word64)cs);
     x ^= m;
     y ^= m;
