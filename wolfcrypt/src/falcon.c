@@ -708,22 +708,65 @@ static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
 {
-    x ^= (x ^ (x >> 32)) & ((word64)0 - (word64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x >> 32))
+         & ((word64)0 - (word64)fpr_ct_opaque32((word32)n >> 5));
     return x >> (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)(x >> 32);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    lo ^= (lo ^ hi) & m;
+    hi &= ~m;
+    lo = (lo >> s) | ((hi << (31 - s)) << 1);
+    hi >>= s;
+    return ((word64)hi << 32) | lo;
+#endif
 }
 
 /* Right-shift a 64-bit signed value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE sword64 fpr_irsh(sword64 x, int n)
 {
-    x ^= (x ^ (x >> 32)) & ((sword64)0 - (sword64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x >> 32))
+         & ((sword64)0 - (sword64)fpr_ct_opaque32((word32)n >> 5));
     return x >> (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)((word64)x >> 32);
+    word32 sg = (word32)((sword32)hi >> 31);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    lo ^= (lo ^ hi) & m;
+    hi ^= (hi ^ sg) & m;
+    lo = (lo >> s) | ((hi << (31 - s)) << 1);
+    hi = (word32)((sword32)hi >> s);
+    return (sword64)(((word64)hi << 32) | lo);
+#endif
 }
 
 /* Left-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE word64 fpr_ulsh(word64 x, int n)
 {
-    x ^= (x ^ (x << 32)) & ((word64)0 - (word64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x << 32))
+         & ((word64)0 - (word64)fpr_ct_opaque32((word32)n >> 5));
     return x << (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)(x >> 32);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    hi ^= (hi ^ lo) & m;
+    lo &= ~m;
+    hi = (hi << s) | ((lo >> (31 - s)) >> 1);
+    lo <<= s;
+    return ((word64)hi << 32) | lo;
+#endif
 }
 
 /* Pack a sign s (0/1), unbiased exponent e and mantissa m (2^54 <= m < 2^55,
