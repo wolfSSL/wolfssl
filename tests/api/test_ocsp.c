@@ -583,6 +583,95 @@ int test_ocsp_basic_verify(void)
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* The OCSP nonce configured on a context is drawn once, so reusing it would
+ * put the same value in the clear in every ClientHello from that context - a
+ * stable identifier for the process - and would stop binding one OCSP
+ * response to one handshake. Each connection must draw its own. */
+int test_ocsp_ctx_stapling_nonce_per_connection(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    byte ctxNonce[MAX_OCSP_NONCE_SZ];
+    byte nonce[2][MAX_OCSP_NONCE_SZ];
+    TLSX* ext = NULL;
+    CertificateStatusRequest* csr = NULL;
+    int i;
+
+    XMEMSET(ctxNonce, 0, sizeof(ctxNonce));
+    XMEMSET(nonce, 0, sizeof(nonce));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(ctx_c, WOLFSSL_CSR_OCSP,
+        WOLFSSL_CSR_OCSP_USE_NONCE), WOLFSSL_SUCCESS);
+
+    /* The nonce the context holds. */
+    ExpectNotNull(ext = TLSX_Find(ctx_c == NULL ? NULL : ctx_c->extensions,
+        TLSX_STATUS_REQUEST));
+    if (ext != NULL) {
+        csr = (CertificateStatusRequest*)ext->data;
+        ExpectNotNull(csr);
+        if (csr != NULL) {
+            ExpectIntEQ(csr->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+            XMEMCPY(ctxNonce, csr->request.ocsp[0].nonce, MAX_OCSP_NONCE_SZ);
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        if (i > 0) {
+            ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+            wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+            wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        }
+        /* Only the ClientHello is needed; there is no server to answer. */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        ext = TLSX_Find(ssl_c == NULL ? NULL : ssl_c->extensions,
+            TLSX_STATUS_REQUEST);
+        ExpectNotNull(ext);
+        if (ext != NULL) {
+            csr = (CertificateStatusRequest*)ext->data;
+            ExpectNotNull(csr);
+            if (csr != NULL) {
+                ExpectIntEQ(csr->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+                XMEMCPY(nonce[i], csr->request.ocsp[0].nonce,
+                    MAX_OCSP_NONCE_SZ);
+            }
+        }
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+    }
+
+    ExpectIntNE(XMEMCMP(nonce[0], nonce[1], MAX_OCSP_NONCE_SZ), 0);
+    ExpectIntNE(XMEMCMP(nonce[0], ctxNonce, MAX_OCSP_NONCE_SZ), 0);
+    ExpectIntNE(XMEMCMP(nonce[1], ctxNonce, MAX_OCSP_NONCE_SZ), 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_ctx_stapling_nonce_per_connection(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && HAVE_OCSP */
+
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA)
 /* Decoding into an existing OCSP_RESPONSE releases the buffer the previous
