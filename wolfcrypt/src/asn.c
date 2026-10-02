@@ -15896,6 +15896,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 /* SET contents start at its first member. */
                 setEnd = dataASN[RDNASN_IDX_ATTR_SEQ].offset +
                          dataASN[RDNASN_IDX_SET].length;
+                /* Not parsing completely, so check the first
+                 * AttributeTypeAndValue has no trailing data. */
+                if (srcIdx != dataASN[RDNASN_IDX_ATTR_TYPE].offset +
+                              dataASN[RDNASN_IDX_ATTR_SEQ].length) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+            if (ret == 0) {
                 /* Put RDN data into certificate. */
                 ret = GetRDN(cert, full, &idx, &nid, nameType == ASN_SUBJECT,
                              dataASN);

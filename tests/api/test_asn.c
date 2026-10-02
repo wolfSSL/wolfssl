@@ -5029,6 +5029,9 @@ static const byte empty_san_cert[] = {
 
 /* Offset of the subject RDN SET's length byte in mv_rdn_cert. */
 #define MV_RDN_SET_LEN_IDX 151
+/* Offset of the length byte of the subject RDN's first AttributeTypeAndValue
+ * SEQUENCE in mv_rdn_cert. */
+#define MV_RDN_AVA_LEN_IDX 153
 
 static const byte mv_rdn_cert[] = {
     0x30, 0x82, 0x03, 0x61, 0x30, 0x82, 0x02, 0x49, 0xa0, 0x03, 0x02, 0x01,
@@ -5468,6 +5471,18 @@ int test_ParseCert_multi_valued_rdn(void)
         /* Subject RDN SET content length: 3 attributes -> 2. */
         ExpectIntEQ(bad[MV_RDN_SET_LEN_IDX], 0x3e);
         bad[MV_RDN_SET_LEN_IDX] = 0x23;
+        wc_InitDecodedCert(&cert, bad, (word32)sizeof(bad), NULL);
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_FreeDecodedCert(&cert);
+
+        /* Negative: first AttributeTypeAndValue SEQUENCE extended to hold
+         * the second one. The nested AttributeTypeAndValue is trailing data
+         * of the first, not a member of the SET. */
+        XMEMCPY(bad, mv_rdn_cert, sizeof(mv_rdn_cert));
+        ExpectIntEQ(bad[MV_RDN_AVA_LEN_IDX], 0x09);
+        ExpectIntEQ(bad[MV_RDN_AVA_LEN_IDX + 11], 0x16);
+        bad[MV_RDN_AVA_LEN_IDX] = 0x09 + 2 + 0x16;
         wc_InitDecodedCert(&cert, bad, (word32)sizeof(bad), NULL);
         ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL),
             WC_NO_ERR_TRACE(ASN_PARSE_E));
