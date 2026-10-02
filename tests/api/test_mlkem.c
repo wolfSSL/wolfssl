@@ -5069,10 +5069,19 @@ int test_wc_mlkem_decode_pubkey_refused_save(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (kA != NULL) {
+        XMEMSET(kA, 0, sizeof(*kA));
+    }
     ExpectNotNull(kB = (MlKemKey*)XMALLOC(sizeof(*kB), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (kB != NULL) {
+        XMEMSET(kB, 0, sizeof(*kB));
+    }
     ExpectNotNull(k = (MlKemKey*)XMALLOC(sizeof(*k), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (k != NULL) {
+        XMEMSET(k, 0, sizeof(*k));
+    }
     ExpectIntEQ(wc_MlKemKey_Init(kA, mlkemType, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_Init(kB, mlkemType, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_Init(k, mlkemType, NULL, INVALID_DEVID), 0);
@@ -5137,8 +5146,14 @@ int test_wc_mlkem_decode_reused_key(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (kA != NULL) {
+        XMEMSET(kA, 0, sizeof(*kA));
+    }
     ExpectNotNull(kB = (MlKemKey*)XMALLOC(sizeof(*kB), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (kB != NULL) {
+        XMEMSET(kB, 0, sizeof(*kB));
+    }
     ExpectIntEQ(wc_MlKemKey_Init(kA, mlkemType, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_Init(kB, mlkemType, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKey(kB, &rng), 0);
