@@ -62,6 +62,24 @@ fn test_blake2b_finalize_empty_buffer() {
 }
 
 #[test]
+#[cfg(blake2b)]
+fn test_blake2b_finalize_oversized_buffer() {
+    let mut blake2b = BLAKE2b::new(64).expect("Error with new()");
+    let mut hash = [0u8; 65];
+    let rc = blake2b.finalize(&mut hash).expect_err("finalize() should fail");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+}
+
+#[test]
+#[cfg(blake2b)]
+fn test_blake2b_finalize_size_differs_from_digest_size() {
+    let mut blake2b = BLAKE2b::new(64).expect("Error with new()");
+    blake2b.update(&[0u8; 16]).expect("Error with update()");
+    let mut hash = [0u8; 16];
+    blake2b.finalize(&mut hash).expect("Error with finalize()");
+}
+
+#[test]
 #[cfg(blake2b_hmac)]
 fn test_blake2b_hmac() {
     let key1 = [0x41u8, 0x42, 0x43, 0x44];
@@ -169,6 +187,24 @@ fn test_blake2s_finalize_empty_buffer() {
     let mut hash: [u8; 0] = [];
     let rc = blake2s.finalize(&mut hash).expect_err("finalize() should fail");
     assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BUFFER_E);
+}
+
+#[test]
+#[cfg(blake2s)]
+fn test_blake2s_finalize_oversized_buffer() {
+    let mut blake2s = BLAKE2s::new(32).expect("Error with new()");
+    let mut hash = [0u8; 33];
+    let rc = blake2s.finalize(&mut hash).expect_err("finalize() should fail");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+}
+
+#[test]
+#[cfg(blake2s)]
+fn test_blake2s_finalize_size_differs_from_digest_size() {
+    let mut blake2s = BLAKE2s::new(32).expect("Error with new()");
+    blake2s.update(&[0u8; 16]).expect("Error with update()");
+    let mut hash = [0u8; 16];
+    blake2s.finalize(&mut hash).expect("Error with finalize()");
 }
 
 #[test]
