@@ -95134,7 +95134,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         static const byte sigCtx[] = { 0x01, 0x02, 0x03 };
         int key_inited = 0;
         int rng_inited = 0;
-        int baseline = myCtx.mldsaCount;
         int res = 0;
         int r;
 
@@ -95161,18 +95160,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
         }
+        /* Key generation has a software fallback in native builds, so require
+         * that each call reached the device. */
         if (ret == 0) {
+            int before = myCtx.mldsaCount;
+
             r = wc_MlDsaKey_MakeKey(key, mldsaRng);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
+            else if (myCtx.mldsaCount != before + 1)
+                ret = WC_TEST_RET_ENC_NC;
         }
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
         /* Generating from a caller supplied seed is the device's job too:
          * the handler fails the call if the seed does not arrive whole. */
         if (ret == 0) {
+            int before = myCtx.mldsaCount;
+
             r = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_cb_seed);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
+            else if (myCtx.mldsaCount != before + 1)
+                ret = WC_TEST_RET_ENC_NC;
         }
 #endif
         if (ret == 0) {
@@ -95245,9 +95254,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         }
 #endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif
-        /* Every operation above went through the callback. */
-        if ((ret == 0) && (myCtx.mldsaCount <= baseline))
-            ret = WC_TEST_RET_ENC_NC;
         /* A device error must reach the caller unchanged. */
         if (ret == 0) {
             myCtx.mldsaFail = WC_NO_ERR_TRACE(WC_HW_E);
