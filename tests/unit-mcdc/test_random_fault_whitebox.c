@@ -1219,6 +1219,94 @@ static void wb_healthtest512_uninstantiate_fault(void)
 { WB_NOTE("SHA-512 Hash_DRBG not compiled in this variant; skipped"); }
 #endif
 
+/* --------------------------------------------------------------------------
+ * 10. wc_RNG_DRBG_GetReseedCtr() DRBG-type rows:
+ *      :1354  (rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)
+ *      :1360  (rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)
+ *
+ * GetReseedCtr is the first gate on the Stir path, so both operands of both
+ * checks are independently flippable here: the StirGenerate copies at
+ * :2522/:2528 only run after GetReseedCtr has already proven the pointer
+ * non-NULL, so their pointer operand is a constant-true residual there.
+ * ------------------------------------------------------------------------- */
+static void wb_drbg_reseedctr_type_rows(void)
+{
+    WC_RNG               rng;
+    wc_drbg_reseed_ctr_t ctr;
+
+    /* The base defaults to SHA-512 (WOLFSSL_DRBG_SHA512), so a plain
+     * wc_InitRng builds a SHA-512 DRBG; disable SHA-512 for the SHA-256
+     * section. Each section drives the non-NULL row (operand T) and the
+     * NULL row (operand F).
+     *
+     * COVERED (operand T rows): 1354 c0 T+F, 1354 c1-T, 1360 c0-T, 1360
+     * c1-T.
+     * RESIDUAL (coverage runtime): the NULL-pointer rows' branch
+     * evaluations are not recorded by the coverage runtime (a NULL call
+     * increments no branch count - verified: 1354 c0 stays T=1 across
+     * two SHA-256 calls), so 1354 c1-F, 1360 c0-F and 1360 c1-F cannot
+     * be shown by any white-box row. */
+
+    /* SHA-512, drbg512 != NULL: 1354 c0-F, 1360 c0-T + c1-T. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng (SHA-512) failed (GetReseedCtr rows skipped)");
+        wb_fail = 1;
+        return;
+    }
+    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+
+    /* SHA-512, drbg512 == NULL: 1360 c1-F (residual row, see above). */
+    rng.drbg512 = NULL;
+    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+    (void)wc_FreeRng(&rng);
+
+    /* SHA-256, drbg != NULL: 1354 c0-T + c1-T. */
+    (void)wc_Sha512Drbg_Disable();
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        /* SHA-256, drbg == NULL: 1354 c1-F, 1360 c0-F (residual rows). */
+        rng.drbg = NULL;
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        (void)wc_FreeRng(&rng);
+    }
+
+    WB_NOTE("GetReseedCtr DRBG-type rows driven");
+}
+
+/* --------------------------------------------------------------------------
+ * 11. wc_RNG_DRBG_Stir_Nonce() argument guard:
+ *      :2550  (rng == NULL) || (seed == NULL)
+ *
+ * c0 (rng == NULL) is the open operand. c0-T is a structural residual: the
+ * public wc_RNG_DRBG_Stir_Nonce wrapper guards rng == NULL before calling the
+ * _local function, so the _local guard never sees a NULL rng. The reachable
+ * row is c0-F + c1-T (valid rng, seed == NULL).
+ * ------------------------------------------------------------------------- */
+static void wb_stir_nonce_null_rng(void)
+{
+    WC_RNG rng;
+    byte   seed[16];
+    byte   nonce[16];
+
+    XMEMSET(seed,  0xAA, sizeof(seed));
+    XMEMSET(nonce, 0xBB, sizeof(nonce));
+
+    /* 2550 c0-T: rng == NULL (seed present, so the row is c0's). */
+    (void)wc_RNG_DRBG_Stir_Nonce(NULL, seed, sizeof(seed), nonce,
+                                 sizeof(nonce));
+
+    /* 2550 c0-F: valid rng, seed == NULL (decision true via the seed arm). */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, nonce, sizeof(nonce));
+        (void)wc_FreeRng(&rng);
+    }
+
+    WB_NOTE("Stir_Nonce argument-guard rows driven");
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1236,6 +1324,8 @@ int main(void)
     wb_init_flags();
     wb_healthtest_uninstantiate_fault();
     wb_healthtest512_uninstantiate_fault();
+    wb_drbg_reseedctr_type_rows();
+    wb_stir_nonce_null_rng();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
 #endif
     /* Always 0: a nonzero exit discards this variant's whole coverage. */
