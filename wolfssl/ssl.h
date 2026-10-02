@@ -1776,10 +1776,11 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * callback runs, and malformed DER fails the handshake without the callback
  * ever seeing it. So does a certificate the parser refuses regardless of the
  * verify mode, such as one with a zero serial number (unless
- * WOLFSSL_ASN_ALLOW_0_SERIAL is defined). Content wolfSSL does not understand
- * or agree with - an unknown critical extension, an unsupported key or
- * signature algorithm, a key usage inconsistent with the basic constraints -
- * is not a decoding failure; it is passed through for the callback to judge.
+ * WOLFSSL_ASN_ALLOW_0_SERIAL is defined), or one that stops the decode part
+ * way through, such as an unsupported key algorithm or mismatched signature
+ * algorithm identifiers. Content found once the whole certificate decoded - an
+ * unknown critical extension, a key usage inconsistent with the basic
+ * constraints - is passed through for the callback to judge.
  * The chain is bounded by the compile-time MAX_CHAIN_DEPTH and by
  * MAX_CERTIFICATE_SZ, the largest Certificate message accepted; the verify
  * depth does not apply.

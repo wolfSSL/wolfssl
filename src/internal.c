@@ -18341,15 +18341,14 @@ static int CheckPeerHostName(DecodedCert* dCert, const char* name)
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
 /* Errors from ParseCert(NO_VERIFY) that report content wolfSSL does not
  * understand or agree with rather than malformed DER: an unknown critical
- * extension, an unsupported key or signature algorithm, mismatched signature
- * algorithm identifiers, or keyCertSign asserted by a non-CA. The certificate
- * decoded; judging its content is the chain verify callback's job. */
+ * extension, or keyCertSign asserted by a non-CA. Both are raised after the
+ * whole certificate was decoded; judging its content is the chain verify
+ * callback's job. Errors raised part way through the decode are not listed,
+ * as the rest of the certificate was not checked. */
 static int IsCertContentErr(int err)
 {
     switch (err) {
     case WC_NO_ERR_TRACE(ASN_CRIT_EXT_E):
-    case WC_NO_ERR_TRACE(ASN_SIG_OID_E):
-    case WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E):
     case WC_NO_ERR_TRACE(KEYUSAGE_E):
         return 1;
     default:
