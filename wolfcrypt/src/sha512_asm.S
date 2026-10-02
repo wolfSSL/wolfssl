@@ -10773,6 +10773,5010 @@ L_sha512_len_avx2_rorx_done:
 #ifndef __APPLE__
 .size	Transform_Sha512_AVX2_RORX_Len,.-Transform_Sha512_AVX2_RORX_Len
 #endif /* __APPLE__ */
+#ifdef WOLFSSL_HAVE_XMSS
+#ifndef NO_AVX512_SUPPORT
+#ifndef HAVE_INTEL_AVX512
+#define HAVE_INTEL_AVX512
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* NO_AVX512_SUPPORT */
+#ifdef HAVE_INTEL_AVX512
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_bswap_mask:
+.long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
+.long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
+.long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
+.long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_k:
+.quad	0x428a2f98d728ae22,0x7137449123ef65cd
+.quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
+.quad	0x3956c25bf348b538,0x59f111f1b605d019
+.quad	0x923f82a4af194f9b,0xab1c5ed5da6d8118
+.quad	0xd807aa98a3030242,0x12835b0145706fbe
+.quad	0x243185be4ee4b28c,0x550c7dc3d5ffb4e2
+.quad	0x72be5d74f27b896f,0x80deb1fe3b1696b1
+.quad	0x9bdc06a725c71235,0xc19bf174cf692694
+.quad	0xe49b69c19ef14ad2,0xefbe4786384f25e3
+.quad	0x0fc19dc68b8cd5b5,0x240ca1cc77ac9c65
+.quad	0x2de92c6f592b0275,0x4a7484aa6ea6e483
+.quad	0x5cb0a9dcbd41fbd4,0x76f988da831153b5
+.quad	0x983e5152ee66dfab,0xa831c66d2db43210
+.quad	0xb00327c898fb213f,0xbf597fc7beef0ee4
+.quad	0xc6e00bf33da88fc2,0xd5a79147930aa725
+.quad	0x06ca6351e003826f,0x142929670a0e6e70
+.quad	0x27b70a8546d22ffc,0x2e1b21385c26c926
+.quad	0x4d2c6dfc5ac42aed,0x53380d139d95b3df
+.quad	0x650a73548baf63de,0x766a0abb3c77b2a8
+.quad	0x81c2c92e47edaee6,0x92722c851482353b
+.quad	0xa2bfe8a14cf10364,0xa81a664bbc423001
+.quad	0xc24b8b70d0f89791,0xc76c51a30654be30
+.quad	0xd192e819d6ef5218,0xd69906245565a910
+.quad	0xf40e35855771202a,0x106aa07032bbd1b8
+.quad	0x19a4c116b8d2d0c8,0x1e376c085141ab53
+.quad	0x2748774cdf8eeb99,0x34b0bcb5e19b48a8
+.quad	0x391c0cb3c5c95a63,0x4ed8aa4ae3418acb
+.quad	0x5b9cca4f7763e373,0x682e6ff3d6b2b8a3
+.quad	0x748f82ee5defb2fc,0x78a5636f43172f60
+.quad	0x84c87814a1f0ab72,0x8cc702081a6439ec
+.quad	0x90befffa23631e28,0xa4506cebde82bde9
+.quad	0xbef9a3f7b2c67915,0xc67178f2e372532b
+.quad	0xca273eceea26619c,0xd186b8c721c0c207
+.quad	0xeada7dd6cde0eb1e,0xf57d4f7fee6ed178
+.quad	0x06f067aa72176fba,0x0a637dc5a2c898a6
+.quad	0x113f9804bef90dae,0x1b710b35131c471b
+.quad	0x28db77f523047d84,0x32caab7b40c72493
+.quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
+.quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
+.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_x8_AVX512
+WC_ASM_ATT_HIDDEN(Transform_Sha512_x8_AVX512)
+.type	Transform_Sha512_x8_AVX512,@function
+.align	16
+Transform_Sha512_x8_AVX512:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_x8_AVX512
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_x8_AVX512)
+.p2align	4
+_Transform_Sha512_x8_AVX512:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        vmovdqu64	L_avx512_sha512_x8_bswap_mask(%rip), %zmm28
+        # W[0..7] of all eight blocks
+        vmovdqu64	(%rsi), %zmm8
+        vpshufd	$0xb1, %zmm8, %zmm8
+        vprord	$8, %zmm8, %zmm29
+        vprold	$8, %zmm8, %zmm8
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm8
+        vmovdqu64	128(%rsi), %zmm9
+        vpshufd	$0xb1, %zmm9, %zmm9
+        vprord	$8, %zmm9, %zmm29
+        vprold	$8, %zmm9, %zmm9
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm9
+        vmovdqu64	256(%rsi), %zmm10
+        vpshufd	$0xb1, %zmm10, %zmm10
+        vprord	$8, %zmm10, %zmm29
+        vprold	$8, %zmm10, %zmm10
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm10
+        vmovdqu64	384(%rsi), %zmm11
+        vpshufd	$0xb1, %zmm11, %zmm11
+        vprord	$8, %zmm11, %zmm29
+        vprold	$8, %zmm11, %zmm11
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm11
+        vmovdqu64	512(%rsi), %zmm12
+        vpshufd	$0xb1, %zmm12, %zmm12
+        vprord	$8, %zmm12, %zmm29
+        vprold	$8, %zmm12, %zmm12
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm12
+        vmovdqu64	640(%rsi), %zmm13
+        vpshufd	$0xb1, %zmm13, %zmm13
+        vprord	$8, %zmm13, %zmm29
+        vprold	$8, %zmm13, %zmm13
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm13
+        vmovdqu64	768(%rsi), %zmm14
+        vpshufd	$0xb1, %zmm14, %zmm14
+        vprord	$8, %zmm14, %zmm29
+        vprold	$8, %zmm14, %zmm14
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm14
+        vmovdqu64	896(%rsi), %zmm15
+        vpshufd	$0xb1, %zmm15, %zmm15
+        vprord	$8, %zmm15, %zmm29
+        vprold	$8, %zmm15, %zmm15
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm15
+        vpunpcklqdq	%zmm9, %zmm8, %zmm29
+        vpunpckhqdq	%zmm9, %zmm8, %zmm9
+        vmovdqa64	%zmm29, %zmm8
+        vpunpcklqdq	%zmm11, %zmm10, %zmm29
+        vpunpckhqdq	%zmm11, %zmm10, %zmm11
+        vmovdqa64	%zmm29, %zmm10
+        vpunpcklqdq	%zmm13, %zmm12, %zmm29
+        vpunpckhqdq	%zmm13, %zmm12, %zmm13
+        vmovdqa64	%zmm29, %zmm12
+        vpunpcklqdq	%zmm15, %zmm14, %zmm29
+        vpunpckhqdq	%zmm15, %zmm14, %zmm15
+        vmovdqa64	%zmm29, %zmm14
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm29
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm10
+        vmovdqa64	%zmm29, %zmm8
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm29
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm11
+        vmovdqa64	%zmm29, %zmm9
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm29
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm14
+        vmovdqa64	%zmm29, %zmm12
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm29
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm15
+        vmovdqa64	%zmm29, %zmm13
+        vshufi64x2	$0x88, %zmm12, %zmm8, %zmm29
+        vshufi64x2	$0xdd, %zmm12, %zmm8, %zmm12
+        vmovdqa64	%zmm29, %zmm8
+        vshufi64x2	$0x88, %zmm13, %zmm9, %zmm29
+        vshufi64x2	$0xdd, %zmm13, %zmm9, %zmm13
+        vmovdqa64	%zmm29, %zmm9
+        vshufi64x2	$0x88, %zmm14, %zmm10, %zmm29
+        vshufi64x2	$0xdd, %zmm14, %zmm10, %zmm14
+        vmovdqa64	%zmm29, %zmm10
+        vshufi64x2	$0x88, %zmm15, %zmm11, %zmm29
+        vshufi64x2	$0xdd, %zmm15, %zmm11, %zmm15
+        vmovdqa64	%zmm29, %zmm11
+        # W[8..15] of all eight blocks
+        vmovdqu64	64(%rsi), %zmm16
+        vpshufd	$0xb1, %zmm16, %zmm16
+        vprord	$8, %zmm16, %zmm29
+        vprold	$8, %zmm16, %zmm16
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm16
+        vmovdqu64	192(%rsi), %zmm17
+        vpshufd	$0xb1, %zmm17, %zmm17
+        vprord	$8, %zmm17, %zmm29
+        vprold	$8, %zmm17, %zmm17
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm17
+        vmovdqu64	320(%rsi), %zmm18
+        vpshufd	$0xb1, %zmm18, %zmm18
+        vprord	$8, %zmm18, %zmm29
+        vprold	$8, %zmm18, %zmm18
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm18
+        vmovdqu64	448(%rsi), %zmm19
+        vpshufd	$0xb1, %zmm19, %zmm19
+        vprord	$8, %zmm19, %zmm29
+        vprold	$8, %zmm19, %zmm19
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm19
+        vmovdqu64	576(%rsi), %zmm20
+        vpshufd	$0xb1, %zmm20, %zmm20
+        vprord	$8, %zmm20, %zmm29
+        vprold	$8, %zmm20, %zmm20
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm20
+        vmovdqu64	704(%rsi), %zmm21
+        vpshufd	$0xb1, %zmm21, %zmm21
+        vprord	$8, %zmm21, %zmm29
+        vprold	$8, %zmm21, %zmm21
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm21
+        vmovdqu64	832(%rsi), %zmm22
+        vpshufd	$0xb1, %zmm22, %zmm22
+        vprord	$8, %zmm22, %zmm29
+        vprold	$8, %zmm22, %zmm22
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm22
+        vmovdqu64	960(%rsi), %zmm23
+        vpshufd	$0xb1, %zmm23, %zmm23
+        vprord	$8, %zmm23, %zmm29
+        vprold	$8, %zmm23, %zmm23
+        vpternlogd	$0xd8, %zmm28, %zmm29, %zmm23
+        vpunpcklqdq	%zmm17, %zmm16, %zmm29
+        vpunpckhqdq	%zmm17, %zmm16, %zmm17
+        vmovdqa64	%zmm29, %zmm16
+        vpunpcklqdq	%zmm19, %zmm18, %zmm29
+        vpunpckhqdq	%zmm19, %zmm18, %zmm19
+        vmovdqa64	%zmm29, %zmm18
+        vpunpcklqdq	%zmm21, %zmm20, %zmm29
+        vpunpckhqdq	%zmm21, %zmm20, %zmm21
+        vmovdqa64	%zmm29, %zmm20
+        vpunpcklqdq	%zmm23, %zmm22, %zmm29
+        vpunpckhqdq	%zmm23, %zmm22, %zmm23
+        vmovdqa64	%zmm29, %zmm22
+        vshufi64x2	$0x88, %zmm18, %zmm16, %zmm29
+        vshufi64x2	$0xdd, %zmm18, %zmm16, %zmm18
+        vmovdqa64	%zmm29, %zmm16
+        vshufi64x2	$0x88, %zmm19, %zmm17, %zmm29
+        vshufi64x2	$0xdd, %zmm19, %zmm17, %zmm19
+        vmovdqa64	%zmm29, %zmm17
+        vshufi64x2	$0x88, %zmm22, %zmm20, %zmm29
+        vshufi64x2	$0xdd, %zmm22, %zmm20, %zmm22
+        vmovdqa64	%zmm29, %zmm20
+        vshufi64x2	$0x88, %zmm23, %zmm21, %zmm29
+        vshufi64x2	$0xdd, %zmm23, %zmm21, %zmm23
+        vmovdqa64	%zmm29, %zmm21
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm29
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm20
+        vmovdqa64	%zmm29, %zmm16
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm29
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm21
+        vmovdqa64	%zmm29, %zmm17
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm29
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm22
+        vmovdqa64	%zmm29, %zmm18
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm29
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm23
+        vmovdqa64	%zmm29, %zmm19
+        # Load the eight lane-interleaved states
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        leaq	L_avx512_sha512_x8_k(%rip), %rbp
+        # Rounds 0-15: the schedule is the message block itself
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        movl	$4, %eax
+L_sha512_x8_avx512_start:
+        vprorq	$0x01, %zmm9, %zmm24
+        vprorq	$8, %zmm9, %zmm25
+        vpsrlq	$7, %zmm9, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm22, %zmm25
+        vprorq	$61, %zmm22, %zmm26
+        vpsrlq	$6, %zmm22, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm8, %zmm8
+        vpaddq	%zmm25, %zmm8, %zmm8
+        vpaddq	%zmm17, %zmm8, %zmm8
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm10, %zmm24
+        vprorq	$8, %zmm10, %zmm25
+        vpsrlq	$7, %zmm10, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm23, %zmm25
+        vprorq	$61, %zmm23, %zmm26
+        vpsrlq	$6, %zmm23, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm9, %zmm9
+        vpaddq	%zmm25, %zmm9, %zmm9
+        vpaddq	%zmm18, %zmm9, %zmm9
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm11, %zmm24
+        vprorq	$8, %zmm11, %zmm25
+        vpsrlq	$7, %zmm11, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm8, %zmm25
+        vprorq	$61, %zmm8, %zmm26
+        vpsrlq	$6, %zmm8, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm10, %zmm10
+        vpaddq	%zmm25, %zmm10, %zmm10
+        vpaddq	%zmm19, %zmm10, %zmm10
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm12, %zmm24
+        vprorq	$8, %zmm12, %zmm25
+        vpsrlq	$7, %zmm12, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm9, %zmm25
+        vprorq	$61, %zmm9, %zmm26
+        vpsrlq	$6, %zmm9, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm11, %zmm11
+        vpaddq	%zmm25, %zmm11, %zmm11
+        vpaddq	%zmm20, %zmm11, %zmm11
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm13, %zmm24
+        vprorq	$8, %zmm13, %zmm25
+        vpsrlq	$7, %zmm13, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm10, %zmm25
+        vprorq	$61, %zmm10, %zmm26
+        vpsrlq	$6, %zmm10, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm12, %zmm12
+        vpaddq	%zmm25, %zmm12, %zmm12
+        vpaddq	%zmm21, %zmm12, %zmm12
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm14, %zmm24
+        vprorq	$8, %zmm14, %zmm25
+        vpsrlq	$7, %zmm14, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm11, %zmm25
+        vprorq	$61, %zmm11, %zmm26
+        vpsrlq	$6, %zmm11, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm13, %zmm13
+        vpaddq	%zmm25, %zmm13, %zmm13
+        vpaddq	%zmm22, %zmm13, %zmm13
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm15, %zmm24
+        vprorq	$8, %zmm15, %zmm25
+        vpsrlq	$7, %zmm15, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm12, %zmm25
+        vprorq	$61, %zmm12, %zmm26
+        vpsrlq	$6, %zmm12, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm14, %zmm14
+        vpaddq	%zmm25, %zmm14, %zmm14
+        vpaddq	%zmm23, %zmm14, %zmm14
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm16, %zmm24
+        vprorq	$8, %zmm16, %zmm25
+        vpsrlq	$7, %zmm16, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm13, %zmm25
+        vprorq	$61, %zmm13, %zmm26
+        vpsrlq	$6, %zmm13, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm15, %zmm15
+        vpaddq	%zmm25, %zmm15, %zmm15
+        vpaddq	%zmm8, %zmm15, %zmm15
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$0x01, %zmm17, %zmm24
+        vprorq	$8, %zmm17, %zmm25
+        vpsrlq	$7, %zmm17, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm14, %zmm25
+        vprorq	$61, %zmm14, %zmm26
+        vpsrlq	$6, %zmm14, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm16, %zmm16
+        vpaddq	%zmm25, %zmm16, %zmm16
+        vpaddq	%zmm9, %zmm16, %zmm16
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm18, %zmm24
+        vprorq	$8, %zmm18, %zmm25
+        vpsrlq	$7, %zmm18, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm15, %zmm25
+        vprorq	$61, %zmm15, %zmm26
+        vpsrlq	$6, %zmm15, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm17, %zmm17
+        vpaddq	%zmm25, %zmm17, %zmm17
+        vpaddq	%zmm10, %zmm17, %zmm17
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm19, %zmm24
+        vprorq	$8, %zmm19, %zmm25
+        vpsrlq	$7, %zmm19, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm16, %zmm25
+        vprorq	$61, %zmm16, %zmm26
+        vpsrlq	$6, %zmm16, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm18, %zmm18
+        vpaddq	%zmm25, %zmm18, %zmm18
+        vpaddq	%zmm11, %zmm18, %zmm18
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm20, %zmm24
+        vprorq	$8, %zmm20, %zmm25
+        vpsrlq	$7, %zmm20, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm17, %zmm25
+        vprorq	$61, %zmm17, %zmm26
+        vpsrlq	$6, %zmm17, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm19, %zmm19
+        vpaddq	%zmm25, %zmm19, %zmm19
+        vpaddq	%zmm12, %zmm19, %zmm19
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm21, %zmm24
+        vprorq	$8, %zmm21, %zmm25
+        vpsrlq	$7, %zmm21, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm18, %zmm25
+        vprorq	$61, %zmm18, %zmm26
+        vpsrlq	$6, %zmm18, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm20, %zmm20
+        vpaddq	%zmm25, %zmm20, %zmm20
+        vpaddq	%zmm13, %zmm20, %zmm20
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm22, %zmm24
+        vprorq	$8, %zmm22, %zmm25
+        vpsrlq	$7, %zmm22, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm19, %zmm25
+        vprorq	$61, %zmm19, %zmm26
+        vpsrlq	$6, %zmm19, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm21, %zmm21
+        vpaddq	%zmm25, %zmm21, %zmm21
+        vpaddq	%zmm14, %zmm21, %zmm21
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm23, %zmm24
+        vprorq	$8, %zmm23, %zmm25
+        vpsrlq	$7, %zmm23, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm20, %zmm25
+        vprorq	$61, %zmm20, %zmm26
+        vpsrlq	$6, %zmm20, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm22, %zmm22
+        vpaddq	%zmm25, %zmm22, %zmm22
+        vpaddq	%zmm15, %zmm22, %zmm22
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm8, %zmm24
+        vprorq	$8, %zmm8, %zmm25
+        vpsrlq	$7, %zmm8, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm21, %zmm25
+        vprorq	$61, %zmm21, %zmm26
+        vpsrlq	$6, %zmm21, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm23, %zmm23
+        vpaddq	%zmm25, %zmm23, %zmm23
+        vpaddq	%zmm16, %zmm23, %zmm23
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        subl	$0x01, %eax
+        jnz	L_sha512_x8_avx512_start
+        # Add the compressed block into the states
+        vpaddq	(%rdi), %zmm0, %zmm0
+        vmovdqu64	%zmm0, (%rdi)
+        vpaddq	64(%rdi), %zmm1, %zmm1
+        vmovdqu64	%zmm1, 64(%rdi)
+        vpaddq	128(%rdi), %zmm2, %zmm2
+        vmovdqu64	%zmm2, 128(%rdi)
+        vpaddq	192(%rdi), %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rdi)
+        vpaddq	256(%rdi), %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpaddq	320(%rdi), %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rdi)
+        vpaddq	384(%rdi), %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rdi)
+        vpaddq	448(%rdi), %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rdi)
+        vzeroupper
+        popq	%rbp
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha512_x8_AVX512,.-Transform_Sha512_x8_AVX512
+#endif /* __APPLE__ */
+#if !defined(NO_AVX512BW_SUPPORT)
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_flip_mask:
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_x8_AVX512_BW
+WC_ASM_ATT_HIDDEN(Transform_Sha512_x8_AVX512_BW)
+.type	Transform_Sha512_x8_AVX512_BW,@function
+.align	16
+Transform_Sha512_x8_AVX512_BW:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_x8_AVX512_BW
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_x8_AVX512_BW)
+.p2align	4
+_Transform_Sha512_x8_AVX512_BW:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        vmovdqu64	L_avx512_sha512_x8_flip_mask(%rip), %zmm28
+        # W[0..7] of all eight blocks
+        vmovdqu64	(%rsi), %zmm8
+        vpshufb	%zmm28, %zmm8, %zmm8
+        vmovdqu64	128(%rsi), %zmm9
+        vpshufb	%zmm28, %zmm9, %zmm9
+        vmovdqu64	256(%rsi), %zmm10
+        vpshufb	%zmm28, %zmm10, %zmm10
+        vmovdqu64	384(%rsi), %zmm11
+        vpshufb	%zmm28, %zmm11, %zmm11
+        vmovdqu64	512(%rsi), %zmm12
+        vpshufb	%zmm28, %zmm12, %zmm12
+        vmovdqu64	640(%rsi), %zmm13
+        vpshufb	%zmm28, %zmm13, %zmm13
+        vmovdqu64	768(%rsi), %zmm14
+        vpshufb	%zmm28, %zmm14, %zmm14
+        vmovdqu64	896(%rsi), %zmm15
+        vpshufb	%zmm28, %zmm15, %zmm15
+        vpunpcklqdq	%zmm9, %zmm8, %zmm29
+        vpunpckhqdq	%zmm9, %zmm8, %zmm9
+        vmovdqa64	%zmm29, %zmm8
+        vpunpcklqdq	%zmm11, %zmm10, %zmm29
+        vpunpckhqdq	%zmm11, %zmm10, %zmm11
+        vmovdqa64	%zmm29, %zmm10
+        vpunpcklqdq	%zmm13, %zmm12, %zmm29
+        vpunpckhqdq	%zmm13, %zmm12, %zmm13
+        vmovdqa64	%zmm29, %zmm12
+        vpunpcklqdq	%zmm15, %zmm14, %zmm29
+        vpunpckhqdq	%zmm15, %zmm14, %zmm15
+        vmovdqa64	%zmm29, %zmm14
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm29
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm10
+        vmovdqa64	%zmm29, %zmm8
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm29
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm11
+        vmovdqa64	%zmm29, %zmm9
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm29
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm14
+        vmovdqa64	%zmm29, %zmm12
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm29
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm15
+        vmovdqa64	%zmm29, %zmm13
+        vshufi64x2	$0x88, %zmm12, %zmm8, %zmm29
+        vshufi64x2	$0xdd, %zmm12, %zmm8, %zmm12
+        vmovdqa64	%zmm29, %zmm8
+        vshufi64x2	$0x88, %zmm13, %zmm9, %zmm29
+        vshufi64x2	$0xdd, %zmm13, %zmm9, %zmm13
+        vmovdqa64	%zmm29, %zmm9
+        vshufi64x2	$0x88, %zmm14, %zmm10, %zmm29
+        vshufi64x2	$0xdd, %zmm14, %zmm10, %zmm14
+        vmovdqa64	%zmm29, %zmm10
+        vshufi64x2	$0x88, %zmm15, %zmm11, %zmm29
+        vshufi64x2	$0xdd, %zmm15, %zmm11, %zmm15
+        vmovdqa64	%zmm29, %zmm11
+        # W[8..15] of all eight blocks
+        vmovdqu64	64(%rsi), %zmm16
+        vpshufb	%zmm28, %zmm16, %zmm16
+        vmovdqu64	192(%rsi), %zmm17
+        vpshufb	%zmm28, %zmm17, %zmm17
+        vmovdqu64	320(%rsi), %zmm18
+        vpshufb	%zmm28, %zmm18, %zmm18
+        vmovdqu64	448(%rsi), %zmm19
+        vpshufb	%zmm28, %zmm19, %zmm19
+        vmovdqu64	576(%rsi), %zmm20
+        vpshufb	%zmm28, %zmm20, %zmm20
+        vmovdqu64	704(%rsi), %zmm21
+        vpshufb	%zmm28, %zmm21, %zmm21
+        vmovdqu64	832(%rsi), %zmm22
+        vpshufb	%zmm28, %zmm22, %zmm22
+        vmovdqu64	960(%rsi), %zmm23
+        vpshufb	%zmm28, %zmm23, %zmm23
+        vpunpcklqdq	%zmm17, %zmm16, %zmm29
+        vpunpckhqdq	%zmm17, %zmm16, %zmm17
+        vmovdqa64	%zmm29, %zmm16
+        vpunpcklqdq	%zmm19, %zmm18, %zmm29
+        vpunpckhqdq	%zmm19, %zmm18, %zmm19
+        vmovdqa64	%zmm29, %zmm18
+        vpunpcklqdq	%zmm21, %zmm20, %zmm29
+        vpunpckhqdq	%zmm21, %zmm20, %zmm21
+        vmovdqa64	%zmm29, %zmm20
+        vpunpcklqdq	%zmm23, %zmm22, %zmm29
+        vpunpckhqdq	%zmm23, %zmm22, %zmm23
+        vmovdqa64	%zmm29, %zmm22
+        vshufi64x2	$0x88, %zmm18, %zmm16, %zmm29
+        vshufi64x2	$0xdd, %zmm18, %zmm16, %zmm18
+        vmovdqa64	%zmm29, %zmm16
+        vshufi64x2	$0x88, %zmm19, %zmm17, %zmm29
+        vshufi64x2	$0xdd, %zmm19, %zmm17, %zmm19
+        vmovdqa64	%zmm29, %zmm17
+        vshufi64x2	$0x88, %zmm22, %zmm20, %zmm29
+        vshufi64x2	$0xdd, %zmm22, %zmm20, %zmm22
+        vmovdqa64	%zmm29, %zmm20
+        vshufi64x2	$0x88, %zmm23, %zmm21, %zmm29
+        vshufi64x2	$0xdd, %zmm23, %zmm21, %zmm23
+        vmovdqa64	%zmm29, %zmm21
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm29
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm20
+        vmovdqa64	%zmm29, %zmm16
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm29
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm21
+        vmovdqa64	%zmm29, %zmm17
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm29
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm22
+        vmovdqa64	%zmm29, %zmm18
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm29
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm23
+        vmovdqa64	%zmm29, %zmm19
+        # Load the eight lane-interleaved states
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        leaq	L_avx512_sha512_x8_k(%rip), %rbp
+        # Rounds 0-15: the schedule is the message block itself
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        movl	$4, %eax
+L_sha512_x8_avx512_bw_start:
+        vprorq	$0x01, %zmm9, %zmm24
+        vprorq	$8, %zmm9, %zmm25
+        vpsrlq	$7, %zmm9, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm22, %zmm25
+        vprorq	$61, %zmm22, %zmm26
+        vpsrlq	$6, %zmm22, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm8, %zmm8
+        vpaddq	%zmm25, %zmm8, %zmm8
+        vpaddq	%zmm17, %zmm8, %zmm8
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm10, %zmm24
+        vprorq	$8, %zmm10, %zmm25
+        vpsrlq	$7, %zmm10, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm23, %zmm25
+        vprorq	$61, %zmm23, %zmm26
+        vpsrlq	$6, %zmm23, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm9, %zmm9
+        vpaddq	%zmm25, %zmm9, %zmm9
+        vpaddq	%zmm18, %zmm9, %zmm9
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm11, %zmm24
+        vprorq	$8, %zmm11, %zmm25
+        vpsrlq	$7, %zmm11, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm8, %zmm25
+        vprorq	$61, %zmm8, %zmm26
+        vpsrlq	$6, %zmm8, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm10, %zmm10
+        vpaddq	%zmm25, %zmm10, %zmm10
+        vpaddq	%zmm19, %zmm10, %zmm10
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm12, %zmm24
+        vprorq	$8, %zmm12, %zmm25
+        vpsrlq	$7, %zmm12, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm9, %zmm25
+        vprorq	$61, %zmm9, %zmm26
+        vpsrlq	$6, %zmm9, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm11, %zmm11
+        vpaddq	%zmm25, %zmm11, %zmm11
+        vpaddq	%zmm20, %zmm11, %zmm11
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm13, %zmm24
+        vprorq	$8, %zmm13, %zmm25
+        vpsrlq	$7, %zmm13, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm10, %zmm25
+        vprorq	$61, %zmm10, %zmm26
+        vpsrlq	$6, %zmm10, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm12, %zmm12
+        vpaddq	%zmm25, %zmm12, %zmm12
+        vpaddq	%zmm21, %zmm12, %zmm12
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm14, %zmm24
+        vprorq	$8, %zmm14, %zmm25
+        vpsrlq	$7, %zmm14, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm11, %zmm25
+        vprorq	$61, %zmm11, %zmm26
+        vpsrlq	$6, %zmm11, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm13, %zmm13
+        vpaddq	%zmm25, %zmm13, %zmm13
+        vpaddq	%zmm22, %zmm13, %zmm13
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm15, %zmm24
+        vprorq	$8, %zmm15, %zmm25
+        vpsrlq	$7, %zmm15, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm12, %zmm25
+        vprorq	$61, %zmm12, %zmm26
+        vpsrlq	$6, %zmm12, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm14, %zmm14
+        vpaddq	%zmm25, %zmm14, %zmm14
+        vpaddq	%zmm23, %zmm14, %zmm14
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm16, %zmm24
+        vprorq	$8, %zmm16, %zmm25
+        vpsrlq	$7, %zmm16, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm13, %zmm25
+        vprorq	$61, %zmm13, %zmm26
+        vpsrlq	$6, %zmm13, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm15, %zmm15
+        vpaddq	%zmm25, %zmm15, %zmm15
+        vpaddq	%zmm8, %zmm15, %zmm15
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$0x01, %zmm17, %zmm24
+        vprorq	$8, %zmm17, %zmm25
+        vpsrlq	$7, %zmm17, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm14, %zmm25
+        vprorq	$61, %zmm14, %zmm26
+        vpsrlq	$6, %zmm14, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm16, %zmm16
+        vpaddq	%zmm25, %zmm16, %zmm16
+        vpaddq	%zmm9, %zmm16, %zmm16
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm18, %zmm24
+        vprorq	$8, %zmm18, %zmm25
+        vpsrlq	$7, %zmm18, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm15, %zmm25
+        vprorq	$61, %zmm15, %zmm26
+        vpsrlq	$6, %zmm15, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm17, %zmm17
+        vpaddq	%zmm25, %zmm17, %zmm17
+        vpaddq	%zmm10, %zmm17, %zmm17
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm19, %zmm24
+        vprorq	$8, %zmm19, %zmm25
+        vpsrlq	$7, %zmm19, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm16, %zmm25
+        vprorq	$61, %zmm16, %zmm26
+        vpsrlq	$6, %zmm16, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm18, %zmm18
+        vpaddq	%zmm25, %zmm18, %zmm18
+        vpaddq	%zmm11, %zmm18, %zmm18
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm20, %zmm24
+        vprorq	$8, %zmm20, %zmm25
+        vpsrlq	$7, %zmm20, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm17, %zmm25
+        vprorq	$61, %zmm17, %zmm26
+        vpsrlq	$6, %zmm17, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm19, %zmm19
+        vpaddq	%zmm25, %zmm19, %zmm19
+        vpaddq	%zmm12, %zmm19, %zmm19
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm21, %zmm24
+        vprorq	$8, %zmm21, %zmm25
+        vpsrlq	$7, %zmm21, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm18, %zmm25
+        vprorq	$61, %zmm18, %zmm26
+        vpsrlq	$6, %zmm18, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm20, %zmm20
+        vpaddq	%zmm25, %zmm20, %zmm20
+        vpaddq	%zmm13, %zmm20, %zmm20
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm22, %zmm24
+        vprorq	$8, %zmm22, %zmm25
+        vpsrlq	$7, %zmm22, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm19, %zmm25
+        vprorq	$61, %zmm19, %zmm26
+        vpsrlq	$6, %zmm19, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm21, %zmm21
+        vpaddq	%zmm25, %zmm21, %zmm21
+        vpaddq	%zmm14, %zmm21, %zmm21
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm23, %zmm24
+        vprorq	$8, %zmm23, %zmm25
+        vpsrlq	$7, %zmm23, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm20, %zmm25
+        vprorq	$61, %zmm20, %zmm26
+        vpsrlq	$6, %zmm20, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm22, %zmm22
+        vpaddq	%zmm25, %zmm22, %zmm22
+        vpaddq	%zmm15, %zmm22, %zmm22
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm8, %zmm24
+        vprorq	$8, %zmm8, %zmm25
+        vpsrlq	$7, %zmm8, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm21, %zmm25
+        vprorq	$61, %zmm21, %zmm26
+        vpsrlq	$6, %zmm21, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm23, %zmm23
+        vpaddq	%zmm25, %zmm23, %zmm23
+        vpaddq	%zmm16, %zmm23, %zmm23
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        subl	$0x01, %eax
+        jnz	L_sha512_x8_avx512_bw_start
+        # Add the compressed block into the states
+        vpaddq	(%rdi), %zmm0, %zmm0
+        vmovdqu64	%zmm0, (%rdi)
+        vpaddq	64(%rdi), %zmm1, %zmm1
+        vmovdqu64	%zmm1, 64(%rdi)
+        vpaddq	128(%rdi), %zmm2, %zmm2
+        vmovdqu64	%zmm2, 128(%rdi)
+        vpaddq	192(%rdi), %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rdi)
+        vpaddq	256(%rdi), %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpaddq	320(%rdi), %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rdi)
+        vpaddq	384(%rdi), %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rdi)
+        vpaddq	448(%rdi), %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rdi)
+        vzeroupper
+        popq	%rbp
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha512_x8_AVX512_BW,.-Transform_Sha512_x8_AVX512_BW
+#endif /* __APPLE__ */
+#endif /* !defined(NO_AVX512BW_SUPPORT) */
+#ifdef WOLFSSL_HAVE_XMSS
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_iv:
+.quad	0x6a09e667f3bcc908,0xbb67ae8584caa73b
+.quad	0x3c6ef372fe94f82b,0xa54ff53a5f1d36f1
+.quad	0x510e527fade682d1,0x9b05688c2b3e6c1f
+.quad	0x1f83d9abfb41bd6b,0x5be0cd19137e2179
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_pad80q:
+.quad	0x8000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_len1280:
+.quad	0x0000000000000500
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_len1536:
+.quad	0x0000000000000600
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_hi32:
+.quad	0xffffffff00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_avx512_sha512_x8_lo32:
+.quad	0x00000000ffffffff
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_x8_XmssPrf_AVX512
+WC_ASM_ATT_HIDDEN(Transform_Sha512_x8_XmssPrf_AVX512)
+.type	Transform_Sha512_x8_XmssPrf_AVX512,@function
+.align	16
+Transform_Sha512_x8_XmssPrf_AVX512:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_x8_XmssPrf_AVX512
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_x8_XmssPrf_AVX512)
+.p2align	4
+_Transform_Sha512_x8_XmssPrf_AVX512:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        leaq	L_avx512_sha512_x8_k(%rip), %rbp
+        vpbroadcastq	(%rdx), %zmm8
+        vpbroadcastq	8(%rdx), %zmm9
+        # Word 2: the OTS address, then the chain address under it
+        vpbroadcastq	16(%rdx), %zmm10
+        vpbroadcastq	L_avx512_sha512_x8_hi32(%rip), %zmm25
+        vpandq	%zmm25, %zmm10, %zmm10
+        vpmovzxdq	(%rcx), %zmm24
+        vporq	%zmm24, %zmm10, %zmm10
+        # Word 3: the key-and-mask word, then the hash address over it
+        vpbroadcastq	24(%rdx), %zmm11
+        vpbroadcastq	L_avx512_sha512_x8_lo32(%rip), %zmm25
+        vpandq	%zmm25, %zmm11, %zmm11
+        vpmovzxdq	(%r8), %zmm24
+        vpsllq	$32, %zmm24, %zmm24
+        vporq	%zmm24, %zmm11, %zmm11
+        # Padding for a 160-byte message, the last 128 of it this block
+        vpbroadcastq	L_avx512_sha512_x8_pad80q(%rip), %zmm12
+        vpxorq	%zmm13, %zmm13, %zmm13
+        vpxorq	%zmm14, %zmm14, %zmm14
+        vpxorq	%zmm15, %zmm15, %zmm15
+        vpxorq	%zmm16, %zmm16, %zmm16
+        vpxorq	%zmm17, %zmm17, %zmm17
+        vpxorq	%zmm18, %zmm18, %zmm18
+        vpxorq	%zmm19, %zmm19, %zmm19
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vpxorq	%zmm21, %zmm21, %zmm21
+        vpxorq	%zmm22, %zmm22, %zmm22
+        vpbroadcastq	L_avx512_sha512_x8_len1280(%rip), %zmm23
+        # Carry on from the state padding || SEED left behind
+        vpbroadcastq	(%rsi), %zmm0
+        vpbroadcastq	8(%rsi), %zmm1
+        vpbroadcastq	16(%rsi), %zmm2
+        vpbroadcastq	24(%rsi), %zmm3
+        vpbroadcastq	32(%rsi), %zmm4
+        vpbroadcastq	40(%rsi), %zmm5
+        vpbroadcastq	48(%rsi), %zmm6
+        vpbroadcastq	56(%rsi), %zmm7
+        # Rounds 0-15: the schedule is the message block itself
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        movl	$4, %eax
+L_sha512_x8_xmss_prf_start:
+        vprorq	$0x01, %zmm9, %zmm24
+        vprorq	$8, %zmm9, %zmm25
+        vpsrlq	$7, %zmm9, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm22, %zmm25
+        vprorq	$61, %zmm22, %zmm26
+        vpsrlq	$6, %zmm22, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm8, %zmm8
+        vpaddq	%zmm25, %zmm8, %zmm8
+        vpaddq	%zmm17, %zmm8, %zmm8
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm10, %zmm24
+        vprorq	$8, %zmm10, %zmm25
+        vpsrlq	$7, %zmm10, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm23, %zmm25
+        vprorq	$61, %zmm23, %zmm26
+        vpsrlq	$6, %zmm23, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm9, %zmm9
+        vpaddq	%zmm25, %zmm9, %zmm9
+        vpaddq	%zmm18, %zmm9, %zmm9
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm11, %zmm24
+        vprorq	$8, %zmm11, %zmm25
+        vpsrlq	$7, %zmm11, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm8, %zmm25
+        vprorq	$61, %zmm8, %zmm26
+        vpsrlq	$6, %zmm8, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm10, %zmm10
+        vpaddq	%zmm25, %zmm10, %zmm10
+        vpaddq	%zmm19, %zmm10, %zmm10
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm12, %zmm24
+        vprorq	$8, %zmm12, %zmm25
+        vpsrlq	$7, %zmm12, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm9, %zmm25
+        vprorq	$61, %zmm9, %zmm26
+        vpsrlq	$6, %zmm9, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm11, %zmm11
+        vpaddq	%zmm25, %zmm11, %zmm11
+        vpaddq	%zmm20, %zmm11, %zmm11
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm13, %zmm24
+        vprorq	$8, %zmm13, %zmm25
+        vpsrlq	$7, %zmm13, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm10, %zmm25
+        vprorq	$61, %zmm10, %zmm26
+        vpsrlq	$6, %zmm10, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm12, %zmm12
+        vpaddq	%zmm25, %zmm12, %zmm12
+        vpaddq	%zmm21, %zmm12, %zmm12
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm14, %zmm24
+        vprorq	$8, %zmm14, %zmm25
+        vpsrlq	$7, %zmm14, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm11, %zmm25
+        vprorq	$61, %zmm11, %zmm26
+        vpsrlq	$6, %zmm11, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm13, %zmm13
+        vpaddq	%zmm25, %zmm13, %zmm13
+        vpaddq	%zmm22, %zmm13, %zmm13
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm15, %zmm24
+        vprorq	$8, %zmm15, %zmm25
+        vpsrlq	$7, %zmm15, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm12, %zmm25
+        vprorq	$61, %zmm12, %zmm26
+        vpsrlq	$6, %zmm12, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm14, %zmm14
+        vpaddq	%zmm25, %zmm14, %zmm14
+        vpaddq	%zmm23, %zmm14, %zmm14
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm16, %zmm24
+        vprorq	$8, %zmm16, %zmm25
+        vpsrlq	$7, %zmm16, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm13, %zmm25
+        vprorq	$61, %zmm13, %zmm26
+        vpsrlq	$6, %zmm13, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm15, %zmm15
+        vpaddq	%zmm25, %zmm15, %zmm15
+        vpaddq	%zmm8, %zmm15, %zmm15
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$0x01, %zmm17, %zmm24
+        vprorq	$8, %zmm17, %zmm25
+        vpsrlq	$7, %zmm17, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm14, %zmm25
+        vprorq	$61, %zmm14, %zmm26
+        vpsrlq	$6, %zmm14, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm16, %zmm16
+        vpaddq	%zmm25, %zmm16, %zmm16
+        vpaddq	%zmm9, %zmm16, %zmm16
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm18, %zmm24
+        vprorq	$8, %zmm18, %zmm25
+        vpsrlq	$7, %zmm18, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm15, %zmm25
+        vprorq	$61, %zmm15, %zmm26
+        vpsrlq	$6, %zmm15, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm17, %zmm17
+        vpaddq	%zmm25, %zmm17, %zmm17
+        vpaddq	%zmm10, %zmm17, %zmm17
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm19, %zmm24
+        vprorq	$8, %zmm19, %zmm25
+        vpsrlq	$7, %zmm19, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm16, %zmm25
+        vprorq	$61, %zmm16, %zmm26
+        vpsrlq	$6, %zmm16, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm18, %zmm18
+        vpaddq	%zmm25, %zmm18, %zmm18
+        vpaddq	%zmm11, %zmm18, %zmm18
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm20, %zmm24
+        vprorq	$8, %zmm20, %zmm25
+        vpsrlq	$7, %zmm20, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm17, %zmm25
+        vprorq	$61, %zmm17, %zmm26
+        vpsrlq	$6, %zmm17, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm19, %zmm19
+        vpaddq	%zmm25, %zmm19, %zmm19
+        vpaddq	%zmm12, %zmm19, %zmm19
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm21, %zmm24
+        vprorq	$8, %zmm21, %zmm25
+        vpsrlq	$7, %zmm21, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm18, %zmm25
+        vprorq	$61, %zmm18, %zmm26
+        vpsrlq	$6, %zmm18, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm20, %zmm20
+        vpaddq	%zmm25, %zmm20, %zmm20
+        vpaddq	%zmm13, %zmm20, %zmm20
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm22, %zmm24
+        vprorq	$8, %zmm22, %zmm25
+        vpsrlq	$7, %zmm22, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm19, %zmm25
+        vprorq	$61, %zmm19, %zmm26
+        vpsrlq	$6, %zmm19, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm21, %zmm21
+        vpaddq	%zmm25, %zmm21, %zmm21
+        vpaddq	%zmm14, %zmm21, %zmm21
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm23, %zmm24
+        vprorq	$8, %zmm23, %zmm25
+        vpsrlq	$7, %zmm23, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm20, %zmm25
+        vprorq	$61, %zmm20, %zmm26
+        vpsrlq	$6, %zmm20, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm22, %zmm22
+        vpaddq	%zmm25, %zmm22, %zmm22
+        vpaddq	%zmm15, %zmm22, %zmm22
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm8, %zmm24
+        vprorq	$8, %zmm8, %zmm25
+        vpsrlq	$7, %zmm8, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm21, %zmm25
+        vprorq	$61, %zmm21, %zmm26
+        vpsrlq	$6, %zmm21, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm23, %zmm23
+        vpaddq	%zmm25, %zmm23, %zmm23
+        vpaddq	%zmm16, %zmm23, %zmm23
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        subl	$0x01, %eax
+        jnz	L_sha512_x8_xmss_prf_start
+        # Add the midstate back; the digest stays interleaved for F
+        vpbroadcastq	(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vmovdqu64	%zmm0, (%rdi)
+        vpbroadcastq	8(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vmovdqu64	%zmm1, 64(%rdi)
+        vpbroadcastq	16(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vmovdqu64	%zmm2, 128(%rdi)
+        vpbroadcastq	24(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rdi)
+        vpbroadcastq	32(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpbroadcastq	40(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rdi)
+        vpbroadcastq	48(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rdi)
+        vpbroadcastq	56(%rsi), %zmm24
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rdi)
+        vzeroupper
+        popq	%rbp
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha512_x8_XmssPrf_AVX512,.-Transform_Sha512_x8_XmssPrf_AVX512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_x8_XmssF_AVX512
+WC_ASM_ATT_HIDDEN(Transform_Sha512_x8_XmssF_AVX512)
+.type	Transform_Sha512_x8_XmssF_AVX512,@function
+.align	16
+Transform_Sha512_x8_XmssF_AVX512:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_x8_XmssF_AVX512
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_x8_XmssF_AVX512)
+.p2align	4
+_Transform_Sha512_x8_XmssF_AVX512:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        subq	$0x200, %rsp
+        leaq	L_avx512_sha512_x8_iv(%rip), %r9
+        # First block: the padding for F is zero, and then KEY
+        vpxorq	%zmm8, %zmm8, %zmm8
+        vpxorq	%zmm9, %zmm9, %zmm9
+        vpxorq	%zmm10, %zmm10, %zmm10
+        vpxorq	%zmm11, %zmm11, %zmm11
+        vpxorq	%zmm12, %zmm12, %zmm12
+        vpxorq	%zmm13, %zmm13, %zmm13
+        vpxorq	%zmm14, %zmm14, %zmm14
+        vpxorq	%zmm15, %zmm15, %zmm15
+        vmovdqu64	(%rsi), %zmm16
+        vmovdqu64	64(%rsi), %zmm17
+        vmovdqu64	128(%rsi), %zmm18
+        vmovdqu64	192(%rsi), %zmm19
+        vmovdqu64	256(%rsi), %zmm20
+        vmovdqu64	320(%rsi), %zmm21
+        vmovdqu64	384(%rsi), %zmm22
+        vmovdqu64	448(%rsi), %zmm23
+        vpbroadcastq	(%r9), %zmm0
+        vpbroadcastq	8(%r9), %zmm1
+        vpbroadcastq	16(%r9), %zmm2
+        vpbroadcastq	24(%r9), %zmm3
+        vpbroadcastq	32(%r9), %zmm4
+        vpbroadcastq	40(%r9), %zmm5
+        vpbroadcastq	48(%r9), %zmm6
+        vpbroadcastq	56(%r9), %zmm7
+        leaq	L_avx512_sha512_x8_k(%rip), %rbp
+        # Rounds 0-15: the schedule is the message block itself
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        movl	$4, %eax
+L_sha512_x8_xmss_f_blk1:
+        vprorq	$0x01, %zmm9, %zmm24
+        vprorq	$8, %zmm9, %zmm25
+        vpsrlq	$7, %zmm9, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm22, %zmm25
+        vprorq	$61, %zmm22, %zmm26
+        vpsrlq	$6, %zmm22, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm8, %zmm8
+        vpaddq	%zmm25, %zmm8, %zmm8
+        vpaddq	%zmm17, %zmm8, %zmm8
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm10, %zmm24
+        vprorq	$8, %zmm10, %zmm25
+        vpsrlq	$7, %zmm10, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm23, %zmm25
+        vprorq	$61, %zmm23, %zmm26
+        vpsrlq	$6, %zmm23, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm9, %zmm9
+        vpaddq	%zmm25, %zmm9, %zmm9
+        vpaddq	%zmm18, %zmm9, %zmm9
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm11, %zmm24
+        vprorq	$8, %zmm11, %zmm25
+        vpsrlq	$7, %zmm11, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm8, %zmm25
+        vprorq	$61, %zmm8, %zmm26
+        vpsrlq	$6, %zmm8, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm10, %zmm10
+        vpaddq	%zmm25, %zmm10, %zmm10
+        vpaddq	%zmm19, %zmm10, %zmm10
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm12, %zmm24
+        vprorq	$8, %zmm12, %zmm25
+        vpsrlq	$7, %zmm12, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm9, %zmm25
+        vprorq	$61, %zmm9, %zmm26
+        vpsrlq	$6, %zmm9, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm11, %zmm11
+        vpaddq	%zmm25, %zmm11, %zmm11
+        vpaddq	%zmm20, %zmm11, %zmm11
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm13, %zmm24
+        vprorq	$8, %zmm13, %zmm25
+        vpsrlq	$7, %zmm13, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm10, %zmm25
+        vprorq	$61, %zmm10, %zmm26
+        vpsrlq	$6, %zmm10, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm12, %zmm12
+        vpaddq	%zmm25, %zmm12, %zmm12
+        vpaddq	%zmm21, %zmm12, %zmm12
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm14, %zmm24
+        vprorq	$8, %zmm14, %zmm25
+        vpsrlq	$7, %zmm14, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm11, %zmm25
+        vprorq	$61, %zmm11, %zmm26
+        vpsrlq	$6, %zmm11, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm13, %zmm13
+        vpaddq	%zmm25, %zmm13, %zmm13
+        vpaddq	%zmm22, %zmm13, %zmm13
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm15, %zmm24
+        vprorq	$8, %zmm15, %zmm25
+        vpsrlq	$7, %zmm15, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm12, %zmm25
+        vprorq	$61, %zmm12, %zmm26
+        vpsrlq	$6, %zmm12, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm14, %zmm14
+        vpaddq	%zmm25, %zmm14, %zmm14
+        vpaddq	%zmm23, %zmm14, %zmm14
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm16, %zmm24
+        vprorq	$8, %zmm16, %zmm25
+        vpsrlq	$7, %zmm16, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm13, %zmm25
+        vprorq	$61, %zmm13, %zmm26
+        vpsrlq	$6, %zmm13, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm15, %zmm15
+        vpaddq	%zmm25, %zmm15, %zmm15
+        vpaddq	%zmm8, %zmm15, %zmm15
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$0x01, %zmm17, %zmm24
+        vprorq	$8, %zmm17, %zmm25
+        vpsrlq	$7, %zmm17, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm14, %zmm25
+        vprorq	$61, %zmm14, %zmm26
+        vpsrlq	$6, %zmm14, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm16, %zmm16
+        vpaddq	%zmm25, %zmm16, %zmm16
+        vpaddq	%zmm9, %zmm16, %zmm16
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm18, %zmm24
+        vprorq	$8, %zmm18, %zmm25
+        vpsrlq	$7, %zmm18, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm15, %zmm25
+        vprorq	$61, %zmm15, %zmm26
+        vpsrlq	$6, %zmm15, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm17, %zmm17
+        vpaddq	%zmm25, %zmm17, %zmm17
+        vpaddq	%zmm10, %zmm17, %zmm17
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm19, %zmm24
+        vprorq	$8, %zmm19, %zmm25
+        vpsrlq	$7, %zmm19, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm16, %zmm25
+        vprorq	$61, %zmm16, %zmm26
+        vpsrlq	$6, %zmm16, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm18, %zmm18
+        vpaddq	%zmm25, %zmm18, %zmm18
+        vpaddq	%zmm11, %zmm18, %zmm18
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm20, %zmm24
+        vprorq	$8, %zmm20, %zmm25
+        vpsrlq	$7, %zmm20, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm17, %zmm25
+        vprorq	$61, %zmm17, %zmm26
+        vpsrlq	$6, %zmm17, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm19, %zmm19
+        vpaddq	%zmm25, %zmm19, %zmm19
+        vpaddq	%zmm12, %zmm19, %zmm19
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm21, %zmm24
+        vprorq	$8, %zmm21, %zmm25
+        vpsrlq	$7, %zmm21, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm18, %zmm25
+        vprorq	$61, %zmm18, %zmm26
+        vpsrlq	$6, %zmm18, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm20, %zmm20
+        vpaddq	%zmm25, %zmm20, %zmm20
+        vpaddq	%zmm13, %zmm20, %zmm20
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm22, %zmm24
+        vprorq	$8, %zmm22, %zmm25
+        vpsrlq	$7, %zmm22, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm19, %zmm25
+        vprorq	$61, %zmm19, %zmm26
+        vpsrlq	$6, %zmm19, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm21, %zmm21
+        vpaddq	%zmm25, %zmm21, %zmm21
+        vpaddq	%zmm14, %zmm21, %zmm21
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm23, %zmm24
+        vprorq	$8, %zmm23, %zmm25
+        vpsrlq	$7, %zmm23, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm20, %zmm25
+        vprorq	$61, %zmm20, %zmm26
+        vpsrlq	$6, %zmm20, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm22, %zmm22
+        vpaddq	%zmm25, %zmm22, %zmm22
+        vpaddq	%zmm15, %zmm22, %zmm22
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm8, %zmm24
+        vprorq	$8, %zmm8, %zmm25
+        vpsrlq	$7, %zmm8, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm21, %zmm25
+        vprorq	$61, %zmm21, %zmm26
+        vpsrlq	$6, %zmm21, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm23, %zmm23
+        vpaddq	%zmm25, %zmm23, %zmm23
+        vpaddq	%zmm16, %zmm23, %zmm23
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        subl	$0x01, %eax
+        jnz	L_sha512_x8_xmss_f_blk1
+        # Hold on to the chaining value: it is needed again at the end
+        vpbroadcastq	(%r9), %zmm24
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vmovdqu64	%zmm0, (%rsp)
+        vpbroadcastq	8(%r9), %zmm24
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vmovdqu64	%zmm1, 64(%rsp)
+        vpbroadcastq	16(%r9), %zmm24
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vmovdqu64	%zmm2, 128(%rsp)
+        vpbroadcastq	24(%r9), %zmm24
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rsp)
+        vpbroadcastq	32(%r9), %zmm24
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rsp)
+        vpbroadcastq	40(%r9), %zmm24
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rsp)
+        vpbroadcastq	48(%r9), %zmm24
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rsp)
+        vpbroadcastq	56(%r9), %zmm24
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rsp)
+        # Second block: tmp ^ BM, then the padding for 192 bytes
+        vmovdqu64	(%rdi), %zmm24
+        vpxorq	(%rdx), %zmm24, %zmm8
+        vmovdqu64	64(%rdi), %zmm24
+        vpxorq	64(%rdx), %zmm24, %zmm9
+        vmovdqu64	128(%rdi), %zmm24
+        vpxorq	128(%rdx), %zmm24, %zmm10
+        vmovdqu64	192(%rdi), %zmm24
+        vpxorq	192(%rdx), %zmm24, %zmm11
+        vmovdqu64	256(%rdi), %zmm24
+        vpxorq	256(%rdx), %zmm24, %zmm12
+        vmovdqu64	320(%rdi), %zmm24
+        vpxorq	320(%rdx), %zmm24, %zmm13
+        vmovdqu64	384(%rdi), %zmm24
+        vpxorq	384(%rdx), %zmm24, %zmm14
+        vmovdqu64	448(%rdi), %zmm24
+        vpxorq	448(%rdx), %zmm24, %zmm15
+        vpbroadcastq	L_avx512_sha512_x8_pad80q(%rip), %zmm16
+        vpxorq	%zmm17, %zmm17, %zmm17
+        vpxorq	%zmm18, %zmm18, %zmm18
+        vpxorq	%zmm19, %zmm19, %zmm19
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vpxorq	%zmm21, %zmm21, %zmm21
+        vpxorq	%zmm22, %zmm22, %zmm22
+        vpbroadcastq	L_avx512_sha512_x8_len1536(%rip), %zmm23
+        leaq	L_avx512_sha512_x8_k(%rip), %rbp
+        # Rounds 0-15: the schedule is the message block itself
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        movl	$4, %eax
+L_sha512_x8_xmss_f_blk2:
+        vprorq	$0x01, %zmm9, %zmm24
+        vprorq	$8, %zmm9, %zmm25
+        vpsrlq	$7, %zmm9, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm22, %zmm25
+        vprorq	$61, %zmm22, %zmm26
+        vpsrlq	$6, %zmm22, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm8, %zmm8
+        vpaddq	%zmm25, %zmm8, %zmm8
+        vpaddq	%zmm17, %zmm8, %zmm8
+        vpaddq	(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm8, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm10, %zmm24
+        vprorq	$8, %zmm10, %zmm25
+        vpsrlq	$7, %zmm10, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm23, %zmm25
+        vprorq	$61, %zmm23, %zmm26
+        vpsrlq	$6, %zmm23, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm9, %zmm9
+        vpaddq	%zmm25, %zmm9, %zmm9
+        vpaddq	%zmm18, %zmm9, %zmm9
+        vpaddq	8(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm9, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm11, %zmm24
+        vprorq	$8, %zmm11, %zmm25
+        vpsrlq	$7, %zmm11, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm8, %zmm25
+        vprorq	$61, %zmm8, %zmm26
+        vpsrlq	$6, %zmm8, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm10, %zmm10
+        vpaddq	%zmm25, %zmm10, %zmm10
+        vpaddq	%zmm19, %zmm10, %zmm10
+        vpaddq	16(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm10, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm12, %zmm24
+        vprorq	$8, %zmm12, %zmm25
+        vpsrlq	$7, %zmm12, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm9, %zmm25
+        vprorq	$61, %zmm9, %zmm26
+        vpsrlq	$6, %zmm9, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm11, %zmm11
+        vpaddq	%zmm25, %zmm11, %zmm11
+        vpaddq	%zmm20, %zmm11, %zmm11
+        vpaddq	24(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm11, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm13, %zmm24
+        vprorq	$8, %zmm13, %zmm25
+        vpsrlq	$7, %zmm13, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm10, %zmm25
+        vprorq	$61, %zmm10, %zmm26
+        vpsrlq	$6, %zmm10, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm12, %zmm12
+        vpaddq	%zmm25, %zmm12, %zmm12
+        vpaddq	%zmm21, %zmm12, %zmm12
+        vpaddq	32(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm12, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm14, %zmm24
+        vprorq	$8, %zmm14, %zmm25
+        vpsrlq	$7, %zmm14, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm11, %zmm25
+        vprorq	$61, %zmm11, %zmm26
+        vpsrlq	$6, %zmm11, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm13, %zmm13
+        vpaddq	%zmm25, %zmm13, %zmm13
+        vpaddq	%zmm22, %zmm13, %zmm13
+        vpaddq	40(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm13, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm15, %zmm24
+        vprorq	$8, %zmm15, %zmm25
+        vpsrlq	$7, %zmm15, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm12, %zmm25
+        vprorq	$61, %zmm12, %zmm26
+        vpsrlq	$6, %zmm12, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm14, %zmm14
+        vpaddq	%zmm25, %zmm14, %zmm14
+        vpaddq	%zmm23, %zmm14, %zmm14
+        vpaddq	48(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm14, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm16, %zmm24
+        vprorq	$8, %zmm16, %zmm25
+        vpsrlq	$7, %zmm16, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm13, %zmm25
+        vprorq	$61, %zmm13, %zmm26
+        vpsrlq	$6, %zmm13, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm15, %zmm15
+        vpaddq	%zmm25, %zmm15, %zmm15
+        vpaddq	%zmm8, %zmm15, %zmm15
+        vpaddq	56(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm15, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$0x01, %zmm17, %zmm24
+        vprorq	$8, %zmm17, %zmm25
+        vpsrlq	$7, %zmm17, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm14, %zmm25
+        vprorq	$61, %zmm14, %zmm26
+        vpsrlq	$6, %zmm14, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm16, %zmm16
+        vpaddq	%zmm25, %zmm16, %zmm16
+        vpaddq	%zmm9, %zmm16, %zmm16
+        vpaddq	64(%rbp){1to8}, %zmm7, %zmm7
+        vpaddq	%zmm16, %zmm7, %zmm7
+        vpaddq	%zmm7, %zmm3, %zmm3
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe2, %zmm6, %zmm4, %zmm27
+        vprorq	$14, %zmm4, %zmm24
+        vprorq	$18, %zmm4, %zmm25
+        vprorq	$41, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$28, %zmm0, %zmm24
+        vprorq	$34, %zmm0, %zmm25
+        vprorq	$39, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe8, %zmm2, %zmm0, %zmm27
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vprorq	$0x01, %zmm18, %zmm24
+        vprorq	$8, %zmm18, %zmm25
+        vpsrlq	$7, %zmm18, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm15, %zmm25
+        vprorq	$61, %zmm15, %zmm26
+        vpsrlq	$6, %zmm15, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm17, %zmm17
+        vpaddq	%zmm25, %zmm17, %zmm17
+        vpaddq	%zmm10, %zmm17, %zmm17
+        vpaddq	72(%rbp){1to8}, %zmm6, %zmm6
+        vpaddq	%zmm17, %zmm6, %zmm6
+        vpaddq	%zmm6, %zmm2, %zmm2
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe2, %zmm5, %zmm3, %zmm27
+        vprorq	$14, %zmm3, %zmm24
+        vprorq	$18, %zmm3, %zmm25
+        vprorq	$41, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$28, %zmm7, %zmm24
+        vprorq	$34, %zmm7, %zmm25
+        vprorq	$39, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe8, %zmm1, %zmm7, %zmm27
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vprorq	$0x01, %zmm19, %zmm24
+        vprorq	$8, %zmm19, %zmm25
+        vpsrlq	$7, %zmm19, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm16, %zmm25
+        vprorq	$61, %zmm16, %zmm26
+        vpsrlq	$6, %zmm16, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm18, %zmm18
+        vpaddq	%zmm25, %zmm18, %zmm18
+        vpaddq	%zmm11, %zmm18, %zmm18
+        vpaddq	80(%rbp){1to8}, %zmm5, %zmm5
+        vpaddq	%zmm18, %zmm5, %zmm5
+        vpaddq	%zmm5, %zmm1, %zmm1
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe2, %zmm4, %zmm2, %zmm27
+        vprorq	$14, %zmm2, %zmm24
+        vprorq	$18, %zmm2, %zmm25
+        vprorq	$41, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$28, %zmm6, %zmm24
+        vprorq	$34, %zmm6, %zmm25
+        vprorq	$39, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe8, %zmm0, %zmm6, %zmm27
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vprorq	$0x01, %zmm20, %zmm24
+        vprorq	$8, %zmm20, %zmm25
+        vpsrlq	$7, %zmm20, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm17, %zmm25
+        vprorq	$61, %zmm17, %zmm26
+        vpsrlq	$6, %zmm17, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm19, %zmm19
+        vpaddq	%zmm25, %zmm19, %zmm19
+        vpaddq	%zmm12, %zmm19, %zmm19
+        vpaddq	88(%rbp){1to8}, %zmm4, %zmm4
+        vpaddq	%zmm19, %zmm4, %zmm4
+        vpaddq	%zmm4, %zmm0, %zmm0
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe2, %zmm3, %zmm1, %zmm27
+        vprorq	$14, %zmm1, %zmm24
+        vprorq	$18, %zmm1, %zmm25
+        vprorq	$41, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$28, %zmm5, %zmm24
+        vprorq	$34, %zmm5, %zmm25
+        vprorq	$39, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe8, %zmm7, %zmm5, %zmm27
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vprorq	$0x01, %zmm21, %zmm24
+        vprorq	$8, %zmm21, %zmm25
+        vpsrlq	$7, %zmm21, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm18, %zmm25
+        vprorq	$61, %zmm18, %zmm26
+        vpsrlq	$6, %zmm18, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm20, %zmm20
+        vpaddq	%zmm25, %zmm20, %zmm20
+        vpaddq	%zmm13, %zmm20, %zmm20
+        vpaddq	96(%rbp){1to8}, %zmm3, %zmm3
+        vpaddq	%zmm20, %zmm3, %zmm3
+        vpaddq	%zmm3, %zmm7, %zmm7
+        vmovdqa64	%zmm1, %zmm27
+        vpternlogq	$0xe2, %zmm2, %zmm0, %zmm27
+        vprorq	$14, %zmm0, %zmm24
+        vprorq	$18, %zmm0, %zmm25
+        vprorq	$41, %zmm0, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm7, %zmm7
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm7, %zmm7
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$28, %zmm4, %zmm24
+        vprorq	$34, %zmm4, %zmm25
+        vprorq	$39, %zmm4, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm5, %zmm27
+        vpternlogq	$0xe8, %zmm6, %zmm4, %zmm27
+        vpaddq	%zmm27, %zmm3, %zmm3
+        vpaddq	%zmm24, %zmm3, %zmm3
+        vprorq	$0x01, %zmm22, %zmm24
+        vprorq	$8, %zmm22, %zmm25
+        vpsrlq	$7, %zmm22, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm19, %zmm25
+        vprorq	$61, %zmm19, %zmm26
+        vpsrlq	$6, %zmm19, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm21, %zmm21
+        vpaddq	%zmm25, %zmm21, %zmm21
+        vpaddq	%zmm14, %zmm21, %zmm21
+        vpaddq	104(%rbp){1to8}, %zmm2, %zmm2
+        vpaddq	%zmm21, %zmm2, %zmm2
+        vpaddq	%zmm2, %zmm6, %zmm6
+        vmovdqa64	%zmm0, %zmm27
+        vpternlogq	$0xe2, %zmm1, %zmm7, %zmm27
+        vprorq	$14, %zmm7, %zmm24
+        vprorq	$18, %zmm7, %zmm25
+        vprorq	$41, %zmm7, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm6, %zmm6
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm6, %zmm6
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$28, %zmm3, %zmm24
+        vprorq	$34, %zmm3, %zmm25
+        vprorq	$39, %zmm3, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm4, %zmm27
+        vpternlogq	$0xe8, %zmm5, %zmm3, %zmm27
+        vpaddq	%zmm27, %zmm2, %zmm2
+        vpaddq	%zmm24, %zmm2, %zmm2
+        vprorq	$0x01, %zmm23, %zmm24
+        vprorq	$8, %zmm23, %zmm25
+        vpsrlq	$7, %zmm23, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm20, %zmm25
+        vprorq	$61, %zmm20, %zmm26
+        vpsrlq	$6, %zmm20, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm22, %zmm22
+        vpaddq	%zmm25, %zmm22, %zmm22
+        vpaddq	%zmm15, %zmm22, %zmm22
+        vpaddq	112(%rbp){1to8}, %zmm1, %zmm1
+        vpaddq	%zmm22, %zmm1, %zmm1
+        vpaddq	%zmm1, %zmm5, %zmm5
+        vmovdqa64	%zmm7, %zmm27
+        vpternlogq	$0xe2, %zmm0, %zmm6, %zmm27
+        vprorq	$14, %zmm6, %zmm24
+        vprorq	$18, %zmm6, %zmm25
+        vprorq	$41, %zmm6, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm5, %zmm5
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm5, %zmm5
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$28, %zmm2, %zmm24
+        vprorq	$34, %zmm2, %zmm25
+        vprorq	$39, %zmm2, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm3, %zmm27
+        vpternlogq	$0xe8, %zmm4, %zmm2, %zmm27
+        vpaddq	%zmm27, %zmm1, %zmm1
+        vpaddq	%zmm24, %zmm1, %zmm1
+        vprorq	$0x01, %zmm8, %zmm24
+        vprorq	$8, %zmm8, %zmm25
+        vpsrlq	$7, %zmm8, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vprorq	$19, %zmm21, %zmm25
+        vprorq	$61, %zmm21, %zmm26
+        vpsrlq	$6, %zmm21, %zmm27
+        vpternlogq	$0x96, %zmm27, %zmm26, %zmm25
+        vpaddq	%zmm24, %zmm23, %zmm23
+        vpaddq	%zmm25, %zmm23, %zmm23
+        vpaddq	%zmm16, %zmm23, %zmm23
+        vpaddq	120(%rbp){1to8}, %zmm0, %zmm0
+        vpaddq	%zmm23, %zmm0, %zmm0
+        vpaddq	%zmm0, %zmm4, %zmm4
+        vmovdqa64	%zmm6, %zmm27
+        vpternlogq	$0xe2, %zmm7, %zmm5, %zmm27
+        vprorq	$14, %zmm5, %zmm24
+        vprorq	$18, %zmm5, %zmm25
+        vprorq	$41, %zmm5, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vpaddq	%zmm27, %zmm4, %zmm4
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm4, %zmm4
+        vpaddq	%zmm24, %zmm0, %zmm0
+        vprorq	$28, %zmm1, %zmm24
+        vprorq	$34, %zmm1, %zmm25
+        vprorq	$39, %zmm1, %zmm26
+        vpternlogq	$0x96, %zmm26, %zmm25, %zmm24
+        vmovdqa64	%zmm2, %zmm27
+        vpternlogq	$0xe8, %zmm3, %zmm1, %zmm27
+        vpaddq	%zmm27, %zmm0, %zmm0
+        vpaddq	%zmm24, %zmm0, %zmm0
+        addq	$0x80, %rbp
+        subl	$0x01, %eax
+        jnz	L_sha512_x8_xmss_f_blk2
+        # Add the chaining value back, leaving the chain value in place
+        vpaddq	(%rsp), %zmm0, %zmm0
+        vmovdqu64	%zmm0, (%rdi)
+        vpaddq	64(%rsp), %zmm1, %zmm1
+        vmovdqu64	%zmm1, 64(%rdi)
+        vpaddq	128(%rsp), %zmm2, %zmm2
+        vmovdqu64	%zmm2, 128(%rdi)
+        vpaddq	192(%rsp), %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rdi)
+        vpaddq	256(%rsp), %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpaddq	320(%rsp), %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rdi)
+        vpaddq	384(%rsp), %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rdi)
+        vpaddq	448(%rsp), %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rdi)
+        vzeroupper
+        addq	$0x200, %rsp
+        popq	%rbp
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha512_x8_XmssF_AVX512,.-Transform_Sha512_x8_XmssF_AVX512
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_HAVE_XMSS */
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* WOLFSSL_HAVE_XMSS */
 #endif /* HAVE_INTEL_AVX2 */
 
 #if defined(__linux__) && defined(__ELF__)

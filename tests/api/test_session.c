@@ -1525,6 +1525,179 @@ int test_wolfSSL_ticket_keys(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(SINGLE_THREADED)
+
+#define TEST_TICKET_KEYS_ROUNDS     20000
+#define TEST_TICKET_KEYS_WRITER_MAX 1000000
+#define TEST_TICKET_KEYS_BURST      256
+#define TEST_TICKET_KEYS_WAIT_TRIES 200
+#define TEST_TICKET_KEYS_WAIT_MS    1
+
+static WOLFSSL_CTX* ticket_keys_ctx = NULL;
+static byte ticket_keys_a[WOLFSSL_TICKET_KEYS_SZ];
+static byte ticket_keys_b[WOLFSSL_TICKET_KEYS_SZ];
+static int  ticket_keys_set_err = 0;
+
+/* Guards the fields below, which both threads touch while running. */
+static wolfSSL_Mutex ticket_keys_lock;
+static int  ticket_keys_writer_started = 0;
+static int  ticket_keys_reader_done = 0;
+
+static THREAD_RETURN WOLFSSL_THREAD test_ticket_keys_writer(void* args)
+{
+    int  done = 0;
+    int  i;
+    long rounds = 0;
+
+    (void)args;
+
+    if (wc_LockMutex(&ticket_keys_lock) == 0) {
+        ticket_keys_writer_started = 1;
+        wc_UnLockMutex(&ticket_keys_lock);
+    }
+
+    /* Keep rotating until the reader is done so the loops overlap. The
+     * rotations run in bursts to keep the bookkeeping out of the loop. */
+    while ((!done) && (rounds < TEST_TICKET_KEYS_WRITER_MAX)) {
+        for (i = 0; i < TEST_TICKET_KEYS_BURST; i++) {
+            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+                    ticket_keys_a, WOLFSSL_TICKET_KEYS_SZ)
+                    != WOLFSSL_SUCCESS) {
+                ticket_keys_set_err = 1;
+            }
+            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+                    ticket_keys_b, WOLFSSL_TICKET_KEYS_SZ)
+                    != WOLFSSL_SUCCESS) {
+                ticket_keys_set_err = 1;
+            }
+        }
+        rounds += TEST_TICKET_KEYS_BURST;
+
+        if (wc_LockMutex(&ticket_keys_lock) == 0) {
+            done = ticket_keys_reader_done;
+            wc_UnLockMutex(&ticket_keys_lock);
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* Read the keys once and record which key set came back. */
+static int test_ticket_keys_read(int* sawA, int* sawB, int* mixed)
+{
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+    int ret = 0;
+
+    if (wolfSSL_CTX_get_tlsext_ticket_keys(ticket_keys_ctx, keys,
+            WOLFSSL_TICKET_KEYS_SZ) != WOLFSSL_SUCCESS) {
+        ret = -1;
+    }
+    else if (XMEMCMP(keys, ticket_keys_a, sizeof(keys)) == 0) {
+        *sawA = 1;
+    }
+    else if (XMEMCMP(keys, ticket_keys_b, sizeof(keys)) == 0) {
+        *sawB = 1;
+    }
+    /* Every read returns one key set whole, never part of each. */
+    else {
+        *mixed = 1;
+    }
+
+    return ret;
+}
+#endif
+
+int test_wolfSSL_ticket_keys_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(SINGLE_THREADED)
+    THREAD_TYPE thread;
+    func_args args;
+    int lockInit = 0;
+    int started = 0;
+    int sawA = 0;
+    int sawB = 0;
+    int getErr = 0;
+    int mixed = 0;
+    int i;
+
+    XMEMSET(&args, 0, sizeof(args));
+    XMEMSET(ticket_keys_a, 0xa5, sizeof(ticket_keys_a));
+    XMEMSET(ticket_keys_b, 0x5c, sizeof(ticket_keys_b));
+    ticket_keys_writer_started = 0;
+    ticket_keys_reader_done = 0;
+    ticket_keys_set_err = 0;
+
+    if (wc_InitMutex(&ticket_keys_lock) == 0) {
+        lockInit = 1;
+    }
+    ExpectIntEQ(lockInit, 1);
+    ExpectNotNull(ticket_keys_ctx =
+        wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
+        ticket_keys_a, WOLFSSL_TICKET_KEYS_SZ), WOLFSSL_SUCCESS);
+
+    if ((lockInit == 1) && (ticket_keys_ctx != NULL)) {
+        start_thread(test_ticket_keys_writer, &args, &thread);
+
+        /* Start the reads only once the writer is rotating keys. Sleep
+         * rather than spin so the writer gets scheduled on one core. */
+        for (i = 0; (i < TEST_TICKET_KEYS_WAIT_TRIES) && (!started); i++) {
+            if (wc_LockMutex(&ticket_keys_lock) == 0) {
+                started = ticket_keys_writer_started;
+                wc_UnLockMutex(&ticket_keys_lock);
+            }
+            if (!started) {
+                XSLEEP_MS(TEST_TICKET_KEYS_WAIT_MS);
+            }
+        }
+
+        for (i = 0; i < TEST_TICKET_KEYS_ROUNDS; i++) {
+            if (test_ticket_keys_read(&sawA, &sawB, &mixed) != 0) {
+                getErr = 1;
+                break;
+            }
+            if (mixed) {
+                break;
+            }
+        }
+
+        /* Top up until both key sets have been seen, so a clean run
+         * above cannot be one where the loops never overlapped. */
+        for (i = 0; (i < TEST_TICKET_KEYS_WAIT_TRIES) && (!getErr) &&
+                (!mixed) && ((!sawA) || (!sawB)); i++) {
+            XSLEEP_MS(TEST_TICKET_KEYS_WAIT_MS);
+            if (test_ticket_keys_read(&sawA, &sawB, &mixed) != 0) {
+                getErr = 1;
+            }
+        }
+
+        if (wc_LockMutex(&ticket_keys_lock) == 0) {
+            ticket_keys_reader_done = 1;
+            wc_UnLockMutex(&ticket_keys_lock);
+        }
+        join_thread(thread);
+    }
+
+    ExpectIntEQ(getErr, 0);
+    ExpectIntEQ(mixed, 0);
+    ExpectIntEQ(ticket_keys_set_err, 0);
+
+    ExpectIntEQ(started, 1);
+    ExpectIntEQ(sawA, 1);
+    ExpectIntEQ(sawB, 1);
+
+    wolfSSL_CTX_free(ticket_keys_ctx);
+    ticket_keys_ctx = NULL;
+    if (lockInit == 1) {
+        wc_FreeMutex(&ticket_keys_lock);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*/
 /* SESSION ex_data new index                                                  */
 /*----------------------------------------------------------------------------*/
@@ -1739,3 +1912,1048 @@ int test_wolfSSL_GetSessionAtIndex(void)
 
 #endif /* SESSION_INDEX && HAVE_SESSION_TICKET && !NO_SESSION_CACHE &&
         * !NO_WOLFSSL_CLIENT && !NO_TLS */
+
+/* RFC 9846 Appendix C.4: client applications should not offer tickets across
+ * connections meant to be uncorrelated.  wolfSSL_SetServerID() is how an
+ * application keeps such connections apart, so a shorter ID must not match a
+ * cached entry that merely starts with the same bytes. */
+int test_wolfSSL_client_cache_id_prefix(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
+    static const byte prefix[] = { 'w', 'o', 'l', 'f', 'S', 'S', 'L', ':' };
+    byte   id[sizeof(prefix) + 4];
+    byte   sessId[ID_LEN];
+    word32 i;
+    /* The cache row is picked from a hash of the ID, so the prefix and any
+     * one long ID rarely share a row.  Every long ID here starts with the
+     * prefix, and there are enough of them to cover all rows, so the prefix
+     * lookup lands on a row holding one of them. */
+    const word32 fill = 4096;
+
+    /* TLS 1.2 so the client has a complete session to cache as soon as the
+     * handshake is done, with or without session tickets. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->isSetup, 1);
+
+    XMEMCPY(id, prefix, sizeof(prefix));
+    XMEMSET(sessId, 0, sizeof(sessId));
+    for (i = 0; i < fill && EXPECT_SUCCESS(); i++) {
+        ClientSession* entry = NULL;
+
+        c32toa(i, id + sizeof(prefix));
+        c32toa(i, sessId);
+        ExpectIntEQ(wolfSSL_SetServerID(ssl_c, id, (int)sizeof(id), 1),
+            WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(ssl_c->session->sessionID, sessId, ID_LEN);
+            XMEMCPY(ssl_c->session->altSessionID, sessId, ID_LEN);
+            ssl_c->session->sessionIDSz = ID_LEN;
+        }
+        ExpectIntEQ(AddSessionToCache(ctx_c, ssl_c->session, sessId, ID_LEN,
+            NULL, WOLFSSL_CLIENT_END, 0, &entry), 0);
+        ExpectNotNull(entry);
+    }
+
+    /* The prefix is a distinct partition key: no cached session for it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, prefix, (int)sizeof(prefix), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    ExpectIntEQ(ssl->session->idLen, (int)sizeof(prefix));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Control: the ID it was cached under still finds it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 1);
+    wolfSSL_free(ssl);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_client_cache_id_overwrite(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_SESSION_CACHE_REF) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CTX* ctx_c2 = NULL;
+    WOLFSSL_CTX* ctx_s2 = NULL;
+    WOLFSSL* ssl_c2 = NULL;
+    WOLFSSL* ssl_s2 = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sessA = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    byte idA[ID_LEN];
+    byte secretA[SECRET_LEN];
+    byte secretB[SECRET_LEN];
+
+    XMEMSET(idA, 0, sizeof(idA));
+    XMEMSET(secretA, 0, sizeof(secretA));
+    XMEMSET(secretB, 0, sizeof(secretB));
+
+    /* A second server, on its own certificate and its own context. It runs
+     * first so no unrelated cache write falls between the handle below being
+     * issued and the overwrite it has to survive. */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c2, &ctx_s2, &ssl_c2, &ssl_s2,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(ssl_c2->session->isSetup, 1);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(secretB, ssl_c2->session->masterSecret, SECRET_LEN);
+    }
+
+    /* TLS 1.2 so the session ID names the cache entry and the client has a
+     * complete session as soon as the handshake is done. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->isSetup, 1);
+    ExpectIntEQ(ssl_c->session->haveAltSessionID, 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(idA, ssl_c->session->sessionID, ID_LEN);
+        XMEMCPY(secretA, ssl_c->session->masterSecret, SECRET_LEN);
+    }
+    ExpectIntNE(XMEMCMP(secretA, secretB, SECRET_LEN), 0);
+
+    /* The handle the legacy resumption flow hands out. */
+    ExpectNotNull(sessA = wolfSSL_get_session(ssl_c));
+
+    /* Control: it resolves to the session it was issued for. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Control: re-adding the same session leaves the handle usable. */
+    ExpectIntEQ(AddSessionToCache(ctx_c, ssl_c->session, idA, ID_LEN, NULL,
+        WOLFSSL_CLIENT_END, 0, NULL), 0);
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* The second server names the session ID it saw on the first connection.
+     * A server picks its own session ID and sends it in clear, so this needs
+     * no special capability. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(ssl_c2->session->sessionID, idA, ID_LEN);
+        ssl_c2->session->sessionIDSz = ID_LEN;
+    }
+
+    /* Positive control: the handle still resolves here, so the assertion
+     * below cannot pass on an already-recycled slot. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sessA), WOLFSSL_SUCCESS);
+    ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectIntEQ(AddSessionToCache(ctx_c2, ssl_c2->session, idA, ID_LEN, NULL,
+        WOLFSSL_CLIENT_END, 0, NULL), 0);
+
+    /* The handle must not resume the second server's session: an abbreviated
+     * handshake carries no certificate, so nothing else identifies the peer. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    if (wolfSSL_set_session(ssl, sessA) == WOLFSSL_SUCCESS) {
+        ExpectBufEQ(ssl->session->masterSecret, secretA, SECRET_LEN);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_flush_sessions(ctx_c, (long)-1);
+
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c2);
+    wolfSSL_CTX_free(ctx_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) && \
+    !defined(SESSION_CACHE_DYNAMIC_MEM) && !defined(TITAN_SESSION_CACHE) && \
+    !defined(HUGE_SESSION_CACHE)
+/* Several tests to ensure persistent session cache is saved and restored
+ * with expected behavior. */
+#include <wolfssl/ssl_sess.h>
+
+#if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+static int test_rem_sess_cb_count = 0;
+
+static void test_rem_sess_cb(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* sess)
+{
+    (void)ctx; (void)sess;
+    WOLFSSL_MSG_EX("info: test test_rem_sess_cb called: %d",
+                   test_rem_sess_cb_count);
+    test_rem_sess_cb_count++;
+}
+#endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+struct sess_cache_t {
+    cache_header_t hdr;
+    SessionRow     s_rows[SESSION_ROWS];
+    #ifndef NO_CLIENT_CACHE
+    ClientRow      c_rows[CLIENT_SESSION_ROWS];
+    #endif /* !NO_CLIENT_CACHE */
+};
+
+typedef struct sess_cache_t sess_cache_t;
+
+/* Set the session cache to canary values for testing.
+ * Will be checked later in test_sanity_sessions(). */
+static void test_set_sessions(sess_cache_t * cache_mem)
+{
+    size_t i = 0;
+    size_t j = 0;
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        SessionRow * row = &cache_mem->s_rows[i];
+        for (j = 0; j < SESSIONS_PER_ROW; ++j) {
+            WOLFSSL_SESSION * s = &row->Sessions[j];
+            s->timeout = 1;
+            s->bornOn = 0;
+            /* label sessions with something predictable */
+            s->sessionIDSz = 2;
+            s->sessionID[0] = (byte)i;
+            s->sessionID[1] = (byte)j;
+            /* set type, ticketLen, rem_sess_cb, heap, peer, etc to test
+             * canary values. These should be sanitized on session restore. */
+            s->type = WOLFSSL_SESSION_TYPE_UNKNOWN;
+            #ifdef HAVE_SESSION_TICKET
+            s->ticketLen = SESSION_TICKET_LEN + 1;
+            s->ticketLenAlloc = 1;
+            #endif /* HAVE_SESSION_TICKET */
+            #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+            s->rem_sess_cb = test_rem_sess_cb;
+            #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+            s->heap = (void *)0x77;
+            #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+            s->peer = (WOLFSSL_X509 *)0x77;
+            #endif /* SESSION_CERTS && OPENSSL_EXTRA */
+            #ifdef HAVE_EX_DATA
+            XMEMSET(&s->ex_data, 0x77, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+            s->ownExData = 1;
+            #endif /* HAVE_EX_DATA */
+        }
+    }
+}
+
+#define field_null_or_fail(what, s, name, fld) do {                       \
+    if ((s)->fld != NULL) {                                               \
+        WOLFSSL_MSG_EX("error: %s: s = %p, id = 0x%02x%02x, %s = %p",     \
+                       (what), (s), (s)->sessionID[0], (s)->sessionID[1], \
+                       (name), (s)->fld);                                 \
+        ret = -1;                                                         \
+        goto sanity_fail;                                                 \
+    }                                                                     \
+} while (0)
+
+/* sanity check the restored session cache.
+ * return  0 on success
+ * return -1 on error */
+static int test_sanity_sessions(const sess_cache_t * cache_mem,
+                                const char * what)
+{
+    int    ret = -1;
+    size_t i = 0;
+    size_t j = 0;
+    (void)what; /* only used in WOLFSSL_MSG_EX */
+
+    /* walk sessions, check for expected values */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        const SessionRow * row = &cache_mem->s_rows[i];
+        for (j = 0; j < SESSIONS_PER_ROW; ++j) {
+            const WOLFSSL_SESSION *        s = &row->Sessions[j];
+            #ifdef HAVE_EX_DATA
+            const WOLFSSL_CRYPTO_EX_DATA * ex_data = &s->ex_data;
+            size_t                         k = 0;
+            #endif /* HAVE_EX_DATA */
+
+            #ifdef HAVE_SESSION_TICKET
+            if (s->ticketLenAlloc != 0 ||
+                s->ticketLen > SESSION_TICKET_LEN) {
+                WOLFSSL_MSG_EX("error: %s: s = %p, id = 0x%02x%02x: "
+                               "ticketLenAlloc = %d, ticketLen = %d\n",
+                               what, s,
+                               s->sessionID[0], s->sessionID[1],
+                               s->ticketLenAlloc, s->ticketLen);
+                ret = -1;
+                goto sanity_fail;
+            }
+            #endif /* HAVE_SESSION_TICKET */
+
+            if (s->type != WOLFSSL_SESSION_TYPE_CACHE) {
+                WOLFSSL_MSG_EX("error: %s: s = %p, id = 0x%02x%02x: "
+                               "type not cache: 0x%02x", what, s,
+                               s->sessionID[0], s->sessionID[1],
+                               s->type);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            if (s->sessionIDSz != 2) {
+                WOLFSSL_MSG_EX("error: %s: s = %p: got id sz = %d"
+                               ", expected id sz = 2", what,
+                               s, s->sessionIDSz);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            if (s->sessionID[0] != (byte)i ||
+                s->sessionID[1] != (byte)j) {
+                WOLFSSL_MSG_EX("error: %s: s = %p, got id = 0x%02x%02x:"
+                               ", expected id = 0x%02x%02x", what, s,
+                               s->sessionID[0], s->sessionID[1],
+                               (byte)i, (byte)j);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            /* all the remaining fields should have been sanitized as null */
+            field_null_or_fail(what, s, "heap", heap);
+            #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+            field_null_or_fail(what, s, "peer", peer);
+            #endif /* SESSION_CERTS && OPENSSL_EXTRA */
+            #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+            field_null_or_fail(what, s, "rem_sess_cb", rem_sess_cb);
+            #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+            #ifdef HAVE_EX_DATA
+            /* The sane default ex_data state is:
+             *   - s->ownExData == 1
+             *   - s->ex_data* zeroed. */
+            if (s->ownExData != 1) {
+                WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x, ownExData = %d",
+                               s, s->sessionID[0], s->sessionID[1],
+                               s->ownExData);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            for (k = 0; k < MAX_EX_DATA; ++k) {
+                if (ex_data->ex_data[k]
+                    #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+                    || ex_data->ex_data_cleanup_routines[k]
+                    #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+                    ) {
+                    WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x:"
+                                   "ex_data[%zu] not null", s,
+                                   s->sessionID[0], s->sessionID[1], k);
+                    ret = -1;
+                    goto sanity_fail;
+                }
+            } /* for k */
+            #endif /* HAVE_EX_DATA */
+        } /* for j */
+    } /* for i */
+
+    ret = 0;
+sanity_fail:
+    return ret;
+}
+
+/* Tests mem[save, restore]_session_cache.
+ *
+ * returns  -1 on err
+ * returns   0 on success
+ *  */
+static int test_mem_session_cache(void)
+{
+    int             ret = -1;
+    int             mem_sz = 0;
+    sess_cache_t *  cache_mem = NULL;
+    int             expected_mem_sz = 0;
+    #ifndef NO_CLIENT_CACHE
+    ClientRow *     c_rows = NULL;
+    #endif /* !NO_CLIENT_CACHE */
+    int             rst_err = 0;
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
+    int             i = 0;
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* reset callback count */
+    test_rem_sess_cb_count = 0;
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    /* allocate scratch copy */
+    cache_mem = (sess_cache_t *)XMALLOC(sizeof(sess_cache_t), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (cache_mem == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
+        return -1;
+    }
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    expected_mem_sz = (int)(sizeof(cache_mem->s_rows) + sizeof(cache_mem->hdr));
+    #ifndef NO_CLIENT_CACHE
+    expected_mem_sz += (int)sizeof(cache_mem->c_rows);
+    #endif /* NO_CLIENT_CACHE */
+
+    /* get session cache size, compare to expected result */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != expected_mem_sz) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %d", mem_sz,
+                       expected_mem_sz);
+        goto cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* allocate scratch ClientCache */
+    c_rows = (ClientRow *)XMALLOC(sizeof(ClientRow) * CLIENT_SESSION_ROWS,
+                                      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c_rows == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed",
+                       sizeof(ClientRow) * CLIENT_SESSION_ROWS);
+        ret = -1;
+        goto cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* save session cache to cache_mem struct */
+    if (wolfSSL_memsave_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* setup test sessions */
+    test_set_sessions(cache_mem);
+
+    #ifndef NO_CLIENT_CACHE
+    /* copy current client cache */
+    XMEMCPY(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* restore session cache from mem */
+    if (wolfSSL_memrestore_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* wipe our session struct in memory */
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    /* save session cache back to cache_mem struct */
+    if (wolfSSL_memsave_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* sanity check values */
+    ret = test_sanity_sessions(cache_mem, "mem");
+    if (ret) {
+        goto cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* verify we got back the exact client cache */
+    ret = XMEMCMP(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    if (ret) {
+        WOLFSSL_MSG_EX("error: mem restore c_rows diff: %d", ret);
+        ret = -1;
+        goto cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* eviction: flush sessions older than time 2 (0 + 1 < 2). */
+    wolfSSL_CTX_flush_sessions(NULL, 2);
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* if all else succeeded, finally check the callback count. it should not
+     * fire for sessions restored from persistent storage. */
+    if (test_rem_sess_cb_count != 0) {
+        ret = -1;
+    }
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    /* verify that invalid cache gives CACHE_MATCH_ERROR */
+    cache_mem->hdr.version = WOLFSSL_CACHE_VERSION - 1;
+    rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: memrestore: hdr.version: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto cleanup;
+    }
+
+    cache_mem->hdr.version = WOLFSSL_CACHE_VERSION;
+    cache_mem->hdr.rows = SESSION_ROWS - 1;
+    rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: memrestore: hdr.rows: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto cleanup;
+    }
+
+    cache_mem->hdr.rows = SESSION_ROWS;
+    cache_mem->hdr.columns = SESSIONS_PER_ROW - 1;
+    rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: memrestore: hdr.columns: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto cleanup;
+    }
+
+    cache_mem->hdr.columns = SESSIONS_PER_ROW;
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION) - 1);
+    rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: memrestore: hdr.sessionSz: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto cleanup;
+    }
+
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
+
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
+    /* test rejection of invalid session row */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
+        int nextIdx = cache_mem->s_rows[i].nextIdx;
+        cache_mem->s_rows[i].nextIdx = -1;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        cache_mem->s_rows[i].nextIdx = SESSIONS_PER_ROW;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].nextIdx = nextIdx;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
+            ret = -1;
+            goto cleanup;
+        }
+    }
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* totalCount is [0, SESSIONS_PER_ROW] */
+        int totalCount = cache_mem->s_rows[i].totalCount;
+        cache_mem->s_rows[i].totalCount = -1;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        cache_mem->s_rows[i].totalCount = SESSIONS_PER_ROW + 1;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].totalCount = totalCount;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
+            ret = -1;
+            goto cleanup;
+        }
+    }
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
+
+cleanup:
+    if (cache_mem != NULL) {
+        XFREE(cache_mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        cache_mem = NULL;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    if (c_rows != NULL) {
+        XFREE(c_rows, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        c_rows = NULL;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* always clean up cache after test */
+    wolfSSL_CTX_flush_sessions(NULL, -1);
+
+    return ret;
+}
+
+#if !defined(NO_FILESYSTEM)
+/* write cache_mem to file.
+ *
+ * returns   0 on success
+ * returns < 0 on error */
+static int test_write_file(const char * fname,
+                           const sess_cache_t * cache_mem)
+{
+    XFILE  file = XBADFILE;
+    size_t n_write = 0;
+    int    ret = -1;
+    size_t i = 0;
+
+    file = XFOPEN(fname, "w+b");
+    if (file == XBADFILE) {
+        WOLFSSL_MSG_EX("error: open(%s, w+b)", fname);
+        goto write_file_cleanup;
+    }
+
+    n_write = (int)XFWRITE(&cache_mem->hdr, sizeof(cache_header_t), 1, file);
+    if (n_write != 1) {
+        WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+        goto write_file_cleanup;
+    }
+
+    /* we need to write SIZEOF_SESSION_ROW, one row at a time, so the row lock
+     * fields are skipped. */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        n_write = (int)XFWRITE(&cache_mem->s_rows[i], SIZEOF_SESSION_ROW, 1, file);
+        if (n_write != 1) {
+            WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+            goto write_file_cleanup;
+        }
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    n_write = (int)XFWRITE(&cache_mem->c_rows, sizeof(cache_mem->c_rows), 1, file);
+    if (n_write != 1) {
+        WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+        goto write_file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    ret = 0;
+write_file_cleanup:
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    return ret;
+}
+
+/* read cache_mem from file.
+ *
+ * returns   0 on success
+ * returns < 0 on error */
+static int test_read_file(const char * fname,
+                          sess_cache_t * cache_mem)
+{
+    XFILE  file = XBADFILE;
+    size_t n_read = 0;
+    int    ret = -1;
+    size_t i = 0;
+
+    file = XFOPEN(fname, "rb");
+    if (file == XBADFILE) {
+        WOLFSSL_MSG_EX("error: open(%s, rb)", fname);
+        goto read_file_cleanup;
+    }
+
+    n_read = (int)XFREAD(&cache_mem->hdr, sizeof(cache_header_t), 1, file);
+    if (n_read != 1) {
+        WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+        goto read_file_cleanup;
+    }
+
+    /* we need to read SIZEOF_SESSION_ROW, one row at a time, so the row lock
+     * fields are skipped. */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        n_read = (int)XFREAD(&cache_mem->s_rows[i], SIZEOF_SESSION_ROW, 1, file);
+        if (n_read != 1) {
+            WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+            goto read_file_cleanup;
+        }
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    n_read = (int)XFREAD(&cache_mem->c_rows, sizeof(cache_mem->c_rows), 1, file);
+    if (n_read != 1) {
+        WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+        goto read_file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    ret = 0;
+
+read_file_cleanup:
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    return ret;
+}
+
+/* Tests file [save, restore]_session_cache.
+ *
+ * returns  -1 on err
+ * returns   0 on success
+ *  */
+static int test_file_session_cache(void)
+{
+    int            ret = -1;
+    int            mem_sz = 0;
+    int            expected_mem_sz = 0;
+    sess_cache_t * cache_mem = NULL;
+    const char *   fname = "tmp_test_session_cache.bin";
+    #ifndef NO_CLIENT_CACHE
+    ClientRow *    c_rows = NULL;
+    #endif /* !NO_CLIENT_CACHE */
+    int            rst_err = 0;
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
+    int            i = 0;
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* reset callback count */
+    test_rem_sess_cb_count = 0;
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    /* allocate scratch copy */
+    cache_mem = (sess_cache_t *)XMALLOC(sizeof(sess_cache_t), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (cache_mem == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
+        return -1;
+    }
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    expected_mem_sz = (int)(sizeof(cache_mem->s_rows) + sizeof(cache_mem->hdr));
+    #ifndef NO_CLIENT_CACHE
+    expected_mem_sz += (int)sizeof(cache_mem->c_rows);
+    #endif /* NO_CLIENT_CACHE */
+
+    /* get session cache size, compare to expected result */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != expected_mem_sz) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %d", mem_sz,
+                       expected_mem_sz);
+        goto file_cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* allocate scratch ClientCache */
+    c_rows = (ClientRow *)XMALLOC(sizeof(ClientRow) * CLIENT_SESSION_ROWS,
+                                      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c_rows == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed",
+                       sizeof(ClientRow) * CLIENT_SESSION_ROWS);
+        goto file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* save session cache to file fname */
+    if (wolfSSL_save_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* read it into cache_mem struct */
+    ret = test_read_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* setup test sessions */
+    test_set_sessions(cache_mem);
+
+    #ifndef NO_CLIENT_CACHE
+    /* copy current client cache */
+    XMEMCPY(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* write test sessions back to file */
+    ret = test_write_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* restore session cache from file */
+    if (wolfSSL_restore_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* save session cache back to file fname */
+    if (wolfSSL_save_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* wipe our session struct in memory */
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    /* read it into cache_mem struct */
+    ret = test_read_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* sanity check values */
+    ret = test_sanity_sessions(cache_mem, "file");
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* verify we got back the exact client cache */
+    ret = XMEMCMP(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    if (ret) {
+        WOLFSSL_MSG_EX("error: file restore c_rows diff: %d", ret);
+        ret = -1;
+        goto file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* eviction: flush sessions older than time 2 (0 + 1 < 2). */
+    wolfSSL_CTX_flush_sessions(NULL, 2);
+
+    /* verify that invalid cache gives CACHE_MATCH_ERROR */
+    cache_mem->hdr.version = WOLFSSL_CACHE_VERSION - 1;
+    ret = test_write_file(fname, cache_mem);
+    if (ret) { goto file_cleanup; }
+    rst_err = wolfSSL_restore_session_cache(fname);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: restore: hdr.version: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    cache_mem->hdr.version = WOLFSSL_CACHE_VERSION;
+    cache_mem->hdr.rows = SESSION_ROWS - 1;
+    ret = test_write_file(fname, cache_mem);
+    if (ret) { goto file_cleanup; }
+    rst_err = wolfSSL_restore_session_cache(fname);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: restore: hdr.rows: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    cache_mem->hdr.rows = SESSION_ROWS;
+    cache_mem->hdr.columns = SESSIONS_PER_ROW - 1;
+    ret = test_write_file(fname, cache_mem);
+    if (ret) { goto file_cleanup; }
+    rst_err = wolfSSL_restore_session_cache(fname);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: restore: hdr.columns: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    cache_mem->hdr.columns = SESSIONS_PER_ROW;
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION) - 1);
+    ret = test_write_file(fname, cache_mem);
+    if (ret) { goto file_cleanup; }
+    rst_err = wolfSSL_restore_session_cache(fname);
+    if (rst_err != WC_NO_ERR_TRACE(CACHE_MATCH_ERROR)) {
+        WOLFSSL_MSG_EX("error: restore: hdr.sessionSz: got %d, expected %d",
+                       rst_err, CACHE_MATCH_ERROR);
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
+
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
+    /* test rejection of invalid session row */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
+        int nextIdx = cache_mem->s_rows[i].nextIdx;
+        cache_mem->s_rows[i].nextIdx = -1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        cache_mem->s_rows[i].nextIdx = SESSIONS_PER_ROW;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].nextIdx = nextIdx;
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
+            ret = -1;
+            goto file_cleanup;
+        }
+    }
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        int totalCount = cache_mem->s_rows[i].totalCount;
+        /* totalCount is [0, SESSIONS_PER_ROW] */
+        cache_mem->s_rows[i].totalCount = -1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        cache_mem->s_rows[i].totalCount = SESSIONS_PER_ROW + 1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].totalCount = totalCount;
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
+            ret = -1;
+            goto file_cleanup;
+        }
+    }
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
+
+file_cleanup:
+    /* remove session cache file. the file existing and being removed
+     * is part of the expected result. */
+    {
+        int rc = remove(fname);
+        if (rc) {
+            fprintf(stderr, "remove(%s) failed: %d\n", fname, rc);
+            ret = -1;
+        }
+    }
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* if all else succeeded, finally check the callback count. it should not
+     * fire for sessions restored from persistent storage. */
+    if (test_rem_sess_cb_count != 0) {
+        ret = -1;
+    }
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    if (cache_mem != NULL) {
+        XFREE(cache_mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        cache_mem = NULL;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    if (c_rows != NULL) {
+        XFREE(c_rows, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        c_rows = NULL;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* always clean up cache after test */
+    wolfSSL_CTX_flush_sessions(NULL, -1);
+
+    return ret;
+}
+#endif /* !NO_FILESYSTEM */
+
+int test_wolfSSL_session_cache_restore(void)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(test_mem_session_cache(), 0);
+    #if !defined(NO_FILESYSTEM)
+    ExpectIntEQ(test_file_session_cache(), 0);
+    #endif /* NO_FILESYSTEM */
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfSSL_session_cache_restore(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* PERSIST_SESSION_CACHE && !NO_SESSION_CACHE &&
+        * !SESSION_CACHE_DYNAMIC_MEM && !TITAN_SESSION_CACHE &&
+        * !HUGE_SESSION_CACHE */

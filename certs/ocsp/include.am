@@ -59,6 +59,7 @@ EXTRA_DIST += \
         certs/ocsp/root-ca-cert.pem \
         certs/ocsp/root-ca-cert.der \
         certs/ocsp/root-ca-crl.pem \
+        certs/ocsp/root-ca-crl-revoked.pem \
         certs/ocsp/imposter-root-ca-key.pem \
         certs/ocsp/imposter-root-ca-key.der \
         certs/ocsp/imposter-root-ca-cert.pem \

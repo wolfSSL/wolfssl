@@ -180,6 +180,138 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #endif /* HAVE_SNI */
 
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+
+/* Maximum content size accepted by the native API. The library wraps the
+ * content with a DER SEQUENCE header (up to MAX_SEQ_SZ bytes) and the wire
+ * entry length is itself a 16-bit field, so content is capped at
+ * WOLFSSL_MAX_16BIT - MAX_SEQ_SZ bytes. */
+#define WOLFSSL_CA_NAME_MAX_CONTENT_SZ (WOLFSSL_MAX_16BIT - MAX_SEQ_SZ)
+
+/* Add a CA distinguished name to advertise in the TLS 1.3
+ * certificate_authorities extension on the object.
+ *
+ * @param [in] ssl   SSL/TLS object.
+ * @param [in] dn    DER-encoded Name content (no SEQUENCE header).
+ * @param [in] dnSz  Length of dn in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl or dn is NULL, or dnSz is out of range.
+ * @return  Negative value on error.
+ */
+int wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz)
+{
+    if (ssl == NULL || dn == NULL || dnSz == 0 ||
+            dnSz > WOLFSSL_CA_NAME_MAX_CONTENT_SZ)
+        return BAD_FUNC_ARG;
+
+    return TLSX_CertificateAuthorities_Add(&ssl->ws_ca_names,
+                                           dn, (word16)dnSz, ssl->heap);
+}
+
+/* Add a CA distinguished name to advertise in the TLS 1.3
+ * certificate_authorities extension on the context.
+ *
+ * @param [in] ctx   SSL/TLS context object.
+ * @param [in] dn    DER-encoded Name content (no SEQUENCE header).
+ * @param [in] dnSz  Length of dn in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ctx or dn is NULL, or dnSz is out of range.
+ * @return  Negative value on error.
+ */
+int wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz)
+{
+    if (ctx == NULL || dn == NULL || dnSz == 0 ||
+            dnSz > WOLFSSL_CA_NAME_MAX_CONTENT_SZ)
+        return BAD_FUNC_ARG;
+
+    return TLSX_CertificateAuthorities_Add(&ctx->ws_ca_names,
+                                           dn, (word16)dnSz, ctx->heap);
+}
+
+/* Free all CA distinguished names set on the object.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ */
+void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return;
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_ca_names, ssl->heap);
+    ssl->ws_ca_names = NULL;
+}
+
+/* Free all CA distinguished names set on the context.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ */
+void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return;
+    TLSX_CertificateAuthorities_FreeAll(ctx->ws_ca_names, ctx->heap);
+    ctx->ws_ca_names = NULL;
+}
+
+/* Get the number of CA distinguished names received from the peer's
+ * certificate_authorities extension.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  Count of peer CA names, or 0 when ssl is NULL.
+ */
+int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl)
+{
+    int count = 0;
+    CertificateAuthority* cur;
+
+    if (ssl == NULL)
+        return 0;
+    for (cur = ssl->ws_peer_ca_names; cur != NULL; cur = cur->next)
+        count++;
+    return count;
+}
+
+/* Copy a peer CA distinguished name by index.
+ *
+ * @param [in]  ssl      SSL/TLS object.
+ * @param [in]  idx      Zero-based index of the peer CA name.
+ * @param [out] outDn    Buffer to receive the DN content, or NULL to query
+ *                       the length.
+ * @param [in]  outDnSz  Size of outDn in bytes.
+ * @return  Length of the DN content on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or idx is out of range.
+ * @return  BUFFER_E when outDn is too small.
+ */
+int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz)
+{
+    CertificateAuthority* cur;
+    int i;
+
+    if (ssl == NULL || idx < 0)
+        return BAD_FUNC_ARG;
+
+    cur = ssl->ws_peer_ca_names;
+    for (i = 0; i < idx && cur != NULL; i++)
+        cur = cur->next;
+    if (cur == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outDn == NULL)
+        return (int)cur->dnSz;
+
+    if (outDnSz < cur->dnSz)
+        return BUFFER_E;
+
+    XMEMCPY(outDn, cur->dn, cur->dnSz);
+    return (int)cur->dnSz;
+}
+
+#endif /* !NO_CERTS && !WOLFSSL_NO_CA_NAMES && WOLFSSL_TLS13 */
+
+
 #ifdef HAVE_TRUSTED_CA
 
 /* Set the Trusted CA Indication extension on the object.
@@ -1563,9 +1695,29 @@ int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 
 
 #ifdef HAVE_EXTENDED_MASTER
-#ifndef NO_WOLFSSL_CLIENT
+
+/* EMS applies to (D)TLS 1.0-1.2 only; the same version gate is applied by
+ * InitSSL_Ctx and InitSSL_Side when arming the default advertisement. */
+static int EmsAllowedForVersion(ProtocolVersion pv)
+{
+    int allowed = 0;
+
+    if (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR)
+        allowed = 1;
+#ifdef WOLFSSL_DTLS
+    if (pv.major == DTLS_MAJOR)
+        allowed = 1;
+#endif
+
+    return allowed;
+}
+
 
 /* Disable the Extended Master Secret extension on the context.
+ *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1580,6 +1732,9 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
     }
     else {
         ctx->haveEMS = 0;
+        ctx->disableEMS = 1;
+        /* Disabling EMS is mutually exclusive with requiring it. */
+        ctx->requireEMS = 0;
     }
 
     return ret;
@@ -1588,9 +1743,15 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 
 /* Disable the Extended Master Secret extension on the object.
  *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated. Call before the handshake starts, or
+ * after wolfSSL_clear.
+ *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
  */
 int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 {
@@ -1599,23 +1760,175 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
     if (ssl == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
+    }
     else {
         ssl->options.haveEMS = 0;
+        ssl->options.disableEMS = 1;
+        /* Disabling EMS is mutually exclusive with requiring it. */
+        ssl->options.requireEMS = 0;
     }
 
     return ret;
 }
 
-#endif
-#endif
+
+/* Re-enable the Extended Master Secret extension on the context (default).
+ *
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->disableEMS = 0;
+        ctx->requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ctx->method->version))
+            ctx->haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+/* Re-enable the Extended Master Secret extension on the object (default).
+ *
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory. Call before the handshake starts, or after
+ * wolfSSL_clear.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
+ */
+int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
+    }
+    else {
+        ssl->options.disableEMS = 0;
+        ssl->options.requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ssl->ctx->method->version))
+            ssl->options.haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+#ifndef WOLFSSL_NO_TLS12
+
+/* Require the Extended Master Secret extension on the context.
+ *
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ctx->disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ctx->method->version))
+            ctx->haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+/* Require the Extended Master Secret extension on the object.
+ *
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected. Call before the
+ * handshake starts, or after wolfSSL_clear.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
+ */
+int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
+    }
+    else {
+        ssl->options.requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ssl->options.disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ssl->ctx->method->version))
+            ssl->options.haveEMS = 1;
+    }
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_NO_TLS12 */
+
+#endif /* HAVE_EXTENDED_MASTER */
 
 #endif /* !NO_TLS */
 /* ---- OpenSSL-compatibility TLS extension APIs (moved from ssl.c) ---- */
 
 #ifdef OPENSSL_EXTRA
 
-#ifdef HAVE_PK_CALLBACKS
-/* Set the debug argument passed to the logging callback on the object.
+/* Set the argument passed to the TLS extension debug callback.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @param [in]      arg  Debug argument.
@@ -1630,12 +1943,34 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
         ret = WOLFSSL_FAILURE;
     }
     else {
-        ssl->loggingCtx = arg;
+        ssl->tlsextDebugArg = arg;
     }
 
     return ret;
 }
-#endif /* HAVE_PK_CALLBACKS */
+
+/* Set the callback invoked for each TLS extension received during the
+ * handshake.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      cb   Debug callback, or NULL to disable.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl is NULL.
+ */
+long wolfSSL_set_tlsext_debug_callback(WOLFSSL* ssl,
+        WOLFSSL_TLSEXT_DEBUG_CB cb)
+{
+    long ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ssl->tlsextDebugCb = cb;
+    }
+
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 /* Get the certificate status request extensions on the object.
@@ -1809,7 +2144,9 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
     return ret;
 }
 
-#ifdef HAVE_ECC
+/* Group names include the FFDHE groups, so this is not EC-only. */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 /* Set the supported groups list, by name, on the context.
@@ -1855,7 +2192,7 @@ int wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list)
 }
 #endif /* WOLFSSL_TLS13 */
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_DH */
 
 #endif /* OPENSSL_EXTRA */
 
@@ -2288,15 +2625,15 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, ticketCompatCb cb)
     OPENSSL_EXTRA || HAVE_LIGHTY */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 /* Serialize the session ticket encryption keys.
  *
  * @param [in]  ctx     SSL/TLS context object.
  * @param [out] keys    Buffer to hold session ticket keys.
  * @param [in]  keylen  Length of buffer.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
- *          correct length.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
+ *          correct length or the key context mutex cannot be locked.
  */
 long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      unsigned char *keys, int keylen)
@@ -2307,6 +2644,12 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
             (keylen != WOLFSSL_TICKET_KEYS_SZ)) {
         ret = WOLFSSL_FAILURE;
     }
+#ifndef SINGLE_THREADED
+    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context mutex");
+        ret = WOLFSSL_FAILURE;
+    }
+#endif
     else {
         XMEMCPY(keys, ctx->ticketKeyCtx.name, WOLFSSL_TICKET_NAME_SZ);
         keys += WOLFSSL_TICKET_NAME_SZ;
@@ -2317,6 +2660,9 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         c32toa(ctx->ticketKeyCtx.expirary[0], keys);
         keys += OPAQUE32_LEN;
         c32toa(ctx->ticketKeyCtx.expirary[1], keys);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+#endif
     }
 
     return ret;
@@ -2328,8 +2674,8 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
  * @param [in]      keys_vp  Session ticket keys.
  * @param [in]      keylen   Length of data.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
- *          correct length.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
+ *          correct length or the key context mutex cannot be locked.
  */
 long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      const void *keys_vp, int keylen)
@@ -2341,6 +2687,12 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
             (keylen != WOLFSSL_TICKET_KEYS_SZ)) {
         ret = WOLFSSL_FAILURE;
     }
+#ifndef SINGLE_THREADED
+    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context mutex");
+        ret = WOLFSSL_FAILURE;
+    }
+#endif
     else {
         XMEMCPY(ctx->ticketKeyCtx.name, keys, WOLFSSL_TICKET_NAME_SZ);
         keys += WOLFSSL_TICKET_NAME_SZ;
@@ -2351,6 +2703,9 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         ato32(keys, &ctx->ticketKeyCtx.expirary[0]);
         keys += OPAQUE32_LEN;
         ato32(keys, &ctx->ticketKeyCtx.expirary[1]);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+#endif
     }
 
     return ret;
@@ -2715,58 +3070,14 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 
 #ifdef HAVE_ALPN
 #ifndef NO_BIO
-/* Convert a wire-format ALPN protocol list into a comma-separated string.
- *
- * The wire format is a sequence of entries, each a length byte followed by
- * that many protocol-name bytes.
- *
- * @param [in]  p      ALPN protocol list in wire format.
- * @param [in]  p_len  Length of the protocol list in bytes.
- * @param [out] pt     Buffer to hold the comma-separated list. Must hold at
- *                     least p_len bytes.
- * @param [out] ptLen  Length of the comma-separated list written.
- * @return  1 on success.
- * @return  0 when the wire format is invalid.
- */
-static int wolfssl_alpn_protos_to_list(const unsigned char* p,
-    unsigned int p_len, char* pt, unsigned int* ptLen)
-{
-    unsigned int idx = 0;
-    unsigned int ptIdx = 0;
-    unsigned int sz;
-    int ret = 1;
-
-    /* Convert into a comma separated list. */
-    while (idx < p_len - 1) {
-        unsigned int i;
-
-        sz = p[idx++];
-        if (idx + sz > p_len) {
-            WOLFSSL_MSG("Bad list format");
-            ret = 0;
-            break;
-        }
-        if (sz > 0) {
-            for (i = 0; i < sz; i++) {
-                pt[ptIdx++] = p[idx++];
-            }
-            if (idx < p_len - 1) {
-                pt[ptIdx++] = ',';
-            }
-        }
-    }
-
-    if (ret == 1) {
-        *ptLen = ptIdx;
-    }
-
-    return ret;
-}
-
 /* Set the ALPN protocol list, in wire format, on the object.
  *
  * The list is length-prefixed, e.g.
  *     unsigned char p[] = { 8, 'h','t','t','p','/','1','.','1' };
+ *
+ * Each length-prefixed entry is added directly, so protocol names that contain
+ * any byte value, including a comma or a NUL, are preserved. Zero-length
+ * entries are rejected and the whole list must be consumed exactly.
  *
  * @param [in] ssl    SSL/TLS object.
  * @param [in] p      ALPN protocol list in wire format (length-prefixed).
@@ -2777,12 +3088,18 @@ static int wolfssl_alpn_protos_to_list(const unsigned char* p,
 int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* p, unsigned int p_len)
 {
-    char* pt = NULL;
-    unsigned int ptIdx = 0;
+    unsigned int idx = 0;
+    unsigned int count = 0;
+    unsigned int i;
+    unsigned int sz;
+    int valid = 1;
+    int ok = 1;
     /* RFC 7301: a server that does not select any of the client's offered
      * protocols MUST send no_application_protocol. Match that contract on
      * the OpenSSL-compat surface rather than silently continuing. */
     int alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
+    /* One pointer per entry, each pointing at that entry's length byte. */
+    const unsigned char** entries = NULL;
     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     int ret = 1;
     #else
@@ -2792,18 +3109,42 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
     if ((ssl != NULL) && (p_len > 1) && (p != NULL)) {
-        /* Replacing leading number with trailing ',' and adding '\0'. */
-        pt = (char*)XMALLOC(p_len + 1, ssl->heap, DYNAMIC_TYPE_OPENSSL);
-        if (pt != NULL) {
-            if (wolfssl_alpn_protos_to_list(p, p_len, pt, &ptIdx)) {
-                pt[ptIdx++] = '\0';
+        entries = (const unsigned char**)XMALLOC(
+            sizeof(*entries) * WOLFSSL_MAX_ALPN_NUMBER, ssl->heap,
+            DYNAMIC_TYPE_OPENSSL);
+        if (entries != NULL) {
+            /* Record each length-prefixed entry, rejecting zero-length names
+             * and any entry that runs past the end of the list. */
+            while (idx < p_len) {
+                sz = p[idx++];
+                if ((sz == 0) || (idx + sz > p_len) ||
+                        (count >= (unsigned int)WOLFSSL_MAX_ALPN_NUMBER)) {
+                    valid = 0;
+                    break;
+                }
+                entries[count++] = p + idx - 1;
+                idx += sz;
+            }
 
+            /* Require the whole list to be consumed exactly. */
+            if (valid && (idx == p_len) && (count > 0)) {
                 /* Clear out all currently set ALPN extensions. */
                 TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL,
                     ssl->heap);
 
-                if (wolfSSL_UseALPN(ssl, pt, ptIdx, (byte)alpn_opt) ==
-                        WOLFSSL_SUCCESS) {
+                /* Add in reverse so the offered order matches the input. */
+                i = count;
+                while (i > 0) {
+                    i--;
+                    if (TLSX_UseALPN(&ssl->extensions, entries[i] + 1,
+                            entries[i][0], (byte)alpn_opt, ssl->heap) !=
+                            WOLFSSL_SUCCESS) {
+                        ok = 0;
+                        break;
+                    }
+                }
+
+                if (ok) {
                     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
                     ret = 0;
                     #else
@@ -2812,7 +3153,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
                 }
             }
 
-            XFREE(pt, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+            XFREE(entries, ssl->heap, DYNAMIC_TYPE_OPENSSL);
         }
     }
 

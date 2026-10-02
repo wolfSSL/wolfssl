@@ -74,6 +74,33 @@ void fe448_norm(word8* a)
     }
 }
 
+/* Reduce the carry out of the top of a field element back in.
+ *
+ * r  [in]  Field element in range 0..2^448-1.
+ * c  [in]  Carry out of the element: multiples of 2^448.
+ */
+static void fe448_fold_carry(word8* r, sword32 c)
+{
+    int i;
+    sword32 o = 0;
+
+    for (i = 0; i < 56; i++) {
+        if ((i == 0) || (i == 28)) o += c;
+        o += r[i];
+        r[i] = WC_OCTET(o);
+        o >>= 8;
+    }
+
+    c = o;
+    o = 0;
+    for (i = 0; i < 56; i++) {
+        if ((i == 0) || (i == 28)) o += c;
+        o += r[i];
+        r[i] = WC_OCTET(o);
+        o >>= 8;
+    }
+}
+
 /* Copy one field element into another: d = a.
  *
  * d  [in]  Destination field element.
@@ -118,7 +145,6 @@ void fe448_add(word8* r, const word8* a, const word8* b)
 {
     int i;
     sword16 c = 0;
-    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         c += a[i];
@@ -127,12 +153,7 @@ void fe448_add(word8* r, const word8* a, const word8* b)
         c >>= 8;
     }
 
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) o += c;
-        o += r[i];
-        r[i] = WC_OCTET(o);
-        o >>= 8;
-    }
+    fe448_fold_carry(r, c);
 }
 
 /* Subtract a field element from another. r = (a - b) mod (2^448 - 2^224 - 1)
@@ -145,7 +166,6 @@ void fe448_sub(word8* r, const word8* a, const word8* b)
 {
     int i;
     sword16 c = 0;
-    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         if (i == 28)
@@ -158,12 +178,7 @@ void fe448_sub(word8* r, const word8* a, const word8* b)
         c >>= 8;
     }
 
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) o += c;
-        o += r[i];
-        r[i] = WC_OCTET(o);
-        o >>= 8;
-    }
+    fe448_fold_carry(r, c);
 }
 
 /* Multiply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
@@ -175,7 +190,6 @@ void fe448_mul39081(word8* r, const word8* a)
 {
     int i;
     sword32 c = 0;
-    sword32 o = 0;
 
     for (i = 0; i < 56; i++) {
         c += a[i] * (sword32)39081;
@@ -183,12 +197,7 @@ void fe448_mul39081(word8* r, const word8* a)
         c >>= 8;
     }
 
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) o += c;
-        o += r[i];
-        r[i] = WC_OCTET(o);
-        o >>= 8;
-    }
+    fe448_fold_carry(r, c);
 }
 
 /* Multiply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
@@ -201,7 +210,7 @@ void fe448_mul(word8* r, const word8* a, const word8* b)
 {
     int i, k;
     sword32 c = 0;
-    sword16 o = 0, cc = 0;
+    sword16 o = 0;
     word8 t[112];
 
     for (k = 0; k < 56; k++) {
@@ -237,12 +246,7 @@ void fe448_mul(word8* r, const word8* a, const word8* b)
         r[i] = WC_OCTET(o);
         o >>= 8;
     }
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) cc += o;
-        cc += r[i];
-        r[i] = WC_OCTET(cc);
-        cc >>= 8;
-    }
+    fe448_fold_carry(r, o);
 }
 
 /* Square a field element. r = (a * a) mod (2^448 - 2^224 - 1)
@@ -255,7 +259,7 @@ void fe448_sqr(word8* r, const word8* a)
     int i, k;
     sword32 c = 0;
     sword32 p;
-    sword16 o = 0, cc = 0;
+    sword16 o = 0;
     word8 t[112];
 
     for (k = 0; k < 56; k++) {
@@ -301,12 +305,7 @@ void fe448_sqr(word8* r, const word8* a)
         r[i] = WC_OCTET(o);
         o >>= 8;
     }
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) cc += o;
-        cc += r[i];
-        r[i] = WC_OCTET(cc);
-        cc >>= 8;
-    }
+    fe448_fold_carry(r, o);
     fe448_norm(r);
 }
 
@@ -426,7 +425,6 @@ void fe448_neg(word8* r, const word8* a)
 {
     int i;
     sword16 c = 0;
-    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         if (i == 28)
@@ -438,12 +436,7 @@ void fe448_neg(word8* r, const word8* a)
         c >>= 8;
     }
 
-    for (i = 0; i < 56; i++) {
-        if ((i == 0) || (i == 28)) o += c;
-        o += r[i];
-        r[i] = WC_OCTET(o);
-        o >>= 8;
-    }
+    fe448_fold_carry(r, c);
 }
 
 /* Raise field element to (p-3) / 4: 2^446 - 2^222 - 1

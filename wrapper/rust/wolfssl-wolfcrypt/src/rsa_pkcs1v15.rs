@@ -39,7 +39,9 @@ message and apply the PKCS#1 v1.5 DigestInfo encoding internally.
 verify-only builds do not have to pull in a random number generator.
 */
 
-#![cfg(all(feature = "signature", rsa))]
+/* Both key types are built from the flattened public key, which
+ * WOLFSSL_RSA_VERIFY_ONLY builds do not expose. */
+#![cfg(all(feature = "signature", rsa, rsa_sign))]
 
 use core::ffi::c_void;
 use core::marker::PhantomData;

@@ -26,6 +26,9 @@
 #elif defined(__FreeBSD__)
     /* for __FreeBSD_version */
     #include <sys/param.h>
+#elif (defined(__CYGWIN__) || defined(__MSYS__)) && !defined(_GNU_SOURCE)
+    /* dladdr and Dl_info, for the RNG fork handler pin, hide behind it */
+    #define _GNU_SOURCE 1
 #endif
 
 /*
@@ -89,6 +92,11 @@ Threading/Mutex options:
  * WOLFSSL_USER_DEFINED_ATOMICS: User-provided atomic impl     default: off
  * WOLFSSL_HAVE_ATOMIC_H: Has C11 atomic.h header              default: off
  *
+ * Socket options:
+ * HAVE_ACCEPT4:        Use accept4() for close-on-exec accept  default: auto
+ *                      (configure/CMake detect it; set it for
+ *                      musl or another unrecognised libc)
+ *
  * General options:
  * WOLFCRYPT_ONLY:      Exclude TLS/SSL, wolfCrypt only build   default: off
  * WOLFSSL_LEANPSK:     Lean PSK build, minimal features        default: off
@@ -115,8 +123,15 @@ Threading/Mutex options:
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG)
+#ifndef WC_NO_RNG
+    /* random.h defines HAVE_HASHDRBG itself, so no HAVE_HASHDRBG test here */
     #include <wolfssl/wolfcrypt/random.h>
+    #ifdef WC_RNG_LOCK_ATFORK
+        #include <dlfcn.h>      /* the pin, which the handlers require */
+        #include <pthread.h>    /* pthread_atfork, cancel state */
+        #include <semaphore.h>  /* the one unlock a fork child may call */
+        #include <errno.h>      /* EINTR from sem_wait */
+    #endif
 #endif
 
 #ifdef FREESCALE_LTC_TFM
@@ -160,6 +175,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/tropicsquare/tropic01.h>
 #endif
 
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h>
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) \
     && !defined(WOLFCRYPT_ONLY)
     #include <wolfssl/openssl/evp.h>
@@ -172,6 +191,9 @@ Threading/Mutex options:
 
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+#if defined(WOLFSSL_SEC_QORIQ)
+    #include <wolfssl/wolfcrypt/port/nxp/sec_qoriq.h>
 #endif
 #if defined(HAVE_ARIA)
     #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
@@ -415,6 +437,328 @@ static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 int aarch64_use_sb = 0;
 #endif
 
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+/* Cancellation off while a lock is held, so a cancel cannot strand it.  Where
+ * the platform has no cancellation both are empty and the value is unused.
+ */
+WOLFSSL_LOCAL int wc_CancelDisable(void)
+{
+#ifdef PTHREAD_CANCEL_DISABLE
+    int old = PTHREAD_CANCEL_ENABLE;   /* what a failed call leaves behind */
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+#else
+    int old = 0;
+#endif
+    return old;
+}
+
+WOLFSSL_LOCAL void wc_CancelRestore(int state)
+{
+#ifdef PTHREAD_CANCEL_DISABLE
+    (void)pthread_setcancelstate(state, NULL);
+#else
+    (void)state;
+#endif
+}
+#endif /* WC_RNG_HAVE_AUTO_LOCK */
+
+#ifdef WC_RNG_LOCK_ATFORK
+#if !defined(RTLD_NOLOAD) || !defined(RTLD_NODELETE)
+    #error "WC_RNG_AUTOFORK needs RTLD_NOLOAD and RTLD_NODELETE"
+#endif
+/* The fork handlers can never be unregistered, so the image that holds them
+ * is pinned against dlclose() before they are registered. */
+WOLFSSL_LOCAL void wc_PinImage(void* fn)
+{
+    Dl_info info;
+    const char* name;   /* a pointer on most libcs, an array on Cygwin */
+    if (dladdr(fn, &info) == 0 || (name = info.dli_fname) == NULL ||
+        name[0] == '\0' ||
+        dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY) == NULL) {
+        /* no dlopen() handle means no dlclose() can reach this image */
+        WOLFSSL_MSG("RNG fork handlers: no dlopen handle, nothing to pin");
+    }
+}
+
+/* One lock per object, held with an unnamed semaphore so a fork child can
+ * release it: sem_post() is async-signal-safe, pthread_mutex_unlock() is not. */
+struct wc_ForkLock {
+    sem_t sem;
+    void* heap;
+    struct wc_ForkLock* next;
+    struct wc_ForkLock** prev;   /* the link that leads here */
+    /* Read once per lock acquire, written once per fork: a load, never a
+     * read-modify-write, so no contended line and no bus traffic. */
+    wolfSSL_Atomic_Int broken;   /* fails closed; a lone child or dead sem */
+    /* Set by prepare, cleared by parent and child: no other thread reads it. */
+    int forkState;   /* one of the WC_FORK_LOCK_* values */
+    int cancel;   /* the holder's cancel state, back on exit */
+};
+
+/* Real thread local storage, not the do-nothing THREAD_LS_T fallback. */
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
+    !defined(FREERTOS) && !defined(FREERTOS_TCP) && !defined(WOLFSSL_ZEPHYR)
+    #define WC_FORK_LOCK_HAVE_TLS
+#endif
+
+#ifndef WC_FORK_LOCK_HAVE_TLS
+    /* Without it the prepare handler cannot tell which locks this thread
+     * holds, and a fork() from a seed callback would wait on itself. */
+    #error "the RNG fork handlers need thread local storage"
+#endif
+/* What this thread holds.  Only this thread touches it, so no atomics.
+ * The library never nests these; the spare slots cover a callback that does. */
+#define WC_FORK_MINE_MAX 4   /* past this, taking the lock is refused */
+static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
+
+/* Returns 0 when there is no slot left to record it in. */
+static int ForkMineAdd(wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == NULL) {
+            forkMine[i] = lock;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void ForkMineDrop(wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == lock) {
+            forkMine[i] = NULL;
+            return;
+        }
+    }
+}
+
+/* Does the calling thread hold this one? */
+static int ForkMineHeld(const wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == lock) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
+static sem_t forkListSem;
+static wolfSSL_Atomic_Int forkListDead =
+    WOLFSSL_ATOMIC_INITIALIZER(0);   /* registry unusable: handlers back off */
+static pthread_once_t forkOnce = PTHREAD_ONCE_INIT;
+static int forkOnceRet = 0;
+
+/* sem_wait() is a cancellation point; a cancel here would strand the lock. */
+static int ForkSemWait(sem_t* s)
+{
+    int ret = 0;
+    int old = PTHREAD_CANCEL_ENABLE;
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    while (sem_wait(s) != 0) {
+        if (errno != EINTR) {
+            ret = BAD_MUTEX_E;
+            break;
+        }
+    }
+    (void)pthread_setcancelstate(old, NULL);
+    return ret;
+}
+
+/* Before fork(): the forking thread takes the registry and every lock. */
+static void ForkPrepare(void)
+{
+    wc_ForkLock* n;
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead))
+        return;
+    if (ForkSemWait(&forkListSem) != 0) {
+        WOLFSSL_ATOMIC_STORE(forkListDead, 1); /* nothing held, and never again */
+        return;
+    }
+    for (n = forkList; n != NULL; n = n->next) {
+        if (WOLFSSL_ATOMIC_LOAD(n->broken)) {
+            continue;
+        }
+        /* Waiting on one this thread already holds would never return.  The
+         * child's only thread is this one, and it releases it as usual. */
+        if (ForkMineHeld(n)) {
+            n->forkState = WC_FORK_LOCK_OWNED;
+            continue;
+        }
+        if (ForkSemWait(&n->sem) != 0) {
+            WOLFSSL_ATOMIC_STORE(n->broken, 1);
+        }
+        else {
+            n->forkState = WC_FORK_LOCK_TAKEN;
+        }
+    }
+}
+
+/* After fork() in the parent: give back exactly what prepare took.
+ * Re-reading broken here could post a lock prepare never held. */
+static void ForkParent(void)
+{
+    wc_ForkLock* n;
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead))
+        return;
+    for (n = forkList; n != NULL; n = n->next) {
+        if (n->forkState == WC_FORK_LOCK_TAKEN) {
+            (void)sem_post(&n->sem);
+        }
+        /* An owned one needs nothing: its holder still has it. */
+        n->forkState = WC_FORK_LOCK_UNTAKEN;
+    }
+    (void)sem_post(&forkListSem);
+}
+
+/* Child after fork(): stores and sem_post() only, all POSIX allows here.
+ * An untaken lock fails closed; an owned one is freed by this thread. */
+static void ForkChild(void)
+{
+    wc_ForkLock* n;
+    for (n = forkList; n != NULL; n = n->next) {   /* forward links stay whole */
+        if (n->forkState == WC_FORK_LOCK_TAKEN) {
+            (void)sem_post(&n->sem);
+        }
+        else if (n->forkState == WC_FORK_LOCK_UNTAKEN) {
+            WOLFSSL_ATOMIC_STORE(n->broken, 1);
+        }
+        n->forkState = WC_FORK_LOCK_UNTAKEN;
+    }
+    if (!WOLFSSL_ATOMIC_LOAD(forkListDead))
+        (void)sem_post(&forkListSem);
+}
+
+static void ForkLockInitOnce(void)
+{
+    /* pin first: the handlers can never be unregistered */
+    wc_PinImage((void*)(wc_ptr_t)ForkPrepare);
+    forkOnceRet = (sem_init(&forkListSem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
+    if (forkOnceRet == 0 &&
+        pthread_atfork(ForkPrepare, ForkParent, ForkChild) != 0)
+    {
+        (void)sem_destroy(&forkListSem);
+        forkOnceRet = MEMORY_E;
+    }
+}
+
+WOLFSSL_LOCAL int wc_ForkLockInit(void)
+{
+    (void)pthread_once(&forkOnce, ForkLockInitOnce);
+    return forkOnceRet;
+}
+
+WOLFSSL_LOCAL int wc_ForkLock_New(wc_ForkLock** lock, void* heap)
+{
+    wc_ForkLock* n;
+    int ret = wc_ForkLockInit();
+    if (ret != 0)
+        return ret;
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead)) {
+        WOLFSSL_MSG("wc_ForkLock_New: registry dead since a fork");
+        return BAD_MUTEX_E;
+    }
+    n = (wc_ForkLock*)XMALLOC(sizeof(*n), heap, DYNAMIC_TYPE_RNG);
+    if (n == NULL)
+        return MEMORY_E;
+    XMEMSET(n, 0, sizeof(*n));
+    n->heap = heap;
+    if (ForkSemWait(&forkListSem) != 0) {
+        XFREE(n, heap, DYNAMIC_TYPE_RNG);
+        return BAD_MUTEX_E;
+    }
+    ret = (sem_init(&n->sem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
+    if (ret == 0) {
+        n->next = forkList;
+        n->prev = &forkList;
+        if (forkList != NULL)
+            forkList->prev = &n->next;
+        forkList = n;
+    }
+    (void)sem_post(&forkListSem);
+    if (ret != 0) {
+        XFREE(n, heap, DYNAMIC_TYPE_RNG);
+        return ret;
+    }
+    *lock = n;
+    return 0;
+}
+
+/* Safe on a NULL lock that was never created. */
+WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock)
+{
+    wc_ForkLock* n;
+    if (lock == NULL || *lock == NULL)
+        return;
+    n = *lock;
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead) || ForkSemWait(&forkListSem) != 0) {
+        /* No registry to unlink under, so the node stays on the list and
+         * is leaked; broken keeps every later handler off it. */
+        WOLFSSL_ATOMIC_STORE(n->broken, 1);
+        WOLFSSL_MSG("wc_ForkLock_Free: registry unavailable, node leaked");
+        *lock = NULL;
+        return;
+    }
+    *n->prev = n->next;
+    if (n->next != NULL)
+        n->next->prev = n->prev;
+    (void)sem_post(&forkListSem);
+    (void)sem_destroy(&n->sem);
+    XFREE(n, n->heap, DYNAMIC_TYPE_RNG);
+    *lock = NULL;
+}
+
+/* Cancellation stays off while the lock is held: a reseed reads a device,
+ * a cancellation point, and a cancelled holder would strand every fork(). */
+WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
+{
+    int old = PTHREAD_CANCEL_ENABLE;
+    int ret;
+    if (lock == NULL)
+        return 0;
+    if (WOLFSSL_ATOMIC_LOAD(lock->broken))
+        return BAD_MUTEX_E;
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    ret = ForkSemWait(&lock->sem);
+    if (ret != 0) {
+        (void)pthread_setcancelstate(old, NULL);
+    }
+    else if (!ForkMineAdd(lock)) {
+        /* Unrecorded means prepare would wait on a lock this thread holds,
+         * so refuse it here rather than hand back a fork() that hangs. */
+        (void)sem_post(&lock->sem);
+        (void)pthread_setcancelstate(old, NULL);
+        ret = BAD_MUTEX_E;
+    }
+    else {
+        lock->cancel = old;
+    }
+    return ret;
+}
+
+WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock)
+{
+    int old;
+    if (lock == NULL)
+        return;
+    old = lock->cancel;
+    ForkMineDrop(lock);
+    (void)sem_post(&lock->sem);
+    (void)pthread_setcancelstate(old, NULL);
+}
+
+WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
+{
+    if (lock != NULL)
+        WOLFSSL_ATOMIC_STORE(lock->broken, broken);
+}
+#endif
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
@@ -555,6 +899,14 @@ int wolfCrypt_Init(void)
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
+    #ifdef WC_RNG_LOCK_ATFORK
+        /* here, before the app has threads, so no fork can race it */
+        ret = wc_ForkLockInit();
+        if (ret != 0) {
+            WOLFSSL_MSG("RNG fork handler registration failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
 
     #if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
         ret = ksdk_port_init();
@@ -577,6 +929,15 @@ int wolfCrypt_Init(void)
      * ASU hardware. Registering also brings the ASU client up. */
     #if defined(WOLFSSL_VERSAL_GEN2_ASU) && defined(WOLF_CRYPTO_CB)
         ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
+        if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
+    /* Register the Silicon Labs Secure Element device so wolfCrypt operations
+     * route to the SE. sl_se_init() runs further down in this function. */
+    #if defined(WOLFSSL_SILABS_CRYPTOCB) && defined(WOLF_CRYPTO_CB)
+        ret = wc_SilabsCryptoCb_RegisterDevice(WOLFSSL_SILABS_DEVID);
         if (ret != 0) {
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
@@ -636,20 +997,25 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLFSSL_SILABS_SE_ACCEL
+    #ifdef WOLFSSL_SILABS_SE_TYPES
         /* init handles if it is already initialized */
         ret = sl_se_init();
         if (ret != 0) {
-            WOLFSSL_MSG("SILABS_SE_ACCEL init failed");
+            WOLFSSL_MSG("SiLabs SE Manager init failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
     #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
-        ret = wc_se050_init(NULL);
-        if (ret != 0) {
-            WOLFSSL_MSG("SE050 init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        /* An application may need runtime SCP03 keys to open the SE05x
+         * before calling wolfCrypt_Init(). Keep that configured session
+         * instead of trying to replace it with the compiled-in defaults. */
+        if (wc_se050_get_session() == NULL) {
+            ret = wc_se050_init(NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("SE050 init failed");
+                WOLFCRYPT_INIT_RAISE_BAD_STATE();
+            }
         }
     #endif
 
@@ -734,6 +1100,19 @@ int wolfCrypt_Init(void)
 
 #if defined(WOLFSSL_CAAM)
         if ((ret = wc_caamInit()) != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+#endif
+
+#if defined(WOLFSSL_SEC_QORIQ)
+        /* A part without the security engine is not an error: the SEC is
+         * only fitted on the "E" orderable variants, and everything simply
+         * stays in software there. */
+        ret = wc_SecQoriqInit();
+        if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            ret = 0;
+        }
+        else if (ret != 0) {
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
@@ -868,13 +1247,36 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_CAAM)
         wc_caamFree();
     #endif
+    #if defined(WOLFSSL_SEC_QORIQ)
+        wc_SecQoriqFree();
+    #endif
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
     #endif
-    #ifdef WOLFSSL_SILABS_SE_ACCEL
+    /* Unregister before sl_se_deinit(). wc_CryptoCb_Cleanup() further down
+     * would also clear the device, but it runs after the SE is torn down, so
+     * the unregister command would reach the callback with no SE behind it. */
+    #if defined(WOLFSSL_SILABS_CRYPTOCB) && defined(WOLF_CRYPTO_CB)
+        {
+            int ret2 = wc_SilabsCryptoCb_UnRegisterDevice(WOLFSSL_SILABS_DEVID);
+            if (ret == 0)
+                ret = ret2;
+        }
+    #endif
+    #ifdef WOLFSSL_SILABS_SE_TYPES
         {
             int ret2 = sl_se_deinit();
             if (ret == 0)
+                ret = ret2;
+        }
+    #endif
+    #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
+        if (wc_se050_get_session() != NULL) {
+            int ret2 = wc_se050_close();
+
+            /* A session installed with wc_se050_set_config() is owned by the
+             * application and wc_se050_close() deliberately rejects it. */
+            if ((ret == 0) && (ret2 != WC_NO_ERR_TRACE(BAD_STATE_E)))
                 ret = ret2;
         }
     #endif
@@ -4601,7 +5003,11 @@ time_t z_time(time_t * timer)
 
     /* Fallback to uptime since boot. This works for relative times, but
      * not for ASN.1 date validation */
+    #ifdef SYS_CLOCK_REALTIME
+    if (sys_clock_gettime(SYS_CLOCK_REALTIME, &ts) == 0)
+    #else
     if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
+    #endif
         if (timer != NULL)
             *timer = ts.tv_sec;
 
@@ -5727,7 +6133,6 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #ifndef O_CLOEXEC
@@ -5735,6 +6140,22 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 #endif
 #ifndef SOCK_CLOEXEC
     #define SOCK_CLOEXEC 0
+#endif
+
+/* accept4(): HAVE_ACCEPT4 is set by the configure/CMake probe, or in
+ * user_settings.h for a libc not recognised here, such as musl. Recognised:
+ * glibc 2.10, uClibc-ng, bionic API 21, FreeBSD 10. */
+#if (defined(__linux__) || defined(__ANDROID__)) && \
+    (defined(HAVE_ACCEPT4) || \
+     (defined(__USE_GNU) && \
+      ((defined(__GLIBC__) && \
+        (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
+       (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
+       (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))))
+    #define WC_HAVE_ACCEPT4
+#elif defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
+    (__FreeBSD_version >= 1000000)
+    #define WC_HAVE_ACCEPT4
 #endif
 
 void wc_set_cloexec(int fd)
@@ -5777,6 +6198,8 @@ int wc_open_cloexec_mode(const char* path, int flags, int mode)
 }
 
 #if !defined(NO_FILESYSTEM) && defined(XFDOPEN)
+#include <sys/stat.h>
+
 /* Truncate or create path for writing, owner read/write only. */
 XFILE wc_fopen_owner_only(const char* path)
 {
@@ -5816,9 +6239,7 @@ int wc_socket_cloexec(int domain, int type, int protocol)
 int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
 {
     int fd;
-#if (defined(__USE_GNU) && (defined(__linux__) || defined(__ANDROID__))) || \
-    (defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
-     (__FreeBSD_version >= 1000000))
+#ifdef WC_HAVE_ACCEPT4
     fd = accept4(sockfd, (struct sockaddr*)addr, (socklen_t*)addrlen,
                  SOCK_CLOEXEC);
     if (fd >= 0)

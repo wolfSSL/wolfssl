@@ -59,6 +59,17 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/no-malloc-configs.json" <<'EOF'
           [
+          {"name": "opensslextra-staticmemory", "minutes": 2.0,
+           "configure": ["--enable-opensslextra", "--enable-staticmemory",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DWOLFSSL_TEST_CERT -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "cryptonly-opensslextra-embedded", "minutes": 1.2,
+           "configure": ["--enable-cryptonly", "--enable-opensslextra",
+            "--enable-staticmemory",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DBENCH_EMBEDDED -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
           {"name": "rsa-keygen", "minutes": 0.8,
            "configure": ["--enable-rsa", "--enable-keygen", "--disable-dh",
             "CFLAGS=-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],

@@ -105,15 +105,24 @@ restore_file_system() {
 }
 trap restore_file_system EXIT
 
+# $1 is the version flag pair to run with, empty for the build's default.
 run_test() {
-    echo -e "\nStarting example server for pkcallbacks test...\n"
+    version_args="$1"
+
+    echo -e "\nStarting example server for pkcallbacks test ${version_args:-default}...\n"
+
+    # Back to the port zero hack for every run: the previous run left its
+    # allocated port here, and reusing a now-known port is exactly what the
+    # hack exists to avoid when another make check is running alongside.
+    pk_port=0
 
     remove_ready_file
 
     # starts the server on pk_port, -R generates ready file to be used as a
     # mutex lock, -P does pkcallbacks. We capture the processid
     # into the variable server_pid
-    $TIMEOUT_KILL_2M ./examples/server/server -P -R "$ready_file" -p $pk_port &
+    $TIMEOUT_KILL_2M ./examples/server/server -P -R "$ready_file" -p $pk_port \
+        $version_args &
     server_pid=$!
 
     counter=0
@@ -137,12 +146,13 @@ run_test() {
     pk_port=`cat "$ready_file"`
 
     # starts client on pk_port with pkcallbacks, captures the output from client
-    capture_out=$(./examples/client/client -P -p $pk_port 2>&1)
+    capture_out=$(./examples/client/client -P -p $pk_port $version_args 2>&1)
     client_result=$?
 
     if [ $client_result != 0 ]
     then
         echo -e "client failed!"
+        echo "$capture_out"
         do_cleanup
         exit 1
     fi
@@ -161,8 +171,19 @@ run_test() {
 
 ######### begin program #########
 
-# run the test
-run_test
+# The build's default version, then each version explicitly. Running only the
+# default used to hide that the ECC PK callbacks could not complete a TLS v1.3
+# handshake: the default is TLS v1.2 wherever it is compiled in, so the 1.3
+# path was never taken here.
+run_test ""
+
+if ./examples/client/client -V | grep -q 3; then
+    run_test "-v 3"
+fi
+
+if ./examples/client/client -V | grep -q 4; then
+    run_test "-v 4"
+fi
 
 # If we get to this, success
 echo "Success!"

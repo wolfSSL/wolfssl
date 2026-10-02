@@ -429,7 +429,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -440,6 +440,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_size)]
     pub fn size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_Size(&mut self.ws_key) };
         if rc < 0 {
@@ -459,7 +460,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_priv_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -470,6 +471,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_PRV_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_priv_size)]
     pub fn priv_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_PrivSize(&mut self.ws_key) };
         if rc < 0 {
@@ -488,7 +490,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -499,6 +501,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_PUB_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_pub_size)]
     pub fn pub_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_PubSize(&mut self.ws_key) };
         if rc < 0 {
@@ -517,7 +520,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sig_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -528,6 +531,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_SIG_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_sig_size)]
     pub fn sig_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_SigSize(&mut self.ws_key) };
         if rc < 0 {
@@ -579,7 +583,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, mldsa_export_public,
+    ///           mldsa_import_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -593,7 +598,7 @@ impl MlDsa {
     /// key2.import_public(&pub_buf).expect("Error with import_public()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(mldsa_import_public)]
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -622,7 +627,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_export_private,
+    ///           mldsa_import_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -636,7 +642,7 @@ impl MlDsa {
     /// key2.import_private(&priv_buf).expect("Error with import_private()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(mldsa_import_private)]
     pub fn import_private(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
@@ -663,7 +669,9 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    ///           mldsa_export_private, mldsa_import_private,
+    ///           mldsa_import_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -678,7 +686,7 @@ impl MlDsa {
     /// key2.import_key(&priv_buf, &pub_buf).expect("Error with import_key()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(all(mldsa_import_private, mldsa_import_public))]
     pub fn import_key(&mut self, private: &[u8], public: &[u8]) -> Result<(), i32> {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let public_size = crate::buffer_len_to_u32(public.len())?;
@@ -710,7 +718,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -722,7 +730,7 @@ impl MlDsa {
     /// assert_eq!(written, MlDsa::LEVEL2_PUB_KEY_SIZE);
     /// }
     /// ```
-    #[cfg(mldsa_export)]
+    #[cfg(mldsa_export_public)]
     pub fn export_public(&mut self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -749,7 +757,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_export_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -761,7 +769,7 @@ impl MlDsa {
     /// assert_eq!(written, MlDsa::LEVEL2_KEY_SIZE);
     /// }
     /// ```
-    #[cfg(mldsa_export)]
+    #[cfg(mldsa_export_private)]
     pub fn export_private(&mut self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
@@ -793,7 +801,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    ///           mldsa_export_private, mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -805,7 +814,7 @@ impl MlDsa {
     /// key.export_key(&mut priv_buf, &mut pub_buf).expect("Error with export_key()");
     /// }
     /// ```
-    #[cfg(mldsa_export)]
+    #[cfg(all(mldsa_export_private, mldsa_export_public))]
     pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;

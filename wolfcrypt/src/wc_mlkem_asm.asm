@@ -14329,8 +14329,8 @@ ptr_L_mlkem_to_msg_avx2_hqs QWORD L_mlkem_to_msg_avx2_hqs
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_mlkem_to_msg_avx2_hhqs WORD 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h
-        WORD 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h, 0fcc1h
+L_mlkem_to_msg_avx2_hhqs WORD 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h
+        WORD 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h, 0fcc0h
 ptr_L_mlkem_to_msg_avx2_hhqs QWORD L_mlkem_to_msg_avx2_hhqs
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -32495,7 +32495,7 @@ mlkem_to_msg_avx512 PROC
         mov	rax, 1664
         vmovd	xmm0, eax
         vpbroadcastw	zmm0, xmm0
-        mov	r8, 64705
+        mov	r8, 64704
         vmovd	xmm1, r8d
         vpbroadcastw	zmm1, xmm1
         vpsubw	zmm2, zmm0, [rdx]

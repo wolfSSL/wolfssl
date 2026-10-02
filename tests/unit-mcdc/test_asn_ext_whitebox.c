@@ -40,7 +40,8 @@
  *   1. wolfssl_local_MatchBaseName() ................ :18555,:18607,:18626
  *   2. URI host classification (UriHostIsDecOctet/
  *      UriHostIsIpv4Address/UriRegNameHasNonEmptyLabels/
- *      GetUriHost) ...................................... :18664-:18794
+ *      GetUriSchemeEnd/GetUriHost), including scheme syntax and the
+ *      four-operand authority guard (older helpers: :18664-:18794)
  *   3. wolfssl_local_MatchDnsConstraintWildcard() ... :18944,:18954,:18978
  *   4. wolfssl_local_MatchIpSubnet() ........................... :19038
  *   5. MatchOtherNameConstraint() ............................... :19063
@@ -352,12 +353,13 @@ static void wb_match_dir_attr(void)
  *   UriHostIsDecOctet():   :18664 (NULL/sSz<=0/sSz>3), :18667 (leading zero)
  *   UriHostIsIpv4Address(): :18687 (NULL/hostSz<=0), :18699 (non-digit)
  *   UriRegNameHasNonEmptyLabels(): :18711-:18712 (NULL/leading-dot/trailing-dot)
- *   GetUriHost(): :18736-:18737 (bad args), :18744 ("://" scan),
+ *   GetUriSchemeEnd(): NULL, bounded scan, colon, ALPHA, initial letter,
+ *                      DIGIT and '+'/'-'/'.' decisions
+ *   GetUriHost(): :18736-:18737 (bad args), scheme/authority guard
+ *                 (p == NULL || uriEnd - p < 3 || p[1] != '/' || p[2] != '/'),
  *                 :18772 (bracket scan), :18794 (trailing-dot re-check)
- * Driven indirectly through wolfssl_local_MatchUriNameConstraint() (the
- * only external entry point reaching these file-static helpers) since none of
- * them are directly link-visible on their own; MatchUriNameConstraint IS
- * WOLFSSL_LOCAL/global so it is callable directly here.
+ * Driven through wolfssl_local_MatchUriNameConstraint(), plus direct calls
+ * to file-static helpers for scheme decisions and otherwise masked operands.
  * ------------------------------------------------------------------------- */
 #ifndef IGNORE_NAME_CONSTRAINTS
 static void wb_uri_host_helpers(void)
@@ -410,15 +412,40 @@ static void wb_uri_host_helpers(void)
                 == 0, "base==NULL (short-circuits before GetUriHost host/hostSz "
                 "args, but exercises the same bad-args style entry)");
 
-    WB_NOTE("GetUriHost(): \"://\" scheme scan [:18744]");
-    /* No "://" anywhere in the (long enough) buffer -> scan runs to
-     * completion without a match, hostStart stays NULL. */
+    WB_NOTE("GetUriSchemeEnd(): NULL, length, colon and scheme characters");
+    WB_CHECK(GetUriSchemeEnd(NULL, 5) == NULL, "uri==NULL");
+    WB_CHECK(GetUriSchemeEnd("a:", 0) == NULL, "empty segment");
+    WB_CHECK(GetUriSchemeEnd("a:", 1) == NULL, "colon outside segment");
+    WB_CHECK(GetUriSchemeEnd(":", 1) == NULL, "colon cannot start scheme");
+    WB_CHECK(GetUriSchemeEnd("1:", 2) == NULL, "first byte must be ALPHA");
+    WB_CHECK(GetUriSchemeEnd("A:", 2) != NULL, "uppercase ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a:", 2) != NULL, "lowercase ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a@:", 3) == NULL, "byte below 'A'");
+    WB_CHECK(GetUriSchemeEnd("a[:", 3) == NULL, "byte above 'Z', below 'a'");
+    WB_CHECK(GetUriSchemeEnd("a{:", 3) == NULL, "byte above 'z'");
+    WB_CHECK(GetUriSchemeEnd("a/:", 3) == NULL, "byte below '0'");
+    WB_CHECK(GetUriSchemeEnd("a0:", 3) != NULL, "DIGIT");
+    WB_CHECK(GetUriSchemeEnd("a;:", 3) == NULL, "byte above '9'");
+    WB_CHECK(GetUriSchemeEnd("a+:", 3) != NULL, "plus allowed after ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a-:", 3) != NULL, "minus allowed after ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a.:", 3) != NULL, "dot allowed after ALPHA");
+
+    WB_NOTE("GetUriHost(): scheme + four-operand authority guard");
+    /* No colon in the bounded segment -> GetUriSchemeEnd() returns NULL. */
     WB_CHECK(wolfssl_local_MatchUriNameConstraint("not-a-uri-at-all", 16,
-                ".host.com", 9) == 0, "no \"://\" present");
-    /* "://" present and matched mid-scan (true branch of the 3-byte
-     * lookahead comparison). */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("s://a.host.com/x", 16,
-                ".host.com", 9) == 1, "\"://\" found (baseline true)");
+                "host.com", 8) == 0, "no scheme colon present");
+    /* Valid scheme followed by both slashes: all guard operands false. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 14,
+                "host.com", 8) == 1, "scheme + authority (baseline)");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 4,
+                "host.com", 8) == 0, "scheme colon is the last byte");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 5,
+                "host.com", 8) == 0, "only one byte after scheme colon");
+    /* Exact-host constraints ensure subtree rejection cannot mask a bug. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
+                "host.com", 8) == 0, "scheme colon not followed by '/'");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
+                "host.com", 8) == 0, "scheme colon followed by only one '/'");
 
     WB_NOTE("GetUriHost(): IP-literal '[' bracket scan [:18772]");
     /* '[' opens an IP-literal host; scan for ']' runs to completion
@@ -462,25 +489,6 @@ static void wb_uri_host_helpers(void)
             ":18753 1st operand true (byte below '0')");
     WB_CHECK(UriHostIsIpv4Address("1.2.3.4", 7) == 1,
             ":18753 both operands false (valid dotted quad)");
-
-    /* :18798 -- the three-byte "://" lookahead. Every URI used above has
-     * its ':' immediately followed by "//", so the 2nd and 3rd operands are
-     * pinned true. These two URIs each contain an earlier ':' that fails
-     * the lookahead at a different operand before the real "://" is found. */
-    {
-        /* Compared against the plain "s://host.com/x" form rather than a
-         * hard-coded 1: what this row has to show is that an earlier ':'
-         * which fails the lookahead does not change the outcome, and the
-         * base-matching semantics themselves are asserted elsewhere. */
-        int plain = wolfssl_local_MatchUriNameConstraint("s://host.com/x", 14,
-                ".host.com", 9);
-        WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
-                    ".host.com", 9) == plain,
-                ":18798 2nd operand false (':' not followed by '/')");
-        WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
-                    ".host.com", 9) == plain,
-                ":18798 3rd operand false (\":/\" not followed by '/')");
-    }
 
     /* :18848 -- after stripping one trailing dot the host is empty. The
      * "http://../x" row above lands on the 2nd operand (still ends in '.');
@@ -1263,6 +1271,30 @@ static void wb_decode_ext_key_usage(void)
     ret = DecodeExtKeyUsage(eku, sizeof(eku), &src, &srcSz, &count, &usage,
             &ssh, NULL);
     WB_CHECK(ret == 0, "extExtKeyUsageOidCnt==NULL out-ptr (2nd operand false)");
+
+    /* An OID that is not id-kp-serverAuth but whose wc_oid_sum() collides with
+     * it must not be treated as serverAuth. */
+    {
+    #ifdef WOLFSSL_OLD_OID_SUM
+        /* 1.5.6.1.5.5.3.1, the same byte sum (71) as serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x2D,0x06,0x01,0x05,0x05,0x05,0x03,0x01
+        };
+    #else
+        /* 1.19.6.1.5.21.7.3.1, the same XOR-shift sum (0x0402012e) as
+         * serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x3B,0x06,0x01,0x05,0x15,0x07,0x03,0x01
+        };
+    #endif
+        src = NULL; srcSz = 0; count = 0; usage = 0; ssh = 0; oidCnt = 0;
+        ret = DecodeExtKeyUsage(ekuCollide, sizeof(ekuCollide), &src, &srcSz,
+                &count, &usage, &ssh, &oidCnt);
+        WB_CHECK(ret == 0 && usage == 0 && oidCnt == 1,
+                "OID colliding with serverAuth checksum not set as serverAuth");
+    }
 
     /* Empty SEQUENCE OF -> loop condition false immediately. */
     {
@@ -2737,7 +2769,7 @@ static void wb_decode_cert_req_version(void) { WB_NOTE("WOLFSSL_CERT_REQ off; sk
  * Section 26: ParseCert() RSA public key store [:23263-:23267]
  * (best-effort -- see file-header RESIDUAL note for operands 2/3).
  * ------------------------------------------------------------------------- */
-#if (!defined(WOLFSSL_NO_MALLOC) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
+#if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
     defined(WOLFSSL_DYN_CERT)
 static void wb_parse_cert_rsa_pubkey(void)
 {
@@ -2761,7 +2793,7 @@ static void wb_parse_cert_rsa_pubkey(void)
     FreeDecodedCert(&cert);
 }
 #else
-static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WOLFSSL_NO_MALLOC build; ParseCert copy-out skipped"); }
+static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WC_ASN_NO_HEAP build; ParseCert copy-out skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *

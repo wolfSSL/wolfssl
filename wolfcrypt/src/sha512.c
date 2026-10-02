@@ -962,6 +962,33 @@ static int InitSha512(wc_Sha512* sha512)
     return 0;
 }
 
+#if !defined(WOLFSSL_HASH_KEEP)
+
+/* Reset a hash context to its freshly initialized state, reusing its existing
+ * allocations.  Like the Final functions, Reset does not destroy sensitive
+ * internal state; use the matching Free function for teardown at end of life.
+ */
+int wc_Sha512Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512Free(sha512);
+        return wc_InitSha512_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512(sha512);
+}
+#define WC_SHA512RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
+
 #if !defined(WOLFSSL_NOSHA512_224) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
@@ -1014,6 +1041,28 @@ static int InitSha512_224(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
+
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha512_224Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512_224() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512_224Free(sha512);
+        return wc_InitSha512_224_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512_224(sha512);
+}
+#define WC_SHA512_224RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
 #endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
 
 #if !defined(WOLFSSL_NOSHA512_256) && \
@@ -1067,6 +1116,28 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
+
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha512_256Reset(wc_Sha512* sha512) {
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha512_256() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha512->heap;
+        int devId = sha512->devId;
+        wc_Sha512_256Free(sha512);
+        return wc_InitSha512_256_ex(sha512, heap, devId);
+    }
+#endif
+    return InitSha512_256(sha512);
+}
+#define WC_SHA512_256RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
 #endif /* !WOLFSSL_NOSHA512_256 && !FIPS... */
 
 #endif /* WOLFSSL_SHA512 */
@@ -1527,29 +1598,49 @@ static int Transform_Sha512_Len_C(wc_Sha512* sha512, const byte* data,
 /* The SHA-512 crypto instructions operate on SIMD registers, so the assembly
  * only defines these when NEON is available - see armv8-sha512-asm.S and the
  * prototype guard in sha512.h. */
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha512-asm.S), so a kernel module must bracket them. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA512_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA512_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA512_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA512_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if defined(WOLFSSL_ARMASM_CRYPTO_SHA512) && !defined(WOLFSSL_ARMASM_NO_NEON)
 static int Transform_Sha512_crypto_aarch64(wc_Sha512* sha512, const byte* data)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_crypto(sha512, data, WC_SHA512_BLOCK_SIZE);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 static int Transform_Sha512_Len_crypto_aarch64(wc_Sha512* sha512,
     const byte* data, word32 len)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_crypto(sha512, data, len);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 #endif
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static int Transform_Sha512_neon_aarch64(wc_Sha512* sha512, const byte* data)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_neon(sha512, data, WC_SHA512_BLOCK_SIZE);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 static int Transform_Sha512_Len_neon_aarch64(wc_Sha512* sha512,
     const byte* data, word32 len)
 {
+    WC_SHA512_ARM64_SVR_BEGIN();
     Transform_Sha512_Len_neon(sha512, data, len);
+    WC_SHA512_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -2688,8 +2779,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
     ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
-    Transform_Sha512(sha, (const byte*)buffer);
-    ret = 0;
+    ret = Transform_Sha512(sha, (const byte*)buffer);
 #elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
     /* PPC assembly uses the (sha, data) form and reads the block directly
      * (big-endian native - any little-endian reversal was done above). */
@@ -2893,6 +2983,28 @@ static int InitSha384(wc_Sha384* sha384)
 
     return 0;
 }
+
+#if !defined(WOLFSSL_HASH_KEEP)
+int wc_Sha384Reset(wc_Sha384* sha384) {
+    if (sha384 == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha384() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha384->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha384->heap;
+        int devId = sha384->devId;
+        wc_Sha384Free(sha384);
+        return wc_InitSha384_ex(sha384, heap, devId);
+    }
+#endif
+    return InitSha384(sha384);
+}
+#define WC_SHA384RESET_DEFINED
+#endif /* !WOLFSSL_HASH_KEEP */
 
 int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
 {
@@ -3210,7 +3322,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     }
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3) && \
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3) && \
     defined(WOLFSSL_SILABS_SHA512)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
@@ -3652,7 +3764,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     }
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3) && \
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3) && \
     defined(WOLFSSL_SILABS_SHA384)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
@@ -3750,4 +3862,49 @@ int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz)
 #endif /* WOLFSSL_HASH_KEEP */
 
 #endif /* !WOLF_CRYPTO_CB_ONLY_SHA512 */
+
+/* Fallback implementations of the Reset functions, for all configurations other
+ * than plain software.  Continues with the established heap and devId.
+ */
+
+#ifdef WOLF_CRYPTO_CB
+    #define WC_SHA512_RESET_DEVID(sha) ((sha)->devId)
+#else
+    #define WC_SHA512_RESET_DEVID(sha) (INVALID_DEVID)
+#endif
+#define WC_SHA512_RESET_FALLBACK_IMPLEMENT(flavor)              \
+    int wc_##flavor##Reset(wc_##flavor *sha) {                  \
+        void *heap;                                             \
+        int devId;                                              \
+                                                                \
+        if (sha == NULL)                                        \
+            return BAD_FUNC_ARG;                                \
+                                                                \
+        heap = sha->heap;                                       \
+        devId = WC_SHA512_RESET_DEVID(sha);                     \
+                                                                \
+        wc_##flavor##Free(sha);                                 \
+        return wc_Init##flavor##_ex(sha, heap, devId);          \
+    }
+
+#if defined(WOLFSSL_SHA512) && !defined(WC_SHA512RESET_DEFINED)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512)
+#endif
+
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224) && \
+    !defined(WC_SHA512_224RESET_DEFINED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512_224)
+#endif
+
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256) && \
+    !defined(WC_SHA512_256RESET_DEFINED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha512_256)
+#endif
+
+#if defined(WOLFSSL_SHA384) && !defined(WC_SHA384RESET_DEFINED)
+    WC_SHA512_RESET_FALLBACK_IMPLEMENT(Sha384)
+#endif
+
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */

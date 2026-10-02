@@ -489,8 +489,8 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 ///
 /// # Returns
 ///
@@ -544,8 +544,8 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 /// * `heap`: Optional heap hint.
 /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
 ///
@@ -643,12 +643,17 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// ```
 #[cfg(kdf_ssh)]
 pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key: &mut [u8]) -> Result<(), i32> {
+    /* wc_SSH_KDF() takes the hash type as a byte.  Reject anything that does
+     * not fit rather than truncating it, which would silently turn an invalid
+     * hash type into a different, valid-looking one. */
+    let typ = u8::try_from(typ)
+        .map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let k_size = crate::buffer_len_to_u32(k.len())?;
     let h_size = crate::buffer_len_to_u32(h.len())?;
     let session_size = crate::buffer_len_to_u32(session_id.len())?;
     let rc = unsafe {
-        sys::wc_SSH_KDF(typ as u8, key_id,
+        sys::wc_SSH_KDF(typ, key_id,
             key.as_mut_ptr(), key_size,
             k.as_ptr(), k_size, h.as_ptr(), h_size,
             session_id.as_ptr(), session_size)

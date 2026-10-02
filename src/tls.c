@@ -1196,8 +1196,13 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
+/* A cryptocb device that services HMAC SETKEY owns the key: wc_HmacSetKey()
+ * leaves keyRaw NULL and never derives the software ipad/opad the raw-hash path
+ * reads. Only WOLF_CRYPTO_CB_SETKEY builds reach that (incl. a find-mapped
+ * device with no devId). */
 #if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
-    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B)
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B) || \
+    (defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY))
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1467,6 +1472,17 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         if (verify && padSz >= 0) {
 #if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+            /* keyRaw NULL: a device owns the key, so the raw-hash state is
+             * empty -- use update/final, which keeps the dummy-block padding
+             * equalization. Software-keyed HMACs (keyRaw set, incl. PK-only
+             * offload) keep the raw-hash path below. */
+            if (hmac->keyRaw == NULL) {
+                ret = Hmac_UpdateFinal(hmac, digest, in,
+                        totalSz, myInner, innerSz);
+            }
+            else
+    #endif
     #ifdef HAVE_BLAKE2B
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(hmac, digest, in,
@@ -1811,6 +1827,7 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
 
     XMEMCPY(alpn->protocol_name, protocol_name, protocol_nameSz);
     alpn->protocol_name[protocol_nameSz] = 0;
+    alpn->protocol_nameSz = protocol_nameSz;
 
     (void)heap;
 
@@ -1850,7 +1867,7 @@ static word16 TLSX_ALPN_GetSize(ALPN *list)
         list = alpn->next;
 
         length++; /* protocol name length is on one byte */
-        length += (word32)XSTRLEN(alpn->protocol_name);
+        length += (word32)alpn->protocol_nameSz;
 
         if (length > WOLFSSL_MAX_16BIT) {
             return 0;
@@ -1870,7 +1887,7 @@ static word16 TLSX_ALPN_Write(ALPN *list, byte *output)
     while ((alpn = list)) {
         list = alpn->next;
 
-        length = (word16)XSTRLEN(alpn->protocol_name);
+        length = alpn->protocol_nameSz;
 
         /* protocol name length */
         output[offset++] = (byte)length;
@@ -1897,8 +1914,8 @@ static ALPN* TLSX_ALPN_Find(ALPN *list, char *protocol_name, word16 size)
 
     alpn = list;
     while (alpn != NULL && (
-           (word16)XSTRLEN(alpn->protocol_name) != size ||
-           XSTRNCMP(alpn->protocol_name, protocol_name, size)))
+           alpn->protocol_nameSz != size ||
+           XMEMCMP(alpn->protocol_name, protocol_name, size)))
         alpn = alpn->next;
 
     return alpn;
@@ -2222,7 +2239,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     }
 
     *data = alpn->protocol_name;
-    *dataSz = (word16)XSTRLEN((char*)*data);
+    *dataSz = alpn->protocol_nameSz;
 
     return WOLFSSL_SUCCESS;
 }
@@ -3745,9 +3762,13 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
                 /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED
                  * is an explicit positive assertion of revocation and must
                  * not be ignored. OCSP_NO_URL just means there is no
-                 * responder to staple from; stapling stays best-effort. */
+                 * responder to staple from, and OCSP_INVALID_STATUS covers
+                 * every other result the stapler could not turn into a usable
+                 * response - an unreachable responder, or a cached entry with
+                 * no raw response kept; stapling stays best-effort. */
                 if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                     ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+                    ret == WC_NO_ERR_TRACE(OCSP_INVALID_STATUS) ||
                     ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
                     ret = 0;
                 }
@@ -7762,10 +7783,9 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
 #endif
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && \
-    !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-/* Currently only settable through compatibility API */
+    !defined(WOLFSSL_NO_CA_NAMES)
 /******************************************************************************/
-/* Certificate Authorities                                                       */
+/* Certificate Authorities                                                    */
 /******************************************************************************/
 
 /* Smallest legal authorities list from RFC 8446 section 4.2.4: a 2 byte
@@ -7774,87 +7794,171 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
     #define WC_CA_NAMES_MIN_SZ 3
 #endif
 
-static word16 TLSX_CA_Names_GetSize(void* data)
+/* Append a copy of dn/dnSz to the list so wire order matches call order.
+ * tail, when not NULL, caches the append point across calls: parsing a
+ * maximum sized extension adds thousands of entries and walking from the
+ * head each time would be quadratic. */
+int TLSX_CertificateAuthorities_Add_ex(CertificateAuthority** head,
+        CertificateAuthority** tail, const byte* dn, word16 dnSz, void* heap)
 {
-    WOLFSSL* ssl = (WOLFSSL*)data;
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    word32 size = 0;
+    CertificateAuthority* node;
+    size_t sz;
 
-    /* Length of names */
-    size += OPAQUE16_LEN;
-    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
-        byte seq[MAX_SEQ_SZ];
-        WOLFSSL_X509_NAME* name = names->data.name;
+    if (head == NULL || dn == NULL || dnSz == 0)
+        return BAD_FUNC_ARG;
 
-        if (name != NULL) {
-            /* 16-bit length | SEQ | Len | DER of name */
-            size += (word32)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
-                             name->rawLen);
-            if (size > WOLFSSL_MAX_16BIT) {
-                return 0;
+    sz = sizeof(*node) + (size_t)dnSz;
+    node = (CertificateAuthority*)XMALLOC(sz, heap, DYNAMIC_TYPE_TLSX);
+    if (node == NULL)
+        return MEMORY_ERROR;
+    XMEMCPY(node->dn, dn, dnSz);
+    node->dnSz = dnSz;
+    node->next = NULL;
+
+    if ((tail != NULL) && (*tail != NULL)) {
+        (*tail)->next = node;
+    }
+    else {
+        CertificateAuthority** end = head;
+
+        while (*end != NULL)
+            end = &(*end)->next;
+        *end = node;
+    }
+    if (tail != NULL)
+        *tail = node;
+    return 0;
+}
+
+int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
+        const byte* dn, word16 dnSz, void* heap)
+{
+    return TLSX_CertificateAuthorities_Add_ex(head, NULL, dn, dnSz, heap);
+}
+
+void TLSX_CertificateAuthorities_FreeAll(CertificateAuthority* head, void* heap)
+{
+    while (head != NULL) {
+        CertificateAuthority* next = head->next;
+        XFREE(head, heap, DYNAMIC_TYPE_TLSX);
+        head = next;
+    }
+}
+
+/* Certificate_authorities extension emitter. Walks the optional OPENSSL_EXTRA
+ * compat stack and the native list and either accumulates the payload size
+ * into *pSz (output == NULL) or serializes the payload into output and
+ * accumulates the written length.
+ *
+ * RFC 8446 4.2.4:
+ *     opaque DistinguishedName<1..2^16-1>;
+ *     struct {
+ *         DistinguishedName authorities<3..2^16-1>;
+ *     } CertificateAuthoritiesExtension;
+ *
+ * Each DN entry is at most 2^16-1 bytes and the whole authorities vector is
+ * also at most 2^16-1 bytes. Returns 0 on success, BUFFER_ERROR if any entry
+ * or the combined total would exceed either cap. */
+static int TLSX_CA_Names_Write(const WOLFSSL* ssl, byte* output, word16* pSz)
+{
+    CertificateAuthority* cur;
+    word32 total = OPAQUE16_LEN;  /* outer 16-bit length */
+    byte* outerLen = output;
+
+    if (output != NULL)
+        output += OPAQUE16_LEN;
+
+#ifdef OPENSSL_EXTRA
+    {
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
+        for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL;
+                names = names->next) {
+            byte seq[MAX_SEQ_SZ];
+            word32 seqSz;
+            word32 entrySz;
+            WOLFSSL_X509_NAME* name = names->data.name;
+
+            if (name == NULL || name->rawLen <= 0)
+                continue;
+            seqSz = SetSequence((word32)name->rawLen, seq);
+            entrySz = seqSz + (word32)name->rawLen;
+            /* Per-DN cap, and cumulative cap on the whole extension payload
+             * (outer length included) so *pSz below stays exact. */
+            if (entrySz > WOLFSSL_MAX_16BIT ||
+                    total + OPAQUE16_LEN + entrySz > WOLFSSL_MAX_16BIT)
+                return BUFFER_ERROR;
+            /* 16-bit entry length | SEQ hdr | DER of name */
+            total += OPAQUE16_LEN + entrySz;
+            if (output != NULL) {
+                c16toa((word16)entrySz, output);
+                output += OPAQUE16_LEN;
+                XMEMCPY(output, seq, seqSz);
+                output += seqSz;
+                XMEMCPY(output, name->raw, name->rawLen);
+                output += name->rawLen;
             }
         }
     }
-    return (word16)size;
-}
+#endif
 
-static word16 TLSX_CA_Names_Write(void* data, byte* output)
-{
-    WOLFSSL* ssl = (WOLFSSL*)data;
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    byte* len;
-
-    /* Reserve space for the length value */
-    len = output;
-    output += OPAQUE16_LEN;
-    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
+    /* Native entries store the inner subject content; wrap with a SEQUENCE
+     * header to form the full DER Name expected on the wire. */
+    for (cur = WS_CA_NAMES(ssl); cur != NULL; cur = cur->next) {
         byte seq[MAX_SEQ_SZ];
-        WOLFSSL_X509_NAME* name = names->data.name;
-
-        if (name != NULL) {
-            c16toa((word16)name->rawLen +
-                   (word16)SetSequence(name->rawLen, seq), output);
+        word32 seqSz = SetSequence(cur->dnSz, seq);
+        word32 entrySz = seqSz + (word32)cur->dnSz;
+        if (entrySz > WOLFSSL_MAX_16BIT ||
+                total + OPAQUE16_LEN + entrySz > WOLFSSL_MAX_16BIT)
+            return BUFFER_ERROR;
+        total += OPAQUE16_LEN + entrySz;
+        if (output != NULL) {
+            c16toa((word16)entrySz, output);
             output += OPAQUE16_LEN;
-            output += SetSequence(name->rawLen, output);
-            XMEMCPY(output, name->raw, name->rawLen);
-            output += name->rawLen;
+            XMEMCPY(output, seq, seqSz);
+            output += seqSz;
+            XMEMCPY(output, cur->dn, cur->dnSz);
+            output += cur->dnSz;
         }
     }
-    /* Write the total length */
-    c16toa((word16)(output - len - OPAQUE16_LEN), len);
-    return (word16)(output - len);
+
+    if (outerLen != NULL)
+        c16toa((word16)(total - OPAQUE16_LEN), outerLen);
+    *pSz += (word16)total;
+    return 0;
 }
 
-/* Count the CA names TLSX_CA_Names_Write() would write. RFC 8446 section
- * 4.2.4 needs at least one, so send the extension only when this is non-zero.
- * An empty list is one node with a NULL name, which counts as zero. */
-static int TLSX_CA_Names_Count(WOLFSSL* ssl)
+/* True if the emitter would produce at least one DN. Asks the emitter itself
+ * rather than restating its filtering, so the two cannot drift and an
+ * all-empty compat stack never yields an empty authorities vector. On error
+ * report true, so an oversized list fails at write time instead of silently
+ * dropping the extension. */
+static int HasAnyCANames(const WOLFSSL* ssl)
 {
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    int cnt = 0;
+    word16 sz = 0;
 
-    if (ssl == NULL)
-        return 0;
-
-    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL;
-            names = names->next) {
-        if (names->data.name != NULL)
-            cnt++;
-    }
-    return cnt;
+    if (TLSX_CA_Names_Write(ssl, NULL, &sz) != 0)
+        return 1;
+    return sz > OPAQUE16_LEN;
 }
 
 static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
                                   word16 length, byte isRequest)
 {
     word16 extLen;
+    CertificateAuthority* tail = NULL;
 
     (void)isRequest;
 
+    /* Reset the wolfSSL native peer list. */
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+    ssl->ws_peer_ca_names = NULL;
+
+#ifdef OPENSSL_EXTRA
     wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
     ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
     if (ssl->peer_ca_names == NULL)
         return MEMORY_ERROR;
+#endif
 
     if (length < OPAQUE16_LEN)
         return BUFFER_ERROR;
@@ -7864,83 +7968,95 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     length -= OPAQUE16_LEN;
     if (extLen != length)
         return BUFFER_ERROR;
-
-    /* RFC 8446 section 4.2.4 says authorities<3..2^16-1>, and the size table
-     * in TLSX_Parse skips certificate_request. Set WC_CA_NAMES_MIN_SZ to 0
-     * to accept short lists the way older versions did. */
+    /* authorities<3..2^16-1>: the extension is only parsed when present, so
+     * an empty vector is a framing error too. The size table in TLSX_Parse
+     * skips certificate_request; set WC_CA_NAMES_MIN_SZ to 0 to accept short
+     * lists the way older versions did. */
 #if WC_CA_NAMES_MIN_SZ > 0
     if (extLen < WC_CA_NAMES_MIN_SZ)
         return BUFFER_ERROR;
 #endif
 
     while (length) {
-        word16 idx = 0;
-        WOLFSSL_X509_NAME* name = NULL;
-        int ret = 0;
-        int didInit = FALSE;
-        /* Use a DecodedCert struct to get access to GetName to
-         * parse DN name */
-#ifdef WOLFSSL_SMALL_STACK
-        DecodedCert *cert = (DecodedCert *)XMALLOC(
-            sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            return MEMORY_ERROR;
-#else
-        DecodedCert cert[1];
-#endif
+        word16 entrySz;
+        word32 seqIdx = 0;
+        int    innerLen = 0;
+        int    ret;
 
-        if (length < OPAQUE16_LEN) {
-            ret = BUFFER_ERROR;
-        }
+        if (length < OPAQUE16_LEN)
+            return BUFFER_ERROR;
+        ato16(input, &entrySz);
+        /* DistinguishedName<1..2^16-1>: each entry must be at least 1 byte. */
+        if (entrySz == 0)
+            return BUFFER_ERROR;
+        if ((word16)(length - OPAQUE16_LEN) < entrySz)
+            return BUFFER_ERROR;
 
-        if (ret == 0) {
-            ato16(input, &extLen);
-            idx += OPAQUE16_LEN;
+        /* Strip the outer SEQUENCE so that the native list stores subject
+         * content only, mirroring the send path. */
+        if (GetSequence(input + OPAQUE16_LEN, &seqIdx, &innerLen,
+                        entrySz) < 0)
+            return BUFFER_ERROR;
+        if ((word32)innerLen + seqIdx != entrySz)
+            return BUFFER_ERROR;
 
-            if (extLen > length - idx)
-                ret = BUFFER_ERROR;
-        }
-
-        if (ret == 0) {
-            InitDecodedCert(cert, input + idx, extLen, ssl->heap);
-            didInit = TRUE;
-            idx += extLen;
-            ret = GetName(cert, ASN_SUBJECT, extLen);
-        }
-
-        if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
-            ret = MEMORY_ERROR;
-
-        if (ret == 0) {
-            CopyDecodedName(name, cert, ASN_SUBJECT);
-            if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
-                wolfSSL_X509_NAME_free(name);
-                ret = MEMORY_ERROR;
-            }
-        }
-
-        if (didInit)
-            FreeDecodedCert(cert);
-
-        WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+        ret = TLSX_CertificateAuthorities_Add_ex(&ssl->ws_peer_ca_names,
+                &tail, input + OPAQUE16_LEN + seqIdx, (word16)innerLen,
+                ssl->heap);
         if (ret != 0)
             return ret;
 
-        input += idx;
-        length -= idx;
+#ifdef OPENSSL_EXTRA
+        {
+            WOLFSSL_X509_NAME* name = NULL;
+            int didInit = FALSE;
+#ifdef WOLFSSL_SMALL_STACK
+            DecodedCert *cert = (DecodedCert *)XMALLOC(
+                sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
+            if (cert == NULL)
+                return MEMORY_ERROR;
+#else
+            DecodedCert cert[1];
+#endif
+            InitDecodedCert(cert, input + OPAQUE16_LEN, entrySz, ssl->heap);
+            didInit = TRUE;
+            ret = GetName(cert, ASN_SUBJECT, entrySz);
+
+            if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
+                ret = MEMORY_ERROR;
+
+            if (ret == 0) {
+                CopyDecodedName(name, cert, ASN_SUBJECT);
+                if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
+                    wolfSSL_X509_NAME_free(name);
+                    ret = MEMORY_ERROR;
+                }
+            }
+
+            if (didInit)
+                FreeDecodedCert(cert);
+
+            WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+            if (ret != 0)
+                return ret;
+        }
+#endif /* OPENSSL_EXTRA */
+
+        input += OPAQUE16_LEN + entrySz;
+        length -= OPAQUE16_LEN + entrySz;
     }
     return 0;
 }
 
-#define CAN_GET_SIZE(data)      TLSX_CA_Names_GetSize(data)
-#define CAN_WRITE(data, output) TLSX_CA_Names_Write(data, output)
+#define CAN_GET_SIZE(ssl, pSz)       TLSX_CA_Names_Write(ssl, NULL, pSz)
+#define CAN_WRITE(ssl, output, pSz)  TLSX_CA_Names_Write(ssl, output, pSz)
 #define CAN_PARSE(ssl, input, length, isRequest) \
                                 TLSX_CA_Names_Parse(ssl, input, length, isRequest)
 
 #else
 
-#define CAN_GET_SIZE(data)                       0
-#define CAN_WRITE(data, output)                  0
+#define CAN_GET_SIZE(ssl, pSz)                   0
+#define CAN_WRITE(ssl, output, pSz)              0
 #define CAN_PARSE(ssl, input, length, isRequest) 0
 
 #endif
@@ -9798,22 +9914,26 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
 #endif
     {
     #ifdef HAVE_ECC
-        if (ssl->peerEccKey != NULL) {
-            wc_ecc_free(ssl->peerEccKey);
-            ssl->peerEccKey = NULL;
-            ssl->peerEccKeyPresent = 0;
-        }
+        /* A reused WOLFSSL may already carry a retained peer key. FreeKey()
+         * rather than wc_ecc_free(), which leaves the allocation behind. */
+        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+        ssl->peerEccKeyPresent = 0;
     #endif
 
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
+        ssl->peerX25519KeyPresent = 0;
+
+        /* The key can outlive this function, and FreeKey() then releases it
+         * as DYNAMIC_TYPE_CURVE25519, so allocate it with that type. */
         ssl->peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
-                                        ssl->heap, DYNAMIC_TYPE_TLSX);
+                                        ssl->heap, DYNAMIC_TYPE_CURVE25519);
         if (ssl->peerX25519Key == NULL) {
             WOLFSSL_MSG("PeerX25519Key Memory error");
             return MEMORY_ERROR;
         }
         ret = wc_curve25519_init(ssl->peerX25519Key);
         if (ret != 0) {
-            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
             ssl->peerX25519Key = NULL;
             return ret;
         }
@@ -9880,10 +10000,13 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
          * falls through to the cleanup code below. */
     }
 
-    /* done with key share, release resources */
-    if (ssl->peerX25519Key != NULL) {
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake. A failed
+     * exchange keeps nothing, matching TLSX_KeyShare_ProcessX448_ex(). */
+    if ((ssl->peerX25519Key != NULL) &&
+            ((ret != 0) || !ssl->options.keepResources)) {
         wc_curve25519_free(ssl->peerX25519Key);
-        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
         ssl->peerX25519Key = NULL;
         ssl->peerX25519KeyPresent = 0;
     }
@@ -9948,22 +10071,23 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
     curve448_key* peerX448Key;
 
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
-        wc_ecc_free(ssl->peerEccKey);
-        ssl->peerEccKey = NULL;
-        ssl->peerEccKeyPresent = 0;
-    }
+    /* A reused WOLFSSL may already carry a retained peer key. FreeKey() rather
+     * than wc_ecc_free(), which leaves the allocation behind. */
+    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+    ssl->peerEccKeyPresent = 0;
 #endif
 
+    /* The key can outlive this function, and FreeKey() then releases it as
+     * DYNAMIC_TYPE_CURVE448, so allocate it with that type. */
     peerX448Key = (curve448_key*)XMALLOC(sizeof(curve448_key), ssl->heap,
-                                                             DYNAMIC_TYPE_TLSX);
+                                                        DYNAMIC_TYPE_CURVE448);
     if (peerX448Key == NULL) {
         WOLFSSL_MSG("PeerEccKey Memory error");
         return MEMORY_ERROR;
     }
     ret = wc_curve448_init(peerX448Key);
     if (ret != 0) {
-        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
         return ret;
     }
 #ifdef WOLFSSL_DEBUG_TLS
@@ -9993,8 +10117,18 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
                     ssOutput, ssOutSz, EC448_LITTLE_ENDIAN);
     }
 
-    wc_curve448_free(peerX448Key);
-    XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+    /* Keep the peer key when it was asked for - wolfSSL_get_peer_tmp_key()
+     * needs it after the handshake. Freed with the other peer keys on
+     * teardown. */
+    if ((ret == 0) && ssl->options.keepResources) {
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE448, (void**)&ssl->peerX448Key);
+        ssl->peerX448Key = peerX448Key;
+        ssl->peerX448KeyPresent = 1;
+    }
+    else {
+        wc_curve448_free(peerX448Key);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
+    }
     wc_curve448_free((curve448_key*)keyShareEntry->key);
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     keyShareEntry->key = NULL;
@@ -10167,11 +10301,13 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
     #endif
     }
 
-    /* done with key share, release resources */
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake */
     if (ssl->peerEccKey != NULL
     #ifdef HAVE_PK_CALLBACKS
         && ssl->ctx->EccSharedSecretCb == NULL
     #endif
+        && !ssl->options.keepResources
     ) {
         wc_ecc_free(ssl->peerEccKey);
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -11714,6 +11850,13 @@ static const word16 preferredGroup[] = {
     ((sizeof(preferredGroup)/sizeof(*preferredGroup)) - 1)
                                             /* -1 for the invalid group */
 
+/* One past the worst rank TLSX_KeyShare_GroupRank() can return. It ranks
+ * against ssl->group[] when the user set a list and against preferredGroup[]
+ * otherwise, so the sentinel has to cover the longer of the two. */
+#define WOLFSSL_WORST_GROUP_RANK \
+    ((int)(((size_t)WOLFSSL_MAX_GROUP_COUNT > PREFERRED_GROUP_SZ) ? \
+        (size_t)WOLFSSL_MAX_GROUP_COUNT : PREFERRED_GROUP_SZ))
+
 /* WOLFSSL_KEY_SHARE_DEFAULT_GROUP - group used for the speculative key share
  * in ClientHello messages when the application has not selected one via
  * wolfSSL_CTX_set_groups() / wolfSSL_set_groups() or wolfSSL_UseKeyShare().
@@ -11819,8 +11962,8 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
 /* Set a key share that is supported by the client into extensions.
  *
  * ssl  The SSL/TLS object.
- * returns BAD_KEY_SHARE_DATA if no supported group has a key share,
- * 0 if a supported group has a key share and other values indicate an error.
+ * returns 0 if a mutual group was found, KEY_SHARE_ERROR if no mutual
+ * group exists and other values indicate an error.
  */
 int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
 {
@@ -11831,7 +11974,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     SupportedCurve* preferredCurve = NULL;
     word16          name = WOLFSSL_NAMED_GROUP_INVALID;
     KeyShareEntry*  kse = NULL;
-    int             preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int             preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int             rank;
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
@@ -11856,27 +11999,13 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     curve = preferredCurve;
 
     if (curve == NULL) {
-        byte i;
-        /* Fallback to user selected group */
-        preferredRank = WOLFSSL_MAX_GROUP_COUNT;
-        for (i = 0; i < ssl->numGroups; i++) {
-            rank = TLSX_KeyShare_GroupRank(ssl, ssl->group[i]);
-            if (rank == -1)
-                continue;
-            if (rank < preferredRank) {
-                name = ssl->group[i];
-                preferredRank = rank;
-            }
-        }
-        if (name == WOLFSSL_NAMED_GROUP_INVALID) {
-            /* No group selected or specified by the server */
-            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
-            return BAD_KEY_SHARE_DATA;
-        }
+        /* No mutual group exists. An HRR may request only a group the
+         * client advertised in supported_groups, so it cannot recover.
+         * RFC 8446 4.2.1. */
+        WOLFSSL_ERROR_VERBOSE(KEY_SHARE_ERROR);
+        return KEY_SHARE_ERROR;
     }
-    else {
-        name = curve->name;
-    }
+    name = curve->name;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
     /* Check the old key share data list. */
@@ -12052,7 +12181,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     KeyShareEntry* clientKSE = NULL;
     KeyShareEntry* list = NULL;
     KeyShareEntry* preferredKSE = NULL;
-    int preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int rank;
 
     (void)cipherSuite0;
@@ -12263,9 +12392,12 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
     /* No supported group found - send HelloRetryRequest. */
     if (clientKSE == NULL) {
-        /* Set KEY_SHARE_ERROR to indicate HelloRetryRequest required. */
-        *doHelloRetry = 1;
-        return TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
+        /* HRR is only valid if it requests a group the client advertised.
+         * SetSupported fails when no mutual group exists. */
+        ret = TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
+        if (ret == 0)
+            *doHelloRetry = 1;
+        return ret;
     }
 
     return TLSX_KeyShare_Setup(ssl, clientKSE);
@@ -13060,8 +13192,17 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte modes;
 
     ret = TLSX_PskKeyModes_Parse_Modes(input, length, msgType, &modes);
-    if (ret == 0)
+    if (ret == 0) {
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
+        /* Keep the advertised modes for the NewSessionTicket decision. The
+         * extension object is dropped with the rest of the handshake state
+         * once the handshake is done. */
+        ssl->options.pskKeModes = modes;
+        ssl->options.pskKeModesRecvd = 1;
+#endif
         ret = TLSX_PskKeyModes_Use(ssl, modes);
+    }
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -13324,6 +13465,22 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (length != OPAQUE32_LEN)
             return BUFFER_E;
         ato32(input, &maxSz);
+
+#ifdef WOLFSSL_QUIC
+        /* RFC 9001 Section 4.6.1: "Servers MUST NOT send the early_data
+         * extension with a max_early_data_size field set to any value other
+         * than 0xffffffff. A client MUST treat receipt of a NewSessionTicket
+         * that contains an early_data extension with any other value as a
+         * connection error of type PROTOCOL_VIOLATION." */
+        if (WOLFSSL_IS_QUIC(ssl) && maxSz != WOLFSSL_MAX_32BIT) {
+            WOLFSSL_MSG("QUIC ticket early data size not 0xffffffff");
+            wolfSSL_quic_send_alert(ssl, alert_fatal,
+                                    WOLFSSL_QUIC_ERR_CRYPTO_ERROR |
+                                    WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+#endif /* WOLFSSL_QUIC */
 
         ssl->session->maxEarlyDataSz = maxSz;
         return 0;
@@ -15758,16 +15915,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #endif
 
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-            case TLSX_CERTIFICATE_AUTHORITIES: {
-                word16 canSz = CAN_GET_SIZE(extension->data);
-                /* 0 on non-empty list means 16-bit overflow. */
-                if (canSz == 0) {
-                    ret = LENGTH_ERROR;
-                    break;
-                }
-                length += canSz;
+            case TLSX_CERTIFICATE_AUTHORITIES:
+                cbShim = 0;
+                ret = CAN_GET_SIZE((WOLFSSL*)extension->data, &cbShim);
+                length += cbShim;
                 break;
-            }
     #endif
 #endif
 #ifdef WOLFSSL_SRTP
@@ -15822,6 +15974,10 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore((word16)extension->type));
+
+        /* if we encountered an error propagate it */
+        if (ret != 0)
+            break;
     }
 
     if ((word32)*pLength + length > WOLFSSL_MAX_16BIT) {
@@ -16063,7 +16219,10 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension to write");
-                offset += CAN_WRITE(extension->data, output + offset);
+                cbShim = 0;
+                ret = CAN_WRITE((WOLFSSL*)extension->data,
+                        output + offset, &cbShim);
+                offset += cbShim;
                 break;
     #endif
 #endif
@@ -16657,8 +16816,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (IsAtLeastTLSv1_3(ssl->version) &&
-                TLSX_CA_Names_Count(ssl) > 0) {
+        if (IsAtLeastTLSv1_3(ssl->version) && HasAnyCANames(ssl)) {
             WOLFSSL_MSG("Adding certificate authorities extension");
             if ((ret = TLSX_Push(&ssl->extensions,
                     TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {
@@ -17702,8 +17860,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         }
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (!IsAtLeastTLSv1_3(ssl->version) ||
-                TLSX_CA_Names_Count(ssl) == 0) {
+        if (!IsAtLeastTLSv1_3(ssl->version) || !HasAnyCANames(ssl)) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17728,7 +17885,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (TLSX_CA_Names_Count(ssl) > 0) {
+        if (HasAnyCANames(ssl)) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17942,7 +18099,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         }
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (!IsAtLeastTLSv1_3(ssl->version) || TLSX_CA_Names_Count(ssl) == 0) {
+        if (!IsAtLeastTLSv1_3(ssl->version) || !HasAnyCANames(ssl)) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17973,7 +18130,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (TLSX_CA_Names_Count(ssl) > 0) {
+        if (HasAnyCANames(ssl)) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -18438,6 +18595,9 @@ int TLSX_ParseVersion(WOLFSSL* ssl, const byte* input, word16 length,
         offset += size;
     }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    ssl->options.haveSupportedVersions = (ret == 0 && *found);
+#endif
     return ret;
 }
 #endif
@@ -18687,6 +18847,17 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         if (length - offset < size)
             return BUFFER_ERROR;
+
+#ifdef OPENSSL_EXTRA
+        /* Report the extension to the debug callback, like OpenSSL does in
+         * tls1_handle_extensions(). client_server is 1 when this SSL object
+         * is a client. */
+        if (ssl->tlsextDebugCb != NULL) {
+            ssl->tlsextDebugCb(ssl,
+                    (int)(ssl->options.side == WOLFSSL_CLIENT_END), (int)type,
+                    input + offset, (int)size, ssl->tlsextDebugArg);
+        }
+#endif
 
         /* Check minimum size required for TLSX, even if disabled */
         switch (msgType) {
@@ -18941,11 +19112,15 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 if (size != 0)
                     return BUFFER_ERROR;
 
+                /* Honor a user request to disable EMS by ignoring the peer's
+                 * extension rather than enabling it. */
+                if (!ssl->options.disableEMS) {
 #ifndef NO_WOLFSSL_SERVER
-                if (isRequest)
-                    ssl->options.haveEMS = 1;
+                    if (isRequest)
+                        ssl->options.haveEMS = 1;
 #endif
-                pendingEMS = 1;
+                    pendingEMS = 1;
+                }
                 break;
 #endif
 
@@ -19050,7 +19225,6 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
-                WOLFSSL_MSG("Skipping Supported Versions - already processed");
             #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
@@ -19059,6 +19233,18 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     msgType != hello_retry_request)
                     return EXT_NOT_ALLOWED;
 
+                /* RFC 8446 Section 4.2.1: "A server which negotiates a version
+                 * of TLS prior to TLS 1.3 MUST set ServerHello.version and MUST
+                 * NOT send the "supported_versions" extension."  If TLS version
+                 * is <1.3, supported_versions is invalid. */
+                if (msgType == server_hello &&
+                        !IsAtLeastTLSv1_3(ssl->version)) {
+                    WOLFSSL_MSG("Supported Versions in older ServerHello");
+                    WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+                    return VERSION_ERROR;
+                }
+
+                WOLFSSL_MSG("Skipping Supported Versions - already processed");
                 break;
 
             case TLSX_COOKIE:
@@ -19414,9 +19600,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef HAVE_EXTENDED_MASTER
     if (IsAtLeastTLSv1_3(ssl->version) &&
-        (msgType == hello_retry_request || msgType == hello_verify_request)) {
+        (msgType == hello_retry_request || msgType == hello_verify_request ||
+         msgType == session_ticket)) {
         /* Don't change EMS status until server_hello received.
          * Second ClientHello must have same extensions.
+         * NewSessionTicket is post-handshake and never carries the extension,
+         * so its absence there says nothing about what was negotiated.
          */
     }
     else if (!isRequest && ssl->options.haveEMS && !pendingEMS)

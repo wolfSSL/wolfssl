@@ -2470,6 +2470,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
+#ifdef HAVE_PK_CALLBACKS
+    /* The ECC callbacks read keyGenCnt whether or not certificates are
+     * compiled in, so this cannot sit inside the NO_CERTS block below. */
+    XMEMSET(&pkCbInfo, 0, sizeof(pkCbInfo));
+#endif
+
 #ifndef NO_RSA
     verifyCert = caCertFile;
     ourCert    = cliCertFile;
@@ -2628,7 +2634,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'G' :
             #ifdef WOLFSSL_SCTP
                 doDTLS = 1;
-                dtlsUDP = 1;
                 dtlsSCTP = 1;
             #endif
                 break;
@@ -3418,7 +3423,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfDTLSv1_3_client_method_ex;
             break;
 #endif /* WOLFSSL_DTLS13 */
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+        !defined(WOLFSSL_NO_TLS12)
         case -3:
             method = wolfDTLSv1_2_method_ex;
             break;
@@ -3457,6 +3463,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             != 0) {
         err_sys("unable to load static memory");
     }
+
+#if defined(WOLFSSL_NO_MALLOC) && !defined(NO_MAIN_DRIVER)
+    /* only the standalone program may publish a pool of its own */
+    if (wolfSSL_GetGlobalHeapHint() == NULL)
+        wolfSSL_SetGlobalHeapHint(heap);
+#endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && \
     defined(WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK)
@@ -5116,6 +5128,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 exit:
 
+#ifdef HAVE_PK_CALLBACKS
+    CleanupPkCallbackContexts(&pkCbInfo);
+#endif
+
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_ret =
         wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
@@ -5144,6 +5160,13 @@ exit:
     (void) ourKey;
     (void) useVerifyCb;
     (void) customVerifyCert;
+
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_MAIN_DRIVER)
+    /* the pool backing the hint is on this function's stack */
+    if (wolfSSL_GetGlobalHeapHint() == (void*)heap)
+        wolfSSL_SetGlobalHeapHint(NULL);
+#endif
 
     WOLFSSL_RETURN_FROM_THREAD(0);
 }

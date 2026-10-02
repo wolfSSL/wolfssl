@@ -18,3 +18,4 @@ gcc-12
 gcc-9
 gcc-multilib
 libtool
+zlib1g-dev

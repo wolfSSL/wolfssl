@@ -34,7 +34,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.9.2 LANGUAGES C ASM)
+project(wolfssl VERSION 5.9.4 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -49,7 +49,7 @@ endif()
 
 # shared library versioning
 # increment if interfaces have been removed or changed
-set(WOLFSSL_LIBRARY_VERSION_FIRST 45)
+set(WOLFSSL_LIBRARY_VERSION_FIRST 46)
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
@@ -144,10 +144,14 @@ check_function_exists("memset" HAVE_MEMSET)
 check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
-check_function_exists("getpid" HAVE_GETPID)
+check_function_exists("accept4" HAVE_ACCEPT4)
 
 include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
+check_symbol_exists(getpid "unistd.h" HAVE_GETPID)   # pid_t comes with it
+if(HAVE_GETPID)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_GETPID")   # as options.h says
+endif()
 
 include(CheckTypeSize)
 
@@ -725,9 +729,16 @@ if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
     endif()
 endif()
 
+# SHA-512 handshake transcript for TLS v1.3. The prerequisite checks and the
+# definition itself live after the WOLFSSL_CLU block, which is the last writer
+# of WOLFSSL_SHA512.
+add_option("WOLFSSL_TLS13_SHA512"
+    "Keep the SHA-512 handshake transcript for TLS v1.3 (default: disabled)"
+    "no" "yes;no")
+
 # TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
 add_option("WOLFSSL_TLS13_MIDDLEBOX_COMPAT"
-    "Enable TLS v1.3 middlebox compatibility mode (default: disabled)"
+    "Enable client-side TLS v1.3 middlebox compatibility: send a fake session id and a ChangeCipherSpec. Server-side is always on (default: disabled)"
     "no" "yes;no")
 
 if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
@@ -1347,6 +1358,10 @@ add_option(WOLFSSL_SLHDSA
     "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_SLHDSAVERIFYONLY
+    "Enable the SLH-DSA verify-only implementation (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_SLHDSA)
     message(STATUS "Automatically set related requirements for SLH-DSA")
     add_definitions("-DWOLFSSL_HAVE_SLHDSA")
@@ -1356,6 +1371,13 @@ if (WOLFSSL_SLHDSA)
     set_wolfssl_definitions("WOLFSSL_HAVE_SLHDSA" RESULT)
     set_wolfssl_definitions("WOLFSSL_WC_SLHDSA"   RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"    RESULT)
+
+    if (WOLFSSL_SLHDSAVERIFYONLY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SLHDSA_VERIFY_ONLY")
+
+        set_wolfssl_definitions("WOLFSSL_SLHDSA_VERIFY_ONLY" RESULT)
+    endif()
+
     message(STATUS "Looking for WOLFSSL_SLHDSA - found")
 endif()
 
@@ -1638,6 +1660,10 @@ add_option("WOLFSSL_KEYGEN"
     "Enable key generation (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_DH_GEN_PARAMS"
+    "Enable DH domain parameter generation with key generation -- protocols use the fixed FFDHE groups (default: enabled)"
+    "yes" "yes;no")
+
 add_option("WOLFSSL_CERTGEN"
     "Enable cert generation (default: disabled)"
     "no" "yes;no")
@@ -1913,16 +1939,16 @@ else()
     endif()
 endif()
 
+# TLS (enabled by default; disable for wolfCrypt-only)
+add_option("WOLFSSL_TLS" "Enable TLS (default: enabled)" "yes" "yes;no")
+if(NOT WOLFSSL_TLS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_TLS")
+endif()
+
 # TLSv1.2
 add_option("WOLFSSL_TLSV12"
     "Enable TLS versions 1.2 (default: enabled)"
     "yes" "yes;no")
-
-if(NOT WOLFSSL_TLSV12)
-    list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_NO_TLS12"
-        "-DNO_OLD_TLS")
-endif()
 
 # TODO: - TLSv1.0
 #       - SSLv3
@@ -2586,6 +2612,42 @@ if(WOLFSSL_SESSION_TICKET)
         "-DHAVE_SESSION_TICKET")
 endif()
 
+if(NOT WOLFSSL_TLSV12)
+    # A wolfCrypt-only build has no handshake to be left without, so only a
+    # build that keeps TLS has to agree on which versions remain.
+    if(WOLFSSL_TLS)
+        # Compiling the pre-TLS-1.3 handshake out leaves the versions built on
+        # top of it with nothing to run on, so reject them the way configure does.
+        if(WOLFSSL_OLD_TLS)
+            message(FATAL_ERROR
+                "WOLFSSL_TLSV12=no cannot be combined with WOLFSSL_OLD_TLS=yes: "
+                "TLS 1.0 and 1.1 use the TLS 1.2 handshake.")
+        endif()
+        if(NOT WOLFSSL_TLS13)
+            message(FATAL_ERROR
+                "WOLFSSL_TLSV12=no needs WOLFSSL_TLS13=yes: no TLS version "
+                "would be left to negotiate.")
+        endif()
+        if(WOLFSSL_MCAST)
+            message(FATAL_ERROR
+                "WOLFSSL_TLSV12=no cannot be combined with WOLFSSL_MCAST: "
+                "multicast rides on DTLS 1.2 and its NULL cipher suite.")
+        endif()
+        if(WOLFSSL_DTLS AND NOT WOLFSSL_DTLS13)
+            message(FATAL_ERROR
+                "WOLFSSL_TLSV12=no with WOLFSSL_DTLS=yes needs "
+                "WOLFSSL_DTLS13=yes: DTLS 1.2 uses the TLS 1.2 handshake.")
+        endif()
+    endif()
+    # A TLS 1.3-only build without session tickets has no session to cache.
+    if(WOLFSSL_TLS13 AND NOT WOLFSSL_SESSION_TICKET)
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE")
+    endif()
+    # NO_OLD_TLS is already in the list: the check above leaves
+    # WOLFSSL_OLD_TLS off, which is what adds it.
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_TLS12")
+endif()
+
 add_option("WOLFSSL_TICKET_NONCE_MALLOC"
     "Enable dynamic allocation of ticket nonces (default: disabled)"
     "no" "yes;no")
@@ -3035,6 +3097,20 @@ if(WOLFSSL_CLU)
     list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DNO_DES3")
 endif()
 
+# SHA-512 handshake transcript for TLS v1.3. Settled here rather than beside
+# the option: WOLFSSL_SHA512 has no value until its own add_option() has run,
+# and the WOLFSSL_CLU block above can still raise it afterwards.
+if(WOLFSSL_TLS13_SHA512)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - not keeping the SHA-512 handshake transcript for it")
+        override_cache(WOLFSSL_TLS13_SHA512 "no")
+    elseif(NOT WOLFSSL_SHA512)
+        message(FATAL_ERROR "WOLFSSL_TLS13_SHA512 requires WOLFSSL_SHA512.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS13_SHA512")
+    endif()
+endif()
+
 if(WOLFSSL_AESCFB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_CFB")
 endif()
@@ -3103,7 +3179,7 @@ if(WOLFSSL_ECH)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECH")
     if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
         message(WARNING
-            "ECH is incompatible with middlebox compatibility - disabling middlebox compatibility")
+            "ECH is incompatible with client-side middlebox compatibility - disabling middlebox compatibility")
         override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
         list(REMOVE_ITEM WOLFSSL_DEFINITIONS
             "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
@@ -3116,6 +3192,9 @@ endif()
 
 if(WOLFSSL_KEYGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_KEY_GEN")
+    if(NOT WOLFSSL_DH_GEN_PARAMS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_DH_GEN_PARAMS")
+    endif()
 endif()
 if(WOLFSSL_CERTGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN")
@@ -3194,6 +3273,28 @@ add_option("WOLFSSL_CAAM"
     "no" "yes;no")
 if (WOLFSSL_CAAM)
    list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
+endif()
+
+# NXP QorIQ SEC (the PowerPC T-series security engine). The value selects
+# the environment backend, mirroring --enable-sec-qoriq: "yes"/"baremetal"
+# for a flat physically addressed target, "linux" for user space on a
+# running kernel, "sim" for the host-runnable simulated backend the in-tree
+# tests use.
+add_option("WOLFSSL_SEC_QORIQ"
+    "Enable NXP QorIQ SEC engine, T1040/T2080 (default: disabled)"
+    "no" "yes;no;baremetal;linux;sim")
+if (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ")
+    if (WOLFSSL_SEC_QORIQ STREQUAL "linux")
+        set(WOLFSSL_SEC_QORIQ_LINUX "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_LINUX")
+    elseif (WOLFSSL_SEC_QORIQ STREQUAL "sim")
+        set(WOLFSSL_SEC_QORIQ_SIM "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_SIM")
+    else()
+        set(WOLFSSL_SEC_QORIQ_BAREMETAL "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_BAREMETAL")
+    endif()
 endif()
 
 if (WOLFSSL_ARIA)
@@ -3762,7 +3863,27 @@ if(WOLFSSL_RNG_BANK)
     if(NOT WOLFSSL_RNG)
         message(FATAL_ERROR "WOLFSSL_RNG_BANK requires WOLFSSL_RNG.")
     endif()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_WC_RNG_BANK")
+    if(NOT WOLFSSL_FIPS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_WANT_BANKREF_SUPPORT")
+    endif()
+endif()
+
+# RNG lock (share one WC_RNG between threads)
+add_option("WOLFSSL_RNG_AUTOLOCK"
+    "Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)"
+    "yes" "yes;no")
+# the header leaves the lock out where threads or the RNG are absent
+if(NOT WOLFSSL_RNG_AUTOLOCK)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_AUTO_LOCK")
+endif()
+
+# Whether each instance gets that lock without the caller asking for it
+add_option("WOLFSSL_RNG_AUTOLOCK_DEFAULT"
+    "Give each WC_RNG the lock unless the caller says otherwise (default: enabled)"
+    "yes" "yes;no")
+if(NOT WOLFSSL_RNG_AUTOLOCK_DEFAULT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTO_LOCK_DEFAULT_OFF")
 endif()
 
 # Valgrind (for unit tests)
@@ -3993,10 +4114,78 @@ if(NOT WOLFSSL_STATICMEMORY STREQUAL "no")
     endif()
 endif()
 
-# TLS (enabled by default; disable for wolfCrypt-only)
-add_option("WOLFSSL_TLS" "Enable TLS (default: enabled)" "yes" "yes;no")
-if(NOT WOLFSSL_TLS)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_TLS")
+# RNG fork handlers (a forked child keeps using its WC_RNG); a build that
+# cannot carry them drops them.  After the static memory option: it reads it.
+add_option("WOLFSSL_RNG_AUTOFORK"
+    "Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)"
+    "yes" "yes;no")
+if(WOLFSSL_RNG_AUTOFORK)
+    set(RNG_AUTOFORK_NEEDS "")
+    if(WOLFSSL_USER_SETTINGS)
+        set(RNG_AUTOFORK_NEEDS "user_settings.h to define them")
+    elseif(WOLFSSL_SINGLE_THREADED OR WOLFSSL_LINUX_KM)
+        set(RNG_AUTOFORK_NEEDS "threads and no kernel module")
+    elseif(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_AUTOLOCK OR NOT WOLFSSL_HASH_DRBG OR
+           WOLFSSL_RNG_BANK OR WOLFSSL_STATICMEMORY)
+        set(RNG_AUTOFORK_NEEDS "the RNG, its lock and the Hash DRBG, and no RNG bank or static memory")
+    elseif(NOT HAVE_GETPID)
+        # the header gate wants it too: it is what makes the child throw away
+        # the pooled and banked bytes it inherited
+        set(RNG_AUTOFORK_NEEDS "getpid")
+    elseif(NOT WOLFSSL_MEMTEST STREQUAL "no" OR
+           NOT WOLFSSL_TRACKMEMORY STREQUAL "no")
+        set(RNG_AUTOFORK_NEEDS "a build without memory tracking")
+    else()
+        # real link tests: a toolchain whose try-compile only builds a static
+        # library reports every function as found
+        set(RNG_AUTOFORK_SAVED_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
+        set(RNG_AUTOFORK_SAVED_TARGET "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+        check_function_exists("pthread_atfork" WOLFSSL_HAVE_PTHREAD_ATFORK)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+        check_c_source_compiles("
+            #if defined(__linux__) || defined(__ANDROID__) || \
+                defined(__CYGWIN__) || defined(__MSYS__)
+            #define _GNU_SOURCE 1   /* as wc_port.c does */
+            #endif
+            #include <stddef.h>
+            #include <stdint.h>
+            #include <dlfcn.h>
+            #include <semaphore.h>
+            #include <pthread.h>
+            #ifdef __APPLE__
+            #error macOS has only named semaphores, which a forked child shares
+            #endif
+            int main(void) {
+                Dl_info info;
+                const char* name;
+                sem_t s;
+                int old;
+                if (sem_init(&s, 0, 1) == 0)
+                    (void)sem_post(&s);
+                (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+                if (dladdr((void*)(uintptr_t)main, &info) != 0) {
+                    name = info.dli_fname;
+                    if (name != NULL && name[0] != 0)
+                        (void)dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY);
+                }
+                return 0;
+            }" WOLFSSL_HAVE_DLADDR_PIN)
+        set(CMAKE_REQUIRED_LIBRARIES "${RNG_AUTOFORK_SAVED_LIBS}")
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE "${RNG_AUTOFORK_SAVED_TARGET}")
+        if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
+            set(RNG_AUTOFORK_NEEDS "pthread_atfork")
+        elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
+            set(RNG_AUTOFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
+        endif()
+    endif()
+    if(RNG_AUTOFORK_NEEDS)
+        message(STATUS "RNG fork handlers off: they need ${RNG_AUTOFORK_NEEDS}")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTOFORK")
+        list(APPEND WOLFSSL_LINK_LIBS ${CMAKE_DL_LIBS})
+    endif()
 endif()
 
 # SHA-256 (enabled by default)
@@ -4162,6 +4351,7 @@ generate_build_flags()
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
     set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    set(HAVE_GETPID OFF)   # user_settings.h decides; keeps options.h in step
 endif()
 
 if(WOLFSSL_USER_SETTINGS_ASM)
@@ -4585,6 +4775,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_falcon.c
         tests/api/test_signature.c
         tests/api/test_lms_xmss.c
+        tests/api/test_pkcs11.c
         tests/api/test_dtls.c
         tests/api/test_dtls13.c
         tests/api/test_ssl_cert.c
@@ -4738,6 +4929,7 @@ include(GNUInstallDirs)
 
 set(HEADER_EXCLUDE
   "internal.h"
+  "ssl_sess.h"
   "wolfssl/wolfcrypt/port/nrf51.h"
   "wolfssl/wolfcrypt/port/arm"
   "wolfssl/wolfcrypt/port/cypress"
@@ -4960,7 +5152,7 @@ if(WOLFSSL_INSTALL)
 
     write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake"
-    VERSION "${wolfssl_VERSION_MAJOR}.${wolfssl_VERSION_MINOR}"
+    VERSION "${wolfssl_VERSION}"
     COMPATIBILITY AnyNewerVersion
     )
 

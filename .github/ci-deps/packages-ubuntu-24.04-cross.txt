@@ -1,0 +1,12 @@
+# pq-all's cross-compilation apt packages for ubuntu-24.04 (the '-cross'
+# bundle: ghcr.io/<owner>/wolfssl-ci-debs:ubuntu-24.04-cross). Separate from
+# -minimal because the ARM toolchains are ~118 MB and the 19 workflows on
+# -minimal do not cross-compile. Keep sorted.
+autoconf
+automake
+bubblewrap
+build-essential
+ccache
+crossbuild-essential-arm64
+crossbuild-essential-armhf
+libtool

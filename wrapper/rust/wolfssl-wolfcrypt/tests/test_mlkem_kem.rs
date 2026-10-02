@@ -18,15 +18,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#![cfg(all(mlkem, random, feature = "kem", feature = "rand_core"))]
+#![cfg(all(mlkem, mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, random, feature = "kem", feature = "rand_core"))]
 
 mod common;
 
 use kem::{Decapsulate, Decapsulator, Encapsulate, Kem, TryKeyInit, KeyExport};
 use kem::Generate;
+use kem::common::rand_core::UnwrapErr;
 use wolfssl_wolfcrypt::mlkem::MlKem;
 use wolfssl_wolfcrypt::mlkem_kem::*;
 use wolfssl_wolfcrypt::random::RNG;
+
+// The wolfSSL RNG is fallible, so it implements `TryCryptoRng` rather than the
+// infallible `CryptoRng` that the infallible kem entry points require. The
+// tests below wrap it in `UnwrapErr`, which panics on RNG failure.
 
 /// Verify that the compile-time sizes used by the kem types match the runtime
 /// sizes reported by wolfCrypt.
@@ -52,9 +57,10 @@ fn test_sizes_match_runtime() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-512 via the kem traits.
 #[test]
+#[cfg(mlkem_512)]
 fn test_kem_512_round_trip() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let (dk, ek) = MlKem512::generate_keypair_from_rng(&mut rng);
     let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
@@ -64,9 +70,10 @@ fn test_kem_512_round_trip() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-768 via the kem traits.
 #[test]
+#[cfg(mlkem_768)]
 fn test_kem_768_round_trip() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
     let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
@@ -76,9 +83,10 @@ fn test_kem_768_round_trip() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-1024 via the kem traits.
 #[test]
+#[cfg(mlkem_1024)]
 fn test_kem_1024_round_trip() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let (dk, ek) = MlKem1024::generate_keypair_from_rng(&mut rng);
     let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
@@ -89,9 +97,10 @@ fn test_kem_1024_round_trip() {
 /// Verify that `Generate::generate_from_rng` produces a usable decapsulation
 /// key and that the associated encapsulation key is consistent.
 #[test]
+#[cfg(mlkem_768)]
 fn test_generate_from_rng() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let dk = MlKem768DecapsulationKey::generate_from_rng(&mut rng);
     let ek = dk.encapsulation_key();
@@ -104,9 +113,10 @@ fn test_generate_from_rng() {
 /// Verify that a tampered ciphertext produces a different shared secret
 /// (ML-KEM implicit rejection).
 #[test]
+#[cfg(mlkem_768)]
 fn test_implicit_rejection() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
     let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
@@ -121,9 +131,10 @@ fn test_implicit_rejection() {
 
 /// Verify that `TryKeyInit` and `KeyExport` round-trip the encapsulation key.
 #[test]
+#[cfg(mlkem_768)]
 fn test_ek_export_import() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
 
@@ -141,6 +152,7 @@ fn test_ek_export_import() {
 
 /// Verify that `TryKeyInit` doesn't panic on a zeroed key.
 #[test]
+#[cfg(mlkem_768)]
 fn test_ek_try_new_zeroed_key() {
     common::setup();
 
@@ -154,14 +166,31 @@ fn test_ek_try_new_zeroed_key() {
 /// Verify the `Decapsulator::encapsulation_key` method returns a key that
 /// can be used for encapsulation.
 #[test]
+#[cfg(mlkem_512)]
 fn test_decapsulator_encapsulation_key() {
     common::setup();
-    let mut rng = RNG::new().expect("RNG creation failed");
+    let mut rng = UnwrapErr(RNG::new().expect("RNG creation failed"));
 
     let dk = MlKem512DecapsulationKey::generate_from_rng(&mut rng);
     let ek = dk.encapsulation_key().clone();
 
     let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
+    let k_recv = dk.decapsulate(&ct);
+    assert_eq!(k_send, k_recv);
+}
+
+/// Verify that the fallible `Generate::try_generate_from_rng` can be driven
+/// directly by the wolfSSL RNG, propagating RNG errors instead of panicking.
+#[test]
+fn test_try_generate_from_rng() {
+    common::setup();
+    let mut rng = RNG::new().expect("RNG creation failed");
+
+    let dk = MlKem768DecapsulationKey::try_generate_from_rng(&mut rng)
+        .expect("try_generate_from_rng failed");
+    let ek = dk.encapsulation_key();
+
+    let (ct, k_send) = ek.encapsulate_with_rng(&mut UnwrapErr(&mut rng));
     let k_recv = dk.decapsulate(&ct);
     assert_eq!(k_send, k_recv);
 }

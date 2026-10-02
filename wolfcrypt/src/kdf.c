@@ -994,6 +994,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
         }
+        ForceZero(enc, sizeof(enc));
     }
     /* XOR out label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;

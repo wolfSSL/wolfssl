@@ -156,26 +156,17 @@ static void wc_RsaCleanup(RsaKey* key)
 #if !defined(WOLFSSL_NO_MALLOC) && (defined(WOLFSSL_ASYNC_CRYPT) || \
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     if (key != NULL) {
+
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    #if FIPS_VERSION3_GE(7,0,0)
         /* Erase the recovered plaintext on the way out, success or failure.
-         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: a
-         * caller-supplied one is the answer itself.  No key->type test:
-         * it never holds RSA_PRIVATE_DECRYPT/ENCRYPT, which belong to the
-         * operation-type half of that enum (rsa.h:176-183), so the old test
-         * was always false and the buffer was freed unwiped. */
+         * SP 800-56B Rev2 sec 7.2.2.4. Erase only a buffer we allocated. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
             ForceZero(key->data, key->dataLen);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(key->data, key->dataLen);
+            #endif
         }
-    #else
-        /* if private operation zero temp buffer */
-        if ((key->data != NULL && key->dataLen > 0) &&
-            (key->type == RSA_PRIVATE_DECRYPT ||
-             key->type == RSA_PRIVATE_ENCRYPT)) {
-            ForceZero(key->data, key->dataLen);
-        }
-    #endif
-    #endif
+    #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
         /* make sure any allocated memory is free'd */
         if (key->dataIsAlloc) {
             XFREE(key->data, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -2340,10 +2331,6 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
-    case WC_HASH_TYPE_MD2:
-    case WC_HASH_TYPE_MD4:
-    case WC_HASH_TYPE_MD5:
-    case WC_HASH_TYPE_MD5_SHA:
     case WC_HASH_TYPE_SHA3_224:
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
         return WC_MGF1SHA3_224;
@@ -2368,9 +2355,14 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
+    case WC_HASH_TYPE_MD2:
+    case WC_HASH_TYPE_MD4:
+    case WC_HASH_TYPE_MD5:
+    case WC_HASH_TYPE_MD5_SHA:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     case WC_HASH_TYPE_SM3:
+        /* no MGF1 identifier defined for these hashes */
         break;
 #ifdef WOLFSSL_SHAKE128
     case WC_HASH_TYPE_SHAKE128:
@@ -4172,6 +4164,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             XMEMCPY(key->data, in, inLen);
             key->dataLen = inLen;
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("key data in", key->data, key->dataLen);
+            #endif
         }
         else {
             key->dataIsAlloc = 0;
@@ -6173,6 +6168,20 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
         return BAD_FUNC_ARG;
 
     key->rng = rng;
+
+    return 0;
+}
+
+/* Companion to wc_RsaSetRNG(): detach the key's RNG association.
+ * Subsequent operations that require the key's RNG (blinding, pairwise
+ * consistency) then either fail with MISSING_RNG_E or fall back to a
+ * locally instantiated RNG, per operation, until a new RNG is set. */
+int wc_RsaClearRNG(RsaKey* key)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    key->rng = NULL;
 
     return 0;
 }

@@ -1031,6 +1031,150 @@ static void wb_hss_full_cycle(void)
     WB_NOTE("hss_full_cycle (levels=2, subtree transition) drive complete");
 }
 
+/* ------------------------------------------------------------------------
+ * wc_lms_priv_state_load() bounds checks (wc_lms_impl.c:1821)
+ *
+ *     if ((state->stack.offset > LMS_STACK_CACHE_LEN(height, hash_len)) ||
+ *             ((state->stack.offset % params->hash_len) != 0))
+ *         return BUFFER_E;
+ *
+ * Added upstream by "Add some bounds checks to LMS.". The loader carves a
+ * serialized private key into an LmsPrivState and reads stack.offset straight
+ * off the wire with ato32, so both operands describe a private key that has
+ * been tampered with or truncated -- a key the library itself wrote always has
+ * an offset that is both in range and a whole number of nodes, which is why an
+ * ordinary keygen/sign/reload cycle leaves the decision permanently false.
+ *
+ * The loader stores pointers into the buffer and validates two integers; it
+ * allocates nothing and hashes nothing, so a stack buffer of the right length
+ * with a hand-written offset field is the whole fixture.
+ * ------------------------------------------------------------------------ */
+static void wb_priv_state_load_bounds(void)
+{
+    LmsParams    params;
+    LmsPrivState state;
+    /* height 5, rootLevels 2, cacheBits 2, hash_len 32 */
+    byte         priv[LMS_PRIV_STATE_LEN(5, 2, 2, WB_HLEN)];
+    /* stack.offset sits after auth_path (height * hash_len) and the stack
+     * itself ((height + 1) * hash_len). */
+    const word32 offPos = (word32)5 * WB_HLEN + (word32)6 * WB_HLEN;
+    const word32 cacheLen = LMS_STACK_CACHE_LEN(5, WB_HLEN);
+    int ret;
+    size_t i;
+
+    static const struct {
+        const char* name;
+        word32      offset;   /* what to write into stack.offset */
+        int         expect;   /* 0 accept, BUFFER_E reject */
+    } rows[] = {
+        /* (T,-) too large: first operand true, second short-circuited */
+        { "offset past end of stack", 0, BUFFER_E },   /* filled below */
+        /* (F,T) in range but not a whole node */
+        { "offset not a node multiple", 1, BUFFER_E },
+        /* (F,F) the accepting partner for both operands */
+        { "offset exactly at the end", 2, 0 },
+        { "offset zero",               3, 0 }
+    };
+
+    wb_make_params(&params, 1, 5, 2, 2);
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        word32 off;
+
+        switch (rows[i].offset) {
+            case 0:  off = cacheLen + WB_HLEN; break;  /* > cache length   */
+            case 1:  off = WB_HLEN + 1U;       break;  /* in range, unaligned */
+            case 2:  off = cacheLen;           break;  /* == cache length  */
+            default: off = 0;                  break;
+        }
+
+        XMEMSET(priv, 0, sizeof(priv));
+        c32toa(off, priv + offPos);
+        XMEMSET(&state, 0, sizeof(state));
+
+        ret = wc_lms_priv_state_load(&params, &state, priv);
+        printf("  [wb] priv_state_load %-27s off=%u -> %d\n",
+               rows[i].name, (unsigned)off, ret);
+        if (ret != rows[i].expect) {
+            printf("  [wb] FAIL: expected %d\n", rows[i].expect);
+            wb_fail = 1;
+        }
+    }
+}
+
+/* ------------------------------------------------------------------------
+ * wc_lms_treehash_update() data-stack-full guard (wc_lms_impl.c:2454)
+ *
+ *     if ((ret == 0) && ((size_t)(spEnd - sp) < params->hash_len)) {
+ *         ret = BUFFER_E;      -- no room on the stack to push onto
+ *
+ * Added upstream by "Add some bounds checks to LMS.". sp starts at
+ * stack + stackCache->offset and spEnd at stack + LMS_STACK_CACHE_LEN, so the
+ * remaining room is exactly (cache length - offset). The traversal only ever
+ * pushes as many nodes as the tree height allows, so a private state the
+ * library produced always leaves room and the guard is dead -- it is defending
+ * against a restored state whose offset says the stack is already full, which
+ * is the state written here.
+ *
+ * Only the second operand is driven. The first is false only when an earlier
+ * step in the SAME loop iteration already failed, which on this path means the
+ * hash failing, and that belongs to the hash-fault driver rather than here.
+ * ------------------------------------------------------------------------ */
+static void wb_treehash_update_stack_full(void)
+{
+    LmsParams params;
+    LmsState state;
+    byte id[LMS_I_LEN];
+    byte seed[WB_HLEN];
+    byte auth_path[5 * WB_HLEN];
+    byte stack_buf[(5 + 1) * WB_HLEN];
+    byte root_buf[((1U << 2) - 1U) * WB_HLEN];
+    byte leaf_cache[(1U << 2) * WB_HLEN];
+    LmsPrivState priv;
+    int ret;
+
+    wb_make_params(&params, 1, 5, 2, 2);
+    XMEMSET(id, 0xAA, sizeof(id));
+    XMEMSET(seed, 0xBB, sizeof(seed));
+    XMEMSET(auth_path, 0, sizeof(auth_path));
+    XMEMSET(stack_buf, 0, sizeof(stack_buf));
+    XMEMSET(root_buf, 0, sizeof(root_buf));
+    XMEMSET(leaf_cache, 0, sizeof(leaf_cache));
+
+    if (wb_state_init(&state, &params) != 0) {
+        WB_NOTE("wb_state_init failed for treehash_update_stack_full");
+        wb_fail = 1;
+        return;
+    }
+
+    XMEMSET(&priv, 0, sizeof(priv));
+    priv.auth_path   = auth_path;
+    priv.stack.stack = stack_buf;
+    priv.root        = root_buf;
+    priv.leaf.cache  = leaf_cache;
+
+    ret = wc_lms_treehash_init(&state, &priv, id, seed, 0);
+    if (ret == 0) {
+        /* Say the stack is already full: spEnd - sp becomes 0, which is below
+         * every hash length, so the first push has nowhere to go. */
+        priv.stack.offset = LMS_STACK_CACHE_LEN(params.height, params.hash_len);
+
+        ret = wc_lms_treehash_update(&state, &priv, id, seed, 0, 0, 0, 0);
+        printf("  [wb] treehash_update full stack (offset=%u) -> %d\n",
+               (unsigned)priv.stack.offset, ret);
+        if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+            printf("  [wb] FAIL: expected BUFFER_E\n");
+            wb_fail = 1;
+        }
+    }
+    else {
+        WB_NOTE("treehash_init failed in stack_full test");
+        wb_fail = 1;
+    }
+
+    wb_state_free(&state);
+}
+
 #else /* !WB_GAP_SIGN */
 
 static void wb_compute_y_kc_ret(void)
@@ -1044,6 +1188,8 @@ static void wb_hss_sign_checks(void) {}
 static void wb_next_subtree_inc(void) {}
 static void wb_hss_verify_checks(void) {}
 static void wb_hss_full_cycle(void) {}
+static void wb_priv_state_load_bounds(void) {}
+static void wb_treehash_update_stack_full(void) {}
 
 #endif /* WB_GAP_SIGN */
 
@@ -1054,6 +1200,8 @@ static void wb_q_expand(void)
     WB_NOTE("WOLFSSL_HAVE_LMS not compiled in this variant; skipped");
 }
 static void wb_compute_y_kc_ret(void) {}
+static void wb_priv_state_load_bounds(void) {}
+static void wb_treehash_update_stack_full(void) {}
 static void wb_treehash_init_edges(void) {}
 static void wb_treehash_update_leafslide(void) {}
 static void wb_verify_corrupt(void) {}
@@ -1061,7 +1209,6 @@ static void wb_hss_sign_checks(void) {}
 static void wb_next_subtree_inc(void) {}
 static void wb_hss_verify_checks(void) {}
 static void wb_hss_full_cycle(void) {}
-
 #endif /* WOLFSSL_HAVE_LMS */
 
 int main(void)
@@ -1085,6 +1232,8 @@ int main(void)
     wb_next_subtree_inc();
     wb_hss_verify_checks();
     wb_hss_full_cycle();
+    wb_priv_state_load_bounds();
+    wb_treehash_update_stack_full();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips (printed notes + wb_fail), not

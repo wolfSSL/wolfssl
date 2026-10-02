@@ -393,7 +393,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 wolfSSL_EVP_PKEY_free(pubkey);
                 pubkey = NULL;
 
-            #if defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED) && \
+            #if defined(WOLFSSL_CERT_GEN) && \
                 !defined(WOLFSSL_MLDSA_NO_SIGN) && \
                 !defined(WOLFSSL_MLDSA_NO_VERIFY)
                 /* sign and verify round trip with the ML-DSA key */
@@ -556,7 +556,7 @@ int test_wolfSSL_X509_set_pubkey(void)
 
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
         !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_CERT_GEN) && \
-        !defined(NO_PWDBASED) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+        !defined(WOLFSSL_MLDSA_NO_SIGN) && \
         !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44)
         /* FIPS204-draft Dilithium key: set_pubkey must keep pubKeyOID
          * consistent with the draft-OID SPKI emitted by
@@ -617,7 +617,7 @@ int test_wolfSSL_X509_set_pubkey(void)
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_BIO) && !defined(WOLFSSL_NO_ML_DSA_87) && \
     !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
-    defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED)
+    defined(WOLFSSL_CERT_GEN)
     {
         /* Classic-signed certificate carrying a large ML-DSA-87 subject
          * public key: the DER buffer must be sized for the subject SPKI

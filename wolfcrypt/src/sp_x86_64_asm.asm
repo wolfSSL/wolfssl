@@ -63039,13 +63039,12 @@ L_1024_mont_reduce_16_loop:
         add	rcx, 8
         dec	r10
         jnz	L_1024_mont_reduce_16_loop
-        mov	r14, QWORD PTR [rcx+120]
+        mov	r14, QWORD PTR [r9+120]
         mov	QWORD PTR [rcx], r15
-        sub	r14, QWORD PTR [r9+120]
+        sub	r14, QWORD PTR [rcx+120]
         mov	QWORD PTR [rcx+8], rdi
         sbb	r14, r14
         neg	rsi
-        not	r14
         or	rsi, r14
 IFDEF _WIN64
         mov	r8, r9
@@ -63130,10 +63129,10 @@ sp_1024_mont_add_16 PROC
         mov	QWORD PTR [rcx+112], r11
         mov	QWORD PTR [rcx+120], r12
         sbb	r13, 0
-        sub	r12, QWORD PTR [r9+120]
-        sbb	r12, r12
-        not	r12
-        or	r13, r12
+        mov	r11, QWORD PTR [r9+120]
+        sub	r11, r12
+        sbb	r11, r11
+        or	r13, r11
         mov	r11, QWORD PTR [r9]
         mov	r12, QWORD PTR [r9+8]
         and	r11, r13
@@ -63296,10 +63295,10 @@ sp_1024_mont_dbl_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         and	r10, r12
@@ -63461,10 +63460,10 @@ sp_1024_mont_tpl_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         and	r10, r12
@@ -63611,10 +63610,10 @@ sp_1024_mont_tpl_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         and	r10, r12
@@ -64267,12 +64266,12 @@ L_1024_mont_reduce_avx2_16_loop:
         sub	r11, 2
         jnz	L_1024_mont_reduce_avx2_16_loop
         sub	r9, 64
-        sub	r12, QWORD PTR [r10+120]
+        mov	rax, QWORD PTR [r10+120]
+        sub	rax, r12
         mov	r8, r9
-        sbb	r12, r12
+        sbb	rax, rax
         neg	rbp
-        not	r12
-        or	rbp, r12
+        or	rbp, rax
         sub	r9, 128
         mov	rcx, QWORD PTR [r10]
         mov	rdx, r14
@@ -64428,10 +64427,10 @@ sp_1024_mont_add_avx2_16 PROC
         mov	QWORD PTR [rcx+112], r11
         mov	QWORD PTR [rcx+120], r12
         sbb	r13, 0
-        sub	r12, QWORD PTR [r9+120]
-        sbb	r12, r12
-        not	r12
-        or	r13, r12
+        mov	r11, QWORD PTR [r9+120]
+        sub	r11, r12
+        sbb	r11, r11
+        or	r13, r11
         mov	r11, QWORD PTR [r9]
         mov	r12, QWORD PTR [r9+8]
         mov	rax, QWORD PTR [rcx]
@@ -64578,10 +64577,10 @@ sp_1024_mont_dbl_avx2_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         mov	rax, QWORD PTR [rcx]
@@ -64727,10 +64726,10 @@ sp_1024_mont_tpl_avx2_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         mov	rax, QWORD PTR [rcx]
@@ -64861,10 +64860,10 @@ sp_1024_mont_tpl_avx2_16 PROC
         mov	QWORD PTR [rcx+112], r10
         mov	QWORD PTR [rcx+120], r11
         sbb	r12, 0
-        sub	r11, QWORD PTR [r8+120]
-        sbb	r11, r11
-        not	r11
-        or	r12, r11
+        mov	r10, QWORD PTR [r8+120]
+        sub	r10, r11
+        sbb	r10, r10
+        or	r12, r10
         mov	r10, QWORD PTR [r8]
         mov	r11, QWORD PTR [r8+8]
         mov	rax, QWORD PTR [rcx]

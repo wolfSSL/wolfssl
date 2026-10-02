@@ -1421,7 +1421,8 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
-#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
+#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS) && \
+    !defined(NO_MAIN_DRIVER)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
 /* The post-quantum-specific mapping of command line option to bit values and
@@ -1454,8 +1455,12 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-frodokem-1344",     BENCH_FRODOKEM_1344     },
 #endif
 #if defined(HAVE_FALCON)
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
     { "-falcon_level1",     BENCH_FALCON_LEVEL1_SIGN },
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
     { "-falcon_level5",     BENCH_FALCON_LEVEL5_SIGN },
+#endif
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA)
     /* Legacy CLI option names, kept as deprecated aliases for -ml-dsa-{44,65,87}.
@@ -5009,10 +5014,14 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_FALCON
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
+#endif
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_NO_RNG)
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -6498,7 +6507,8 @@ static void bench_gmac_internal(int useDeviceID, word32 ivSz,
 
     wc_AesFree((Aes*)&gmac);
 
-    bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(gmacStr, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -6932,6 +6942,20 @@ void bench_aesxts(void)
     WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
     double start;
     int    i, count, ret;
+#ifdef WOLFSSL_AESXTS_STREAM
+    /* Chunk the one-shot buffer so the two numbers compare directly.  Must
+     * be a block multiple: only the final Update() may be short. */
+    #ifndef BENCH_XTS_CHUNK
+        #ifdef BENCH_EMBEDDED
+            #define BENCH_XTS_CHUNK 256
+        #else
+            #define BENCH_XTS_CHUNK (64*1024)
+        #endif
+    #endif
+    struct XtsAesStreamData stream;
+    word32 off;
+    word32 chunk;
+#endif
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     static const unsigned char k1[] = {
@@ -6979,6 +7003,63 @@ void bench_aesxts(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    /* A bare size argument lowers bench_size and BENCH_EMBEDDED is 1 KiB, so
+     * keep two chunks or this times one Update() and calls it streaming. */
+    chunk = (word32)BENCH_XTS_CHUNK;
+    if (chunk > (word32)bench_size / 2U) {
+        chunk = ((word32)bench_size / 2U) & ~(word32)(WC_AES_BLOCK_SIZE - 1);
+    }
+    if (chunk < (word32)WC_AES_BLOCK_SIZE) {
+        chunk = (word32)WC_AES_BLOCK_SIZE;
+    }
+
+    if ((word32)bench_size >= (word32)WC_AES_BLOCK_SIZE) {
+        RESET_MULTI_VALUE_STATS_VARS();
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                if ((ret = wc_AesXtsEncryptInit(aes, i1, sizeof(i1),
+                                &stream)) != 0) {
+                    printf("wc_AesXtsEncryptInit failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                /* Stop a block short: Update()/Final() reject sz < 16. */
+                for (off = 0;
+                     off + chunk + (word32)WC_AES_BLOCK_SIZE <=
+                         (word32)bench_size;
+                     off += chunk) {
+                    if ((ret = wc_AesXtsEncryptUpdate(aes, bench_cipher + off,
+                                    bench_plain + off, chunk,
+                                    &stream)) != 0) {
+                        printf("wc_AesXtsEncryptUpdate failed, ret = %d\n",
+                               ret);
+                        goto exit;
+                    }
+                }
+                if ((ret = wc_AesXtsEncryptFinal(aes, bench_cipher + off,
+                                bench_plain + off,
+                                (word32)bench_size - off, &stream)) != 0) {
+                    printf("wc_AesXtsEncryptFinal failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+
+        bench_stats_sym_finish("AES-XTS-stream-enc", 0, count, bench_size,
+                               start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+#endif /* WOLFSSL_AESXTS_STREAM */
     wc_AesXtsFree(aes);
 
     /* decryption benchmark */
@@ -7013,6 +7094,53 @@ void bench_aesxts(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    if ((word32)bench_size >= (word32)WC_AES_BLOCK_SIZE) {
+        RESET_MULTI_VALUE_STATS_VARS();
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                if ((ret = wc_AesXtsDecryptInit(aes, i1, sizeof(i1),
+                                &stream)) != 0) {
+                    printf("wc_AesXtsDecryptInit failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                /* Stop a block short: Update()/Final() reject sz < 16. */
+                for (off = 0;
+                     off + chunk + (word32)WC_AES_BLOCK_SIZE <=
+                         (word32)bench_size;
+                     off += chunk) {
+                    if ((ret = wc_AesXtsDecryptUpdate(aes, bench_plain + off,
+                                    bench_cipher + off, chunk,
+                                    &stream)) != 0) {
+                        printf("wc_AesXtsDecryptUpdate failed, ret = %d\n",
+                               ret);
+                        goto exit;
+                    }
+                }
+                if ((ret = wc_AesXtsDecryptFinal(aes, bench_plain + off,
+                                bench_cipher + off,
+                                (word32)bench_size - off, &stream)) != 0) {
+                    printf("wc_AesXtsDecryptFinal failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+
+        bench_stats_sym_finish("AES-XTS-stream-dec", 0, count, bench_size,
+                               start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif
 
 exit:
@@ -12620,6 +12748,12 @@ void bench_mlkem(int type)
     }
 #endif
 
+    /* Zero the key objects so the wc_MlKemKey_Free calls below, and the one at
+     * the top of bench_mlkem_keygen's loop, are safe even if a benchmark helper
+     * returns before initializing its key. */
+    XMEMSET(key1, 0, sizeof(*key1));
+    XMEMSET(key2, 0, sizeof(*key2));
+
     bench_mlkem_keygen(type, name, keySize, key1);
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -13051,6 +13185,15 @@ static const byte lms_pub_L4_H5_W8[60] =
 #endif
 #endif /* WOLFSSL_WC_LMS_SERIALIZE_STATE */
 
+/* Whether the build has any LMS parameter set at all: SHA-256/256 unless it
+ * was disabled, SHA-256/192 and SHAKE-256 when asked for.  With none of them
+ * there is nothing to benchmark and everything below would be unused. */
+#if !defined(WOLFSSL_NO_LMS_SHA256_256) || defined(WOLFSSL_LMS_SHA256_192) || \
+    defined(WOLFSSL_LMS_SHAKE256)
+    #define BENCH_LMS_ANY_PARAMS
+#endif
+
+#ifdef BENCH_LMS_ANY_PARAMS
 static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
@@ -13362,6 +13505,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_SHAKE192_L1_H25_W8:
 #endif
 
+    /* Named so that -Wswitch-enum is satisfied; it is not a parameter set and
+     * never reaches here. */
+    case WC_LMS_PARM_NONE:
     default:
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
@@ -13532,11 +13678,19 @@ exit_lms_sign_verify:
     return;
 }
 
+#endif /* BENCH_LMS_ANY_PARAMS */
+
 void bench_lms(void)
 {
+#ifdef BENCH_LMS_ANY_PARAMS
     byte pub[HSS_MAX_PUBLIC_KEY_LEN];
+#endif
 
 #ifndef WOLFSSL_NO_LMS_SHA256_256
+    bench_lms_keygen(WC_LMS_PARM_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_L1_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W8, pub);
 #ifdef BENCH_LMS_SLOW_KEYGEN
 #if (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
@@ -13627,6 +13781,25 @@ void bench_lms(void)
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
 #endif
 #endif /* WOLFSSL_LMS_SHA256_192 */
+
+#ifdef WOLFSSL_LMS_SHAKE256
+    /* SHAKE-256/256 and SHAKE-256/192.  Both are single level, so there is no
+     * LMS_MAX_LEVELS to test here. */
+#if (LMS_MAX_HEIGHT >= 10)
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H10_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H10_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H10_W4, pub);
+#endif
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H5_W8, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE192_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE192_L1_H5_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif /* WOLFSSL_LMS_SHAKE256 */
 
     return;
 }
@@ -15092,6 +15265,22 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
             wc_ecc_ctx_free(srvCtx);
             goto exit;
         }
+
+    #ifdef WOLF_CRYPTO_CB
+        /* ECIES picks its device from the context, not the keys.  Without
+         * this the -dev rows would time software but be labeled as device
+         * rows.  bench_ecies_prep() resets the contexts each round, and a
+         * reset keeps the devId. */
+        if (useDeviceID) {
+            if (wc_ecc_ctx_set_dev_id(cliCtx, devId) != 0 ||
+                wc_ecc_ctx_set_dev_id(srvCtx, devId) != 0) {
+                printf("bench_eccEncrypt ctx set dev id failed\n");
+                wc_ecc_ctx_free(cliCtx);
+                wc_ecc_ctx_free(srvCtx);
+                goto exit;
+            }
+        }
+    #endif
 
         for (c = 0; eciesCiphers[c].label != NULL; c++) {
             byte algo = eciesCiphers[c].algo;

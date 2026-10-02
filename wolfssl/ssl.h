@@ -1504,9 +1504,18 @@ WOLFSSL_API int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count);
 WOLFSSL_API int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count);
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
 WOLFSSL_API int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
 WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
+#endif
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
+WOLFSSL_API int  wolfSSL_get_negotiated_group(const WOLFSSL* ssl);
+WOLFSSL_API const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id);
 #endif
 #endif
 
@@ -2780,7 +2789,11 @@ WOLFSSL_API char* wolfSSL_get_srp_username(WOLFSSL *ssl);
 
 WOLFSSL_API long wolfSSL_clear_options(WOLFSSL *s,  long op);
 WOLFSSL_API long wolfSSL_set_tmp_dh(WOLFSSL *s, WOLFSSL_DH *dh);
+typedef void (*WOLFSSL_TLSEXT_DEBUG_CB)(WOLFSSL* ssl, int client_server,
+        int type, const byte* data, int len, void* arg);
 WOLFSSL_API long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
+WOLFSSL_API long wolfSSL_set_tlsext_debug_callback(WOLFSSL *s,
+        WOLFSSL_TLSEXT_DEBUG_CB cb);
 WOLFSSL_API long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type);
 WOLFSSL_API long wolfSSL_get_tlsext_status_type(WOLFSSL *s);
 WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg);
@@ -2837,6 +2850,7 @@ enum {
     WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG               = 22,
     WOLFSSL_X509_V_ERR_CERT_REVOKED                      = 23,
     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED              = 25,
+    WOLFSSL_X509_V_ERR_INVALID_PURPOSE                   = 26,
     WOLFSSL_X509_V_ERR_CERT_REJECTED                     = 28,
     WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
     WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION          = 50,
@@ -4765,6 +4779,45 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
 #endif /* HAVE_SNI */
 
+/* Certificate Authorities - RFC 8446 (TLS 1.3 extension type 47).
+ *
+ * Native API, independent of the OpenSSL compatibility layer. CA DNs passed
+ * to the Use functions are the inner content of a DER-encoded Name, i.e. the
+ * bytes after the SEQUENCE tag and length; the library prepends the SEQUENCE
+ * header on the wire and strips it on parse. The bytes are copied; the caller
+ * retains ownership of the input buffer. When both the native API and the
+ * compat layer (set0_CA_list et al.) provide CAs, the two lists are
+ * concatenated on the wire. */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+
+WOLFSSL_API int  wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz);
+WOLFSSL_API int  wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz);
+
+WOLFSSL_API void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx);
+
+/* Number of CA DNs received from the peer. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl);
+
+/* Copy out the idx-th CA DN received from the peer (0-based). Iteration
+ * order is unspecified; visit every entry by pairing this with
+ * wolfSSL_GetPeerCertificateAuthorityCount.
+ *
+ * If outDn is NULL, returns the size in bytes of the DN (allowing the caller
+ * to size an allocation) or a negative error code.
+ *
+ * If outDn is non-NULL, copies up to outDnSz bytes into outDn. On success
+ * returns the number of bytes written. If outDnSz is smaller than the DN,
+ * returns BUFFER_E and does not modify outDn. Returns BAD_FUNC_ARG for
+ * invalid inputs or when idx is out of range. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz);
+
+#endif /* !NO_CERTS && !WOLFSSL_NO_CA_NAMES && WOLFSSL_TLS13 */
+
 /* Trusted CA Key Indication - RFC 6066 (Section 6) */
 #ifdef HAVE_TRUSTED_CA
 
@@ -5202,16 +5255,28 @@ WOLFSSL_API int wolfSSL_CTX_add_client_custom_ext(WOLFSSL_CTX* ctx,
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+#ifndef WOLFSSL_NO_TLS12
+WOLFSSL_API int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
+#endif
 
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_API int wolfSSL_disable_cookie(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_enable_cookie(WOLFSSL* ssl);
+#endif
+
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_API int wolfDTLS_accept_stateless(WOLFSSL* ssl);
-/* notify user we parsed a verified ClientHello is done. This only has an effect
- * on the server end. */
+/* Notify after cookie verification, or complete successful ClientHello
+ * processing when cookies are disabled. Server only. */
 typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
 WOLFSSL_API int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
 #endif
@@ -6163,7 +6228,7 @@ WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
     OPENSSL_EXTRA || HAVE_LIGHTY */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 WOLFSSL_API long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      unsigned char *keys, int keylen);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,

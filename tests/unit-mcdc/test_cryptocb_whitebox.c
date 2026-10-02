@@ -139,6 +139,15 @@
  *            this file is evaluated with CryptoCb_FindCb == NULL, i.e. with
  *            wc_CryptoCb_FindDevice() behaving exactly as in the shipped
  *            variants.
+ *
+ * Fourth pass - wc_CryptoCb_RegisterDevice()'s free-slot scan,
+ * `devId == INVALID_DEVID && cb == NULL` in wc_CryptoCb_GetFreeDevice().
+ * The (T,F) half of the pair - a slot part way through registration, with
+ * cb already set but devId not yet published - exists only transiently
+ * inside a WOLF_CRYPTO_CB_CMD register command, so the vector plants it
+ * directly in gCryptoDev[]; see the section just before the final
+ * unregisters. (T,T) is every successful registration in this file and
+ * (F,-) every occupied slot the scan walks past.
  */
 
 /* See the "third pass" note above: compiled in for this TU only, so the
@@ -148,11 +157,19 @@
 #define WOLF_CRYPTO_CB_FIND
 #endif
 
+/* Pick up the build's feature defines, else WOLF_CRYPTO_CB is never seen
+ * here and this whole file compiles down to its "nothing to exercise" stub. */
+#ifndef WOLFSSL_USER_SETTINGS
+#include <wolfssl/options.h>
+#endif
+
 #include <wolfcrypt/src/cryptocb.c>
 
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* Set by a check of what the code must do, not by a coverage skip. */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #ifdef WOLF_CRYPTO_CB
@@ -252,7 +269,7 @@ int main(void)
 
     /* gCryptoDev is a plain static array; its BSS zero-init leaves every
      * slot's devId == 0, not INVALID_DEVID. wc_CryptoCb_RegisterDevice()
-     * looks for a free slot via wc_CryptoCb_GetDevice(INVALID_DEVID), so
+     * looks for a free slot via wc_CryptoCb_GetFreeDevice(), so
      * without this call every registration below fails with BUFFER_E ("out
      * of devices") - none of the BSS-zeroed slots match INVALID_DEVID.
      * wc_CryptoCb_Init() marks all slots devId == INVALID_DEVID, matching
@@ -799,7 +816,7 @@ int main(void)
 #else
             WC_HASH_TYPE_SHAKE256,
 #endif
-            in, sizeof(in), out, outLen));
+            in, sizeof(in), out, outLen, WC_SHAKE_OP_NONE));
         WB_NOTE("SHAKE: Shake dev&&dev->cb driven");
 #endif
     }
@@ -1063,38 +1080,40 @@ int main(void)
 #endif
 
     /* ---- ECIES encrypt/decrypt dispatch (HAVE_ECC_ENCRYPT) ----
-     * Both bodies resolve their device from privKey->devId and then take the
+     * Both bodies get their device from the devId parameter (the caller reads
+     * it off the ECIES context, not off privKey->devId) and then take the
      * usual `if (dev && dev->cb)` guard, so the standard three-vector sweep
-     * applies. Nothing but privKey->devId is read before the guard, and the
-     * registered callback (wb_cb) ignores the wc_CryptoInfo it is handed and
-     * reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with no key material
-     * is sufficient and safe here -- no curve arithmetic runs. */
+     * works on a plain local devId. Nothing but that parameter is read before
+     * the guard, and the registered callback (wb_cb) ignores the wc_CryptoInfo
+     * it is handed and reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with
+     * no key material is enough and safe here -- no curve math runs. */
 #ifdef HAVE_ECC_ENCRYPT
     {
         ecc_key  ecPriv;
         byte     eciesMsg[16];
         byte     eciesOut[128];
         word32   eciesOutSz;
+        int      eciesDevId = INVALID_DEVID;
 
         XMEMSET(&ecPriv, 0, sizeof(ecPriv));
         XMEMSET(eciesMsg, 0x5e, sizeof(eciesMsg));
         XMEMSET(eciesOut, 0, sizeof(eciesOut));
 
         eciesOutSz = (word32)sizeof(eciesOut);
-        WB_DRIVE3(ecPriv.devId,
-            wc_CryptoCb_EciesEncrypt(&ecPriv, NULL, eciesMsg,
+        WB_DRIVE3(eciesDevId,
+            wc_CryptoCb_EciesEncrypt(eciesDevId, &ecPriv, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0));
 
         eciesOutSz = (word32)sizeof(eciesOut);
-        WB_DRIVE3(ecPriv.devId,
-            wc_CryptoCb_EciesDecrypt(&ecPriv, NULL, eciesMsg,
+        WB_DRIVE3(eciesDevId,
+            wc_CryptoCb_EciesDecrypt(eciesDevId, &ecPriv, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL));
 
         /* privKey == NULL early return (both entry points). */
         eciesOutSz = (word32)sizeof(eciesOut);
-        (void)wc_CryptoCb_EciesEncrypt(NULL, NULL, eciesMsg,
+        (void)wc_CryptoCb_EciesEncrypt(INVALID_DEVID, NULL, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0);
-        (void)wc_CryptoCb_EciesDecrypt(NULL, NULL, eciesMsg,
+        (void)wc_CryptoCb_EciesDecrypt(INVALID_DEVID, NULL, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL);
 
         WB_NOTE("ECIES Encrypt/Decrypt dev&&dev->cb three-vector driven");
@@ -1364,6 +1383,45 @@ int main(void)
     WB_NOTE("HAVE_CURVE448 not defined; Curve448MakePub/Generic skipped");
 #endif
 
+    /* ---- wc_CryptoCb_GetFreeDevice: `devId == INVALID_DEVID &&
+     * cb == NULL` (cryptocb.c :409) ----
+     * See the "fourth pass" note in the file header: the (T,F) half of the
+     * pair is planted directly, since it only exists transiently inside a
+     * WOLF_CRYPTO_CB_CMD register command. */
+    {
+        int slot;
+
+        /* (T,F): slot 0 half filled. A registration must skip it, land in
+         * a later slot, and leave the half filled slot untouched. */
+        wc_CryptoCb_Init();
+        gCryptoDev[0].cb = wb_cb;
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_bad = 1;
+        if (wc_CryptoCb_GetDevice(WB_DEVID) == &gCryptoDev[0])
+            wb_bad = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_bad = 1;
+
+        /* With every other slot registered, the scan must reject the half
+         * filled slot rather than hand it out: no free slot, BUFFER_E. */
+        for (slot = 0; slot < MAX_CRYPTO_DEVID_CALLBACKS; slot++) {
+            (void)wc_CryptoCb_RegisterDevice(WB_DEVID_FILL + slot, wb_cb,
+                NULL);
+        }
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) !=
+                WC_NO_ERR_TRACE(BUFFER_E))
+            wb_bad = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_bad = 1;
+        WB_NOTE("GetFreeDevice: devId==INVALID_DEVID&&cb==NULL [:409] "
+                "(T,F) half filled slot skipped, full-table BUFFER_E");
+
+        /* Leave the table the way the rest of this file expects it. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+    }
+
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
@@ -1377,10 +1435,10 @@ int main(void)
     (void)wb_find_cb;
 #endif
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "FAILED" : wb_fail ? "with skips" : "ok");
 #else
     printf("  WOLF_CRYPTO_CB not defined; nothing to exercise\n");
 #endif /* WOLF_CRYPTO_CB */
     (void)wb_fail;
-    return 0;
+    return wb_bad ? 1 : 0;
 }

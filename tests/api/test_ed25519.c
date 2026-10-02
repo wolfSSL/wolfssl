@@ -1020,12 +1020,19 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
 
     /* Ed25519ctx round trip: type==Ed25519ctx true side, real context. */
     sigLen = sizeof(sig);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* A module whose fips.h defines WC_FIPS_ED25519CTX_NOT_APPROVED rejects
+     * Ed25519ctx signing with SIG_TYPE_E. */
+    ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(SIG_TYPE_E));
+#else
     ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
         ctx, sizeof(ctx)), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519ctx_verify_msg(sig, sigLen, msg, sizeof(msg),
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
+#endif
 
     /* Ed25519ph round trip via hash and via full message, type==Ed25519ph
      * true side, WC_SHA512_DIGEST_SIZE length check false side (equal). */
@@ -1045,7 +1052,7 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* Ed25519ph length check true side: wrong-size "hash" input. */
     sigLen = sizeof(sig);
     ExpectIntEQ(wc_ed25519_sign_msg_ex(hash, sizeof(hash) - 1, sig, &sigLen,
@@ -1123,7 +1130,7 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: NULL args. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(NULL, sigLen, &key, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, NULL, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -1140,7 +1147,7 @@ int test_wc_ed25519_verify_streaming(void)
     /* update: NULL msgSegment, then NULL key (independent operand). */
     ExpectIntEQ(wc_ed25519_verify_msg_update(NULL, 4, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, 4, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -1165,7 +1172,7 @@ int test_wc_ed25519_verify_streaming(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, NULL, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif

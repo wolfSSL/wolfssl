@@ -134,9 +134,7 @@ int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi)
     int ret = 1;
     WOLFSSL_BIGNUM* a = NULL;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfssl_bn_set_value");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfssl_bn_set_value");
 
     /* Validate parameters. */
     if ((bn == NULL) || (mpi == NULL)) {
@@ -193,9 +191,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_new(void)
 {
     WOLFSSL_BIGNUM* bn = NULL;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BN_new");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BN_new");
 
     /* Allocate memory for big number. */
     bn = (WOLFSSL_BIGNUM*)XMALLOC(sizeof(WOLFSSL_BIGNUM), NULL,
@@ -222,9 +218,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_new(void)
  */
 void wolfSSL_BN_init(WOLFSSL_BIGNUM* bn)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BN_init");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BN_init");
 
     /* Validate parameter. */
     if (bn != NULL) {
@@ -242,9 +236,7 @@ void wolfSSL_BN_init(WOLFSSL_BIGNUM* bn)
  */
 void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BN_free");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BN_free");
 
     /* Validate parameter. */
     if (bn != NULL) {
@@ -267,9 +259,7 @@ void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
  */
 void wolfSSL_BN_clear_free(WOLFSSL_BIGNUM* bn)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BN_clear_free");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BN_clear_free");
 
     /* Validate parameter. */
     if (bn != NULL) {
@@ -289,9 +279,7 @@ void wolfSSL_BN_clear_free(WOLFSSL_BIGNUM* bn)
  */
 void wolfSSL_BN_clear(WOLFSSL_BIGNUM* bn)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BN_clear");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BN_clear");
 
     /* Validate parameter. */
     if (!BN_IS_NULL(bn)) {

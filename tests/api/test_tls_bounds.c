@@ -62,6 +62,13 @@
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     #define TEST_TLS_BOUNDS_SESSION_TICKET_FF
 #endif
+/* test_tls_bounds_load_server_cert() and every test body that calls it. The
+ * certificate and key it loads are RSA and come from the filesystem, so a
+ * build without either has neither the helper nor its callers. */
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    #define TEST_TLS_BOUNDS_SERVER_CERT
+#endif
 
 /* Each helper below is called only from test bodies whose feature guards differ
  * from one another, so no single condition describes "some caller is compiled
@@ -85,8 +92,7 @@ static void test_tls_bounds_c32to24(word32 in, byte* out)
     out[2] = (byte)in;
 }
 
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_FILESYSTEM)
+#ifdef TEST_TLS_BOUNDS_SERVER_CERT
 /* SetSSL_CTX() (InitSSL()'s caller) fails wolfSSL_new() with NO_PRIVATE_KEY
  * for a server-side ssl with no certificate/key and no PSK/anon/cert-setup-cb
  * fallback, so every server-side ssl created only to unit-test a WOLFSSL_LOCAL
@@ -816,11 +822,14 @@ int test_TLS_hmac_bounds(void)
                     (word32)(WOLFSSL_MAX_32BIT - 32), 0, application_data, 1,
                     PEER_ORDER), WC_NO_ERR_TRACE(BUFFER_E));
 
-#ifdef WOLFSSL_TEST_STATIC_BUILD
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFSSL_NO_HASH_RAW) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         /* Hmac_UpdateFinal_CT()'s own "macLen <= 0" guard: force hash_size
          * to 0 for this call only. wc_HmacSetKey() accepts a zero-length
          * key (RFC 2104 permits an empty key), so ret stays 0 and this
-         * still reaches the constant-time path with macLen == 0.
+         * still reaches the constant-time path with macLen == 0. The
+         * build conditions match TLS_hmac()'s own: the other path,
+         * Hmac_UpdateFinal(), takes no macLen and has no such guard.
          *
          * The guard's other half, "macLen > sizeof(hmac->innerHash)"
          * (innerHash is WC_MAX_DIGEST_SIZE bytes), is excluded: macLen is
@@ -899,7 +908,9 @@ int test_TLSX_ALPN_GetSize_overflow(void)
                 WC_NO_ERR_TRACE(LENGTH_ERROR));
 
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -1022,6 +1033,7 @@ static int test_TLSX_CSR_write_getsize_status_cb(WOLFSSL* ssl, void* arg)
 int test_TLSX_CSR_write_getsize_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_STATUS_CB) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
@@ -1150,6 +1162,7 @@ int test_TLSX_CSR_write_getsize_bounds(void)
 int test_TLSX_CSR_SetResponseWithStatusCB_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_STATUS_CB) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
@@ -1445,6 +1458,7 @@ static int test_ProcessChainOCSPRequest_setup(WOLFSSL_CTX** pctx,
 int test_ProcessChainOCSPRequest_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_OCSP_CHAIN) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
@@ -1466,6 +1480,8 @@ int test_ProcessChainOCSPRequest_bounds(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         TLSX* ext = NULL;
+        DerBuffer* savedCert = ssl->buffers.certificate;
+        DerBuffer* savedChain = ssl->buffers.certChain;
         ExpectIntEQ(TLSX_UseCertificateStatusRequest(&ssl->extensions,
                     WOLFSSL_CSR_OCSP, 0, ssl, ssl->heap, ssl->devId),
                     WOLFSSL_SUCCESS);
@@ -1475,10 +1491,14 @@ int test_ProcessChainOCSPRequest_bounds(void)
         /* A certificate had to be loaded for wolfSSL_new() to succeed (see
          * test_tls_bounds_load_server_cert()); clear both buffers back to
          * NULL so ProcessChainOCSPRequest() sees exactly the "chain ==
-         * NULL" state under test. */
+         * NULL" state under test. The SSL owns these buffers (weOwnCert),
+         * so save and restore them - nulling them outright leaked the DER
+         * copy that wolfSSL_new() allocated. */
         ssl->buffers.certChain = NULL;
         ssl->buffers.certificate = NULL;
         ExpectIntEQ(ProcessChainOCSPRequest(ssl), 0);
+        ssl->buffers.certificate = savedCert;
+        ssl->buffers.certChain = savedChain;
     }
     wolfSSL_free(ssl);
     ssl = NULL;
@@ -1742,7 +1762,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectNull(TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* The point-format decision's four leaf conditions are
      * "(!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade) &&
@@ -1765,7 +1787,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* ctx-level Find == NULL (default, fresh ctx): operand 2 true -
      * independence for operand 2, paired against the vector above. */
@@ -1774,7 +1798,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
     ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
     /* Operand 1 of "ssl->options.resuming && ssl->session->namedGroup != 0":
@@ -1792,7 +1818,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ssl->options.resuming = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef HAVE_SESSION_TICKET
     /* Operand 1 of "ssl->options.resuming && ssl->session->ticketLen > 0":
@@ -1818,7 +1846,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ssl->session->ticketLen = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_SESSION_TICKET */
 
     /* Operand 1 of "client_psk_cb != NULL || client_psk_tls13_cb != NULL":
@@ -1835,7 +1865,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Both operands of "psk_keySz > MAX_PSK_KEY_LEN" and "not equal to USE_HW_PSK",
      * reached through the plain client_psk_cb path. */
@@ -1855,6 +1887,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
                     WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 #endif
 
     mode = 1;
@@ -1867,6 +1900,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     mode = 2;
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -1878,8 +1912,10 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -1922,6 +1958,7 @@ int test_TLSX_PopulateSupportedGroups_bounds(void)
     wolfSSL_free(ssl);
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "2048/8 >= minDhKeySz && 2048/8 <= maxDhKeySz": both operands. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1950,8 +1987,10 @@ int test_TLSX_PopulateSupportedGroups_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -1996,6 +2035,7 @@ static void* test_TLSX_CSR_Parse_fail_realloc(void* ptr, size_t size)
 int test_TLSX_CSR_Parse_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_PARSE) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12)
     EXPECT_DECLS;
@@ -2033,7 +2073,9 @@ int test_TLSX_CSR_Parse_bounds(void)
         ssl->ctx->cm = origCM;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client side, isRequest == false, TLS 1.3: the internal ticket-style
      * malloc for csr->responses[idx].buffer.
@@ -2089,7 +2131,9 @@ int test_TLSX_CSR_Parse_bounds(void)
         ssl->response_idx = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else
@@ -2100,6 +2144,7 @@ int test_TLSX_CSR_Parse_bounds(void)
 int test_TLSX_CSR2_Parse_bounds(void)
 {
 #if defined(WOLFSSL_TEST_STATIC_BUILD) &&  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12)
     EXPECT_DECLS;
@@ -2342,6 +2387,7 @@ int test_TLSX_WriteRequest_length_prefix_bounds(void)
 int test_TLSX_WriteResponse_bounds(void)
 {
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_EXTENDED_MASTER) &&  !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
@@ -2542,7 +2588,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* The "both false" baseline row for each of the three OR-shaped msgType
      * splits above (SupportedVersions/ClientCertificateType/
@@ -2582,7 +2630,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), WC_NO_ERR_TRACE(SANITY_MSG_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2602,7 +2652,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2622,7 +2674,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else
@@ -2695,7 +2749,9 @@ int test_TLSX_SecureRenegotiation_Write_bounds(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else

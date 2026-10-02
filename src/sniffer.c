@@ -542,7 +542,7 @@ typedef struct Flags {
 #endif
     byte           gotFinished;     /* processed finished */
     byte           secRenegEn;      /* secure renegotiation enabled */
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     byte           etmUnsupported;  /* peer negotiated RFC 7366, we cannot */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -2638,7 +2638,7 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
 }
 
 /* Process Keys */
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
 /* RFC 7366 only covers block ciphers and a peer must not negotiate it for an
  * AEAD or stream suite, so a session that asked for it is still readable here
  * unless the negotiated suite turns out to be a block cipher.
@@ -3396,7 +3396,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = WOLFSSL_FATAL_ERROR; break;
         }
 
-    #if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    #if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (CheckEncryptThenMac(session, error) != 0) {
             ret = WOLFSSL_FATAL_ERROR; break;
         }
@@ -3424,10 +3424,20 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         else
     #endif /* WOLFSSL_TLS13 */
         {
+#ifndef WOLFSSL_NO_TLS12
             ret  = MakeMasterSecret(session->sslServer);
             ret += MakeMasterSecret(session->sslClient);
             ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
             ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+#else
+            /* No master secret is computed here, so installing cipher state
+             * would be wrong. */
+            SetError(UNSUPPORTED_TLS_VER_STR, error, session,
+                     FATAL_ERROR_STATE);
+            session->verboseErr = 1;
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+#endif
         }
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
@@ -3850,7 +3860,7 @@ static int DoResume(SnifferSession* session, char* error)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     if (CheckEncryptThenMac(session, error) != 0)
         return WOLFSSL_FATAL_ERROR;
 #endif
@@ -3875,6 +3885,7 @@ static int DoResume(SnifferSession* session, char* error)
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         if (IsTLS(session->sslServer)) {
             ret =  DeriveTlsKeys(session->sslServer);
             ret += DeriveTlsKeys(session->sslClient);
@@ -3887,6 +3898,12 @@ static int DoResume(SnifferSession* session, char* error)
         }
         ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
         ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+#else
+        /* No keys were derived, so installing cipher state would be wrong. */
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
 
     if (ret != 0) {
@@ -3947,17 +3964,17 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return WOLFSSL_FATAL_ERROR;
     }
+    if (b > ID_LEN) {
+        SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (b) {
-        if (ID_LEN > *sslBytes) {
-            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
     #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
-        session->sslServer->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->session->sessionID, input, b);
+        session->sslServer->session->sessionIDSz = b;
     #endif
-        XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
-        session->sslServer->arrays->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->arrays->sessionID, input, b);
+        session->sslServer->arrays->sessionIDSz = b;
         session->sslServer->options.haveSessionId = 1;
     }
     input     += b;
@@ -4010,7 +4027,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     session->sslServer->options.encThenMac = 0;
     session->sslClient->options.encThenMac = 0;
-#else
+#elif !defined(WOLFSSL_AEAD_ONLY)
     session->flags.etmUnsupported = 0;
 #endif
 
@@ -4138,7 +4155,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslServer->options.encThenMac = 1;
                 session->sslClient->options.encThenMac = 1;
                 break;
-        #else
+        #elif !defined(WOLFSSL_AEAD_ONLY)
             case EXT_ENCRYPT_THEN_MAC:
                 /* The session negotiated RFC 7366, but this build cannot
                  * strip the MAC ahead of decryption. Only a block cipher
@@ -4194,6 +4211,8 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #endif
 
     if (session->sslServer->options.haveSessionId) {
+        /* Resume only on a full length session id, the only length the
+         * session cache matches. */
         if (session->sslServer->arrays->sessionIDSz == ID_LEN &&
                 session->sslClient->arrays->sessionIDSz == ID_LEN &&
                 XMEMCMP(session->sslServer->arrays->sessionID,
@@ -4370,19 +4389,24 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     /* store session in case trying to resume */
     bLen = *input++;
     *sslBytes -= ENUM_LEN;
+    if (bLen > ID_LEN) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* make sure can read through session id */
+    if (bLen > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (bLen) {
-        if (ID_LEN > *sslBytes) {
-            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
         Trace(CLIENT_RESUME_TRY_STR);
 #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslClient->session->sessionID, input, ID_LEN);
-        session->sslClient->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslClient->session->sessionID, input, bLen);
+        session->sslClient->session->sessionIDSz = bLen;
 #endif
         if (session->sslClient->arrays) {
-            XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
-            session->sslClient->arrays->sessionIDSz = ID_LEN;
+            XMEMCPY(session->sslClient->arrays->sessionID, input, bLen);
+            session->sslClient->arrays->sessionIDSz = bLen;
         }
         session->sslClient->options.haveSessionId = 1;
     }
@@ -4786,8 +4810,14 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         ret = DoFinished(ssl, input, &inOutIdx, (word32)size,
             (word32)*sslBytes, SNIFF);
+#else
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
     *sslBytes -= (int)inOutIdx;
 
@@ -5132,6 +5162,9 @@ exit:
 
 /* For ciphers that use AEAD use the encrypt routine to
  * bypass the auth tag checking */
+/* The record layout below TLS 1.3 carries an explicit IV and its own
+ * additional data, so this path exists only where TLS 1.2 does. */
+#ifndef WOLFSSL_NO_TLS12
 static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -5384,13 +5417,16 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 
     return ret;
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
                 byte* output, int* error, int* advance, RecordLayerHeader* rh)
 {
+#ifndef WOLFSSL_AEAD_ONLY
     int ivExtra = 0;
+#endif
     int ret;
     word32 macExtra = 0;
 
@@ -5416,8 +5452,13 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
         ret = DecryptTls(ssl, output, input, sz - macExtra);
+#else
+        *error = VERSION_ERROR;
+        return NULL;
+#endif
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -5438,11 +5479,13 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
     ssl->curSize = sz;
     ssl->keys.encryptSz = sz;
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size; /* go past TLSv1.1 IV */
         ivExtra = ssl->specs.block_size;
         *advance = ssl->specs.block_size;
     }
+#endif
 
     if (ssl->specs.cipher_type == aead) {
         *advance = ssl->specs.aead_mac_size;
@@ -5453,6 +5496,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
         word32 pad = 0;
@@ -5462,6 +5506,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         }
         ssl->keys.padSz += pad;
     }
+#endif
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -6071,6 +6116,44 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
+/* Trim an in-order frame against the head of the reassembly list and queue
+ * anything that reaches past it.
+ * On entry *sslFrame is positioned at 'expected' and holds *sslBytes bytes. */
+static void TrimAgainstReassembly(SnifferSession* session,
+                                  PacketBuffer* reassemblyList, word32 expected,
+                                  int* sslBytes, const byte** sslFrame,
+                                  char* error)
+{
+    word32 newEnd;
+
+    if (*sslBytes <= 0)
+        return;
+    /* newEnd is one past the frame's last byte, while a list entry's begin and
+     * end are both inclusive. */
+    newEnd = expected + (word32)*sslBytes;
+
+    if (newEnd > reassemblyList->begin) {
+        Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+        /* keep only what comes before the list entry, the rest is already
+           held */
+        *sslBytes = (reassemblyList->begin > expected) ?
+                        (int)(reassemblyList->begin - expected) : 0;
+    }
+    if ((reassemblyList->end >= expected) &&
+            (newEnd - 1 > reassemblyList->end)) {
+        /* may be past reassembly list end (could have more on list)
+           so try to add what's past the front->end */
+        word32 offset = reassemblyList->end - expected + 1;
+
+        Trace(OVERLAP_REASSEMBLY_END_STR);
+
+        AddToReassembly(session->flags.side, reassemblyList->end + 1,
+                        *sslFrame + offset,
+                        (int)(newEnd - reassemblyList->end - 1), session, error);
+    }
+}
+
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
@@ -6114,37 +6197,13 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 Trace(OVERLAP_DUPLICATE_STR);
             }
 
-            /* The following conditional block is duplicated below. It is the
-             * same action but for a different setup case. If changing this
-             * block be sure to also update the block below. */
             if (reassemblyList) {
-                word32 newEnd;
-
                 /* adjust to expected, remove duplicate */
                 *sslFrame += overlap;
                 *sslBytes = (*sslBytes > overlap) ? *sslBytes - overlap : 0;
 
-                newEnd = *expected + *sslBytes;
-                if (newEnd > reassemblyList->begin) {
-                    int covered_data_len;
-
-                    Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                    /* remove bytes already on reassembly list */
-                    covered_data_len = newEnd - reassemblyList->begin;
-                    *sslFrame += covered_data_len;
-                    *sslBytes = (*sslBytes > covered_data_len) ?
-                                 *sslBytes - covered_data_len : 0;
-                }
-                if ((*sslBytes  > 0) && (newEnd > reassemblyList->end)) {
-                    Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                    /* may be past reassembly list end (could have more on list)
-                       so try to add what's past the front->end */
-                    AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                             *sslFrame + (reassemblyList->end - *expected + 1),
-                                 newEnd - reassemblyList->end, session, error);
-                }
+                TrimAgainstReassembly(session, reassemblyList, *expected,
+                                      sslBytes, sslFrame, error);
             }
             else if (*sslBytes > 0) {
                 if ((sword32)(real + (word32)*sslBytes - 1 - *seqLast) > 0) {
@@ -6210,32 +6269,9 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                           *sslFrame, *sslBytes, session, error);
             ret = 0;
         }
-        /* The following conditional block is duplicated above. It is the
-         * same action but for a different setup case. If changing this
-         * block be sure to also update the block above. */
         else if (reassemblyList) {
-            word32 newEnd = *expected + *sslBytes;
-
-            if (newEnd > reassemblyList->begin) {
-                int covered_data_len;
-
-                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                /* remove bytes already on reassembly list */
-                covered_data_len = newEnd - reassemblyList->begin;
-                *sslFrame += covered_data_len;
-                *sslBytes = (*sslBytes > covered_data_len) ?
-                             *sslBytes - covered_data_len : 0;
-            }
-            if ((*sslBytes > 0) && (newEnd > reassemblyList->end)) {
-                Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                /* may be past reassembly list end (could have more on list)
-                   so try to add what's past the front->end */
-                AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                         *sslFrame + (reassemblyList->end - *expected + 1),
-                             newEnd - reassemblyList->end, session, error);
-            }
+            TrimAgainstReassembly(session, reassemblyList, *expected, sslBytes,
+                                  sslFrame, error);
         }
     }
     else {
@@ -6313,6 +6349,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 
             return 0;
         }
+#ifndef WOLFSSL_AEAD_ONLY
         else if (ssl->specs.cipher_type == block) {
             int ivPos = (int)(curr->end - curr->begin -
                                                      ssl->specs.block_size + 1);
@@ -6329,6 +6366,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 #endif
             }
         }
+#endif /* !WOLFSSL_AEAD_ONLY */
 
         Trace(DROPPING_LOST_FRAG_STR);
 #ifdef WOLFSSL_SNIFFER_STATS

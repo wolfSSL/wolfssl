@@ -163,6 +163,7 @@ jobs:
     # 16-bit-byte targets while every 8-bit build stays green.  Fail loudly.
     name: sp_c32.c CHAR_BIT != 8 masks
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Octet masks present in every sp_*_to_bin_*

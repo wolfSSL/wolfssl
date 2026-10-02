@@ -246,20 +246,39 @@ WC_OMIT_FRAME_POINTER void fe_sub(fe r, const fe a, const fe b)
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
     register const sword32* b __asm__ ("r2") = (const sword32*)b_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)a, (void*)(size_t)b
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "BL	fe_sub_op\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+    b = (const sword32*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 void fe_add_op(void);
@@ -318,20 +337,39 @@ WC_OMIT_FRAME_POINTER void fe_add(fe r, const fe a, const fe b)
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
     register const sword32* b __asm__ ("r2") = (const sword32*)b_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)a, (void*)(size_t)b
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "BL	fe_add_op\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+    b = (const sword32*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
@@ -345,35 +383,53 @@ WC_OMIT_FRAME_POINTER void fe_frombytes(fe out, const unsigned char* in)
     register sword32* out __asm__ ("r0") = (sword32*)out_p;
     register const unsigned char* in __asm__ ("r1") =
         (const unsigned char*)in_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)out, (void*)(size_t)in
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "LDR	r2, [%[in]]\n\t"
-        "LDR	r3, [%[in], #4]\n\t"
-        "LDR	r4, [%[in], #8]\n\t"
-        "LDR	r5, [%[in], #12]\n\t"
-        "LDR	r6, [%[in], #16]\n\t"
-        "LDR	r7, [%[in], #20]\n\t"
-        "LDR	r8, [%[in], #24]\n\t"
-        "LDR	r9, [%[in], #28]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDR	r2, [r1]\n\t"
+        "LDR	r3, [r1, #4]\n\t"
+        "LDR	r4, [r1, #8]\n\t"
+        "LDR	r5, [r1, #12]\n\t"
+        "LDR	r6, [r1, #16]\n\t"
+        "LDR	r7, [r1, #20]\n\t"
+        "LDR	r8, [r1, #24]\n\t"
+        "LDR	r9, [r1, #28]\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STR	r2, [%[out]]\n\t"
-        "STR	r3, [%[out], #4]\n\t"
-        "STR	r4, [%[out], #8]\n\t"
-        "STR	r5, [%[out], #12]\n\t"
-        "STR	r6, [%[out], #16]\n\t"
-        "STR	r7, [%[out], #20]\n\t"
-        "STR	r8, [%[out], #24]\n\t"
-        "STR	r9, [%[out], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [in] "+r" (in)
         :
-#else
-        :
-        : [out] "r" (out), [in] "r" (in)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (sword32*)(size_t)L_asm_args[0];
+    in = (const unsigned char*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -385,10 +441,18 @@ WC_OMIT_FRAME_POINTER void fe_tobytes(unsigned char* out, const fe n)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register unsigned char* out __asm__ ("r0") = (unsigned char*)out_p;
     register const sword32* n __asm__ ("r1") = (const sword32*)n_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)out, (void*)(size_t)n
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "LDM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDM	r1, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r12, r2, #19\n\t"
         "ADCS	r12, r3, #0\n\t"
         "ADCS	r12, r4, #0\n\t"
@@ -408,23 +472,33 @@ WC_OMIT_FRAME_POINTER void fe_tobytes(unsigned char* out, const fe n)
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STR	r2, [%[out]]\n\t"
-        "STR	r3, [%[out], #4]\n\t"
-        "STR	r4, [%[out], #8]\n\t"
-        "STR	r5, [%[out], #12]\n\t"
-        "STR	r6, [%[out], #16]\n\t"
-        "STR	r7, [%[out], #20]\n\t"
-        "STR	r8, [%[out], #24]\n\t"
-        "STR	r9, [%[out], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [n] "+r" (n)
         :
-#else
-        :
-        : [out] "r" (out), [n] "r" (n)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    out = (unsigned char*)(size_t)L_asm_args[0];
+    n = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -435,9 +509,17 @@ WC_OMIT_FRAME_POINTER void fe_1(fe n)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* n __asm__ ("r0") = (sword32*)n_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)n
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         /* Set one */
         "MOV	r2, #1\n\t"
         "MOV	r3, #0\n\t"
@@ -447,16 +529,25 @@ WC_OMIT_FRAME_POINTER void fe_1(fe n)
         "MOV	r7, #0\n\t"
         "MOV	r8, #0\n\t"
         "MOV	r9, #0\n\t"
-        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [n] "+r" (n)
         :
-#else
-        :
-        : [n] "r" (n)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    n = (sword32*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -467,9 +558,17 @@ WC_OMIT_FRAME_POINTER void fe_0(fe n)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* n __asm__ ("r0") = (sword32*)n_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)n
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         /* Set zero */
         "MOV	r2, #0\n\t"
         "MOV	r3, #0\n\t"
@@ -479,16 +578,25 @@ WC_OMIT_FRAME_POINTER void fe_0(fe n)
         "MOV	r7, #0\n\t"
         "MOV	r8, #0\n\t"
         "MOV	r9, #0\n\t"
-        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [n] "+r" (n)
         :
-#else
-        :
-        : [n] "r" (n)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    n = (sword32*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -500,27 +608,45 @@ WC_OMIT_FRAME_POINTER void fe_copy(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         /* Copy */
-        "LDRD	r2, r3, [%[a]]\n\t"
-        "LDRD	r4, r5, [%[a], #8]\n\t"
-        "STRD	r2, r3, [%[r]]\n\t"
-        "STRD	r4, r5, [%[r], #8]\n\t"
-        "LDRD	r2, r3, [%[a], #16]\n\t"
-        "LDRD	r4, r5, [%[a], #24]\n\t"
-        "STRD	r2, r3, [%[r], #16]\n\t"
-        "STRD	r4, r5, [%[r], #24]\n\t"
+        "LDRD	r2, r3, [r1]\n\t"
+        "LDRD	r4, r5, [r1, #8]\n\t"
+        "STRD	r2, r3, [r0]\n\t"
+        "STRD	r4, r5, [r0, #8]\n\t"
+        "LDRD	r2, r3, [r1, #16]\n\t"
+        "LDRD	r4, r5, [r1, #24]\n\t"
+        "STRD	r2, r3, [r0, #16]\n\t"
+        "STRD	r4, r5, [r0, #24]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -532,33 +658,51 @@ WC_OMIT_FRAME_POINTER void fe_neg(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "MVN	lr, #0\n\t"
         "MVN	r12, #18\n\t"
-        "LDM	%[a]!, {r2, r3, r4, r5}\n\t"
+        "LDM	r1!, {r2, r3, r4, r5}\n\t"
         "SUBS	r2, r12, r2\n\t"
         "SBCS	r3, lr, r3\n\t"
         "SBCS	r4, lr, r4\n\t"
         "SBCS	r5, lr, r5\n\t"
-        "STM	%[r]!, {r2, r3, r4, r5}\n\t"
+        "STM	r0!, {r2, r3, r4, r5}\n\t"
         "MVN	r12, #0x80000000\n\t"
-        "LDM	%[a]!, {r2, r3, r4, r5}\n\t"
+        "LDM	r1!, {r2, r3, r4, r5}\n\t"
         "SBCS	r2, lr, r2\n\t"
         "SBCS	r3, lr, r3\n\t"
         "SBCS	r4, lr, r4\n\t"
         "SBC	r5, r12, r5\n\t"
-        "STM	%[r]!, {r2, r3, r4, r5}\n\t"
+        "STM	r0!, {r2, r3, r4, r5}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -569,10 +713,18 @@ WC_OMIT_FRAME_POINTER int fe_isnonzero(const fe a)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const sword32* a __asm__ ("r0") = (const sword32*)a_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r1, r2, #19\n\t"
         "ADCS	r1, r3, #0\n\t"
         "ADCS	r1, r4, #0\n\t"
@@ -598,17 +750,26 @@ WC_OMIT_FRAME_POINTER int fe_isnonzero(const fe a)
         "ORR	r8, r8, r9\n\t"
         "ORR	r4, r4, r6\n\t"
         "ORR	r2, r2, r8\n\t"
-        "ORR	%[a], r2, r4\n\t"
+        "ORR	r0, r2, r4\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
-#else
-        :
-        : [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    a = (const sword32*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     return (word32)(size_t)a;
 }
 
@@ -620,31 +781,48 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const sword32* a __asm__ ("r0") = (const sword32*)a_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "LDM	%[a]!, {r2, r3, r4, r5}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDM	r0!, {r2, r3, r4, r5}\n\t"
         "AND	r12, r2, #1\n\t"
         "ADDS	r1, r2, #19\n\t"
         "ADCS	r1, r3, #0\n\t"
         "ADCS	r1, r4, #0\n\t"
         "ADCS	r1, r5, #0\n\t"
-        "LDM	%[a], {r2, r3, r4, r5}\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "ADCS	r1, r2, #0\n\t"
         "ADCS	r1, r3, #0\n\t"
         "ADCS	r1, r4, #0\n\t"
         "ADC	r1, r5, #0\n\t"
         "LSR	r1, r1, #31\n\t"
-        "EOR	%[a], r12, r1\n\t"
+        "EOR	r0, r12, r1\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
-#else
-        :
-        : [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    a = (const sword32*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     return (word32)(size_t)a;
 }
 
@@ -662,12 +840,21 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
     register fe* r __asm__ ("r0") = (fe*)r_p;
     register const fe* base __asm__ ("r1") = (const fe*)base_p;
     register signed char b __asm__ ("r2") = (signed char)b_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)base,
+        (void*)(size_t)b
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "SXTB	%[b], %[b]\n\t"
-        "SBFX	r3, %[b], #7, #1\n\t"
-        "EOR	r12, %[b], r3\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "SXTB	r2, r2\n\t"
+        "SBFX	r3, r2, #7, #1\n\t"
+        "EOR	r12, r2, r3\n\t"
         "SUB	r12, r12, r3\n\t"
         "MOV	r4, #1\n\t"
         "MOV	r5, #0\n\t"
@@ -679,216 +866,216 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "ROR	r3, r3, #31\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #30\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #29\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #28\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #27\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #26\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #25\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #24\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base]]\n\t"
+        "LDRD	r10, r11, [r1]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #32]\n\t"
+        "LDRD	r10, r11, [r1, #32]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #64]\n\t"
+        "LDRD	r10, r11, [r1, #64]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "SUB	%[base], %[base], #0x2a0\n\t"
+        "SUB	r1, r1, #0x2a0\n\t"
         "MVN	r10, #18\n\t"
         "MVN	r11, #0\n\t"
         "SUBS	r10, r10, r8\n\t"
         "SBCS	r11, r11, r9\n\t"
         "SBC	lr, lr, lr\n\t"
-        "ASR	r12, %[b], #31\n\t"
+        "ASR	r12, r2, #31\n\t"
         "EOR	r3, r4, r6\n\t"
         "AND	r3, r3, r12\n\t"
         "EOR	r4, r4, r3\n\t"
@@ -903,11 +1090,11 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "EOR	r11, r11, r9\n\t"
         "AND	r11, r11, r12\n\t"
         "EOR	r9, r9, r11\n\t"
-        "STRD	r4, r5, [%[r]]\n\t"
-        "STRD	r6, r7, [%[r], #32]\n\t"
-        "STRD	r8, r9, [%[r], #64]\n\t"
-        "SBFX	r3, %[b], #7, #1\n\t"
-        "EOR	r12, %[b], r3\n\t"
+        "STRD	r4, r5, [r0]\n\t"
+        "STRD	r6, r7, [r0, #32]\n\t"
+        "STRD	r8, r9, [r0, #64]\n\t"
+        "SBFX	r3, r2, #7, #1\n\t"
+        "EOR	r12, r2, r3\n\t"
         "SUB	r12, r12, r3\n\t"
         "MOV	r4, #0\n\t"
         "MOV	r5, #0\n\t"
@@ -919,217 +1106,217 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "ROR	r3, r3, #31\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #30\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #29\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #28\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #27\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #26\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #25\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #24\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #8]\n\t"
+        "LDRD	r10, r11, [r1, #8]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #40]\n\t"
+        "LDRD	r10, r11, [r1, #40]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #72]\n\t"
+        "LDRD	r10, r11, [r1, #72]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "SUB	%[base], %[base], #0x2a0\n\t"
+        "SUB	r1, r1, #0x2a0\n\t"
         "MVN	r10, #0\n\t"
         "MVN	r11, #0\n\t"
         "RSBS	lr, lr, #0\n\t"
         "SBCS	r10, r10, r8\n\t"
         "SBCS	r11, r11, r9\n\t"
         "SBC	lr, lr, lr\n\t"
-        "ASR	r12, %[b], #31\n\t"
+        "ASR	r12, r2, #31\n\t"
         "EOR	r3, r4, r6\n\t"
         "AND	r3, r3, r12\n\t"
         "EOR	r4, r4, r3\n\t"
@@ -1144,11 +1331,11 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "EOR	r11, r11, r9\n\t"
         "AND	r11, r11, r12\n\t"
         "EOR	r9, r9, r11\n\t"
-        "STRD	r4, r5, [%[r], #8]\n\t"
-        "STRD	r6, r7, [%[r], #40]\n\t"
-        "STRD	r8, r9, [%[r], #72]\n\t"
-        "SBFX	r3, %[b], #7, #1\n\t"
-        "EOR	r12, %[b], r3\n\t"
+        "STRD	r4, r5, [r0, #8]\n\t"
+        "STRD	r6, r7, [r0, #40]\n\t"
+        "STRD	r8, r9, [r0, #72]\n\t"
+        "SBFX	r3, r2, #7, #1\n\t"
+        "EOR	r12, r2, r3\n\t"
         "SUB	r12, r12, r3\n\t"
         "MOV	r4, #0\n\t"
         "MOV	r5, #0\n\t"
@@ -1160,217 +1347,217 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "ROR	r3, r3, #31\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #30\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #29\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #28\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #27\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #26\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #25\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #24\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #16]\n\t"
+        "LDRD	r10, r11, [r1, #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #48]\n\t"
+        "LDRD	r10, r11, [r1, #48]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #80]\n\t"
+        "LDRD	r10, r11, [r1, #80]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "SUB	%[base], %[base], #0x2a0\n\t"
+        "SUB	r1, r1, #0x2a0\n\t"
         "MVN	r10, #0\n\t"
         "MVN	r11, #0\n\t"
         "RSBS	lr, lr, #0\n\t"
         "SBCS	r10, r10, r8\n\t"
         "SBCS	r11, r11, r9\n\t"
         "SBC	lr, lr, lr\n\t"
-        "ASR	r12, %[b], #31\n\t"
+        "ASR	r12, r2, #31\n\t"
         "EOR	r3, r4, r6\n\t"
         "AND	r3, r3, r12\n\t"
         "EOR	r4, r4, r3\n\t"
@@ -1385,11 +1572,11 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "EOR	r11, r11, r9\n\t"
         "AND	r11, r11, r12\n\t"
         "EOR	r9, r9, r11\n\t"
-        "STRD	r4, r5, [%[r], #16]\n\t"
-        "STRD	r6, r7, [%[r], #48]\n\t"
-        "STRD	r8, r9, [%[r], #80]\n\t"
-        "SBFX	r3, %[b], #7, #1\n\t"
-        "EOR	r12, %[b], r3\n\t"
+        "STRD	r4, r5, [r0, #16]\n\t"
+        "STRD	r6, r7, [r0, #48]\n\t"
+        "STRD	r8, r9, [r0, #80]\n\t"
+        "SBFX	r3, r2, #7, #1\n\t"
+        "EOR	r12, r2, r3\n\t"
         "SUB	r12, r12, r3\n\t"
         "MOV	r4, #0\n\t"
         "MOV	r5, #0\n\t"
@@ -1401,216 +1588,216 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "ROR	r3, r3, #31\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #30\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #29\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #28\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #27\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #26\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #25\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "ADD	%[base], %[base], #0x60\n\t"
+        "ADD	r1, r1, #0x60\n\t"
         "MOV	r3, #0x80000000\n\t"
         "ROR	r3, r3, #24\n\t"
         "ROR	r3, r3, r12\n\t"
         "ASR	r3, r3, #31\n\t"
-        "LDRD	r10, r11, [%[base], #24]\n\t"
+        "LDRD	r10, r11, [r1, #24]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r4, r4, r10\n\t"
         "EOR	r5, r5, r11\n\t"
-        "LDRD	r10, r11, [%[base], #56]\n\t"
+        "LDRD	r10, r11, [r1, #56]\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "LDRD	r10, r11, [%[base], #88]\n\t"
+        "LDRD	r10, r11, [r1, #88]\n\t"
         "EOR	r10, r10, r8\n\t"
         "EOR	r11, r11, r9\n\t"
         "AND	r10, r10, r3\n\t"
         "AND	r11, r11, r3\n\t"
         "EOR	r8, r8, r10\n\t"
         "EOR	r9, r9, r11\n\t"
-        "SUB	%[base], %[base], #0x2a0\n\t"
+        "SUB	r1, r1, #0x2a0\n\t"
         "MVN	r10, #0\n\t"
         "MVN	r11, #0x80000000\n\t"
         "RSBS	lr, lr, #0\n\t"
         "SBCS	r10, r10, r8\n\t"
         "SBC	r11, r11, r9\n\t"
-        "ASR	r12, %[b], #31\n\t"
+        "ASR	r12, r2, #31\n\t"
         "EOR	r3, r4, r6\n\t"
         "AND	r3, r3, r12\n\t"
         "EOR	r4, r4, r3\n\t"
@@ -1625,19 +1812,30 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "EOR	r11, r11, r9\n\t"
         "AND	r11, r11, r12\n\t"
         "EOR	r9, r9, r11\n\t"
-        "STRD	r4, r5, [%[r], #24]\n\t"
-        "STRD	r6, r7, [%[r], #56]\n\t"
-        "STRD	r8, r9, [%[r], #88]\n\t"
+        "STRD	r4, r5, [r0, #24]\n\t"
+        "STRD	r6, r7, [r0, #56]\n\t"
+        "STRD	r8, r9, [r0, #88]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
-#else
-        :
-        : [r] "r" (r), [base] "r" (base), [b] "r" (b)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (fe*)(size_t)L_asm_args[0];
+    base = (const fe*)(size_t)L_asm_args[1];
+    b = (signed char)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #else
@@ -1652,22 +1850,31 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
     register fe* r __asm__ ("r0") = (fe*)r_p;
     register const fe* base __asm__ ("r1") = (const fe*)base_p;
     register signed char b __asm__ ("r2") = (signed char)b_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)base,
+        (void*)(size_t)b
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "SXTB	%[b], %[b]\n\t"
-        "SBFX	r3, %[b], #7, #1\n\t"
-        "EOR	%[b], %[b], r3\n\t"
-        "SUB	%[b], %[b], r3\n\t"
-        "CLZ	lr, %[b]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "SXTB	r2, r2\n\t"
+        "SBFX	r3, r2, #7, #1\n\t"
+        "EOR	r2, r2, r3\n\t"
+        "SUB	r2, r2, r3\n\t"
+        "CLZ	lr, r2\n\t"
         "LSL	lr, lr, #26\n\t"
         "ASR	lr, lr, #31\n\t"
         "MVN	lr, lr\n\t"
-        "ADD	%[b], %[b], lr\n\t"
+        "ADD	r2, r2, lr\n\t"
         "MOV	r12, #0x60\n\t"
-        "MUL	%[b], %[b], r12\n\t"
-        "ADD	%[base], %[base], %[b]\n\t"
-        "LDM	%[base]!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "MUL	r2, r2, r12\n\t"
+        "ADD	r1, r1, r2\n\t"
+        "LDM	r1!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r6, r6, lr\n\t"
@@ -1680,10 +1887,10 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "SUB	r4, r4, r12\n\t"
         "MOV	r12, #32\n\t"
         "AND	r12, r12, r3\n\t"
-        "ADD	%[r], %[r], r12\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "SUB	%[r], %[r], r12\n\t"
-        "LDM	%[base]!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADD	r0, r0, r12\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUB	r0, r0, r12\n\t"
+        "LDM	r1!, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r6, r6, lr\n\t"
@@ -1696,11 +1903,11 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "SUB	r4, r4, r12\n\t"
         "MOV	r12, #32\n\t"
         "BIC	r12, r12, r3\n\t"
-        "ADD	%[r], %[r], r12\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "SUB	%[r], %[r], r12\n\t"
-        "ADD	%[r], %[r], #0x40\n\t"
-        "LDM	%[base]!, {r4, r5, r6, r7}\n\t"
+        "ADD	r0, r0, r12\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUB	r0, r0, r12\n\t"
+        "ADD	r0, r0, #0x40\n\t"
+        "LDM	r1!, {r4, r5, r6, r7}\n\t"
         "MVN	r12, #18\n\t"
         "SUBS	r8, r12, r4\n\t"
         "SBCS	r9, r3, r5\n\t"
@@ -1722,8 +1929,8 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "AND	r5, r5, lr\n\t"
         "AND	r6, r6, lr\n\t"
         "AND	r7, r7, lr\n\t"
-        "STM	%[r]!, {r4, r5, r6, r7}\n\t"
-        "LDM	%[base]!, {r4, r5, r6, r7}\n\t"
+        "STM	r0!, {r4, r5, r6, r7}\n\t"
+        "LDM	r1!, {r4, r5, r6, r7}\n\t"
         "MVN	r12, #0x80000000\n\t"
         "SBCS	r8, r3, r4\n\t"
         "SBCS	r9, r3, r5\n\t"
@@ -1745,18 +1952,29 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "AND	r5, r5, lr\n\t"
         "AND	r6, r6, lr\n\t"
         "AND	r7, r7, lr\n\t"
-        "STM	%[r]!, {r4, r5, r6, r7}\n\t"
-        "SUB	%[base], %[base], %[b]\n\t"
+        "STM	r0!, {r4, r5, r6, r7}\n\t"
+        "SUB	r1, r1, r2\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
-#else
-        :
-        : [r] "r" (r), [base] "r" (base), [b] "r" (b)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (fe*)(size_t)L_asm_args[0];
+    base = (const fe*)(size_t)L_asm_args[1];
+    b = (signed char)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
@@ -2882,20 +3100,39 @@ WC_OMIT_FRAME_POINTER void fe_mul(fe r, const fe a, const fe b)
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
     register const sword32* b __asm__ ("r2") = (const sword32*)b_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)a, (void*)(size_t)b
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "BL	fe_mul_op\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+    b = (const sword32*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifdef WOLFSSL_ARM_ARCH_7M
@@ -3774,20 +4011,38 @@ WC_OMIT_FRAME_POINTER void fe_sq(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "BL	fe_sq_op\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifdef HAVE_CURVE25519
@@ -3801,11 +4056,19 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register sword32* a __asm__ ("r1") = (sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         /* Multiply by 121666 */
-        "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r1, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "MOV	r10, #0xdb42\n\t"
         "MOVT	r10, #0x1\n\t"
         "UMULL	r2, r12, r2, r10\n\t"
@@ -3843,17 +4106,27 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
         "BFC	r9, #31, #1\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
-        "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12",
             "lr", "r10"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #else
@@ -3866,11 +4139,19 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register sword32* a __asm__ ("r1") = (sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         /* Multiply by 121666 */
-        "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r1, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "MOV	lr, #0xdb42\n\t"
         "MOVT	lr, #0x1\n\t"
         "UMULL	r2, r10, r2, lr\n\t"
@@ -3895,17 +4176,27 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
         "BFC	r9, #31, #1\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
-        "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12",
             "lr", "r10"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_ARM_ARCH_7M */
@@ -3921,15 +4212,23 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
     register byte* r __asm__ ("r0") = (byte*)r_p;
     register const byte* n __asm__ ("r1") = (const byte*)n_p;
     register const byte* a __asm__ ("r2") = (const byte*)a_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)n, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0xbc\n\t"
-        "STR	%[r], [sp, #160]\n\t"
-        "STR	%[n], [sp, #164]\n\t"
-        "STR	%[a], [sp, #168]\n\t"
-        "MOV	%[n], #0\n\t"
-        "STR	%[n], [sp, #172]\n\t"
+        "STR	r0, [sp, #160]\n\t"
+        "STR	r1, [sp, #164]\n\t"
+        "STR	r2, [sp, #168]\n\t"
+        "MOV	r1, #0\n\t"
+        "STR	r1, [sp, #172]\n\t"
         "MOV	r4, #1\n\t"
         "MOV	r5, #0\n\t"
         "MOV	r6, #0\n\t"
@@ -3938,7 +4237,7 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "MOV	r9, #0\n\t"
         "MOV	r10, #0\n\t"
         "MOV	r11, #0\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #32\n\t"
         "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r4, #0\n\t"
@@ -3948,10 +4247,10 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "MOV	%[n], #30\n\t"
-        "STR	%[n], [sp, #180]\n\t"
-        "MOV	%[a], #28\n\t"
-        "STR	%[a], [sp, #176]\n\t"
+        "MOV	r1, #30\n\t"
+        "STR	r1, [sp, #180]\n\t"
+        "MOV	r2, #28\n\t"
+        "STR	r2, [sp, #176]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_curve25519_words:\n\t"
@@ -3964,26 +4263,26 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
 #else
     "L_curve25519_bits_%=:\n\t"
 #endif
-        "LDR	%[n], [sp, #164]\n\t"
-        "LDR	%[a], [%[n], r2]\n\t"
-        "LDR	%[n], [sp, #180]\n\t"
-        "LSR	%[a], %[a], %[n]\n\t"
-        "AND	%[a], %[a], #1\n\t"
-        "STR	%[a], [sp, #184]\n\t"
-        "LDR	%[n], [sp, #172]\n\t"
-        "EOR	%[n], %[n], %[a]\n\t"
-        "STR	%[n], [sp, #172]\n\t"
-        "LDR	%[r], [sp, #160]\n\t"
+        "LDR	r1, [sp, #164]\n\t"
+        "LDR	r2, [r1, r2]\n\t"
+        "LDR	r1, [sp, #180]\n\t"
+        "LSR	r2, r2, r1\n\t"
+        "AND	r2, r2, #1\n\t"
+        "STR	r2, [sp, #184]\n\t"
+        "LDR	r1, [sp, #172]\n\t"
+        "EOR	r1, r1, r2\n\t"
+        "STR	r1, [sp, #172]\n\t"
+        "LDR	r0, [sp, #160]\n\t"
         /* Conditional Swap */
-        "RSB	%[n], %[n], #0\n\t"
+        "RSB	r1, r1, #0\n\t"
         "MOV	r3, r0\n\t"
         "ADD	r12, sp, #0x40\n\t"
         "LDM	r3, {r4, r5}\n\t"
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -3994,8 +4293,8 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -4006,8 +4305,8 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -4018,25 +4317,25 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
         "STM	r3!, {r4, r5}\n\t"
         "STM	r12!, {r6, r7}\n\t"
-        "LDR	%[n], [sp, #172]\n\t"
+        "LDR	r1, [sp, #172]\n\t"
         /* Conditional Swap */
-        "RSB	%[n], %[n], #0\n\t"
+        "RSB	r1, r1, #0\n\t"
         "MOV	r3, sp\n\t"
         "ADD	r12, sp, #32\n\t"
         "LDM	r3, {r4, r5}\n\t"
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -4047,8 +4346,8 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -4059,8 +4358,8 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
@@ -4071,16 +4370,16 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
         "STM	r3!, {r4, r5}\n\t"
         "STM	r12!, {r6, r7}\n\t"
-        "LDR	%[n], [sp, #184]\n\t"
-        "STR	%[n], [sp, #172]\n\t"
+        "LDR	r1, [sp, #184]\n\t"
+        "STR	r1, [sp, #172]\n\t"
         "MOV	r3, sp\n\t"
         "LDR	r2, [sp, #160]\n\t"
         "ADD	r1, sp, #0x80\n\t"
@@ -4139,10 +4438,10 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "ADD	r1, sp, #0x60\n\t"
         "MOV	r0, sp\n\t"
         "BL	fe_mul_op_full_red\n\t"
-        "LDR	%[a], [sp, #176]\n\t"
-        "LDR	%[n], [sp, #180]\n\t"
-        "SUBS	%[n], %[n], #1\n\t"
-        "STR	%[n], [sp, #180]\n\t"
+        "LDR	r2, [sp, #176]\n\t"
+        "LDR	r1, [sp, #180]\n\t"
+        "SUBS	r1, r1, #1\n\t"
+        "STR	r1, [sp, #180]\n\t"
 #if defined(__GNUC__)
         "BGE	L_curve25519_bits_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -4150,10 +4449,10 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "BGE.W	L_curve25519_bits_%=\n\t"
 #endif
-        "MOV	%[n], #31\n\t"
-        "STR	%[n], [sp, #180]\n\t"
-        "SUBS	%[a], %[a], #4\n\t"
-        "STR	%[a], [sp, #176]\n\t"
+        "MOV	r1, #31\n\t"
+        "STR	r1, [sp, #180]\n\t"
+        "SUBS	r2, r2, #4\n\t"
+        "STR	r2, [sp, #176]\n\t"
 #if defined(__GNUC__)
         "BGE	L_curve25519_words_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -4398,19 +4697,19 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDR	r0, [sp, #160]\n\t"
         "BL	fe_mul_op\n\t"
         /* Ensure result is less than modulus */
-        "LDR	%[r], [sp, #160]\n\t"
-        "LDM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "ADDS	%[a], r4, #19\n\t"
-        "ADCS	%[a], r5, #0\n\t"
-        "ADCS	%[a], r6, #0\n\t"
-        "ADCS	%[a], r7, #0\n\t"
-        "ADCS	%[a], r8, #0\n\t"
-        "ADCS	%[a], r9, #0\n\t"
-        "ADCS	%[a], r10, #0\n\t"
-        "ADC	%[a], r11, #0\n\t"
-        "ASR	%[a], %[a], #31\n\t"
-        "AND	%[a], %[a], #19\n\t"
-        "ADDS	r4, r4, %[a]\n\t"
+        "LDR	r0, [sp, #160]\n\t"
+        "LDM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADDS	r2, r4, #19\n\t"
+        "ADCS	r2, r5, #0\n\t"
+        "ADCS	r2, r6, #0\n\t"
+        "ADCS	r2, r7, #0\n\t"
+        "ADCS	r2, r8, #0\n\t"
+        "ADCS	r2, r9, #0\n\t"
+        "ADCS	r2, r10, #0\n\t"
+        "ADC	r2, r11, #0\n\t"
+        "ASR	r2, r2, #31\n\t"
+        "AND	r2, r2, #19\n\t"
+        "ADDS	r4, r4, r2\n\t"
         "ADCS	r5, r5, #0\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
@@ -4419,19 +4718,30 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "ADCS	r10, r10, #0\n\t"
         "ADC	r11, r11, #0\n\t"
         "BFC	r11, #31, #1\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r0, #0\n\t"
         "ADD	sp, sp, #0xbc\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [n] "r" (n), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (byte*)(size_t)L_asm_args[0];
+    n = (const byte*)(size_t)L_asm_args[1];
+    a = (const byte*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     return (word32)(size_t)r;
 }
 
@@ -4447,20 +4757,28 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
     register byte* r __asm__ ("r0") = (byte*)r_p;
     register const byte* n __asm__ ("r1") = (const byte*)n_p;
     register const byte* a __asm__ ("r2") = (const byte*)a_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)n, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0xc0\n\t"
-        "STR	%[r], [sp, #176]\n\t"
-        "STR	%[n], [sp, #160]\n\t"
-        "STR	%[a], [sp, #172]\n\t"
+        "STR	r0, [sp, #176]\n\t"
+        "STR	r1, [sp, #160]\n\t"
+        "STR	r2, [sp, #172]\n\t"
         "ADD	r5, sp, #0x40\n\t"
         "ADD	r4, sp, #32\n\t"
         "STR	sp, [sp, #184]\n\t"
         "STR	r5, [sp, #180]\n\t"
         "STR	r4, [sp, #188]\n\t"
-        "MOV	%[n], #0\n\t"
-        "STR	%[n], [sp, #164]\n\t"
+        "MOV	r1, #0\n\t"
+        "STR	r1, [sp, #164]\n\t"
         "MOV	r4, #1\n\t"
         "MOV	r5, #0\n\t"
         "MOV	r6, #0\n\t"
@@ -4469,7 +4787,7 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "MOV	r9, #0\n\t"
         "MOV	r10, #0\n\t"
         "MOV	r11, #0\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #32\n\t"
         "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r4, #0\n\t"
@@ -4479,31 +4797,31 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "MOV	%[a], #0xfe\n\t"
+        "MOV	r2, #0xfe\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_curve25519_bits:\n\t"
 #else
     "L_curve25519_bits_%=:\n\t"
 #endif
-        "STR	%[a], [sp, #168]\n\t"
-        "LDR	%[n], [sp, #160]\n\t"
-        "AND	r4, %[a], #31\n\t"
-        "LSR	%[a], %[a], #5\n\t"
-        "LDR	%[a], [%[n], r2, LSL #2]\n\t"
+        "STR	r2, [sp, #168]\n\t"
+        "LDR	r1, [sp, #160]\n\t"
+        "AND	r4, r2, #31\n\t"
+        "LSR	r2, r2, #5\n\t"
+        "LDR	r2, [r1, r2, LSL #2]\n\t"
         "RSB	r4, r4, #31\n\t"
-        "LSL	%[a], %[a], r4\n\t"
-        "LDR	%[n], [sp, #164]\n\t"
-        "EOR	%[n], %[n], %[a]\n\t"
-        "ASR	%[n], %[n], #31\n\t"
-        "STR	%[a], [sp, #164]\n\t"
+        "LSL	r2, r2, r4\n\t"
+        "LDR	r1, [sp, #164]\n\t"
+        "EOR	r1, r1, r2\n\t"
+        "ASR	r1, r1, #31\n\t"
+        "STR	r2, [sp, #164]\n\t"
         /* Conditional Swap */
         "ADD	r11, sp, #0xb0\n\t"
         "LDM	r11, {r4, r5, r6, r7}\n\t"
         "EOR	r8, r4, r5\n\t"
         "EOR	r9, r6, r7\n\t"
-        "AND	r8, r8, %[n]\n\t"
-        "AND	r9, r9, %[n]\n\t"
+        "AND	r8, r8, r1\n\t"
+        "AND	r9, r9, r1\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r8\n\t"
         "EOR	r6, r6, r9\n\t"
@@ -4568,17 +4886,17 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "ADD	r1, sp, #0x80\n\t"
         "LDR	r0, [sp, #184]\n\t"
         "BL	fe_mul_op_full_red\n\t"
-        "LDR	%[a], [sp, #168]\n\t"
-        "SUBS	%[a], %[a], #1\n\t"
+        "LDR	r2, [sp, #168]\n\t"
+        "SUBS	r2, r2, #1\n\t"
 #if defined(__GNUC__)
         "BGE	L_curve25519_bits_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_curve25519_bits\n\t"
+        "BGE.W	L_curve25519_bits\n\t"
 #else
-        "BGE.N	L_curve25519_bits_%=\n\t"
+        "BGE.W	L_curve25519_bits_%=\n\t"
 #endif
         /*   Cycle Count: 166 */
-        "LDR	%[n], [sp, #184]\n\t"
+        "LDR	r1, [sp, #184]\n\t"
         /* Copy */
         "LDM	r1, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "STM	sp, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -4819,19 +5137,19 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "LDR	r0, [sp, #176]\n\t"
         "BL	fe_mul_op\n\t"
         /* Ensure result is less than modulus */
-        "LDR	%[r], [sp, #176]\n\t"
-        "LDM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
-        "ADDS	%[a], r4, #19\n\t"
-        "ADCS	%[a], r5, #0\n\t"
-        "ADCS	%[a], r6, #0\n\t"
-        "ADCS	%[a], r7, #0\n\t"
-        "ADCS	%[a], r8, #0\n\t"
-        "ADCS	%[a], r9, #0\n\t"
-        "ADCS	%[a], r10, #0\n\t"
-        "ADC	%[a], r11, #0\n\t"
-        "ASR	%[a], %[a], #31\n\t"
-        "AND	%[a], %[a], #19\n\t"
-        "ADDS	r4, r4, %[a]\n\t"
+        "LDR	r0, [sp, #176]\n\t"
+        "LDM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADDS	r2, r4, #19\n\t"
+        "ADCS	r2, r5, #0\n\t"
+        "ADCS	r2, r6, #0\n\t"
+        "ADCS	r2, r7, #0\n\t"
+        "ADCS	r2, r8, #0\n\t"
+        "ADCS	r2, r9, #0\n\t"
+        "ADCS	r2, r10, #0\n\t"
+        "ADC	r2, r11, #0\n\t"
+        "ASR	r2, r2, #31\n\t"
+        "AND	r2, r2, #19\n\t"
+        "ADDS	r4, r4, r2\n\t"
         "ADCS	r5, r5, #0\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
@@ -4840,19 +5158,30 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "ADCS	r10, r10, #0\n\t"
         "ADC	r11, r11, #0\n\t"
         "BFC	r11, #31, #1\n\t"
-        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r0, #0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [n] "r" (n), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (byte*)(size_t)L_asm_args[0];
+    n = (const byte*)(size_t)L_asm_args[1];
+    a = (const byte*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     return (word32)(size_t)r;
 }
 
@@ -4868,13 +5197,21 @@ WC_OMIT_FRAME_POINTER void fe_invert(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0x88\n\t"
         /* Invert */
-        "STR	%[r], [sp, #128]\n\t"
-        "STR	%[a], [sp, #132]\n\t"
+        "STR	r0, [sp, #128]\n\t"
+        "STR	r1, [sp, #132]\n\t"
         "LDR	r1, [sp, #132]\n\t"
         "MOV	r0, sp\n\t"
         "BL	fe_sq_op\n\t"
@@ -5106,19 +5443,29 @@ WC_OMIT_FRAME_POINTER void fe_invert(fe r, const fe a)
         "ADD	r1, sp, #32\n\t"
         "LDR	r0, [sp, #128]\n\t"
         "BL	fe_mul_op\n\t"
-        "LDR	%[a], [sp, #132]\n\t"
-        "LDR	%[r], [sp, #128]\n\t"
+        "LDR	r1, [sp, #132]\n\t"
+        "LDR	r0, [sp, #128]\n\t"
         "ADD	sp, sp, #0x88\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifdef WOLFSSL_ARM_ARCH_7M
@@ -5131,9 +5478,17 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0x44\n\t"
         "STR	r0, [sp, #64]\n\t"
         /* Square * 2 */
@@ -5448,15 +5803,25 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
         "LDR	r0, [sp, #64]\n\t"
         "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #else
@@ -5469,9 +5834,17 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #36\n\t"
         "STRD	r0, r1, [sp, #28]\n\t"
         "LDM	r1, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
@@ -5635,15 +6008,25 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
         "STM	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "MOV	r0, r12\n\t"
         "MOV	r1, lr\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_ARM_ARCH_7M */
@@ -5656,13 +6039,21 @@ WC_OMIT_FRAME_POINTER void fe_pow22523(fe r, const fe a)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r __asm__ ("r0") = (sword32*)r_p;
     register const sword32* a __asm__ ("r1") = (const sword32*)a_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)a
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0x68\n\t"
         /* pow22523 */
-        "STR	%[r], [sp, #96]\n\t"
-        "STR	%[a], [sp, #100]\n\t"
+        "STR	r0, [sp, #96]\n\t"
+        "STR	r1, [sp, #100]\n\t"
         "LDR	r1, [sp, #100]\n\t"
         "MOV	r0, sp\n\t"
         "BL	fe_sq_op\n\t"
@@ -5894,19 +6285,29 @@ WC_OMIT_FRAME_POINTER void fe_pow22523(fe r, const fe a)
         "MOV	r1, sp\n\t"
         "LDR	r0, [sp, #96]\n\t"
         "BL	fe_mul_op\n\t"
-        "LDR	%[a], [sp, #100]\n\t"
-        "LDR	%[r], [sp, #96]\n\t"
+        "LDR	r1, [sp, #100]\n\t"
+        "LDR	r0, [sp, #96]\n\t"
         "ADD	sp, sp, #0x68\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword32*)(size_t)L_asm_args[0];
+    a = (const sword32*)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5918,12 +6319,20 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p2 * r __asm__ ("r0") = (ge_p2 *)r_p;
     register const ge_p1p1 * p __asm__ ("r1") = (const ge_p1p1 *)p_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)p
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
         "ADD	r2, r1, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "LDR	r0, [sp]\n\t"
@@ -5939,16 +6348,26 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #8\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p2 *)(size_t)L_asm_args[0];
+    p = (const ge_p1p1 *)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5960,12 +6379,20 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p3 * r __asm__ ("r0") = (ge_p3 *)r_p;
     register const ge_p1p1 * p __asm__ ("r1") = (const ge_p1p1 *)p_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)p
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
         "ADD	r2, r1, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "LDR	r0, [sp]\n\t"
@@ -5986,16 +6413,26 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #8\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p3 *)(size_t)L_asm_args[0];
+    p = (const ge_p1p1 *)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6007,12 +6444,20 @@ WC_OMIT_FRAME_POINTER void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r __asm__ ("r0") = (ge_p1p1 *)r_p;
     register const ge_p2 * p __asm__ ("r1") = (const ge_p2 *)p_p;
+#else
+    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)p
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
         "BL	fe_sq_op\n\t"
         "LDR	r0, [sp]\n\t"
         "LDR	r1, [sp, #4]\n\t"
@@ -6045,16 +6490,26 @@ WC_OMIT_FRAME_POINTER void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
         "MOV	r1, r0\n\t"
         "BL	fe_sub_op\n\t"
         "ADD	sp, sp, #8\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p1p1 *)(size_t)L_asm_args[0];
+    p = (const ge_p2 *)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6069,13 +6524,21 @@ WC_OMIT_FRAME_POINTER void ge_madd(ge_p1p1 * r, const ge_p3 * p,
     register ge_p1p1 * r __asm__ ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p __asm__ ("r1") = (const ge_p3 *)p_p;
     register const ge_precomp * q __asm__ ("r2") = (const ge_precomp *)q_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)p, (void*)(size_t)q
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #12\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
-        "STR	%[q], [sp, #8]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
+        "STR	r2, [sp, #8]\n\t"
         "MOV	r2, r1\n\t"
         "ADD	r1, r1, #32\n\t"
         "BL	fe_add_op\n\t"
@@ -6141,16 +6604,27 @@ WC_OMIT_FRAME_POINTER void ge_madd(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r1, r0, #32\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #12\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p1p1 *)(size_t)L_asm_args[0];
+    p = (const ge_p3 *)(size_t)L_asm_args[1];
+    q = (const ge_precomp *)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6165,13 +6639,21 @@ WC_OMIT_FRAME_POINTER void ge_msub(ge_p1p1 * r, const ge_p3 * p,
     register ge_p1p1 * r __asm__ ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p __asm__ ("r1") = (const ge_p3 *)p_p;
     register const ge_precomp * q __asm__ ("r2") = (const ge_precomp *)q_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)p, (void*)(size_t)q
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #12\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
-        "STR	%[q], [sp, #8]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
+        "STR	r2, [sp, #8]\n\t"
         "MOV	r2, r1\n\t"
         "ADD	r1, r1, #32\n\t"
         "BL	fe_add_op\n\t"
@@ -6238,16 +6720,27 @@ WC_OMIT_FRAME_POINTER void ge_msub(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #32\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #12\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p1p1 *)(size_t)L_asm_args[0];
+    p = (const ge_p3 *)(size_t)L_asm_args[1];
+    q = (const ge_precomp *)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6262,13 +6755,21 @@ WC_OMIT_FRAME_POINTER void ge_add(ge_p1p1 * r, const ge_p3 * p,
     register ge_p1p1 * r __asm__ ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p __asm__ ("r1") = (const ge_p3 *)p_p;
     register const ge_cached* q __asm__ ("r2") = (const ge_cached*)q_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)p, (void*)(size_t)q
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #44\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
-        "STR	%[q], [sp, #8]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
+        "STR	r2, [sp, #8]\n\t"
         "MOV	r3, r1\n\t"
         "ADD	r2, r1, #32\n\t"
         "ADD	r1, r0, #32\n\t"
@@ -6335,16 +6836,27 @@ WC_OMIT_FRAME_POINTER void ge_add(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #32\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #44\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p1p1 *)(size_t)L_asm_args[0];
+    p = (const ge_p3 *)(size_t)L_asm_args[1];
+    q = (const ge_cached*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6359,13 +6871,21 @@ WC_OMIT_FRAME_POINTER void ge_sub(ge_p1p1 * r, const ge_p3 * p,
     register ge_p1p1 * r __asm__ ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p __asm__ ("r1") = (const ge_p3 *)p_p;
     register const ge_cached* q __asm__ ("r2") = (const ge_cached*)q_p;
+#else
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)p, (void*)(size_t)q
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #44\n\t"
-        "STR	%[r], [sp]\n\t"
-        "STR	%[p], [sp, #4]\n\t"
-        "STR	%[q], [sp, #8]\n\t"
+        "STR	r0, [sp]\n\t"
+        "STR	r1, [sp, #4]\n\t"
+        "STR	r2, [sp, #8]\n\t"
         "MOV	r3, r1\n\t"
         "ADD	r2, r1, #32\n\t"
         "ADD	r1, r0, #32\n\t"
@@ -6432,16 +6952,27 @@ WC_OMIT_FRAME_POINTER void ge_sub(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #44\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-#else
-        :
-        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (ge_p1p1 *)(size_t)L_asm_args[0];
+    p = (const ge_p3 *)(size_t)L_asm_args[1];
+    q = (const ge_cached*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_ED25519 || WOLFSSL_CURVE25519_USE_ED25519 */
@@ -6455,14 +6986,22 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s __asm__ ("r0") = (byte*)s_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)s
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #56\n\t"
-        "STR	%[s], [sp, #52]\n\t"
+        "STR	r0, [sp, #52]\n\t"
         /* Load bits 252-511 */
-        "ADD	%[s], %[s], #28\n\t"
-        "LDM	%[s], {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #28\n\t"
+        "LDM	r0, {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "LSR	lr, r9, #24\n\t"
         "LSL	r9, r9, #4\n\t"
         "ORR	r9, r9, r8, LSR #28\n\t"
@@ -6481,7 +7020,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LSL	r2, r2, #4\n\t"
         "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r9, #28, #4\n\t"
-        "SUB	%[s], %[s], #28\n\t"
+        "SUB	r0, r0, #28\n\t"
         /* Add order times bits 504..511 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
@@ -6518,14 +7057,14 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
         "UMLAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
@@ -6535,7 +7074,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "ADC	lr, lr, #0\n\t"
         "UMLAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
@@ -6545,7 +7084,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "ADC	lr, lr, #0\n\t"
         "UMLAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
@@ -6556,7 +7095,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "ADC	lr, lr, #0\n\t"
         "UMLAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "SUB	r12, r12, #32\n\t"
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
@@ -6736,7 +7275,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LDM	r12, {r10}\n\t"
         "ADCS	r10, r10, #0\n\t"
         "STM	r12!, {r10}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
         "ADD	r12, r12, #28\n\t"
@@ -6752,12 +7291,12 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "BFC	r5, #29, #3\n\t"
         "SUB	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
-        "MOV	%[s], sp\n\t"
+        "MOV	r0, sp\n\t"
         /*   * -5cf5d3ed */
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, lr, r2, r1\n\t"
         "ADDS	r7, r7, lr\n\t"
         "MOV	lr, #0\n\t"
@@ -6771,13 +7310,13 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
         "UMLAL	r9, lr, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -5812631b */
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
         "MOV	r10, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r10, r2, r1\n\t"
         "ADDS	r7, r7, r10\n\t"
         "MOV	r10, #0\n\t"
@@ -6791,13 +7330,13 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	r10, #0\n\t"
         "ADC	r10, r10, #0\n\t"
         "UMLAL	r9, r10, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -a2f79cd7 */
         "MOV	r1, #0x6329\n\t"
         "MOVT	r1, #0x5d08\n\t"
         "MOV	r11, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r11, r2, r1\n\t"
         "ADDS	r7, r7, r11\n\t"
         "MOV	r11, #0\n\t"
@@ -6811,13 +7350,13 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	r11, #0\n\t"
         "ADC	r11, r11, #0\n\t"
         "UMLAL	r9, r11, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -14def9df */
         "MOV	r1, #0x621\n\t"
         "MOVT	r1, #0xeb21\n\t"
         "MOV	r12, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r12, r2, r1\n\t"
         "ADDS	r7, r7, r12\n\t"
         "MOV	r12, #0\n\t"
@@ -6831,10 +7370,10 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	r12, #0\n\t"
         "ADC	r12, r12, #0\n\t"
         "UMLAL	r9, r12, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
@@ -6846,8 +7385,8 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
         "SBC	r1, r1, r1\n\t"
-        "SUB	%[s], %[s], #16\n\t"
-        "LDM	%[s], {r2, r3, r4, r5}\n\t"
+        "SUB	r0, r0, #16\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -6871,19 +7410,28 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "ADC	r9, r9, r1\n\t"
         "BFC	r9, #28, #4\n\t"
         /* Store result */
-        "LDR	%[s], [sp, #52]\n\t"
-        "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDR	r0, [sp, #52]\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #56\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s)
         :
-#else
-        :
-        : [s] "r" (s)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    s = (byte*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #else
@@ -6895,14 +7443,22 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s __asm__ ("r0") = (byte*)s_p;
+#else
+    void* L_asm_args[1] = {(void*)(size_t)s
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #56\n\t"
-        "STR	%[s], [sp, #52]\n\t"
+        "STR	r0, [sp, #52]\n\t"
         /* Load bits 252-511 */
-        "ADD	%[s], %[s], #28\n\t"
-        "LDM	%[s], {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #28\n\t"
+        "LDM	r0, {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "LSR	lr, r9, #24\n\t"
         "LSL	r9, r9, #4\n\t"
         "ORR	r9, r9, r8, LSR #28\n\t"
@@ -6921,7 +7477,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LSL	r2, r2, #4\n\t"
         "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r9, #28, #4\n\t"
-        "SUB	%[s], %[s], #28\n\t"
+        "SUB	r0, r0, #28\n\t"
         /* Add order times bits 504..511 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
@@ -6949,24 +7505,24 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "UMAAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "UMAAL	r10, lr, r4, r1\n\t"
         "UMAAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "UMAAL	r10, lr, r6, r1\n\t"
         "UMAAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, r1\n\t"
         "BFC	r11, #28, #4\n\t"
         "UMAAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "SUB	r12, r12, #32\n\t"
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
@@ -7083,7 +7639,7 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LDM	r12, {r10}\n\t"
         "ADCS	r10, r10, #0\n\t"
         "STM	r12!, {r10}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
         "ADD	r12, r12, #28\n\t"
@@ -7099,53 +7655,53 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "BFC	r5, #29, #3\n\t"
         "SUB	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
-        "MOV	%[s], sp\n\t"
+        "MOV	r0, sp\n\t"
         /*   * -5cf5d3ed */
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, lr, r2, r1\n\t"
         "UMAAL	r7, lr, r3, r1\n\t"
         "UMAAL	r8, lr, r4, r1\n\t"
         "UMAAL	r9, lr, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -5812631b */
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
         "MOV	r10, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r10, r2, r1\n\t"
         "UMAAL	r7, r10, r3, r1\n\t"
         "UMAAL	r8, r10, r4, r1\n\t"
         "UMAAL	r9, r10, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -a2f79cd7 */
         "MOV	r1, #0x6329\n\t"
         "MOVT	r1, #0x5d08\n\t"
         "MOV	r11, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r11, r2, r1\n\t"
         "UMAAL	r7, r11, r3, r1\n\t"
         "UMAAL	r8, r11, r4, r1\n\t"
         "UMAAL	r9, r11, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -14def9df */
         "MOV	r1, #0x621\n\t"
         "MOVT	r1, #0xeb21\n\t"
         "MOV	r12, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r12, r2, r1\n\t"
         "UMAAL	r7, r12, r3, r1\n\t"
         "UMAAL	r8, r12, r4, r1\n\t"
         "UMAAL	r9, r12, r5, r1\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
@@ -7157,8 +7713,8 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
         "SBC	r1, r1, r1\n\t"
-        "SUB	%[s], %[s], #16\n\t"
-        "LDM	%[s], {r2, r3, r4, r5}\n\t"
+        "SUB	r0, r0, #16\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -7182,19 +7738,28 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "ADC	r9, r9, r1\n\t"
         "BFC	r9, #28, #4\n\t"
         /* Store result */
-        "LDR	%[s], [sp, #52]\n\t"
-        "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDR	r0, [sp, #52]\n\t"
+        "STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #56\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s)
         :
-#else
-        :
-        : [s] "r" (s)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    s = (byte*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_ARM_ARCH_7M */
@@ -7213,364 +7778,373 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
     register const byte* a __asm__ ("r1") = (const byte*)a_p;
     register const byte* b __asm__ ("r2") = (const byte*)b_p;
     register const byte* c __asm__ ("r3") = (const byte*)c_p;
+#else
+    void* L_asm_args[4] = {(void*)(size_t)s, (void*)(size_t)a, (void*)(size_t)b,
+        (void*)(size_t)c
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0x50\n\t"
         "ADD	lr, sp, #0x44\n\t"
-        "STM	lr, {%[s], %[a], %[c]}\n\t"
-        "MOV	%[s], #0\n\t"
-        "LDR	r12, [%[a]]\n\t"
+        "STM	lr, {r0, r1, r3}\n\t"
+        "MOV	r0, #0\n\t"
+        "LDR	r12, [r1]\n\t"
         /* A[0] * B[0] */
-        "LDR	lr, [%[b]]\n\t"
-        "UMULL	%[c], r4, r12, lr\n\t"
+        "LDR	lr, [r2]\n\t"
+        "UMULL	r3, r4, r12, lr\n\t"
         /* A[0] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
+        "LDR	lr, [r2, #8]\n\t"
         "UMULL	r5, r6, r12, lr\n\t"
         /* A[0] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
+        "LDR	lr, [r2, #16]\n\t"
         "UMULL	r7, r8, r12, lr\n\t"
         /* A[0] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
+        "LDR	lr, [r2, #24]\n\t"
         "UMULL	r9, r10, r12, lr\n\t"
-        "STR	%[c], [sp]\n\t"
+        "STR	r3, [sp]\n\t"
         /* A[0] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "MOV	r11, %[s]\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "MOV	r11, r0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[0] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
+        "LDR	lr, [r2, #12]\n\t"
         "ADCS	r6, r6, #0\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[0] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
+        "LDR	lr, [r2, #20]\n\t"
         "ADCS	r8, r8, #0\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[0] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
+        "LDR	lr, [r2, #28]\n\t"
         "ADCS	r10, r10, #0\n\t"
-        "ADC	%[c], %[s], #0\n\t"
-        "UMLAL	r10, %[c], r12, lr\n\t"
+        "ADC	r3, r0, #0\n\t"
+        "UMLAL	r10, r3, r12, lr\n\t"
         /* A[1] * B[0] */
-        "LDR	r12, [%[a], #4]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #4]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "STR	r4, [sp, #4]\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[1] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[1] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[1] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[1] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[1] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[1] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[1] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r4, %[s], #0\n\t"
-        "UMLAL	%[c], r4, r12, lr\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r4, r0, #0\n\t"
+        "UMLAL	r3, r4, r12, lr\n\t"
         /* A[2] * B[0] */
-        "LDR	r12, [%[a], #8]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #8]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "STR	r5, [sp, #8]\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[2] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[2] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[2] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[2] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[2] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[2] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[2] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r5, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r5, r0, #0\n\t"
         "UMLAL	r4, r5, r12, lr\n\t"
         /* A[3] * B[0] */
-        "LDR	r12, [%[a], #12]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #12]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "STR	r6, [sp, #12]\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[3] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[3] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[3] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[3] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[3] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[3] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[3] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r6, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r6, r0, #0\n\t"
         "UMLAL	r5, r6, r12, lr\n\t"
         /* A[4] * B[0] */
-        "LDR	r12, [%[a], #16]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #16]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "STR	r7, [sp, #16]\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[4] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[4] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[4] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[4] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[4] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[4] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[4] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r7, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r7, r0, #0\n\t"
         "UMLAL	r6, r7, r12, lr\n\t"
         /* A[5] * B[0] */
-        "LDR	r12, [%[a], #20]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #20]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "STR	r8, [sp, #20]\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[5] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[5] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[5] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[5] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[5] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[5] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[5] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r8, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r8, r0, #0\n\t"
         "UMLAL	r7, r8, r12, lr\n\t"
         /* A[6] * B[0] */
-        "LDR	r12, [%[a], #24]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #24]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "STR	r9, [sp, #24]\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[6] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[6] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[6] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[6] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[6] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[6] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[6] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r9, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r9, r0, #0\n\t"
         "UMLAL	r8, r9, r12, lr\n\t"
         /* A[7] * B[0] */
-        "LDR	r12, [%[a], #28]\n\t"
-        "LDR	lr, [%[b]]\n\t"
+        "LDR	r12, [r1, #28]\n\t"
+        "LDR	lr, [r2]\n\t"
         "MOV	r11, #0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "STR	r10, [sp, #28]\n\t"
-        "ADDS	%[c], %[c], r11\n\t"
+        "ADDS	r3, r3, r11\n\t"
         /* A[7] * B[1] */
-        "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[s], #0\n\t"
-        "UMLAL	%[c], r11, r12, lr\n\t"
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[7] * B[2] */
-        "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[7] * B[3] */
-        "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[7] * B[4] */
-        "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[7] * B[5] */
-        "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[7] * B[6] */
-        "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[s], #0\n\t"
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[7] * B[7] */
-        "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r10, %[s], #0\n\t"
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r10, r0, #0\n\t"
         "UMLAL	r9, r10, r12, lr\n\t"
         "ADD	lr, sp, #32\n\t"
-        "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
-        "MOV	%[s], sp\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "MOV	r0, sp\n\t"
         /* Add c to a * b */
         "LDR	lr, [sp, #76]\n\t"
-        "LDM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "LDM	lr!, {r1, r10, r11, r12}\n\t"
-        "ADDS	%[b], %[b], %[a]\n\t"
-        "ADCS	%[c], %[c], r10\n\t"
+        "ADDS	r2, r2, r1\n\t"
+        "ADCS	r3, r3, r10\n\t"
         "ADCS	r4, r4, r11\n\t"
         "ADCS	r5, r5, r12\n\t"
         "LDM	lr!, {r1, r10, r11, r12}\n\t"
-        "ADCS	r6, r6, %[a]\n\t"
+        "ADCS	r6, r6, r1\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADCS	r8, r8, r11\n\t"
         "ADCS	r9, r9, r12\n\t"
-        "MOV	%[a], r9\n\t"
-        "STM	%[s]!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
-        "LDM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        "ADCS	%[b], %[b], #0\n\t"
-        "ADCS	%[c], %[c], #0\n\t"
+        "MOV	r1, r9\n\t"
+        "STM	r0!, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADCS	r2, r2, #0\n\t"
+        "ADCS	r3, r3, #0\n\t"
         "ADCS	r4, r4, #0\n\t"
         "ADCS	r5, r5, #0\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
-        "SUB	%[s], %[s], #32\n\t"
+        "SUB	r0, r0, #32\n\t"
         /* Get 252..503 and 504..507 */
         "LSR	lr, r9, #24\n\t"
         "LSL	r9, r9, #4\n\t"
@@ -7584,36 +8158,36 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
-        "ORR	r4, r4, %[c], LSR #28\n\t"
-        "LSL	%[c], %[c], #4\n\t"
-        "ORR	%[c], %[c], %[b], LSR #28\n\t"
-        "LSL	%[b], %[b], #4\n\t"
-        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r9, #28, #4\n\t"
         /* Add order times bits 504..507 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
         "MOV	r11, #0x9ce5\n\t"
         "MOVT	r11, #0xa7ed\n\t"
-        "MOV	%[a], #0\n\t"
-        "UMLAL	%[b], %[a], r10, lr\n\t"
-        "ADDS	%[c], %[c], %[a]\n\t"
-        "MOV	%[a], #0\n\t"
-        "ADC	%[a], %[a], #0\n\t"
-        "UMLAL	%[c], %[a], r11, lr\n\t"
+        "MOV	r1, #0\n\t"
+        "UMLAL	r2, r1, r10, lr\n\t"
+        "ADDS	r3, r3, r1\n\t"
+        "MOV	r1, #0\n\t"
+        "ADC	r1, r1, #0\n\t"
+        "UMLAL	r3, r1, r11, lr\n\t"
         "MOV	r10, #0x6329\n\t"
         "MOVT	r10, #0x5d08\n\t"
         "MOV	r11, #0x621\n\t"
         "MOVT	r11, #0xeb21\n\t"
-        "ADDS	r4, r4, %[a]\n\t"
-        "MOV	%[a], #0\n\t"
-        "ADC	%[a], %[a], #0\n\t"
-        "UMLAL	r4, %[a], r10, lr\n\t"
-        "ADDS	r5, r5, %[a]\n\t"
-        "MOV	%[a], #0\n\t"
-        "ADC	%[a], %[a], #0\n\t"
-        "UMLAL	r5, %[a], r11, lr\n\t"
-        "ADDS	r6, r6, %[a]\n\t"
+        "ADDS	r4, r4, r1\n\t"
+        "MOV	r1, #0\n\t"
+        "ADC	r1, r1, #0\n\t"
+        "UMLAL	r4, r1, r10, lr\n\t"
+        "ADDS	r5, r5, r1\n\t"
+        "MOV	r1, #0\n\t"
+        "ADC	r1, r1, #0\n\t"
+        "UMLAL	r5, r1, r11, lr\n\t"
+        "ADDS	r6, r6, r1\n\t"
         "ADCS	r7, r7, #0\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
@@ -7623,176 +8197,176 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "SBC	r9, r9, #0\n\t"
         /* Sub product of top 8 words and order */
         "MOV	r12, sp\n\t"
-        "MOV	%[a], #0x2c13\n\t"
-        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
         "BFC	r11, #28, #4\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x9ce5\n\t"
-        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
         "MOV	lr, #0\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r9, %[a]\n\t"
-        "STM	r12!, {r10, r11, lr}\n\t"
-        "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x6329\n\t"
-        "MOVT	%[a], #0x5d08\n\t"
-        "MOV	lr, #0\n\t"
-        "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
-        "ADDS	r11, r11, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, %[c], %[a]\n\t"
-        "STM	r12!, {r10, r11}\n\t"
-        "LDM	r12, {r10, r11}\n\t"
-        "ADDS	r10, r10, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r4, %[a]\n\t"
-        "ADDS	r11, r11, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r5, %[a]\n\t"
-        "STM	r12!, {r10, r11}\n\t"
-        "LDM	r12, {r10, r11}\n\t"
-        "ADDS	r10, r10, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r6, %[a]\n\t"
-        "ADDS	r11, r11, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r7, %[a]\n\t"
-        "STM	r12!, {r10, r11}\n\t"
-        "LDM	r12, {r10, r11}\n\t"
-        "ADDS	r10, r10, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r8, %[a]\n\t"
-        "ADDS	r11, r11, lr\n\t"
-        "MOV	lr, #0\n\t"
-        "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x621\n\t"
-        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
         "MOV	lr, #0\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
         "ADDS	r11, r11, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #32\n\t"
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
+        "MOV	lr, #0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0\n\t"
+        "ADC	lr, lr, #0\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	r12, r12, #32\n\t"
         /* Subtract at 4 * 32 */
         "LDM	r12, {r10, r11}\n\t"
-        "SUBS	r10, r10, %[b]\n\t"
-        "SBCS	r11, r11, %[c]\n\t"
+        "SUBS	r10, r10, r2\n\t"
+        "SBCS	r11, r11, r3\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "SBCS	r10, r10, r4\n\t"
@@ -7809,28 +8383,28 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "SUB	r12, r12, #36\n\t"
         "ASR	lr, r11, #25\n\t"
         /* Conditionally subtract order starting at bit 125 */
-        "MOV	%[a], #0xa0000000\n\t"
-        "MOV	%[b], #0xba7d\n\t"
-        "MOVT	%[b], #0x4b9e\n\t"
-        "MOV	%[c], #0x4c63\n\t"
-        "MOVT	%[c], #0xcb02\n\t"
+        "MOV	r1, #0xa0000000\n\t"
+        "MOV	r2, #0xba7d\n\t"
+        "MOVT	r2, #0x4b9e\n\t"
+        "MOV	r3, #0x4c63\n\t"
+        "MOVT	r3, #0xcb02\n\t"
         "MOV	r4, #0xf39a\n\t"
         "MOVT	r4, #0xd45e\n\t"
         "MOV	r5, #0xdf3b\n\t"
         "MOVT	r5, #0x29b\n\t"
         "MOV	r9, #0x2000000\n\t"
-        "AND	%[a], %[a], lr\n\t"
-        "AND	%[b], %[b], lr\n\t"
-        "AND	%[c], %[c], lr\n\t"
+        "AND	r1, r1, lr\n\t"
+        "AND	r2, r2, lr\n\t"
+        "AND	r3, r3, lr\n\t"
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r9, r9, lr\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "ADDS	r10, r10, %[a]\n\t"
-        "ADCS	r11, r11, %[b]\n\t"
+        "ADDS	r10, r10, r1\n\t"
+        "ADCS	r11, r11, r2\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "ADCS	r10, r10, %[c]\n\t"
+        "ADCS	r10, r10, r3\n\t"
         "ADCS	r11, r11, r4\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
@@ -7844,7 +8418,7 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LDM	r12, {r10}\n\t"
         "ADCS	r10, r10, #0\n\t"
         "STM	r12!, {r10}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
         "ADD	r12, r12, #28\n\t"
@@ -7852,110 +8426,110 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
-        "ORR	r4, r4, %[c], LSR #28\n\t"
-        "LSL	%[c], %[c], #4\n\t"
-        "ORR	%[c], %[c], %[b], LSR #28\n\t"
-        "LSL	%[b], %[b], #4\n\t"
-        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r5, #29, #3\n\t"
         "SUB	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
-        "MOV	%[s], sp\n\t"
+        "MOV	r0, sp\n\t"
         /*   * -5cf5d3ed */
-        "MOV	%[a], #0x2c13\n\t"
-        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, lr, %[b], %[a]\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, lr, r2, r1\n\t"
         "ADDS	r7, r7, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r7, lr, %[c], %[a]\n\t"
+        "UMLAL	r7, lr, r3, r1\n\t"
         "ADDS	r8, r8, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r8, lr, r4, %[a]\n\t"
+        "UMLAL	r8, lr, r4, r1\n\t"
         "ADDS	r9, r9, lr\n\t"
         "MOV	lr, #0\n\t"
         "ADC	lr, lr, #0\n\t"
-        "UMLAL	r9, lr, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "UMLAL	r9, lr, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -5812631b */
-        "MOV	%[a], #0x9ce5\n\t"
-        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
         "MOV	r10, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r10, %[b], %[a]\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r10, r2, r1\n\t"
         "ADDS	r7, r7, r10\n\t"
         "MOV	r10, #0\n\t"
         "ADC	r10, r10, #0\n\t"
-        "UMLAL	r7, r10, %[c], %[a]\n\t"
+        "UMLAL	r7, r10, r3, r1\n\t"
         "ADDS	r8, r8, r10\n\t"
         "MOV	r10, #0\n\t"
         "ADC	r10, r10, #0\n\t"
-        "UMLAL	r8, r10, r4, %[a]\n\t"
+        "UMLAL	r8, r10, r4, r1\n\t"
         "ADDS	r9, r9, r10\n\t"
         "MOV	r10, #0\n\t"
         "ADC	r10, r10, #0\n\t"
-        "UMLAL	r9, r10, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "UMLAL	r9, r10, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -a2f79cd7 */
-        "MOV	%[a], #0x6329\n\t"
-        "MOVT	%[a], #0x5d08\n\t"
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
         "MOV	r11, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r11, %[b], %[a]\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r11, r2, r1\n\t"
         "ADDS	r7, r7, r11\n\t"
         "MOV	r11, #0\n\t"
         "ADC	r11, r11, #0\n\t"
-        "UMLAL	r7, r11, %[c], %[a]\n\t"
+        "UMLAL	r7, r11, r3, r1\n\t"
         "ADDS	r8, r8, r11\n\t"
         "MOV	r11, #0\n\t"
         "ADC	r11, r11, #0\n\t"
-        "UMLAL	r8, r11, r4, %[a]\n\t"
+        "UMLAL	r8, r11, r4, r1\n\t"
         "ADDS	r9, r9, r11\n\t"
         "MOV	r11, #0\n\t"
         "ADC	r11, r11, #0\n\t"
-        "UMLAL	r9, r11, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "UMLAL	r9, r11, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -14def9df */
-        "MOV	%[a], #0x621\n\t"
-        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
         "MOV	r12, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r12, %[b], %[a]\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r12, r2, r1\n\t"
         "ADDS	r7, r7, r12\n\t"
         "MOV	r12, #0\n\t"
         "ADC	r12, r12, #0\n\t"
-        "UMLAL	r7, r12, %[c], %[a]\n\t"
+        "UMLAL	r7, r12, r3, r1\n\t"
         "ADDS	r8, r8, r12\n\t"
         "MOV	r12, #0\n\t"
         "ADC	r12, r12, #0\n\t"
-        "UMLAL	r8, r12, r4, %[a]\n\t"
+        "UMLAL	r8, r12, r4, r1\n\t"
         "ADDS	r9, r9, r12\n\t"
         "MOV	r12, #0\n\t"
         "ADC	r12, r12, #0\n\t"
-        "UMLAL	r9, r12, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "UMLAL	r9, r12, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADCS	r8, r8, r11\n\t"
         "ADC	r9, r9, r12\n\t"
         /* Subtract top at 4 * 32 */
-        "SUBS	r6, r6, %[b]\n\t"
-        "SBCS	r7, r7, %[c]\n\t"
+        "SUBS	r6, r6, r2\n\t"
+        "SBCS	r7, r7, r3\n\t"
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
-        "SBC	%[a], %[a], %[a]\n\t"
-        "SUB	%[s], %[s], #16\n\t"
-        "LDM	%[s], {r2, r3, r4, r5}\n\t"
+        "SBC	r1, r1, r1\n\t"
+        "SUB	r0, r0, #16\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -7964,41 +8538,53 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "MOVT	r12, #0xa2f7\n\t"
         "MOV	lr, #0xf9de\n\t"
         "MOVT	lr, #0x14de\n\t"
-        "AND	r10, r10, %[a]\n\t"
-        "AND	r11, r11, %[a]\n\t"
-        "AND	r12, r12, %[a]\n\t"
-        "AND	lr, lr, %[a]\n\t"
-        "ADDS	%[b], %[b], r10\n\t"
-        "ADCS	%[c], %[c], r11\n\t"
+        "AND	r10, r10, r1\n\t"
+        "AND	r11, r11, r1\n\t"
+        "AND	r12, r12, r1\n\t"
+        "AND	lr, lr, r1\n\t"
+        "ADDS	r2, r2, r10\n\t"
+        "ADCS	r3, r3, r11\n\t"
         "ADCS	r4, r4, r12\n\t"
         "ADCS	r5, r5, lr\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
-        "AND	%[a], %[a], #0x10000000\n\t"
+        "AND	r1, r1, #0x10000000\n\t"
         "ADCS	r8, r8, #0\n\t"
-        "ADC	r9, r9, %[a]\n\t"
+        "ADC	r9, r9, r1\n\t"
         "BFC	r9, #28, #4\n\t"
-        "LDR	%[s], [sp, #68]\n\t"
+        "LDR	r0, [sp, #68]\n\t"
         /* Store result */
-        "STR	%[b], [%[s]]\n\t"
-        "STR	%[c], [%[s], #4]\n\t"
-        "STR	r4, [%[s], #8]\n\t"
-        "STR	r5, [%[s], #12]\n\t"
-        "STR	r6, [%[s], #16]\n\t"
-        "STR	r7, [%[s], #20]\n\t"
-        "STR	r8, [%[s], #24]\n\t"
-        "STR	r9, [%[s], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
-#else
-        :
-        : [s] "r" (s), [a] "r" (a), [b] "r" (b), [c] "r" (c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    s = (byte*)(size_t)L_asm_args[0];
+    a = (const byte*)(size_t)L_asm_args[1];
+    b = (const byte*)(size_t)L_asm_args[2];
+    c = (const byte*)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #else
@@ -8015,137 +8601,146 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
     register const byte* a __asm__ ("r1") = (const byte*)a_p;
     register const byte* b __asm__ ("r2") = (const byte*)b_p;
     register const byte* c __asm__ ("r3") = (const byte*)c_p;
+#else
+    void* L_asm_args[4] = {(void*)(size_t)s, (void*)(size_t)a, (void*)(size_t)b,
+        (void*)(size_t)c
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #0x50\n\t"
         "ADD	lr, sp, #0x44\n\t"
-        "STM	lr, {%[s], %[a], %[c]}\n\t"
-        "MOV	lr, %[b]\n\t"
-        "LDM	%[a], {r0, r1, r2, r3}\n\t"
+        "STM	lr, {r0, r1, r3}\n\t"
+        "MOV	lr, r2\n\t"
+        "LDM	r1, {r0, r1, r2, r3}\n\t"
         "LDM	lr!, {r4, r5, r6}\n\t"
-        "UMULL	r10, r11, %[s], r4\n\t"
-        "UMULL	r12, r7, %[a], r4\n\t"
-        "UMAAL	r11, r12, %[s], r5\n\t"
-        "UMULL	r8, r9, %[b], r4\n\t"
-        "UMAAL	r12, r8, %[a], r5\n\t"
-        "UMAAL	r12, r7, %[s], r6\n\t"
-        "UMAAL	r8, r9, %[c], r4\n\t"
+        "UMULL	r10, r11, r0, r4\n\t"
+        "UMULL	r12, r7, r1, r4\n\t"
+        "UMAAL	r11, r12, r0, r5\n\t"
+        "UMULL	r8, r9, r2, r4\n\t"
+        "UMAAL	r12, r8, r1, r5\n\t"
+        "UMAAL	r12, r7, r0, r6\n\t"
+        "UMAAL	r8, r9, r3, r4\n\t"
         "STM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r7, r8, %[b], r5\n\t"
+        "UMAAL	r7, r8, r2, r5\n\t"
         "LDM	lr!, {r4}\n\t"
-        "UMULL	r10, r11, %[a], r6\n\t"
-        "UMAAL	r8, r9, %[b], r6\n\t"
-        "UMAAL	r7, r10, %[s], r4\n\t"
-        "UMAAL	r8, r11, %[c], r5\n\t"
+        "UMULL	r10, r11, r1, r6\n\t"
+        "UMAAL	r8, r9, r2, r6\n\t"
+        "UMAAL	r7, r10, r0, r4\n\t"
+        "UMAAL	r8, r11, r3, r5\n\t"
         "STR	r7, [sp, #12]\n\t"
-        "UMAAL	r8, r10, %[a], r4\n\t"
-        "UMAAL	r9, r11, %[c], r6\n\t"
-        "UMAAL	r9, r10, %[b], r4\n\t"
-        "UMAAL	r10, r11, %[c], r4\n\t"
+        "UMAAL	r8, r10, r1, r4\n\t"
+        "UMAAL	r9, r11, r3, r6\n\t"
+        "UMAAL	r9, r10, r2, r4\n\t"
+        "UMAAL	r10, r11, r3, r4\n\t"
         "LDM	lr, {r4, r5, r6, r7}\n\t"
         "MOV	r12, #0\n\t"
-        "UMLAL	r8, r12, %[s], r4\n\t"
-        "UMAAL	r9, r12, %[a], r4\n\t"
-        "UMAAL	r10, r12, %[b], r4\n\t"
-        "UMAAL	r11, r12, %[c], r4\n\t"
+        "UMLAL	r8, r12, r0, r4\n\t"
+        "UMAAL	r9, r12, r1, r4\n\t"
+        "UMAAL	r10, r12, r2, r4\n\t"
+        "UMAAL	r11, r12, r3, r4\n\t"
         "MOV	r4, #0\n\t"
-        "UMLAL	r9, r4, %[s], r5\n\t"
-        "UMAAL	r10, r4, %[a], r5\n\t"
-        "UMAAL	r11, r4, %[b], r5\n\t"
-        "UMAAL	r12, r4, %[c], r5\n\t"
+        "UMLAL	r9, r4, r0, r5\n\t"
+        "UMAAL	r10, r4, r1, r5\n\t"
+        "UMAAL	r11, r4, r2, r5\n\t"
+        "UMAAL	r12, r4, r3, r5\n\t"
         "MOV	r5, #0\n\t"
-        "UMLAL	r10, r5, %[s], r6\n\t"
-        "UMAAL	r11, r5, %[a], r6\n\t"
-        "UMAAL	r12, r5, %[b], r6\n\t"
-        "UMAAL	r4, r5, %[c], r6\n\t"
+        "UMLAL	r10, r5, r0, r6\n\t"
+        "UMAAL	r11, r5, r1, r6\n\t"
+        "UMAAL	r12, r5, r2, r6\n\t"
+        "UMAAL	r4, r5, r3, r6\n\t"
         "MOV	r6, #0\n\t"
-        "UMLAL	r11, r6, %[s], r7\n\t"
-        "LDR	%[s], [sp, #72]\n\t"
-        "UMAAL	r12, r6, %[a], r7\n\t"
-        "ADD	%[s], %[s], #16\n\t"
-        "UMAAL	r4, r6, %[b], r7\n\t"
+        "UMLAL	r11, r6, r0, r7\n\t"
+        "LDR	r0, [sp, #72]\n\t"
+        "UMAAL	r12, r6, r1, r7\n\t"
+        "ADD	r0, r0, #16\n\t"
+        "UMAAL	r4, r6, r2, r7\n\t"
         "SUB	lr, lr, #16\n\t"
-        "UMAAL	r5, r6, %[c], r7\n\t"
-        "LDM	%[s], {r0, r1, r2, r3}\n\t"
+        "UMAAL	r5, r6, r3, r7\n\t"
+        "LDM	r0, {r0, r1, r2, r3}\n\t"
         "STR	r6, [sp, #64]\n\t"
         "LDM	lr!, {r6}\n\t"
         "MOV	r7, #0\n\t"
-        "UMLAL	r8, r7, %[s], r6\n\t"
-        "UMAAL	r9, r7, %[a], r6\n\t"
+        "UMLAL	r8, r7, r0, r6\n\t"
+        "UMAAL	r9, r7, r1, r6\n\t"
         "STR	r8, [sp, #16]\n\t"
-        "UMAAL	r10, r7, %[b], r6\n\t"
-        "UMAAL	r11, r7, %[c], r6\n\t"
+        "UMAAL	r10, r7, r2, r6\n\t"
+        "UMAAL	r11, r7, r3, r6\n\t"
         "LDM	lr!, {r6}\n\t"
         "MOV	r8, #0\n\t"
-        "UMLAL	r9, r8, %[s], r6\n\t"
-        "UMAAL	r10, r8, %[a], r6\n\t"
+        "UMLAL	r9, r8, r0, r6\n\t"
+        "UMAAL	r10, r8, r1, r6\n\t"
         "STR	r9, [sp, #20]\n\t"
-        "UMAAL	r11, r8, %[b], r6\n\t"
-        "UMAAL	r12, r8, %[c], r6\n\t"
+        "UMAAL	r11, r8, r2, r6\n\t"
+        "UMAAL	r12, r8, r3, r6\n\t"
         "LDM	lr!, {r6}\n\t"
         "MOV	r9, #0\n\t"
-        "UMLAL	r10, r9, %[s], r6\n\t"
-        "UMAAL	r11, r9, %[a], r6\n\t"
+        "UMLAL	r10, r9, r0, r6\n\t"
+        "UMAAL	r11, r9, r1, r6\n\t"
         "STR	r10, [sp, #24]\n\t"
-        "UMAAL	r12, r9, %[b], r6\n\t"
-        "UMAAL	r4, r9, %[c], r6\n\t"
+        "UMAAL	r12, r9, r2, r6\n\t"
+        "UMAAL	r4, r9, r3, r6\n\t"
         "LDM	lr!, {r6}\n\t"
         "MOV	r10, #0\n\t"
-        "UMLAL	r11, r10, %[s], r6\n\t"
-        "UMAAL	r12, r10, %[a], r6\n\t"
+        "UMLAL	r11, r10, r0, r6\n\t"
+        "UMAAL	r12, r10, r1, r6\n\t"
         "STR	r11, [sp, #28]\n\t"
-        "UMAAL	r4, r10, %[b], r6\n\t"
-        "UMAAL	r5, r10, %[c], r6\n\t"
+        "UMAAL	r4, r10, r2, r6\n\t"
+        "UMAAL	r5, r10, r3, r6\n\t"
         "LDM	lr!, {r11}\n\t"
-        "UMAAL	r12, r7, %[s], r11\n\t"
-        "UMAAL	r4, r7, %[a], r11\n\t"
+        "UMAAL	r12, r7, r0, r11\n\t"
+        "UMAAL	r4, r7, r1, r11\n\t"
         "LDR	r6, [sp, #64]\n\t"
-        "UMAAL	r5, r7, %[b], r11\n\t"
-        "UMAAL	r6, r7, %[c], r11\n\t"
+        "UMAAL	r5, r7, r2, r11\n\t"
+        "UMAAL	r6, r7, r3, r11\n\t"
         "LDM	lr!, {r11}\n\t"
-        "UMAAL	r4, r8, %[s], r11\n\t"
-        "UMAAL	r5, r8, %[a], r11\n\t"
-        "UMAAL	r6, r8, %[b], r11\n\t"
-        "UMAAL	r7, r8, %[c], r11\n\t"
+        "UMAAL	r4, r8, r0, r11\n\t"
+        "UMAAL	r5, r8, r1, r11\n\t"
+        "UMAAL	r6, r8, r2, r11\n\t"
+        "UMAAL	r7, r8, r3, r11\n\t"
         "LDM	lr, {r11, lr}\n\t"
-        "UMAAL	r5, r9, %[s], r11\n\t"
-        "UMAAL	r6, r10, %[s], lr\n\t"
-        "UMAAL	r6, r9, %[a], r11\n\t"
-        "UMAAL	r7, r10, %[a], lr\n\t"
-        "UMAAL	r7, r9, %[b], r11\n\t"
-        "UMAAL	r8, r10, %[b], lr\n\t"
-        "UMAAL	r8, r9, %[c], r11\n\t"
-        "UMAAL	r9, r10, %[c], lr\n\t"
-        "MOV	%[c], r12\n\t"
+        "UMAAL	r5, r9, r0, r11\n\t"
+        "UMAAL	r6, r10, r0, lr\n\t"
+        "UMAAL	r6, r9, r1, r11\n\t"
+        "UMAAL	r7, r10, r1, lr\n\t"
+        "UMAAL	r7, r9, r2, r11\n\t"
+        "UMAAL	r8, r10, r2, lr\n\t"
+        "UMAAL	r8, r9, r3, r11\n\t"
+        "UMAAL	r9, r10, r3, lr\n\t"
+        "MOV	r3, r12\n\t"
         "ADD	lr, sp, #32\n\t"
-        "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
-        "MOV	%[s], sp\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "MOV	r0, sp\n\t"
         /* Add c to a * b */
         "LDR	lr, [sp, #76]\n\t"
-        "LDM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "LDM	lr!, {r1, r10, r11, r12}\n\t"
-        "ADDS	%[b], %[b], %[a]\n\t"
-        "ADCS	%[c], %[c], r10\n\t"
+        "ADDS	r2, r2, r1\n\t"
+        "ADCS	r3, r3, r10\n\t"
         "ADCS	r4, r4, r11\n\t"
         "ADCS	r5, r5, r12\n\t"
         "LDM	lr!, {r1, r10, r11, r12}\n\t"
-        "ADCS	r6, r6, %[a]\n\t"
+        "ADCS	r6, r6, r1\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADCS	r8, r8, r11\n\t"
         "ADCS	r9, r9, r12\n\t"
-        "MOV	%[a], r9\n\t"
-        "STM	%[s]!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
-        "LDM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        "ADCS	%[b], %[b], #0\n\t"
-        "ADCS	%[c], %[c], #0\n\t"
+        "MOV	r1, r9\n\t"
+        "STM	r0!, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADCS	r2, r2, #0\n\t"
+        "ADCS	r3, r3, #0\n\t"
         "ADCS	r4, r4, #0\n\t"
         "ADCS	r5, r5, #0\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
-        "SUB	%[s], %[s], #32\n\t"
+        "SUB	r0, r0, #32\n\t"
         /* Get 252..503 and 504..507 */
         "LSR	lr, r9, #24\n\t"
         "LSL	r9, r9, #4\n\t"
@@ -8159,27 +8754,27 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
-        "ORR	r4, r4, %[c], LSR #28\n\t"
-        "LSL	%[c], %[c], #4\n\t"
-        "ORR	%[c], %[c], %[b], LSR #28\n\t"
-        "LSL	%[b], %[b], #4\n\t"
-        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r9, #28, #4\n\t"
         /* Add order times bits 504..507 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
         "MOV	r11, #0x9ce5\n\t"
         "MOVT	r11, #0xa7ed\n\t"
-        "MOV	%[a], #0\n\t"
-        "UMLAL	%[b], %[a], r10, lr\n\t"
-        "UMAAL	%[c], %[a], r11, lr\n\t"
+        "MOV	r1, #0\n\t"
+        "UMLAL	r2, r1, r10, lr\n\t"
+        "UMAAL	r3, r1, r11, lr\n\t"
         "MOV	r10, #0x6329\n\t"
         "MOVT	r10, #0x5d08\n\t"
         "MOV	r11, #0x621\n\t"
         "MOVT	r11, #0xeb21\n\t"
-        "UMAAL	r4, %[a], r10, lr\n\t"
-        "UMAAL	r5, %[a], r11, lr\n\t"
-        "ADDS	r6, r6, %[a]\n\t"
+        "UMAAL	r4, r1, r10, lr\n\t"
+        "UMAAL	r5, r1, r11, lr\n\t"
+        "ADDS	r6, r6, r1\n\t"
         "ADCS	r7, r7, #0\n\t"
         "ADCS	r8, r8, #0\n\t"
         "ADC	r9, r9, #0\n\t"
@@ -8189,92 +8784,92 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "SBC	r9, r9, #0\n\t"
         /* Sub product of top 8 words and order */
         "MOV	r12, sp\n\t"
-        "MOV	%[a], #0x2c13\n\t"
-        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
-        "UMAAL	r11, lr, %[c], %[a]\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "UMAAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r4, %[a]\n\t"
-        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r6, %[a]\n\t"
-        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
-        "LDM	%[s]!, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r8, %[a]\n\t"
+        "LDM	r0!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r8, r1\n\t"
         "BFC	r11, #28, #4\n\t"
-        "UMAAL	r11, lr, r9, %[a]\n\t"
+        "UMAAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x9ce5\n\t"
-        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
         "MOV	lr, #0\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
-        "UMAAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "UMAAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r4, %[a]\n\t"
-        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r6, %[a]\n\t"
-        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r8, %[a]\n\t"
-        "UMAAL	r11, lr, r9, %[a]\n\t"
+        "UMAAL	r10, lr, r8, r1\n\t"
+        "UMAAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x6329\n\t"
-        "MOVT	%[a], #0x5d08\n\t"
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
         "MOV	lr, #0\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
-        "UMAAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "UMAAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r4, %[a]\n\t"
-        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r6, %[a]\n\t"
-        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r8, %[a]\n\t"
-        "UMAAL	r11, lr, r9, %[a]\n\t"
+        "UMAAL	r10, lr, r8, r1\n\t"
+        "UMAAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	r12, r12, #32\n\t"
-        "MOV	%[a], #0x621\n\t"
-        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
         "MOV	lr, #0\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMLAL	r10, lr, %[b], %[a]\n\t"
-        "UMAAL	r11, lr, %[c], %[a]\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "UMAAL	r11, lr, r3, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r4, %[a]\n\t"
-        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r6, %[a]\n\t"
-        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "UMAAL	r10, lr, r8, %[a]\n\t"
-        "UMAAL	r11, lr, r9, %[a]\n\t"
+        "UMAAL	r10, lr, r8, r1\n\t"
+        "UMAAL	r11, lr, r9, r1\n\t"
         "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	r12, r12, #32\n\t"
         /* Subtract at 4 * 32 */
         "LDM	r12, {r10, r11}\n\t"
-        "SUBS	r10, r10, %[b]\n\t"
-        "SBCS	r11, r11, %[c]\n\t"
+        "SUBS	r10, r10, r2\n\t"
+        "SBCS	r11, r11, r3\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
         "SBCS	r10, r10, r4\n\t"
@@ -8291,28 +8886,28 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "SUB	r12, r12, #36\n\t"
         "ASR	lr, r11, #25\n\t"
         /* Conditionally subtract order starting at bit 125 */
-        "MOV	%[a], #0xa0000000\n\t"
-        "MOV	%[b], #0xba7d\n\t"
-        "MOVT	%[b], #0x4b9e\n\t"
-        "MOV	%[c], #0x4c63\n\t"
-        "MOVT	%[c], #0xcb02\n\t"
+        "MOV	r1, #0xa0000000\n\t"
+        "MOV	r2, #0xba7d\n\t"
+        "MOVT	r2, #0x4b9e\n\t"
+        "MOV	r3, #0x4c63\n\t"
+        "MOVT	r3, #0xcb02\n\t"
         "MOV	r4, #0xf39a\n\t"
         "MOVT	r4, #0xd45e\n\t"
         "MOV	r5, #0xdf3b\n\t"
         "MOVT	r5, #0x29b\n\t"
         "MOV	r9, #0x2000000\n\t"
-        "AND	%[a], %[a], lr\n\t"
-        "AND	%[b], %[b], lr\n\t"
-        "AND	%[c], %[c], lr\n\t"
+        "AND	r1, r1, lr\n\t"
+        "AND	r2, r2, lr\n\t"
+        "AND	r3, r3, lr\n\t"
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r9, r9, lr\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "ADDS	r10, r10, %[a]\n\t"
-        "ADCS	r11, r11, %[b]\n\t"
+        "ADDS	r10, r10, r1\n\t"
+        "ADCS	r11, r11, r2\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
-        "ADCS	r10, r10, %[c]\n\t"
+        "ADCS	r10, r10, r3\n\t"
         "ADCS	r11, r11, r4\n\t"
         "STM	r12!, {r10, r11}\n\t"
         "LDM	r12, {r10, r11}\n\t"
@@ -8326,7 +8921,7 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LDM	r12, {r10}\n\t"
         "ADCS	r10, r10, #0\n\t"
         "STM	r12!, {r10}\n\t"
-        "SUB	%[s], %[s], #16\n\t"
+        "SUB	r0, r0, #16\n\t"
         "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
         "ADD	r12, r12, #28\n\t"
@@ -8334,74 +8929,74 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
-        "ORR	r4, r4, %[c], LSR #28\n\t"
-        "LSL	%[c], %[c], #4\n\t"
-        "ORR	%[c], %[c], %[b], LSR #28\n\t"
-        "LSL	%[b], %[b], #4\n\t"
-        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r5, #29, #3\n\t"
         "SUB	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
-        "MOV	%[s], sp\n\t"
+        "MOV	r0, sp\n\t"
         /*   * -5cf5d3ed */
-        "MOV	%[a], #0x2c13\n\t"
-        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, lr, %[b], %[a]\n\t"
-        "UMAAL	r7, lr, %[c], %[a]\n\t"
-        "UMAAL	r8, lr, r4, %[a]\n\t"
-        "UMAAL	r9, lr, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, lr, r2, r1\n\t"
+        "UMAAL	r7, lr, r3, r1\n\t"
+        "UMAAL	r8, lr, r4, r1\n\t"
+        "UMAAL	r9, lr, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -5812631b */
-        "MOV	%[a], #0x9ce5\n\t"
-        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
         "MOV	r10, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r10, %[b], %[a]\n\t"
-        "UMAAL	r7, r10, %[c], %[a]\n\t"
-        "UMAAL	r8, r10, r4, %[a]\n\t"
-        "UMAAL	r9, r10, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r10, r2, r1\n\t"
+        "UMAAL	r7, r10, r3, r1\n\t"
+        "UMAAL	r8, r10, r4, r1\n\t"
+        "UMAAL	r9, r10, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -a2f79cd7 */
-        "MOV	%[a], #0x6329\n\t"
-        "MOVT	%[a], #0x5d08\n\t"
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
         "MOV	r11, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r11, %[b], %[a]\n\t"
-        "UMAAL	r7, r11, %[c], %[a]\n\t"
-        "UMAAL	r8, r11, r4, %[a]\n\t"
-        "UMAAL	r9, r11, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r11, r2, r1\n\t"
+        "UMAAL	r7, r11, r3, r1\n\t"
+        "UMAAL	r8, r11, r4, r1\n\t"
+        "UMAAL	r9, r11, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /*   * -14def9df */
-        "MOV	%[a], #0x621\n\t"
-        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
         "MOV	r12, #0\n\t"
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
-        "UMLAL	r6, r12, %[b], %[a]\n\t"
-        "UMAAL	r7, r12, %[c], %[a]\n\t"
-        "UMAAL	r8, r12, r4, %[a]\n\t"
-        "UMAAL	r9, r12, r5, %[a]\n\t"
-        "STM	%[s], {r6, r7, r8, r9}\n\t"
-        "ADD	%[s], %[s], #4\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r12, r2, r1\n\t"
+        "UMAAL	r7, r12, r3, r1\n\t"
+        "UMAAL	r8, r12, r4, r1\n\t"
+        "UMAAL	r9, r12, r5, r1\n\t"
+        "STM	r0, {r6, r7, r8, r9}\n\t"
+        "ADD	r0, r0, #4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "LDM	r0, {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADCS	r8, r8, r11\n\t"
         "ADC	r9, r9, r12\n\t"
         /* Subtract top at 4 * 32 */
-        "SUBS	r6, r6, %[b]\n\t"
-        "SBCS	r7, r7, %[c]\n\t"
+        "SUBS	r6, r6, r2\n\t"
+        "SBCS	r7, r7, r3\n\t"
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
-        "SBC	%[a], %[a], %[a]\n\t"
-        "SUB	%[s], %[s], #16\n\t"
-        "LDM	%[s], {r2, r3, r4, r5}\n\t"
+        "SBC	r1, r1, r1\n\t"
+        "SUB	r0, r0, #16\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -8410,41 +9005,53 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "MOVT	r12, #0xa2f7\n\t"
         "MOV	lr, #0xf9de\n\t"
         "MOVT	lr, #0x14de\n\t"
-        "AND	r10, r10, %[a]\n\t"
-        "AND	r11, r11, %[a]\n\t"
-        "AND	r12, r12, %[a]\n\t"
-        "AND	lr, lr, %[a]\n\t"
-        "ADDS	%[b], %[b], r10\n\t"
-        "ADCS	%[c], %[c], r11\n\t"
+        "AND	r10, r10, r1\n\t"
+        "AND	r11, r11, r1\n\t"
+        "AND	r12, r12, r1\n\t"
+        "AND	lr, lr, r1\n\t"
+        "ADDS	r2, r2, r10\n\t"
+        "ADCS	r3, r3, r11\n\t"
         "ADCS	r4, r4, r12\n\t"
         "ADCS	r5, r5, lr\n\t"
         "ADCS	r6, r6, #0\n\t"
         "ADCS	r7, r7, #0\n\t"
-        "AND	%[a], %[a], #0x10000000\n\t"
+        "AND	r1, r1, #0x10000000\n\t"
         "ADCS	r8, r8, #0\n\t"
-        "ADC	r9, r9, %[a]\n\t"
+        "ADC	r9, r9, r1\n\t"
         "BFC	r9, #28, #4\n\t"
-        "LDR	%[s], [sp, #68]\n\t"
+        "LDR	r0, [sp, #68]\n\t"
         /* Store result */
-        "STR	%[b], [%[s]]\n\t"
-        "STR	%[c], [%[s], #4]\n\t"
-        "STR	r4, [%[s], #8]\n\t"
-        "STR	r5, [%[s], #12]\n\t"
-        "STR	r6, [%[s], #16]\n\t"
-        "STR	r7, [%[s], #20]\n\t"
-        "STR	r8, [%[s], #24]\n\t"
-        "STR	r9, [%[s], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
-#else
-        :
-        : [s] "r" (s), [a] "r" (a), [b] "r" (b), [c] "r" (c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    s = (byte*)(size_t)L_asm_args[0];
+    a = (const byte*)(size_t)L_asm_args[1];
+    b = (const byte*)(size_t)L_asm_args[2];
+    c = (const byte*)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_ARM_ARCH_7M */

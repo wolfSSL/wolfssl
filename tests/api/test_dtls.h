@@ -22,18 +22,28 @@
 #ifndef TESTS_API_DTLS_H
 #define TESTS_API_DTLS_H
 
+int test_dtls12_wire_mangle(void);
+int test_wolfSSL_dtls_cid_arg_guards(void);
+int test_dtls12_packet_forgeries(void);
+int test_dtls13_packet_forgeries(void);
+int test_dtls13_wire_mangle(void);
+
 int test_dtls12_basic_connection_id(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_cid_args(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
 int test_wolfSSL_dtls_set_pending_peer_not_newest(void);
 int test_dtls13_new_connection_id(void);
+int test_dtls13_new_connection_id_long_cid(void);
 int test_dtls13_new_connection_id_not_negotiated(void);
 int test_dtls13_request_connection_id(void);
 int test_dtls13_cid_msg_malformed(void);
 int test_dtls_cid_negotiate_oversize(void);
+int test_dtls13_cid_oversized_tx(void);
+int test_dtls13_cid_oversized_tx_post_hs(void);
 int test_dtls_version_checking(void);
 int test_dtls_drop_invalid_record_during_handshake(void);
+int test_dtls_drop_invalid_hs_header_when_unverified(void);
 int test_dtls_short_ciphertext(void);
 int test_dtls12_record_length_mismatch(void);
 int test_dtls12_short_read(void);
@@ -50,10 +60,49 @@ int test_dtls_timeout(void);
 int test_dtls_certreq_order(void);
 int test_dtls_memio_wolfio(void);
 int test_dtls_memio_wolfio_stateless(void);
+int test_dtls_memio_wolfio_invalid_peer(void);
 int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
 int test_dtls12_export_import_etm(void);
+int test_dtls12_export_import_v6(void);
+int test_dtls13_export_import(void);
+int test_dtls13_export_unequal_epochs(void);
+int test_dtls13_export_restrictions(void);
+int test_dtls13_export_key_update_response(void);
+int test_dtls13_export_half_sent_fragment(void);
+int test_dtls13_export_write_dup(void);
+int test_dtls13_export_pending_ticket_lost(void);
+int test_dtls13_export_server_ticket_after_import(void);
+int test_dtls13_export_client_ticket_after_import(void);
+int test_dtls12_export_state_version(void);
+int test_dtls13_import_state_restrictions(void);
+int test_dtls_export_cid_restored(void);
+int test_dtls_export_tight_buffer(void);
+int test_dtls_export_no_cid_clears_target(void);
+int test_dtls13_export_unacked_flight(void);
+int test_dtls13_export_post_handshake_auth(void);
+int test_dtls13_export_import_client(void);
+int test_dtls13_export_replay_window(void);
+int test_dtls13_export_smaller_window(void);
+int test_dtls13_export_larger_window(void);
+int test_dtls13_export_malformed(void);
+int test_dtls13_export_epoch_numbers(void);
+int test_dtls13_export_reimport(void);
+int test_dtls13_export_failed_epoch_commit(void);
+int test_dtls13_export_malformed_epoch_keys(void);
+int test_dtls13_export_malformed_specs(void);
+int test_dtls13_export_short_epoch_keys(void);
+int test_dtls13_export_short_secret(void);
+int test_dtls13_export_padded_state_section(void);
+int test_dtls13_export_padded_cid_section(void);
+int test_dtls_export_import_oversized_buffer(void);
+int test_dtls13_export_sha256_suite(void);
+int test_dtls13_export_integrity_only_suite(void);
+int test_dtls13_export_unequal_epochs_client(void);
+int test_dtls13_export_prev_peer_epoch(void);
+int test_dtls13_export_invalidate_before(void);
+int test_dtls13_export_drop_count(void);
 int test_wolfSSL_dtls_create_free_peer(void);
 int test_wolfSSL_dtls_scheduled_work(void);
 int test_wolfSSL_dtls_get0_peer(void);
@@ -89,11 +138,13 @@ int test_dtls_client_hello_timeout(void);
 int test_dtls_dropped_ccs(void);
 int test_dtls_seq_num_downgrade(void);
 int test_dtls_old_seq_number(void);
+int test_dtls12_stateless_window(void);
 int test_dtls12_seq_num_wrap(void);
 int test_dtls12_scr_epoch_wrap(void);
 int test_dtls12_scr_client_epoch_wrap(void);
 int test_dtls12_cid_record_type_swap(void);
 int test_dtls12_cid_not_negotiated(void);
+int test_dtls_sctp_app_data_size(void);
 int test_dtls12_missing_finished(void);
 int test_dtls12_cookie_secret_secondary(void);
 int test_dtls12_cookie_secret_secondary_dropped(void);
@@ -111,6 +162,16 @@ int test_dtls13_hrr_cookie_secret_secondary_replaced(void);
 int test_dtls13_hrr_cookie_secret_issue_uses_primary(void);
 int test_dtls13_hrr_cookie_secret_secondary_args(void);
 int test_dtls13_hrr_cookie_secret_secondary_disabled(void);
+int test_dtls12_frag_ch_no_cookie(void);
+int test_dtls_cookie_policy(void);
+int test_dtls_no_cookie_ch_stall(void);
+int test_dtls_no_cookie_ch_reject(void);
+int test_dtls_cookie_flip_in_cb(void);
+int test_dtls_cookie_policy_set_side(void);
+int test_dtls_cookie_policy_neither_end(void);
+int test_dtls13_hrr_cookie_state_guard(void);
+int test_dtls12_cookie_secret_generate_fail(void);
+int test_dtls13_hrr_cookie_secret_generate_fail(void);
 int test_wolfSSL_dtls_export(void);
 int test_wolfSSL_dtls_export_peers(void);
 int test_wolfSSL_dtls_import_state_extra_window_words(void);
@@ -132,20 +193,38 @@ int test_wolfSSL_dtls_stateless_resume(void);
 int test_wolfSSL_dtls_stateless_downgrade(void);
 int test_WOLFSSL_dtls_version_alert(void);
 
+/* Shared with tests/api/test_dtls13.c. */
+#define TEST_DTLS13_FOUR_FRAG_CH_SZ 832
+extern const unsigned char
+    test_dtls13_four_frag_ch[TEST_DTLS13_FOUR_FRAG_CH_SZ];
+int test_dtls_no_cookie_ch_good(WOLFSSL* ssl, void* ctx);
+int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
+
 #define TEST_DTLS_DECLS                                                        \
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_parse),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_args),                   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \
+        TEST_DECL_GROUP("dtls", test_dtls12_wire_mangle),                      \
+        TEST_DECL_GROUP("dtls", test_dtls13_wire_mangle),                      \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_arg_guards),             \
+        TEST_DECL_GROUP("dtls", test_dtls12_packet_forgeries),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_packet_forgeries),                 \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer_not_newest),\
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id),                \
+        TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_long_cid),       \
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_not_negotiated), \
         TEST_DECL_GROUP("dtls", test_dtls13_request_connection_id),            \
         TEST_DECL_GROUP("dtls", test_dtls13_cid_msg_malformed),                \
         TEST_DECL_GROUP("dtls", test_dtls_cid_negotiate_oversize),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_cid_oversized_tx),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_cid_oversized_tx_post_hs),         \
+        TEST_DECL_GROUP("dtls", test_dtls_sctp_app_data_size),                 \
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls",                                                \
             test_dtls_drop_invalid_record_during_handshake),                   \
+        TEST_DECL_GROUP("dtls",                                                \
+            test_dtls_drop_invalid_hs_header_when_unverified),                 \
         TEST_DECL_GROUP("dtls", test_dtls_short_ciphertext),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_record_length_mismatch),           \
         TEST_DECL_GROUP("dtls", test_dtls12_short_read),                       \
@@ -164,6 +243,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_mtu_fragment_headroom),              \
         TEST_DECL_GROUP("dtls", test_dtls_mtu_split_messages),                 \
         TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless),             \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_invalid_peer),          \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export),                     \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export_peers),               \
@@ -197,6 +277,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_dropped_ccs),                        \
         TEST_DECL_GROUP("dtls", test_dtls_seq_num_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_old_seq_number),                     \
+        TEST_DECL_GROUP("dtls", test_dtls12_stateless_window),                 \
         TEST_DECL_GROUP("dtls", test_dtls12_seq_num_wrap),                     \
         TEST_DECL_GROUP("dtls", test_dtls12_scr_epoch_wrap),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_scr_client_epoch_wrap),            \
@@ -204,6 +285,44 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls12_cid_not_negotiated),               \
         TEST_DECL_GROUP("dtls", test_dtls12_missing_finished),                 \
         TEST_DECL_GROUP("dtls", test_dtls12_export_import_etm),                \
+        TEST_DECL_GROUP("dtls", test_dtls12_export_import_v6),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_import),                    \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_unequal_epochs),            \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_restrictions),              \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_key_update_response),       \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_half_sent_fragment),        \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_write_dup),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_pending_ticket_lost),       \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_server_ticket_after_import),\
+        TEST_DECL_GROUP("dtls", test_dtls13_export_client_ticket_after_import),\
+        TEST_DECL_GROUP("dtls", test_dtls12_export_state_version),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_import_state_restrictions),        \
+        TEST_DECL_GROUP("dtls", test_dtls_export_cid_restored),                \
+        TEST_DECL_GROUP("dtls", test_dtls_export_tight_buffer),                \
+        TEST_DECL_GROUP("dtls", test_dtls_export_no_cid_clears_target),        \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_unacked_flight),            \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_post_handshake_auth),       \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_import_client),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_replay_window),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_smaller_window),            \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_larger_window),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_malformed),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_epoch_numbers),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_reimport),                  \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_failed_epoch_commit),       \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_malformed_epoch_keys),      \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_malformed_specs),           \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_short_epoch_keys),          \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_short_secret),              \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_padded_state_section),      \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_padded_cid_section),        \
+        TEST_DECL_GROUP("dtls", test_dtls_export_import_oversized_buffer),     \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_sha256_suite),              \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_integrity_only_suite),      \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_unequal_epochs_client),     \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_prev_peer_epoch),           \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_invalidate_before),         \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_drop_count),                \
         TEST_DECL_GROUP("dtls", test_dtls13_min_rtx_interval),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_no_session_id_echo),               \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
@@ -236,6 +355,14 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_same_as_primary),    \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_replaced), \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_issue_uses_primary), \
+        TEST_DECL_GROUP("dtls", test_dtls12_frag_ch_no_cookie),                \
+        TEST_DECL_GROUP("dtls", test_dtls_cookie_policy),                      \
+        TEST_DECL_GROUP("dtls", test_dtls_no_cookie_ch_stall),                 \
+        TEST_DECL_GROUP("dtls", test_dtls_no_cookie_ch_reject),                \
+        TEST_DECL_GROUP("dtls", test_dtls_cookie_flip_in_cb),                  \
+        TEST_DECL_GROUP("dtls", test_dtls_cookie_policy_set_side),             \
+        TEST_DECL_GROUP("dtls", test_dtls_cookie_policy_neither_end),          \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_state_guard),           \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary),      \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_dropped), \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_cleared), \
@@ -244,5 +371,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_replaced), \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_issue_uses_primary), \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_args), \
-        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_disabled)
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_disabled), \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_generate_fail),      \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_generate_fail)
 #endif /* TESTS_API_DTLS_H */

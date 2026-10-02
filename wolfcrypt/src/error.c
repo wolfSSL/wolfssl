@@ -760,6 +760,12 @@ const char* wc_GetErrorString(int error)
     case WRONG_TYPE_OBJECT_E:
         return "Object is wrong type for requested operation";
 
+    case NEEDS_RECOVERY_E:
+        return "Object needs recovery before use";
+
+    case UNEXPECTED_STATE_E:
+        return "Object has unexpected state";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

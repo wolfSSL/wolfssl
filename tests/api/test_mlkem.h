@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_mlkem_make_key_kats(void);
+int test_wc_MlKemKey_seed_service_indicator(void);
 int test_wc_mlkem_encapsulate_kats(void);
 int test_wc_mlkem_decapsulate_kats(void);
 int test_wc_mlkem_decapsulate_pubonly_fails(void);
@@ -37,9 +38,11 @@ int test_wc_mlkem_init_label_decision(void);
 int test_wc_mlkem_encapsulate_pubkey_unset_decision(void);
 int test_wc_mlkem_encode_key_len_decision(void);
 int test_wc_mlkem_cb_free(void);
+int test_wc_mlkem_cb_pending_rejected(void);
 
 #define TEST_MLKEM_DECLS                                                \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),              \
+    TEST_DECL_GROUP("mlkem", test_wc_MlKemKey_seed_service_indicator),  \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_kats),           \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_kats),           \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_pubonly_fails),  \
@@ -51,6 +54,7 @@ int test_wc_mlkem_cb_free(void);
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_init_label_decision),        \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_pubkey_unset_decision), \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_encode_key_len_decision), \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_free)
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_free),                    \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_pending_rejected)
 
 #endif /* WOLFCRYPT_TEST_MLKEM_H */

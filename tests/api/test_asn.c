@@ -1909,6 +1909,52 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
     ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
 
+    /* Only the initial scheme delimiter can introduce an authority. A URI
+     * embedded in an authority-less URI does not supply its host. */
+    ExpectIntEQ(uriNC("urn:example:opaque",           "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example:https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("foo:/path/https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example#https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("sip:victim.example?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example?next=https://a.host.com/x",
+                ".host.com"), 0);
+
+    /* With a real authority, later URLs must not affect host matching. */
+    ExpectIntEQ(uriNC("https://other.com/https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://other.com?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://other.com#https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://host.com?next=https://other.com/x",
+                "host.com"), 1);
+
+    /* Scheme syntax, not a whitelist:
+     * ALPHA *(ALPHA / DIGIT / "+" / "-" / "."). */
+    ExpectIntEQ(uriNC("a://host.com",                 "host.com"), 1);
+    ExpectIntEQ(uriNC("Custom+v2-test.1://host.com",   "host.com"), 1);
+    ExpectIntEQ(uriNC("://host.com",                  "host.com"), 0);
+    ExpectIntEQ(uriNC("1https://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("ht/tps://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("ht_tps://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC(" https://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("https",                       "host.com"), 0);
+    ExpectIntEQ(uriNC("https:",                      "host.com"), 0);
+    ExpectIntEQ(uriNC("https:/",                     "host.com"), 0);
+    /* Explicit lengths must bound the scheme and separator scans. */
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 3,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 4,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 5,
+                "host.com", 8), 0);
+
     /* A single trailing dot is the absolute-FQDN marker: "host.com." and
      * "host.com" denote the same host and must compare equal, matching the
      * DNS name-constraint path. */
@@ -2297,6 +2343,45 @@ int test_DecodeAltNames_length_underflow(void)
  * extension must be rejected (ASN_OBJECT_ID_E) rather than silently
  * overwriting the first - which happened in WOLFSSL_CERT_EXT builds without
  * WOLFSSL_SEP before the duplicate guard was extended to cover them. */
+/* RFC 5280 4.2.1.13: a DistributionPointName fullName is GeneralNames, a
+ * SEQUENCE OF GeneralName, so more than one URI may appear. wolfSSL keeps only
+ * the first, and the template describes only that one - the remaining names
+ * are left for the caller and must not be mistaken for a container that was
+ * not used up. */
+int test_DecodeCertExtensions_crldp_multiple_uri(void)
+{
+    EXPECT_DECLS;
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    /* CRLDistributionPoints with one DistributionPoint whose fullName holds
+     * two URIs: "http://a" and "http://b". */
+    static const byte crldp2[] = {
+        0x30, 0x1a,                             /* CRLDistributionPoints */
+            0x30, 0x18,                         /* DistributionPoint */
+                0xa0, 0x16,                     /* distributionPoint [0] */
+                    0xa0, 0x14,                 /* fullName [0] */
+                        0x86, 0x08, 'h', 't', 't', 'p', ':', '/', '/', 'a',
+                        0x86, 0x08, 'h', 't', 't', 'p', ':', '/', '/', 'b'
+    };
+    DecodedCert cert;
+    int isUnknown = 0;
+
+    wc_InitDecodedCert(&cert, crldp2, (word32)sizeof(crldp2), NULL);
+
+    ExpectIntEQ(DecodeExtensionType(crldp2, (word32)sizeof(crldp2),
+        CRL_DIST_OID, 0, &cert, &isUnknown), 0);
+    /* The first URI is the one kept. */
+    ExpectIntEQ(cert.extCrlInfoSz, 8);
+    ExpectNotNull(cert.extCrlInfo);
+    if (cert.extCrlInfo != NULL && cert.extCrlInfoSz == 8) {
+        ExpectIntEQ(XMEMCMP(cert.extCrlInfo, "http://a", 8), 0);
+    }
+
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_DecodeCertExtensions_dup_certpol(void)
 {
     EXPECT_DECLS;
@@ -2415,6 +2500,116 @@ int test_DecodeCertExtensions_empty_certpol_trailing(void)
     return EXPECT_RESULT();
 }
 
+/* A constructed ASN.1 item must be exactly consumed by the items parsed out of
+ * it. GetASN_Items() used to only enforce that for containers still open when
+ * the template ran out, so a container the template walked into and back out of
+ * mid-way could declare a length longer than its contents and have the excess
+ * silently ignored.
+ *
+ * For a certificate that means TBSCertificate.validity can claim a length that
+ * runs past notBefore/notAfter and swallows subject, subjectPublicKeyInfo and
+ * the start of extensions. wolfSSL resumed parsing right after notAfter and
+ * accepted the certificate, while a strict parser rejects it and a lax one may
+ * resume after the declared end of validity and read a completely different
+ * subjectPublicKeyInfo. That disagreement is exploitable: a peer holding only
+ * the key at the real SPKI offset can satisfy an application's public-key pin
+ * for an unrelated key embedded in an extension.
+ *
+ * The two DERs below differ in exactly one byte: the length octet of the
+ * validity SEQUENCE, 0x1e (30, the correct length) versus 0x59 (89). */
+int test_ParseCert_validity_length_overrun(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_VERIFY)
+    /* Ed25519 certificate, empty issuer and subject, one unknown extension
+     * whose payload happens to be a second, well-formed SPKI. Well-formed:
+     * validity SEQUENCE at offset 43 has length 30 and holds exactly the two
+     * UTCTIMEs at offsets 45 and 60. */
+    static const byte validCert[] = {
+        0x30, 0x82, 0x01, 0x19, 0x30, 0x81, 0xcc, 0xa0, 0x03, 0x02, 0x01, 0x02,
+        0x02, 0x14, 0x3c, 0x4a, 0xc9, 0xfc, 0x05, 0xa5, 0x6c, 0xaa, 0x52, 0x8a,
+        0x71, 0xcb, 0xfc, 0xd4, 0xd1, 0x6e, 0x29, 0x8d, 0x6f, 0x01, 0x30, 0x05,
+        0x06, 0x03, 0x2b, 0x65, 0x70, 0x30, 0x00,
+        /* validity SEQUENCE, correct length 30 */
+                                                  0x30, 0x1e, 0x17, 0x0d, 0x32,
+        0x36, 0x30, 0x39, 0x30, 0x32, 0x30, 0x34, 0x35, 0x34, 0x32, 0x36, 0x5a,
+        0x17, 0x0d, 0x32, 0x36, 0x31, 0x30, 0x30, 0x32, 0x30, 0x34, 0x35, 0x34,
+        0x32, 0x36, 0x5a, 0x30, 0x00, 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b,
+        0x65, 0x70, 0x03, 0x21, 0x00, 0x5e, 0x1b, 0x44, 0xb7, 0xe3, 0x7b, 0x3d,
+        0xe7, 0x24, 0x66, 0x20, 0xaf, 0x31, 0x66, 0x61, 0xaf, 0x52, 0x68, 0xa2,
+        0x62, 0xf4, 0x47, 0xe5, 0x93, 0x1c, 0x3e, 0xae, 0xab, 0xbc, 0x71, 0xca,
+        0xc2, 0xa3, 0x58, 0x30, 0x56, 0x30, 0x35, 0x06, 0x03, 0x2a, 0x03, 0x04,
+        0x04, 0x2e, 0x30, 0x00, 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+        0x70, 0x03, 0x21, 0x00, 0xf3, 0xf9, 0x4d, 0x74, 0x9e, 0xd9, 0x61, 0xed,
+        0xfd, 0xb7, 0x9b, 0x6c, 0xff, 0x1e, 0x1c, 0xf5, 0xeb, 0x1b, 0x72, 0xcd,
+        0xc5, 0x8c, 0xfc, 0x4e, 0x71, 0xcd, 0x82, 0x9c, 0x13, 0x16, 0xc4, 0xfb,
+        0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04, 0x16, 0x04, 0x14, 0x7a,
+        0x6a, 0xa2, 0xfd, 0x2e, 0xb6, 0x62, 0x22, 0x98, 0x18, 0x0b, 0x2d, 0x17,
+        0xe1, 0xf3, 0x6b, 0x86, 0x01, 0x50, 0xb1, 0x30, 0x05, 0x06, 0x03, 0x2b,
+        0x65, 0x70, 0x03, 0x41, 0x00, 0x0b, 0x53, 0x43, 0x87, 0x19, 0xc2, 0x2f,
+        0x7d, 0x3c, 0x32, 0x8a, 0x7f, 0xfe, 0xbb, 0xd7, 0x2c, 0x27, 0xd8, 0x59,
+        0x5b, 0x47, 0x3e, 0x5d, 0xd1, 0xc9, 0x63, 0x9b, 0x83, 0x74, 0x24, 0x75,
+        0x3b, 0xdd, 0x8a, 0xe1, 0x59, 0xe8, 0xcd, 0xff, 0xd0, 0x09, 0xee, 0xc8,
+        0x4c, 0xe2, 0x7c, 0x69, 0x49, 0xc2, 0xb3, 0xb2, 0x60, 0x7f, 0x9c, 0x6b,
+        0x0e, 0x0c, 0x97, 0x64, 0xd7, 0x6e, 0x9b, 0x4e, 0x00
+    };
+    /* Byte-for-byte identical except offset 44: the validity SEQUENCE declares
+     * length 89, so it runs to offset 134 and covers subject (75),
+     * subjectPublicKeyInfo (77) and the head of the extensions (121). */
+    static const byte overrunCert[] = {
+        0x30, 0x82, 0x01, 0x19, 0x30, 0x81, 0xcc, 0xa0, 0x03, 0x02, 0x01, 0x02,
+        0x02, 0x14, 0x3c, 0x4a, 0xc9, 0xfc, 0x05, 0xa5, 0x6c, 0xaa, 0x52, 0x8a,
+        0x71, 0xcb, 0xfc, 0xd4, 0xd1, 0x6e, 0x29, 0x8d, 0x6f, 0x01, 0x30, 0x05,
+        0x06, 0x03, 0x2b, 0x65, 0x70, 0x30, 0x00,
+        /* validity SEQUENCE, overrunning length 89 */
+                                                  0x30, 0x59, 0x17, 0x0d, 0x32,
+        0x36, 0x30, 0x39, 0x30, 0x32, 0x30, 0x34, 0x35, 0x34, 0x32, 0x36, 0x5a,
+        0x17, 0x0d, 0x32, 0x36, 0x31, 0x30, 0x30, 0x32, 0x30, 0x34, 0x35, 0x34,
+        0x32, 0x36, 0x5a, 0x30, 0x00, 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b,
+        0x65, 0x70, 0x03, 0x21, 0x00, 0x5e, 0x1b, 0x44, 0xb7, 0xe3, 0x7b, 0x3d,
+        0xe7, 0x24, 0x66, 0x20, 0xaf, 0x31, 0x66, 0x61, 0xaf, 0x52, 0x68, 0xa2,
+        0x62, 0xf4, 0x47, 0xe5, 0x93, 0x1c, 0x3e, 0xae, 0xab, 0xbc, 0x71, 0xca,
+        0xc2, 0xa3, 0x58, 0x30, 0x56, 0x30, 0x35, 0x06, 0x03, 0x2a, 0x03, 0x04,
+        0x04, 0x2e, 0x30, 0x00, 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+        0x70, 0x03, 0x21, 0x00, 0xf3, 0xf9, 0x4d, 0x74, 0x9e, 0xd9, 0x61, 0xed,
+        0xfd, 0xb7, 0x9b, 0x6c, 0xff, 0x1e, 0x1c, 0xf5, 0xeb, 0x1b, 0x72, 0xcd,
+        0xc5, 0x8c, 0xfc, 0x4e, 0x71, 0xcd, 0x82, 0x9c, 0x13, 0x16, 0xc4, 0xfb,
+        0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04, 0x16, 0x04, 0x14, 0x7a,
+        0x6a, 0xa2, 0xfd, 0x2e, 0xb6, 0x62, 0x22, 0x98, 0x18, 0x0b, 0x2d, 0x17,
+        0xe1, 0xf3, 0x6b, 0x86, 0x01, 0x50, 0xb1, 0x30, 0x05, 0x06, 0x03, 0x2b,
+        0x65, 0x70, 0x03, 0x41, 0x00, 0x0b, 0x53, 0x43, 0x87, 0x19, 0xc2, 0x2f,
+        0x7d, 0x3c, 0x32, 0x8a, 0x7f, 0xfe, 0xbb, 0xd7, 0x2c, 0x27, 0xd8, 0x59,
+        0x5b, 0x47, 0x3e, 0x5d, 0xd1, 0xc9, 0x63, 0x9b, 0x83, 0x74, 0x24, 0x75,
+        0x3b, 0xdd, 0x8a, 0xe1, 0x59, 0xe8, 0xcd, 0xff, 0xd0, 0x09, 0xee, 0xc8,
+        0x4c, 0xe2, 0x7c, 0x69, 0x49, 0xc2, 0xb3, 0xb2, 0x60, 0x7f, 0x9c, 0x6b,
+        0x0e, 0x0c, 0x97, 0x64, 0xd7, 0x6e, 0x9b, 0x4e, 0x00
+    };
+    DecodedCert cert;
+
+    /* The two encodings differ in the one length octet and nothing else. */
+    ExpectIntEQ(sizeof(validCert), sizeof(overrunCert));
+    ExpectIntEQ(validCert[44], 0x1e);
+    ExpectIntEQ(overrunCert[44], 0x59);
+    ExpectIntEQ(XMEMCMP(validCert, overrunCert, 44), 0);
+    ExpectIntEQ(XMEMCMP(validCert + 45, overrunCert + 45,
+        sizeof(validCert) - 45), 0);
+
+    /* Sanity check: the well-formed encoding parses. */
+    wc_InitDecodedCert(&cert, validCert, (word32)sizeof(validCert), NULL);
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    wc_FreeDecodedCert(&cert);
+
+    /* The overrunning validity length must be rejected. */
+    wc_InitDecodedCert(&cert, overrunCert, (word32)sizeof(overrunCert), NULL);
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ParseCert_SM3wSM2_short_pubkey(void)
 {
     EXPECT_DECLS;
@@ -2468,6 +2663,82 @@ int test_ParseCert_SM3wSM2_short_pubkey(void)
 }
 
 #if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA)
+/* Fixed pieces of a hand-built certificate, shared by the tests below that
+ * assemble one around a subject or issuer Name of their own. Laid out in the
+ * order they appear in the encoding:
+ *   dnb_certPreIssuer | <issuer Name> | dnb_certValidity | <subject Name> |
+ *   dnb_rsaSpki | dnb_certSuffix
+ * Callers patch the two SEQUENCE lengths once the total size is known. */
+
+/* Certificate fields up to (not including) the issuer Name. The two 0x0000
+ * placeholders are the outer and tbsCertificate SEQUENCE lengths. */
+static const byte dnb_certPreIssuer[] = {
+    /* Certificate SEQUENCE (length patched) */
+    0x30, 0x82, 0x00, 0x00,
+    /* tbsCertificate SEQUENCE (length patched) */
+    0x30, 0x82, 0x00, 0x00,
+    /* version [0] INTEGER 2 */
+    0xa0, 0x03, 0x02, 0x01, 0x02,
+    /* serialNumber INTEGER 1 */
+    0x02, 0x01, 0x01,
+    /* signature AlgorithmIdentifier: sha256WithRSAEncryption */
+    0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+    0x0b, 0x05, 0x00
+};
+/* issuer Name: /CN=Test */
+static const byte dnb_issuerCnTest[] = {
+    0x30, 0x0f, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13,
+    0x04, 0x54, 0x65, 0x73, 0x74
+};
+/* validity: notBefore 20000101000000Z, notAfter 20491231235959Z */
+static const byte dnb_certValidity[] = {
+    0x30, 0x1e,
+    0x17, 0x0d, 0x30, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+    0x30, 0x30, 0x5a,
+    0x17, 0x0d, 0x34, 0x39, 0x31, 0x32, 0x33, 0x31, 0x32, 0x33, 0x35, 0x39,
+    0x35, 0x39, 0x5a
+};
+/* Outer signatureAlgorithm and a placeholder signatureValue. Not checked
+ * because NO_VERIFY is used, but the structure must be present. */
+static const byte dnb_certSuffix[] = {
+    /* signatureAlgorithm: sha256WithRSAEncryption */
+    0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+    0x0b, 0x05, 0x00,
+    /* signatureValue BIT STRING */
+    0x03, 0x05, 0x00, 0xde, 0xad, 0xbe, 0xef
+};
+/* commonName OID (2.5.4.3). */
+static const byte dnb_cnOid[] = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+/* 2048-bit RSA SubjectPublicKeyInfo, extracted with OpenSSL from
+ * certs/client-cert.pem, so the key decodes and the parse succeeds. */
+static const byte dnb_rsaSpki[] = {
+    0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00,
+    0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01, 0x01, 0x00, 0xc3, 0x03, 0xd1,
+    0x2b, 0xfe, 0x39, 0xa4, 0x32, 0x45, 0x3b, 0x53, 0xc8, 0x84, 0x2b, 0x2a,
+    0x7c, 0x74, 0x9a, 0xbd, 0xaa, 0x2a, 0x52, 0x07, 0x47, 0xd6, 0xa6, 0x36,
+    0xb2, 0x07, 0x32, 0x8e, 0xd0, 0xba, 0x69, 0x7b, 0xc6, 0xc3, 0x44, 0x9e,
+    0xd4, 0x81, 0x48, 0xfd, 0x2d, 0x68, 0xa2, 0x8b, 0x67, 0xbb, 0xa1, 0x75,
+    0xc8, 0x36, 0x2c, 0x4a, 0xd2, 0x1b, 0xf7, 0x8b, 0xba, 0xcf, 0x0d, 0xf9,
+    0xef, 0xec, 0xf1, 0x81, 0x1e, 0x7b, 0x9b, 0x03, 0x47, 0x9a, 0xbf, 0x65,
+    0xcc, 0x7f, 0x65, 0x24, 0x69, 0xa6, 0xe8, 0x14, 0x89, 0x5b, 0xe4, 0x34,
+    0xf7, 0xc5, 0xb0, 0x14, 0x93, 0xf5, 0x67, 0x7b, 0x3a, 0x7a, 0x78, 0xe1,
+    0x01, 0x56, 0x56, 0x91, 0xa6, 0x13, 0x42, 0x8d, 0xd2, 0x3c, 0x40, 0x9c,
+    0x4c, 0xef, 0xd1, 0x86, 0xdf, 0x37, 0x51, 0x1b, 0x0c, 0xa1, 0x3b, 0xf5,
+    0xf1, 0xa3, 0x4a, 0x35, 0xe4, 0xe1, 0xce, 0x96, 0xdf, 0x1b, 0x7e, 0xbf,
+    0x4e, 0x97, 0xd0, 0x10, 0xe8, 0xa8, 0x08, 0x30, 0x81, 0xaf, 0x20, 0x0b,
+    0x43, 0x14, 0xc5, 0x74, 0x67, 0xb4, 0x32, 0x82, 0x6f, 0x8d, 0x86, 0xc2,
+    0x88, 0x40, 0x99, 0x36, 0x83, 0xba, 0x1e, 0x40, 0x72, 0x22, 0x17, 0xd7,
+    0x52, 0x65, 0x24, 0x73, 0xb0, 0xce, 0xef, 0x19, 0xcd, 0xae, 0xff, 0x78,
+    0x6c, 0x7b, 0xc0, 0x12, 0x03, 0xd4, 0x4e, 0x72, 0x0d, 0x50, 0x6d, 0x3b,
+    0xa3, 0x3b, 0xa3, 0x99, 0x5e, 0x9d, 0xc8, 0xd9, 0x0c, 0x85, 0xb3, 0xd9,
+    0x8a, 0xd9, 0x54, 0x26, 0xdb, 0x6d, 0xfa, 0xac, 0xbb, 0xff, 0x25, 0x4c,
+    0xc4, 0xd1, 0x79, 0xf4, 0x71, 0xd3, 0x86, 0x40, 0x18, 0x13, 0xb0, 0x63,
+    0xb5, 0x72, 0x4e, 0x30, 0xc4, 0x97, 0x84, 0x86, 0x2d, 0x56, 0x2f, 0xd7,
+    0x15, 0xf7, 0x7f, 0xc0, 0xae, 0xf5, 0xfc, 0x5b, 0xe5, 0xfb, 0xa1, 0xba,
+    0xd3, 0x02, 0x03, 0x01, 0x00, 0x01
+};
+
 /* Number of bytes needed to DER-encode the definite length "len".
  * Only handles len < 0x10000, which is all this test needs. */
 static int dnb_lenSz(int len)
@@ -2546,71 +2817,6 @@ int test_ParseCert_dnBufferBoundary(void)
     EXPECT_DECLS;
 
 #if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA)
-    /* 2048-bit RSA SubjectPublicKeyInfo, extracted with OpenSSL from
-     * certs/client-cert.pem, so the key decodes and the parse succeeds. */
-    static const byte rsaSpki[] = {
-        0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00,
-        0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01, 0x01, 0x00, 0xc3, 0x03, 0xd1,
-        0x2b, 0xfe, 0x39, 0xa4, 0x32, 0x45, 0x3b, 0x53, 0xc8, 0x84, 0x2b, 0x2a,
-        0x7c, 0x74, 0x9a, 0xbd, 0xaa, 0x2a, 0x52, 0x07, 0x47, 0xd6, 0xa6, 0x36,
-        0xb2, 0x07, 0x32, 0x8e, 0xd0, 0xba, 0x69, 0x7b, 0xc6, 0xc3, 0x44, 0x9e,
-        0xd4, 0x81, 0x48, 0xfd, 0x2d, 0x68, 0xa2, 0x8b, 0x67, 0xbb, 0xa1, 0x75,
-        0xc8, 0x36, 0x2c, 0x4a, 0xd2, 0x1b, 0xf7, 0x8b, 0xba, 0xcf, 0x0d, 0xf9,
-        0xef, 0xec, 0xf1, 0x81, 0x1e, 0x7b, 0x9b, 0x03, 0x47, 0x9a, 0xbf, 0x65,
-        0xcc, 0x7f, 0x65, 0x24, 0x69, 0xa6, 0xe8, 0x14, 0x89, 0x5b, 0xe4, 0x34,
-        0xf7, 0xc5, 0xb0, 0x14, 0x93, 0xf5, 0x67, 0x7b, 0x3a, 0x7a, 0x78, 0xe1,
-        0x01, 0x56, 0x56, 0x91, 0xa6, 0x13, 0x42, 0x8d, 0xd2, 0x3c, 0x40, 0x9c,
-        0x4c, 0xef, 0xd1, 0x86, 0xdf, 0x37, 0x51, 0x1b, 0x0c, 0xa1, 0x3b, 0xf5,
-        0xf1, 0xa3, 0x4a, 0x35, 0xe4, 0xe1, 0xce, 0x96, 0xdf, 0x1b, 0x7e, 0xbf,
-        0x4e, 0x97, 0xd0, 0x10, 0xe8, 0xa8, 0x08, 0x30, 0x81, 0xaf, 0x20, 0x0b,
-        0x43, 0x14, 0xc5, 0x74, 0x67, 0xb4, 0x32, 0x82, 0x6f, 0x8d, 0x86, 0xc2,
-        0x88, 0x40, 0x99, 0x36, 0x83, 0xba, 0x1e, 0x40, 0x72, 0x22, 0x17, 0xd7,
-        0x52, 0x65, 0x24, 0x73, 0xb0, 0xce, 0xef, 0x19, 0xcd, 0xae, 0xff, 0x78,
-        0x6c, 0x7b, 0xc0, 0x12, 0x03, 0xd4, 0x4e, 0x72, 0x0d, 0x50, 0x6d, 0x3b,
-        0xa3, 0x3b, 0xa3, 0x99, 0x5e, 0x9d, 0xc8, 0xd9, 0x0c, 0x85, 0xb3, 0xd9,
-        0x8a, 0xd9, 0x54, 0x26, 0xdb, 0x6d, 0xfa, 0xac, 0xbb, 0xff, 0x25, 0x4c,
-        0xc4, 0xd1, 0x79, 0xf4, 0x71, 0xd3, 0x86, 0x40, 0x18, 0x13, 0xb0, 0x63,
-        0xb5, 0x72, 0x4e, 0x30, 0xc4, 0x97, 0x84, 0x86, 0x2d, 0x56, 0x2f, 0xd7,
-        0x15, 0xf7, 0x7f, 0xc0, 0xae, 0xf5, 0xfc, 0x5b, 0xe5, 0xfb, 0xa1, 0xba,
-        0xd3, 0x02, 0x03, 0x01, 0x00, 0x01
-    };
-    /* Certificate fields up to (not including) the subject Name. The two 0x0000
-     * placeholders are the outer and tbsCertificate SEQUENCE lengths, patched
-     * once the subject size is known. */
-    static const byte certPrefix[] = {
-        /* Certificate SEQUENCE (length patched) */
-        0x30, 0x82, 0x00, 0x00,
-        /* tbsCertificate SEQUENCE (length patched) */
-        0x30, 0x82, 0x00, 0x00,
-        /* version [0] INTEGER 2 */
-        0xa0, 0x03, 0x02, 0x01, 0x02,
-        /* serialNumber INTEGER 1 */
-        0x02, 0x01, 0x01,
-        /* signature AlgorithmIdentifier: sha256WithRSAEncryption */
-        0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
-        0x0b, 0x05, 0x00,
-        /* issuer Name: /CN=Test */
-        0x30, 0x0f, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13,
-        0x04, 0x54, 0x65, 0x73, 0x74,
-        /* validity: notBefore 20000101000000Z, notAfter 20491231235959Z */
-        0x30, 0x1e,
-        0x17, 0x0d, 0x30, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
-        0x30, 0x30, 0x5a,
-        0x17, 0x0d, 0x34, 0x39, 0x31, 0x32, 0x33, 0x31, 0x32, 0x33, 0x35, 0x39,
-        0x35, 0x39, 0x5a
-    };
-    /* Outer signatureAlgorithm and a placeholder signatureValue. Not checked
-     * because NO_VERIFY is used, but the structure must be present. */
-    static const byte certSuffix[] = {
-        /* signatureAlgorithm: sha256WithRSAEncryption */
-        0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
-        0x0b, 0x05, 0x00,
-        /* signatureValue BIT STRING */
-        0x03, 0x05, 0x00, 0xde, 0xad, 0xbe, 0xef
-    };
-    /* commonName OID (2.5.4.3). */
-    static const byte cnOid[] = { 0x06, 0x03, 0x55, 0x04, 0x03 };
     /* emailAddress OID (1.2.840.113549.1.9.1, PKCS#9). */
     static const byte emailOid[] = {
         0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01
@@ -2656,13 +2862,13 @@ int test_ParseCert_dnBufferBoundary(void)
      * under the cap must be kept in full. Both sides are covered per attribute
      * because the too-big guards are independent comparison sites. */
     /* commonName (final catch-all guard). */
-    cases[0].oid        = cnOid;
-    cases[0].oidLen     = (int)sizeof(cnOid);
+    cases[0].oid        = dnb_cnOid;
+    cases[0].oidLen     = (int)sizeof(dnb_cnOid);
     cases[0].valTag     = 0x13;                         /* PrintableString */
     cases[0].valLen     = WC_ASN_NAME_MAX - 9;
     cases[0].expectFull = 0;
-    cases[1].oid        = cnOid;
-    cases[1].oidLen     = (int)sizeof(cnOid);
+    cases[1].oid        = dnb_cnOid;
+    cases[1].oidLen     = (int)sizeof(dnb_cnOid);
     cases[1].valTag     = 0x13;
     cases[1].valLen     = WC_ASN_NAME_MAX - 10;
     cases[1].expectFull = 1;
@@ -2704,12 +2910,16 @@ int test_ParseCert_dnBufferBoundary(void)
         valLen = cases[c].valLen;
         XMEMSET(val2, 'B', (size_t)valLen);
 
-        /* Fixed leading fields. */
-        XMEMCPY(der, certPrefix, sizeof(certPrefix));
-        pos = (int)sizeof(certPrefix);
+        /* Fixed leading fields: everything up to the subject Name. */
+        XMEMCPY(der, dnb_certPreIssuer, sizeof(dnb_certPreIssuer));
+        pos = (int)sizeof(dnb_certPreIssuer);
+        XMEMCPY(&der[pos], dnb_issuerCnTest, sizeof(dnb_issuerCnTest));
+        pos += (int)sizeof(dnb_issuerCnTest);
+        XMEMCPY(&der[pos], dnb_certValidity, sizeof(dnb_certValidity));
+        pos += (int)sizeof(dnb_certValidity);
 
         /* First RDN: /CN=A (a short name that must survive). */
-        rdn1Len = dnb_buildRdn(rdn1, cnOid, (int)sizeof(cnOid), 0x13,
+        rdn1Len = dnb_buildRdn(rdn1, dnb_cnOid, (int)sizeof(dnb_cnOid), 0x13,
             (const byte*)"A", 1);
 
         /* Second RDN length, computed the same way dnb_buildRdn() lays it
@@ -2729,15 +2939,15 @@ int test_ParseCert_dnBufferBoundary(void)
             cases[c].valTag, val2, valLen);
 
         /* SubjectPublicKeyInfo. */
-        XMEMCPY(&der[pos], rsaSpki, sizeof(rsaSpki));
-        pos += (int)sizeof(rsaSpki);
+        XMEMCPY(&der[pos], dnb_rsaSpki, sizeof(dnb_rsaSpki));
+        pos += (int)sizeof(dnb_rsaSpki);
 
         /* tbsCertificate content spans from offset 8 to here. */
         tbsContentLen = pos - 8;
 
         /* Outer signature algorithm and value. */
-        XMEMCPY(&der[pos], certSuffix, sizeof(certSuffix));
-        pos += (int)sizeof(certSuffix);
+        XMEMCPY(&der[pos], dnb_certSuffix, sizeof(dnb_certSuffix));
+        pos += (int)sizeof(dnb_certSuffix);
         derSz = pos;
         outerContentLen = derSz - 4;
 
@@ -2765,6 +2975,296 @@ int test_ParseCert_dnBufferBoundary(void)
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(val2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* !NO_CERTS && !NO_ASN && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+/* Assemble a certificate around the given issuer and subject Name encodings.
+ * Returns the number of DER bytes written to der, which must have room for
+ * the fixed parts plus both names. */
+static int cni_buildCert(byte* der, const byte* issuer, int issuerLen,
+    const byte* subject, int subjectLen)
+{
+    int pos = 0;
+    int tbsContentLen;
+    int outerContentLen;
+
+    XMEMCPY(&der[pos], dnb_certPreIssuer, sizeof(dnb_certPreIssuer));
+    pos += (int)sizeof(dnb_certPreIssuer);
+    XMEMCPY(&der[pos], issuer, (size_t)issuerLen);
+    pos += issuerLen;
+    XMEMCPY(&der[pos], dnb_certValidity, sizeof(dnb_certValidity));
+    pos += (int)sizeof(dnb_certValidity);
+    XMEMCPY(&der[pos], subject, (size_t)subjectLen);
+    pos += subjectLen;
+    XMEMCPY(&der[pos], dnb_rsaSpki, sizeof(dnb_rsaSpki));
+    pos += (int)sizeof(dnb_rsaSpki);
+
+    /* tbsCertificate content spans from offset 8 to here. */
+    tbsContentLen = pos - 8;
+
+    XMEMCPY(&der[pos], dnb_certSuffix, sizeof(dnb_certSuffix));
+    pos += (int)sizeof(dnb_certSuffix);
+    outerContentLen = pos - 4;
+
+    /* Patch the two SEQUENCE lengths (both use the 0x82 long form). */
+    der[6] = (byte)(tbsContentLen >> 8);
+    der[7] = (byte)(tbsContentLen & 0xff);
+    der[2] = (byte)(outerContentLen >> 8);
+    der[3] = (byte)(outerContentLen & 0xff);
+
+    return pos;
+}
+
+/* Build a Name of /CN=<cn> followed by one PrintableString attribute of type
+ * oidTlv. Pass a NULL oidTlv for a Name with just the commonName. Returns the
+ * number of bytes written to out.
+ *
+ * PrintableString rather than UTF8String on purpose: InitDecodedCert() presets
+ * the encoding fields of the components stored from the table to CTC_UTF8, so
+ * a test that encoded its values as UTF8String could not tell a stored
+ * encoding from the preset one. */
+static int cni_buildName(byte* out, const char* cn, const byte* oidTlv,
+    int oidTlvLen, const char* val)
+{
+    byte rdns[128];
+    int  rdnsLen;
+    int  idx = 0;
+
+    rdnsLen = dnb_buildRdn(rdns, dnb_cnOid, (int)sizeof(dnb_cnOid), 0x13,
+        (const byte*)cn, (int)XSTRLEN(cn));
+    if (oidTlv != NULL) {
+        rdnsLen += dnb_buildRdn(&rdns[rdnsLen], oidTlv, oidTlvLen, 0x13,
+            (const byte*)val, (int)XSTRLEN(val));
+    }
+
+    out[idx++] = 0x30;                                  /* SEQUENCE */
+    idx += dnb_encodeLen(&out[idx], rdnsLen);
+    XMEMCPY(&out[idx], rdns, (size_t)rdnsLen);
+    idx += rdnsLen;
+
+    return idx;
+}
+#endif /* !NO_CERTS && !NO_ASN && !NO_RSA && WOLFSSL_ASN_TEMPLATE */
+
+/* The name component table in asn.c holds two runs of attribute ids - 2.5.4.3
+ * to 2.5.4.18 and, with WOLFSSL_CERT_NAME_ALL, 2.5.4.41 to 2.5.4.46 - with a
+ * gap between them, so a row's position is not "id - 3". Indexing it that way
+ * put the second run's rows on 2.5.4.19 - 2.5.4.22: those attributes were
+ * reported under the labels and NIDs of the second run, and the attributes the
+ * rows were written for were dropped instead. Each id is checked here against
+ * the label it must produce, including the ones that must produce none. */
+int test_ParseCert_nameComponentIds(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+    /* Attribute value used for every case. */
+    static const char attrVal[] = "VALUE";
+    struct {
+        byte        arc;      /* last arc of the 2.5.4.x attribute OID */
+        const char* expStr;   /* label it must carry, NULL if not recognized */
+    } cases[] = {
+        /* First run - unaffected by the gap, checked so a change to the
+         * mapping cannot quietly break them. */
+        { 0x03, "/CN=" },                   /* commonName */
+        { 0x0b, "/OU=" },                   /* organizationalUnitName */
+        { 0x12, "/userid=" },               /* userId */
+        /* The gap. These are real attributes wolfSSL has no rows for, and are
+         * where the second run's rows used to land. */
+        { 0x13, NULL },                     /* physicalDeliveryOfficeName */
+        { 0x14, NULL },                     /* telephoneNumber */
+        { 0x15, NULL },                     /* telexNumber */
+        { 0x16, NULL },                     /* teletexTerminalIdentifier */
+        /* Second run. */
+#ifdef WOLFSSL_CERT_NAME_ALL
+        { 0x29, "/N=" },                    /* name */
+        { 0x2a, "/GN=" },                   /* givenName */
+        { 0x2b, "/initials=" },             /* initials */
+        { 0x2e, "/dnQualifier=" },          /* dnQualifier */
+#else
+        { 0x29, NULL },
+        { 0x2a, NULL },
+        { 0x2b, NULL },
+        { 0x2e, NULL },
+#endif
+        /* Placeholder rows keep the second run contiguous. 2.5.4.44 has no
+         * label, and 2.5.4.45 keeps the one GetRDN() gives it directly - its
+         * value is a BIT STRING rather than a DirectoryString. */
+        { 0x2c, NULL },                     /* generationQualifier */
+        { 0x2d, WOLFSSL_X500_UNIQUE_ID }    /* x500UniqueIdentifier */
+    };
+    DecodedCert cert;
+    byte  arcOid[5] = { 0x06, 0x03, 0x55, 0x04, 0x00 };
+    byte  issuer[64];
+    byte  subject[64];
+    byte* der = NULL;
+    char  expect[64];
+    int   issuerLen;
+    int   subjectLen;
+    int   derSz;
+    int   c;
+
+    ExpectNotNull(der = (byte*)XMALLOC(1024, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    issuerLen = cni_buildName(issuer, "Test", NULL, 0, NULL);
+
+    for (c = 0; (der != NULL) && (c < (int)XELEM_CNT(cases)); c++) {
+        arcOid[4] = cases[c].arc;
+        subjectLen = cni_buildName(subject, "S", arcOid, (int)sizeof(arcOid),
+            attrVal);
+        derSz = cni_buildCert(der, issuer, issuerLen, subject, subjectLen);
+
+        wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+        /* An attribute with no row is skipped, not an error. */
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+        if (cases[c].expStr == NULL) {
+            /* Nothing but the commonName may reach the subject string. */
+            ExpectStrEQ(cert.subject, "/CN=S");
+        }
+        else {
+            XSTRLCPY(expect, "/CN=S", sizeof(expect));
+            XSTRLCAT(expect, cases[c].expStr, sizeof(expect));
+            XSTRLCAT(expect, attrVal, sizeof(expect));
+            ExpectStrEQ(cert.subject, expect);
+        }
+
+    #if defined(WOLFSSL_CERT_NAME_ALL) && (defined(WOLFSSL_CERT_GEN) || \
+        defined(WOLFSSL_CERT_EXT))
+        /* Components of the second run are also stored in DecodedCert: the
+         * value, its length and its encoding, all of which come from the row's
+         * offsets, so a row pointing at the wrong field is only caught by
+         * checking the value itself. The ids in the gap must leave those
+         * fields alone. */
+        switch (cases[c].arc) {
+            case 0x29:
+                ExpectNotNull(cert.subjectN);
+                ExpectIntEQ(cert.subjectNLen, (int)XSTRLEN(attrVal));
+                ExpectIntEQ(XMEMCMP(cert.subjectN, attrVal,
+                    XSTRLEN(attrVal)), 0);
+                ExpectIntEQ(cert.subjectNEnc, ASN_PRINTABLE_STRING);
+                break;
+            case 0x2a:
+                ExpectNotNull(cert.subjectGN);
+                ExpectIntEQ(cert.subjectGNLen, (int)XSTRLEN(attrVal));
+                ExpectIntEQ(XMEMCMP(cert.subjectGN, attrVal,
+                    XSTRLEN(attrVal)), 0);
+                ExpectIntEQ(cert.subjectGNEnc, ASN_PRINTABLE_STRING);
+                break;
+            case 0x2b:
+                ExpectNotNull(cert.subjectI);
+                ExpectIntEQ(cert.subjectILen, (int)XSTRLEN(attrVal));
+                ExpectIntEQ(XMEMCMP(cert.subjectI, attrVal,
+                    XSTRLEN(attrVal)), 0);
+                ExpectIntEQ(cert.subjectIEnc, ASN_PRINTABLE_STRING);
+                break;
+            case 0x2e:
+                ExpectNotNull(cert.subjectDNQ);
+                ExpectIntEQ(cert.subjectDNQLen, (int)XSTRLEN(attrVal));
+                ExpectIntEQ(XMEMCMP(cert.subjectDNQ, attrVal,
+                    XSTRLEN(attrVal)), 0);
+                ExpectIntEQ(cert.subjectDNQEnc, ASN_PRINTABLE_STRING);
+                break;
+            default:
+                ExpectNull(cert.subjectN);
+                ExpectNull(cert.subjectGN);
+                ExpectNull(cert.subjectI);
+                ExpectNull(cert.subjectDNQ);
+                break;
+        }
+    #endif
+        wc_FreeDecodedCert(&cert);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !NO_CERTS && !NO_ASN && !NO_RSA && WOLFSSL_ASN_TEMPLATE */
+    return EXPECT_RESULT();
+}
+
+/* Rows of the name component table carry offsets into DecodedCert, and a row
+ * with no field for a component has a zero offset. Offset zero is the start of
+ * DecodedCert, so storing through such a row writes over its first member
+ * rather than a name field. Most rows have no issuer fields, which made the
+ * issuer side the reachable case - including every row of the second run of
+ * ids, which reaches the same guard through the other range of
+ * CertNameSubjectIdx() and so is driven here too. */
+int test_ParseCert_issuerNameNoField(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_ISSUER_NAMES) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT))
+    /* Attribute value used for every case. */
+    static const char attrVal[] = "VALUE";
+    /* An unassigned pilot attribute type (0.9.2342.19200300.100.1.99). GetRDN()
+     * rejects it, which stops the parse after the issuer name has been read and
+     * before the public key is, leaving whatever the issuer name wrote to
+     * DecodedCert's first member in place. */
+    static const byte badPilotOid[] = {
+        0x06, 0x0a, 0x09, 0x92, 0x26, 0x89, 0x93, 0xf2, 0x2c, 0x64, 0x01, 0x63
+    };
+    /* Issuer attributes whose rows have no issuer fields in DecodedCert. Each
+     * must still be reported in the issuer string and must store nothing. */
+    struct {
+        byte        arc;      /* last arc of the 2.5.4.x attribute OID */
+        const char* expStr;   /* label it must carry */
+    } cases[] = {
+        /* First run of ids. Has subject fields but no issuer ones. */
+        { 0x09, "/street=" },               /* streetAddress */
+        { 0x11, "/postalCode=" },           /* postalCode */
+#ifdef WOLFSSL_CERT_NAME_ALL
+        /* Second run of ids - mapped by the other range of
+         * CertNameSubjectIdx(), and with no issuer fields either. */
+        { 0x29, "/N=" },                    /* name */
+        { 0x2b, "/initials=" },             /* initials */
+        { 0x2e, "/dnQualifier=" }           /* dnQualifier */
+#endif
+    };
+    DecodedCert cert;
+    byte  arcOid[5] = { 0x06, 0x03, 0x55, 0x04, 0x00 };
+    byte  issuer[64];
+    byte  subject[64];
+    byte* der = NULL;
+    char  expect[64];
+    int   issuerLen;
+    int   subjectLen;
+    int   derSz;
+    int   c;
+
+    ExpectNotNull(der = (byte*)XMALLOC(1024, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    subjectLen = cni_buildName(subject, "S", badPilotOid,
+        (int)sizeof(badPilotOid), "unknown");
+
+    for (c = 0; (der != NULL) && (c < (int)XELEM_CNT(cases)); c++) {
+        arcOid[4] = cases[c].arc;
+        issuerLen = cni_buildName(issuer, "I", arcOid, (int)sizeof(arcOid),
+            attrVal);
+        derSz = cni_buildCert(der, issuer, issuerLen, subject, subjectLen);
+
+        wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+        ExpectIntNE(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+        /* The component is still reported in the issuer string, under the
+         * label its row carries. */
+        XSTRLCPY(expect, "/CN=I", sizeof(expect));
+        XSTRLCAT(expect, cases[c].expStr, sizeof(expect));
+        XSTRLCAT(expect, attrVal, sizeof(expect));
+        ExpectStrEQ(cert.issuer, expect);
+
+        /* DecodedCert's first member must be untouched: nothing has set the
+         * public key on this path, so a store through a zero offset is the
+         * only thing that could have. */
+        ExpectNull(cert.publicKey);
+        wc_FreeDecodedCert(&cert);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return EXPECT_RESULT();
 }
 
@@ -3685,6 +4185,105 @@ int test_wc_DecodeExtKeyUsage_ssh_oid_collision(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_ASN) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_EKU_OID) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN_TIME) && \
+    !defined(WC_NO_RNG) && !defined(NO_ASN_CRYPT)
+    #define TEST_EKU_OID_SUM_COLLISION
+#endif
+
+/* A KeyPurposeId whose wc_oid_sum() collides with id-kp-serverAuth must not
+ * authorize server authentication, while the real OID still does. */
+int test_wc_DecodeExtKeyUsage_oidSumCollision(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_EKU_OID_SUM_COLLISION
+    static const struct {
+        const char* oid;   /* custom EKU OID, NULL to use a named purpose */
+        const char* name;  /* named purpose, used when oid is NULL */
+        byte        expected;
+    } ekuCases[] = {
+        /* id-kp-serverAuth. */
+        { NULL, "serverAuth", EXTKEYUSE_SERVER_AUTH },
+#ifdef WOLFSSL_OLD_OID_SUM
+        /* 1.5.6.1.5.5.3.1, the same byte sum (71) as id-kp-serverAuth. */
+        { "1.5.6.1.5.5.3.1", NULL, 0 },
+#else
+        /* 1.19.6.1.5.21.7.3.1, the same XOR-shift sum (0x0402012e) as
+         * id-kp-serverAuth. */
+        { "1.19.6.1.5.21.7.3.1", NULL, 0 },
+#endif
+    };
+    WC_RNG      rng;
+    RsaKey      key;
+    byte*       der = NULL;
+    word32      idx = 0;
+    int         rngInit = 0;
+    int         keyInit = 0;
+    size_t      c;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    for (c = 0; c < XELEM_CNT(ekuCases); c++) {
+        Cert        cert;
+        DecodedCert dCert;
+        int         dCertInit = 0;
+        int         derSz = 0;
+
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        if (EXPECT_SUCCESS()) {
+            cert.sigType = CTC_SHA256wRSA;
+            cert.isCA = 0;
+            XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.commonName, "extKeyUsage", CTC_NAME_SIZE);
+        }
+        if (ekuCases[c].oid != NULL) {
+            ExpectIntEQ(wc_SetExtKeyUsageOID(&cert, ekuCases[c].oid,
+                (word32)XSTRLEN(ekuCases[c].oid), 0, HEAP_HINT), 0);
+        }
+        else {
+            ExpectIntEQ(wc_SetExtKeyUsage(&cert, ekuCases[c].name), 0);
+        }
+        ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng),
+            0);
+
+        if (EXPECT_SUCCESS() && (der != NULL)) {
+            wc_InitDecodedCert(&dCert, der, (word32)derSz, HEAP_HINT);
+            dCertInit = 1;
+            ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+            /* The extension must be seen in both cases - an unrecognized
+             * KeyPurposeId is skipped, not an error - but only the real OID
+             * may authorize a purpose. */
+            ExpectIntNE(dCert.extExtKeyUsageSet, 0);
+            ExpectIntEQ(dCert.extExtKeyUsage, ekuCases[c].expected);
+        }
+        if (dCertInit) wc_FreeDecodedCert(&dCert);
+    }
+
+    if (keyInit) wc_FreeRsaKey(&key);
+    if (rngInit) wc_FreeRng(&rng);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_EKU_OID_SUM_COLLISION */
+    return EXPECT_RESULT();
+}
+
 int test_wc_SignCert_buffer_bounds(void)
 {
     EXPECT_DECLS;
@@ -3849,6 +4448,364 @@ int test_wc_SignCert_buffer_bounds(void)
     if (rngInit)
         wc_FreeRng(&rng);
 #endif /* TEST_SIGN_CERT_BOUNDS_RSA || TEST_SIGN_CERT_BOUNDS_ECC */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+/* Scan a DER certificate body for a well-formed validity time TLV of the
+ * given tag. UTCTime is "YYMMDDHHMMSSZ" (13 content bytes), GeneralizedTime
+ * is "YYYYMMDDHHMMSSZ" (15). Both are emitted by SetTime() with the Zulu
+ * profile, so the shape is exact and a match cannot be a coincidental byte
+ * pair inside a key or signature. Returns 1 when found, 0 otherwise. */
+static int test_asn_findValidityTime(const byte* der, word32 derSz, byte tag,
+    byte contentSz)
+{
+    word32 i, j;
+
+    if (der == NULL || derSz < (word32)contentSz + 2U)
+        return 0;
+
+    for (i = 0; i + 2U + contentSz <= derSz; i++) {
+        if (der[i] != tag || der[i + 1] != contentSz)
+            continue;
+        for (j = 0; j < (word32)contentSz - 1U; j++) {
+            if (der[i + 2 + j] < '0' || der[i + 2 + j] > '9')
+                break;
+        }
+        if (j == (word32)contentSz - 1U &&
+                der[i + 2 + j] == 'Z') {
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+/*
+ * RFC 5280 4.1.2.5 splits the validity encoding at the year 2050: dates
+ * through 2049 are UTCTime, 2050 and later are GeneralizedTime. Every
+ * certificate the suite builds elsewhere keeps the wc_InitCert() default
+ * validity, so notBefore and notAfter both land inside the UTCTime window and
+ * the GeneralizedTime arm of ValidityTimeFormat() is never taken.
+ *
+ * Push notAfter alone past the split with a long daysValid. One certificate
+ * then carries both formats - a UTCTime notBefore and a GeneralizedTime
+ * notAfter - which is also the shape a parser is most likely to get wrong,
+ * since the two fields of the same SEQUENCE no longer share a tag or a
+ * length.
+ */
+int test_wc_MakeCert_generalizedTimeValidity(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    WC_RNG rng;
+    Cert   cert;
+    RsaKey key;
+    byte*  der = NULL;
+    word32 idx = 0;
+    int    rngInit = 0;
+    int    keyInit = 0;
+    int    derSz = 0;
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    ExpectNotNull(der = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    if (EXPECT_SUCCESS()) {
+        cert.sigType = CTC_SHA256wRSA;
+        cert.isCA    = 0;
+        XMEMCPY(cert.serial, serial, sizeof(serial));
+        cert.serialSz = (int)sizeof(serial);
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.commonName, "gentime-validity", CTC_NAME_SIZE);
+        /* ~54 years: notBefore stays in the UTCTime window, notAfter does
+         * not. Deliberately not a round century so the encoder has to carry
+         * the year across the 2050 boundary rather than sit on it. */
+        cert.daysValid = 20000;
+    }
+
+    ExpectIntGT(derSz = wc_MakeCert(&cert, der, SIGN_CERT_SCRATCH_SZ, &key,
+        NULL, &rng), 0);
+
+    /* notBefore is still a UTCTime and notAfter is now a GeneralizedTime, so
+     * both format arms ran while encoding this one certificate. */
+    ExpectIntEQ(test_asn_findValidityTime(der, (word32)((derSz > 0) ? derSz : 0),
+        ASN_UTC_TIME, 13), 1);
+    ExpectIntEQ(test_asn_findValidityTime(der, (word32)((derSz > 0) ? derSz : 0),
+        ASN_GENERALIZED_TIME, 15), 1);
+
+    /* ValidityTimeFormat() is `tm_year >= 1950 && tm_year < 2050`: the call
+     * above pairs the upper bound (>= 1950 held true, < 2050 flips false).
+     * Pair the lower bound the same way - push notAfter's year below 1950
+     * (~80 years back from "now") so `tm_year >= 1950` itself flips false.
+     * That operand is short-circuited, so the encode still lands on
+     * GeneralizedTime, just via the other half of the decision. wc_MakeCert()
+     * has no lower bound on daysValid; not asserting its return keeps a
+     * platform-dependent pre-epoch gmtime() failure from failing the whole
+     * variant. */
+    if (EXPECT_SUCCESS()) {
+        cert.daysValid = -29200;
+        derSz = wc_MakeCert(&cert, der, SIGN_CERT_SCRATCH_SZ, &key, NULL,
+            &rng);
+        if (derSz > 0) {
+            ExpectIntEQ(test_asn_findValidityTime(der, (word32)derSz,
+                ASN_GENERALIZED_TIME, 15), 1);
+        }
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+#define TEST_MAKECERT_SERIAL
+#endif
+
+#ifdef TEST_MAKECERT_SERIAL
+/* Longest serialNumber TLV the cases below expect. */
+#define TEST_SERIAL_TLV_MAX 8
+
+/* Find the serialNumber TLV in a certificate body. wc_MakeCert() writes a
+ * TBSCertificate, so the [0] EXPLICIT version precedes the serial. */
+static const byte* test_cert_serial_tlv(const byte* body, int bodySz)
+{
+    int i;
+
+    for (i = 0; ((i + 5 + TEST_SERIAL_TLV_MAX) <= bodySz) && (i < 16); i++) {
+        if ((body[i] == 0xA0) && (body[i + 1] == 0x03) &&
+            (body[i + 2] == ASN_INTEGER) && (body[i + 3] == 0x01) &&
+            (body[i + 5] == ASN_INTEGER)) {
+            return &body[i + 5];
+        }
+    }
+
+    return NULL;
+}
+
+/* Build a certificate body carrying the given serial. */
+static int test_cert_make_serial(Cert* cert, WC_RNG* rng, void* key,
+    byte* out, word32 outSz, const byte* serial, int serialSz)
+{
+    int ret;
+    int copySz = serialSz;
+
+    /* The caller scans this buffer once the call returns, so leave it in a
+     * known state on the paths that bail out before the generator writes. */
+    XMEMSET(out, 0, outSz);
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    /* Keep the copy inside cert->serial so an over-long size can still be
+     * handed to the generator to exercise its bound check. */
+    if (copySz > CTC_SERIAL_SIZE)
+        copySz = CTC_SERIAL_SIZE;
+    if (copySz < 0)
+        copySz = 0;
+
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, (size_t)copySz);
+    cert->serialSz = serialSz;
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "serial-encoding", CTC_NAME_SIZE);
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    cert->sigType = CTC_SHA256wRSA;
+    return wc_MakeCert(cert, out, outSz, (RsaKey*)key, NULL, rng);
+#else
+    cert->sigType = CTC_SHA256wECDSA;
+    return wc_MakeCert(cert, out, outSz, NULL, (ecc_key*)key, rng);
+#endif
+}
+#endif /* TEST_MAKECERT_SERIAL */
+
+/*
+ * A caller-supplied serial number must be encoded as a minimal DER INTEGER.
+ *
+ * A fixed-width device serial carries leading zero bytes that DER does not
+ * allow, and the encoder only ever adds the sign pad, so those bytes used to
+ * reach the certificate untouched. The result failed to parse, here and in
+ * every other strict decoder.
+ */
+int test_wc_MakeCert_serial_encoding(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MAKECERT_SERIAL
+    static const struct {
+        byte serial[CTC_SERIAL_SIZE];
+        int  serialSz;
+        byte expect[TEST_SERIAL_TLV_MAX];
+        int  expectSz;
+    } cases[] = {
+        /* Redundant leading zeros are dropped. */
+        { { 0x00, 0x00, 0x00, 0x01 }, 4, { 0x02, 0x01, 0x01 }, 3 },
+        { { 0x00, 0x00, 0x12, 0x34 }, 4, { 0x02, 0x02, 0x12, 0x34 }, 4 },
+        { { 0x00, 0x12, 0x34, 0x56 }, 4, { 0x02, 0x03, 0x12, 0x34, 0x56 }, 5 },
+        /* Already minimal, so left alone. */
+        { { 0x12, 0x34, 0x56, 0x78 }, 4,
+          { 0x02, 0x04, 0x12, 0x34, 0x56, 0x78 }, 6 },
+        /* A set MSB still gets the sign pad it needs. */
+        { { 0x80, 0x00, 0x00, 0x01 }, 4,
+          { 0x02, 0x05, 0x00, 0x80, 0x00, 0x00, 0x01 }, 7 },
+        /* A sign pad the caller already supplied is not doubled. */
+        { { 0x00, 0x80, 0x01 }, 3, { 0x02, 0x03, 0x00, 0x80, 0x01 }, 5 }
+    };
+    static const byte zeroSerial[4] = { 0x00, 0x00, 0x00, 0x00 };
+    static const byte zeroTlv[3] = { 0x02, 0x01, 0x00 };
+    byte   maxSerial[CTC_SERIAL_SIZE];
+    WC_RNG rng;
+    Cert   cert;
+    DecodedCert decoded;
+    byte*  body = NULL;
+    const byte* tlv = NULL;
+    int    rngInit = 0;
+    int    bodySz = 0;
+    int    signedSz = 0;
+    int    i;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    RsaKey key;
+    word32 idx = 0;
+#else
+    ecc_key key;
+    word32 idx = 0;
+#endif
+    int    keyInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(body = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+#else
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+        sizeof_ecc_key_der_256), 0);
+#endif
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+            SIGN_CERT_SCRATCH_SZ, cases[i].serial, cases[i].serialSz), 0);
+        ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+        if (EXPECT_SUCCESS() && (tlv != NULL)) {
+            ExpectIntEQ(tlv[1] + 2, cases[i].expectSz);
+            ExpectIntEQ(XMEMCMP(tlv, cases[i].expect,
+                (size_t)cases[i].expectSz), 0);
+        }
+
+        /* What wolfSSL emits, wolfSSL has to be able to parse back. */
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
+            SIGN_CERT_SCRATCH_SZ, &key, NULL, &rng), 0);
+#else
+        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
+            SIGN_CERT_SCRATCH_SZ, NULL, &key, &rng), 0);
+#endif
+        if (EXPECT_SUCCESS()) {
+            wc_InitDecodedCert(&decoded, body, (word32)signedSz, HEAP_HINT);
+            ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+            wc_FreeDecodedCert(&decoded);
+        }
+    }
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* RFC 5280 4.1.2.2 needs a positive serial, so blank silicon has to fail
+     * at generation rather than mint a certificate nothing will accept. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, zeroSerial, (int)sizeof(zeroSerial)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    (void)zeroTlv;
+#elif defined(WOLFSSL_ASN_TEMPLATE)
+    /* The permissive build still has to emit the canonical zero encoding.
+     * The original back end rejects zero regardless of this macro. */
+    ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, zeroSerial, (int)sizeof(zeroSerial)), 0);
+    ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+    if (EXPECT_SUCCESS() && (tlv != NULL)) {
+        ExpectIntEQ(XMEMCMP(tlv, zeroTlv, sizeof(zeroTlv)), 0);
+    }
+#else
+    (void)zeroSerial;
+    (void)zeroTlv;
+#endif
+
+    /* Exactly CTC_SERIAL_SIZE is the largest serial that must be accepted. */
+    XMEMSET(maxSerial, 0x11, sizeof(maxSerial));
+    ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, maxSerial, CTC_SERIAL_SIZE), 0);
+    ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+    if (EXPECT_SUCCESS() && (tlv != NULL)) {
+        ExpectIntEQ(tlv[1], CTC_SERIAL_SIZE);
+    }
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+    /* A 20 byte serial with the high bit set needs a sign pad, which would
+     * push the encoded value to 21 octets. */
+    XMEMSET(maxSerial, 0x11, sizeof(maxSerial));
+    maxSerial[0] = 0x80;
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, maxSerial, CTC_SERIAL_SIZE),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    /* A negative size is rejected by both ASN back ends. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, cases[0].serial, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+    /* Over the 20 octet ceiling RFC 5280 4.1.2.2 sets. The original ASN
+     * back end truncates through SetSerialNumber() instead of erroring. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, cases[0].serial, CTC_SERIAL_SIZE + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    XFREE(body, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit) {
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+        wc_FreeRsaKey(&key);
+#else
+        wc_ecc_free(&key);
+#endif
+    }
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_MAKECERT_SERIAL */
     return EXPECT_RESULT();
 }
 

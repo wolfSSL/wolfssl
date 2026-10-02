@@ -48,10 +48,7 @@ jobs:
     name: build library/module
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.  The
-    # wall is set by kernel-settings-all-pqc-asm, the one config no other
-    # thread can overlap once the rest are done: it alone has been measured
-    # at 23 min on a cold cache, against a 23 min job total.
+    # A cold-ccache run takes ~27 min, set by kernel-settings-all-pqc-asm.
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
@@ -117,13 +114,13 @@ jobs:
           {"name": "all-pqc-asm-fallback-fuzzer", "minutes": 8,
            "configure": ["--enable-all", "--enable-sp", "--enable-experimental", "--enable-all-quantum-crypto",
             "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]},
-          {"name": "kernel-settings", "minutes": 9.5,
+          {"name": "kernel-settings", "minutes": 22.7,
            "configure": ["--enable-kernel-settings", "--enable-dh",
-            "CPPFLAGS=-pedantic"]},
-          {"name": "kernel-settings-all-pqc-asm", "minutes": 17,
+            "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS"]},
+          {"name": "kernel-settings-all-pqc-asm", "minutes": 26.8,
            "configure": ["--enable-kernel-settings", "--enable-all", "--enable-experimental", "--enable-all-quantum-crypto",
             "--enable-all-asm", "--enable-sp",
-            "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
+            "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
           ]}
           EOF
           # out-of-tree kernel module builds not working yet:

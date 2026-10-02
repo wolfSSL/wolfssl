@@ -90,6 +90,14 @@ int SetCipherSpecs(WOLFSSL* ssl)
            ssl->options.encThenMac = 0;
     #endif
 
+    #ifdef HAVE_LIBZ
+        /* TLS 1.3 removed record layer compression (RFC 8446 5.2).  A client
+         * that asked for it may still land on 1.3, so drop the request rather
+         * than compress records the peer will not decompress. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            ssl->options.usingCompression = 0;
+    #endif
+
     #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls && ssl->version.major == DTLS_MAJOR) {
         #ifndef WOLFSSL_AEAD_ONLY
@@ -2477,15 +2485,17 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #endif
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(enc->chacha,
+                                          keys->client_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(dec->chacha,
+                                          keys->server_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
@@ -2493,15 +2503,17 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         else {
             if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(enc->chacha,
+                                          keys->server_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(dec->chacha,
+                                          keys->client_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
@@ -3935,6 +3947,28 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     return 0;
 }
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_EXTENDED_MASTER)
+static void CleanPreMaster(WOLFSSL* ssl)
+{
+    int sz = (int)(ssl->arrays->preMasterSz);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("CleanPreMaster preMasterSecret",
+                   ssl->arrays->preMasterSecret, sz);
+#endif
+
+    ForceZero(ssl->arrays->preMasterSecret, sz);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
+#endif
+
+    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    ssl->arrays->preMasterSecret = NULL;
+    ssl->arrays->preMasterSz = 0;
+}
+#endif /* !NO_OLD_TLS || HAVE_EXTENDED_MASTER */
+
 #ifndef NO_OLD_TLS
 int DeriveKeys(WOLFSSL* ssl)
 {
@@ -4059,27 +4093,6 @@ int DeriveKeys(WOLFSSL* ssl)
     WC_FREE_VAR_EX(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
-}
-
-
-static void CleanPreMaster(WOLFSSL* ssl)
-{
-    int sz = (int)(ssl->arrays->preMasterSz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("CleanPreMaster preMasterSecret",
-                   ssl->arrays->preMasterSecret, sz);
-#endif
-
-    ForceZero(ssl->arrays->preMasterSecret, sz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
-#endif
-
-    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    ssl->arrays->preMasterSecret = NULL;
-    ssl->arrays->preMasterSz = 0;
 }
 
 
@@ -4231,6 +4244,18 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(WOLFSSL* ssl)
 {
+#ifdef HAVE_EXTENDED_MASTER
+    /* User requires EMS but it was not negotiated: abort rather than derive
+     * a standard master secret (RFC 7627). */
+    if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+        WOLFSSL_MSG("EMS required but not negotiated with peer");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        if (ssl->arrays->preMasterSecret != NULL)
+            CleanPreMaster(ssl);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#endif
     /* append secret to premaster : premaster | SerSi | CliSi */
 #ifndef NO_OLD_TLS
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);

@@ -354,9 +354,11 @@ enum wolfCrypt_ErrorCodes {
     OBJECT_NOT_LOCKED_E = -1031, /* Required lock on object is not held */
     WRONG_TYPE_OBJECT_E = -1032, /* Object is wrong type for requested */
                                  /* operation */
+    NEEDS_RECOVERY_E    = -1033, /* Object needs recovery before use */
+    UNEXPECTED_STATE_E  = -1034, /* Object has unexpected state */
 
-    WC_SPAN2_LAST_E     = -1032, /* Update to indicate last used error code */
-    WC_LAST_E           = -1032, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1034, /* Update to indicate last used error code */
+    WC_LAST_E           = -1034, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
@@ -383,9 +385,12 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
     WOLFSSL_API extern int wc_backtrace_render(void);
 #endif
 
-#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
-        (defined(BUILDING_WOLFSSL) || \
-         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) &&              \
+    (defined(BUILDING_WOLFSSL) ||                            \
+     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS)) &&     \
+    (!defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_PER_FILE) ||   \
+     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_THIS_FILE))
+
     #include <wolfssl/wolfcrypt/logging.h>
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE

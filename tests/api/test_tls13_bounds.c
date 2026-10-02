@@ -417,6 +417,16 @@ static int test_tls13b_ch_find_ext(const byte* rec, int rec_sz, word16 type,
     }
     return -1;
 }
+
+#endif /* guards */
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448))
+
 /* A mutually authenticated TLS 1.3 handshake with a chosen key type on both
  * ends. DoTls13CertificateVerify()'s peer-key / peerSigAlgo dispatch has one
  * arm per algorithm and the group only ever ran the RSA one, so each arm's

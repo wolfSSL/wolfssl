@@ -6,11 +6,25 @@ Breaking changes:
 
 - Curve25519Key::generate() now takes ownership of the RNG instead of borrowing
   it; the key holds the RNG for its lifetime
+- The rand_core::TryRng implementation for RNG is now truly fallible: its
+  associated Error type is the new random::RngError, which carries the wolfSSL
+  library error code, instead of core::convert::Infallible.  Entropy, reseed
+  and hardware failures are returned to the caller instead of panicking inside
+  the library.  As a consequence RNG no longer implements the infallible
+  rand_core::Rng and rand_core::CryptoRng traits; wrap it in
+  rand_core::UnwrapErr to keep the previous panic-on-failure behavior
 
 New features:
 
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
+- Add HMAC::copy(), a fallible equivalent of HMAC::clone()
+
+Fixes and improvements:
+
+- Fix undefined behavior in HMAC::clone(): wc_HmacCopy() takes its source by
+  non-const pointer and may write through it, but the pointer was cast from a
+  shared reference. The wolfSSL context is now held in an UnsafeCell
 
 ## v2.2.0
 

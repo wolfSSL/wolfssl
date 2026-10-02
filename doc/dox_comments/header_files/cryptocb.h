@@ -11,6 +11,20 @@
     For TPM based crypto callbacks example see the wolfTPM2_CryptoDevCb
     function in wolfTPM src/tpm2_wrap.c
 
+    With WOLF_CRYPTO_CB_CMD defined, the callback is invoked during this
+    call with a WC_CRYPTOCB_CMD_TYPE_REGISTER command (and later with
+    WC_CRYPTOCB_CMD_TYPE_UNREGISTER from wc_CryptoCb_UnRegisterDevice). A
+    register command handler may itself call wc_CryptoCb_RegisterDevice to
+    register additional devIds, such as a driver exposing several devices.
+    It must not dispatch through, or re-register, the devId it is being
+    registered with: that devId is not published until this call returns,
+    so a nested registration of it is not caught by the ALREADY_E check and
+    consumes fresh slots until the table fills and BUFFER_E unwinds them.
+    If the handler returns an error other than CRYPTOCB_UNAVAILABLE or
+    NOT_COMPILED_IN, the registration is unwound and the error returned;
+    devIds the handler already registered stay registered and are the
+    caller's to clean up.
+
     \return CRYPTOCB_UNAVAILABLE to fallback to using software crypto
     \return 0 for success
     \return ALREADY_E if devId is already registered. A devId must be
@@ -22,6 +36,9 @@
     \param devId any unique value, not -2 (INVALID_DEVID)
     \param cb a callback function with prototype:
     typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
+    \param ctx user context handed back to the callback on every invocation.
+    With WOLF_CRYPTO_CB_CMD, a register command handler may replace it by
+    updating info->cmd.ctx on success.
 
     _Example_
     \code

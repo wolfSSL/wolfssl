@@ -113,6 +113,9 @@ sub print_enum {
             $sum += $oids->[$i]->{add_sum};
         }
 
+        if (exists $oids->[$i]->{guard}) {
+            print "#ifdef " . $oids->[$i]->{guard} . "\n";
+        }
         print "    /* " . oid_array_to_string(@a) . "  */\n";
         if ($comment_col == 0) {
             print "    /* " . dotted_to_string($oids->[$i]->{oid}) . " */\n";
@@ -131,6 +134,9 @@ sub print_enum {
         else {
             print "\n";
         }
+        if (exists $oids->[$i]->{guard}) {
+            print "#endif\n";
+        }
     }
     print "#else\n";
     for (my $i = 0; $i < 0+@$oids; $i++) {
@@ -143,6 +149,9 @@ sub print_enum {
             $oid_sum_xors{$sum} = $oids->[$i]->{name};
         }
 
+        if (exists $oids->[$i]->{guard}) {
+            print "#ifdef " . $oids->[$i]->{guard} . "\n";
+        }
         print "    /* " . oid_array_to_string(@a) . "  */\n";
         if ($comment_col == 0) {
             print "    /* " . dotted_to_string($oids->[$i]->{oid}) . " */\n";
@@ -160,6 +169,9 @@ sub print_enum {
         }
         else {
             print "\n";
+        }
+        if (exists $oids->[$i]->{guard}) {
+            print "#endif\n";
         }
     }
     print "#endif\n";
@@ -321,6 +333,10 @@ my @dilithium_5 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 8, 7 );
 my @mldsa_2 = ( 2, 16, 840, 1, 101, 3, 4, 3, 17 );
 my @mldsa_3 = ( 2, 16, 840, 1, 101, 3, 4, 3, 18 );
 my @mldsa_5 = ( 2, 16, 840, 1, 101, 3, 4, 3, 19 );
+# ML-KEM (FIPS 203) key OIDs, NIST arc 2.16.840.1.101.3.4.4.x
+my @mlkem_512  = ( 2, 16, 840, 1, 101, 3, 4, 4, 1 );
+my @mlkem_768  = ( 2, 16, 840, 1, 101, 3, 4, 4, 2 );
+my @mlkem_1024 = ( 2, 16, 840, 1, 101, 3, 4, 4, 3 );
 my @slhdsa_sha2_128s = (2, 16, 840, 1, 101, 3, 4, 3, 20);
 my @slhdsa_sha2_128f = (2, 16, 840, 1, 101, 3, 4, 3, 21);
 my @slhdsa_sha2_192s = (2, 16, 840, 1, 101, 3, 4, 3, 22);
@@ -385,6 +401,9 @@ my @keys = (
     { name => "HSS_LMS",              oid => \@hss_lms         },
     { name => "XMSS",                 oid => \@xmss            },
     { name => "XMSSMT",               oid => \@xmssmt          },
+    { name => "ML_KEM_512",           oid => \@mlkem_512       },
+    { name => "ML_KEM_768",           oid => \@mlkem_768       },
+    { name => "ML_KEM_1024",          oid => \@mlkem_1024      },
     { name => "FRODOKEM_976_SHAKE",   oid => \@frodokem_976_shake,   add_sum => 100000 },
     { name => "FRODOKEM_1344_SHAKE",  oid => \@frodokem_1344_shake,  add_sum => 100000 },
     { name => "EFRODOKEM_976_SHAKE",  oid => \@efrodokem_976_shake,  add_sum => 100000 },
@@ -483,6 +502,8 @@ my @policy_map = ( 2, 5, 29, 33 );
 my @policy_const = ( 2, 5, 29, 36 );
 my @issue_alt_names = ( 2, 5, 29, 18 );
 my @tls_feature = ( 1, 3, 6, 1, 5, 5, 7, 1, 24 );
+# RFC 8737 acmeIdentifier, only compiled in with WOLFSSL_ACME_OID
+my @acme_identifier = ( 1, 3, 6, 1, 5, 5, 7, 1, 31 );
 my @dns_srv = ( 1, 3, 6, 1, 5, 5, 7, 8, 7 );
 my @netscape_ct = ( 2, 16, 840, 1, 113730, 1, 1 );
 my @ocsp_nocheck = ( 1, 3, 6, 1, 5, 5, 7, 48, 1, 5 );
@@ -513,6 +534,8 @@ my @exts = (
     { name => "POLICY_CONST",           oid => \@policy_const           },
     { name => "ISSUE_ALT_NAMES",        oid => \@issue_alt_names        },
     { name => "TLS_FEATURE",            oid => \@tls_feature            },
+    { name => "ACME_IDENTIFIER",        oid => \@acme_identifier,
+      guard => "WOLFSSL_ACME_OID" },
     { name => "DNS_SRV",                oid => \@dns_srv                },
     { name => "NETSCAPE_CT",            oid => \@netscape_ct            },
     { name => "OCSP_NOCHECK",           oid => \@ocsp_nocheck           },

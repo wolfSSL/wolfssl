@@ -551,14 +551,21 @@ _fe_sub:
         sbbq	16(%rdx), %r8
         sbbq	24(%rdx), %r9
         sbbq	%r10, %r10
-        shldq	$0x01, %r9, %r10
-        imulq	$-19, %r10
-        btr	$63, %r9
-        #   Add modulus (if underflow)
+        andq	$38, %r10
+        #   Add 2*modulus (if underflow)
         subq	%r10, %rax
         sbbq	$0x00, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
+        movq	$0x00, %r10
+        shldq	$0x01, %r9, %r10
+        imulq	$19, %r10
+        btr	$63, %r9
+        #   Sub modulus (if bit 255 is set)
+        addq	%r10, %rax
+        adcq	$0x00, %rcx
+        adcq	$0x00, %r8
+        adcq	$0x00, %r9
         movq	%rax, (%rdi)
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
@@ -622,14 +629,23 @@ WC_ASM_ATT_HIDDEN(_fe_neg)
 .p2align	4
 _fe_neg:
 #endif /* __APPLE__ */
-        movq	$-19, %rdx
+        movq	$-38, %rdx
         movq	$-1, %rax
         movq	$-1, %rcx
-        movq	$0x7fffffffffffffff, %r8
+        movq	$-1, %r8
         subq	(%rsi), %rdx
         sbbq	8(%rsi), %rax
         sbbq	16(%rsi), %rcx
         sbbq	24(%rsi), %r8
+        movq	$0x00, %r9
+        shldq	$0x01, %r8, %r9
+        imulq	$19, %r9
+        btr	$63, %r8
+        #   Sub modulus (if bit 255 set)
+        addq	%r9, %rdx
+        adcq	$0x00, %rax
+        adcq	$0x00, %rcx
+        adcq	$0x00, %r8
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -3348,14 +3364,21 @@ L_curve25519_base_x64_bits:
         sbbq	112(%rsp), %r9
         sbbq	120(%rsp), %r10
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r10, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r10
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
+        movq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %rcx
+        adcq	$0x00, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
         movq	%rcx, 128(%rsp)
         movq	%r8, 136(%rsp)
         movq	%r9, 144(%rsp)
@@ -4217,14 +4240,21 @@ L_curve25519_base_x64_3:
         sbbq	112(%rsp), %r9
         sbbq	120(%rsp), %r10
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r10, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r10
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %rcx
         sbbq	$0x00, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
+        movq	$0x00, %rbx
+        shldq	$0x01, %r10, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r10
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %rcx
+        adcq	$0x00, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
         movq	%rcx, 128(%rsp)
         movq	%r8, 136(%rsp)
         movq	%r9, 144(%rsp)
@@ -5665,14 +5695,21 @@ L_curve25519_x64_bits:
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
         sbbq	%rbp, %rbp
-        shldq	$0x01, %r11, %rbp
-        imulq	$-19, %rbp
-        btr	$63, %r11
-        #   Add modulus (if underflow)
+        andq	$38, %rbp
+        #   Add 2*modulus (if underflow)
         subq	%rbp, %rcx
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
+        movq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbp, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         movq	%rcx, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
@@ -6644,14 +6681,21 @@ L_curve25519_x64_3:
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
         sbbq	%rbp, %rbp
-        shldq	$0x01, %r11, %rbp
-        imulq	$-19, %rbp
-        btr	$63, %r11
-        #   Add modulus (if underflow)
+        andq	$38, %rbp
+        #   Add 2*modulus (if underflow)
         subq	%rbp, %rcx
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
+        movq	$0x00, %rbp
+        shldq	$0x01, %r11, %rbp
+        imulq	$19, %rbp
+        btr	$63, %r11
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbp, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         movq	%rcx, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
@@ -8911,14 +8955,21 @@ _ge_p2_dbl_x64:
         sbbq	16(%rsi), %r11
         sbbq	24(%rsi), %r12
         sbbq	%r8, %r8
-        shldq	$0x01, %r12, %r8
-        imulq	$-19, %r8
-        btr	$63, %r12
-        #   Add modulus (if underflow)
+        andq	$38, %r8
+        #   Add 2*modulus (if underflow)
         subq	%r8, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
+        movq	$0x00, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$19, %r8
+        btr	$63, %r12
+        #   Sub modulus (if bit 255 is set)
+        addq	%r8, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
         movq	%r11, 16(%rdi)
@@ -9047,14 +9098,21 @@ _ge_p2_dbl_x64:
         sbbq	16(%rsi), %r11
         sbbq	24(%rsi), %r12
         sbbq	%r8, %r8
-        shldq	$0x01, %r12, %r8
-        imulq	$-19, %r8
-        btr	$63, %r12
-        #   Add modulus (if underflow)
+        andq	$38, %r8
+        #   Add 2*modulus (if underflow)
         subq	%r8, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
+        movq	$0x00, %r8
+        shldq	$0x01, %r12, %r8
+        imulq	$19, %r8
+        btr	$63, %r12
+        #   Sub modulus (if bit 255 is set)
+        addq	%r8, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
         movq	%r11, 16(%rdi)
@@ -14127,14 +14185,21 @@ L_curve25519_base_avx2_bits:
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r11, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r11
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
+        movq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         movq	%r8, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
@@ -14813,14 +14878,21 @@ L_curve25519_base_avx2_last_3:
         sbbq	112(%rsp), %r10
         sbbq	120(%rsp), %r11
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r11, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r11
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %r8
         sbbq	$0x00, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
+        movq	$0x00, %rbx
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r11
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         movq	%r8, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
@@ -16054,14 +16126,21 @@ L_curve25519_avx2_bits:
         sbbq	112(%rsp), %r11
         sbbq	120(%rsp), %r12
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r12, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r12
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
+        movq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         movq	%r9, 128(%rsp)
         movq	%r10, 136(%rsp)
         movq	%r11, 144(%rsp)
@@ -16834,14 +16913,21 @@ L_curve25519_avx2_last_3:
         sbbq	112(%rsp), %r11
         sbbq	120(%rsp), %r12
         sbbq	%rbx, %rbx
-        shldq	$0x01, %r12, %rbx
-        imulq	$-19, %rbx
-        btr	$63, %r12
-        #   Add modulus (if underflow)
+        andq	$38, %rbx
+        #   Add 2*modulus (if underflow)
         subq	%rbx, %r9
         sbbq	$0x00, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
+        movq	$0x00, %rbx
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx
+        btr	$63, %r12
+        #   Sub modulus (if bit 255 is set)
+        addq	%rbx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         movq	%r9, 128(%rsp)
         movq	%r10, 136(%rsp)
         movq	%r11, 144(%rsp)
@@ -18750,14 +18836,21 @@ _ge_p2_dbl_avx2:
         sbbq	16(%rsi), %r12
         sbbq	24(%rsi), %r13
         sbbq	%rdx, %rdx
-        shldq	$0x01, %r13, %rdx
-        imulq	$-19, %rdx
-        btr	$63, %r13
-        #   Add modulus (if underflow)
+        andq	$38, %rdx
+        #   Add 2*modulus (if underflow)
         subq	%rdx, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
+        movq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
+        #   Sub modulus (if bit 255 is set)
+        addq	%rdx, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
         movq	%r10, (%rdi)
         movq	%r11, 8(%rdi)
         movq	%r12, 16(%rdi)
@@ -18860,14 +18953,21 @@ _ge_p2_dbl_avx2:
         sbbq	16(%rsi), %r12
         sbbq	24(%rsi), %r13
         sbbq	%rdx, %rdx
-        shldq	$0x01, %r13, %rdx
-        imulq	$-19, %rdx
-        btr	$63, %r13
-        #   Add modulus (if underflow)
+        andq	$38, %rdx
+        #   Add 2*modulus (if underflow)
         subq	%rdx, %r10
         sbbq	$0x00, %r11
         sbbq	$0x00, %r12
         sbbq	$0x00, %r13
+        movq	$0x00, %rdx
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx
+        btr	$63, %r13
+        #   Sub modulus (if bit 255 is set)
+        addq	%rdx, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
         movq	%r10, (%rdi)
         movq	%r11, 8(%rdi)
         movq	%r12, 16(%rdi)

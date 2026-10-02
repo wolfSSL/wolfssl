@@ -86,7 +86,7 @@ pub(crate) enum RngHandle {
 impl RNG {
     /// Initialize a new `RNG` instance.
     ///
-    /// This function wraps the wolfssl library function `wc_InitRng`, which
+    /// This function wraps the wolfssl library function `wc_rng_new_ex`, which
     /// performs the necessary initialization for the RNG context.
     ///
     /// # Returns
@@ -99,7 +99,7 @@ impl RNG {
 
     /// Initialize a new `RNG` instance with optional heap and device ID.
     ///
-    /// This function wraps the wolfssl library function `wc_InitRng`, which
+    /// This function wraps the wolfssl library function `wc_rng_new_ex`, which
     /// performs the necessary initialization for the RNG context.
     ///
     /// # Parameters
@@ -206,8 +206,8 @@ impl RNG {
     ///
     /// * `nonce`: Optional nonce to use to initialize DRBG.
     /// * `seed_a`: Buffer containing seed data (required).
-    /// * `seed_b`: Optional buffer containing more seed data. If present, the
-    ///   DRBG will be reseeded.
+    /// * `seed_b`: Optional buffer containing more seed data. If present and
+    ///   not empty, the DRBG will be reseeded.
     /// * `output`: Output buffer.
     ///
     /// # Returns
@@ -237,8 +237,8 @@ impl RNG {
     ///
     /// * `nonce`: Optional nonce to use to initialize DRBG.
     /// * `seed_a`: Buffer containing seed data (required).
-    /// * `seed_b`: Optional buffer containing more seed data. If present, the
-    ///   DRBG will be reseeded.
+    /// * `seed_b`: Optional buffer containing more seed data. If present and
+    ///   not empty, the DRBG will be reseeded.
     /// * `output`: Output buffer.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
@@ -403,15 +403,67 @@ impl RNG {
     }
 }
 
+/// The error type returned by the `rand_core` trait implementations for
+/// [`RNG`].
+///
+/// It carries the wolfSSL library error code of the failed
+/// `wc_RNG_GenerateBlock()` call, so that entropy, reseed and hardware
+/// failures are reported to the caller instead of terminating the process.
+#[cfg(feature = "rand_core")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RngError(i32);
+
+#[cfg(feature = "rand_core")]
+impl RngError {
+    /// Return the wolfSSL library error code that caused the failure.
+    pub fn code(&self) -> i32 {
+        self.0
+    }
+}
+
+#[cfg(feature = "rand_core")]
+impl core::fmt::Display for RngError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "wolfSSL RNG failure (error code {})", self.0)
+    }
+}
+
+#[cfg(feature = "rand_core")]
+impl core::error::Error for RngError {}
+
+#[cfg(feature = "rand_core")]
+impl From<RngError> for i32 {
+    fn from(err: RngError) -> i32 {
+        err.0
+    }
+}
+
 /// Implement `rand_core::TryRng` for `RNG`, allowing it to be used anywhere
 /// a standard Rust RNG is expected.
 ///
-/// `Error` is set to `Infallible` so that the blanket impls for `Rng` and
-/// `CryptoRng` apply automatically. wolfSSL RNG failures cause a panic, which
-/// is consistent with the infallible contract.
+/// The wolfSSL RNG is genuinely fallible: a failure of the entropy source, of
+/// a reseed or of the underlying hardware is reported to the caller as an
+/// [`RngError`] carrying the wolfSSL error code, which is the contract
+/// consumers of the fallible `TryRng` trait expect.
+///
+/// Because `Error` is not `Infallible`, the blanket impls of the infallible
+/// `rand_core::Rng` and `rand_core::CryptoRng` traits do not apply to `RNG`.
+/// Callers who need those traits, or who prefer a panic on RNG failure, can
+/// wrap the RNG in the `rand_core::UnwrapErr` adapter:
+///
+/// ```rust
+/// #![cfg(feature = "rand_core")]
+/// use rand_core::{Rng, UnwrapErr};
+/// use wolfssl_wolfcrypt::random::RNG;
+///
+/// let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+/// let mut buf = [0u8; 32];
+/// // Panics on RNG failure.
+/// rng.fill_bytes(&mut buf);
+/// ```
 #[cfg(feature = "rand_core")]
 impl rand_core::TryRng for RNG {
-    type Error = core::convert::Infallible;
+    type Error = RngError;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         rand_core::utils::next_word_via_fill(self)
@@ -422,8 +474,7 @@ impl rand_core::TryRng for RNG {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        self.generate_block(dest).expect("RNG failure");
-        Ok(())
+        self.generate_block(dest).map_err(RngError)
     }
 }
 

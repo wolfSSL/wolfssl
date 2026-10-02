@@ -115,12 +115,25 @@ void  wc_CertFree(Cert* cert);
     either an rsaKey or an eccKey to generate the certificate.  The certificate
     must be initialized with wc_InitCert before this method is called.
 
+    A serial number left at the wc_InitCert default (cert->serialSz of 0) is
+    randomly generated. A caller-supplied serial is taken as a big-endian
+    value of at most CTC_SERIAL_SIZE bytes and is normalized to a minimal DER
+    INTEGER: redundant leading zero bytes are stripped and the sign pad is
+    added back when the high bit is set. Supplying the magnitude alone is
+    enough; a sign pad the caller adds is accepted and is not duplicated.
+    The encoded value, including any sign pad, must not exceed
+    CTC_SERIAL_SIZE octets.
+
     \return Success On successfully making an x509 certificate from the
     specified input cert, returns the size of the cert generated.
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
     \return BUFFER_E Returned if the provided derBuffer is too small to
     store the generated certificate
+    \return BAD_FUNC_ARG Returned if cert->serialSz is negative, if the
+    encoded serial would exceed CTC_SERIAL_SIZE octets, or if the serial
+    number is zero. RFC 5280 4.1.2.2 requires a positive serial of at most
+    20 octets; define WOLFSSL_ASN_ALLOW_0_SERIAL to permit a zero serial.
     \return Others Additional error messages may be returned if the cert
     generation is not successful.
 
@@ -156,9 +169,13 @@ int  wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
     \ingroup ASN
     \brief Makes certificate with generic key type support.
 
+    The serial number contract is the same as wc_MakeCert().
+
     \return Size of certificate on success
     \return MEMORY_E if memory allocation fails
     \return BUFFER_E if buffer too small
+    \return BAD_FUNC_ARG if the serial number is zero, negative in size, or
+    longer than CTC_SERIAL_SIZE
     \return Other error codes on failure
 
     \param cert Initialized cert structure
@@ -4404,4 +4421,59 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
     \sa wc_Asn1_PrintAll
 */
 int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
+
+/*!
+    \ingroup ASN
+
+    \brief Retrieves the raw DER-encoded subject Name content from a parsed
+    DecodedCert.
+
+    The returned pointer and size reference the inner content of the subject
+    Name SEQUENCE (i.e. the bytes after the SEQUENCE tag and length). The
+    pointer aliases the DER buffer supplied to wc_InitDecodedCert(), which the
+    DecodedCert does not own, and must not be freed by the caller. The data
+    remains valid only while that buffer is alive and unmodified.
+
+    This function is intended for use with wolfSSL_UseCertificateAuthority(),
+    which expects the subject content without the outer SEQUENCE header.
+
+    Requires IGNORE_NAME_CONSTRAINTS to be undefined or WOLFSSL_CERT_EXT to
+    be defined.
+
+    \param cert       Pointer to the DecodedCert (must have been parsed).
+    \param subjectRaw Output pointer that receives the address of the raw
+                      DER subject content.
+    \param subjectRawSz Output pointer that receives the size in bytes of the
+                        raw subject content.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if any argument is NULL.
+    \return ASN_PARSE_E if the subject was not populated during parsing.
+    \return NOT_COMPILED_IN if the required build options are not enabled.
+
+    _Example_
+    \code
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, certDer, certDerSz, NULL);
+    if (wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL) == 0) {
+        if (wc_GetDecodedCertSubjectRaw(&decoded, &subject,
+                &subjectSz) == 0) {
+            // subject and subjectSz now reference the raw DER content
+        }
+    }
+    wc_FreeDecodedCert(&decoded);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+    \sa wc_FreeDecodedCert
+    \sa wc_GetDecodedCertSubject
+    \sa wolfSSL_UseCertificateAuthority
+*/
+int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                const byte** subjectRaw,
+                                int* subjectRawSz);
 

@@ -3786,7 +3786,6 @@ int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
     return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
-#if !defined(NO_PWDBASED)
 int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
         unsigned char* buf, unsigned int* len)
 {
@@ -3832,7 +3831,6 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
     WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
     return ret;
 }
-#endif
 
 #endif /* OPENSSL_EXTRA */
 
@@ -8580,6 +8578,8 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 /* @param argl   file type, either WOLFSSL_FILETYPE_PEM or                  */
 /*                                          WOLFSSL_FILETYPE_ASN1           */
 /* @return WOLFSSL_SUCCESS on successful, otherwise negative or zero        */
+/* Note: on failure, path elements parsed before the failing one have       */
+/*       already been added to ctx->dir_entry                               */
 static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
@@ -8653,7 +8653,7 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
                     return 0;
                 }
 
-                XSTRNCPY(entry->dir_name, buf, pathLen);
+                XMEMCPY(entry->dir_name, buf, pathLen);
                 entry->dir_name[pathLen] = '\0';
 
                 if (wolfSSL_sk_BY_DIR_entry_push(ctx->dir_entry, entry) <= 0) {
@@ -8667,6 +8667,11 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 
             pathLen = 0;
             XMEMSET(buf, 0, MAX_FILENAME_SZ);
+        }
+        if (pathLen >= MAX_FILENAME_SZ) {
+            WOLFSSL_MSG("dir name too long for internal buffer");
+            WC_FREE_VAR_EX(buf, 0, DYNAMIC_TYPE_OPENSSL);
+            return 0;
         }
         buf[pathLen++] = *c;
 
@@ -8695,6 +8700,8 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 /* note: WOLFSSL_X509_L_ADD_STORE and WOLFSSL_X509_L_LOAD_STORE have not*/
 /*       yet implemented. It returns WOLFSSL_NOT_IMPLEMENTED            */
 /*       when those control commands are passed.                        */
+/* Note: on failure, path elements parsed before the failing one have   */
+/*       already been added to ctx->dir_entry                           */
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
 {
@@ -11666,8 +11673,7 @@ error:
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_APACHE_HTTPD ||
         * WOLFSSL_HAPROXY || WOLFSSL_WPAS */
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
-    !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN)
 
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     unsigned char** der)
@@ -11677,7 +11683,7 @@ int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
 }
 
-#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -11798,7 +11804,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_free");
         FreeX509Name(name);
         if (name != NULL) {
             XFREE(name, name->heap, DYNAMIC_TYPE_X509);
@@ -11814,7 +11820,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
     {
         WOLFSSL_X509_NAME* name;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_new_ex");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_new_ex");
 
         name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), heap,
                 DYNAMIC_TYPE_X509);
@@ -12283,7 +12289,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
             WOLFSSL_EVP_PKEY* pkey)
     {
-    #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
     #endif
@@ -12433,9 +12439,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 #else
         (void)md;
         (void)pkey;
-        WOLFSSL_MSG("Cannot get hashinfo when NO_PWDBASED is defined");
+        WOLFSSL_MSG("Cannot get signature type without OPENSSL_EXTRA");
         return WOLFSSL_FAILURE;
-#endif /* !NO_PWDBASED && OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
     }
 
 
@@ -12642,15 +12648,17 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 
             if (x509->pubKeyOID == FALCON_LEVEL1k) {
                 type = FALCON_LEVEL1_TYPE;
-                wc_falcon_set_level(falcon, 1);
+                ret = wc_falcon_set_level(falcon, 1);
             }
             else if (x509->pubKeyOID == FALCON_LEVEL5k) {
                 type = FALCON_LEVEL5_TYPE;
-                wc_falcon_set_level(falcon, 5);
+                ret = wc_falcon_set_level(falcon, 5);
             }
 
-            ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx, falcon,
-                                            x509->pubKey.length);
+            if (ret == 0) {
+                ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx,
+                                                falcon, x509->pubKey.length);
+            }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
                 wc_falcon_free(falcon);
@@ -14530,7 +14538,7 @@ err:
 
     void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne)
     {
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_free");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_free");
         if (ne != NULL) {
             wolfSSL_ASN1_OBJECT_free(ne->object);
             if (ne->value != NULL) {
@@ -14628,9 +14636,7 @@ err:
     {
         WOLFSSL_X509_NAME_ENTRY* ne;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_create_by_NID");
 
         if (!data) {
             WOLFSSL_MSG("Bad parameter");
@@ -14665,9 +14671,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 {
     WOLFSSL_ASN1_OBJECT* object = NULL;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_get_object");
 
     if (ne != NULL) {
         /* Create object from nid - reuse existing object if possible. */
@@ -14788,9 +14792,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         WOLFSSL_X509_NAME_ENTRY* current = NULL;
         int ret, i;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_add_entry");
 
         if (name == NULL || entry == NULL || entry->value == NULL) {
             WOLFSSL_MSG("NULL argument passed in");
@@ -14810,7 +14812,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             /* iterate through and find first open spot */
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
                 if (name->entry[i].set == 0) { /* not set so overwritten */
-                    WOLFSSL_MSG("Found place for name entry");
+                    WOLFSSL_MSG_VERBOSE("Found place for name entry");
                     break;
                 }
             }
@@ -14905,7 +14907,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     {
         int ret;
         WOLFSSL_X509_NAME_ENTRY* entry;
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_NID");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_add_entry_by_NID");
         entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes,
                 len);
         if (entry == NULL)
@@ -14995,9 +14997,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
                                         const WOLFSSL_X509_NAME *name, int loc)
     {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_get_entry");
 
         if (name == NULL) {
             return NULL;
@@ -15211,7 +15211,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
     WOLFSSL_STACK* sk;
     (void)cb;
 
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_X509_NAME_new");
 
     sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {
@@ -16255,7 +16255,8 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
     if (name == NULL || type == NULL)
         return WOLFSSL_FAILURE;
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
+/* wolfSSL_EVP_Digest() is only compiled with these defines. */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     return wolfSSL_EVP_Digest((unsigned char*)name->name,
                               name->sz, md, len, type, NULL);
 #else

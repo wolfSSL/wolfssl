@@ -13614,7 +13614,9 @@ L_AES_GCM_encrypt_avx2_iv_12:
         # Set counter based on IV
         vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
         vmovdqu	(%rsi), %xmm5
-        vpblendd	$7, (%rax), %xmm4, %xmm4
+        vmovq	(%rax), %xmm0
+        vpinsrd	$2, 8(%rax), %xmm0, %xmm0
+        vpblendd	$7, %xmm0, %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
         vmovdqu	16(%rsi), %xmm7
         vpxor	%xmm5, %xmm4, %xmm15
@@ -15101,7 +15103,9 @@ L_AES_GCM_decrypt_avx2_iv_12:
         # Set counter based on IV
         vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
         vmovdqu	(%rsi), %xmm5
-        vpblendd	$7, (%rax), %xmm4, %xmm4
+        vmovq	(%rax), %xmm0
+        vpinsrd	$2, 8(%rax), %xmm0, %xmm0
+        vpblendd	$7, %xmm0, %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
         vmovdqu	16(%rsi), %xmm7
         vpxor	%xmm5, %xmm4, %xmm15
@@ -16237,7 +16241,9 @@ L_AES_GCM_init_avx2_iv_12:
         # Set counter based on IV
         vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
         vmovdqu	(%rdi), %xmm5
-        vpblendd	$7, (%r10), %xmm4, %xmm4
+        vmovq	(%r10), %xmm0
+        vpinsrd	$2, 8(%r10), %xmm0, %xmm0
+        vpblendd	$7, %xmm0, %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
         vmovdqu	16(%rdi), %xmm6
         vpxor	%xmm5, %xmm4, %xmm7

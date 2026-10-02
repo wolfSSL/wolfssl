@@ -109,7 +109,7 @@ int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     int is_dtls;
 
     test_ctx = (struct test_memio_ctx*)ctx;
-    is_dtls = wolfSSL_dtls(ssl);
+    is_dtls = wolfSSL_dtls(ssl) && !test_ctx->sctp;
 
     if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
         buf = test_ctx->s_buff;

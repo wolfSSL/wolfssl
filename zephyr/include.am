@@ -4,7 +4,6 @@
 
 EXTRA_DIST+= zephyr/CMakeLists.txt
 EXTRA_DIST+= zephyr/Kconfig
-EXTRA_DIST+= zephyr/Kconfig.tls-generic
 EXTRA_DIST+= zephyr/zephyr_init.c
 EXTRA_DIST+= zephyr/module.yml
 EXTRA_DIST+= zephyr/wolfssl/options.h

@@ -1454,7 +1454,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_512
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
-        0);
+        SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -1466,7 +1466,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_768
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_768, sizeof(seed_768)),
-        0);
+        SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -1478,7 +1478,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_1024
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_1024, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_1024,
-        sizeof(seed_1024)), 0);
+        sizeof(seed_1024)), SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -2440,7 +2440,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_512, sizeof(ek_512)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_512,
-        sizeof(seed_512)), 0);
+        sizeof(seed_512)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_512, WC_ML_KEM_512_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_512, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -2449,7 +2449,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_768, sizeof(ek_768)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_768,
-        sizeof(seed_768)), 0);
+        sizeof(seed_768)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_768, WC_ML_KEM_768_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_768, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -2458,7 +2458,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_1024, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_1024, sizeof(ek_1024)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_1024,
-        sizeof(seed_1024)), 0);
+        sizeof(seed_1024)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_1024, WC_ML_KEM_1024_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_1024, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -3976,6 +3976,12 @@ int test_wc_mlkem_decap_fo_reject(void)
     byte ssDec[WC_ML_KEM_SS_SZ];
     byte ssTampered[WC_ML_KEM_SS_SZ];
     word32 ctLen = 0;
+#ifdef WOLFSSL_SHAKE256
+    byte priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte ssExpected[WC_ML_KEM_SS_SZ];
+    wc_Shake shake;
+    word32 privLen = 0;
+#endif
 
     XMEMSET(ct, 0, sizeof(ct));
     XMEMSET(ctTampered, 0, sizeof(ctTampered));
@@ -4014,6 +4020,27 @@ int test_wc_mlkem_decap_fo_reject(void)
     ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
     PRIVATE_KEY_LOCK();
     ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
+#ifdef WOLFSSL_SHAKE256
+    /* FIPS 203, Algorithm 18: the implicit rejection value must be exactly
+     * K_bar = J(z || c) = SHAKE256(z || c, 32), with z the last 32 bytes of
+     * the decapsulation key. Pin it so that a stale SHAKE state left in the
+     * key's PRF object by the re-encryption step is detected whichever
+     * implementation (asm or C) the build and CPU dispatch to. */
+    XMEMSET(priv, 0, sizeof(priv));
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(key, &privLen), 0);
+    ExpectTrue(privLen >= (word32)WC_ML_KEM_SYM_SZ);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, priv, privLen), 0);
+    XMEMSET(ssExpected, 0, sizeof(ssExpected));
+    ExpectIntEQ(wc_InitShake256(&shake, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake256_Update(&shake, priv + privLen - WC_ML_KEM_SYM_SZ,
+        WC_ML_KEM_SYM_SZ), 0);
+    ExpectIntEQ(wc_Shake256_Update(&shake, ctTampered, ctLen), 0);
+    ExpectIntEQ(wc_Shake256_Final(&shake, ssExpected, WC_ML_KEM_SS_SZ), 0);
+    wc_Shake256_Free(&shake);
+    ExpectIntEQ(XMEMCMP(ssTampered, ssExpected, WC_ML_KEM_SS_SZ), 0);
+    ForceZero(priv, sizeof(priv));
+#endif
 
     /* Tamper at byte 0: decapsulation must still return 0. We do NOT assert
      * ssTampered != ss here: byte 0 sits in the lossy-compressed u portion of
@@ -4650,6 +4677,41 @@ int test_wc_mlkem_encode_key_len_decision(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
 
+/* ML-KEM keygen from caller randomness succeeds and returns SEED_OK, the
+ * service indicator for a seed-input call (api.h). */
+int test_wc_MlKemKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_NO_ML_KEM)
+    MlKemKey* key = NULL;
+    byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(MlKemKey));
+    }
+    XMEMSET(rand, 0x5a, sizeof(rand));
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, mlkemType, NULL, INVALID_DEVID), 0);
+    /* Valid key, valid randomness: performed, and reported non-approved. */
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, rand, (int)sizeof(rand)),
+        SEED_OK);
+
+    wc_MlKemKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #define TEST_MLKEM_CB_FREE
@@ -4772,6 +4834,206 @@ int test_wc_mlkem_cb_free(void)
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define TEST_MLKEM_CB_PENDING
+    #define TEST_MLKEM_CB_PENDING_DEVID 0x4D4C4B50
+    #ifndef WOLFSSL_NO_ML_KEM_512
+        #define TEST_MLKEM_CB_PENDING_TYPE WC_ML_KEM_512
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+        #define TEST_MLKEM_CB_PENDING_TYPE WC_ML_KEM_768
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define TEST_MLKEM_CB_PENDING_TYPE WC_ML_KEM_1024
+    #else
+        #undef TEST_MLKEM_CB_PENDING
+    #endif
+#endif
+
+#ifdef TEST_MLKEM_CB_PENDING
+/* Byte written into the output buffers before each call. ML-KEM never
+ * produces an all-0xA5 ciphertext or secret, so finding the buffer still
+ * filled with it proves nothing wrote to it. */
+#define TEST_MLKEM_CB_FILL 0xA5
+
+typedef struct {
+    int calls;   /* KEM callbacks seen */
+    int ret;     /* what the callback returns */
+} MlKemCbPendingCtx;
+
+/* Stands in for a device that cannot complete the operation synchronously.
+ * ML-KEM has no asyncDev, so nothing in the library could ever resume such an
+ * operation: the return has to be rejected where it arrives. */
+static int mlkem_cb_pending_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    MlKemCbPendingCtx* seen = (MlKemCbPendingCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_PK) &&
+            ((info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) ||
+             (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) ||
+             (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS))) {
+        seen->calls++;
+        return seen->ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* True when every one of len bytes is still the fill byte. */
+static int mlkem_cb_untouched(const byte* buf, word32 len)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (buf[i] != TEST_MLKEM_CB_FILL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+#endif /* TEST_MLKEM_CB_PENDING */
+
+/* A crypto callback that returns WC_PENDING_E for a KEM operation is asking
+ * to be called again later, which ML-KEM has no way to do. The library must
+ * turn that into a hard error at the call site rather than fall through to
+ * the software path: falling through would generate a fresh key or shared
+ * secret that the peer knows nothing about, and the handshake would fail much
+ * later as a decrypt failure instead of here. Errors the device reports for
+ * real must still reach the caller unchanged, and a device that declines the
+ * operation must still fall through to software. */
+int test_wc_mlkem_cb_pending_rejected(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MLKEM_CB_PENDING
+    MlKemKey* key = NULL;
+    MlKemCbPendingCtx seen;
+    WC_RNG rng;
+    byte* ctGood = NULL;
+    byte* ct = NULL;
+    byte ssGood[WC_ML_KEM_SS_SZ];
+    byte ss[WC_ML_KEM_SS_SZ];
+    word32 ctLen = 0;
+    int rngInit = 0;
+    int keyInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&seen, 0, sizeof(seen));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* A software key pair and a valid ciphertext to decapsulate, made before
+     * any callback is registered. */
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctLen), 0);
+    ExpectNotNull(ctGood = (byte*)XMALLOC(ctLen, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ct = (byte*)XMALLOC(ctLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ctGood, ssGood, &rng), 0);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_PENDING_DEVID,
+        mlkem_cb_pending_cb, &seen), 0);
+    /* Point the finished key at the device. */
+    if (key != NULL) {
+        key->devId = TEST_MLKEM_CB_PENDING_DEVID;
+    }
+
+    /* Encapsulate: pending is rejected and neither output is written. */
+    seen.ret = WC_NO_ERR_TRACE(WC_PENDING_E);
+    if (ct != NULL) {
+        XMEMSET(ct, TEST_MLKEM_CB_FILL, ctLen);
+    }
+    XMEMSET(ss, TEST_MLKEM_CB_FILL, sizeof(ss));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 1);
+    ExpectIntEQ(mlkem_cb_untouched(ct, ctLen), 1);
+    ExpectIntEQ(mlkem_cb_untouched(ss, (word32)sizeof(ss)), 1);
+
+    /* Decapsulate: same, on a ciphertext that would otherwise succeed. */
+    XMEMSET(ss, TEST_MLKEM_CB_FILL, sizeof(ss));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ctGood, ctLen),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 2);
+    ExpectIntEQ(mlkem_cb_untouched(ss, (word32)sizeof(ss)), 1);
+
+    /* An error the device reports for real is not rewritten. */
+    seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ctGood, ctLen),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(seen.calls, 4);
+
+    /* Declining still falls through to software, and the software result is
+     * the one the key pair was built with. */
+    seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ctGood, ctLen), 0);
+    ExpectIntEQ(XMEMCMP(ss, ssGood, sizeof(ss)), 0);
+    ExpectIntEQ(seen.calls, 7);
+
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+        keyInit = 0;
+    }
+
+    /* Key generation: pending is rejected and no key is generated, so the
+     * key is left unusable rather than holding a key pair the peer will
+     * never see. */
+    seen.ret = WC_NO_ERR_TRACE(WC_PENDING_E);
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 8);
+    if (key != NULL) {
+        ExpectIntEQ(key->flags & MLKEM_FLAG_BOTH_SET, 0);
+    }
+    /* And so encapsulating with it reports the key is not set. */
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 8);
+
+    /* Declining key generation still reaches the software path. */
+    seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(seen.calls, 9);
+    if (key != NULL) {
+        ExpectIntEQ(key->flags & MLKEM_FLAG_BOTH_SET, MLKEM_FLAG_BOTH_SET);
+    }
+
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_PENDING_DEVID);
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ctGood, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
 #endif
     return EXPECT_RESULT();
 }

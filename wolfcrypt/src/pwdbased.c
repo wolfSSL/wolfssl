@@ -37,6 +37,9 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -254,6 +257,24 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         WOLFSSL_MSG("PBKDF2 iteration count exceeds current_wc_pbkdf_max_iterations");
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* Validate the pointer/length pairs before dispatching so a registered
+     * device sees the same contract the software path enforces later via
+     * wc_HmacSetKey_ex()/wc_HmacUpdate(). NULL is allowed only for a
+     * zero-length input. */
+    if (output == NULL || (passwd == NULL && pLen > 0) ||
+            (salt == NULL && sLen > 0) || pLen < 0 || sLen < 0 || kLen < 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Pbkdf2(output, passwd, pLen, salt, sLen, iterations,
+            kLen, hashType, devId);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     hashT = wc_HashTypeConvert(hashType);
     hLen = wc_HashGetDigestSize(hashT);

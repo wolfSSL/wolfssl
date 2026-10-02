@@ -1180,6 +1180,20 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
     #endif
+    #if defined(HAVE_NULL_CIPHER) && \
+        defined(WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT)
+    /* add TLSv13 integrity-only suites; the harness repeats each case with
+     * the default cipher list on one side, so these can only pass when the
+     * default list includes the integrity-only suites */
+    XSTRLCPY(argv0[1], "tests/test-tls13-null.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 integrity-only cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #ifndef WOLFSSL_NO_TLS12
     /* add TLSv13 downgrade tests */
     XSTRLCPY(argv0[1], "tests/test-tls13-down.conf", sizeof(argv0[1]));
@@ -1650,6 +1664,19 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+
+#if defined(HAVE_NULL_CIPHER) && \
+    defined(WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT)
+    /* see the test-tls13-null.conf note on the default-cipher-list repeat */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-null.conf", sizeof(argv0[1]));
+    printf("starting DTLSv1.3 integrity-only cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* HAVE_NULL_CIPHER && WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT */
 
 #ifndef WOLFSSL_NO_TLS12
     args.argc = 2;

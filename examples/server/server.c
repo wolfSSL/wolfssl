@@ -1046,8 +1046,9 @@ static const char* server_usage_msg[][71] = {
         "-Q          Request certificate from client post-handshake\n", /* 49 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J [n]      Server sends Cookie Extension containing state (n to "
-        "disable)\n", /* 50 */
+        "-J [n]      Server sends Cookie Extension containing state\n"
+        "            ('n' disables all server cookies, including the\n"
+        "            DTLS 1.2 HelloVerifyRequest exchange)\n",          /* 50 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
@@ -1835,6 +1836,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         WOLFSSL_MEM_STATS mem_stats;
     #endif
     #endif
+    WOLFSSL_HEAP_HINT *heap = NULL;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     int onlyKeyShare = 0;
@@ -1877,6 +1879,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
+
+#ifdef HAVE_PK_CALLBACKS
+    /* The ECC callbacks read keyGenCnt whether or not certificates are
+     * compiled in, so this cannot sit inside the NO_CERTS block below. */
+    XMEMSET(&pkCbInfo, 0, sizeof(pkCbInfo));
+#endif
 
 #ifndef NO_RSA
     verifyCert = cliCertFile;
@@ -2023,7 +2031,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 'G' :
             #ifdef WOLFSSL_SCTP
                 doDTLS  = 1;
-                dtlsUDP = 1;
                 dtlsSCTP = 1;
             #endif
                 break;
@@ -2784,7 +2791,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             method = wolfDTLSv1_3_server_method_ex;
             break;
 #endif
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+        !defined(WOLFSSL_NO_TLS12)
         case -3:
             method = wolfDTLSv1_2_method_ex;
             break;
@@ -2819,9 +2827,19 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                                                   WOLFMEM_IO_POOL_FIXED));
     #endif /* DEBUG_WOLFSSL */
 
-    if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),0,1)
-            != WOLFSSL_SUCCESS)
-        err_sys_ex(catastrophic, "unable to load static memory and create ctx");
+    if (wc_LoadStaticMemory(&heap, memory, sizeof(memory), 0, 1) != 0)
+        err_sys_ex(catastrophic, "unable to load static memory");
+
+#if defined(WOLFSSL_NO_MALLOC) && !defined(NO_MAIN_DRIVER)
+    /* only the standalone program may publish a pool of its own */
+    if (wolfSSL_GetGlobalHeapHint() == NULL)
+        wolfSSL_SetGlobalHeapHint(heap);
+#endif
+
+    if (method != NULL)
+        ctx = wolfSSL_CTX_new_ex(method(heap), heap);
+    if (ctx == NULL)
+        err_sys_ex(catastrophic, "unable to get ctx");
 
     /* load in a buffer for IO */
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
@@ -4195,6 +4213,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 exit:
 
+#ifdef HAVE_PK_CALLBACKS
+    CleanupPkCallbackContexts(&pkCbInfo);
+#endif
+
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_ret =
         wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
@@ -4238,6 +4260,13 @@ exit:
 #if defined(WOLFSSL_CALLBACKS) && defined(WOLFSSL_EARLY_DATA)
     (void) earlyData;
 #endif
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_MAIN_DRIVER)
+    /* the pool backing the hint is on this function's stack */
+    if (wolfSSL_GetGlobalHeapHint() == (void*)heap)
+        wolfSSL_SetGlobalHeapHint(NULL);
+#endif
+
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 

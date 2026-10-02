@@ -254,6 +254,23 @@ openssl crl -in ../ocsp/root-ca-crl.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/root-ca-crl.pem
 
+# OCSP root-ca CRL revoking intermediate1
+cp blank.index.txt demoCA/index.txt
+
+echo "Step 32 OCSP root-ca CRL revoking intermediate1"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/intermediate1-ca-cert.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
+check_result $?
+
+echo "Step 32 OCSP root-ca CRL revoking intermediate1, gencrl"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl-revoked.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32 OCSP root-ca CRL revoking intermediate1, metadata"
+openssl crl -in ../ocsp/root-ca-crl-revoked.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/root-ca-crl-revoked.pem
+
 echo "Step 33 larger CRL number( 57 octets )"
 python3 -c "print('4' * 114)" > crlnumber # 0x41 * 57 = 114 hex chars crlnumber
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/crlnum_57oct.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem

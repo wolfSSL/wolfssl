@@ -4061,6 +4061,43 @@ cleanup:
     return EXPECT_RESULT();
 }
 
+/* Regression: a Raw Public Key (RFC 7250), a bare SubjectPublicKeyInfo, has no
+ * issuer and no signature, so it can never chain to a CA. With HAVE_RPK the
+ * parser recognises it as a certificate form; it must not be reported as
+ * verified by wolfSSL_CertManagerVerify(), whether or not a CA is loaded.
+ * (RPK trust is established out of band in the TLS handshake only.) */
+int test_wolfSSL_CertManagerRejectRPK(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+#ifdef WOLFSSL_PEM_TO_DER
+    const char* caCert  = "./certs/ca-cert.pem";
+#else
+    const char* caCert  = "./certs/ca-cert.der";
+#endif
+    const char* rpkCert = "./certs/rpk/server-cert-rpk.der";
+    const char* svrCert = "./certs/server-cert.der";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    /* No trust anchor loaded. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, rpkCert, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    /* The CA that issued the X.509 form of the same key. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, caCert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, svrCert, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, rpkCert, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_V_ERR_strings(void)
 {
     EXPECT_DECLS;

@@ -124,6 +124,7 @@ static double now_sec(void)
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
+#ifndef NO_WOLFSSL_CLIENT
 /* Post-handshake send sink. Pretends every byte was transmitted but does
  * nothing; the kernel's UDP/IP path never runs. Used via -z to measure the
  * pure wolfSSL encrypt-and-frame ceiling, free of any I/O cost. */
@@ -132,6 +133,7 @@ static int dtls_bench_sink_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     (void)ssl; (void)buf; (void)ctx;
     return sz;
 }
+#endif /* !NO_WOLFSSL_CLIENT */
 
 static void print_stats(const char* dir, long long bytes, double sec)
 {
@@ -338,6 +340,9 @@ static int bind_to_iface(int fd, const char* ifname)
 #endif
 }
 
+/* Only the DTLS legs below need these; the plain-UDP baseline does not. */
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
+
 static WOLFSSL_METHOD* pick_method(int version, int isServer)
 {
     if (version == 13) {
@@ -403,6 +408,8 @@ static int set_mtu(WOLFSSL* ssl, int mtu)
     return 0;
 #endif
 }
+
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 
 /* ----- Plain-UDP baseline (-n) ----- */
 
@@ -522,6 +529,8 @@ out:
 }
 
 /* ----- DTLS server ----- */
+
+#ifndef NO_WOLFSSL_SERVER
 
 static int dtls_server(const cfg_t* c)
 {
@@ -658,7 +667,11 @@ cleanup:
     return ret;
 }
 
+#endif /* !NO_WOLFSSL_SERVER */
+
 /* ----- DTLS client ----- */
+
+#ifndef NO_WOLFSSL_CLIENT
 
 static int dtls_client(const cfg_t* c)
 {
@@ -797,6 +810,8 @@ cleanup:
     return ret;
 }
 
+#endif /* !NO_WOLFSSL_CLIENT */
+
 int main(int argc, char** argv)
 {
     cfg_t c;
@@ -807,7 +822,20 @@ int main(int argc, char** argv)
     if (c.plainUdp) {
         return c.isServer ? udp_server(&c) : udp_client(&c);
     }
-    return c.isServer ? dtls_server(&c) : dtls_client(&c);
+    if (c.isServer) {
+#ifndef NO_WOLFSSL_SERVER
+        return dtls_server(&c);
+#else
+        fprintf(stderr, "DTLS server not compiled in!\n");
+        return 1;
+#endif
+    }
+#ifndef NO_WOLFSSL_CLIENT
+    return dtls_client(&c);
+#else
+    fprintf(stderr, "DTLS client not compiled in!\n");
+    return 1;
+#endif
 }
 
 #else /* DTLS_BENCH_ENABLED */

@@ -9154,9 +9154,9 @@ void wolfSSL_EVP_init(void)
             case WC_DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
                 if (ctx->enc)
-                    wc_Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
+                    ret = wc_Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
                 else
-                    wc_Des_CbcDecrypt(&ctx->cipher.des, dst, src, len);
+                    ret = wc_Des_CbcDecrypt(&ctx->cipher.des, dst, src, len);
                 if (ret == 0)
                     ret = (int)((len / DES_BLOCK_SIZE) * DES_BLOCK_SIZE);
                 break;

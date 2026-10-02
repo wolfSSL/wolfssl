@@ -818,13 +818,14 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
-    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
-#ifdef WOLFSSL_CERT_NAME_ALL
+    /* 2.5.4.41 - 2.5.4.46. Always defined - the name component table is
+     * indexed with these ids whether or not the components are stored. */
     ASN_NAME          = 0x29,   /* name */
     ASN_GIVEN_NAME    = 0x2a,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
+    ASN_GEN_QUALIFIER = 0x2c,   /* generationQualifier - not stored */
+    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
-#endif /* WOLFSSL_CERT_NAME_ALL */
 
 
     ASN_CONTENT_TYPE  = 0x97, /* not actual OID (see attrPkcs9ContentTypeOid) */
@@ -1988,14 +1989,15 @@ struct DecodedCert {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
-    defined(WOLFSSL_HAVE_XMSS)
+    defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(WOLFSSL_HAVE_MLKEM)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
 #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || WOLFSSL_HAVE_MLDSA ||
         * HAVE_FALCON || WOLFSSL_HAVE_SLHDSA || WOLFSSL_HAVE_LMS ||
-        * WOLFSSL_HAVE_XMSS */
+        * WOLFSSL_HAVE_XMSS || WOLFSSL_HAVE_FRODOKEM || WOLFSSL_HAVE_MLKEM */
     const byte* beforeDate;
     int     beforeDateLen;
     const byte* afterDate;
@@ -2384,25 +2386,7 @@ struct Signer {
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* used for having trusted peer certs rather then CA */
 struct TrustedPeerCert {
-    int     nameLen;
-    const char*
-            name;                    /* common name */
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        Base_entry* permittedNames;
-        Base_entry* excludedNames;
-    #endif /* IGNORE_NAME_CONSTRAINTS */
-    byte    subjectNameHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of names in certificate */
-    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
-    byte    issuerHash[SIGNER_DIGEST_SIZE];
-                                    /* sha hash of issuer name in certificate */
-    #endif
-    #ifndef NO_SKID
-        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of SKID in certificate */
-    #endif
-    word32 sigLen;
-    byte*  sig;
+    byte   certHash[KEYID_SIZE];     /* hash of the whole certificate DER */
     struct TrustedPeerCert* next;
 };
 #endif /* WOLFSSL_TRUST_PEER_CERT */
@@ -2916,7 +2900,8 @@ enum cert_enums {
     LMS_KEY                  = 36,
     XMSS_KEY                 = 37,
     XMSSMT_KEY               = 38,
-    FRODOKEM_KEY             = 39
+    FRODOKEM_KEY             = 39,
+    MLKEM_KEY                = 40
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
@@ -3385,7 +3370,8 @@ WOLFSSL_LOCAL int  wolfssl_local_MatchDnsNameConstraint(const char* name,
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) \
-    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM))
+    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM) \
+    || (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)))
 WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
     word32 inSz, const byte** seed, word32* seedLen, const byte** privKey,
     word32* privKeyLen, const byte** pubKey, word32* pubKeyLen,

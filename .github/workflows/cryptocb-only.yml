@@ -31,13 +31,18 @@ jobs:
   # (do not set AM_BWRAPPED here - that would disable it).
   make_check:
     name: make check
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split the configs into two VMs (each with 4 cores). The 'all' config
+        # below is the long pole and takes roughly 19 min, and the rest of the
+        # configs can complete in under that when run in parallel. There is
+        # nothing to gain (currently) by adding another VM/shard.
+        shard: [1, 2]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction. The
-    # configs alone take ~14 min of wall time on the 4 CPUs of a standard
-    # runner, so this leaves room for a cold cache rather than just clearing
-    # the warm case.
-    timeout-minutes: 30
+    # Generous for a cold ccache; warm reruns finish in a fraction of this.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -54,6 +59,7 @@ jobs:
         uses: ./.github/actions/ccache-setup
         with:
           workflow-id: cryptocb-only
+          config-hash: shard-${{ matrix.shard }}
           read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 200M
 
@@ -127,25 +133,41 @@ jobs:
           {"name": "curve448-no-ed448", "minutes": 4.0,
            "comment": "Same as curve448 but with ed448 off. ed448 is the only other user of the fe448 math, so without it the strip is complete and nothing must pull the math back in. The curve448 entry above keeps ed448 enabled, which leaves fe_448.c compiled and would hide such a regression at link time.",
            "configure": ["--disable-ed448", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
-          {"name": "curve448-onlycb-no-swdev", "minutes": 2.5,
+          {"name": "curve448-onlycb-no-swdev", "minutes": 0.7,
            "comment": "CB_ONLY_CURVE448 without swdev: runs curve448_onlycb_test, the only coverage of the cb-handled/cb-delegated (exampleVar 99/1) dispatch incl. make_pub/generic. cryptonly drops TLS so make check needs no software X448 provider.",
            "configure": ["--disable-swdev", "--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
-          {"name": "slhdsa", "minutes": 6,
+          {"name": "seed-onlycb-no-swdev", "minutes": 3,
+           "comment": "NO_DEV_RANDOM with cryptocb selects the callback-only wc_GenerateSeed(), and the other seed sources are switched off, so the crypto callback is the only way to seed a DRBG. WOLF_CRYPTO_CB_SEED_ONLY_TEST is a test.c switch: it registers a seed-only device and runs the whole suite through it, which fails any RNG set up without a devId. No swdev: its WOLF_CRYPTO_CB_FIND would resolve INVALID_DEVID to a device and hide exactly that. cryptonly because the unit tests and examples register no seed device. rng-extras and rng-bank pull in the bank, next-seed and pool seed paths.",
+           "configure": ["--disable-swdev", "--enable-cryptonly", "--enable-rng-extras", "--enable-rng-bank", "--disable-intelrand", "--disable-amdrand", "--disable-entropy-memuse", "CPPFLAGS=-DNO_DEV_RANDOM -DWOLF_CRYPTO_CB_SEED_ONLY_TEST"]},
+          {"name": "no-hashdrbg-cb-rng", "minutes": 4,
+           "comment": "No DRBG, so the crypto callback is the only generator, and wc_RNG_GenerateBlock() hands every request to it. The test callback answers a no-DRBG RNG request by drawing a seed, which lands back in its own fake seed, and RSA keygen in the crypto callback test runs on that fake. This entry catches a fake seed that repeats prime candidates (the byte counter from #11517 wedged keygen at 100% CPU). No DH because wc_DhSetKey() creates an RNG with INVALID_DEVID for its primality check, which has no generator in this build and fails before the crypto callback test runs. cryptonly because TLS creates RNGs the same way. No swdev so its device-find hook does not change devId lookups. The base's --enable-hashdrbg and --enable-dh are overridden by the later disables.",
+           "configure": ["--disable-swdev", "--enable-cryptonly", "--disable-hashdrbg", "--disable-dh"]},
+          {"name": "slhdsa", "minutes": 18,
            "comment": "WOLF_CRYPTO_CB_ONLY_SLHDSA: strips software SLH-DSA (hashes, WOTS+, XMSS, hypertree, FORS); swdev provides the software path via cryptocb. slhdsa is enabled per-entry rather than in the base because signing the 's' parameter sets is slow and only this entry and 'all' need it.",
            "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
           {"name": "slhdsa-verify-only", "minutes": 2,
            "comment": "Same strip with signing compiled out (WOLFSSL_SLHDSA_VERIFY_ONLY). swdev has to build against the verify-only header, which omits key generation, signing and CheckKey, and the dispatcher has to stop offering those operations. Verification alone is quick, so this costs little beside the 'slhdsa' entry above.",
            "configure": ["--enable-slhdsa=yes,sha2,verify-only", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
-          {"name": "all", "minutes": 7,
+          {"name": "falcon-onlycb-no-swdev", "minutes": 1.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_FALCON without swdev, which has no Falcon handlers: builds the Falcon key API that a callback-only build keeps, including its TLS and ASN callers, and runs the tests that need no device.",
+           "configure": ["--disable-swdev", "--enable-falcon", "--enable-experimental", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_FALCON"]},
+          {"name": "shake-xof", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_SHAKE_XOF: swdev handles SHAKE absorb and squeeze. No ONLY_* strip exists for SHAKE, so software SHAKE stays in. ML-KEM and ML-DSA reach swdev_shake through WOLF_CRYPTO_CB_FIND, and cryptocb_test runs shake_cb_xof_test.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_SHAKE_XOF"]},
+          {"name": "all", "minutes": 19,
            "comment": "All nine ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
            "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448 -DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
           {"name": "only", "minutes": 4.0,
            "comment": "Same coverage as the \"all\" entry above, but driven by ./configure --enable-cryptocb=only instead of a hand-written CPPFLAGS list. This is the regression test for the configure option: it must emit exactly the WOLF_CRYPTO_CB_ONLY_* set that \"all\" passes by hand, for the algorithms this base enables. The \"all\" entry deliberately stays on explicit CPPFLAGS so a bug in the configure logic cannot silently weaken both. Note the base already passes --enable-cryptocb; this entry's flags are appended after the base, so --enable-cryptocb=only wins.",
-           "configure": ["--enable-cryptocb=only"]}
+           "configure": ["--enable-cryptocb=only"]},
+          {"name": "setkey", "minutes": 4.0,
+           "comment": "--enable-cryptocbutils enables all cryptocb utilities (COPY/FREE/SETKEY/EXPORT_KEY/KEYSTORE); WOLF_CRYPTO_CB_SETKEY is what lets test_wc_CryptoCb_TLS_CBC_HMAC run -- a TLS 1.2 CBC MtE handshake whose record HMAC is computed by a key-owning callback, the only config exercising the TLS_hmac update/final routing. No ONLY_* strip, so the device's software HMAC keeps its providers.",
+           "configure": ["--enable-cryptocbutils"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --private-dir=certs \
             "$RUNNER_TEMP/cryptocb-only-configs.json"
 
@@ -158,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           retention-days: 7
-          name: cryptocb-only-logs
+          name: cryptocb-only-logs-${{ matrix.shard }}
           path: |
             build-*/make-check.log
             build-*/test-suite.log

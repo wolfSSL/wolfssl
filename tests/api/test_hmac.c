@@ -984,7 +984,8 @@ int test_wc_HmacInit_Id(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID) && \
-    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_KCAPI)
     Hmac hmac;
     byte id[HMAC_MAX_ID_LEN];
     int i;
@@ -1039,7 +1040,9 @@ int test_wc_HmacInit_Id(void)
 int test_wc_HmacInit_Label(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_KCAPI)
     Hmac hmac;
     char longLabel[HMAC_MAX_LABEL_LEN + 2];
     int i;

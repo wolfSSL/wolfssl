@@ -14,7 +14,11 @@
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
 #              ("" leaves CC entirely to configure / the environment)
-#   cflags     CFLAGS for make, overriding --cflags
+#   cflags     CFLAGS for make, replacing the ones configure chose and
+#              overriding --cflags
+#   extra_cflags  CFLAGS added to the ones configure chose rather than
+#              replacing them, overriding --extra-cflags ("" opts out of
+#              the --extra-cflags default)
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
@@ -86,6 +90,12 @@
 # in-flight ones get SIGTERM, then SIGKILL after a 10 s grace period) so CI
 # fails fast; pass --no-fail-fast to run everything and report every
 # failure.
+#
+# --timeout bounds each config's own wall time. Without it a wedged config
+# runs until the CI job's timeout-minutes kills the whole job, which loses
+# every other config's result and skips any "upload logs on failure" step,
+# since a job timeout cancels rather than fails. With it only the wedged
+# config dies, as a failure, and its make-check.log is still reported.
 
 from __future__ import annotations
 
@@ -104,16 +114,20 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NoReturn
 
-# cflags/ldflags are applied at make time only (never to ./configure) so
+# The flags below are applied at make time only (never to ./configure) so
 # autoconf feature detection is not poisoned by benign warnings in
 # conftest probes. They are omitted entirely when empty so a plain config
-# keeps the configure-chosen defaults.
+# keeps the configure-chosen defaults. "cflags" replaces what configure
+# chose, which drops wolfSSL's own warning set (configure puts -Wall
+# -Wextra and the rest in CFLAGS); "extra_cflags" adds to it instead,
+# since Makefile.am appends EXTRA_CFLAGS to AM_CFLAGS.
 @dataclass
 class Config:
     name: str
     configure: list[str] = field(default_factory=list)
     cc: str = ""
     cflags: str = ""
+    extra_cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
     user_settings: str = ""
@@ -182,6 +196,27 @@ def abort_others() -> None:
         time.sleep(0.2)
 
 
+def wait_bounded(p: subprocess.Popen,
+                 deadline: float | None) -> tuple[int, bool]:
+    # Wait for p, but no longer than deadline (a time.monotonic() value;
+    # None waits forever). On expiry kill the process group like
+    # abort_others() does - SIGTERM, then SIGKILL after a 10 s grace - so a
+    # test that traps SIGTERM cannot outlive its timeout. Returns the exit
+    # status and whether the deadline ended the wait.
+    if deadline is None:
+        return p.wait(), False
+    try:
+        return p.wait(timeout=max(0.0, deadline - time.monotonic())), False
+    except subprocess.TimeoutExpired:
+        kill_group(p, signal.SIGTERM)
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            kill_group(p, signal.SIGKILL)
+            p.wait()
+        return -1, True
+
+
 def nproc() -> int:
     # Like nproc(1): CPUs usable by this process, falling back to all online.
     try:
@@ -191,9 +226,9 @@ def nproc() -> int:
 
 
 # Every recognized config key (and every key allowed inside "base").
-CONFIG_KEYS = {"name", "configure", "cc", "cflags", "ldflags", "minutes",
-               "user_settings", "check", "prepare", "run", "comment",
-               "build", "netns", "shards"}
+CONFIG_KEYS = {"name", "configure", "cc", "cflags", "extra_cflags",
+               "ldflags", "minutes", "user_settings", "check", "prepare",
+               "run", "comment", "build", "netns", "shards"}
 # List-valued keys are concatenated (base first) when merging "base" into a
 # config; every other key is a default the config overrides.
 MERGE_LIST_KEYS = ("configure", "prepare", "run")
@@ -270,7 +305,7 @@ def load_configs(opts: argparse.Namespace,
                 and all(isinstance(a, str) for a in configure)):
             error(f"{opts.json}: \"configure\" must be a list of argument "
                   f"strings in {name!r}")
-        for key in ("cflags", "ldflags"):
+        for key in ("cflags", "extra_cflags", "ldflags"):
             if not isinstance(entry.get(key, ""), str):
                 error(f"{opts.json}: \"{key}\" must be a string in {name!r}")
         minutes = entry.get("minutes", 1.0)
@@ -304,6 +339,7 @@ def load_configs(opts: argparse.Namespace,
                       f"in {name!r}")
         configs.append(Config(name, list(configure), cc,
                               entry.get("cflags", opts.cflags),
+                              entry.get("extra_cflags", opts.extra_cflags),
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
                               list(entry.get("prepare", [])),
@@ -402,6 +438,7 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     if cfg.cc:
         configure.append(f"CC={cfg.cc}")
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
+    flags += [f"EXTRA_CFLAGS={cfg.extra_cflags}"] if cfg.extra_cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
     # No -j here: wolfSSL's configure enables make's jobserver by default
     # (AX_AM_JOBSERVER adds AM_MAKEFLAGS += -j<nproc+1>), and that explicit
@@ -438,6 +475,9 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
              if cfg.netns and BWRAP else [])
     failed: str | None = None
     start = time.monotonic()
+    # Budget for the whole step sequence, not per step: the total is what
+    # has to stay under the CI job's timeout-minutes.
+    deadline = start + opts.timeout * 60 if opts.timeout else None
     log = bdir / "make-check.log"
 
     def record_failure(step: str) -> str:
@@ -489,10 +529,15 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                 except subprocess.TimeoutExpired:
                     kill_group(proc, signal.SIGKILL)
             try:
-                rc = proc.wait()
+                rc, timed_out = wait_bounded(proc, deadline)
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
+            if timed_out:
+                print(f"+ killed: {step} exceeded --timeout={opts.timeout:g} "
+                      f"min", file=logf, flush=True)
+                failed = record_failure(f"timeout in {step}")
+                break
             if rc != 0:
                 failed = record_failure(step)
                 break
@@ -606,12 +651,24 @@ def main() -> int:
                         "pending configs are skipped and in-flight ones "
                         "killed (--no-fail-fast runs everything and "
                         "reports every failure)")
+    p.add_argument("--timeout", type=float, default=0, metavar="MINUTES",
+                   help="kill a config that has run this long and report it "
+                        "as a failure, instead of letting it wedge until the "
+                        "CI job's own timeout takes down the whole job and "
+                        "every other config's result with it (default: 0, "
+                        "no limit). Set it well above the slowest config's "
+                        "normal time - this catches hangs, not slowness")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None,
                    help="compiler passed to configure as CC= for configs "
                         "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",
                    help="CFLAGS for configs that do not set their own")
+    p.add_argument("--extra-cflags", default="",
+                   help="CFLAGS added to the ones configure chose, for "
+                        "configs that do not set their own "
+                        "\"extra_cflags\": keeps wolfSSL's warning set in "
+                        "force instead of replacing it like --cflags")
     p.add_argument("--ldflags", default="",
                    help="LDFLAGS for configs that do not set their own")
     p.add_argument("--private-dir", action="append", default=[],
@@ -625,6 +682,8 @@ def main() -> int:
                         "still populates ccache, which is the point when "
                         "seeding a shared cache on a schedule")
     opts = p.parse_args()
+    if opts.timeout < 0:
+        p.error("--timeout must be a non-negative number of minutes")
 
     all_configs = load_configs(opts, p.error)
     if opts.build_only:

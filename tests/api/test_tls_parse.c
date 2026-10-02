@@ -304,7 +304,9 @@ int test_TLSX_ALPN_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Response direction, nothing configured on this client at all:
      * ALPN_find_match()'s extension == NULL path. */
@@ -319,7 +321,9 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Response direction, two protocol names instead of the one RFC 7301
      * Section 3.1 allows in a response. */
@@ -336,7 +340,9 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Request direction: server parses and stores a client_hello ALPN
      * list. Exercises TLSX_ALPN_ParseAndSet()'s length bookkeeping (shared
@@ -377,7 +383,9 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ctx = test_tls_parse_server_ctx(wolfTLSv1_2_server_method());
     ExpectNotNull(ctx);
@@ -393,7 +401,9 @@ int test_TLSX_ALPN_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -629,7 +639,9 @@ int test_TLSX_Cookie_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef WOLFSSL_DTLS13
     /* DTLS 1.3: a cookie in client_hello with none stored yet and no
@@ -646,7 +658,9 @@ int test_TLSX_Cookie_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 #endif
     return EXPECT_RESULT();
@@ -988,7 +1002,7 @@ int test_TLSX_SupportedVersions_parse(void)
      * WOLFSSL_LOCAL: called directly (guarded). */
 #if defined(WOLFSSL_TLS13) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)  && !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + MAX_SV_EXT_LEN];
@@ -1395,7 +1409,7 @@ int test_TLSX_CSR_parse(void)
 #endif
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     {
         WOLFSSL_CTX* ctx2 = test_tls_parse_server_ctx(
                 wolfTLSv1_2_server_method());
@@ -1449,13 +1463,23 @@ int test_TLSX_CSR_parse(void)
 int test_TLSX_PointFormat_parse(void)
 {
     EXPECT_DECLS;
+#if (defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+     defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_NO_TLS12)) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
+     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+     (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+     ((!defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)) || \
+      defined(HAVE_CURVE25519)))
+    byte ext[16];
+    word16 extLen;
+#endif
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte ext[16];
-    word16 extLen;
 
     ctx = test_tls_parse_server_ctx(wolfTLSv1_2_server_method());
     ExpectNotNull(ctx);
@@ -1490,7 +1514,8 @@ int test_TLSX_PointFormat_parse(void)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* TLSX_SupportedCurve_Preferred(): checkSupported gating and the
      * TLSX_IsGroupSupported() result, driven by a raw (unfiltered) offered
      * groups list -- TLSX_SupportedCurve_Parse() records whatever the peer
@@ -1557,7 +1582,8 @@ int test_TLSX_PointFormat_parse(void)
 #endif
 
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* TLSX_PointFormat_ValidateResponse(): reached while sizing/writing a
      * ServerHello, through the WOLFSSL_LOCAL TLSX_GetResponseSize() rather
      * than TLSX_Parse() (there is no wire input on this side). A cipher
@@ -2204,7 +2230,7 @@ int test_TLSX_KeyShare_negotiate(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2915,7 +2941,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but our own side has a real key too: both operands
      * false, and the exchange actually completes. */
@@ -2954,7 +2982,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "ret == 0" itself: an invalid peer value is rejected before our own
      * key is ever looked at, independent of whether one was generated. */
@@ -2982,7 +3012,9 @@ int test_TLSX_KeyShare_process(void)
                     WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE25519 */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
@@ -3021,7 +3053,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -3058,7 +3092,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "ret == 0" itself: an invalid (wrong-length) peer value is rejected
      * while importing it, before our own key is ever looked at. */
@@ -3083,7 +3119,9 @@ int test_TLSX_KeyShare_process(void)
                     WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 #if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
@@ -3128,7 +3166,9 @@ int test_TLSX_KeyShare_process(void)
         ExpectIntEQ(TLSX_KeyShare_DeriveSecret(ssl), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -3163,7 +3203,9 @@ int test_TLSX_KeyShare_process(void)
         ExpectIntEQ(TLSX_KeyShare_DeriveSecret(ssl), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 #endif
     return EXPECT_RESULT();
