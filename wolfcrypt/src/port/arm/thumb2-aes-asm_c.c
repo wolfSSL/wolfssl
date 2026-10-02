@@ -53,6 +53,14 @@
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
+/* Blocks must be inlined when registers are not assigned to
+ * variables as the block functions take values in registers
+ * that are not parameter registers. */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+#undef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+#define WOLFSSL_ARMASM_AES_BLOCK_INLINE
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+
 #ifdef HAVE_AES_DECRYPT
 XALIGNED(8) static const word32 L_AES_Thumb2_td_data[] = {
     0x5051f4a7, 0x537e4165, 0xc31a17a4, 0x963a275e,
@@ -219,25 +227,31 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
     register word32* L_AES_Thumb2_td_c __asm__ ("r3") =
         (word32*)L_AES_Thumb2_td;
 #else
-    register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
-    register word32* L_AES_Thumb2_td_c = (word32*)L_AES_Thumb2_td;
+    void* L_asm_args[4] = {(void*)(size_t)ks, (void*)(size_t)rounds,
+        (void*)(size_t)L_AES_Thumb2_te, (void*)(size_t)L_AES_Thumb2_td
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r12, %[L_AES_Thumb2_te]\n\t"
-        "MOV	lr, %[L_AES_Thumb2_td]\n\t"
-        "ADD	r10, %[ks], %[rounds], LSL #4\n\t"
-        "MOV	r11, %[rounds]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	r12, r2\n\t"
+        "MOV	lr, r3\n\t"
+        "ADD	r10, r0, r1, LSL #4\n\t"
+        "MOV	r11, r1\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_AES_invert_key_loop:\n\t"
 #else
     "L_AES_invert_key_loop_%=:\n\t"
 #endif
-        "LDM	%[ks], {r2, r3, r4, r5}\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "LDM	r10, {r6, r7, r8, r9}\n\t"
         "STM	r10, {r2, r3, r4, r5}\n\t"
-        "STM	%[ks]!, {r6, r7, r8, r9}\n\t"
+        "STM	r0!, {r6, r7, r8, r9}\n\t"
         "SUBS	r11, r11, #2\n\t"
         "SUB	r10, r10, #16\n\t"
 #if defined(__GNUC__)
@@ -247,16 +261,16 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
 #else
         "BNE.N	L_AES_invert_key_loop_%=\n\t"
 #endif
-        "SUB	%[ks], %[ks], %[rounds], LSL #3\n\t"
-        "ADD	%[ks], %[ks], #16\n\t"
-        "SUB	r11, %[rounds], #1\n\t"
+        "SUB	r0, r0, r1, LSL #3\n\t"
+        "ADD	r0, r0, #16\n\t"
+        "SUB	r11, r1, #1\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_AES_invert_key_mix_loop:\n\t"
 #else
     "L_AES_invert_key_mix_loop_%=:\n\t"
 #endif
-        "LDM	%[ks], {r2, r3, r4, r5}\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
         "UBFX	r6, r2, #0, #8\n\t"
         "UBFX	r7, r2, #8, #8\n\t"
         "UBFX	r8, r2, #16, #8\n\t"
@@ -272,7 +286,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "EOR	r8, r8, r6, ROR #16\n\t"
         "EOR	r8, r8, r7, ROR #8\n\t"
         "EOR	r8, r8, r9, ROR #24\n\t"
-        "STR	r8, [%[ks]], #4\n\t"
+        "STR	r8, [r0], #4\n\t"
         "UBFX	r6, r3, #0, #8\n\t"
         "UBFX	r7, r3, #8, #8\n\t"
         "UBFX	r8, r3, #16, #8\n\t"
@@ -288,7 +302,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "EOR	r8, r8, r6, ROR #16\n\t"
         "EOR	r8, r8, r7, ROR #8\n\t"
         "EOR	r8, r8, r9, ROR #24\n\t"
-        "STR	r8, [%[ks]], #4\n\t"
+        "STR	r8, [r0], #4\n\t"
         "UBFX	r6, r4, #0, #8\n\t"
         "UBFX	r7, r4, #8, #8\n\t"
         "UBFX	r8, r4, #16, #8\n\t"
@@ -304,7 +318,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "EOR	r8, r8, r6, ROR #16\n\t"
         "EOR	r8, r8, r7, ROR #8\n\t"
         "EOR	r8, r8, r9, ROR #24\n\t"
-        "STR	r8, [%[ks]], #4\n\t"
+        "STR	r8, [r0], #4\n\t"
         "UBFX	r6, r5, #0, #8\n\t"
         "UBFX	r7, r5, #8, #8\n\t"
         "UBFX	r8, r5, #16, #8\n\t"
@@ -320,7 +334,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "EOR	r8, r8, r6, ROR #16\n\t"
         "EOR	r8, r8, r7, ROR #8\n\t"
         "EOR	r8, r8, r9, ROR #24\n\t"
-        "STR	r8, [%[ks]], #4\n\t"
+        "STR	r8, [r0], #4\n\t"
         "SUBS	r11, r11, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_invert_key_mix_loop_%=\n\t"
@@ -329,20 +343,28 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
 #else
         "BNE.W	L_AES_invert_key_mix_loop_%=\n\t"
 #endif
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ks] "+r" (ks), [rounds] "+r" (rounds),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c),
           [L_AES_Thumb2_td] "+r" (L_AES_Thumb2_td_c)
         :
-#else
-        :
-        : [ks] "r" (ks), [rounds] "r" (rounds),
-          [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te_c),
-          [L_AES_Thumb2_td] "r" (L_AES_Thumb2_td_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    ks = (unsigned char*)(size_t)L_asm_args[0];
+    rounds = (word32)(size_t)L_asm_args[1];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AES_DECRYPT */
@@ -372,15 +394,26 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
     register word32* L_AES_Thumb2_rcon_c __asm__ ("r4") =
         (word32*)&L_AES_Thumb2_rcon;
 #else
-    register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
-    register word32* L_AES_Thumb2_rcon_c = (word32*)&L_AES_Thumb2_rcon;
+    void* L_asm_args[5] = {(void*)(size_t)key, (void*)(size_t)len,
+        (void*)(size_t)ks, (void*)(size_t)L_AES_Thumb2_te,
+        (void*)(size_t)&L_AES_Thumb2_rcon
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_rcon]}\n\t"
-        "MOV	r10, %[L_AES_Thumb2_te]\n\t"
-        "MOV	lr, %[L_AES_Thumb2_rcon]\n\t"
-        "CMP	%[len], #0x80\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	r10, r3\n\t"
+        "MOV	lr, r4\n\t"
+        "CMP	r1, #0x80\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_set_encrypt_key_start_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -388,7 +421,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
         "BEQ.W	L_AES_set_encrypt_key_start_128_%=\n\t"
 #endif
-        "CMP	%[len], #0xc0\n\t"
+        "CMP	r1, #0xc0\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_set_encrypt_key_start_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -396,25 +429,25 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
         "BEQ.W	L_AES_set_encrypt_key_start_192_%=\n\t"
 #endif
-        "LDR	r4, [%[key]]\n\t"
-        "LDR	r5, [%[key], #4]\n\t"
-        "LDR	r6, [%[key], #8]\n\t"
-        "LDR	r7, [%[key], #12]\n\t"
+        "LDR	r4, [r0]\n\t"
+        "LDR	r5, [r0, #4]\n\t"
+        "LDR	r6, [r0, #8]\n\t"
+        "LDR	r7, [r0, #12]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STM	%[ks]!, {r4, r5, r6, r7}\n\t"
-        "LDR	r4, [%[key], #16]\n\t"
-        "LDR	r5, [%[key], #20]\n\t"
-        "LDR	r6, [%[key], #24]\n\t"
-        "LDR	r7, [%[key], #28]\n\t"
+        "STM	r2!, {r4, r5, r6, r7}\n\t"
+        "LDR	r4, [r0, #16]\n\t"
+        "LDR	r5, [r0, #20]\n\t"
+        "LDR	r6, [r0, #24]\n\t"
+        "LDR	r7, [r0, #28]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
-        "SUB	%[ks], %[ks], #16\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
+        "SUB	r2, r2, #16\n\t"
         "MOV	r12, #6\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -433,16 +466,16 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r7, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7}\n\t"
         "EOR	r4, r4, r3\n\t"
         "LDM	lr!, {r3}\n\t"
         "EOR	r4, r4, r3\n\t"
         "EOR	r5, r5, r4\n\t"
         "EOR	r6, r6, r5\n\t"
         "EOR	r7, r7, r6\n\t"
-        "ADD	%[ks], %[ks], #16\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
-        "SUB	%[ks], %[ks], #16\n\t"
+        "ADD	r2, r2, #16\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
+        "SUB	r2, r2, #16\n\t"
         "UBFX	r4, r7, #8, #8\n\t"
         "UBFX	r5, r7, #16, #8\n\t"
         "LSR	r6, r7, #24\n\t"
@@ -454,14 +487,14 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r3, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7}\n\t"
         "EOR	r4, r4, r3\n\t"
         "EOR	r5, r5, r4\n\t"
         "EOR	r6, r6, r5\n\t"
         "EOR	r7, r7, r6\n\t"
-        "ADD	%[ks], %[ks], #16\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
-        "SUB	%[ks], %[ks], #16\n\t"
+        "ADD	r2, r2, #16\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
+        "SUB	r2, r2, #16\n\t"
         "SUBS	r12, r12, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_set_encrypt_key_loop_256_%=\n\t"
@@ -481,16 +514,16 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r7, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7}\n\t"
         "EOR	r4, r4, r3\n\t"
         "LDM	lr!, {r3}\n\t"
         "EOR	r4, r4, r3\n\t"
         "EOR	r5, r5, r4\n\t"
         "EOR	r6, r6, r5\n\t"
         "EOR	r7, r7, r6\n\t"
-        "ADD	%[ks], %[ks], #16\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
-        "SUB	%[ks], %[ks], #16\n\t"
+        "ADD	r2, r2, #16\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
+        "SUB	r2, r2, #16\n\t"
 #if defined(__GNUC__)
         "B	L_AES_set_encrypt_key_end_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -504,20 +537,20 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
     "L_AES_set_encrypt_key_start_192_%=:\n\t"
 #endif
-        "LDR	r4, [%[key]]\n\t"
-        "LDR	r5, [%[key], #4]\n\t"
-        "LDR	r6, [%[key], #8]\n\t"
-        "LDR	r7, [%[key], #12]\n\t"
-        "LDR	r8, [%[key], #16]\n\t"
-        "LDR	r9, [%[key], #20]\n\t"
+        "LDR	r4, [r0]\n\t"
+        "LDR	r5, [r0, #4]\n\t"
+        "LDR	r6, [r0, #8]\n\t"
+        "LDR	r7, [r0, #12]\n\t"
+        "LDR	r8, [r0, #16]\n\t"
+        "LDR	r9, [r0, #20]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "REV	r8, r8\n\t"
         "REV	r9, r9\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
-        "STRD	r8, r9, [%[ks], #16]\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
+        "STRD	r8, r9, [r2, #16]\n\t"
         "MOV	r7, r9\n\t"
         "MOV	r12, #7\n\t"
         "\n"
@@ -537,7 +570,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r9, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7, r8, r9}\n\t"
         "EOR	r4, r4, r3\n\t"
         "LDM	lr!, {r3}\n\t"
         "EOR	r4, r4, r3\n\t"
@@ -546,7 +579,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r7, r7, r6\n\t"
         "EOR	r8, r8, r7\n\t"
         "EOR	r9, r9, r8\n\t"
-        "STM	%[ks], {r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	r2, {r4, r5, r6, r7, r8, r9}\n\t"
         "SUBS	r12, r12, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_set_encrypt_key_loop_192_%=\n\t"
@@ -566,14 +599,14 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r9, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7, r8, r9}\n\t"
         "EOR	r4, r4, r3\n\t"
         "LDM	lr!, {r3}\n\t"
         "EOR	r4, r4, r3\n\t"
         "EOR	r5, r5, r4\n\t"
         "EOR	r6, r6, r5\n\t"
         "EOR	r7, r7, r6\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
 #if defined(__GNUC__)
         "B	L_AES_set_encrypt_key_end_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -587,15 +620,15 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
     "L_AES_set_encrypt_key_start_128_%=:\n\t"
 #endif
-        "LDR	r4, [%[key]]\n\t"
-        "LDR	r5, [%[key], #4]\n\t"
-        "LDR	r6, [%[key], #8]\n\t"
-        "LDR	r7, [%[key], #12]\n\t"
+        "LDR	r4, [r0]\n\t"
+        "LDR	r5, [r0, #4]\n\t"
+        "LDR	r6, [r0, #8]\n\t"
+        "LDR	r7, [r0, #12]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
         "MOV	r12, #10\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -614,14 +647,14 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "EOR	r3, r7, r4, LSL #8\n\t"
         "EOR	r3, r3, r5, LSL #16\n\t"
         "EOR	r3, r3, r6, LSL #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r2!, {r4, r5, r6, r7}\n\t"
         "EOR	r4, r4, r3\n\t"
         "LDM	lr!, {r3}\n\t"
         "EOR	r4, r4, r3\n\t"
         "EOR	r5, r5, r4\n\t"
         "EOR	r6, r6, r5\n\t"
         "EOR	r7, r7, r6\n\t"
-        "STM	%[ks], {r4, r5, r6, r7}\n\t"
+        "STM	r2, {r4, r5, r6, r7}\n\t"
         "SUBS	r12, r12, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_set_encrypt_key_loop_128_%=\n\t"
@@ -636,20 +669,33 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
     "L_AES_set_encrypt_key_end_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_AES_Thumb2_rcon]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c),
           [L_AES_Thumb2_rcon] "+r" (L_AES_Thumb2_rcon_c)
         :
-#else
-        :
-        : [key] "r" (key), [len] "r" (len), [ks] "r" (ks),
-          [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te_c),
-          [L_AES_Thumb2_rcon] "r" (L_AES_Thumb2_rcon_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    key = (const unsigned char*)(size_t)L_asm_args[0];
+    len = (word32)(size_t)L_asm_args[1];
+    ks = (unsigned char*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
@@ -681,10 +727,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	r11, r4, #24\n\t"
         "UBFX	lr, r6, #8, #8\n\t"
         "UBFX	r2, r7, #0, #8\n\t"
-        "LDR	r8, [%[te], r8, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r8, [r0, r8, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r9, r6, #16, #8\n\t"
         "EOR	r8, r8, r11, ROR #24\n\t"
         "LSR	r11, r5, #24\n\t"
@@ -692,10 +738,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r7, #8, #8\n\t"
         "EOR	r8, r8, r2, ROR #16\n\t"
         "UBFX	r2, r4, #0, #8\n\t"
-        "LDR	r9, [%[te], r9, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r9, [r0, r9, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r10, r7, #16, #8\n\t"
         "EOR	r9, r9, r11, ROR #24\n\t"
         "LSR	r11, r6, #24\n\t"
@@ -703,10 +749,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r4, #8, #8\n\t"
         "EOR	r9, r9, r2, ROR #16\n\t"
         "UBFX	r2, r5, #0, #8\n\t"
-        "LDR	r10, [%[te], r10, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r10, [r0, r10, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r6, r6, #0, #8\n\t"
         "EOR	r10, r10, r11, ROR #24\n\t"
         "UBFX	r11, r4, #16, #8\n\t"
@@ -714,12 +760,12 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	lr, r7, #24\n\t"
         "EOR	r10, r10, r2, ROR #16\n\t"
         "UBFX	r2, r5, #8, #8\n\t"
-        "LDR	r6, [%[te], r6, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r6, [r0, r6, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -731,10 +777,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	r7, r8, #24\n\t"
         "UBFX	lr, r10, #8, #8\n\t"
         "UBFX	r2, r11, #0, #8\n\t"
-        "LDR	r4, [%[te], r4, LSL #2]\n\t"
-        "LDR	r7, [%[te], r7, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r4, [r0, r4, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r5, r10, #16, #8\n\t"
         "EOR	r4, r4, r7, ROR #24\n\t"
         "LSR	r7, r9, #24\n\t"
@@ -742,10 +788,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r11, #8, #8\n\t"
         "EOR	r4, r4, r2, ROR #16\n\t"
         "UBFX	r2, r8, #0, #8\n\t"
-        "LDR	r5, [%[te], r5, LSL #2]\n\t"
-        "LDR	r7, [%[te], r7, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r5, [r0, r5, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r6, r11, #16, #8\n\t"
         "EOR	r5, r5, r7, ROR #24\n\t"
         "LSR	r7, r10, #24\n\t"
@@ -753,10 +799,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r8, #8, #8\n\t"
         "EOR	r5, r5, r2, ROR #16\n\t"
         "UBFX	r2, r9, #0, #8\n\t"
-        "LDR	r6, [%[te], r6, LSL #2]\n\t"
-        "LDR	r7, [%[te], r7, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r6, [r0, r6, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r10, r10, #0, #8\n\t"
         "EOR	r6, r6, r7, ROR #24\n\t"
         "UBFX	r7, r8, #16, #8\n\t"
@@ -764,12 +810,12 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	lr, r11, #24\n\t"
         "EOR	r6, r6, r2, ROR #16\n\t"
         "UBFX	r2, r9, #8, #8\n\t"
-        "LDR	r10, [%[te], r10, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r7, [%[te], r7, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r10, [r0, r10, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -777,7 +823,7 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "SUBS	%[nr], %[nr], #1\n\t"
+        "SUBS	r1, r1, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_encrypt_block_nr_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -789,10 +835,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	r11, r4, #24\n\t"
         "UBFX	lr, r6, #8, #8\n\t"
         "UBFX	r2, r7, #0, #8\n\t"
-        "LDR	r8, [%[te], r8, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r8, [r0, r8, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r9, r6, #16, #8\n\t"
         "EOR	r8, r8, r11, ROR #24\n\t"
         "LSR	r11, r5, #24\n\t"
@@ -800,10 +846,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r7, #8, #8\n\t"
         "EOR	r8, r8, r2, ROR #16\n\t"
         "UBFX	r2, r4, #0, #8\n\t"
-        "LDR	r9, [%[te], r9, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r9, [r0, r9, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r10, r7, #16, #8\n\t"
         "EOR	r9, r9, r11, ROR #24\n\t"
         "LSR	r11, r6, #24\n\t"
@@ -811,10 +857,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r4, #8, #8\n\t"
         "EOR	r9, r9, r2, ROR #16\n\t"
         "UBFX	r2, r5, #0, #8\n\t"
-        "LDR	r10, [%[te], r10, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r10, [r0, r10, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r6, r6, #0, #8\n\t"
         "EOR	r10, r10, r11, ROR #24\n\t"
         "UBFX	r11, r4, #16, #8\n\t"
@@ -822,12 +868,12 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "LSR	lr, r7, #24\n\t"
         "EOR	r10, r10, r2, ROR #16\n\t"
         "UBFX	r2, r5, #8, #8\n\t"
-        "LDR	r6, [%[te], r6, LSL #2]\n\t"
-        "LDR	lr, [%[te], lr, LSL #2]\n\t"
-        "LDR	r11, [%[te], r11, LSL #2]\n\t"
-        "LDR	r2, [%[te], r2, LSL #2]\n\t"
+        "LDR	r6, [r0, r6, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -839,10 +885,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	r7, r10, #8, #8\n\t"
         "UBFX	lr, r9, #16, #8\n\t"
         "LSR	r2, r8, #24\n\t"
-        "LDRB	r4, [%[te], r4, LSL #2]\n\t"
-        "LDRB	r7, [%[te], r7, LSL #2]\n\t"
-        "LDRB	lr, [%[te], lr, LSL #2]\n\t"
-        "LDRB	r2, [%[te], r2, LSL #2]\n\t"
+        "LDRB	r4, [r0, r4, LSL #2]\n\t"
+        "LDRB	r7, [r0, r7, LSL #2]\n\t"
+        "LDRB	lr, [r0, lr, LSL #2]\n\t"
+        "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r5, r8, #0, #8\n\t"
         "EOR	r4, r4, r7, LSL #8\n\t"
         "UBFX	r7, r11, #8, #8\n\t"
@@ -850,10 +896,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r10, #16, #8\n\t"
         "EOR	r4, r4, r2, LSL #24\n\t"
         "LSR	r2, r9, #24\n\t"
-        "LDRB	r5, [%[te], r5, LSL #2]\n\t"
-        "LDRB	r7, [%[te], r7, LSL #2]\n\t"
-        "LDRB	lr, [%[te], lr, LSL #2]\n\t"
-        "LDRB	r2, [%[te], r2, LSL #2]\n\t"
+        "LDRB	r5, [r0, r5, LSL #2]\n\t"
+        "LDRB	r7, [r0, r7, LSL #2]\n\t"
+        "LDRB	lr, [r0, lr, LSL #2]\n\t"
+        "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "UBFX	r6, r9, #0, #8\n\t"
         "EOR	r5, r5, r7, LSL #8\n\t"
         "UBFX	r7, r8, #8, #8\n\t"
@@ -861,10 +907,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r11, #16, #8\n\t"
         "EOR	r5, r5, r2, LSL #24\n\t"
         "LSR	r2, r10, #24\n\t"
-        "LDRB	r6, [%[te], r6, LSL #2]\n\t"
-        "LDRB	r7, [%[te], r7, LSL #2]\n\t"
-        "LDRB	lr, [%[te], lr, LSL #2]\n\t"
-        "LDRB	r2, [%[te], r2, LSL #2]\n\t"
+        "LDRB	r6, [r0, r6, LSL #2]\n\t"
+        "LDRB	r7, [r0, r7, LSL #2]\n\t"
+        "LDRB	lr, [r0, lr, LSL #2]\n\t"
+        "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "LSR	r11, r11, #24\n\t"
         "EOR	r6, r6, r7, LSL #8\n\t"
         "UBFX	r7, r10, #0, #8\n\t"
@@ -872,12 +918,12 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
         "UBFX	lr, r9, #8, #8\n\t"
         "EOR	r6, r6, r2, LSL #24\n\t"
         "UBFX	r2, r8, #16, #8\n\t"
-        "LDRB	r11, [%[te], r11, LSL #2]\n\t"
-        "LDRB	r7, [%[te], r7, LSL #2]\n\t"
-        "LDRB	lr, [%[te], lr, LSL #2]\n\t"
-        "LDRB	r2, [%[te], r2, LSL #2]\n\t"
+        "LDRB	r11, [r0, r11, LSL #2]\n\t"
+        "LDRB	r7, [r0, r7, LSL #2]\n\t"
+        "LDRB	lr, [r0, lr, LSL #2]\n\t"
+        "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -927,15 +973,27 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_te_ecb;
 #else
-    register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
+    void* L_asm_args[6] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)L_AES_Thumb2_te_ecb
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[nr], %[L_AES_Thumb2_te_ecb]}\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
+#else
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r5\n\t"
         "LDR	r12, [sp]\n\t"
-        "PUSH	{%[ks]}\n\t"
+        "PUSH	{r3}\n\t"
         "CMP	r12, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_ECB_encrypt_start_block_128_%=\n\t"
@@ -966,8 +1024,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -1025,7 +1083,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1075,7 +1133,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1133,7 +1191,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1183,7 +1241,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -1192,19 +1250,19 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_encrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -1239,8 +1297,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -1298,7 +1356,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1348,7 +1406,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1406,7 +1464,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1456,7 +1514,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -1465,19 +1523,19 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_encrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -1512,8 +1570,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -1571,7 +1629,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1621,7 +1679,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1679,7 +1737,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1729,7 +1787,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -1738,19 +1796,19 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_encrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -1764,19 +1822,35 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
 #else
     "L_AES_ECB_encrypt_end_%=:\n\t"
 #endif
-        "POP	{%[ks]}\n\t"
+        "POP	{r3}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[L_AES_Thumb2_te_ecb]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
@@ -1807,18 +1881,31 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ecb;
 #else
-    register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
+    void* L_asm_args[7] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)iv, (void*)(size_t)L_AES_Thumb2_te_ecb
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_te_ecb]}\n\t"
         "PUSH	{%[nr], %[iv]}\n\t"
+#else
+        "PUSH	{r6}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r8, [sp]\n\t"
         "LDR	r9, [sp, #4]\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r6\n\t"
         "LDM	r9, {r4, r5, r6, r7}\n\t"
-        "PUSH	{%[ks], r9}\n\t"
+        "PUSH	{r3, r9}\n\t"
         "CMP	r8, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CBC_encrypt_start_block_128_%=\n\t"
@@ -1849,8 +1936,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -1912,7 +1999,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -1962,7 +2049,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2020,7 +2107,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2070,7 +2157,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -2079,19 +2166,19 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_encrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2126,8 +2213,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -2189,7 +2276,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2239,7 +2326,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2297,7 +2384,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2347,7 +2434,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -2356,19 +2443,19 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_encrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2403,8 +2490,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "PUSH	{r1, %[len], lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -2466,7 +2553,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2516,7 +2603,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2574,7 +2661,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2624,7 +2711,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -2633,19 +2720,19 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_encrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2659,23 +2746,40 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
 #else
     "L_AES_CBC_encrypt_end_%=:\n\t"
 #endif
-        "POP	{%[ks], r9}\n\t"
+        "POP	{r3, r9}\n\t"
         "STM	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[iv]}\n\t"
         "POP	{%[L_AES_Thumb2_te_ecb]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [iv] "r" (iv),
-          [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+    iv = (unsigned char*)(size_t)L_asm_args[5];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AES_CBC */
@@ -2706,23 +2810,36 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
     register word32* L_AES_Thumb2_te_ctr_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ctr;
 #else
-    register word32* L_AES_Thumb2_te_ctr_c = (word32*)L_AES_Thumb2_te_ctr;
+    void* L_asm_args[7] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)ctr, (void*)(size_t)L_AES_Thumb2_te_ctr
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_te_ctr]}\n\t"
         "PUSH	{%[nr], %[ctr]}\n\t"
+#else
+        "PUSH	{r6}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r12, [sp]\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_te_ctr]\n\t"
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r6\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
-        "PUSH	{%[ks], r8}\n\t"
+        "PUSH	{r3, r8}\n\t"
         "CMP	r12, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CTR_encrypt_start_block_128_%=\n\t"
@@ -2745,14 +2862,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #else
     "L_AES_CTR_encrypt_loop_block_256_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #1\n\t"
         "ADCS	r10, r6, #0\n\t"
         "ADCS	r9, r5, #0\n\t"
         "ADC	r8, r4, #0\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -2810,7 +2927,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2860,7 +2977,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2918,7 +3035,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -2968,7 +3085,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -2977,8 +3094,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -2992,14 +3109,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CTR_encrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3026,14 +3143,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #else
     "L_AES_CTR_encrypt_loop_block_192_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #1\n\t"
         "ADCS	r10, r6, #0\n\t"
         "ADCS	r9, r5, #0\n\t"
         "ADC	r8, r4, #0\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -3091,7 +3208,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3141,7 +3258,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3199,7 +3316,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3249,7 +3366,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -3258,8 +3375,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -3273,14 +3390,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CTR_encrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3307,14 +3424,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #else
     "L_AES_CTR_encrypt_loop_block_128_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #1\n\t"
         "ADCS	r10, r6, #0\n\t"
         "ADCS	r9, r5, #0\n\t"
         "ADC	r8, r4, #0\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -3372,7 +3489,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3422,7 +3539,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3480,7 +3597,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -3530,7 +3647,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -3539,8 +3656,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -3554,14 +3671,14 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CTR_encrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3575,27 +3692,44 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #else
     "L_AES_CTR_encrypt_end_%=:\n\t"
 #endif
-        "POP	{%[ks], r8}\n\t"
+        "POP	{r3, r8}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[ctr]}\n\t"
         "POP	{%[L_AES_Thumb2_te_ctr]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_ctr] "+r" (L_AES_Thumb2_te_ctr_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [ctr] "r" (ctr),
-          [L_AES_Thumb2_te_ctr] "r" (L_AES_Thumb2_te_ctr_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+    ctr = (unsigned char*)(size_t)L_asm_args[5];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_AES_COUNTER */
@@ -3629,10 +3763,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r11, r4, #24\n\t"
         "UBFX	r12, r6, #8, #8\n\t"
         "UBFX	lr, r5, #0, #8\n\t"
-        "LDR	r8, [%[td], r8, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r8, [r0, r8, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r9, r4, #16, #8\n\t"
         "EOR	r8, r8, r11, ROR #24\n\t"
         "LSR	r11, r5, #24\n\t"
@@ -3640,10 +3774,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r7, #8, #8\n\t"
         "EOR	r8, r8, lr, ROR #16\n\t"
         "UBFX	lr, r6, #0, #8\n\t"
-        "LDR	r9, [%[td], r9, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r9, [r0, r9, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r10, r5, #16, #8\n\t"
         "EOR	r9, r9, r11, ROR #24\n\t"
         "LSR	r11, r6, #24\n\t"
@@ -3651,10 +3785,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r4, #8, #8\n\t"
         "EOR	r9, r9, lr, ROR #16\n\t"
         "UBFX	lr, r7, #0, #8\n\t"
-        "LDR	r10, [%[td], r10, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r10, [r0, r10, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r4, r4, #0, #8\n\t"
         "EOR	r10, r10, r11, ROR #24\n\t"
         "UBFX	r11, r6, #16, #8\n\t"
@@ -3662,10 +3796,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r12, r7, #24\n\t"
         "EOR	r10, r10, lr, ROR #16\n\t"
         "UBFX	lr, r5, #8, #8\n\t"
-        "LDR	r4, [%[td], r4, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r4, [r0, r4, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
         "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
@@ -3679,10 +3813,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r7, r8, #24\n\t"
         "UBFX	r12, r10, #8, #8\n\t"
         "UBFX	lr, r9, #0, #8\n\t"
-        "LDR	r4, [%[td], r4, LSL #2]\n\t"
-        "LDR	r7, [%[td], r7, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r4, [r0, r4, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r5, r8, #16, #8\n\t"
         "EOR	r4, r4, r7, ROR #24\n\t"
         "LSR	r7, r9, #24\n\t"
@@ -3690,10 +3824,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r11, #8, #8\n\t"
         "EOR	r4, r4, lr, ROR #16\n\t"
         "UBFX	lr, r10, #0, #8\n\t"
-        "LDR	r5, [%[td], r5, LSL #2]\n\t"
-        "LDR	r7, [%[td], r7, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r5, [r0, r5, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r6, r9, #16, #8\n\t"
         "EOR	r5, r5, r7, ROR #24\n\t"
         "LSR	r7, r10, #24\n\t"
@@ -3701,10 +3835,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r8, #8, #8\n\t"
         "EOR	r5, r5, lr, ROR #16\n\t"
         "UBFX	lr, r11, #0, #8\n\t"
-        "LDR	r6, [%[td], r6, LSL #2]\n\t"
-        "LDR	r7, [%[td], r7, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r6, [r0, r6, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r8, r8, #0, #8\n\t"
         "EOR	r6, r6, r7, ROR #24\n\t"
         "UBFX	r7, r10, #16, #8\n\t"
@@ -3712,10 +3846,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r12, r11, #24\n\t"
         "EOR	r6, r6, lr, ROR #16\n\t"
         "UBFX	lr, r9, #8, #8\n\t"
-        "LDR	r8, [%[td], r8, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	r7, [%[td], r7, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r8, [r0, r8, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	r7, [r0, r7, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
         "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
@@ -3725,7 +3859,7 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "SUBS	%[nr], %[nr], #1\n\t"
+        "SUBS	r1, r1, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_decrypt_block_nr_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3737,10 +3871,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r11, r4, #24\n\t"
         "UBFX	r12, r6, #8, #8\n\t"
         "UBFX	lr, r5, #0, #8\n\t"
-        "LDR	r8, [%[td], r8, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r8, [r0, r8, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r9, r4, #16, #8\n\t"
         "EOR	r8, r8, r11, ROR #24\n\t"
         "LSR	r11, r5, #24\n\t"
@@ -3748,10 +3882,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r7, #8, #8\n\t"
         "EOR	r8, r8, lr, ROR #16\n\t"
         "UBFX	lr, r6, #0, #8\n\t"
-        "LDR	r9, [%[td], r9, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r9, [r0, r9, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r10, r5, #16, #8\n\t"
         "EOR	r9, r9, r11, ROR #24\n\t"
         "LSR	r11, r6, #24\n\t"
@@ -3759,10 +3893,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r4, #8, #8\n\t"
         "EOR	r9, r9, lr, ROR #16\n\t"
         "UBFX	lr, r7, #0, #8\n\t"
-        "LDR	r10, [%[td], r10, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r10, [r0, r10, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "UBFX	r4, r4, #0, #8\n\t"
         "EOR	r10, r10, r11, ROR #24\n\t"
         "UBFX	r11, r6, #16, #8\n\t"
@@ -3770,10 +3904,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "LSR	r12, r7, #24\n\t"
         "EOR	r10, r10, lr, ROR #16\n\t"
         "UBFX	lr, r5, #8, #8\n\t"
-        "LDR	r4, [%[td], r4, LSL #2]\n\t"
-        "LDR	r12, [%[td], r12, LSL #2]\n\t"
-        "LDR	r11, [%[td], r11, LSL #2]\n\t"
-        "LDR	lr, [%[td], lr, LSL #2]\n\t"
+        "LDR	r4, [r0, r4, LSL #2]\n\t"
+        "LDR	r12, [r0, r12, LSL #2]\n\t"
+        "LDR	r11, [r0, r11, LSL #2]\n\t"
+        "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
         "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
@@ -3787,10 +3921,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r7, r10, #8, #8\n\t"
         "UBFX	r12, r11, #16, #8\n\t"
         "LSR	lr, r8, #24\n\t"
-        "LDRB	r4, [%[td4], r4]\n\t"
-        "LDRB	r7, [%[td4], r7]\n\t"
-        "LDRB	r12, [%[td4], r12]\n\t"
-        "LDRB	lr, [%[td4], lr]\n\t"
+        "LDRB	r4, [r2, r4]\n\t"
+        "LDRB	r7, [r2, r7]\n\t"
+        "LDRB	r12, [r2, r12]\n\t"
+        "LDRB	lr, [r2, lr]\n\t"
         "UBFX	r5, r10, #0, #8\n\t"
         "EOR	r4, r4, r7, LSL #8\n\t"
         "UBFX	r7, r11, #8, #8\n\t"
@@ -3798,10 +3932,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r8, #16, #8\n\t"
         "EOR	r4, r4, lr, LSL #24\n\t"
         "LSR	lr, r9, #24\n\t"
-        "LDRB	r7, [%[td4], r7]\n\t"
-        "LDRB	lr, [%[td4], lr]\n\t"
-        "LDRB	r5, [%[td4], r5]\n\t"
-        "LDRB	r12, [%[td4], r12]\n\t"
+        "LDRB	r7, [r2, r7]\n\t"
+        "LDRB	lr, [r2, lr]\n\t"
+        "LDRB	r5, [r2, r5]\n\t"
+        "LDRB	r12, [r2, r12]\n\t"
         "UBFX	r6, r11, #0, #8\n\t"
         "EOR	r5, r5, r7, LSL #8\n\t"
         "UBFX	r7, r8, #8, #8\n\t"
@@ -3809,10 +3943,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r9, #16, #8\n\t"
         "EOR	r5, r5, lr, LSL #24\n\t"
         "LSR	lr, r10, #24\n\t"
-        "LDRB	r7, [%[td4], r7]\n\t"
-        "LDRB	lr, [%[td4], lr]\n\t"
-        "LDRB	r6, [%[td4], r6]\n\t"
-        "LDRB	r12, [%[td4], r12]\n\t"
+        "LDRB	r7, [r2, r7]\n\t"
+        "LDRB	lr, [r2, lr]\n\t"
+        "LDRB	r6, [r2, r6]\n\t"
+        "LDRB	r12, [r2, r12]\n\t"
         "LSR	r11, r11, #24\n\t"
         "EOR	r6, r6, r7, LSL #8\n\t"
         "UBFX	r7, r8, #0, #8\n\t"
@@ -3820,10 +3954,10 @@ WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
         "UBFX	r12, r9, #8, #8\n\t"
         "EOR	r6, r6, lr, LSL #24\n\t"
         "UBFX	lr, r10, #16, #8\n\t"
-        "LDRB	r11, [%[td4], r11]\n\t"
-        "LDRB	r12, [%[td4], r12]\n\t"
-        "LDRB	r7, [%[td4], r7]\n\t"
-        "LDRB	lr, [%[td4], lr]\n\t"
+        "LDRB	r11, [r2, r11]\n\t"
+        "LDRB	r12, [r2, r12]\n\t"
+        "LDRB	r7, [r2, r7]\n\t"
+        "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
         "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
@@ -3907,18 +4041,30 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
     register word8* L_AES_Thumb2_td4_c __asm__ ("r6") =
         (word8*)&L_AES_Thumb2_td4;
 #else
-    register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
-    register word8* L_AES_Thumb2_td4_c = (word8*)&L_AES_Thumb2_td4;
+    void* L_asm_args[7] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)L_AES_Thumb2_td_ecb, (void*)(size_t)&L_AES_Thumb2_td4
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_td4]}\n\t"
         "PUSH	{%[nr], %[L_AES_Thumb2_td_ecb]}\n\t"
+#else
+        "PUSH	{r6}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r8, [sp]\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
-        "MOV	r12, %[len]\n\t"
-        "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r5\n\t"
+        "MOV	r12, r2\n\t"
+        "MOV	r2, r6\n\t"
         "CMP	r8, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_ECB_decrypt_start_block_128_%=\n\t"
@@ -3949,8 +4095,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[ks], r12, lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r3, r12, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -4008,7 +4154,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4058,7 +4204,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4116,7 +4262,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4166,7 +4312,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -4175,18 +4321,18 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[ks], r12, lr}\n\t"
+        "POP	{r1, r3, r12, lr}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_decrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -4221,8 +4367,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[ks], r12, lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r3, r12, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -4280,7 +4426,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4330,7 +4476,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4388,7 +4534,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4438,7 +4584,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -4447,18 +4593,18 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[ks], r12, lr}\n\t"
+        "POP	{r1, r3, r12, lr}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_decrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -4493,8 +4639,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "PUSH	{r1, %[ks], r12, lr}\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "PUSH	{r1, r3, r12, lr}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -4552,7 +4698,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4602,7 +4748,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4660,7 +4806,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4710,7 +4856,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -4719,18 +4865,18 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[ks], r12, lr}\n\t"
+        "POP	{r1, r3, r12, lr}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -4744,21 +4890,37 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
 #else
     "L_AES_ECB_decrypt_end_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[L_AES_Thumb2_td_ecb]}\n\t"
         "POP	{%[L_AES_Thumb2_td4]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c),
           [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb_c),
-          [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
@@ -4790,20 +4952,33 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
     register word8* L_AES_Thumb2_td4_c __asm__ ("r7") =
         (word8*)&L_AES_Thumb2_td4;
 #else
-    register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
-    register word8* L_AES_Thumb2_td4_c = (word8*)&L_AES_Thumb2_td4;
+    void* L_asm_args[8] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)iv, (void*)(size_t)L_AES_Thumb2_td_ecb,
+        (void*)(size_t)&L_AES_Thumb2_td4
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_td_ecb], %[L_AES_Thumb2_td4]}\n\t"
         "PUSH	{%[nr], %[iv]}\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
-        "MOV	r12, %[len]\n\t"
-        "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
+#else
+        "PUSH	{r6, r7}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r6\n\t"
+        "MOV	r12, r2\n\t"
+        "MOV	r2, r7\n\t"
         "LDR	r8, [sp]\n\t"
         "LDR	r4, [sp, #4]\n\t"
-        "PUSH	{%[ks], r4}\n\t"
+        "PUSH	{r3, r4}\n\t"
         "CMP	r8, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
@@ -4834,7 +5009,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr, #16]\n\t"
         "STRD	r6, r7, [lr, #24]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -4896,7 +5071,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -4946,7 +5121,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5004,7 +5179,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5054,7 +5229,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -5070,18 +5245,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "REV	r7, r7\n\t"
         "LDM	lr, {r8, r9, r10, r11}\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -5097,7 +5272,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr]\n\t"
         "STRD	r6, r7, [lr, #8]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -5159,7 +5334,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5209,7 +5384,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5267,7 +5442,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5317,7 +5492,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -5334,18 +5509,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRD	r8, r9, [lr, #16]\n\t"
         "LDRD	r10, r11, [lr, #24]\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_decrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -5374,7 +5549,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr, #16]\n\t"
         "STRD	r6, r7, [lr, #24]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -5436,7 +5611,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5486,7 +5661,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5544,7 +5719,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5594,7 +5769,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -5610,18 +5785,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "REV	r7, r7\n\t"
         "LDM	lr, {r8, r9, r10, r11}\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -5637,7 +5812,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr]\n\t"
         "STRD	r6, r7, [lr, #8]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -5699,7 +5874,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5749,7 +5924,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5807,7 +5982,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -5857,7 +6032,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -5874,18 +6049,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRD	r8, r9, [lr, #16]\n\t"
         "LDRD	r10, r11, [lr, #24]\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -5914,7 +6089,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr, #16]\n\t"
         "STRD	r6, r7, [lr, #24]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -5976,7 +6151,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6026,7 +6201,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6084,7 +6259,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6134,7 +6309,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -6150,18 +6325,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "REV	r7, r7\n\t"
         "LDM	lr, {r8, r9, r10, r11}\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -6177,7 +6352,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	lr, [sp, #16]\n\t"
         "STRD	r4, r5, [lr]\n\t"
         "STRD	r6, r7, [lr, #8]\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -6239,7 +6414,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6289,7 +6464,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r8, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #8\n\t"
         "EOR	r7, r7, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6347,7 +6522,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	lr, [r0, lr, LSL #2]\n\t"
         "EOR	r12, r12, r4, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #8\n\t"
         "EOR	r11, r11, r12, ROR #24\n\t"
         /*   XOR in Key Schedule */
@@ -6397,7 +6572,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRB	r7, [r2, r7]\n\t"
         "LDRB	lr, [r2, lr]\n\t"
         "EOR	r12, r12, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, r12, LSL #8\n\t"
         "EOR	r7, r7, lr, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -6414,18 +6589,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "LDRD	r8, r9, [lr, #16]\n\t"
         "LDRD	r10, r11, [lr, #24]\n\t"
         "POP	{r1, r12, lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "LDR	r3, [sp]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "SUBS	r12, r12, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -6457,24 +6632,40 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
 #else
     "L_AES_CBC_decrypt_end_%=:\n\t"
 #endif
-        "POP	{%[ks], r4}\n\t"
+        "POP	{r3, r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[iv]}\n\t"
         "POP	{%[L_AES_Thumb2_td_ecb], %[L_AES_Thumb2_td4]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6, r7}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c),
           [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [iv] "r" (iv),
-          [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb_c),
-          [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+    iv = (unsigned char*)(size_t)L_asm_args[5];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AES_CBC */
@@ -6510,12 +6701,24 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
     register word32* L_GCM_gmult_len_r_c __asm__ ("r4") =
         (word32*)&L_GCM_gmult_len_r;
 #else
-    register word32* L_GCM_gmult_len_r_c = (word32*)&L_GCM_gmult_len_r;
+    void* L_asm_args[5] = {(void*)(size_t)x, (void*)(size_t)m,
+        (void*)(size_t)data, (void*)(size_t)len,
+        (void*)(size_t)&L_GCM_gmult_len_r
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_GCM_gmult_len_r]}\n\t"
-        "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	lr, r4\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_GCM_gmult_len_start_block:\n\t"
@@ -6524,512 +6727,512 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #endif
         "PUSH	{r3}\n\t"
         "LDR	r12, [r0, #12]\n\t"
-        "LDR	%[len], [r2, #12]\n\t"
-        "EOR	r12, r12, %[len]\n\t"
-        "UBFX	%[len], r12, #24, #4\n\t"
-        "ADD	%[len], %[m], %[len], LSL #4\n\t"
-        "LDM	%[len], {r8, r9, r10, r11}\n\t"
+        "LDR	r3, [r2, #12]\n\t"
+        "EOR	r12, r12, r3\n\t"
+        "UBFX	r3, r12, #24, #4\n\t"
+        "ADD	r3, r1, r3, LSL #4\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #28, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #16, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #20, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #8, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #12, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "AND	r4, r12, #15\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #4, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "LDR	r12, [r0, #8]\n\t"
-        "LDR	%[len], [r2, #8]\n\t"
-        "EOR	r12, r12, %[len]\n\t"
-        "UBFX	%[len], r12, #24, #4\n\t"
-        "ADD	%[len], %[m], %[len], LSL #4\n\t"
-        "LDM	%[len], {r4, r5, r6, r7}\n\t"
+        "LDR	r3, [r2, #8]\n\t"
+        "EOR	r12, r12, r3\n\t"
+        "UBFX	r3, r12, #24, #4\n\t"
+        "ADD	r3, r1, r3, LSL #4\n\t"
+        "LDM	r3, {r4, r5, r6, r7}\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #28, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #16, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #20, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #8, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #12, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "AND	r4, r12, #15\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #4, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "LDR	r12, [r0, #4]\n\t"
-        "LDR	%[len], [r2, #4]\n\t"
-        "EOR	r12, r12, %[len]\n\t"
-        "UBFX	%[len], r12, #24, #4\n\t"
-        "ADD	%[len], %[m], %[len], LSL #4\n\t"
-        "LDM	%[len], {r4, r5, r6, r7}\n\t"
+        "LDR	r3, [r2, #4]\n\t"
+        "EOR	r12, r12, r3\n\t"
+        "UBFX	r3, r12, #24, #4\n\t"
+        "ADD	r3, r1, r3, LSL #4\n\t"
+        "LDM	r3, {r4, r5, r6, r7}\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #28, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #16, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #20, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #8, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #12, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "AND	r4, r12, #15\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #4, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "LDR	r12, [r0]\n\t"
-        "LDR	%[len], [r2]\n\t"
-        "EOR	r12, r12, %[len]\n\t"
-        "UBFX	%[len], r12, #24, #4\n\t"
-        "ADD	%[len], %[m], %[len], LSL #4\n\t"
-        "LDM	%[len], {r4, r5, r6, r7}\n\t"
+        "LDR	r3, [r2]\n\t"
+        "EOR	r12, r12, r3\n\t"
+        "UBFX	r3, r12, #24, #4\n\t"
+        "ADD	r3, r1, r3, LSL #4\n\t"
+        "LDM	r3, {r4, r5, r6, r7}\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #28, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #16, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #20, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #8, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #12, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "AND	r4, r12, #15\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
         "LSR	r6, r10, #4\n\t"
-        "AND	%[len], r11, #15\n\t"
+        "AND	r3, r11, #15\n\t"
         "LSR	r11, r11, #4\n\t"
         "UBFX	r4, r12, #4, #4\n\t"
         "EOR	r11, r11, r10, LSL #28\n\t"
-        "LDR	%[len], [lr, r3, LSL #2]\n\t"
-        "ADD	r4, %[m], r4, LSL #4\n\t"
+        "LDR	r3, [lr, r3, LSL #2]\n\t"
+        "ADD	r4, r1, r4, LSL #4\n\t"
         "EOR	r10, r6, r9, LSL #28\n\t"
         "LSR	r9, r9, #4\n\t"
         "LDM	r4, {r4, r5, r6, r7}\n\t"
         "EOR	r9, r9, r8, LSL #28\n\t"
-        "EOR	r8, %[len], r8, LSR #4\n\t"
+        "EOR	r8, r3, r8, LSR #4\n\t"
         "EOR	r8, r8, r4\n\t"
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
@@ -7038,10 +7241,10 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "REV	r9, r9\n\t"
         "REV	r10, r10\n\t"
         "REV	r11, r11\n\t"
-        "STM	%[x], {r8, r9, r10, r11}\n\t"
+        "STM	r0, {r8, r9, r10, r11}\n\t"
         "POP	{r3}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
-        "ADD	%[data], %[data], #16\n\t"
+        "SUBS	r3, r3, #16\n\t"
+        "ADD	r2, r2, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_GCM_gmult_len_start_block_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -7049,19 +7252,34 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #else
         "BNE.W	L_GCM_gmult_len_start_block_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_GCM_gmult_len_r]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
-#else
-        :
-        : [x] "r" (x), [m] "r" (m), [data] "r" (data), [len] "r" (len),
-          [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    x = (unsigned char*)(size_t)L_asm_args[0];
+    m = (const unsigned char**)(size_t)L_asm_args[1];
+    data = (const unsigned char*)(size_t)L_asm_args[2];
+    len = (unsigned long)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* !defined(GCM_SMALL) && !defined(GCM_TABLE) */
@@ -7153,42 +7371,54 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
     register word8* L_GCM_gmult_len_r_c __asm__ ("r4") =
         (word8*)&L_GCM_gmult_len_r;
 #else
-    register word8* L_GCM_gmult_len_r_c = (word8*)&L_GCM_gmult_len_r;
+    void* L_asm_args[5] = {(void*)(size_t)x, (void*)(size_t)m,
+        (void*)(size_t)data, (void*)(size_t)len,
+        (void*)(size_t)&L_GCM_gmult_len_r
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_GCM_gmult_len_r]}\n\t"
-        "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
+#else
+        "PUSH	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	lr, r4\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_GCM_gmult_len_start_block:\n\t"
 #else
     "L_GCM_gmult_len_start_block_%=:\n\t"
 #endif
-        "LDR	r4, [%[x]]\n\t"
-        "LDR	r5, [%[x], #4]\n\t"
-        "LDR	r6, [%[x], #8]\n\t"
-        "LDR	r7, [%[x], #12]\n\t"
-        "LDR	r8, [%[data]]\n\t"
-        "LDR	r9, [%[data], #4]\n\t"
-        "LDR	r10, [%[data], #8]\n\t"
-        "LDR	r11, [%[data], #12]\n\t"
+        "LDR	r4, [r0]\n\t"
+        "LDR	r5, [r0, #4]\n\t"
+        "LDR	r6, [r0, #8]\n\t"
+        "LDR	r7, [r0, #12]\n\t"
+        "LDR	r8, [r2]\n\t"
+        "LDR	r9, [r2, #4]\n\t"
+        "LDR	r10, [r2, #8]\n\t"
+        "LDR	r11, [r2, #12]\n\t"
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "STR	r4, [%[x]]\n\t"
-        "STR	r5, [%[x], #4]\n\t"
-        "STR	r6, [%[x], #8]\n\t"
-        "STR	r7, [%[x], #12]\n\t"
+        "STR	r4, [r0]\n\t"
+        "STR	r5, [r0, #4]\n\t"
+        "STR	r6, [r0, #8]\n\t"
+        "STR	r7, [r0, #12]\n\t"
         "MOV	r8, #0\n\t"
         "MOV	r9, #0\n\t"
         "MOV	r10, #0\n\t"
         "MOV	r11, #0\n\t"
         /* Byte 15 */
-        "ADD	r12, %[x], #15\n\t"
+        "ADD	r12, r0, #15\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7213,9 +7443,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 14 */
-        "ADD	r12, %[x], #14\n\t"
+        "ADD	r12, r0, #14\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7240,9 +7470,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 13 */
-        "ADD	r12, %[x], #13\n\t"
+        "ADD	r12, r0, #13\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7267,9 +7497,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 12 */
-        "ADD	r12, %[x], #12\n\t"
+        "ADD	r12, r0, #12\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7294,9 +7524,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 11 */
-        "ADD	r12, %[x], #11\n\t"
+        "ADD	r12, r0, #11\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7321,9 +7551,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 10 */
-        "ADD	r12, %[x], #10\n\t"
+        "ADD	r12, r0, #10\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7348,9 +7578,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 9 */
-        "ADD	r12, %[x], #9\n\t"
+        "ADD	r12, r0, #9\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7375,9 +7605,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 8 */
-        "ADD	r12, %[x], #8\n\t"
+        "ADD	r12, r0, #8\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7402,9 +7632,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 7 */
-        "ADD	r12, %[x], #7\n\t"
+        "ADD	r12, r0, #7\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7429,9 +7659,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 6 */
-        "ADD	r12, %[x], #6\n\t"
+        "ADD	r12, r0, #6\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7456,9 +7686,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 5 */
-        "ADD	r12, %[x], #5\n\t"
+        "ADD	r12, r0, #5\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7483,9 +7713,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 4 */
-        "ADD	r12, %[x], #4\n\t"
+        "ADD	r12, r0, #4\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7510,9 +7740,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 3 */
-        "ADD	r12, %[x], #3\n\t"
+        "ADD	r12, r0, #3\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7537,9 +7767,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 2 */
-        "ADD	r12, %[x], #2\n\t"
+        "ADD	r12, r0, #2\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7564,9 +7794,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 1 */
-        "ADD	r12, %[x], #1\n\t"
+        "ADD	r12, r0, #1\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7591,9 +7821,9 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ORR	r8, r8, r5, LSL #24\n\t"
         "EOR	r8, r8, r6, LSL #16\n\t"
         /* Byte 0 */
-        "ADD	r12, %[x], #0\n\t"
+        "ADD	r12, r0, #0\n\t"
         "LDRB	r12, [r12]\n\t"
-        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "ADD	r12, r1, r12, LSL #4\n\t"
         "LDM	r12, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -7607,12 +7837,12 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "REV	r9, r9\n\t"
         "REV	r10, r10\n\t"
         "REV	r11, r11\n\t"
-        "STR	r8, [%[x]]\n\t"
-        "STR	r9, [%[x], #4]\n\t"
-        "STR	r10, [%[x], #8]\n\t"
-        "STR	r11, [%[x], #12]\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
-        "ADD	%[data], %[data], #16\n\t"
+        "STR	r8, [r0]\n\t"
+        "STR	r9, [r0, #4]\n\t"
+        "STR	r10, [r0, #8]\n\t"
+        "STR	r11, [r0, #12]\n\t"
+        "SUBS	r3, r3, #16\n\t"
+        "ADD	r2, r2, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_GCM_gmult_len_start_block_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -7620,19 +7850,34 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #else
         "BNE.W	L_GCM_gmult_len_start_block_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_GCM_gmult_len_r]}\n\t"
+#else
+        "POP	{r4}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
-#else
-        :
-        : [x] "r" (x), [m] "r" (m), [data] "r" (data), [len] "r" (len),
-          [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    x = (unsigned char*)(size_t)L_asm_args[0];
+    m = (const unsigned char**)(size_t)L_asm_args[1];
+    data = (const unsigned char*)(size_t)L_asm_args[2];
+    len = (unsigned long)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* GCM_TABLE */
@@ -7662,23 +7907,36 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
     register word32* L_AES_Thumb2_te_gcm_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_gcm;
 #else
-    register word32* L_AES_Thumb2_te_gcm_c = (word32*)L_AES_Thumb2_te_gcm;
+    void* L_asm_args[7] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)len, (void*)(size_t)ks, (void*)(size_t)nr,
+        (void*)(size_t)ctr, (void*)(size_t)L_AES_Thumb2_te_gcm
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_te_gcm]}\n\t"
         "PUSH	{%[nr], %[ctr]}\n\t"
+#else
+        "PUSH	{r6}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r12, [sp]\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_Thumb2_te_gcm]\n\t"
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r6\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
-        "PUSH	{%[ks], r8}\n\t"
+        "PUSH	{r3, r8}\n\t"
         "CMP	r12, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_GCM_encrypt_start_block_128_%=\n\t"
@@ -7701,10 +7959,10 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
 #else
     "L_AES_GCM_encrypt_loop_block_256_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #1\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "STR	r7, [lr, #12]\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
@@ -7763,7 +8021,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -7813,7 +8071,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -7871,7 +8129,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -7921,7 +8179,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -7930,8 +8188,8 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -7945,14 +8203,14 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCM_encrypt_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -7979,10 +8237,10 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
 #else
     "L_AES_GCM_encrypt_loop_block_192_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #1\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "STR	r7, [lr, #12]\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
@@ -8041,7 +8299,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8091,7 +8349,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8149,7 +8407,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8199,7 +8457,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -8208,8 +8466,8 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -8223,14 +8481,14 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCM_encrypt_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -8257,10 +8515,10 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
 #else
     "L_AES_GCM_encrypt_loop_block_128_%=:\n\t"
 #endif
-        "PUSH	{r1, %[len], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #1\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "STR	r7, [lr, #12]\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
@@ -8319,7 +8577,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8369,7 +8627,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[ks]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8427,7 +8685,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[ks]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -8477,7 +8735,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[ks], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -8486,8 +8744,8 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[len], lr}\n\t"
-        "LDR	%[ks], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -8501,14 +8759,14 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[len], %[len], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCM_encrypt_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -8522,27 +8780,44 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
 #else
     "L_AES_GCM_encrypt_end_%=:\n\t"
 #endif
-        "POP	{%[ks], r8}\n\t"
+        "POP	{r3, r8}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[ctr]}\n\t"
         "POP	{%[L_AES_Thumb2_te_gcm]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_gcm] "+r" (L_AES_Thumb2_te_gcm_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [ctr] "r" (ctr),
-          [L_AES_Thumb2_te_gcm] "r" (L_AES_Thumb2_te_gcm_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    len = (unsigned long)(size_t)L_asm_args[2];
+    ks = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+    ctr = (unsigned char*)(size_t)L_asm_args[5];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AESGCM */
@@ -8574,15 +8849,26 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
     register word32* L_AES_GCMSIV_polyval_thumb2_r_c __asm__ ("r5") =
         (word32*)&L_AES_GCMSIV_polyval_thumb2_r;
 #else
-    register word32* L_AES_Thumb2_te_gcm_c = (word32*)L_AES_Thumb2_te_gcm;
-    register word32* L_AES_GCMSIV_polyval_thumb2_r_c =
-        (word32*)&L_AES_GCMSIV_polyval_thumb2_r;
+    void* L_asm_args[6] = {(void*)(size_t)s, (void*)(size_t)m,
+        (void*)(size_t)data, (void*)(size_t)blocks,
+        (void*)(size_t)L_AES_Thumb2_te_gcm,
+        (void*)(size_t)&L_AES_GCMSIV_polyval_thumb2_r
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_Thumb2_te_gcm], %[L_AES_GCMSIV_polyval_thumb2_r]}\n\t"
-        "MOV	r8, %[L_AES_GCMSIV_polyval_thumb2_r]\n\t"
-        "CMP	%[blocks], #0\n\t"
+#else
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "MOV	r8, r5\n\t"
+        "CMP	r3, #0\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_GCMSIV_polyval_thumb2_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -8596,33 +8882,33 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
 #else
     "L_AES_GCMSIV_polyval_thumb2_loop_%=:\n\t"
 #endif
-        "LDR	r12, [%[data], #12]\n\t"
+        "LDR	r12, [r2, #12]\n\t"
         "REV	r12, r12\n\t"
-        "LDR	r10, [%[s]]\n\t"
+        "LDR	r10, [r0]\n\t"
         "EOR	r10, r10, r12\n\t"
-        "STR	r10, [%[s]]\n\t"
-        "LDR	r12, [%[data], #8]\n\t"
+        "STR	r10, [r0]\n\t"
+        "LDR	r12, [r2, #8]\n\t"
         "REV	r12, r12\n\t"
-        "LDR	r10, [%[s], #4]\n\t"
+        "LDR	r10, [r0, #4]\n\t"
         "EOR	r10, r10, r12\n\t"
-        "STR	r10, [%[s], #4]\n\t"
-        "LDR	r12, [%[data], #4]\n\t"
+        "STR	r10, [r0, #4]\n\t"
+        "LDR	r12, [r2, #4]\n\t"
         "REV	r12, r12\n\t"
-        "LDR	r10, [%[s], #8]\n\t"
+        "LDR	r10, [r0, #8]\n\t"
         "EOR	r10, r10, r12\n\t"
-        "STR	r10, [%[s], #8]\n\t"
-        "LDR	r12, [%[data]]\n\t"
+        "STR	r10, [r0, #8]\n\t"
+        "LDR	r12, [r2]\n\t"
         "REV	r12, r12\n\t"
-        "LDR	r10, [%[s], #12]\n\t"
+        "LDR	r10, [r0, #12]\n\t"
         "EOR	r10, r10, r12\n\t"
-        "STR	r10, [%[s], #12]\n\t"
+        "STR	r10, [r0, #12]\n\t"
         "MOV	r4, #0\n\t"
         "MOV	r5, #0\n\t"
         "MOV	r6, #0\n\t"
         "MOV	r7, #0\n\t"
-        "LDR	r9, [%[s], #12]\n\t"
+        "LDR	r9, [r0, #12]\n\t"
         "UBFX	r10, r9, #24, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8642,7 +8928,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #28, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8662,7 +8948,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #16, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8682,7 +8968,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #20, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8702,7 +8988,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #8, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8722,7 +9008,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #12, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8742,7 +9028,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #0, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8762,7 +9048,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #4, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8781,9 +9067,9 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LSR	r5, r5, #4\n\t"
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
-        "LDR	r9, [%[s], #8]\n\t"
+        "LDR	r9, [r0, #8]\n\t"
         "UBFX	r10, r9, #24, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8803,7 +9089,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #28, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8823,7 +9109,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #16, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8843,7 +9129,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #20, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8863,7 +9149,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #8, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8883,7 +9169,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #12, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8903,7 +9189,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #0, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8923,7 +9209,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #4, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8942,9 +9228,9 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LSR	r5, r5, #4\n\t"
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
-        "LDR	r9, [%[s], #4]\n\t"
+        "LDR	r9, [r0, #4]\n\t"
         "UBFX	r10, r9, #24, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8964,7 +9250,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #28, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -8984,7 +9270,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #16, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9004,7 +9290,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #20, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9024,7 +9310,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #8, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9044,7 +9330,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #12, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9064,7 +9350,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #0, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9084,7 +9370,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #4, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9103,9 +9389,9 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LSR	r5, r5, #4\n\t"
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
-        "LDR	r9, [%[s]]\n\t"
+        "LDR	r9, [r0]\n\t"
         "UBFX	r10, r9, #24, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9125,7 +9411,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #28, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9145,7 +9431,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #16, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9165,7 +9451,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #20, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9185,7 +9471,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #8, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9205,7 +9491,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #12, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9225,7 +9511,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #0, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9245,7 +9531,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "LDR	r12, [r8, r10, LSL #2]\n\t"
         "EOR	r5, r5, r12\n\t"
         "UBFX	r10, r9, #4, #4\n\t"
-        "ADD	r11, %[m], r10, LSL #4\n\t"
+        "ADD	r11, r1, r10, LSL #4\n\t"
         "LDR	r12, [r11]\n\t"
         "EOR	r4, r4, r12\n\t"
         "LDR	r12, [r11, #4]\n\t"
@@ -9258,12 +9544,12 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
         "REV	r4, r4\n\t"
         "REV	r7, r7\n\t"
         "REV	r6, r6\n\t"
-        "STR	r5, [%[s]]\n\t"
-        "STR	r4, [%[s], #4]\n\t"
-        "STR	r7, [%[s], #8]\n\t"
-        "STR	r6, [%[s], #12]\n\t"
-        "SUBS	%[blocks], %[blocks], #1\n\t"
-        "ADD	%[data], %[data], #16\n\t"
+        "STR	r5, [r0]\n\t"
+        "STR	r4, [r0, #4]\n\t"
+        "STR	r7, [r0, #8]\n\t"
+        "STR	r6, [r0, #12]\n\t"
+        "SUBS	r3, r3, #1\n\t"
+        "ADD	r2, r2, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCMSIV_polyval_thumb2_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -9277,21 +9563,35 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
 #else
     "L_AES_GCMSIV_polyval_thumb2_done_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_AES_Thumb2_te_gcm], %[L_AES_GCMSIV_polyval_thumb2_r]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [m] "+r" (m), [data] "+r" (data),
           [blocks] "+r" (blocks),
           [L_AES_Thumb2_te_gcm] "+r" (L_AES_Thumb2_te_gcm_c),
           [L_AES_GCMSIV_polyval_thumb2_r] "+r" (L_AES_GCMSIV_polyval_thumb2_r_c)
         :
-#else
-        :
-        : [s] "r" (s), [m] "r" (m), [data] "r" (data), [blocks] "r" (blocks),
-          [L_AES_Thumb2_te_gcm] "r" (L_AES_Thumb2_te_gcm_c),
-          [L_AES_GCMSIV_polyval_thumb2_r] "r" (L_AES_GCMSIV_polyval_thumb2_r_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    s = (unsigned char*)(size_t)L_asm_args[0];
+    m = (const unsigned char*)(size_t)L_asm_args[1];
+    data = (const unsigned char*)(size_t)L_asm_args[2];
+    blocks = (unsigned int)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 XALIGNED(8) static const word32 L_AES_GCMSIV_ctr_thumb2_te_data[] = {
@@ -9384,24 +9684,36 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
     register word32* L_AES_GCMSIV_ctr_thumb2_te_c __asm__ ("r6") =
         (word32*)L_AES_GCMSIV_ctr_thumb2_te;
 #else
-    register word32* L_AES_GCMSIV_ctr_thumb2_te_c =
-        (word32*)L_AES_GCMSIV_ctr_thumb2_te;
+    void* L_asm_args[7] = {(void*)(size_t)in, (void*)(size_t)out,
+        (void*)(size_t)length, (void*)(size_t)KS, (void*)(size_t)nr,
+        (void*)(size_t)ctr, (void*)(size_t)L_AES_GCMSIV_ctr_thumb2_te
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_AES_GCMSIV_ctr_thumb2_te]}\n\t"
         "PUSH	{%[nr], %[ctr]}\n\t"
+#else
+        "PUSH	{r6}\n\t"
+        "PUSH	{r4, r5}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "LDR	r12, [sp]\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "MOV	lr, %[in]\n\t"
-        "MOV	r0, %[L_AES_GCMSIV_ctr_thumb2_te]\n\t"
+        "MOV	lr, r0\n\t"
+        "MOV	r0, r6\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
-        "PUSH	{%[KS], r8}\n\t"
+        "PUSH	{r3, r8}\n\t"
         "CMP	r12, #10\n\t"
 #if defined(__GNUC__)
         "BEQ	L_AES_GCMSIV_ctr_thumb2_start_block_128_%=\n\t"
@@ -9424,7 +9736,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 #else
     "L_AES_GCMSIV_ctr_thumb2_loop_block_256_%=:\n\t"
 #endif
-        "PUSH	{r1, %[length], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "REV	r8, r4\n\t"
         "ADD	r8, r8, #1\n\t"
@@ -9433,7 +9745,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "MOV	r10, r6\n\t"
         "MOV	r11, r7\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -9491,7 +9803,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9541,7 +9853,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9599,7 +9911,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9649,7 +9961,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[KS], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -9658,8 +9970,8 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[length], lr}\n\t"
-        "LDR	%[KS], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -9673,14 +9985,14 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[length], %[length], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_256_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -9707,7 +10019,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 #else
     "L_AES_GCMSIV_ctr_thumb2_loop_block_192_%=:\n\t"
 #endif
-        "PUSH	{r1, %[length], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "REV	r8, r4\n\t"
         "ADD	r8, r8, #1\n\t"
@@ -9716,7 +10028,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "MOV	r10, r6\n\t"
         "MOV	r11, r7\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -9774,7 +10086,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9824,7 +10136,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9882,7 +10194,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -9932,7 +10244,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[KS], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -9941,8 +10253,8 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[length], lr}\n\t"
-        "LDR	%[KS], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -9956,14 +10268,14 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[length], %[length], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_192_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -9990,7 +10302,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 #else
     "L_AES_GCMSIV_ctr_thumb2_loop_block_128_%=:\n\t"
 #endif
-        "PUSH	{r1, %[length], lr}\n\t"
+        "PUSH	{r1, r2, lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "REV	r8, r4\n\t"
         "ADD	r8, r8, #1\n\t"
@@ -9999,7 +10311,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "MOV	r10, r6\n\t"
         "MOV	r11, r7\n\t"
         "STM	lr, {r8, r9, r10, r11}\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         /* Round: 0 - XOR in key schedule */
         "EOR	r4, r4, r8\n\t"
         "EOR	r5, r5, r9\n\t"
@@ -10057,7 +10369,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -10107,7 +10419,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r7, [r0, r7, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r10, ROR #24\n\t"
-        "LDM	%[KS]!, {r8, r9, r10, r11}\n\t"
+        "LDM	r3!, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, ROR #24\n\t"
         "EOR	r7, r7, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -10165,7 +10477,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDR	r11, [r0, r11, LSL #2]\n\t"
         "LDR	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r6, ROR #24\n\t"
-        "LDM	%[KS]!, {r4, r5, r6, r7}\n\t"
+        "LDM	r3!, {r4, r5, r6, r7}\n\t"
         "EOR	r11, r11, lr, ROR #24\n\t"
         "EOR	r11, r11, r2, ROR #8\n\t"
         /*   XOR in Key Schedule */
@@ -10215,7 +10527,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "LDRB	lr, [r0, lr, LSL #2]\n\t"
         "LDRB	r2, [r0, r2, LSL #2]\n\t"
         "EOR	lr, lr, r11, LSL #16\n\t"
-        "LDM	%[KS], {r8, r9, r10, r11}\n\t"
+        "LDM	r3, {r8, r9, r10, r11}\n\t"
         "EOR	r7, r7, lr, LSL #8\n\t"
         "EOR	r7, r7, r2, LSL #16\n\t"
         /*   XOR in Key Schedule */
@@ -10224,8 +10536,8 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
-        "POP	{r1, %[length], lr}\n\t"
-        "LDR	%[KS], [sp]\n\t"
+        "POP	{r1, r2, lr}\n\t"
+        "LDR	r3, [sp]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -10239,14 +10551,14 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "LDR	r8, [sp, #4]\n\t"
-        "STR	r4, [%[out]]\n\t"
-        "STR	r5, [%[out], #4]\n\t"
-        "STR	r6, [%[out], #8]\n\t"
-        "STR	r7, [%[out], #12]\n\t"
+        "STR	r4, [r1]\n\t"
+        "STR	r5, [r1, #4]\n\t"
+        "STR	r6, [r1, #8]\n\t"
+        "STR	r7, [r1, #12]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
-        "SUBS	%[length], %[length], #16\n\t"
+        "SUBS	r2, r2, #16\n\t"
         "ADD	lr, lr, #16\n\t"
-        "ADD	%[out], %[out], #16\n\t"
+        "ADD	r1, r1, #16\n\t"
 #if defined(__GNUC__)
         "BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_128_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -10260,27 +10572,44 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 #else
     "L_AES_GCMSIV_ctr_thumb2_end_%=:\n\t"
 #endif
-        "POP	{%[KS], r8}\n\t"
+        "POP	{r3, r8}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[nr], %[ctr]}\n\t"
         "POP	{%[L_AES_GCMSIV_ctr_thumb2_te]}\n\t"
+#else
+        "POP	{r4, r5}\n\t"
+        "POP	{r6}\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4, r5, r6}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [length] "+r" (length),
           [KS] "+r" (KS), [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_GCMSIV_ctr_thumb2_te] "+r" (L_AES_GCMSIV_ctr_thumb2_te_c)
         :
-#else
-        :
-        : [in] "r" (in), [out] "r" (out), [length] "r" (length), [KS] "r" (KS),
-          [nr] "r" (nr), [ctr] "r" (ctr),
-          [L_AES_GCMSIV_ctr_thumb2_te] "r" (L_AES_GCMSIV_ctr_thumb2_te_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    in = (const unsigned char*)(size_t)L_asm_args[0];
+    out = (unsigned char*)(size_t)L_asm_args[1];
+    length = (unsigned long)(size_t)L_asm_args[2];
+    KS = (const unsigned char*)(size_t)L_asm_args[3];
+    nr = (int)(size_t)L_asm_args[4];
+    ctr = (unsigned char*)(size_t)L_asm_args[5];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_AESGCM_SIV */
