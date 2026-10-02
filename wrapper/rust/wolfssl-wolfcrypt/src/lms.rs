@@ -618,27 +618,90 @@ impl Lms {
         Ok(len as usize)
     }
 
-    /// Copy the public key from `src` into this key instance.
+    /// Export the public key into a new verify only `Lms` instance.
     ///
-    /// Both keys must have matching parameters. After a successful call,
-    /// this key can be used for verification.
+    /// The returned key holds this key's public key and parameter set, and is
+    /// marked verify only so it cannot be used for signing. The parameter set
+    /// comes along because it is needed to determine the signature length
+    /// before verifying. This key is left unchanged.
     ///
-    /// # Parameters
-    ///
-    /// * `src`: Source key to copy the public portion from.
+    /// The returned key inherits this key's heap hint and has no device
+    /// binding. Use [`Lms::export_pub_ex()`] to choose them.
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
-    pub fn export_pub_from(&mut self, src: &Lms) -> Result<(), i32> {
+    /// Returns either Ok(Lms) containing the new verify only key, or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // After make_key() or reload() on a signing key:
+    /// let mut verify_key = sign_key.export_pub().expect("Error with export_pub()");
+    /// verify_key.verify(&sig, message).expect("Error with verify()");
+    /// ```
+    pub fn export_pub(&self) -> Result<Lms, i32> {
+        let mut ws_key: MaybeUninit<sys::LmsKey> = MaybeUninit::uninit();
         let rc = unsafe {
-            sys::wc_LmsKey_ExportPub(&mut self.ws_key, &src.ws_key)
+            sys::wc_LmsKey_ExportPub(ws_key.as_mut_ptr(), &self.ws_key)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        let ws_key = unsafe { ws_key.assume_init() };
+        Ok(Lms { ws_key })
+    }
+
+    /// Export the public key into a new verify only `Lms` instance with an
+    /// explicit heap hint and device ID.
+    ///
+    /// Like [`Lms::export_pub()`], but the returned key is bound to `heap` and
+    /// `dev_id` instead of inheriting this key's heap hint.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint for the new key.
+    /// * `dev_id`: Optional device ID for the new key.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(Lms) containing the new verify only key, or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // After make_key() or reload() on a signing key:
+    /// let mut verify_key = sign_key.export_pub_ex(None, None)
+    ///     .expect("Error with export_pub_ex()");
+    /// ```
+    pub fn export_pub_ex(
+        &self,
+        heap: Option<*mut core::ffi::c_void>,
+        dev_id: Option<i32>,
+    ) -> Result<Lms, i32> {
+        let heap = match heap {
+            Some(h) => h,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(id) => id,
+            None => sys::INVALID_DEVID,
+        };
+        let mut ws_key: MaybeUninit<sys::LmsKey> = MaybeUninit::uninit();
+        let rc = unsafe {
+            sys::wc_LmsKey_ExportPub_ex(
+                ws_key.as_mut_ptr(),
+                &self.ws_key,
+                heap,
+                dev_id,
+            )
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let ws_key = unsafe { ws_key.assume_init() };
+        Ok(Lms { ws_key })
     }
 
     /// Export the raw public key bytes into `out`.

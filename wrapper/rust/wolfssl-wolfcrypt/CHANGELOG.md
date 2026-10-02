@@ -6,11 +6,16 @@ Breaking changes:
 
 - Curve25519Key::generate() now takes ownership of the RNG instead of borrowing
   it; the key holds the RNG for its lifetime
+- Replace Lms::export_pub_from() with Lms::export_pub(), which returns a new
+  verify only key instead of re-initializing an existing one; this fixes a leak
+  of the destination's private key data
 
 New features:
 
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
+- Add Lms::export_pub_ex() to set the heap hint and device ID of the exported
+  verify only key
 
 ## v2.2.0
 
