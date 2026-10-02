@@ -5104,3 +5104,69 @@ int test_wc_mlkem_decode_pubkey_refused_save(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A key reused for a decoded key must use the new key's matrix, not one cached
+ * from the key it held before. */
+int test_wc_mlkem_decode_reused_key(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    MlKemKey* kA = NULL;
+    MlKemKey* kB = NULL;
+    WC_RNG rng;
+    byte pkB[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte skB[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss1[WC_ML_KEM_SS_SZ];
+    byte ss2[WC_ML_KEM_SS_SZ];
+    word32 pubLen = 0;
+    word32 privLen = 0;
+    word32 ctLen = 0;
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(kB = (MlKemKey*)XMALLOC(sizeof(*kB), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlKemKey_Init(kA, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(kB, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kB, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(kB, &pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(kB, &privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(kB, &ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(kB, pkB, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(kB, skB, privLen), 0);
+
+    /* Public key into a made key: B must recover what A encapsulated. */
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kA, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(kA, pkB, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(kA, ct, ss1, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(kB, ss2, ct, ctLen), 0);
+    ExpectBufEQ(ss1, ss2, sizeof(ss1));
+
+    /* Private key into a made key: A must recover what B encapsulated. */
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kA, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(kA, skB, privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(kB, ct, ss1, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(kA, ss2, ct, ctLen), 0);
+    ExpectBufEQ(ss1, ss2, sizeof(ss1));
+
+    wc_MlKemKey_Free(kB);
+    wc_MlKemKey_Free(kA);
+    XFREE(kB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(kA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
