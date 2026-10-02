@@ -3197,8 +3197,13 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
           #endif
             wolfSSL_Atomic_Uint_Init(&rng->lock, initial_flags);
         }
-        else if (! (flags & WC_RNG_INIT_FLAG_PRESERVE_LOCK))
-            wolfSSL_Atomic_Uint_Init(&rng->lock, 0);
+        else if (! (flags & WC_RNG_INIT_FLAG_PRESERVE_LOCK)) {
+            wolfSSL_Atomic_Uint_Init(
+                &rng->lock,
+                (flags & WC_RNG_INIT_FLAG_LOCK_REQUIRED)
+                ? WC_RNG_LOCK_REQUIRED
+                : 0);
+        }
     }
     else
 #endif /* WC_RNG_HAVE_LOCK */
@@ -3530,6 +3535,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif /* WC_RNG_SEED_CB */
+            if (ret != 0) {
+                /* A verdict from the source survives here as it does on the
+                 * reseed path, so instantiate and reseed classify it alike. */
+                ret = ReseedSourceFailure(ret);
+            }
         }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -3545,9 +3555,6 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                 "ERROR: seed acquisition in _InitRng() failed with err %d",
                 ret);
     #endif
-            /* A verdict from the source survives here as it does on the
-             * reseed path, so instantiate and reseed classify it alike. */
-            ret = ReseedSourceFailure(ret);
             rng->status = DRBG_FAILED;
         }
 
@@ -3950,7 +3957,7 @@ static int wc_RNG_global_fallback_init_local(const byte* seed, word32 seedSz,
                    flags |
                    WC_RNG_INIT_FLAG_LOCK_REQUIRED |
                    WC_RNG_INIT_FLAG_LOCK_INITIALLY |
-                   WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
+                   WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
     {
         int put_ret = wc_RNG_lock_put(&global_fallback_rng, 0);
         if ((ret == 0) && (put_ret != 0))

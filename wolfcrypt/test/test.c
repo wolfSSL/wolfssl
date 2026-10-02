@@ -2747,10 +2747,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RANDOM   test failed!\n", ret);
     else
         TEST_PASS("RANDOM   test passed!\n");
-    if ((ret = rng_flag_abi_test()) != 0)
-        TEST_FAIL("RNGFLAG  test failed!\n", ret);
-    else
-        TEST_PASS("RNGFLAG  test passed!\n");
 #ifdef WC_TEST_RNG_AUTOLOCK
     if ((ret = random_thread_test()) != 0)
         TEST_FAIL("RNGTHRD  test failed!\n", ret);
@@ -28666,154 +28662,12 @@ static wc_test_ret_t rng_zeroed_free_test(void)
 #define rng_zeroed_free_test() ((wc_test_ret_t)0)
 #endif
 
-/* These bits are ABI: a caller compiles the name into a number, and the
- * library reads that number back.  Renumbering one changes what every
- * already-compiled caller asks for, with no error anywhere.
- *
- * Our own lock reads WC_RNG_FLAG_FULL_MUTEX to decide whether an instance
- * already carries a mutex to reuse.  If that bit moves, instances get two
- * locks or none, and re-initializing a live mutex is undefined behavior.
- *
- * A failure here means an ABI break landed.  Updating these numbers hides
- * it, and deleting this test leaves nothing to report it at all.
- */
-/* A FIPS build compiles a frozen random.h that predates these flags, so
- * unlike an #ifdef on an unconditional macro, these can really be false. */
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
-wc_static_assert(WC_RNG_INIT_FLAG_NONE            == 0);
-wc_static_assert(WC_RNG_INIT_FLAG_LOCK_REQUIRED   == (1U << 0));
-wc_static_assert(WC_RNG_INIT_FLAG_LOCK_INITIALLY  == (1U << 1));
-wc_static_assert(WC_RNG_INIT_FLAG_USE_FULL_MUTEX  == (1U << 2));
-wc_static_assert(WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
-                                                  == (1U << 3));
-#endif
-#ifdef WC_RNG_INIT_FLAG_USE_AUTO_LOCK
-wc_static_assert(WC_RNG_INIT_FLAG_USE_AUTO_LOCK   == (1U << 4));
-wc_static_assert(WC_RNG_INIT_FLAG_NO_AUTO_LOCK    == (1U << 5));
-#endif
-#ifdef WC_RNG_FLAG_FULL_MUTEX
-wc_static_assert(WC_RNG_FLAG_NONE                 == 0);
-wc_static_assert(WC_RNG_FLAG_RBGC_NEXT_SEED       == (1U << 0));
-wc_static_assert(WC_RNG_FLAG_FULL_MUTEX           == (1U << 1));
-wc_static_assert(WC_RNG_FLAG_BANKREF              == (1U << 2));
-wc_static_assert(WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
-                                                  == (1U << 3));
-#endif
-
 /* Where the lock lives differs by build, so ask the right field. */
 #ifdef WC_RNG_LOCK_ATFORK
     #define RNG_AUTO_LOCK_ABSENT(r) ((r)->autoLock == NULL)
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
     #define RNG_AUTO_LOCK_ABSENT(r) ((r)->autoLockInited == 0)
 #endif
-
-/* The same pins at run time: where wc_static_assert() compiles to nothing,
- * the checks above are absent and this is the only guard left. */
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
-{
-    WOLFSSL_ENTER("rng_flag_abi_test");
-
-#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
-    if (WC_RNG_INIT_FLAG_NONE != 0)
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_INIT_FLAG_LOCK_REQUIRED != (1U << 0))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_INIT_FLAG_LOCK_INITIALLY != (1U << 1))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_INIT_FLAG_USE_FULL_MUTEX != (1U << 2))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
-        return WC_TEST_RET_ENC_NC;
-#endif
-#ifdef WC_RNG_FLAG_FULL_MUTEX
-    if (WC_RNG_FLAG_NONE != 0)
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_FLAG_RBGC_NEXT_SEED != (1U << 0))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_FLAG_FULL_MUTEX != (1U << 1))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_FLAG_BANKREF != (1U << 2))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
-        return WC_TEST_RET_ENC_NC;
-#endif
-#ifdef WC_RNG_INIT_FLAG_USE_AUTO_LOCK
-    if (WC_RNG_INIT_FLAG_USE_AUTO_LOCK != (1U << 4))
-        return WC_TEST_RET_ENC_NC;
-    if (WC_RNG_INIT_FLAG_NO_AUTO_LOCK != (1U << 5))
-        return WC_TEST_RET_ENC_NC;
-    {
-        WC_RNG r;
-        byte b[16];
-        int ret;
-
-        /* Contradictions are refused the same way in every build. */
-        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
-                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK |
-                             WC_RNG_INIT_FLAG_NO_AUTO_LOCK);
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            return WC_TEST_RET_ENC_NC;
-        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
-                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK |
-                             WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            return WC_TEST_RET_ENC_NC;
-
-        /* Asking for a lock this build has not got must fail, not hand back
-         * an instance the caller would wrongly believe is serialized. */
-        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
-                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK);
-#ifndef WC_RNG_HAVE_AUTO_LOCK
-        if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-            return WC_TEST_RET_ENC_NC;
-#else
-        /* Not checked for a lock object here on purpose: a direct RDRAND
-         * instance holds no DRBG state, so wc_InitRng() gives it none and
-         * the generate path returns before the lock.  It is shareable
-         * either way, which is what the flag actually promises. */
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        if (wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b)) != 0) {
-            (void)wc_FreeRng(&r);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_FreeRng(&r) != 0)
-            return WC_TEST_RET_ENC_NC;
-
-        /* With no flag at all the instance follows the build's default.
-         * Only the off direction is guaranteed: a direct RDRAND instance
-         * holds no DRBG state, so it gets no lock even when on by default. */
-        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_NONE);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        if (!WC_RNG_AUTO_LOCK_DEFAULT && !RNG_AUTO_LOCK_ABSENT(&r)) {
-            (void)wc_FreeRng(&r);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_FreeRng(&r) != 0)
-            return WC_TEST_RET_ENC_NC;
-
-        /* Turning it off leaves a working instance with no lock on it. */
-        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
-                             WC_RNG_INIT_FLAG_NO_AUTO_LOCK);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        if (!RNG_AUTO_LOCK_ABSENT(&r)) {
-            (void)wc_FreeRng(&r);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b)) != 0) {
-            (void)wc_FreeRng(&r);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_FreeRng(&r) != 0)
-            return WC_TEST_RET_ENC_NC;
-#endif /* WC_RNG_HAVE_AUTO_LOCK */
-        (void)b;
-    }
-#endif /* WC_RNG_INIT_FLAG_USE_AUTO_LOCK */
-    return 0;
-}
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)

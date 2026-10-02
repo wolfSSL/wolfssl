@@ -119,6 +119,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     wc_static_assert(WC_DRBG_NOT_INIT == 0); /* make sure assumptions are met */
 #ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
     word32 rng_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED;
+    int root_rng_locked = 0;
 #else
     WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAG_NONE;
 #endif
@@ -175,7 +176,13 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
         /* Note we initialize the root_rng even if ! (flags &
          * WC_RNG_BANK_FLAG_RBGC) -- it can be used for other purposes, such as
          * pool replenishment, as in the linuxkm entropy daemon. */
-        ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz, 0);
+        ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz
+#ifdef WC_RNG_INIT_FLAG_LOCK_INITIALLY
+                                        , WC_RNG_INIT_FLAG_LOCK_INITIALLY
+#endif
+                                       );
+        if (ret == 0)
+            root_rng_locked = 1;
     }
 #endif
 
@@ -284,6 +291,11 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     }
 
 out:
+
+#ifdef WC_RNG_INIT_FLAG_LOCK_INITIALLY
+    if (root_rng_locked)
+        wc_RNG_lock_put(&ctx->root_rng, 0);
+#endif
 
     if (ret != 0)
         (void)wc_rng_bank_fini(ctx);
@@ -1504,7 +1516,7 @@ WOLFSSL_API int wc_rng_bank_root_rng_reinit(struct wc_rng_bank *bank,
 {
     if (bank == NULL)
         return BAD_FUNC_ARG;
-    return rng_reinit(bank, &bank->root_rng, NULL, nonce, nonceSz,
+    return wc_rng_bank_reinit_rng(bank, &bank->root_rng, NULL, nonce, nonceSz,
                       perso, persoSz, flags
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_INIT_FLAG_LOCK_REQUIRED)
                       | WC_RNG_INIT_FLAG_LOCK_REQUIRED
@@ -1949,6 +1961,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
         case WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E):
         case WC_NO_ERR_TRACE(DRBG_KAT_FIPS_E):
         case WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E):
+        case WC_NO_ERR_TRACE(UNEXPECTED_STATE_E):
 #ifdef WC_VERBOSE_RNG
             if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                 WOLFSSL_DEBUG_PRINTF(
