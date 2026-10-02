@@ -52,7 +52,7 @@ int test_wolfSSL_get_verify_mode(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
+     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -70,15 +70,15 @@ int test_wolfSSL_get_verify_mode(void)
     ExpectIntEQ(wolfSSL_get_verify_mode(ssl), WOLFSSL_VERIFY_PEER);
 
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     ExpectIntEQ(wolfSSL_get_verify_mode(ssl),
-                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
 
     /* Exercise the fail-except-PSK option. */
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
     mode = wolfSSL_get_verify_mode(ssl);
     ExpectIntEQ(mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
-                WOLFSSL_VERIFY_FAIL_EXCEPT_PSK);
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -94,7 +94,7 @@ int test_wolfSSL_CTX_get_verify_mode(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
+     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     int mode;
@@ -107,22 +107,22 @@ int test_wolfSSL_CTX_get_verify_mode(void)
     ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx), WOLFSSL_VERIFY_NONE);
 
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx),
-                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
 
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
     mode = wolfSSL_CTX_get_verify_mode(ctx);
     ExpectIntEQ(mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
-                WOLFSSL_VERIFY_FAIL_EXCEPT_PSK);
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK);
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Exercise the post-handshake auth option. */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
     mode = wolfSSL_CTX_get_verify_mode(ctx);
     ExpectIntEQ(mode & WOLFSSL_VERIFY_POST_HANDSHAKE,
-                WOLFSSL_VERIFY_POST_HANDSHAKE);
+        WOLFSSL_VERIFY_POST_HANDSHAKE);
 #endif
 
     wolfSSL_CTX_free(ctx);
@@ -182,7 +182,7 @@ int test_wolfSSL_CTX_get_extra_chain_certs(void)
 {
     EXPECT_DECLS;
 #if (defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     defined(WOLFSSL_PEM_TO_DER)
@@ -203,7 +203,7 @@ int test_wolfSSL_CTX_get_extra_chain_certs(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     /* server-cert.pem holds a 2-cert chain, so the CA goes into certChain. */
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx, svrCertFile),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
 
     /* Builds a stack of X509 from the stored chain. */
     sk = NULL;
@@ -222,16 +222,15 @@ int test_wolfSSL_CTX_get_extra_chain_certs(void)
      * node, building a multi-element stack. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx,
-                                                       "certs/intermediate/server-chain.pem"),
-                WOLFSSL_SUCCESS);
+        "certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
     sk = NULL;
     ExpectIntEQ(wolfSSL_CTX_get_extra_chain_certs(ctx, &sk), WOLFSSL_SUCCESS);
     ExpectNotNull(sk);
     ExpectIntGE(wolfSSL_sk_X509_num(sk), 2);
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
-    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_QT)) && !defined(NO_WOLFSSL_STUB)
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_QT)) && !defined(NO_WOLFSSL_STUB)
     /* Stub: returns via the control command. */
     wolfSSL_CTX_clear_extra_chain_certs(ctx);
 #endif
@@ -258,7 +257,7 @@ int test_wolfSSL_get_peer_chain(void)
     struct test_memio_ctx test_ctx;
     WOLFSSL_X509_CHAIN* chain = NULL;
 #if (defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(KEEP_OUR_CERT)
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(KEEP_OUR_CERT)
     WOLF_STACK_OF(WOLFSSL_X509)* osk = NULL;
 #endif
 
@@ -270,8 +269,7 @@ int test_wolfSSL_get_peer_chain(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* The client now holds the server's certificate chain. */
@@ -286,7 +284,7 @@ int test_wolfSSL_get_peer_chain(void)
 #endif
 
 #if (defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(KEEP_OUR_CERT)
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(KEEP_OUR_CERT)
     ExpectIntEQ(wolfSSL_get0_chain_certs(NULL, &osk), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_get0_chain_certs(ssl_c, &osk), WOLFSSL_SUCCESS);
 #endif
@@ -318,8 +316,7 @@ int test_wolfSSL_get_chain_X509(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_c));
@@ -365,8 +362,7 @@ int test_wolfSSL_get_chain_cert_pem(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_c));
@@ -374,50 +370,46 @@ int test_wolfSSL_get_chain_cert_pem(void)
     /* Successful PEM conversion. */
     pemSz = (int)sizeof(pem);
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, (int)sizeof(pem),
-                                           &pemSz), WOLFSSL_SUCCESS);
+        &pemSz), WOLFSSL_SUCCESS);
     ExpectIntGT(pemSz, 0);
 
     /* Argument validation. */
     pemSz = (int)sizeof(pem);
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(NULL, 0, pem, (int)sizeof(pem),
-                                           &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG
-                                                                    ));
+        &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, -1, pem, (int)sizeof(pem),
-                                           &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG
-                                                                    ));
+        &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 99, pem, (int)sizeof(pem),
-                                           &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG
-                                                                    ));
+        &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, (int)sizeof(pem),
-                                           NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-    ;
+        NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* NULL buffer returns the size needed (length-only query). */
     needed = 0;
     /* A negative buffer length is rejected. */
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, -1, &pemSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, NULL, 0, &needed),
-                WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
     ExpectIntGT(needed, 0);
     ExpectIntLE(needed, (int)sizeof(pem));
 
     /* A buffer shorter than the DER certificate fails up front. */
     pemSz = (int)sizeof(pem);
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, 1, &pemSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* One byte short of the full size leaves no room for the footer. */
     pemSz = (int)sizeof(pem);
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, needed - 1, &pemSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Room for the DER length but not the base64-expanded body: the encoder
      * reports an error (negative return). */
     chainLen = wolfSSL_get_chain_length(chain, 0);
     pemSz = (int)sizeof(pem);
     ExpectIntLT(wolfSSL_get_chain_cert_pem(chain, 0, pem, chainLen + 100,
-                                           &pemSz), 0);
+        &pemSz), 0);
 
     wolfSSL_free(ssl_s);
     wolfSSL_free(ssl_c);
@@ -447,8 +439,7 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     /* Should fail gracefully before handshake. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, svrCertFile),
@@ -459,22 +450,21 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
 
     /* NULL arguments report failure. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(NULL, svrCertFile),
-                WOLFSSL_FATAL_ERROR);
+        WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, NULL),
-                WOLFSSL_FATAL_ERROR);
+        WOLFSSL_FATAL_ERROR);
 
     /* The peer (server) certificate matches the file it was loaded from. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, svrCertFile), 0);
     /* A different certificate does not match. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, caCertFile),
-                WOLFSSL_FATAL_ERROR);
+        WOLFSSL_FATAL_ERROR);
     /* A missing file reports a file error. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c,
-                                              "certs/does-not-exist.pem"),
-                WC_NO_ERR_TRACE(WOLFSSL_BAD_FILE));
+        "certs/does-not-exist.pem"), WC_NO_ERR_TRACE(WOLFSSL_BAD_FILE));
     /* A readable file that is not PEM-encoded fails conversion. */
     ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, cliCertDerFile),
-                WOLFSSL_FATAL_ERROR);
+        WOLFSSL_FATAL_ERROR);
 
     wolfSSL_free(ssl_s);
     wolfSSL_free(ssl_c);
@@ -497,7 +487,7 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
  * @return  0 to indicate no certificate was supplied.
  */
 static int test_ssl_cert_client_cert_cb(WOLFSSL* ssl, WOLFSSL_X509** x509,
-                                        WOLFSSL_EVP_PKEY** pkey)
+    WOLFSSL_EVP_PKEY** pkey)
 {
     (void)ssl;
     (void)x509;
@@ -617,10 +607,10 @@ int test_wolfSSL_cert_setup_cb_ret(void)
         int cbRet;
         int err;
     } cases[] = {
-        {1, 0},
-        {0, WC_NO_ERR_TRACE(CLIENT_CERT_CB_ERROR)},
-        {-1, -1},
-        {2, WC_NO_ERR_TRACE(CLIENT_CERT_CB_ERROR)}
+        { 1, 0 },
+        { 0, WC_NO_ERR_TRACE(CLIENT_CERT_CB_ERROR) },
+        { -1, -1 },
+        { 2, WC_NO_ERR_TRACE(CLIENT_CERT_CB_ERROR) }
     };
     int i;
 
@@ -633,8 +623,7 @@ int test_wolfSSL_cert_setup_cb_ret(void)
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                     wolfTLSv1_2_client_method,
-                                     wolfTLSv1_2_server_method), 0);
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
         test_ssl_cert_setup_ret = cases[i].cbRet;
         test_ssl_cert_setup_calls = 0;
@@ -642,17 +631,19 @@ int test_wolfSSL_cert_setup_cb_ret(void)
 
         if (cases[i].err == 0) {
             ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-        } else {
+        }
+        else {
             /* Drive one step at a time so the error the server reports is the
              * one the callback caused, not a later I/O failure. */
             ExpectIntEQ(wolfSSL_connect(ssl_c),
-                        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
             ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
             ExpectIntEQ(wolfSSL_accept(ssl_s),
-                        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
             if (cases[i].err != -1) {
                 ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), cases[i].err);
-            } else {
+            }
+            else {
                 ExpectIntNE(wolfSSL_get_error(ssl_s, 0), 0);
             }
         }
@@ -688,8 +679,7 @@ int test_wolfSSL_get_peer_cert_chain(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     /* Nothing has been received yet, so there is no chain to build. */
     ExpectNull(wolfSSL_get_peer_cert_chain(ssl_c));
@@ -731,8 +721,7 @@ int test_wolfSSL_set_peer_cert_chain(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     /* An empty session chain has nothing to build from. */
     ExpectNull(wolfSSL_set_peer_cert_chain(ssl_c));
@@ -743,13 +732,11 @@ int test_wolfSSL_set_peer_cert_chain(void)
      * client's Certificate message, so there is nothing to ask for. */
 #ifndef WOLFSSL_NO_CLIENT_AUTH
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
-                                             WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
-                                            WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
 #endif
 
@@ -809,8 +796,7 @@ int test_wolfSSL_get0_verified_chain(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     /* Without a peer certificate there is nothing to verify. */
     ExpectNull(wolfSSL_get0_verified_chain(ssl_c));
@@ -858,7 +844,7 @@ int test_wolfSSL_CA_list_add(void)
     WOLFSSL_X509* x509 = NULL;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(caCertFile,
-                                                            WOLFSSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
 
     /* Both arguments are required. */
     ExpectIntEQ(wolfSSL_CTX_add_client_CA(NULL, x509), 0);
@@ -868,11 +854,9 @@ int test_wolfSSL_CA_list_add(void)
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     ExpectIntEQ(wolfSSL_CTX_add_client_CA(ctx, NULL), 0);
@@ -891,10 +875,10 @@ int test_wolfSSL_CA_list_add(void)
     ExpectNull(wolfSSL_CTX_get_client_CA_list(ctx));
     ExpectIntEQ(wolfSSL_CTX_add_client_CA(ctx, x509), 1);
     ExpectIntEQ(wolfSSL_sk_X509_NAME_num(
-                    wolfSSL_CTX_get_client_CA_list(ctx)), 1);
+        wolfSSL_CTX_get_client_CA_list(ctx)), 1);
     ExpectIntEQ(wolfSSL_CTX_add_client_CA(ctx, x509), 1);
     ExpectIntEQ(wolfSSL_sk_X509_NAME_num(
-                    wolfSSL_CTX_get_client_CA_list(ctx)), 2);
+        wolfSSL_CTX_get_client_CA_list(ctx)), 2);
 
     ExpectNull(wolfSSL_get0_CA_list(ssl));
     ExpectIntEQ(wolfSSL_add1_to_CA_list(ssl, x509), 1);
@@ -941,16 +925,14 @@ int test_wolfSSL_CA_list_get(void)
     ExpectNull(wolfSSL_get0_peer_CA_list(NULL));
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(caCertFile,
-                                                            WOLFSSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
 
     /* Server side: the client CA names are the object's own list. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* Nothing added yet. */
@@ -1026,7 +1008,7 @@ int test_wolfSSL_mutual_auth(void)
     WOLFSSL* ssl = NULL;
 
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(NULL, 1),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_mutual_auth(NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Mutual authentication is a server-only setting. */
@@ -1041,11 +1023,9 @@ int test_wolfSSL_mutual_auth(void)
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(ctx, 1), 0);
@@ -1091,11 +1071,9 @@ int test_wolfSSL_post_handshake_auth(void)
     /* A server cannot request it of itself. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_CTX_set_post_handshake_auth(ctx, 1), 0);
     ExpectIntEQ(wolfSSL_set_post_handshake_auth(ssl, 1), 0);
@@ -1146,13 +1124,11 @@ int test_wolfSSL_verify_cert_store(void)
     ExpectIntEQ(wolfSSL_X509_STORE_up_ref(NULL), 0);
 
     /* Setting the store already in use is accepted and changes nothing, both
-    * for the context and for an object handed the store the context owns. */
+     * for the context and for an object handed the store the context owns. */
     ExpectIntEQ(wolfSSL_CTX_set1_verify_cert_store(ctx,
-                                                   wolfSSL_CTX_get_cert_store(
-                                                       ctx)), 1);
+        wolfSSL_CTX_get_cert_store(ctx)), 1);
     ExpectIntEQ(wolfSSL_set1_verify_cert_store(ssl,
-                                               wolfSSL_CTX_get_cert_store(ctx)),
-                1);
+        wolfSSL_CTX_get_cert_store(ctx)), 1);
 
     /* A different store is taken with a reference. */
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
@@ -1185,8 +1161,7 @@ int test_wolfSSL_verify_cert_store(void)
      * and releasing it here would leave ctx->x509_store_pt pointing at memory
      * freed a second time by wolfSSL_CTX_free(). */
     ExpectIntEQ(wolfSSL_set0_verify_cert_store(ssl,
-                                               wolfSSL_CTX_get_cert_store(ctx)),
-                1);
+        wolfSSL_CTX_get_cert_store(ctx)), 1);
     ExpectPtrEq(wolfSSL_CTX_get_cert_store(ctx), store);
     /* Still alive and still the context's, so a reference can be taken. */
     ExpectIntEQ(wolfSSL_X509_STORE_up_ref(store), 1);
@@ -1197,8 +1172,7 @@ int test_wolfSSL_verify_cert_store(void)
      * This is the shape that freed the context's store: an object with no
      * store of its own, handed the context's with set0. */
     ExpectIntEQ(wolfSSL_set0_verify_cert_store(ssl,
-                                               wolfSSL_CTX_get_cert_store(ctx)),
-                1);
+        wolfSSL_CTX_get_cert_store(ctx)), 1);
     ExpectPtrEq(wolfSSL_CTX_get_cert_store(ctx), store);
     ExpectIntEQ(wolfSSL_X509_STORE_up_ref(store), 1);
     wolfSSL_X509_STORE_free(store);
@@ -1209,8 +1183,8 @@ int test_wolfSSL_verify_cert_store(void)
     ExpectPtrEq(wolfSSL_CTX_get_cert_store(ctx), store);
 
     /* Give the object a store of its own again and clear it: the object
-    * releases its reference and reverts to the context's store. The store
-    * itself is still alive, so a reference can still be taken on it. */
+     * releases its reference and reverts to the context's store. The store
+     * itself is still alive, so a reference can still be taken on it. */
     ExpectIntEQ(wolfSSL_set1_verify_cert_store(ssl, store2), 1);
     ExpectIntEQ(wolfSSL_set1_verify_cert_store(ssl, NULL), 1);
     ExpectIntEQ(wolfSSL_X509_STORE_up_ref(store2), 1);
@@ -1270,8 +1244,8 @@ int test_wolfSSL_verify_cert_store_follows_ctx(void)
     WOLFSSL_X509_STORE* withCa = NULL;
     WOLFSSL_X509_STORE* withCa2 = NULL;
     /* Two CRLs from the same CA. A manager keeps the CRLs tried against it,
-    * whether or not they verified, so no manager below is asked for the same
-    * CRL twice - a second attempt would find the cached one and succeed. */
+     * whether or not they verified, so no manager below is asked for the same
+     * CRL twice - a second attempt would find the cached one and succeed. */
     const char* crlPem = "./certs/crl/crl.pem";
     const char* crlPem2 = "./certs/crl/crl.revoked";
 
@@ -1284,13 +1258,12 @@ int test_wolfSSL_verify_cert_store_follows_ctx(void)
     ExpectNotNull(withCa2 = wolfSSL_X509_STORE_new());
     ExpectIntEQ(wolfSSL_X509_STORE_load_locations(withCa, caCertFile, NULL), 1);
     ExpectIntEQ(wolfSSL_X509_STORE_load_locations(withCa2, caCertFile, NULL),
-                1);
+        1);
 
     /* Hand the object the store the context is using while that is the store
      * the context owns: no pointer to it is kept either. */
     ExpectIntEQ(wolfSSL_set1_verify_cert_store(ssl,
-                                               wolfSSL_CTX_get_cert_store(ctx)),
-                1);
+        wolfSSL_CTX_get_cert_store(ctx)), 1);
     /* So the object follows the context onto a store that has the CA. Were
      * the context's own store pinned to the object instead, the manager in
      * use would still be the context's, which has no CA. */
@@ -1467,11 +1440,9 @@ int test_wolfSSL_get_certificate_api(void)
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* The object borrows the context's certificate. */
@@ -1479,8 +1450,7 @@ int test_wolfSSL_get_certificate_api(void)
 
     /* Loading a certificate onto the object makes it own one instead. */
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl, svrCertFile,
-                                             WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(wolfSSL_get_certificate(ssl));
     /* Asked again the cached object is returned. */
     ExpectNotNull(wolfSSL_get_certificate(ssl));
@@ -1512,24 +1482,22 @@ int test_wolfSSL_cert_unload(void)
 #endif
 #ifdef PERSIST_CERT_CACHE
     ExpectIntEQ(wolfSSL_CTX_get_cert_cache_memsize(NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
     /* A NULL object reports a bad argument rather than a depth. */
     ExpectIntEQ(wolfSSL_CTX_get_verify_depth(NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_verify_depth(NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* The loaded CAs can be released without freeing the context. */
@@ -1541,7 +1509,7 @@ int test_wolfSSL_cert_unload(void)
     ExpectIntEQ(wolfSSL_UnloadCertsKeys(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wolfSSL_CTX_UnloadIntermediateCerts(NULL),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -1550,24 +1518,24 @@ int test_wolfSSL_cert_unload(void)
 }
 
 /* ---------------------------------------------------------------------------
-* Argument guards across the newly-visible public API surface.
-*
-* src/ssl_api_cert.c, ssl_api_crl_ocsp.c and their siblings are #included into
-* ssl.c rather than compiled standalone, so they produced no object file and
-* no module declared them until this part of the campaign. Now that they are
-* measured, the shape of what is missing is unambiguous: 342 of the 646
-* uncovered conditions across these files mention NULL, and in the densest of
-* them it is 85-100%.
-*
-* They are not protocol behaviour. They are the checks each entry point makes
-* on its own arguments, and the existing tests all pass arguments that are
-* valid -- so every one of these decisions is taken the same way on every
-* call, and none of the operands has an independence pair.
-*
-* A caller that queries or configures a CTX or an SSL it has not created yet,
-* or passes a zero length, or asks for an output through a NULL pointer, is
-* doing something ordinary and wrong. That is what these vectors are.
-* ------------------------------------------------------------------------- */
+ * Argument guards across the newly-visible public API surface.
+ *
+ * src/ssl_api_cert.c, ssl_api_crl_ocsp.c and their siblings are #included into
+ * ssl.c rather than compiled standalone, so they produced no object file and
+ * no module declared them until this part of the campaign. Now that they are
+ * measured, the shape of what is missing is unambiguous: 342 of the 646
+ * uncovered conditions across these files mention NULL, and in the densest of
+ * them it is 85-100%.
+ *
+ * They are not protocol behaviour. They are the checks each entry point makes
+ * on its own arguments, and the existing tests all pass arguments that are
+ * valid -- so every one of these decisions is taken the same way on every
+ * call, and none of the operands has an independence pair.
+ *
+ * A caller that queries or configures a CTX or an SSL it has not created yet,
+ * or passes a zero length, or asks for an output through a NULL pointer, is
+ * doing something ordinary and wrong. That is what these vectors are.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_cert_api_arg_guards(void)
 {
     EXPECT_DECLS;
@@ -1576,7 +1544,7 @@ int test_wolfSSL_cert_api_arg_guards(void)
     WOLFSSL* ssl = NULL;
 #ifdef HAVE_RPK
     int tp = 0;
-    const char certTypes[] = {WOLFSSL_CERT_TYPE_X509};
+    const char certTypes[] = { WOLFSSL_CERT_TYPE_X509 };
     unsigned char spki[8];
 
     XMEMSET(spki, 0, sizeof(spki));
@@ -1791,39 +1759,39 @@ static int test_verify_mode_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
 static const VerifyModeCase verifyModeCases[] = {
     /* VERIFY_NONE is the only mode that sets verifyNone. */
-    {"NONE", WOLFSSL_VERIFY_NONE, 1, 0, 0, 0},
-    {"PEER", WOLFSSL_VERIFY_PEER, 0, 1, 0, 0},
-    {"PEER|FAIL_IF_NO_PEER_CERT",
-     WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-     0, 1, 1, 0},
-    {"PEER|FAIL_EXCEPT_PSK",
-     WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
-     0, 1, 0, 1},
+    { "NONE", WOLFSSL_VERIFY_NONE, 1, 0, 0, 0 },
+    { "PEER", WOLFSSL_VERIFY_PEER, 0, 1, 0, 0 },
+    { "PEER|FAIL_IF_NO_PEER_CERT",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+      0, 1, 1, 0 },
+    { "PEER|FAIL_EXCEPT_PSK",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+      0, 1, 0, 1 },
     /* The two fail-on-no-cert flags are independent bits and may both be
      * recorded; the PSK exception is applied first at the handshake. */
-    {"PEER|FAIL_IF_NO_PEER_CERT|FAIL_EXCEPT_PSK",
-     WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
-     WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
-     0, 1, 1, 1},
+    { "PEER|FAIL_IF_NO_PEER_CERT|FAIL_EXCEPT_PSK",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
+          WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+      0, 1, 1, 1 },
     /* FAIL_IF_NO_PEER_CERT on its own is recorded even though a server that
      * never requests a certificate cannot act on it. */
-    {"FAIL_IF_NO_PEER_CERT", WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-     0, 0, 1, 0},
+    { "FAIL_IF_NO_PEER_CERT", WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+      0, 0, 1, 0 },
     /* VERIFY_DEFAULT clears every option instead of setting one. That is
      * why it does not round-trip through get_verify_mode(). */
-    {"DEFAULT", WOLFSSL_VERIFY_DEFAULT, 0, 0, 0, 0},
+    { "DEFAULT", WOLFSSL_VERIFY_DEFAULT, 0, 0, 0, 0 },
     /* VERIFY_NONE is matched by equality, not as a bit: OR-ing anything else
      * in means the peer IS verified. */
-    {"NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 0, 1, 0, 0},
+    { "NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 0, 1, 0, 0 },
     /* CLIENT_ONCE is accepted and ignored: on its own it leaves every option
      * clear, and it never disturbs the flags it is OR-ed with. */
-    {"CLIENT_ONCE", WOLFSSL_VERIFY_CLIENT_ONCE, 0, 0, 0, 0},
-    {"PEER|CLIENT_ONCE",
-     WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE, 0, 1, 0, 0},
-    {"PEER|FAIL_IF_NO_PEER_CERT|CLIENT_ONCE",
-     WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
-     WOLFSSL_VERIFY_CLIENT_ONCE,
-     0, 1, 1, 0}
+    { "CLIENT_ONCE", WOLFSSL_VERIFY_CLIENT_ONCE, 0, 0, 0, 0 },
+    { "PEER|CLIENT_ONCE",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE, 0, 1, 0, 0 },
+    { "PEER|FAIL_IF_NO_PEER_CERT|CLIENT_ONCE",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
+          WOLFSSL_VERIFY_CLIENT_ONCE,
+      0, 1, 1, 0 }
 };
 
 #endif /* !NO_CERTS && !NO_TLS && !NO_WOLFSSL_CLIENT */
@@ -1874,11 +1842,11 @@ int test_wolfSSL_verify_mode_options(void)
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Post-handshake auth is an ordinary bit alongside the others. */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
     ExpectIntEQ(ctx->verifyPeer, 1);
     ExpectIntEQ(ctx->verifyPostHandshake, 1);
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
     ExpectIntEQ(ssl->options.verifyPeer, 1);
     ExpectIntEQ(ssl->options.verifyPostHandshake, 1);
 
@@ -1890,14 +1858,14 @@ int test_wolfSSL_verify_mode_options(void)
 
     /* So does CLIENT_ONCE on its own, which is to say it selects nothing. */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
     ExpectIntEQ(ctx->verifyPostHandshake, 0);
 #endif
 
     /* Setting a mode replaces the previous one rather than accumulating. */
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(ssl->options.verifyPeer, 1);
     ExpectIntEQ(ssl->options.failNoCert, 0);
@@ -1939,15 +1907,14 @@ int test_wolfSSL_verify_client_once_ignored(void)
 
     /* Adding CLIENT_ONCE to a mode leaves that mode's options untouched. */
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     ExpectIntEQ(ssl->options.verifyPeer, 1);
     ExpectIntEQ(ssl->options.failNoCert, 1);
     ExpectIntEQ(ssl->options.verifyNone, 0);
 
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
-                       WOLFSSL_VERIFY_CLIENT_ONCE,
-                       NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT | WOLFSSL_VERIFY_CLIENT_ONCE,
+        NULL);
     ExpectIntEQ(ssl->options.verifyPeer, 1);
     ExpectIntEQ(ssl->options.failNoCert, 1);
     ExpectIntEQ(ssl->options.verifyNone, 0);
@@ -1963,7 +1930,7 @@ int test_wolfSSL_verify_client_once_ignored(void)
     /* CLIENT_ONCE does not turn VERIFY_NONE into something else either:
      * VERIFY_NONE is matched by equality, so the pair verifies the peer. */
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_CLIENT_ONCE,
-                       NULL);
+        NULL);
     ExpectIntEQ(ssl->options.verifyNone, 0);
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
@@ -1971,11 +1938,11 @@ int test_wolfSSL_verify_client_once_ignored(void)
     defined(WOLFSSL_NGINX)
     /* The bit is never reported back, on the object or on the context. */
     wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE,
-                       NULL);
+        NULL);
     ExpectIntEQ(wolfSSL_get_verify_mode(ssl), WOLFSSL_VERIFY_PEER);
 
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
+        WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
     ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx), WOLFSSL_VERIFY_PEER);
 
     /* WOLFSSL_VERIFY_DEFAULT does not round-trip either: it clears every
@@ -2009,9 +1976,8 @@ int test_wolfSSL_verify_mode_ctx_inherit(void)
 
     /* An object created after the context is configured inherits the mode. */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
-                           WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
-                           NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT | WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+        NULL);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(ssl->options.verifyPeer, 1);
     ExpectIntEQ(ssl->options.failNoCert, 1);
@@ -2067,9 +2033,9 @@ int test_wolfSSL_verify_none_accepts_untrusted(void)
         int mode;
         int expectFail;
     } cases[] = {
-        {"PEER", WOLFSSL_VERIFY_PEER, 1},
-        {"NONE", WOLFSSL_VERIFY_NONE, 0},
-        {"NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 1}
+        { "PEER", WOLFSSL_VERIFY_PEER, 1 },
+        { "NONE", WOLFSSL_VERIFY_NONE, 0 },
+        { "NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 1 }
     };
     size_t i;
 
@@ -2089,8 +2055,7 @@ int test_wolfSSL_verify_none_accepts_untrusted(void)
         }
 
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                     wolfTLSv1_2_client_method,
-                                     wolfTLSv1_2_server_method), 0);
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
         wolfSSL_set_verify(ssl_c, cases[i].mode, NULL);
 
@@ -2098,9 +2063,10 @@ int test_wolfSSL_verify_none_accepts_untrusted(void)
             /* Verifying, with no CA: the chain has no signer. */
             ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
             ExpectIntEQ(wolfSSL_get_error(ssl_c,
-                                          WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-                        WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
-        } else {
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+        }
+        else {
             /* Not verifying: the same untrusted certificate is accepted. */
             ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         }
@@ -2155,17 +2121,16 @@ int test_wolfSSL_verify_fail_except_psk(void)
     /* A PSK suite is the exception: no peer certificate is required. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
     wolfSSL_set_psk_client_callback(ssl_c, my_psk_client_cb);
     wolfSSL_set_psk_server_callback(ssl_s, my_psk_server_cb);
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, TEST_VFY_PSK_SUITE),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, TEST_VFY_PSK_SUITE),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
@@ -2184,16 +2149,15 @@ int test_wolfSSL_verify_fail_except_psk(void)
      * cert-less client are now rejected. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
 
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s,
-                                  WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-                WC_NO_ERR_TRACE(NO_PEER_CERT));
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -2218,7 +2182,7 @@ int test_wolfSSL_verify_fail_except_psk(void)
  * @return  TEST_SUCCESS on success.
  */
 static int test_vfy_no_client_cert(method_provider method_c,
-                                   method_provider method_s, int rounds)
+    method_provider method_s, int rounds)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -2227,17 +2191,17 @@ static int test_vfy_no_client_cert(method_provider method_c,
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 method_c, method_s), 0);
+        method_c, method_s), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
     /* The client has no certificate loaded, so it answers the server's
      * request with an empty Certificate message. */
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, rounds, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s,
-                                  WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-                WC_NO_ERR_TRACE(NO_PEER_CERT));
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
     ExpectIntEQ(ssl_s->options.havePeerCert, 0);
 
     wolfSSL_free(ssl_c);
@@ -2258,7 +2222,7 @@ static int test_vfy_no_client_cert(method_provider method_c,
  * @return  TEST_SUCCESS on success.
  */
 static int test_vfy_none_server_no_request(method_provider method_c,
-                                           method_provider method_s, int rounds)
+    method_provider method_s, int rounds)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -2267,7 +2231,7 @@ static int test_vfy_none_server_no_request(method_provider method_c,
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 method_c, method_s), 0);
+        method_c, method_s), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
 
@@ -2275,11 +2239,11 @@ static int test_vfy_none_server_no_request(method_provider method_c,
      * CERT_FILETYPE tracks the cliCertFile/cliKeyFile paths, which are DER
      * rather than PEM in a build without WOLFSSL_PEM_TO_DER. */
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
-                                             CERT_FILETYPE), WOLFSSL_SUCCESS);
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
-                                            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, rounds, NULL), 0);
 
@@ -2312,33 +2276,28 @@ int test_wolfSSL_verify_no_client_cert(void)
 #if defined(WOLFSSL_TLS13)
     /* TLS 1.3: rejected when the server processes the client's Finished. */
     ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_3_client_method,
-                                        wolfTLSv1_3_server_method, 10),
-                TEST_SUCCESS);
+        wolfTLSv1_3_server_method, 10), TEST_SUCCESS);
 #endif
 #if !defined(WOLFSSL_NO_TLS12)
     /* TLS 1.2: rejected on the empty Certificate message. */
     ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_2_client_method,
-                                        wolfTLSv1_2_server_method, 10),
-                TEST_SUCCESS);
+        wolfTLSv1_2_server_method, 10), TEST_SUCCESS);
 #endif
 #if !defined(NO_OLD_TLS)
     /* TLS 1.1: the empty-Certificate check does not apply below TLS 1.2, so
      * this is rejected later, in DoClientKeyExchange. */
     ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_1_client_method,
-                                        wolfTLSv1_1_server_method, 10),
-                TEST_SUCCESS);
+        wolfTLSv1_1_server_method, 10), TEST_SUCCESS);
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     /* DTLS 1.2 over the same TLS 1.2 code path, but across a cookie
      * exchange and a retransmittable flight. */
     ExpectIntEQ(test_vfy_no_client_cert(wolfDTLSv1_2_client_method,
-                                        wolfDTLSv1_2_server_method, 20),
-                TEST_SUCCESS);
+        wolfDTLSv1_2_server_method, 20), TEST_SUCCESS);
 #endif
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
     ExpectIntEQ(test_vfy_no_client_cert(wolfDTLSv1_3_client_method,
-                                        wolfDTLSv1_3_server_method, 20),
-                TEST_SUCCESS);
+        wolfDTLSv1_3_server_method, 20), TEST_SUCCESS);
 #endif
 
 #endif
@@ -2359,18 +2318,15 @@ int test_wolfSSL_verify_none_server_no_request(void)
 
 #if defined(WOLFSSL_TLS13)
     ExpectIntEQ(test_vfy_none_server_no_request(wolfTLSv1_3_client_method,
-                                                wolfTLSv1_3_server_method, 10),
-                TEST_SUCCESS);
+        wolfTLSv1_3_server_method, 10), TEST_SUCCESS);
 #endif
 #if !defined(WOLFSSL_NO_TLS12)
     ExpectIntEQ(test_vfy_none_server_no_request(wolfTLSv1_2_client_method,
-                                                wolfTLSv1_2_server_method, 10),
-                TEST_SUCCESS);
+        wolfTLSv1_2_server_method, 10), TEST_SUCCESS);
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     ExpectIntEQ(test_vfy_none_server_no_request(wolfDTLSv1_2_client_method,
-                                                wolfDTLSv1_2_server_method, 20),
-                TEST_SUCCESS);
+        wolfDTLSv1_2_server_method, 20), TEST_SUCCESS);
 #endif
 
 #endif
@@ -2398,8 +2354,7 @@ int test_wolfSSL_verify_tls13_failnocert_only(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_3_client_method,
-                                 wolfTLSv1_3_server_method), 0);
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     ExpectIntEQ(ssl_s->options.verifyPeer, 0);
@@ -2407,8 +2362,8 @@ int test_wolfSSL_verify_tls13_failnocert_only(void)
 
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s,
-                                  WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-                WC_NO_ERR_TRACE(NO_PEER_CERT));
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
     /* The client was never asked, so it never sent one. */
     ExpectIntEQ(ssl_s->msgsReceived.got_certificate, 0);
 
@@ -2442,23 +2397,24 @@ int test_wolfSSL_verify_tls13_failnocert_only(void)
  * @return  0 on success, -1 when no such record is present.
  */
 static int test_vfy_replace_record(struct test_memio_ctx* ctx, int client,
-                                   byte hsType, const byte* rec, int recSz)
+    byte hsType, const byte* rec, int recSz)
 {
     byte* buff;
     int*  len;
     int*  msgSizes;
-    int msgCount;
-    int off = 0;
-    int target = -1;
-    int targetSz = 0;
-    int delta;
-    int msgOff;
-    int i;
+    int   msgCount;
+    int   off = 0;
+    int   target = -1;
+    int   targetSz = 0;
+    int   delta;
+    int   msgOff;
+    int   i;
 
     if (client) {
         buff = ctx->c_buff; len = &ctx->c_len;
         msgSizes = ctx->c_msg_sizes; msgCount = ctx->c_msg_count;
-    } else {
+    }
+    else {
         buff = ctx->s_buff; len = &ctx->s_len;
         msgSizes = ctx->s_msg_sizes; msgCount = ctx->s_msg_count;
     }
@@ -2472,7 +2428,7 @@ static int test_vfy_replace_record(struct test_memio_ctx* ctx, int client,
             break;
         }
         if (buff[off] == handshake && recLen > 0 &&
-            buff[off + RECORD_HEADER_SZ] == hsType) {
+                buff[off + RECORD_HEADER_SZ] == hsType) {
             target = off;
             targetSz = RECORD_HEADER_SZ + recLen;
             break;
@@ -2489,7 +2445,7 @@ static int test_vfy_replace_record(struct test_memio_ctx* ctx, int client,
     }
 
     XMEMMOVE(buff + target + recSz, buff + target + targetSz,
-             (size_t)(*len - target - targetSz));
+        (size_t)(*len - target - targetSz));
     XMEMCPY(buff + target, rec, (size_t)recSz);
     *len += delta;
 
@@ -2537,27 +2493,26 @@ int test_wolfSSL_verify_empty_server_cert(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_2_client_method,
-                                 wolfTLSv1_2_server_method), 0);
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
 
     /* Client sends its hello. */
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
-                WOLFSSL_ERROR_WANT_READ);
+        WOLFSSL_ERROR_WANT_READ);
     /* Server replies with its flight, still in the clear. */
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
-                WOLFSSL_ERROR_WANT_READ);
+        WOLFSSL_ERROR_WANT_READ);
 
     /* Swap the server's Certificate for one carrying no certificates. */
     ExpectIntEQ(test_vfy_replace_record(&test_ctx, 1, certificate,
-                                        emptyCert, (int)sizeof(emptyCert)), 0);
+        emptyCert, (int)sizeof(emptyCert)), 0);
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
-                WC_NO_ERR_TRACE(NO_PEER_CERT));
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
     ExpectIntEQ(ssl_c->options.havePeerCert, 0);
 
     wolfSSL_free(ssl_c);
@@ -2591,11 +2546,10 @@ int test_wolfSSL_verify_post_handshake_defers(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLSv1_3_client_method,
-                                 wolfTLSv1_3_server_method), 0);
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
 
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-                       WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
     ExpectIntEQ(ssl_s->options.verifyPeer, 1);
     ExpectIntEQ(ssl_s->options.verifyPostHandshake, 1);
 
@@ -2668,7 +2622,7 @@ static int test_eku_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
  * nothing else. Every other rejection is left to stand, so a chain the library
  * turns away for another reason must still fail. */
 static int test_eku_purpose_only_cb(int preverify,
-                                    WOLFSSL_X509_STORE_CTX* store)
+    WOLFSSL_X509_STORE_CTX* store)
 {
     if (store->error == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -2688,13 +2642,11 @@ static int test_eku_purpose_only_cb(int preverify,
  * (RFC 4210 OldWithNew): issuer and subject match, but the key is subjKey and
  * the signature is issuerKey's. Returns the DER length, or < 0 on failure. */
 static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
-                           const byte* issuerDer, int issuerDerSz, RsaKey*
-                           issuerKey, WC_RNG* rng,
-                           const char* extKeyUsage, const char* cn, int
-                           selfIssued)
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* extKeyUsage, const char* cn, int selfIssued)
 {
     Cert cert;
-    int ret = 0;
+    int  ret = 0;
 
     if (selfIssued && issuerDer == NULL)
         return -1;
@@ -2709,7 +2661,8 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
          * set below is built from the same source. */
         if (wc_SetSubjectBuffer(&cert, issuerDer, issuerDerSz) != 0)
             ret = -1;
-    } else {
+    }
+    else {
         XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
         XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
         XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
@@ -2719,7 +2672,7 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
     if (ret == 0 && wc_SetKeyUsage(&cert, "keyCertSign,cRLSign") != 0)
         ret = -1;
     if (ret == 0 && extKeyUsage != NULL &&
-        wc_SetExtKeyUsage(&cert, extKeyUsage) != 0)
+            wc_SetExtKeyUsage(&cert, extKeyUsage) != 0)
         ret = -1;
     /* wc_InitCert() leaves selfSigned set, so naming no issuer is what makes
      * the generated certificate self-signed. */
@@ -2733,7 +2686,7 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
         ret = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng);
     if (ret >= 0)
         ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
-                          (issuerDer == NULL) ? subjKey : issuerKey, NULL, rng);
+            (issuerDer == NULL) ? subjKey : issuerKey, NULL, rng);
 #ifdef WOLFSSL_CERT_GEN_CACHE
     wc_SetCert_Free(&cert);
 #endif
@@ -2743,11 +2696,10 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
 /* Build a TLS leaf signed by the given CA. The leaf carries both serverAuth
  * and clientAuth so only the issuing CA's purpose is tested. */
 static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
-                             const byte* issuerDer, int issuerDerSz, RsaKey*
-                             issuerKey, WC_RNG* rng)
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng)
 {
     Cert cert;
-    int ret = 0;
+    int  ret = 0;
 
     if (wc_InitCert(&cert) != 0)
         return -1;
@@ -2761,7 +2713,7 @@ static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
     if (ret == 0 && wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
         ret = -1;
     if (ret == 0 &&
-        wc_SetKeyUsage(&cert, "digitalSignature,keyEncipherment") != 0)
+            wc_SetKeyUsage(&cert, "digitalSignature,keyEncipherment") != 0)
         ret = -1;
     if (ret == 0 && wc_SetExtKeyUsage(&cert, "serverAuth,clientAuth") != 0)
         ret = -1;
@@ -2771,7 +2723,7 @@ static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
         ret = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng);
     if (ret >= 0)
         ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
-                          issuerKey, NULL, rng);
+            issuerKey, NULL, rng);
 #ifdef WOLFSSL_CERT_GEN_CACHE
     wc_SetCert_Free(&cert);
 #endif
@@ -2786,10 +2738,8 @@ static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
  * The handshake result and the compatibility-layer verify result are returned
  * through hsRet and verifyRet. */
 static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
-                                    const byte* rootDer, int rootSz, const byte*
-                                    pinnedDer, int pinnedSz,
-                                    const test_eku_case* tc, int* hsRet, long*
-                                    verifyRet)
+    const byte* rootDer, int rootSz, const byte* pinnedDer, int pinnedSz,
+    const test_eku_case* tc, int* hsRet, long* verifyRet)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -2810,35 +2760,27 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     /* The server always presents the generated chain so a single set of
      * credentials covers both directions. */
     ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                    wolfSSLv23_client_method,
-                                    wolfSSLv23_server_method,
-                                    (byte*)rootDer, rootSz, (byte*)chainDer,
-                                    chainSz,
-                                    (byte*)client_key_der_2048, (int)
-                                    sizeof_client_key_der_2048), 0);
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)rootDer, rootSz, (byte*)chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
 
     if (tc->clientPresents) {
         /* Leave the server chain unverified so only the server's view of the
          * client chain decides the handshake. */
         wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
         ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_c, chainDer,
-                                                                (long)chainSz,
-                                                                WOLFSSL_FILETYPE_ASN1),
-                    WOLFSSL_SUCCESS);
+            (long)chainSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_c, client_key_der_2048,
-                                                  (long)
-                                                  sizeof_client_key_der_2048,
-                                                  WOLFSSL_FILETYPE_ASN1),
-                    WOLFSSL_SUCCESS);
+            (long)sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, rootDer,
-                                                   (long)rootSz,
-                                                   WOLFSSL_FILETYPE_ASN1),
-                    WOLFSSL_SUCCESS);
+            (long)rootSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
         wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-                           WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyCb);
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyCb);
         verifyCtx = ctx_s;
         verifySsl = ssl_s;
-    } else {
+    }
+    else {
         wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, verifyCb);
         verifyCtx = ctx_c;
         verifySsl = ssl_c;
@@ -2851,9 +2793,7 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
 
     if (pinnedDer != NULL) {
         ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(verifyCtx, pinnedDer,
-                                                   (long)pinnedSz,
-                                                   WOLFSSL_FILETYPE_ASN1),
-                    WOLFSSL_SUCCESS);
+            (long)pinnedSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     }
 
     /* The harness only reports pass or fail, so read the reason from the side
@@ -2880,7 +2820,7 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
 /* Build the chain for one scenario, run the handshake and check both the
  * handshake result and the verify result it is reported as. */
 static int test_eku_chain_case(const test_eku_fixture* f,
-                               const test_eku_case* tc)
+    const test_eku_case* tc)
 {
     EXPECT_DECLS;
     const byte* rootDer = ca_cert_der_2048;
@@ -2897,14 +2837,10 @@ static int test_eku_chain_case(const test_eku_fixture* f,
 
     /* The CA under test is always signed by the root. */
     ExpectIntGT((caSz = test_eku_gen_ca(f->interDer, TEST_EKU_CERT_BUF_SZ,
-                                        f->intKey, tc->selfSignedCa ? NULL :
-                                        ca_cert_der_2048,
-                                        (int)sizeof_ca_cert_der_2048, f->caKey,
-                                        f->rng, tc->extKeyUsage,
-                                        tc->selfSignedCa ?
-                                        "EKU Self Signed CA" :
-                                        "EKU Intermediate",
-                                        tc->selfIssuedCa)), 0);
+        f->intKey, tc->selfSignedCa ? NULL : ca_cert_der_2048,
+        (int)sizeof_ca_cert_der_2048, f->caKey, f->rng, tc->extKeyUsage,
+        tc->selfSignedCa ? "EKU Self Signed CA" : "EKU Intermediate",
+        tc->selfIssuedCa)), 0);
 
     leafIssuerDer = f->interDer;
     leafIssuerSz  = caSz;
@@ -2915,19 +2851,15 @@ static int test_eku_chain_case(const test_eku_fixture* f,
      * of the leaf and sits at depth 2. */
     if (tc->extraLevel) {
         ExpectIntGT((midSz = test_eku_gen_ca(f->midDer, TEST_EKU_CERT_BUF_SZ,
-                                             f->midKey, f->interDer, caSz, f->
-                                             intKey, f->rng,
-                                             "serverAuth,clientAuth",
-                                             "EKU Middle CA", 0)), 0);
+            f->midKey, f->interDer, caSz, f->intKey, f->rng,
+            "serverAuth,clientAuth", "EKU Middle CA", 0)), 0);
         leafIssuerDer = f->midDer;
         leafIssuerSz  = midSz;
         leafIssuerKey = f->midKey;
     }
 
     ExpectIntGT((leafSz = test_eku_gen_leaf(f->chainDer, TEST_EKU_CERT_BUF_SZ,
-                                            f->leafKey, leafIssuerDer,
-                                            leafIssuerSz, leafIssuerKey, f->rng)
-                 ), 0);
+        f->leafKey, leafIssuerDer, leafIssuerSz, leafIssuerKey, f->rng)), 0);
     /* The chain buffer holds the leaf first, then its issuers in order. */
     ExpectIntLE(leafSz + caSz + midSz, TEST_EKU_CERT_BUF_SZ);
 
@@ -2944,9 +2876,8 @@ static int test_eku_chain_case(const test_eku_fixture* f,
             rootSz = caSz;
         }
         ExpectIntEQ(test_eku_chain_handshake(f->chainDer, chainSz,
-                                             rootDer, rootSz, tc->pinCa ? f->
-                                             interDer : NULL, caSz, tc,
-                                             &hsRet, &verifyRet), TEST_SUCCESS);
+            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz, tc,
+            &hsRet, &verifyRet), TEST_SUCCESS);
     }
 
     ExpectIntEQ(hsRet, tc->expectRet);
@@ -2955,7 +2886,7 @@ static int test_eku_chain_case(const test_eku_fixture* f,
      * cases the library decided on its own have a predictable verify result. */
     if (tc->overrideCb == 0) {
         ExpectIntEQ(verifyRet, (tc->expectRet == 0) ?
-                    WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
+            WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
     }
 #endif
 
@@ -2989,63 +2920,63 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
 
         /* Server authentication: a CA restricted to code signing, or to
          * client authentication, must be refused. */
-        {"codeSigning",  0, 0, 0, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"clientAuth",   0, 0, 0, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
+        { "codeSigning",  0, 0, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 0, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
         /* A CA that carries the purpose, or leaves it unrestricted, must not
          * be over-rejected. */
-        {"serverAuth",   0, 0, 0, 0, 0, 0, 0, 0},
-        {NULL,           0, 0, 0, 0, 0, 0, 0, 0},
-        {"any",          0, 0, 0, 0, 0, 0, 0, 0},
+        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0 },
+        { NULL,           0, 0, 0, 0, 0, 0, 0, 0 },
+        { "any",          0, 0, 0, 0, 0, 0, 0, 0 },
         /* The rule applies to a CA the certificate manager already holds, not
          * only to one seen for the first time. */
-        {"codeSigning",  0, 0, 0, 1, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"serverAuth",   0, 0, 0, 1, 0, 0, 0, 0},
+        { "codeSigning",  0, 0, 0, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0 },
         /* A self-signed trust anchor is exempt: here it is the anchor test,
          * not the Extended Key Usage, that decides. */
-        {"codeSigning",  1, 0, 0, 0, 0, 0, 0, 0},
+        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0 },
         /* A self-issued CA key rollover certificate is not an anchor. It
          * carries the anchor's issuer and subject names, so DecodedCert's
          * selfSigned flag is set, but it holds a different key and is signed
          * by the anchor. The Extended Key Usage must still be enforced. */
-        {"codeSigning",  0, 1, 0, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"serverAuth",   0, 1, 0, 0, 0, 0, 0, 0},
+        { "codeSigning",  0, 1, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0 },
         /* Enforcement is not limited to the CA directly above the leaf: here
-        * the CA under test issues "EKU Middle CA", which issues the leaf. */
-        {"codeSigning",  0, 0, 0, 0, 1, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"serverAuth",   0, 0, 0, 0, 1, 0, 0, 0},
+         * the CA under test issues "EKU Middle CA", which issues the leaf. */
+        { "codeSigning",  0, 0, 0, 0, 1, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0 },
         /* An application that installs a verify callback keeps the last word,
          * as it does for every other chain error. */
-        {"codeSigning",  0, 0, 0, 0, 0, 1, 0, 0},
+        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0 },
 #ifdef OPENSSL_EXTRA
         /* The purpose check must not stand in for the checks that run before
-        * it. With the depth limit pinned below the chain, a callback that
-        * waives only the purpose error still has to see the chain length
-        * rejection, whether or not the CA under test carries the purpose. */
-        {"serverAuth",   0, 0, 0, 0, 1, 2, 1,
-         WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)},
-        {"codeSigning",  0, 0, 0, 0, 1, 2, 1,
-         WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)},
+         * it. With the depth limit pinned below the chain, a callback that
+         * waives only the purpose error still has to see the chain length
+         * rejection, whether or not the CA under test carries the purpose. */
+        { "serverAuth",   0, 0, 0, 0, 1, 2, 1,
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
+        { "codeSigning",  0, 0, 0, 0, 1, 2, 1,
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
 #endif
 #ifndef WOLFSSL_NO_CLIENT_AUTH
         /* Client authentication: the server applies the same rule with the
          * clientAuth purpose. */
-        {"codeSigning",  0, 0, 1, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"serverAuth",   0, 0, 1, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"clientAuth",   0, 0, 1, 0, 0, 0, 0, 0},
-        {NULL,           0, 0, 1, 0, 0, 0, 0, 0},
-        {"any",          0, 0, 1, 0, 0, 0, 0, 0},
+        { "codeSigning",  0, 0, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0 },
+        { NULL,           0, 0, 1, 0, 0, 0, 0, 0 },
+        { "any",          0, 0, 1, 0, 0, 0, 0, 0 },
         /* The rollover shape is rejected in the client authentication
          * direction too. */
-        {"serverAuth",   0, 1, 1, 0, 0, 0, 0,
-         WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)},
-        {"clientAuth",   0, 1, 1, 0, 0, 0, 0, 0},
+        { "serverAuth",   0, 1, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0 },
 #endif
     };
     test_eku_fixture fixture;
@@ -3064,39 +2995,34 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
 
     XMEMSET(&fixture, 0, sizeof(fixture));
     ExpectNotNull(fixture.midDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
-                                                  DYNAMIC_TYPE_TMP_BUFFER));
+        DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(fixture.interDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER));
+        DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(fixture.chainDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER));
+        DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    if (EXPECT_SUCCESS())
-        rngInit = 1;
+    if (EXPECT_SUCCESS()) rngInit = 1;
     ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        caInit = 1;
+    if (EXPECT_SUCCESS()) caInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
-                                       (word32)sizeof_ca_key_der_2048), 0);
+        (word32)sizeof_ca_key_der_2048), 0);
     ExpectIntEQ(wc_InitRsaKey(&midKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        midInit = 1;
+    if (EXPECT_SUCCESS()) midInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(rsa_key_der_2048, &idx, &midKey,
-                                       (word32)sizeof_rsa_key_der_2048), 0);
+        (word32)sizeof_rsa_key_der_2048), 0);
     ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        intInit = 1;
+    if (EXPECT_SUCCESS()) intInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
-                                       (word32)sizeof_server_key_der_2048), 0);
+        (word32)sizeof_server_key_der_2048), 0);
     ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        leafInit = 1;
+    if (EXPECT_SUCCESS()) leafInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
-                                       (word32)sizeof_client_key_der_2048), 0);
+        (word32)sizeof_client_key_der_2048), 0);
 
     fixture.caKey = &caKey;
     fixture.midKey = &midKey;
@@ -3108,16 +3034,11 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
         ExpectIntEQ(test_eku_chain_case(&fixture, &cases[i]), TEST_SUCCESS);
     }
 
-    if (rngInit)
-        wc_FreeRng(&rng);
-    if (caInit)
-        wc_FreeRsaKey(&caKey);
-    if (midInit)
-        wc_FreeRsaKey(&midKey);
-    if (intInit)
-        wc_FreeRsaKey(&intKey);
-    if (leafInit)
-        wc_FreeRsaKey(&leafKey);
+    if (rngInit)  wc_FreeRng(&rng);
+    if (caInit)   wc_FreeRsaKey(&caKey);
+    if (midInit)  wc_FreeRsaKey(&midKey);
+    if (intInit)  wc_FreeRsaKey(&intKey);
+    if (leafInit) wc_FreeRsaKey(&leafKey);
     XFREE(fixture.midDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(fixture.interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(fixture.chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3155,7 +3076,7 @@ typedef struct test_scv_case {
 static int test_scv_date_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     if (store->error == TEST_SCV_DATE_BEFORE_E ||
-        store->error == TEST_SCV_DATE_AFTER_E) {
+            store->error == TEST_SCV_DATE_AFTER_E) {
         return 1;
     }
     return preverify;
@@ -3165,19 +3086,17 @@ static int test_scv_date_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 #undef TEST_SCV_DATE_AFTER_E
 
 /* Build a TLS leaf naming the 2048-bit test root as its issuer and carrying
-* leafKey's public half. signKey decides whether it is genuine: the root's own
-* key issues it, any other key forges it. Returns the DER length, or < 0. */
+ * leafKey's public half. signKey decides whether it is genuine: the root's own
+ * key issues it, any other key forges it. Returns the DER length, or < 0. */
 static int test_scv_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
-                             RsaKey* signKey, WC_RNG* rng, int expired)
+    RsaKey* signKey, WC_RNG* rng, int expired)
 {
-    static const byte notBefore[] = {ASN_UTC_TIME, 13,
-                                     '1', '9', '0', '1', '0', '1', '0', '0',
-                                     '0', '0', '0', '0', 'Z'};
-    static const byte notAfter[]  = {ASN_UTC_TIME, 13,
-                                     '2', '0', '0', '1', '0', '1', '0', '0',
-                                     '0', '0', '0', '0', 'Z'};
+    static const byte notBefore[] = { ASN_UTC_TIME, 13,
+        '1', '9', '0', '1', '0', '1', '0', '0', '0', '0', '0', '0', 'Z' };
+    static const byte notAfter[]  = { ASN_UTC_TIME, 13,
+        '2', '0', '0', '1', '0', '1', '0', '0', '0', '0', '0', '0', 'Z' };
     Cert cert;
-    int ret = 0;
+    int  ret = 0;
 
     if (wc_InitCert(&cert) != 0)
         return -1;
@@ -3195,19 +3114,19 @@ static int test_scv_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
     if (wc_SetSubjectKeyIdFromPublicKey(&cert, leafKey, NULL) != 0)
         ret = -1;
     if (ret == 0 && wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
-                                            (int)sizeof_ca_cert_der_2048) != 0)
+            (int)sizeof_ca_cert_der_2048) != 0)
         ret = -1;
     if (ret == 0 && wc_SetKeyUsage(&cert,
-                                   "digitalSignature,keyEncipherment") != 0)
+            "digitalSignature,keyEncipherment") != 0)
         ret = -1;
     if (ret == 0 && wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
-                                       (int)sizeof_ca_cert_der_2048) != 0)
+            (int)sizeof_ca_cert_der_2048) != 0)
         ret = -1;
     if (ret == 0)
         ret = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng);
     if (ret >= 0)
         ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
-                          signKey, NULL, rng);
+            signKey, NULL, rng);
 #ifdef WOLFSSL_CERT_GEN_CACHE
     wc_SetCert_Free(&cert);
 #endif
@@ -3228,13 +3147,10 @@ static int test_scv_handshake(const byte* leafDer, int leafSz, int* hsRet)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                    wolfSSLv23_client_method,
-                                    wolfSSLv23_server_method,
-                                    (byte*)ca_cert_der_2048, (int)
-                                    sizeof_ca_cert_der_2048,
-                                    (byte*)leafDer, leafSz,
-                                    (byte*)client_key_der_2048, (int)
-                                    sizeof_client_key_der_2048), 0);
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        (byte*)leafDer, leafSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_scv_date_cb);
 
     if (EXPECT_SUCCESS()) {
@@ -3255,8 +3171,7 @@ static int test_scv_handshake(const byte* leafDer, int leafSz, int* hsRet)
 /* Build the leaf for one scenario, confirm what the library's own signature
  * check makes of it, then run the handshake. */
 static int test_scv_case_run(byte* leafDer, RsaKey* leafKey, RsaKey* caKey,
-                             RsaKey* attackerKey, WC_RNG* rng, const
-                             test_scv_case* tc)
+    RsaKey* attackerKey, WC_RNG* rng, const test_scv_case* tc)
 {
     EXPECT_DECLS;
     WOLFSSL_CERT_MANAGER* cm = NULL;
@@ -3264,17 +3179,15 @@ static int test_scv_case_run(byte* leafDer, RsaKey* leafKey, RsaKey* caKey,
     int hsRet = -1;
 
     ExpectIntGT((leafSz = test_scv_gen_leaf(leafDer, TEST_SCV_CERT_BUF_SZ,
-                                            leafKey, tc->forged ? attackerKey :
-                                            caKey, rng, tc->expired)), 0);
+        leafKey, tc->forged ? attackerKey : caKey, rng, tc->expired)), 0);
 
     /* Ground truth from the same library: only the signature is looked at. */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
-                                                (long)sizeof_ca_cert_der_2048,
-                                                WOLFSSL_FILETYPE_ASN1),
-                WOLFSSL_SUCCESS);
+        (long)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(wc_CheckCertSignature(leafDer, (word32)leafSz, NULL, cm),
-                tc->forged ? WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) : 0);
+        tc->forged ? WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) : 0);
     wolfSSL_CertManagerFree(cm);
 
     ExpectIntEQ(test_scv_handshake(leafDer, leafSz, &hsRet), TEST_SUCCESS);
@@ -3308,17 +3221,17 @@ int test_wolfSSL_small_cert_verify_sig_error(void)
         /* forged, expired, expected handshake result. */
 
         /* A leaf the root did issue verifies. */
-        {0, 0, 0},
+        { 0, 0, 0 },
         /* An expired leaf the root did issue is what the callback exists for,
          * so it must still be waived. */
-        {0, 1, 0},
+        { 0, 1, 0 },
         /* A leaf the root never signed is refused, and the reason the
          * application is given names the signature. */
-        {1, 0, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)},
+        { 1, 0, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) },
         /* The same forgery, also outside its validity window. The date error
          * must not stand in for the signature error, or the callback above
          * waives a certificate the root never signed. */
-        {1, 1, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)},
+        { 1, 1, WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) },
     };
     byte* leafDer = NULL;
     WC_RNG rng;
@@ -3333,44 +3246,36 @@ int test_wolfSSL_small_cert_verify_sig_error(void)
     size_t i;
 
     ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_SCV_CERT_BUF_SZ, NULL,
-                                           DYNAMIC_TYPE_TMP_BUFFER));
+        DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    if (EXPECT_SUCCESS())
-        rngInit = 1;
+    if (EXPECT_SUCCESS()) rngInit = 1;
     ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        caInit = 1;
+    if (EXPECT_SUCCESS()) caInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
-                                       (word32)sizeof_ca_key_der_2048), 0);
+        (word32)sizeof_ca_key_der_2048), 0);
     /* Any key the root does not hold serves as the attacker's. */
     ExpectIntEQ(wc_InitRsaKey(&attackerKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        attackerInit = 1;
+    if (EXPECT_SUCCESS()) attackerInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &attackerKey,
-                                       (word32)sizeof_server_key_der_2048), 0);
+        (word32)sizeof_server_key_der_2048), 0);
     ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
-    if (EXPECT_SUCCESS())
-        leafInit = 1;
+    if (EXPECT_SUCCESS()) leafInit = 1;
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
-                                       (word32)sizeof_client_key_der_2048), 0);
+        (word32)sizeof_client_key_der_2048), 0);
 
     for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
         ExpectIntEQ(test_scv_case_run(leafDer, &leafKey, &caKey, &attackerKey,
-                                      &rng, &cases[i]), TEST_SUCCESS);
+            &rng, &cases[i]), TEST_SUCCESS);
     }
 
-    if (rngInit)
-        wc_FreeRng(&rng);
-    if (caInit)
-        wc_FreeRsaKey(&caKey);
-    if (attackerInit)
-        wc_FreeRsaKey(&attackerKey);
-    if (leafInit)
-        wc_FreeRsaKey(&leafKey);
+    if (rngInit)      wc_FreeRng(&rng);
+    if (caInit)       wc_FreeRsaKey(&caKey);
+    if (attackerInit) wc_FreeRsaKey(&attackerKey);
+    if (leafInit)     wc_FreeRsaKey(&leafKey);
     XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -4372,8 +4277,8 @@ int test_wolfSSL_crl_io_mock(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int i;
-    static const int results[] = {0, -1, 1,
-                                  WOLFSSL_CBIO_ERR_WANT_READ};
+    static const int results[] = { 0, -1, 1,
+                                   WOLFSSL_CBIO_ERR_WANT_READ };
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
@@ -4434,26 +4339,26 @@ int test_wolfSSL_crl_io_mock(void)
 }
 
 /* ---------------------------------------------------------------------------
-* OCSP stapling accessors, and CRL delivered through a mocked transport.
-*
-* The previous argument-guard sweep moved ssl_api_crl_ocsp.c by one condition,
-* because it guessed at which functions held the gaps. Reading them settles
-* it: they are not the enable/disable calls, they are the stapling request
-* and response accessors, and their operands are of three kinds --
-*
-*   ssl->options.side != WOLFSSL_CLIENT_END   a SERVER object, which no
-*   ctx->method->side != WOLFSSL_CLIENT_END   client-side test can supply
-*
-*   ssl->ocspProducedDateFormat != ASN_UTC_TIME  a response that was never
-*                                                processed, or one whose
-*                                                producedDate is a
-*                                                GeneralizedTime
-*
-*   idx >= XELEM_CNT(ssl->ocspCsrResp), len < 0  an out-of-range slot
-*
-* None of them is reachable from a working client that staples successfully,
-* which is the only shape the existing tests have.
-* ------------------------------------------------------------------------- */
+ * OCSP stapling accessors, and CRL delivered through a mocked transport.
+ *
+ * The previous argument-guard sweep moved ssl_api_crl_ocsp.c by one condition,
+ * because it guessed at which functions held the gaps. Reading them settles
+ * it: they are not the enable/disable calls, they are the stapling request
+ * and response accessors, and their operands are of three kinds --
+ *
+ *   ssl->options.side != WOLFSSL_CLIENT_END   a SERVER object, which no
+ *   ctx->method->side != WOLFSSL_CLIENT_END   client-side test can supply
+ *
+ *   ssl->ocspProducedDateFormat != ASN_UTC_TIME  a response that was never
+ *                                                processed, or one whose
+ *                                                producedDate is a
+ *                                                GeneralizedTime
+ *
+ *   idx >= XELEM_CNT(ssl->ocspCsrResp), len < 0  an out-of-range slot
+ *
+ * None of them is reachable from a working client that staples successfully,
+ * which is the only shape the existing tests have.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_ocsp_stapling_accessors(void)
 {
     EXPECT_DECLS;
@@ -4469,11 +4374,9 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
     ExpectNotNull(cctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(sctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(sctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(sctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(cssl = wolfSSL_new(cctx));
     ExpectNotNull(sssl = wolfSSL_new(sctx));
 
@@ -4500,8 +4403,8 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
 #ifndef NO_ASN_TIME
     /* --- the producedDate accessor -------------------------------------- */
     {
-        byte when[32];
-        int fmt = 0;
+        byte  when[32];
+        int   fmt = 0;
 
         XMEMSET(when, 0, sizeof(when));
         (void)wolfSSL_get_ocsp_producedDate(NULL, when, sizeof(when), &fmt);
@@ -4515,15 +4418,15 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
         (void)wolfSSL_get_ocsp_producedDate(cssl, when, 1, &fmt);
 
         /* Drive the format operands directly. A stapled response carrying a
-        * GeneralizedTime rather than a UTCTime is legal, rare, and not
-        * something the test responder emits -- so this is the only way the
-        * second half of that decision is ever taken.
-        *
-        * Guarded because Expect* records a failure and carries on rather than
-        * returning: if wolfSSL_new() above failed, cssl is NULL here and
-        * these are dereferences of it, which is what the static analyser
-        * reported. Every call that merely PASSES cssl is safe either way --
-        * the API checks it -- so only the direct field writes need this. */
+         * GeneralizedTime rather than a UTCTime is legal, rare, and not
+         * something the test responder emits -- so this is the only way the
+         * second half of that decision is ever taken.
+         *
+         * Guarded because Expect* records a failure and carries on rather than
+         * returning: if wolfSSL_new() above failed, cssl is NULL here and
+         * these are dereferences of it, which is what the static analyser
+         * reported. Every call that merely PASSES cssl is safe either way --
+         * the API checks it -- so only the direct field writes need this. */
         if (cssl != NULL) {
             cssl->ocspProducedDateFormat = ASN_UTC_TIME;
             (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
@@ -4546,23 +4449,23 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
 }
 
 /* ---------------------------------------------------------------------------
-* X509 accessors and the DTLS API, each with the object its guard needs.
-*
-* Two files sat at the bottom of the newly-visible surface for the same
-* reason, and it is not that their guards are hard to reach -- it is that the
-* ACCEPTING half of each pair needs an object the existing tests do not have.
-*
-*   x509.c  every accessor is `x509 == NULL || outSz == NULL || ...`, so the
-*           NULL half is trivial and the valid half needs a parsed
-*           certificate. There was no test holding one.
-*
-*   ssl_api_dtls.c  every guard is `ssl == NULL || !ssl->options.dtls`, so the
-*           second operand needs a DTLS connection. Every test in this group
-*           used a TLS one, which leaves that operand constant.
-*
-* Both fixtures are cheap: a certificate loaded from certs/, and a WOLFSSL
-* made from a DTLS method. Neither needs a peer.
-* ------------------------------------------------------------------------- */
+ * X509 accessors and the DTLS API, each with the object its guard needs.
+ *
+ * Two files sat at the bottom of the newly-visible surface for the same
+ * reason, and it is not that their guards are hard to reach -- it is that the
+ * ACCEPTING half of each pair needs an object the existing tests do not have.
+ *
+ *   x509.c  every accessor is `x509 == NULL || outSz == NULL || ...`, so the
+ *           NULL half is trivial and the valid half needs a parsed
+ *           certificate. There was no test holding one.
+ *
+ *   ssl_api_dtls.c  every guard is `ssl == NULL || !ssl->options.dtls`, so the
+ *           second operand needs a DTLS connection. Every test in this group
+ *           used a TLS one, which leaves that operand constant.
+ *
+ * Both fixtures are cheap: a certificate loaded from certs/, and a WOLFSSL
+ * made from a DTLS method. Neither needs a peer.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_x509_accessor_guards(void)
 {
     EXPECT_DECLS;
@@ -4580,13 +4483,13 @@ int test_wolfSSL_x509_accessor_guards(void)
  * -- invisible to anything that only reads headers. Match the implementation. */
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     (defined(OPENSSL_EXTRA) || defined(KEEP_PEER_CERT) || \
-    defined(KEEP_OUR_CERT))
+     defined(KEEP_OUR_CERT))
     WOLFSSL_X509* x509 = NULL;
-    byte buf[2048];
-    int iSz = (int)sizeof(buf);
-    int wSz = (int)sizeof(buf);
+    byte  buf[2048];
+    int   iSz = (int)sizeof(buf);
+    int    wSz = (int)sizeof(buf);
     const byte* der = NULL;
-    int derSz = 0;
+    int   derSz = 0;
 
     XMEMSET(buf, 0, sizeof(buf));
 
@@ -4688,8 +4591,7 @@ int test_wolfSSL_x509_accessor_guards(void)
 int test_wolfSSL_dtls_api_on_dtls_object(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) \
-    && \
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* dctx = NULL;   /* the object the second operand needs */
     WOLFSSL_CTX* tctx = NULL;   /* a TLS one, for the operand's other half */
@@ -4741,8 +4643,7 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
 /* Declared under (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) && WOLFSSL_DTLS in ssl.h;
  * guarding on WOLFSSL_DTLS_MTU alone left the SCTP-only configs calling an
  * undeclared function. */
-#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && defined(WOLFSSL_DTLS \
-                                                                    )
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && defined(WOLFSSL_DTLS)
     (void)wolfSSL_CTX_dtls_set_mtu(NULL, 512);
     (void)wolfSSL_CTX_dtls_set_mtu(dctx, 0xFFFF);
     (void)wolfSSL_CTX_dtls_set_mtu(dctx, 512);
@@ -4766,29 +4667,28 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
 }
 
 /* ---------------------------------------------------------------------------
-* Certificate loading from files that are wrong in file-system ways.
-*
-* ssl_misc.c is 0/11 and every one of its conditions is in a static file
-* helper -- wolfssl_file_len and wolfssl_read_file_static -- guarding against
-* a seek that fails, a length that is zero or absurd, and a read that returns
-* fewer bytes than the length promised:
-*
-*     if ((ret == 0) && ((sz > MAX_WOLFSSL_FILE_SIZE) || (sz <= 0L)))
-*     if ((ret == 0) && ((file = XFOPEN(fname, "rb")) == XBADFILE))
-*     if ((ret == 0) && (XFREAD(...) != sz))
-*
-* They are static, but they are not out of reach: every public load-from-file
-* entry point runs through them, so the vector is the FILE rather than the
-* argument. An empty file gives sz <= 0; a directory passed where a file is
-* expected gives a seek or read that fails; a name that does not exist gives
-* XBADFILE. None of those is something a working configuration supplies, and
-* no existing test supplies them either.
-* ------------------------------------------------------------------------- */
+ * Certificate loading from files that are wrong in file-system ways.
+ *
+ * ssl_misc.c is 0/11 and every one of its conditions is in a static file
+ * helper -- wolfssl_file_len and wolfssl_read_file_static -- guarding against
+ * a seek that fails, a length that is zero or absurd, and a read that returns
+ * fewer bytes than the length promised:
+ *
+ *     if ((ret == 0) && ((sz > MAX_WOLFSSL_FILE_SIZE) || (sz <= 0L)))
+ *     if ((ret == 0) && ((file = XFOPEN(fname, "rb")) == XBADFILE))
+ *     if ((ret == 0) && (XFREAD(...) != sz))
+ *
+ * They are static, but they are not out of reach: every public load-from-file
+ * entry point runs through them, so the vector is the FILE rather than the
+ * argument. An empty file gives sz <= 0; a directory passed where a file is
+ * expected gives a seek or read that fails; a name that does not exist gives
+ * XBADFILE. None of those is something a working configuration supplies, and
+ * no existing test supplies them either.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_load_pathological_files(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) \
-    && \
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_CERT_MANAGER* cm = NULL;
@@ -4861,22 +4761,22 @@ int test_wolfSSL_load_pathological_files(void)
 }
 
 /* ---------------------------------------------------------------------------
-* The file-helper failure arms, reached with a FIFO.
-*
-* Three of ssl_misc.c's conditions cannot be produced by any regular file:
-*
-*     if ((ret == 0) && (XFSEEK(fp, 0, SEEK_END) != 0))     seek failed
-*     if ((ret == 0) && (XFREAD(...) != (size_t)sz))        short read
-*
-* A regular file always seeks and always reads what it promised. A FIFO does
-* neither: fopen() succeeds, so the XBADFILE arm is passed, and then fseek()
-* fails with ESPIPE because a pipe has no position. That is the exact shape
-* the guard is written for, and nothing on disk can imitate it.
-*
-* The FIFO is opened read-write by the test before the library touches it, so
-* the library's fopen() cannot block waiting for a writer -- a test that hangs
-* costs the whole variant just as surely as one that crashes.
-* ------------------------------------------------------------------------- */
+ * The file-helper failure arms, reached with a FIFO.
+ *
+ * Three of ssl_misc.c's conditions cannot be produced by any regular file:
+ *
+ *     if ((ret == 0) && (XFSEEK(fp, 0, SEEK_END) != 0))     seek failed
+ *     if ((ret == 0) && (XFREAD(...) != (size_t)sz))        short read
+ *
+ * A regular file always seeks and always reads what it promised. A FIFO does
+ * neither: fopen() succeeds, so the XBADFILE arm is passed, and then fseek()
+ * fails with ESPIPE because a pipe has no position. That is the exact shape
+ * the guard is written for, and nothing on disk can imitate it.
+ *
+ * The FIFO is opened read-write by the test before the library touches it, so
+ * the library's fopen() cannot block waiting for a writer -- a test that hangs
+ * costs the whole variant just as surely as one that crashes.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_load_from_fifo(void)
 {
     EXPECT_DECLS;
@@ -4934,34 +4834,34 @@ int test_wolfSSL_load_from_fifo(void)
 }
 
 /* ---------------------------------------------------------------------------
-* Allocation failure injection.
-*
-* Error propagation is the largest remaining category in the campaign: 633 of
-* 2855 uncovered conditions, almost all of the shape
-*
-*     ret = something();
-*     if (ret != 0) { ... }          or        if (p == NULL) { ... }
-*
-* after a call that cannot fail in a working configuration. No number of
-* successful runs pairs those operands, because the failing value never
-* occurs. The only way to produce it is to make the underlying operation fail
-* on purpose.
-*
-* wolfSSL_SetAllocators() is the cheapest lever for that: one harness, and it
-* reaches every out-of-memory arm in every file at once, because every
-* allocation in the library goes through it. The sweep fails the Nth
-* allocation and lets the rest succeed, for each N in turn -- so each run
-* takes a different one of those arms, and the runs where N is past the end
-* of the workload are the shared accepting partner.
-*
-* Failing exactly one allocation rather than everything from N onward keeps
-* each vector isolated: a cascade would take many arms at once and prove
-* nothing about any single one.
-*
-* The allocators are restored before the test returns. Leaving a failing
-* allocator installed would break every test that runs after this one in the
-* same binary, which costs the whole variant.
-* ------------------------------------------------------------------------- */
+ * Allocation failure injection.
+ *
+ * Error propagation is the largest remaining category in the campaign: 633 of
+ * 2855 uncovered conditions, almost all of the shape
+ *
+ *     ret = something();
+ *     if (ret != 0) { ... }          or        if (p == NULL) { ... }
+ *
+ * after a call that cannot fail in a working configuration. No number of
+ * successful runs pairs those operands, because the failing value never
+ * occurs. The only way to produce it is to make the underlying operation fail
+ * on purpose.
+ *
+ * wolfSSL_SetAllocators() is the cheapest lever for that: one harness, and it
+ * reaches every out-of-memory arm in every file at once, because every
+ * allocation in the library goes through it. The sweep fails the Nth
+ * allocation and lets the rest succeed, for each N in turn -- so each run
+ * takes a different one of those arms, and the runs where N is past the end
+ * of the workload are the shared accepting partner.
+ *
+ * Failing exactly one allocation rather than everything from N onward keeps
+ * each vector isolated: a cascade would take many arms at once and prove
+ * nothing about any single one.
+ *
+ * The allocators are restored before the test returns. Leaving a failing
+ * allocator installed would break every test that runs after this one in the
+ * same binary, which costs the whole variant.
+ * ------------------------------------------------------------------------- */
 /* OPT-IN, via WOLFSSL_MCDC_ALLOC_SWEEP, which the coverage campaign's own
  * option list defines and no ordinary build does.
  *
@@ -4993,8 +4893,7 @@ int test_wolfSSL_load_from_fifo(void)
  * defined. */
 #if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) \
-    && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_TLS)
 
 static int fi_failAt = -1;      /* which allocation to fail; -1 = none */
@@ -5146,14 +5045,13 @@ int test_wolfSSL_alloc_failure_sweep(void)
  * defined. */
 #if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) \
-    && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_TLS)
     int n;
     int injected = 0;
     int total;
-    wolfSSL_Malloc_cb prevMalloc  = NULL;
-    wolfSSL_Free_cb prevFree    = NULL;
+    wolfSSL_Malloc_cb  prevMalloc  = NULL;
+    wolfSSL_Free_cb    prevFree    = NULL;
     wolfSSL_Realloc_cb prevRealloc = NULL;
 
     /* Keep whatever was installed before, so the teardown below can put it
@@ -5215,18 +5113,18 @@ int test_wolfSSL_alloc_failure_sweep(void)
 }
 
 /* ---------------------------------------------------------------------------
-* DTLS API argument guards, on a DTLS object.
-*
-* ssl_api_dtls.c is the weakest of the newly-visible files. Its guards are the
-* usual NULL-and-zero pairs, but the ACCEPTING half of most of them needs a
-* DTLS connection -- the same reason the file sat at 3/53 until one was
-* supplied. These add the entry points the earlier pass did not reach.
-*
-* Guards were read from src/ssl_api_dtls.c before writing, not assumed from
-* ssl.h: wolfSSL_dtls13_pending_work is compiled only under WOLFSSL_DTLS13,
-* SetCookieSecret only under WOLFSSL_DTLS && !NO_WOLFSSL_SERVER, and several
-* are additionally gated on !WOLFSSL_LEANPSK.
-* ------------------------------------------------------------------------- */
+ * DTLS API argument guards, on a DTLS object.
+ *
+ * ssl_api_dtls.c is the weakest of the newly-visible files. Its guards are the
+ * usual NULL-and-zero pairs, but the ACCEPTING half of most of them needs a
+ * DTLS connection -- the same reason the file sat at 3/53 until one was
+ * supplied. These add the entry points the earlier pass did not reach.
+ *
+ * Guards were read from src/ssl_api_dtls.c before writing, not assumed from
+ * ssl.h: wolfSSL_dtls13_pending_work is compiled only under WOLFSSL_DTLS13,
+ * SetCookieSecret only under WOLFSSL_DTLS && !NO_WOLFSSL_SERVER, and several
+ * are additionally gated on !WOLFSSL_LEANPSK.
+ * ------------------------------------------------------------------------- */
 int test_wolfSSL_dtls_api_more_guards(void)
 {
     EXPECT_DECLS;
@@ -5326,14 +5224,15 @@ int test_wolfSSL_dtls_api_more_guards(void)
 #endif
     return EXPECT_RESULT();
 }
-
-/* Decision-coverage drivers for the ssl_api_cert.c argument guards left
- * unpaired by the functional tests. Each block names the source
- * line:condition it closes; struct pokes are saved/restored around the call. */
 int test_ssl_cert_decision_coverage(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    /* Refs WOLFSSL_LOCAL certman fns, hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_CERTS) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -5358,6 +5257,7 @@ int test_ssl_cert_decision_coverage(void)
         wolfSSL_CTX_free(nctx);
     }
 
+#ifdef SESSION_CERTS
     /* --- 2301:1 get_chain_X509: idx >= 0 -------------------------------- */
     {
         WOLFSSL_X509_CHAIN chain;
@@ -5368,6 +5268,7 @@ int test_ssl_cert_decision_coverage(void)
         (void)wolfSSL_get_chain_X509(&chain, -1);
         (void)wolfSSL_get_chain_X509(&chain, 0);
     }
+#endif
 
     /* --- 984:1/1002:0/1 UnloadCertsKeys: keepCert, key, key->buffer ----- */
     {
