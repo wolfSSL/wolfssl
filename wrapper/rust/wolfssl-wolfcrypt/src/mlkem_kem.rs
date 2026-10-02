@@ -65,6 +65,7 @@ assert_eq!(k_send, k_recv);
 use kem::common::array::Array;
 use kem::common::typenum::{U32, U768, U800};
 use hybrid_array::sizes::{U1088, U1184, U1568, U1632, U2400, U3168};
+use zeroize::Zeroizing;
 
 macro_rules! impl_mlkem_kem {
     (
@@ -123,8 +124,9 @@ macro_rules! impl_mlkem_kem {
                 &self,
                 rng: &mut R,
             ) -> (kem::Ciphertext<$kem>, kem::SharedKey<$kem>) {
-                let mut rand = [0u8; crate::mlkem::MlKem::ENC_RAND_SIZE];
-                rng.fill_bytes(&mut rand);
+                let mut rand = Zeroizing::new(
+                    [0u8; crate::mlkem::MlKem::ENC_RAND_SIZE]);
+                rng.fill_bytes(&mut rand[..]);
 
                 let mut wc_key = crate::mlkem::MlKem::new($key_type)
                     .expect("MlKem::new failed");
@@ -132,12 +134,12 @@ macro_rules! impl_mlkem_kem {
                     .expect("decode_public_key failed");
 
                 let mut ct = [0u8; $ct_len];
-                let mut ss = [0u8; crate::mlkem::MlKem::SHARED_SECRET_SIZE];
-                wc_key.encapsulate_with_random(&mut ct, &mut ss, &rand)
+                let mut ss = Zeroizing::new(
+                    [0u8; crate::mlkem::MlKem::SHARED_SECRET_SIZE]);
+                wc_key.encapsulate_with_random(&mut ct, &mut ss[..], &rand[..])
                     .expect("encapsulate_with_random failed");
-                zeroize::Zeroize::zeroize(&mut rand[..]);
 
-                (ct.into(), ss.into())
+                (ct.into(), (*ss).into())
             }
         }
 
@@ -167,11 +169,12 @@ macro_rules! impl_mlkem_kem {
                 wc_key.decode_private_key(self.sk.as_ref())
                     .expect("decode_private_key failed");
 
-                let mut ss = [0u8; crate::mlkem::MlKem::SHARED_SECRET_SIZE];
-                wc_key.decapsulate(&mut ss, ct.as_ref())
+                let mut ss = Zeroizing::new(
+                    [0u8; crate::mlkem::MlKem::SHARED_SECRET_SIZE]);
+                wc_key.decapsulate(&mut ss[..], ct.as_ref())
                     .expect("decapsulate failed");
 
-                ss.into()
+                (*ss).into()
             }
         }
 
@@ -179,23 +182,24 @@ macro_rules! impl_mlkem_kem {
             fn try_generate_from_rng<R: kem::common::rand_core::TryCryptoRng + ?Sized>(
                 rng: &mut R,
             ) -> Result<Self, R::Error> {
-                let mut rand = [0u8; crate::mlkem::MlKem::MAKEKEY_RAND_SIZE];
-                rng.try_fill_bytes(&mut rand)?;
+                let mut rand = Zeroizing::new(
+                    [0u8; crate::mlkem::MlKem::MAKEKEY_RAND_SIZE]);
+                rng.try_fill_bytes(&mut rand[..])?;
 
                 let wc_key = crate::mlkem::MlKem::generate_with_random(
-                    $key_type, &rand,
+                    $key_type, &rand[..],
                 ).expect("generate_with_random failed");
-                zeroize::Zeroize::zeroize(&mut rand[..]);
+                drop(rand);
 
                 let mut pk = [0u8; $pk_len];
-                let mut sk = [0u8; $sk_len];
+                let mut sk = Zeroizing::new([0u8; $sk_len]);
                 wc_key.encode_public_key(&mut pk)
                     .expect("encode_public_key failed");
-                wc_key.encode_private_key(&mut sk)
+                wc_key.encode_private_key(&mut sk[..])
                     .expect("encode_private_key failed");
 
                 Ok(Self {
-                    sk: sk.into(),
+                    sk: (*sk).into(),
                     ek: $ek { pk: pk.into() },
                 })
             }
