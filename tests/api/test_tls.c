@@ -3338,6 +3338,7 @@ int test_tls12_clear_resets_options(void)
         ssl_s->options.dhDoKeyTest  = fresh->options.dhDoKeyTest;
         ssl_s->options.dhKeyTested  = fresh->options.dhKeyTested;
 #endif
+        /* // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) */
         ExpectIntEQ(XMEMCMP(&ssl_s->options, &fresh->options, sizeof(Options)),
                     0);
         if (EXPECT_FAIL()) {
