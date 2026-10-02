@@ -12420,6 +12420,45 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
 }
 
+#ifdef HAVE_ECC
+/* An ECDSA SignatureScheme names a curve as well as a hash, so the peer key
+ * has to be on the curve the announced scheme names (RFC 8446 4.4.3).
+ *
+ * returns 1 when the peer key's group agrees with the announced hash. */
+static int EccPeerCurveMatchesSigAlgo(WOLFSSL* ssl, byte hashAlgo,
+                                      byte sigAlgo)
+{
+    ecc_key* key = ssl->peerEccDsaKey;
+
+    if ((key == NULL) || (key->dp == NULL))
+        return 0;
+
+    /* A curve with a scheme of its own has to be used with it, or a same
+     * sized curve would satisfy any of them. */
+#ifdef HAVE_ECC_BRAINPOOL
+    if ((key->dp->oidSum == ECC_BRAINPOOLP256R1_OID) ||
+        (key->dp->oidSum == ECC_BRAINPOOLP384R1_OID) ||
+        (key->dp->oidSum == ECC_BRAINPOOLP512R1_OID)) {
+        if (sigAlgo != ecc_brainpool_sa_algo)
+            return 0;
+    }
+    else
+#endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (key->dp->oidSum == ECC_SM2P256V1_OID) {
+        if (sigAlgo != sm2_sa_algo)
+            return 0;
+    }
+    else
+#endif
+    if (sigAlgo != ecc_dsa_sa_algo) {
+        return 0;
+    }
+
+    return CmpEccStrength(hashAlgo, key->dp->size) == 0;
+}
+#endif /* HAVE_ECC */
+
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef NO_RSA
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
@@ -12826,16 +12865,25 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
         #ifdef HAVE_ECC
             if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
+                byte curveHash = 0, curveSig = 0;
                 WOLFSSL_MSG("Peer sent ECC sig");
+                /* DecodeTls13SigAlg folds the brainpool schemes onto
+                 * ecc_dsa_sa_algo; DecodeSigAlg keeps them apart. */
+                DecodeSigAlg(input + args->begin, &curveHash, &curveSig);
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
-                                                      ssl->peerEccDsaKeyPresent;
+                               ssl->peerEccDsaKeyPresent &&
+                               EccPeerCurveMatchesSigAlgo(ssl, curveHash,
+                                                          curveSig);
             }
         #endif
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
             if (ssl->options.peerSigAlgo == sm2_sa_algo) {
                 WOLFSSL_MSG("Peer sent SM2 sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
-                                                      ssl->peerEccDsaKeyPresent;
+                               ssl->peerEccDsaKeyPresent &&
+                               EccPeerCurveMatchesSigAlgo(ssl,
+                                   ssl->options.peerHashAlgo,
+                                   ssl->options.peerSigAlgo);
             }
         #endif
         #ifdef HAVE_FALCON
@@ -13260,6 +13308,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if ((args->altSigAlgo == ecc_dsa_sa_algo) &&
                     (ssl->peerEccDsaKeyPresent)) {
                     WOLFSSL_MSG("Doing ECC peer cert alt verify");
+                    if (!EccPeerCurveMatchesSigAlgo(ssl,
+                            ssl->options.peerHashAlgo, ecc_dsa_sa_algo)) {
+                        ERROR_OUT(SIG_VERIFY_E, exit_dcv);
+                    }
                     ret = EccVerify(ssl, sig, args->altSignatureSz,
                                 args->altSigData, args->altSigDataSz,
                                 ssl->peerEccDsaKey,

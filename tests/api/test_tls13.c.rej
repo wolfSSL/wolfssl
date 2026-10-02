@@ -1,0 +1,11 @@
+--- tests/api/test_tls13.c
++++ tests/api/test_tls13.c
+@@ -13685,7 +13685,7 @@ static void test_tls13_cks_free_cb(void* ptr)
+ int test_tls13_cks_hrr_reparse(void)
+ {
+     EXPECT_DECLS;
+-#ifdef TEST_TLS13_CKS_REPARSE
++#if defined(TEST_TLS13_CKS_REPARSE) && defined(USE_WOLFSSL_MEMORY)
+     WOLFSSL_CTX *ctx_c = NULL;
+     WOLFSSL_CTX *ctx_s = NULL;
+     WOLFSSL *ssl_c = NULL;
