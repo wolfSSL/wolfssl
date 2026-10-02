@@ -3229,6 +3229,10 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     return ret;
 }
 
+#if defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    #define MLKEM_NO_SEED_EXPAND
+#endif
+
 /* Decode a DER PKCS#8 OneAsymmetricKey into an ML-KEM private key.
  *
  * All three RFC 9935 Section 6 CHOICE shapes are accepted: the 64 byte seed
@@ -3239,9 +3243,9 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
  * Section 8. The parameter set must match the initialized key object, as
  * described for wc_MlKemKey_PublicKeyDecode.
  *
- * A WOLFSSL_MLKEM_NO_MAKE_KEY build cannot expand a seed, so it cannot run
- * the Section 8 check either and rejects any key carrying one, including the
- * "both" shape.
+ * A WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM build cannot
+ * expand a seed, so it cannot run the Section 8 check either and rejects any
+ * key carrying one, including the "both" shape.
  *
  * @param  [in, out]  key       ML-KEM key object.
  * @param  [in]       input     DER buffer.
@@ -3254,7 +3258,7 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
  *          expanded key that disagree.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when a key carrying a seed is decoded in a
- *          WOLFSSL_MLKEM_NO_MAKE_KEY build.
+ *          WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM build.
  */
 int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32* inOutIdx)
@@ -3267,7 +3271,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32 privKeyLen = 0;
     const byte* pubKey = NULL;
     word32 pubKeyLen = 0;
-#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+#ifndef MLKEM_NO_SEED_EXPAND
     int keyExpanded = 0;
 #endif
 
@@ -3288,7 +3292,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) == 0)) {
         ret = mlkem_key_adopt_type(key, keyType);
     }
-#ifdef WOLFSSL_MLKEM_NO_MAKE_KEY
+#ifdef MLKEM_NO_SEED_EXPAND
     /* Expanding a seed needs key generation, which this build lacks. That
      * rules out the "both" shape too: without the RFC 9935 Section 8
      * comparison, trusting the expanded half would accept a tampered file. */
@@ -3362,7 +3366,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     else if ((ret == 0) && (seed == NULL)) {
         ret = wc_MlKemKey_DecodePrivateKey(key, privKey, privKeyLen);
     }
-#endif /* WOLFSSL_MLKEM_NO_MAKE_KEY */
+#endif /* MLKEM_NO_SEED_EXPAND */
 
     return ret;
 }

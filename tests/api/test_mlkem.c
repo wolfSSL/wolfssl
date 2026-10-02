@@ -4692,8 +4692,8 @@ int test_wc_mlkem_encode_key_len_decision(void)
 int test_wc_MlKemKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_NO_ML_KEM)
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WC_MLKEM_HAVE_NATIVE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WOLFSSL_NO_ML_KEM)
     MlKemKey* key = NULL;
     byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
 #ifndef WOLFSSL_NO_ML_KEM_768
