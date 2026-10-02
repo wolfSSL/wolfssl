@@ -23,7 +23,8 @@ REM "qc" disconnects. Override with QC_DELAY_MS if you need longer/shorter. Some
 REM early boot (clock/BSP init, FreeRTOS scheduler start) can behave differently while a
 REM debug probe is actively attached vs. standalone; holding the connection open a bit
 REM past "go" is a cheap way to rule that class of difference in/out.
-if not defined QC_DELAY_MS set QC_DELAY_MS=30000
+REM Default QC_DELAY_MS to 1000ms if not already defined.
+if not defined QC_DELAY_MS set QC_DELAY_MS=1000
 
 set MODE=reload
 if /i "%1"=="restart" (

@@ -361,7 +361,7 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     /* aadDelta below pads authInSz up to a whole AES block; reject sizes
      * where authInSz + aadDelta would overflow word32 and under-allocate
      * aadBuf relative to the XMEMCPY into it. */
-    if (authInSz > (word32)0xFFFFFFFFU - (WC_AES_BLOCK_SIZE - 1)) {
+    if (authInSz > (word32)WOLFSSL_MAX_32BIT - (WC_AES_BLOCK_SIZE - 1)) {
         return BAD_FUNC_ARG;
     }
 
@@ -484,7 +484,6 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         }
 
         if (ret == 0) {
-
             /* since generated session key is coupled to iv, no need to pass
              * them init func.
              */
@@ -502,7 +501,6 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                                                                 &out_len_tmp);
                #endif
             }
-
             if (ret == FSP_SUCCESS) {
                 out_len_tmp = 0;
                 ret = updateFn(&_handle, plainBuf, cipherBuf, sz, NULL, 0UL,
@@ -514,7 +512,6 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmEncryptUpdate2: failed");
                 ret = -1;
             }
-
             /* Once R_SCE_AesxxxGcmEncryptInit or R_SCE_AesxxxEncryptUpdate is
              * called, R_SCE_AesxxxGcmEncryptFinal must be called regardless of
              * the result of the previous call. Otherwise, SCE can not come out
@@ -528,42 +525,42 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
             else {
-            dataLen = 0;
-            out_len_tmp = 0;
-            ret = finalFn(&_handle,
+                dataLen = 0;
+                out_len_tmp = 0;
+                ret = finalFn(&_handle,
                        cipherBuf + (sz + delta - WC_AES_BLOCK_SIZE),
-            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                    #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
                           &out_len_tmp,
-            #else
+                    #else
                           &dataLen,
-            #endif
+                    #endif
                           aTagBuf);
 
-            if (ret == FSP_SUCCESS && updateOk) {
-            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                out_len += out_len_tmp;
-                dataLen = out_len;
-            #endif
-               /* copy encrypted data to out */
-                if (sz != dataLen) {
-                    WOLFSSL_MSG("sz is not equal to dataLen!!!!");
+                if (ret == FSP_SUCCESS && updateOk) {
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                    out_len += out_len_tmp;
+                    dataLen = out_len;
+                #endif
+                    /* copy encrypted data to out */
+                    if (sz != dataLen) {
+                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
+                        ret = -1;
+                    }
+                    else {
+                        XMEMCPY(out, cipherBuf, dataLen);
+                        /* copy auth tag to caller's buffer */
+                        XMEMCPY((void*)authTag, (void*)aTagBuf,
+                                    min(authTagSz, SCE_AES_GCM_AUTH_TAG_SIZE ));
+                    }
+                }
+                else {
+                    if (ret != FSP_SUCCESS) {
+                        WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
+                    }
                     ret = -1;
-                } else {
-                    XMEMCPY(out, cipherBuf, dataLen);
-                    /* copy auth tag to caller's buffer */
-                    XMEMCPY((void*)authTag, (void*)aTagBuf,
-                                min(authTagSz, SCE_AES_GCM_AUTH_TAG_SIZE ));
                 }
-            }
-            else {
-                if (ret != FSP_SUCCESS) {
-                    WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
-                }
-                ret = -1;
-            }
             }
         }
-
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
@@ -637,7 +634,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     /* aadDelta below pads authInSz up to a whole AES block; reject sizes
      * where authInSz + aadDelta would overflow word32 and under-allocate
      * aadBuf relative to the XMEMCPY into it. */
-    if (authInSz > (word32)0xFFFFFFFFU - (WC_AES_BLOCK_SIZE - 1)) {
+    if (authInSz > (word32)WOLFSSL_MAX_32BIT - (WC_AES_BLOCK_SIZE - 1)) {
         return BAD_FUNC_ARG;
     }
 
@@ -759,7 +756,6 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
              ret = initFn(&_handle, key_server_aes, (uint8_t*)iv_l, ivSz_l);
              initOk = (ret == FSP_SUCCESS);
 
-
             if (ret == FSP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
                #if defined(WOLFSSL_RENESAS_RSIP) &&\
@@ -776,6 +772,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                                         plainBuf, sz, NULL, 0UL, &out_len_tmp);
                 out_len += out_len_tmp;
             }
+
             updateOk = (ret == FSP_SUCCESS);
             if (!updateOk) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptUpdate: failed in decrypt");
@@ -794,51 +791,50 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
             else {
-            dataLen = 0;
-            out_len_tmp = 0;
-            ret = finalFn(&_handle,
+                dataLen = 0;
+                out_len_tmp = 0;
+                ret = finalFn(&_handle,
                               plainBuf + (sz + delta - WC_AES_BLOCK_SIZE),
-            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                        &out_len_tmp,
-            #else
-                        &dataLen,
-            #endif
-                        aTagBuf,
-                        min(16, authTagSz));
+                    #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                                &out_len_tmp,
+                    #else
+                                &dataLen,
+                    #endif
+                                aTagBuf, min(16, authTagSz));
 
-            if (ret == FSP_SUCCESS && updateOk) {
-            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                out_len += out_len_tmp;
-                dataLen = out_len;
-            #endif
-                /* copy plain data to out */
-                if (sz != dataLen) {
-                    WOLFSSL_MSG("sz is not equal to dataLen!!!!");
-                    ret = -1;
+                if (ret == FSP_SUCCESS && updateOk) {
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                    out_len += out_len_tmp;
+                    dataLen = out_len;
+                #endif
+                    /* copy plain data to out */
+                    if (sz != dataLen) {
+                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
+                        ret = -1;
+                    }
+                    else {
+                        XMEMCPY(out, plainBuf, dataLen);
+                    }
+                }
+                else if (ret != FSP_SUCCESS) {
+                    WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
+                    /* Only map to AES_GCM_AUTH_E
+                                                if Update actually succeeded. */
+                    if (updateOk &&
+                        (ret == FSP_ERR_CRYPTO_SCE_AUTHENTICATION ||
+                        ret == FSP_ERR_CRYPTO_AUTHENTICATION_FAILED)) {
+                        ret = AES_GCM_AUTH_E;
+                    }
+                    else {
+                        ret = -1;
+                    }
                 }
                 else {
-                    XMEMCPY(out, plainBuf, dataLen);
-                }
-            }
-            else if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
-                /* Only map to AES_GCM_AUTH_E if Update actually succeeded. */
-                if (updateOk &&
-                    (ret == FSP_ERR_CRYPTO_SCE_AUTHENTICATION ||
-                     ret == FSP_ERR_CRYPTO_AUTHENTICATION_FAILED)) {
-                    ret = AES_GCM_AUTH_E;
-                }
-                else {
+                    /* Final reported success, but Update had already failed. */
                     ret = -1;
                 }
-            }
-            else {
-                /* Final reported success, but Update had already failed. */
-                ret = -1;
-            }
             }
         }
-
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
