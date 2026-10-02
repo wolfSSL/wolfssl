@@ -1103,7 +1103,7 @@ fpr fpr_mul(fpr x, fpr y)
     /* Normalize zu to 2^54..2^55-1; it may be one bit too large. The
      * conditional right-shift preserves the sticky bit. */
     zv = (zu >> 1) | (zu & 1);
-    w = zu >> 55;
+    w = fpr_ct_opaque32((word32)(zu >> 55));
     zu ^= (zu ^ zv) & ((word64)0 - w);
 
     /* Aggregate scaling factor: sum the exponents, remove 2*(1023+52), then
@@ -1116,7 +1116,7 @@ fpr fpr_mul(fpr x, fpr y)
     s = (int)((x ^ y) >> 63);
 
     /* Corrective action: if either operand is zero, clamp the mantissa. */
-    d = ((ex + 0x7FF) & (ey + 0x7FF)) >> 11;
+    d = (int)fpr_ct_opaque32((word32)(((ex + 0x7FF) & (ey + 0x7FF)) >> 11));
     zu &= (word64)0 - (word64)d;
 
     return FPR(s, e, zu);
