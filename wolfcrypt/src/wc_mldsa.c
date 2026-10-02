@@ -11291,6 +11291,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
  * @param [in]      sigLen  Length of message in bytes.
  * @param [out]     res     Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -11307,6 +11308,9 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
 
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (!key->pubKeySet) {
+        ret = PUBLIC_KEY_E;
     }
 
     if (ret == 0) {
@@ -11336,6 +11340,7 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
  * @param [in]      sigLen  Length of message in bytes.
  * @param [out]     res     Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -11351,6 +11356,9 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
 
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (!key->pubKeySet) {
+        ret = PUBLIC_KEY_E;
     }
 
     if (ret == 0) {
@@ -11383,6 +11391,7 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
  * @param [in]      sigLen    Length of message in bytes.
  * @param [out]     res       Result of verification.
  * @return  0 on success.
+ * @return  PUBLIC_KEY_E when no public key is set.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
  *          parameters.
@@ -11401,6 +11410,9 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
 
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (!key->pubKeySet) {
+        ret = PUBLIC_KEY_E;
     }
     /* Check that the input hash length is valid. */
     if ((ret == 0) &&
@@ -12308,8 +12320,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -12372,7 +12385,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
+ *  returns BAD_FUNC_ARG when a parameter is NULL,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -12432,8 +12446,9 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  hashLen     [in]  Length of the message hash in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -12525,6 +12540,7 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *          PUBLIC_KEY_E if no public key,
  *          0 otherwise.
  */
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
@@ -12539,6 +12555,10 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
         ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = PUBLIC_KEY_E;
     }
 
     if (ret == 0) {
@@ -13293,6 +13313,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
  *                          On out, the number bytes put into array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set.
  * @return  BUFFER_E when outLen is less than WC_MLDSA_44_PUB_KEY_SIZE.
  */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
@@ -13369,7 +13390,7 @@ int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
 
     /* Check public key available. */
     if ((ret == 0) && (!key->pubKeySet)) {
-        ret = BAD_FUNC_ARG;
+        ret = PUBLIC_KEY_E;
     }
 
     if (ret == 0) {
@@ -13836,6 +13857,8 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
  *                          On out, the number bytes put into public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set, after priv is
+ *          written.
  * @return  BUFFER_E when privSz or pubSz is less than required size.
  */
 int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
@@ -14547,6 +14570,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
  * @param [in]  withAlg  Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
@@ -14558,10 +14582,6 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
 
     /* Validate parameters. */
     if (key == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-    /* Check we have a public key to encode. */
-    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -14602,6 +14622,10 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
             ret = BAD_FUNC_ARG;
         }
     }
+    /* Check we have a public key to encode. */
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = PUBLIC_KEY_E;
+    }
 
     if (ret == 0) {
         ret = SetAsymKeyDerPublic(key->p, pubKeyLen, output, len, keyType,
@@ -14629,7 +14653,8 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
  * @param [out] output  Buffer to put encoded data in.
  * @param [in]  len     Size of buffer in bytes.
  * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL or the private key is not set.
+ * @return  PUBLIC_KEY_E when the public key is not set.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
@@ -14637,7 +14662,10 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Validate parameters and check public and private key set. */
-    if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
+    if ((key != NULL) && key->prvKeySet && (!key->pubKeySet)) {
+        ret = PUBLIC_KEY_E;
+    }
+    else if ((key != NULL) && key->prvKeySet) {
         /* Create DER for level. */
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
         if (key->params == NULL) {
