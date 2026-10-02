@@ -30,8 +30,11 @@ use wolfssl_wolfcrypt::random::RNG;
 /// the wolfCrypt API.
 #[test]
 fn test_level_constants() {
+    #[cfg(mldsa_level2)]
     assert_eq!(MlDsa::LEVEL_44, 2);
+    #[cfg(mldsa_level3)]
     assert_eq!(MlDsa::LEVEL_65, 3);
+    #[cfg(mldsa_level5)]
     assert_eq!(MlDsa::LEVEL_87, 5);
 }
 
@@ -42,18 +45,28 @@ fn test_new_and_level() {
 
     let mut key = MlDsa::new().expect("Error with new()");
 
-    key.set_level(MlDsa::LEVEL_44).expect("Error with set_level()");
-    assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_44);
+    #[cfg(mldsa_level2)]
+    {
+        key.set_level(MlDsa::LEVEL_44).expect("Error with set_level()");
+        assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_44);
+    }
 
-    key.set_level(MlDsa::LEVEL_65).expect("Error with set_level()");
-    assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_65);
+    #[cfg(mldsa_level3)]
+    {
+        key.set_level(MlDsa::LEVEL_65).expect("Error with set_level()");
+        assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_65);
+    }
 
-    key.set_level(MlDsa::LEVEL_87).expect("Error with set_level()");
-    assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_87);
+    #[cfg(mldsa_level5)]
+    {
+        key.set_level(MlDsa::LEVEL_87).expect("Error with set_level()");
+        assert_eq!(key.get_level().expect("Error with get_level()"), MlDsa::LEVEL_87);
+    }
 }
 
 /// Verify that `new_ex()` accepts the optional heap and device ID parameters.
 #[test]
+#[cfg(mldsa_level2)]
 fn test_new_ex() {
     common::setup();
     let mut key = MlDsa::new_ex(None, None).expect("Error with new_ex()");
@@ -111,7 +124,7 @@ fn test_sizes_level87() {
 
 /// Verify that `check_key()` accepts a freshly generated ML-DSA-44 key pair.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_check_key))]
+#[cfg(all(mldsa_make_key, mldsa_check_key, mldsa_level2))]
 fn test_check_key_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -122,7 +135,7 @@ fn test_check_key_level44() {
 
 /// Verify that `check_key()` accepts a freshly generated ML-DSA-65 key pair.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_check_key))]
+#[cfg(all(mldsa_make_key, mldsa_check_key, mldsa_level3))]
 fn test_check_key_level65() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -133,7 +146,7 @@ fn test_check_key_level65() {
 
 /// Verify that `check_key()` accepts a freshly generated ML-DSA-87 key pair.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_check_key))]
+#[cfg(all(mldsa_make_key, mldsa_check_key, mldsa_level5))]
 fn test_check_key_level87() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -147,7 +160,7 @@ fn test_check_key_level87() {
 /// Also verifies that a tampered message or signature produces a
 /// verification failure rather than an error.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify, mldsa_level2))]
 fn test_sign_verify_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -171,7 +184,7 @@ fn test_sign_verify_level44() {
 
 /// Sign and verify a message round-trip using ML-DSA-65.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify, mldsa_level3))]
 fn test_sign_verify_level65() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -190,7 +203,7 @@ fn test_sign_verify_level65() {
 
 /// Sign and verify a message round-trip using ML-DSA-87.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify, mldsa_level5))]
 fn test_sign_verify_level87() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -211,7 +224,7 @@ fn test_sign_verify_level87() {
 ///
 /// Also verifies that a mismatched context causes verification to fail.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_sign, mldsa_verify, mldsa_level2))]
 fn test_sign_ctx_verify_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -242,7 +255,7 @@ fn test_sign_ctx_verify_level44() {
 #[test]
 #[cfg(all(mldsa_make_key, mldsa_size, mldsa_pub_size, mldsa_sig_size,
           mldsa_import_public, mldsa_import_private, mldsa_export_public,
-          mldsa_export_private, mldsa_sign, mldsa_verify))]
+          mldsa_export_private, mldsa_sign, mldsa_verify, mldsa_level2))]
 fn test_import_export_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -299,7 +312,7 @@ fn test_import_export_level44() {
 #[test]
 #[cfg(all(mldsa_make_key, mldsa_size, mldsa_pub_size, mldsa_sig_size,
           mldsa_import_public, mldsa_import_private, mldsa_export_public,
-          mldsa_export_private, mldsa_sign, mldsa_verify))]
+          mldsa_export_private, mldsa_sign, mldsa_verify, mldsa_level2))]
 fn test_import_key_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -331,7 +344,7 @@ fn test_import_key_level44() {
 /// produces the same key pair on repeated calls.
 #[test]
 #[cfg(all(mldsa_make_key_from_seed, mldsa_size, mldsa_pub_size,
-          mldsa_export_public, mldsa_export_private))]
+          mldsa_export_public, mldsa_export_private, mldsa_level2))]
 fn test_generate_from_seed_determinism() {
     common::setup();
     // MLDSA_SEED_SZ = 32 bytes
@@ -361,7 +374,8 @@ fn test_generate_from_seed_determinism() {
 /// message, and signing seed always produce the same signature bytes, and
 /// the signature verifies correctly.
 #[test]
-#[cfg(all(mldsa_make_key_from_seed, mldsa_sign_with_seed, mldsa_verify))]
+#[cfg(all(mldsa_make_key_from_seed, mldsa_sign_with_seed, mldsa_verify,
+          mldsa_level2))]
 fn test_sign_with_seed_determinism() {
     common::setup();
     // MLDSA_SEED_SZ = 32 bytes
@@ -393,7 +407,8 @@ fn test_sign_with_seed_determinism() {
 /// Verify that `sign_ctx_msg_with_seed()` is deterministic and that the
 /// produced signature verifies with `verify_ctx_msg()`.
 #[test]
-#[cfg(all(mldsa_make_key_from_seed, mldsa_sign_with_seed, mldsa_verify))]
+#[cfg(all(mldsa_make_key_from_seed, mldsa_sign_with_seed, mldsa_verify,
+          mldsa_level2))]
 fn test_sign_ctx_with_seed_determinism() {
     common::setup();
     let key_seed = [0x11u8; 32];
@@ -431,7 +446,19 @@ fn test_seed_sign_verify_all_levels() {
     let sign_seed = [0xCDu8; 32];
     let message = b"All-levels seed sign/verify test";
 
-    for level in [MlDsa::LEVEL_44, MlDsa::LEVEL_65, MlDsa::LEVEL_87] {
+    // Only the parameter sets the library was built with have a level
+    // constant, so build the list from the ones that are present.  At
+    // least one is always present: wc_mldsa.h rejects a build with all
+    // three disabled.
+    let mut levels: Vec<u8> = Vec::new();
+    #[cfg(mldsa_level2)]
+    levels.push(MlDsa::LEVEL_44);
+    #[cfg(mldsa_level3)]
+    levels.push(MlDsa::LEVEL_65);
+    #[cfg(mldsa_level5)]
+    levels.push(MlDsa::LEVEL_87);
+
+    for level in levels {
         let mut key = MlDsa::generate_from_seed(level, &key_seed)
             .expect("Error with generate_from_seed()");
         let sig_size = key.sig_size().expect("Error with sig_size()");
