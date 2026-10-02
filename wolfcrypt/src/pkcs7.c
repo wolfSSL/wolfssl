@@ -16377,8 +16377,11 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     idx += ASN_INDEF_END_SZ;
                     break;
                 }
-                if (pkiMsg[idx++] != ASN_OCTET_STRING ||
-                        GetLength_ex(pkiMsg, &idx, &fragSz, pkiMsgSz, 0) <= 0) {
+                if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                if (GetLength_ex(pkiMsg, &idx, &fragSz, pkiMsgSz, 0) <= 0) {
                     ret = ASN_PARSE_E;
                     break;
                 }
