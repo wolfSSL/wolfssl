@@ -5145,6 +5145,9 @@ int test_tls13_chain_verify_cb_reject(void)
     struct test_memio_ctx test_ctx;
     test_chain_verify_cb_ctx cbCtx;
     WOLFSSL_ALERT_HISTORY h;
+#ifndef WOLFSSL_ASYNC_CRYPT
+    int sLen = 0;
+#endif
 
     XMEMSET(&cbCtx, 0, sizeof(cbCtx));
     XMEMSET(&h, 0, sizeof(h));
@@ -5154,6 +5157,26 @@ int test_tls13_chain_verify_cb_reject(void)
     ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
         &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+
+#ifndef WOLFSSL_ASYNC_CRYPT
+    /* Shutting down while the verdict is deferred leaves the handshake in
+     * flight: nothing is sent and the suspend error is kept. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+    ExpectIntEQ(cbCtx.calls, 1);
+    sLen = test_ctx.s_len;
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(test_ctx.s_len, sLen);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+#endif
 
     /* Handshake must fail, and only after the deferral was honoured. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
