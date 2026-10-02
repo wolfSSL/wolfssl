@@ -772,9 +772,9 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_I
 /// * `salt`: Random non-secret value.
 /// * `kdr_index`: Key derivation rate: -1 for 0, otherwise KDR = 2^kdr_index.
 /// * `idx`: Index value to XOR in.
-/// * `key1`: Output buffer for first key (label of 0x00).
-/// * `key2`: Output buffer for second key (label of 0x01).
-/// * `key3`: Output buffer for third key (label of 0x02).
+/// * `key1`: Output buffer for first key (label of 0x03, `SRTCP_LABEL_ENCRYPTION`).
+/// * `key2`: Output buffer for second key (label of 0x04, `SRTCP_LABEL_MSG_AUTH`).
+/// * `key3`: Output buffer for third key (label of 0x05, `SRTCP_LABEL_SALT`).
 ///
 /// # Returns
 ///
