@@ -1183,6 +1183,17 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (inl == 0) {
         return WOLFSSL_SUCCESS;
     }
+
+    /* More input has arrived so a stored block is not the last one. Output it
+     * here: it must never coexist with a partial block in buf. */
+    if ((ctx->enc == 0) && (ctx->lastUsed == 1)) {
+        PRINT_BUF(ctx->lastBlock, ctx->block_size);
+        XMEMCPY(out, ctx->lastBlock, (size_t)ctx->block_size);
+        *outl += ctx->block_size;
+        out += ctx->block_size;
+        ctx->lastUsed = 0;
+    }
+
     if (ctx->bufUsed > 0) { /* concatenate them if there is anything */
         int fill = fillBuff(ctx, in, inl);
         inl -= fill;
@@ -1193,14 +1204,10 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (ctx->bufUsed == ctx->block_size) {
         byte* output = out;
 
-        /* During decryption we save the last block to check padding on Final.
-         * Update the last block stored if one has already been stored */
-        if (ctx->enc == 0) {
-            if (ctx->lastUsed == 1) {
-                XMEMCPY(out, ctx->lastBlock, (size_t)ctx->block_size);
-                *outl+= ctx->block_size;
-                out  += ctx->block_size;
-            }
+        /* Store the block for the padding check in Final only when it can
+         * still be the last one and Final would look at it. */
+        if ((ctx->enc == 0) && (inl == 0) && (ctx->block_size != 1) &&
+                !(ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING)) {
             output = ctx->lastBlock; /* redirect output to last block buffer */
             ctx->lastUsed = 1;
         }
@@ -1209,12 +1216,11 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         if (evpCipherBlock(ctx, output, ctx->buf, ctx->block_size) == 0) {
             return WOLFSSL_FAILURE;
         }
-        PRINT_BUF(out, ctx->block_size);
+        PRINT_BUF(output, ctx->block_size);
         ctx->bufUsed = 0;
 
-        /* if doing encryption update the new output block, decryption will
-         * always have the last block saved for when Final is called */
-        if ((ctx->enc != 0)) {
+        /* nothing to report when the block was stored for Final */
+        if (output == out) {
             *outl+= ctx->block_size;
             out  += ctx->block_size;
         }
@@ -1222,16 +1228,6 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     blocks = inl / ctx->block_size;
     if (blocks > 0) {
-        /* During decryption we save the last block to check padding on Final.
-         * Update the last block stored if one has already been stored */
-        if ((ctx->enc == 0) && (ctx->lastUsed == 1)) {
-            PRINT_BUF(ctx->lastBlock, ctx->block_size);
-            XMEMCPY(out, ctx->lastBlock, (size_t)ctx->block_size);
-            *outl += ctx->block_size;
-            out += ctx->block_size;
-            ctx->lastUsed = 0;
-        }
-
         /* process blocks */
         if (evpCipherBlock(ctx, out, in, blocks * ctx->block_size) == 0) {
             return WOLFSSL_FAILURE;
@@ -1665,6 +1661,13 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
             if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
                 if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
                 *outl = 0;
+                /* padding may have been turned off after Update stored a
+                 * block; with no pad to strip it is all plaintext */
+                if ((ctx->enc == 0) && (ctx->lastUsed == 1)) {
+                    XMEMCPY(out, ctx->lastBlock, (size_t)ctx->block_size);
+                    *outl = ctx->block_size;
+                    ctx->lastUsed = 0;
+                }
             }
             else if (ctx->enc) {
                 if (ctx->block_size == 1) {

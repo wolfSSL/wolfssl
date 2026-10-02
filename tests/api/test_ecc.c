@@ -1121,6 +1121,152 @@ int test_wc_ecc_import_x963_off_curve(void)
 } /* END test_wc_ecc_import_x963_off_curve */
 
 /*
+ * testing wc_ecc_import_x963() rejects a point whose ordinates are not the
+ * size of the curve.
+ *
+ * _ecc_import_x963_ex2() took the ordinate size from the input length, so a
+ * P-256 point carrying 64-byte ordinates became a P-256 key holding 512-bit
+ * ordinates. SP builds accepted it because sp_ecc_is_point_256() looked only
+ * at the low limbs, and wolfSSL_EC_POINT_point2hex() then wrote before its
+ * buffer.
+ */
+int test_wc_ecc_import_x963_oversized(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    ecc_key pubKey;
+    byte    out[80];
+    word32  outLen = (word32)sizeof(out);
+    /* The P-256 generator, canonically encoded. */
+    static const byte canonX963[] = {
+        0x04,
+        0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+        0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+        0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+        0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96,
+        0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B,
+        0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F, 0x9E, 0x16,
+        0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE,
+        0xCB, 0xB6, 0x40, 0x68, 0x37, 0xBF, 0x51, 0xF5
+    };
+    /* The same point with each ordinate left-padded to 64 bytes. The
+     * zero byte below each ordinate keeps the truncated point on the curve
+     * for the 5 x 52-bit back end, so the padding alone decides the result. */
+    static const byte oversizedX963[] = {
+        0x04,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00,
+        0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+        0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+        0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+        0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96,
+        0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+        0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+        0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+        0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x00,
+        0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B,
+        0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F, 0x9E, 0x16,
+        0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE,
+        0xCB, 0xB6, 0x40, 0x68, 0x37, 0xBF, 0x51, 0xF5
+    };
+
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(canonX963, (word32)sizeof(canonX963),
+        &pubKey, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_export_x963(&pubKey, out, &outLen), 0);
+    ExpectIntEQ(outLen, (word32)sizeof(canonX963));
+    wc_ecc_free(&pubKey);
+
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(oversizedX963,
+        (word32)sizeof(oversizedX963), &pubKey, ECC_SECP256R1),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    wc_ecc_free(&pubKey);
+
+    /* The size-based curve lookup must reject it as well. */
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntNE(wc_ecc_import_x963(oversizedX963,
+        (word32)sizeof(oversizedX963), &pubKey), 0);
+    wc_ecc_free(&pubKey);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_x963_oversized */
+
+/*
+ * testing wc_ecc_import_x963() rejects an ordinate that is not less than the
+ * field prime.
+ *
+ * sp_ecc_is_point_256/384/521() reduced the ordinates implicitly, so SP builds
+ * accepted the non-canonical encoding 04 || (x + p) || y of a valid point that
+ * every other back end, and SEC 1 section 2.3.4, rejects.
+ */
+int test_wc_ecc_import_x963_non_canonical(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    ecc_key pubKey;
+    /* P-256 point (5, y). */
+    static const byte canonX963[] = {
+        0x04,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+        0x45, 0x92, 0x43, 0xB9, 0xAA, 0x58, 0x18, 0x06,
+        0xFE, 0x91, 0x3B, 0xCE, 0x99, 0x81, 0x7A, 0xDE,
+        0x11, 0xCA, 0x50, 0x3C, 0x64, 0xD9, 0xA3, 0xC5,
+        0x33, 0x41, 0x5C, 0x08, 0x32, 0x48, 0xFB, 0xCC
+    };
+    /* The same point with x replaced by x + p; still 32 bytes wide. */
+    static const byte nonCanonX963[] = {
+        0x04,
+        0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+        0x45, 0x92, 0x43, 0xB9, 0xAA, 0x58, 0x18, 0x06,
+        0xFE, 0x91, 0x3B, 0xCE, 0x99, 0x81, 0x7A, 0xDE,
+        0x11, 0xCA, 0x50, 0x3C, 0x64, 0xD9, 0xA3, 0xC5,
+        0x33, 0x41, 0x5C, 0x08, 0x32, 0x48, 0xFB, 0xCC
+    };
+
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(canonX963, (word32)sizeof(canonX963),
+        &pubKey, ECC_SECP256R1), 0);
+    wc_ecc_free(&pubKey);
+
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(nonCanonX963,
+        (word32)sizeof(nonCanonX963), &pubKey, ECC_SECP256R1),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    wc_ecc_free(&pubKey);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_x963_non_canonical */
+
+/*
  * testing wc_ecc_import_private_key()
  */
 int test_wc_ecc_import_private_key(void)
@@ -4136,3 +4282,165 @@ int test_wc_EccDecisionCoverage4(void)
 #endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
     return EXPECT_RESULT();
 } /* END test_wc_EccDecisionCoverage4 */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN)
+
+#define ECC_SPEC_COORD_SZ   MAX_ECC_BYTES
+#define ECC_SPEC_MAX_PRIME  300
+#define ECC_SPEC_BUF_SZ     ((ECC_SPEC_MAX_PRIME * 7) + 512)
+
+static void EccSpecFill(byte* buf, word32* idx, byte val, word32 len)
+{
+    *idx -= len;
+    XMEMSET(buf + *idx, val, len);
+}
+
+static void EccSpecHdr(byte* buf, word32* idx, byte tag, word32 len)
+{
+    if (len < 128) {
+        buf[--(*idx)] = (byte)len;
+    }
+    else if (len < 256) {
+        buf[--(*idx)] = (byte)len;
+        buf[--(*idx)] = 0x81;
+    }
+    else {
+        buf[--(*idx)] = (byte)len;
+        buf[--(*idx)] = (byte)(len >> 8);
+        buf[--(*idx)] = 0x82;
+    }
+    buf[--(*idx)] = tag;
+}
+
+/* Build an ecPublicKey SubjectPublicKeyInfo carrying explicit
+ * SpecifiedECDomain parameters with a prime of primeSz bytes. Encoded back to
+ * front, so each item is wrapped once its content is in place. */
+static word32 EccSpecifiedSpki(byte* buf, word32 primeSz)
+{
+    static const byte ecPubKeyOid[] = {
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
+    };
+    static const byte primeFldOid[] = {
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x01, 0x01
+    };
+    word32 idx = ECC_SPEC_BUF_SZ;
+    word32 end = ECC_SPEC_BUF_SZ;
+    word32 domEnd;
+
+    /* Subject public key: BIT STRING of 0x04 <x> <y>. */
+    EccSpecFill(buf, &idx, 0x42, ECC_SPEC_COORD_SZ);
+    EccSpecFill(buf, &idx, 0x41, ECC_SPEC_COORD_SZ);
+    buf[--idx] = 0x04;
+    buf[--idx] = 0x00;
+    EccSpecHdr(buf, &idx, ASN_BIT_STRING, end - idx);
+    domEnd = idx;
+
+    /* SpecifiedECDomain: version, field, curve, base point, order. */
+    EccSpecFill(buf, &idx, 0x7f, primeSz);
+    EccSpecHdr(buf, &idx, ASN_INTEGER, primeSz);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x03, primeSz * 2);
+    buf[--idx] = 0x04;
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, end - idx);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x02, primeSz);
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
+    EccSpecFill(buf, &idx, 0x01, primeSz);
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, end - idx);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x7f, primeSz);
+    EccSpecHdr(buf, &idx, ASN_INTEGER, primeSz);
+    idx -= sizeof(primeFldOid);
+    XMEMCPY(buf + idx, primeFldOid, sizeof(primeFldOid));
+    EccSpecHdr(buf, &idx, ASN_OBJECT_ID, sizeof(primeFldOid));
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, end - idx);
+    buf[--idx] = 0x01;
+    EccSpecHdr(buf, &idx, ASN_INTEGER, 1);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, domEnd - idx);
+
+    /* AlgorithmIdentifier and the enclosing SubjectPublicKeyInfo. */
+    idx -= sizeof(ecPubKeyOid);
+    XMEMCPY(buf + idx, ecPubKeyOid, sizeof(ecPubKeyOid));
+    EccSpecHdr(buf, &idx, ASN_OBJECT_ID, sizeof(ecPubKeyOid));
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, domEnd - idx);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED,
+        ECC_SPEC_BUF_SZ - idx);
+
+    XMEMMOVE(buf, buf + idx, ECC_SPEC_BUF_SZ - idx);
+    return ECC_SPEC_BUF_SZ - idx;
+}
+#endif
+
+int test_wc_EccPublicKeyDecode_explicit_curve_size(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN)
+    ecc_key key;
+    byte*  der = NULL;
+    byte*  out = NULL;
+    word32 derSz;
+    word32 idx;
+#ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+    word32 outSz;
+#endif
+
+    ExpectNotNull(der = (byte*)XMALLOC(ECC_SPEC_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out = (byte*)XMALLOC((ECC_SPEC_MAX_PRIME * 2) + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+    /* A prime the ECC code is dimensioned for still decodes and exports. The
+     * fabricated point is not on the fabricated curve, so import validation
+     * would reject it. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&key, 0, sizeof(key));
+        derSz = EccSpecifiedSpki(der, MAX_ECC_BYTES);
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, derSz), 0);
+        ExpectNotNull(key.dp);
+        ExpectIntEQ(key.dp != NULL ? key.dp->size : 0, MAX_ECC_BYTES);
+        outSz = (MAX_ECC_BYTES * 2) + 1;
+        ExpectIntEQ(wc_ecc_export_x963(&key, out, &outSz), 0);
+        ExpectIntEQ(outSz, (MAX_ECC_BYTES * 2) + 1);
+        wc_ecc_free(&key);
+    }
+#endif
+
+    /* A prime past MAX_ECC_BYTES must be rejected at decode: the curve size
+     * drives the padding offset into a fixed ECC_BUFSIZE stack buffer in
+     * _ecc_export_x963(). */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&key, 0, sizeof(key));
+        derSz = EccSpecifiedSpki(der, ECC_SPEC_MAX_PRIME);
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, derSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+    }
+
+    /* The same bound applies to a custom curve set through the API. */
+    if (EXPECT_SUCCESS()) {
+        ecc_set_type dp;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&dp, 0, sizeof(dp));
+        dp.size = ECC_SPEC_MAX_PRIME;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_set_custom_curve(&key, &dp),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_ecc_free(&key);
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_EccPublicKeyDecode_explicit_curve_size */
