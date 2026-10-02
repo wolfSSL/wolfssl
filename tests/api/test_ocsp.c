@@ -584,6 +584,135 @@ int test_ocsp_basic_verify(void)
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA)
+/* Decoding into an existing OCSP_RESPONSE releases the buffer the previous
+ * encoding was parsed from. Every reference into it (response, cert, sig,
+ * sigParams, nonce) has to go with it: the new encoding only sets the ones it
+ * carries, so a leftover reference is read from freed memory - a later
+ * OCSP_check_nonce() verdict, for instance, would come from the old buffer. */
+int test_ocsp_d2i_reuse_clears_refs(void)
+{
+    EXPECT_DECLS;
+    const unsigned char* ptr = NULL;
+    OcspResponse* response = NULL;
+
+    /* resp carries an embedded responder certificate. */
+    ptr = (const unsigned char*)resp;
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+        sizeof(resp)));
+    ExpectNotNull(response == NULL ? NULL : response->cert);
+    ExpectIntGT(response == NULL ? 0 : (int)response->certSz, 0);
+
+    /* resp_nocert does not, so nothing sets cert again. */
+    ptr = (const unsigned char*)resp_nocert;
+    ExpectNotNull(wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr,
+        sizeof(resp_nocert)));
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(response->cert);
+        ExpectIntEQ((int)response->certSz, 0);
+        ExpectNull(response->nonce);
+        ExpectIntEQ(response->nonceSz, 0);
+        ExpectNull(response->sigParams);
+        ExpectIntEQ((int)response->sigParamsSz, 0);
+        /* What the new encoding does set must point into the new buffer. */
+        ExpectNotNull(response->response);
+        ExpectTrue((response->response >= response->source) &&
+            (response->response < response->source + response->maxIdx));
+        ExpectNotNull(response->sig);
+        ExpectTrue((response->sig >= response->source) &&
+            (response->sig < response->source + response->maxIdx));
+    }
+
+    wolfSSL_OCSP_RESPONSE_free(response);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_d2i_reuse_clears_refs(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
+
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_OCSP) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+static long ocsp_reuse_live = 0;
+
+static void* ocsp_reuse_malloc(size_t size)
+{
+    void* p = malloc(size);
+    if (p != NULL)
+        ocsp_reuse_live++;
+    return p;
+}
+
+static void ocsp_reuse_free(void* ptr)
+{
+    if (ptr != NULL)
+        ocsp_reuse_live--;
+    free(ptr);
+}
+
+static void* ocsp_reuse_realloc(void* ptr, size_t size)
+{
+    void* p = realloc(ptr, size);
+    if ((p != NULL) && (ptr == NULL))
+        ocsp_reuse_live++;
+    return p;
+}
+
+/* Decoding into an existing OCSP_RESPONSE has to release the whole
+ * SingleResponse chain the previous decode built. FreeOcspEntry() on its own
+ * frees the head entry's CertStatus chain and nothing else, so every
+ * SingleResponse after the first used to be leaked on each reuse - an OCSP
+ * poller that refreshes into one object grows without bound. */
+int test_ocsp_d2i_reuse_frees_single_chain(void)
+{
+    EXPECT_DECLS;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    const unsigned char* ptr = NULL;
+    OcspResponse* response = NULL;
+    OcspEntry* s = NULL;
+    long afterFirst = 0;
+    int singles = 0;
+    int i;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(ocsp_reuse_malloc, ocsp_reuse_free,
+        ocsp_reuse_realloc), 0);
+
+    /* resp_multi carries more than one SingleResponse. */
+    ptr = (const unsigned char*)resp_multi;
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+        sizeof(resp_multi)));
+    if (response != NULL) {
+        for (s = response->single; s != NULL; s = s->next)
+            singles++;
+    }
+    ExpectIntGT(singles, 1);
+    afterFirst = ocsp_reuse_live;
+
+    /* Each reuse must end up holding exactly what the first decode held. */
+    for (i = 0; EXPECT_SUCCESS() && (i < 4); i++) {
+        ptr = (const unsigned char*)resp_multi;
+        ExpectNotNull(wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr,
+            sizeof(resp_multi)));
+        ExpectIntEQ((int)(ocsp_reuse_live - afterFirst), 0);
+    }
+
+    wolfSSL_OCSP_RESPONSE_free(response);
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_d2i_reuse_frees_single_chain(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA) && !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
 /* Verify that OCSP responder authorization is bound to BOTH halves of the
  * CertID (issuerNameHash AND issuerKeyHash). The forged response in
