@@ -3302,14 +3302,18 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
     own certificate first. It builds no chain, verifies no signature and checks
     no date, revocation status, key usage or host name, and the verify callback
     set with wolfSSL_CTX_set_verify() is not called; the callback is consulted
-    even under WOLFSSL_VERIFY_NONE. Malformed DER, a certificate the parser
-    refuses regardless of the verify mode such as one with a zero serial
-    number, or one whose decoding stops part way such as one with an
-    unsupported key algorithm, still fails the handshake before the callback
-    is called. An unknown critical extension or a key usage inconsistent with
-    the basic constraints is left for the callback to judge. The
-    callback returns 0 to accept, CHAIN_VERIFY_WANT_E to suspend the handshake
-    until the application re-enters wolfSSL_connect(), wolfSSL_accept(),
+    for any certificate the peer sends, even under WOLFSSL_VERIFY_NONE. A
+    server only requests a client certificate under WOLFSSL_VERIFY_PEER and
+    only requires one with WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, so a server
+    that relies on the callback for client authentication must set both.
+    Malformed DER, a certificate the parser refuses regardless of the verify
+    mode such as one with a zero serial number, or one whose decoding stops
+    part way such as one with an unsupported key algorithm, still fails the
+    handshake before the callback is called. An unknown critical extension
+    or a key usage inconsistent with the basic constraints is left for the
+    callback to judge. The callback returns 0 to accept, CHAIN_VERIFY_WANT_E
+    to suspend the handshake until the application re-enters
+    wolfSSL_connect(), wolfSSL_accept(),
     wolfSSL_read() or wolfSSL_write() (a certificate received after the
     handshake is resumed by wolfSSL_read() only, and wolfSSL_write() fails with
     CHAIN_VERIFY_WANT_E until then), or any other value to reject with
