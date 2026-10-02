@@ -68,6 +68,12 @@ for tu in "$HERE"/*_whitebox.c; do
              -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 $TARGETFLAGS \
              -o "$work/$name.bin" "$tu" "$work/t.a" -lm -lpthread $LDEXTRA ) \
              >"$work/$name.log" 2>&1; then
+        # A TU that is expected to build here and does not is a
+        # regression - print its build log now, before the workdir is
+        # cleaned at exit, or the exact error is lost with it.
+        if [ -f "$EXPECTED" ] && grep -qx "$name" "$EXPECTED"; then
+            echo "BUILD FAIL $name"; tail -5 "$work/$name.log" | sed 's/^/    /'
+        fi
         skip+=("$name"); continue
     fi
     # These TUs report row failures as text and still exit 0, so that the
