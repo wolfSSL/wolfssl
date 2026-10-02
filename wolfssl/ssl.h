@@ -1773,6 +1773,12 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * consulted even when verification was turned off with WOLFSSL_VERIFY_NONE,
  * and a rejection fails the handshake either way.
  *
+ * That holds for a certificate the peer sends. A server only asks the client
+ * for one under WOLFSSL_VERIFY_PEER, and only fails a client that sends none
+ * with WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT as well. A server that relies on the
+ * callback for client authentication must set both; otherwise a client
+ * without a certificate is accepted and the callback is never called.
+ *
  * Because wolfSSL checks nothing itself, wolfSSL_get_verify_result() reports
  * WOLFSSL_X509_V_OK once the callback accepts. That records the callback's
  * verdict, not a verification wolfSSL performed. A rejection leaves
