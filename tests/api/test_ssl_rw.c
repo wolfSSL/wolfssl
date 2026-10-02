@@ -1626,3 +1626,51 @@ int test_wolfSSL_write_dup_err(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that the write side of a write duplicate keeps to a negotiated maximum
+ * fragment length.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_write_dup_max_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_WRITE_DUP) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_w = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg[1024];
+    byte buf[sizeof(msg)];
+
+    XMEMSET(msg, 'a', sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The original becomes read only; the duplicate is the write side. */
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_c));
+    ExpectIntEQ(wolfSSL_write(ssl_w, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+
+    /* Two 512 byte records; the server rejects a larger one. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf + 512, (int)sizeof(buf) - 512), 512);
+    ExpectBufEQ(buf, msg, sizeof(msg));
+
+    wolfSSL_free(ssl_w);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

@@ -943,6 +943,10 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMCPY(&dup->encrypt, &ssl->encrypt, sizeof(Ciphers));
     XMEMCPY(&dup->version, &ssl->version, sizeof(ProtocolVersion));
     XMEMCPY(&dup->chVersion, &ssl->chVersion, sizeof(ProtocolVersion));
+#ifdef HAVE_MAX_FRAGMENT
+    /* The negotiated limit applies to the records the writer sends. */
+    dup->max_fragment = ssl->max_fragment;
+#endif
 
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
