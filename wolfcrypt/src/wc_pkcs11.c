@@ -1785,6 +1785,7 @@ static int Pkcs11CreateMlKemPrivateKey(CK_OBJECT_HANDLE* privateKey,
  * @param   session     [in]    Session object.
  * @param   key         [in]    ML-DSA key.
  * @param   mechInfo    [in]    Pointer to a filled MECHANISM_INFO object.
+ * @return  PUBLIC_KEY_E when the key has no public key set.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  MEMORY_E when a memory allocation fails.
  * @return  0 on success.
@@ -1812,7 +1813,7 @@ static int Pkcs11CreateMldsaPublicKey(CK_OBJECT_HANDLE* handle,
     CK_ULONG keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
 
     if (!key->pubKeySet) {
-        ret = BAD_FUNC_ARG;
+        ret = PUBLIC_KEY_E;
     }
 
     if (key->labelLen > 0) {
