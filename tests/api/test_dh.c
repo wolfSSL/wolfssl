@@ -1143,7 +1143,8 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void)
 int test_dh_decision_coverage(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_DH)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte p[512];

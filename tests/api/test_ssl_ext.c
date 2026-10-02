@@ -2459,7 +2459,7 @@ int test_ssl_api_decision_coverage(void)
         (void)wolfSSL_GetMacSecret(nssl, 0);
         wolfSSL_free(nssl);
     }
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
     {
         WOLFSSL_CTX* sctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
         WOLFSSL* sssl = NULL;
@@ -2728,7 +2728,9 @@ int test_ssl_api_decision_coverage(void)
 int test_ech_decision_coverage(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECH) && !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_EchConfig cfg;
