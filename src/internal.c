@@ -19890,7 +19890,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             if (ret != 0) {
-                if (!ssl->options.verifyNone) {
+                /* Key checks still apply with the chain verify callback, even
+                 * under WOLFSSL_VERIFY_NONE. */
+                if (!ssl->options.verifyNone || UsingChainVerifyCb(ssl)) {
                     DoCertFatalAlert(ssl, ret);
                 }
                 ssl->error = ret; /* Report SSL error */

@@ -5060,6 +5060,7 @@ int test_chain_verify_cb_min_key(void)
     WOLFSSL* ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     test_chain_verify_cb_ctx cbCtx;
+    WOLFSSL_ALERT_HISTORY h;
 #ifndef WOLFSSL_NO_TLS12
     method_provider client_method = wolfTLSv1_2_client_method;
     method_provider server_method = wolfTLSv1_2_server_method;
@@ -5067,6 +5068,8 @@ int test_chain_verify_cb_min_key(void)
     method_provider client_method = wolfTLSv1_3_client_method;
     method_provider server_method = wolfTLSv1_3_server_method;
 #endif
+
+    XMEMSET(&h, 0, sizeof(h));
 
     /* The callback accepts, but the handshake uses the server's key directly,
      * so the minimum key size still applies - even with verification turned
@@ -5081,6 +5084,10 @@ int test_chain_verify_cb_min_key(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
     ExpectIntEQ(cbCtx.calls, 1);
+    /* The peer is told why the connection ends. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    ExpectIntEQ(h.last_tx.code, bad_certificate);
 
     test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
 #endif
