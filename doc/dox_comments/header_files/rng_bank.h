@@ -402,7 +402,8 @@ int wc_rng_bank_get_inst_id(struct wc_rng_bank_inst *rng_inst);
 
     \return 0 Bytes were banked.
     \return ALREADY_E The instance's bank is ready or being consumed.
-    \return NOT_READY_E The health test could not run; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG bank is null, inst_offset is out of range, or n
     is 0.
 
@@ -437,7 +438,8 @@ int wc_rng_bank_next_seed_generate(struct wc_rng_bank *bank, int inst_offset,
 
     \return 0 Bytes were banked.
     \return ALREADY_E The instance's bank is ready or being consumed.
-    \return NOT_READY_E The health test could not run; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG bank or root is null, inst_offset is out of range,
     or n is 0.
 
