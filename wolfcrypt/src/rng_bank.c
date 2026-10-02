@@ -2330,6 +2330,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 {
     int n;
     int ret;
+    int first_ret = 0;
     time_t ts1 = 0;
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     int bank_is_default = 0;
@@ -2540,9 +2541,19 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                     "for DRBG #%d returned %d.", n, ret);
 #endif
             (void)wc_rng_bank_checkin(bank, &drbg);
-            if (ret != 0)
+            if ((ret == WC_NO_ERR_TRACE(WC_TIMEOUT_E)) ||
+                (ret == WC_NO_ERR_TRACE(INTERRUPTED_E)))
+            {
                 goto out;
+            }
+            /* reseed the rest of the bank, keeping the first error seen for
+             * the return value */
+            if ((ret != 0) && (first_ret == 0))
+                first_ret = ret;
+
             ret = WC_CHECK_FOR_INTR_SIGNALS();
+            if ((ret != 0) && (first_ret == 0))
+                first_ret = ret;
             if (ret == WC_NO_ERR_TRACE(INTERRUPTED_E))
                 goto out;
             WC_RELAX_LONG_LOOP();
@@ -2559,6 +2570,9 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
     ret = 0;
 
 out:
+
+    if (first_ret != 0)
+        ret = first_ret;
 
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (bank_is_default)
