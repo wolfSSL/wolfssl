@@ -56,26 +56,16 @@ namespace wolfSSL.CSharp.Fips
         private readonly byte[]? q = null;
 
         /* RFC 7919 safe-prime group (KAS-FFC-SSC, dhEphem): ffdhe2048. */
-        public FipsDh(FipsDhGroup group) : this(group, validatedOnly: true)
+        public FipsDh(FipsDhGroup group) : base(FipsStructType.Dh)
         {
-        }
-
-#if FIPS_TEST_HOOKS
-        /* Any RFC 7919 group the module implements, including those outside
-         * the validated KAS-FFC-SSC. Internal: for ACVP known-answer tests. */
-        internal static FipsDh AnyNamedGroup(FipsDhGroup group) => new FipsDh(group, validatedOnly: false);
-#endif
-
-        private FipsDh(FipsDhGroup group, bool validatedOnly) : base(FipsStructType.Dh)
-        {
-            if (validatedOnly && group != FipsDhGroup.Ffdhe2048)
+            if (group != FipsDhGroup.Ffdhe2048)
             {
                 Dispose();
                 throw new ArgumentException("KAS-FFC-SSC is validated for ffdhe2048 only (SP #4718)", nameof(group));
             }
             Init();
             Call("wc_DhSetNamedKey_fips", Native.wc_DhSetNamedKey_fips(Handle, (int)group));
-            PrimeSize = (int)group switch { 256 => 256, 257 => 384, 258 => 512, 259 => 768, _ => 1024 };
+            PrimeSize = 256;   /* ffdhe2048 */
         }
 
 #if FIPS_TEST_HOOKS

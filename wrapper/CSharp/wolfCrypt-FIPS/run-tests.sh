@@ -1,7 +1,6 @@
 #!/bin/sh
-# Builds the size helper, runs the binding audit and the C# FIPS tests; ACVP KATs run when
-# WOLFACVP_VECTORS=<bundle>/fips/wolfACVP. DOTNET_TFM selects net10.0 (default) or net8.0,
-# DOTNET_ROOT a separate runtime install. Usage: run-tests.sh <prefix> (default /usr/local)
+# Builds the size helper, runs the binding audit and the C# FIPS tests. DOTNET_TFM selects
+# net10.0 (default) or net8.0, DOTNET_ROOT a separate runtime install. Usage: run-tests.sh <prefix> (default /usr/local)
 set -e
 PREFIX="${1:-/usr/local}"
 HERE="$(cd "$(dirname "$0")" && pwd)"

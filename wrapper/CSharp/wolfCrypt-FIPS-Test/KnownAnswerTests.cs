@@ -26,8 +26,7 @@ using System.Text;
 
 namespace wolfSSL.CSharp.Fips.Test
 {
-    /* Embedded known answers that run without the ACVP vectors
-     * (WOLFACVP_VECTORS). The module CASTs test the module; these test the
+    /* Embedded known answers. The module CASTs test the module; these test the
      * wrapper's marshalling, entry point and parameter mapping for each
      * symmetric service: published vectors (FIPS 180-4 / 202 "abc",
      * RFC 4231, SP 800-38A F.1-F.5, RFC 4493, GCM test case 2, RFC 3610,
@@ -41,7 +40,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
         public static void Run()
         {
-            T.Section("Embedded known answers (no ACVP vectors needed)");
+            T.Section("Embedded known answers");
 
             T.Run("SHA-1/2/3 of \"abc\" (FIPS 180-4, FIPS 202)", () =>
             {

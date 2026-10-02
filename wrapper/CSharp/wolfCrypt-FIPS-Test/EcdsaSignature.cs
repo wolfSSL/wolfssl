@@ -56,8 +56,8 @@ namespace wolfSSL.CSharp.Fips.Test
         }
     }
 
-    /* ECDSA signature encoding helpers for the tests (ACVP r/s vectors,
-     * .NET P1363 signatures): DER SEQUENCE { INTEGER r, INTEGER s } and
+    /* ECDSA signature encoding helpers for the tests (.NET P1363
+     * signatures): DER SEQUENCE { INTEGER r, INTEGER s } and
      * fixed-width r || s. Not part of the wrapper: the boundary has no
      * r/s conversion. */
     internal static class FipsEcdsaSignature

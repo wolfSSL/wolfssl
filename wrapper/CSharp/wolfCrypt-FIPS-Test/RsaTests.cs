@@ -30,10 +30,8 @@ using System.Threading;
 
 namespace wolfSSL.CSharp.Fips.Test
 {
-    /* RSA tests. The v5.2.1 boundary has no RSA key import, so ACVP vectors
-     * that supply a key (keyGen, sigVer, decryptionPrimitive) cannot be run
-     * through the module. Instead, module output is checked independently
-     * with .NET's RSA implementation (test code only). */
+    /* RSA tests. The v5.2.1 boundary has no RSA key import, so module output is
+     * checked independently with .NET's RSA implementation (test code only). */
     internal static class RsaTests
     {
         private static FipsRsaKey? key2048;
@@ -270,57 +268,6 @@ namespace wolfSSL.CSharp.Fips.Test
                 }
                 T.True(!key.VerifyPss(FipsHashType.Sha256, d, pss, 20), "PSS wrong salt length");
             });
-
-            T.Run("ACVP RSA sigGen messages: module signatures verify in .NET", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("RSA"))
-                {
-                    if (set.Request.GetProperty("mode").GetString() != "sigGen")
-                    {
-                        continue;
-                    }
-
-                    foreach (var g in set.Groups)
-                    {
-                        string? h = g.GetProperty("hashAlg").GetString();
-                        string sigType = g.GetProperty("sigType").GetString()!;
-                        if (g.GetProperty("modulo").GetInt32() != 2048 || !h!.StartsWith("SHA2-") ||
-                            h.StartsWith("SHA2-512/") || h == "SHA2-224" ||
-                            (sigType != "pkcs1v1.5" && sigType != "pss"))
-                        {
-                            continue;
-                        }
-
-                        FipsHashType ft = h switch
-                        {
-                            "SHA2-256" => FipsHashType.Sha256,
-                            "SHA2-384" => FipsHashType.Sha384,
-                            _ => FipsHashType.Sha512
-                        };
-                        HashAlgorithmName nh = h switch
-                        {
-                            "SHA2-256" => HashAlgorithmName.SHA256,
-                            "SHA2-384" => HashAlgorithmName.SHA384,
-                            _ => HashAlgorithmName.SHA512
-                        };
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            byte[] d = FipsHash.Compute(ft, Acvp.Hex(t, "message"));
-                            bool ok = sigType == "pss"
-                                ? netPub.VerifyHash(d, key.SignPss(ft, d, rng), nh, RSASignaturePadding.Pss)
-                                : netPub.VerifyHash(d, Pkcs1.Sign(key, ft, d, rng), nh, RSASignaturePadding.Pkcs1);
-                            T.True(ok, set.File + " tcId " + t.GetProperty("tcId").GetInt32());
-                            n++;
-                        }
-                    }
-                }
-                T.True(n > 0, "no applicable sigGen groups");
-                Console.WriteLine("        " + n + " sigGen messages (2048-bit, SHA2-256/384/512)");
-            });
-
-            T.Run("ACVP RSA sigVer / keyGen / decryptionPrimitive", () =>
-                T.Skip("need RSA key import; the v5.2.1 boundary has none (key decode is in asn.c)"));
 
             T.Run("OAEP SHA-256: .NET encrypts to module public key, module decrypts", () =>
             {

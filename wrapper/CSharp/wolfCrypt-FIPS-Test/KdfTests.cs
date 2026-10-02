@@ -36,60 +36,6 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             T.Section("KDFs");
 
-            T.Run("ACVP TLS-v1.2 KDF (RFC 7627 extended master secret + key block)", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("TLS-v1.2"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsHashType h = EccDhTests.HashOf(g.GetProperty("hashAlg").GetString()!);
-                        int kbLen = g.GetProperty("keyBlockLength").GetInt32() / 8;
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            var exp = set.ExpectedFor(g, t);
-                            string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
-                            byte[] ms = FipsKdf.Tls12ExtendedMasterSecret(h, Acvp.Hex(t, "preMasterSecret"),
-                                                                          Acvp.Hex(t, "sessionHash"));
-                            T.Bytes(Acvp.Hex(exp, "masterSecret"), ms, where + " master secret");
-                            T.Bytes(Acvp.Hex(exp, "keyBlock"), FipsKdf.Tls12KeyBlock(h, ms,
-                                Acvp.Hex(t, "clientRandom"), Acvp.Hex(t, "serverRandom"), kbLen), where + " key block");
-                            n++;
-                        }
-                    }
-                }
-
-                Console.WriteLine("        " + n + " vectors");
-            });
-
-            T.Run("ACVP TLS-v1.3 KDF (RFC 8446 key schedule, PSK / DHE / PSK-DHE)", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("TLS-v1.3"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsHashType h = EccDhTests.HashOf(g.GetProperty("hmacAlg").GetString()!);
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            var exp = set.ExpectedFor(g, t);
-                            string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
-                            var got = Tls13Schedule(h, Opt(t, "psk"), Opt(t, "dhe"),
-                                Acvp.Hex(t, "helloClientRandom"), Acvp.Hex(t, "helloServerRandom"),
-                                Acvp.Hex(t, "finishedServerRandom"), Acvp.Hex(t, "finishedClientRandom"));
-                            foreach (var (name, value) in got)
-                            {
-                                T.Bytes(Acvp.Hex(exp, name), value, where + " " + name);
-                            }
-
-                            n++;
-                        }
-                    }
-                }
-
-                Console.WriteLine("        " + n + " vectors");
-            });
-
             /* The salt is the HMAC key of HKDF-Extract; the module applies the
              * 112-bit HMAC minimum to it. RFC 5869 test case 1 (13-byte salt)
              * is therefore refused. An empty salt is allowed (zeros of the
@@ -160,7 +106,7 @@ namespace wolfSSL.CSharp.Fips.Test
 
             /* Regression: an empty IKM must equal HashLen zero bytes and must
              * not reach the module as ikmLen 0 (the v5.2.x module then writes
-             * HashLen bytes into the buffer). Runs without ACVP vectors. */
+             * HashLen bytes into the buffer). */
             T.Run("TLS 1.3 extract: empty IKM equals HashLen zeros (SHA-256/384)", () =>
             {
                 foreach (FipsHashType h in new[] { FipsHashType.Sha256, FipsHashType.Sha384 })
@@ -233,7 +179,7 @@ namespace wolfSSL.CSharp.Fips.Test
                 }
             });
 
-            /* Output checks that run without the ACVP vectors: label || seed
+            /* Output checks: label || seed
              * concatenation, EMS label, key block seed order (server random
              * first) and the MAC id mapping for each hash. */
             T.Run("TLS 1.2 PRF, EMS and key block match the RFC 5246 / 7627 reference", () =>
@@ -383,36 +329,6 @@ namespace wolfSSL.CSharp.Fips.Test
             });
         }
 
-        /* RFC 8446 section 7.1, arranged as the ACVP TLS 1.3 KDF test
-         * defines the transcript (hello and finished randoms). */
-        private static (string, byte[])[] Tls13Schedule(FipsHashType h, byte[] psk, byte[] dhe,
-            byte[] hcr, byte[] hsr, byte[] fsr, byte[] fcr)
-        {
-            int n = FipsHash.DigestSizeOf(h);
-            byte[] H(params byte[][] parts) => FipsHash.Compute(h, parts.SelectMany(p => p).ToArray());
-            byte[] L(byte[] secret, string label, byte[] ctx) => FipsKdf.Tls13ExpandLabel(h, secret, label, ctx, n);
-
-            byte[] early = FipsKdf.Tls13Extract(h, null, psk);
-            byte[] ce = L(early, "c e traffic", H(hcr));
-            byte[] eexp = L(early, "e exp master", H(hcr));
-            byte[] salt = L(early, "derived", H());
-            byte[] hs = FipsKdf.Tls13Extract(h, salt, dhe.Length > 0 ? dhe : new byte[n]);
-            byte[] chts = L(hs, "c hs traffic", H(hcr, hsr));
-            byte[] shts = L(hs, "s hs traffic", H(hcr, hsr));
-            salt = L(hs, "derived", H());
-            byte[] ms = FipsKdf.Tls13Extract(h, salt, new byte[n]);
-            byte[] cap = L(ms, "c ap traffic", H(hcr, hsr, fsr));
-            byte[] sap = L(ms, "s ap traffic", H(hcr, hsr, fsr));
-            byte[] exp = L(ms, "exp master", H(hcr, hsr, fsr));
-            byte[] res = L(ms, "res master", H(hcr, hsr, fsr, fcr));
-            return new[] {
-                ("clientEarlyTrafficSecret", ce), ("earlyExporterMasterSecret", eexp),
-                ("clientHandshakeTrafficSecret", chts), ("serverHandshakeTrafficSecret", shts),
-                ("clientApplicationTrafficSecret", cap), ("serverApplicationTrafficSecret", sap),
-                ("exporterMasterSecret", exp), ("resumptionMasterSecret", res)
-            };
-        }
-
         /* RFC 4253 7.2: K1 = HASH(mpint(K) || H || X || session_id),
          * Kn = HASH(mpint(K) || H || K1 || ... || Kn-1). Test reference only. */
         private static byte[] SshReference(FipsHashType h, char id, byte[] k, byte[] hh, byte[] sid, int len)
@@ -440,10 +356,6 @@ namespace wolfSSL.CSharp.Fips.Test
 
             return outp.Take(len).ToArray();
         }
-
-        /* PSK-only groups omit "dhe" and DHE-only groups omit "psk". */
-        private static byte[] Opt(System.Text.Json.JsonElement t, string name) =>
-            t.TryGetProperty(name, out _) ? Acvp.Hex(t, name) : Array.Empty<byte>();
 
         /* RFC 5246 5: P_hash(secret, seed) = HMAC(secret, A(1) + seed) || ...,
          * A(0) = seed, A(i) = HMAC(secret, A(i-1)). Test reference only. */

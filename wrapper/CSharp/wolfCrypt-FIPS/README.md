@@ -342,9 +342,6 @@ wrapper/CSharp/wolfCrypt-FIPS/run-tests.sh <prefix>
 
 # .NET 8 build (needs a .NET 8 runtime; DOTNET_ROOT if it is a separate install)
 DOTNET_TFM=net8.0 wrapper/CSharp/wolfCrypt-FIPS/run-tests.sh <prefix>
-
-# include the ACVP known-answer tests from a FIPS bundle
-WOLFACVP_VECTORS=<fips-bundle>/fips/wolfACVP wrapper/CSharp/wolfCrypt-FIPS/run-tests.sh <prefix>
 ```
 
 `run-tests.sh` builds the size helper, runs the binding audit
@@ -359,13 +356,12 @@ on any failure.
 |---|---|
 | `DOTNET_TFM` | Target framework to test: `net10.0` (default) or `net8.0` |
 | `DOTNET_ROOT` | .NET install that holds the runtime for `DOTNET_TFM`, if not the default |
-| `WOLFACVP_VECTORS` | Path to `fips/wolfACVP` of a FIPS bundle. Unset: the ACVP tests report SKIP. Set to a path without the vectors: they fail |
 | `WOLFSSL_FIPS_LIB_DIR` | Set by `run-tests.sh` to `<prefix>/lib` |
 
-The suite (a dependency-free console runner) covers:
-- embedded known answers that always run (SHA-1/2/3, RFC 4231 HMAC,
-  SP 800-38A AES, RFC 4493 CMAC, GCM, RFC 3610 CCM, a CAVS Hash_DRBG vector);
-- the ACVP aegisolve vectors used by the wolfACVP harness;
+Algorithm testing (ACVP) is done on the C module, not through the wrapper.
+The suite (a dependency-free console runner) tests the wrapper and covers:
+- embedded known answers (SHA-1/2/3, RFC 4231 HMAC, SP 800-38A AES,
+  RFC 4493 CMAC, GCM, RFC 3610 CCM, a CAVS Hash_DRBG vector);
 - independent checks against .NET (RSA, ECDSA, ECDH, HMAC, AES, GCM, TLS
   KDF references) and BigInteger references (DH, PKCS#1 v1.5);
 - forced-failure scenarios (FAILED, DRBG continuous test, and every DEGRADED

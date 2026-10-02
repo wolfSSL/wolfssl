@@ -48,8 +48,6 @@ namespace wolfSSL.CSharp.Fips
         public const int DefaultIVSize = 12;
         /* Minimum DRBG-generated part of an internal IV (96 bits). */
         public const int MinRandomIVSize = 12;
-        /* Fixed field length the module accepts (AES_IV_FIXED_SZ). */
-        public const int FixedFieldSize = 4;
         public const int MaxTagSize = 16;
         /* SP 800-38D 8.3: at most 2^32 encryptions per key with RBG-based IVs. Enforced per object
          * (the module does not for 12-byte IVs); other objects and FipsGmac.Compute under the same
@@ -134,16 +132,7 @@ namespace wolfSSL.CSharp.Fips
         /* Selects module-generated IVs of ivSize bytes (12 or 16) drawn from rng (IG C.H
          * Scenario 2). Once per object: the IV construction and its invocation count are fixed
          * for the object's life (SP 800-38D 8.2.2, 8.3). */
-        public void UseInternalIV(FipsRng rng, int ivSize = DefaultIVSize) => SelectIV(rng, ivSize, null);
-
-#if FIPS_TEST_HOOKS
-        /* SP 800-38D 8.2.1-style fixed field (exactly 4 bytes, 16-byte IV so
-         * at least 96 random bits remain). Internal: not an IG C.H Scenario 2
-         * construction; used for ACVP testing of the module's 8.2.1 path. */
-        internal void UseInternalIV(FipsRng rng, int ivSize, byte[]? fixedField) => SelectIV(rng, ivSize, fixedField);
-#endif
-
-        private void SelectIV(FipsRng rng, int ivSize, byte[]? fixedField)
+        public void UseInternalIV(FipsRng rng, int ivSize = DefaultIVSize)
         {
             if (rng == null)
             {
@@ -151,11 +140,6 @@ namespace wolfSSL.CSharp.Fips
             }
 
             CheckInternalIVSize(ivSize);
-            if (fixedField != null && (fixedField.Length != FixedFieldSize || ivSize - fixedField.Length < MinRandomIVSize))
-            {
-                throw new ArgumentException("a GCM internal-IV fixed field must be exactly " + FixedFieldSize +
-                    " bytes with a 16-byte IV (at least 12 random bytes); pass null for none", nameof(fixedField));
-            }
 
             lock (sync)
             {
@@ -169,8 +153,7 @@ namespace wolfSSL.CSharp.Fips
                 using (rng.Use())
                 {
                     WolfCryptFipsException.Check("wc_AesGcmSetIV_fips",
-                        Native.wc_AesGcmSetIV_fips(Handle, (uint)ivSize, fixedField,
-                            fixedField == null ? 0u : (uint)fixedField.Length, rng.Handle));
+                        Native.wc_AesGcmSetIV_fips(Handle, (uint)ivSize, null, 0, rng.Handle));
                 }
 
                 internalIvSize = ivSize;

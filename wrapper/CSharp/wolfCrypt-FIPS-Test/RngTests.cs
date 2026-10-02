@@ -30,46 +30,6 @@ namespace wolfSSL.CSharp.Fips.Test
         {
             T.Section("Hash_DRBG");
 
-            /* ACVP hashDRBG (aegisolve). The module's health-test service
-             * runs the SP 800-90A instantiate / reseed / generate / generate
-             * sequence the vectors describe, returning the second generate. */
-            T.Run("ACVP hashDRBG vectors", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("hashDRBG"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        T.Equal("SHA2-256", g.GetProperty("mode").GetString(), "mode");
-                        T.True(g.GetProperty("persoStringLen").GetInt32() == 0 &&
-                               g.GetProperty("additionalInputLen").GetInt32() == 0 &&
-                               !g.GetProperty("predResistance").GetBoolean(),
-                               "group parameters outside health-test service");
-                        bool reseed = g.GetProperty("reSeed").GetBoolean();
-                        int outLen = g.GetProperty("returnedBitsLen").GetInt32() / 8;
-                        T.Equal(FipsRng.HealthTestOutputSize, outLen, "returnedBitsLen outside health-test service");
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            byte[] seedA = Acvp.Hex(t, "entropyInput").Concat(Acvp.Hex(t, "nonce")).ToArray();
-                            byte[]? seedB = null;
-                            foreach (var oi in t.GetProperty("otherInput").EnumerateArray())
-                            {
-                                if (oi.GetProperty("intendedUse").GetString() == "reSeed")
-                                {
-                                    seedB = Acvp.Hex(oi, "entropyInput");
-                                }
-                            }
-
-                            byte[] got = FipsRng.HealthTest(reseed, seedA, seedB, outLen);
-                            T.Bytes(Acvp.Hex(set.ExpectedFor(g, t), "returnedBits"), got,
-                                    set.File + " tcId " + t.GetProperty("tcId").GetInt32());
-                            n++;
-                        }
-                    }
-                }
-                Console.WriteLine("        " + n + " vectors");
-            });
-
             T.Run("HealthTest argument contract (128-byte output, seedB with reseed)", () =>
             {
                 byte[] seed = new byte[48];

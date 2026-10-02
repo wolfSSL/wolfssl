@@ -37,121 +37,6 @@ namespace wolfSSL.CSharp.Fips.Test
 
             T.Section("ECDSA");
 
-            T.Run("ACVP ECDSA keyVer (FIPS 186-4 + 186-5)", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("ECDSA").Where(s => Mode(s) == "keyVer"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsEccCurve c = CurveOf(g.GetProperty("curve").GetString()!);
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            bool ok;
-                            try
-                            {
-                                using var k = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
-                                k.Check();
-                                ok = true;
-                            }
-                            catch (Exception e) when (e is WolfCryptFipsException || e is ArgumentException) { ok = false; }
-                            T.Equal(set.ExpectedFor(g, t).GetProperty("testPassed").GetBoolean(), ok,
-                                    set.File + " tcId " + t.GetProperty("tcId").GetInt32());
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no keyVer vectors");
-                Console.WriteLine("        " + n + " keyVer vectors");
-            });
-
-            T.Run("ACVP ECDSA sigVer (FIPS 186-4 + 186-5, SHA-2 and SHA-3)", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("ECDSA").Where(s => Mode(s) == "sigVer"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsEccCurve c = CurveOf(g.GetProperty("curve").GetString()!);
-                        FipsHashType h = HashOf(g.GetProperty("hashAlg").GetString()!);
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            byte[] digest = FipsHash.Compute(h, Acvp.Hex(t, "message"));
-                            byte[] der = FipsEcdsaSignature.ToDer(Acvp.Hex(t, "r"), Acvp.Hex(t, "s"));
-                            bool ok;
-                            try
-                            {
-                                using var k = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "qx"), Acvp.Hex(t, "qy"));
-                                ok = k.VerifyHash(h, digest, der);
-                            }
-                            catch (Exception e) when (e is WolfCryptFipsException || e is ArgumentException) { ok = false; }
-                            T.Equal(set.ExpectedFor(g, t).GetProperty("testPassed").GetBoolean(), ok,
-                                    set.File + " tcId " + t.GetProperty("tcId").GetInt32());
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no sigVer vectors");
-                Console.WriteLine("        " + n + " sigVer vectors");
-            });
-
-            T.Run("ACVP ECDSA sigGen messages: module signatures verify in module and .NET", () =>
-            {
-                int n = 0, net = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("ECDSA").Where(s => Mode(s) == "sigGen"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsEccCurve c = CurveOf(g.GetProperty("curve").GetString()!);
-                        FipsHashType h = HashOf(g.GetProperty("hashAlg").GetString()!);
-                        bool component = g.TryGetProperty("componentTest", out var ct) && ct.GetBoolean();
-                        using var key = FipsEccKey.Generate(c, rng);
-                        using ECDsa? dn = DotNetPublic(c, key.ExportPublic());
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            byte[] msg = Acvp.Hex(t, "message");
-                            byte[] digest = component ? msg : FipsHash.Compute(h, msg);
-                            byte[] sig = key.SignHash(h, digest);
-                            string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
-                            T.True(key.VerifyHash(h, digest, sig), where + " module verify");
-                            if (dn != null)
-                            {
-                                T.True(dn.VerifyHash(digest, sig, DSASignatureFormat.Rfc3279DerSequence), where + " .NET verify");
-                                net++;
-                            }
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no sigGen messages");
-                Console.WriteLine("        " + n + " sigGen messages, " + net + " also verified by .NET");
-            });
-
-            T.Run("ACVP ECDSA keyGen: generated keys pass key check", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("ECDSA").Where(s => Mode(s) == "keyGen"))
-                {
-                    foreach (var g in set.Groups)
-                    {
-                        FipsEccCurve c = CurveOf(g.GetProperty("curve").GetString()!);
-                        foreach (var _ in g.GetProperty("tests").EnumerateArray())
-                        {
-                            using var k = FipsEccKey.Generate(c, rng);
-                            k.Check();
-                            T.Equal(1 + 2 * k.FieldSize, k.ExportPublic().Length, "point size");
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no keys");
-                Console.WriteLine("        " + n + " keys");
-            });
-
             T.Run("operations that unlock the key read gate restore it", () =>
             {
                 FipsModule.SetPrivateKeyReadEnable(false);
@@ -348,88 +233,7 @@ namespace wolfSSL.CSharp.Fips.Test
                         "WOLFSSL_VALIDATE_ECC_IMPORT (module validates on import)");
             });
 
-            T.Run("ACVP KAS-ECC-SSC AFT: Z with server keys", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("KAS-ECC-SSC"))
-                {
-                    foreach (var g in set.Groups.Where(x => x.GetProperty("testType").GetString() == "AFT"))
-                    {
-                        FipsEccCurve c = CurveOf(g.GetProperty("domainParameterGenerationMode").GetString()!);
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            using var ours = FipsEccKey.Generate(c, rng);
-                            using var server = EccTestHelpers.ImportPublic(c, Acvp.Hex(t, "ephemeralPublicServerX"),
-                                                                           Acvp.Hex(t, "ephemeralPublicServerY"));
-                            T.Equal(FipsEccKey.FieldSizeOf(c), ours.SharedSecret(server).Length, "Z length");
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no AFT vectors");
-                Console.WriteLine("        " + n + " AFT vectors");
-            });
-
-            T.Run("ACVP KAS-ECC-SSC VAL", () =>
-                T.Skip("VAL supplies the IUT private key; the v5.2.1 boundary has no ECC private key import"));
-
             T.Section("Finite field DH (KAS-FFC-SSC)");
-
-            T.Run("ACVP KAS-FFC-SSC VAL (hashZ)", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("KAS-FFC-SSC"))
-                {
-                    foreach (var g in set.Groups.Where(x => x.GetProperty("testType").GetString() == "VAL"))
-                    {
-                        using var dh = FipsDh.AnyNamedGroup(GroupOf(g.GetProperty("domainParameterGenerationMode").GetString()!));
-                        FipsHashType h = HashOf(g.GetProperty("hashFunctionZ").GetString()!);
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            bool ok;
-                            try
-                            {
-                                byte[] z = dh.Agree(Acvp.Hex(t, "ephemeralPrivateIut"), Acvp.Hex(t, "ephemeralPublicServer"));
-                                ok = FipsHash.Compute(h, z).SequenceEqual(Acvp.Hex(t, "hashZ"));
-                            }
-                            catch (WolfCryptFipsException) { ok = false; }
-                            T.Equal(set.ExpectedFor(g, t).GetProperty("testPassed").GetBoolean(), ok,
-                                    set.File + " tcId " + t.GetProperty("tcId").GetInt32());
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no VAL vectors");
-                Console.WriteLine("        " + n + " VAL vectors");
-            });
-
-            T.Run("ACVP KAS-FFC-SSC AFT: Z with server keys", () =>
-            {
-                int n = 0;
-                foreach (AcvpVectorSet set in Acvp.Load("KAS-FFC-SSC"))
-                {
-                    foreach (var g in set.Groups.Where(x => x.GetProperty("testType").GetString() == "AFT"))
-                    {
-                        FipsDhGroup grp = GroupOf(g.GetProperty("domainParameterGenerationMode").GetString()!);
-                        using var dh = FipsDh.AnyNamedGroup(grp);
-                        byte[] p = Ffdhe.P[grp];
-                        foreach (var t in g.GetProperty("tests").EnumerateArray())
-                        {
-                            using var kp = dh.GenerateKeyPair(rng);
-                            byte[] ys = Acvp.Hex(t, "ephemeralPublicServer");
-                            string where = set.File + " tcId " + t.GetProperty("tcId").GetInt32();
-                            T.Bytes(ModPow(ys, kp.PrivateKey, p), dh.Agree(kp.PrivateKey, ys), where + " Z = Ys^x mod p");
-                            T.Bytes(ModPow(new byte[] { 2 }, kp.PrivateKey, p), kp.PublicKey, where + " public key = 2^x mod p");
-                            n++;
-                        }
-                    }
-                }
-
-                T.True(n > 0, "no AFT vectors");
-                Console.WriteLine("        " + n + " AFT vectors");
-            });
 
             T.Run("DH ffdhe2048: two parties derive the same Z; key pair checks", () =>
             {
@@ -659,42 +463,6 @@ namespace wolfSSL.CSharp.Fips.Test
             return new byte[len - r.Length].Concat(r).ToArray();
         }
 
-        private static string Mode(AcvpVectorSet s) => s.Request.GetProperty("mode").GetString()!;
-
-        private static FipsEccCurve CurveOf(string c) => c switch
-        {
-            "P-192" => FipsEccCurve.P192,
-            "P-224" => FipsEccCurve.P224,
-            "P-256" => FipsEccCurve.P256,
-            "P-384" => FipsEccCurve.P384,
-            "P-521" => FipsEccCurve.P521,
-            _ => throw new Exception("curve " + c)
-        };
-
-        private static FipsDhGroup GroupOf(string g) => g switch
-        {
-            "ffdhe2048" => FipsDhGroup.Ffdhe2048,
-            "ffdhe3072" => Ffdhe.Ffdhe3072,
-            "ffdhe4096" => Ffdhe.Ffdhe4096,
-            "ffdhe6144" => Ffdhe.Ffdhe6144,
-            "ffdhe8192" => Ffdhe.Ffdhe8192,
-            _ => throw new Exception("group " + g)
-        };
-
-        internal static FipsHashType HashOf(string h) => h switch
-        {
-            "SHA-1" => FipsHashType.Sha1,
-            "SHA2-224" => FipsHashType.Sha224,
-            "SHA2-256" => FipsHashType.Sha256,
-            "SHA2-384" => FipsHashType.Sha384,
-            "SHA2-512" => FipsHashType.Sha512,
-            "SHA3-224" => FipsHashType.Sha3_224,
-            "SHA3-256" => FipsHashType.Sha3_256,
-            "SHA3-384" => FipsHashType.Sha3_384,
-            "SHA3-512" => FipsHashType.Sha3_512,
-            _ => throw new Exception("hash " + h)
-        };
-
         private static ECCurve NetCurve(FipsEccCurve c) => c switch
         {
             FipsEccCurve.P256 => ECCurve.NamedCurves.nistP256,
@@ -717,12 +485,5 @@ namespace wolfSSL.CSharp.Fips.Test
             };
         }
 
-        /* .NET verifier for the curve, or null when the platform does not
-         * support it (P-224 on some OSes). */
-        private static ECDsa? DotNetPublic(FipsEccCurve c, byte[] x963)
-        {
-            try { return ECDsa.Create(PublicParams(c, x963)); }
-            catch (Exception e) when (e is PlatformNotSupportedException || e is CryptographicException) { return null; }
-        }
     }
 }
