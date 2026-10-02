@@ -12096,15 +12096,20 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
     }
 
     if (!pub->algor) {
-        if (!(pub->algor = wolfSSL_X509_ALGOR_new())) {
+        /* Build the algorithm fully before storing it, so a failure
+         * never leaves a half built one behind. */
+        WOLFSSL_X509_ALGOR* algor = wolfSSL_X509_ALGOR_new();
+        if (algor == NULL) {
             return WOLFSSL_FAILURE;
         }
-        pub->algor->algorithm = wolfSSL_OBJ_nid2obj(
+        algor->algorithm = wolfSSL_OBJ_nid2obj(
             oid2nid((word32)pub->pubKeyOID, oidKeyType));
-        if (pub->algor->algorithm == NULL) {
+        if (algor->algorithm == NULL) {
             WOLFSSL_MSG("Failed to create object from NID");
+            wolfSSL_X509_ALGOR_free(algor);
             return WOLFSSL_FAILURE;
         }
+        pub->algor = algor;
     }
 
     if (pa)
