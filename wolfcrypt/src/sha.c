@@ -37,6 +37,16 @@
  * FREESCALE_MMCAU_SHA:      Freescale MMCAU SHA acceleration      default: off
  * STM32_HASH:               STM32 hardware hash                   default: off
  * PSOC6_HASH_SHA1:          PSoC6 hardware SHA-1                  default: off
+ *
+ * AArch64 assembly (WOLFSSL_ARMASM on __aarch64__):
+ * WOLFSSL_ARMASM:           Use the AArch64 assembly transforms    default: off
+ * WOLFSSL_ARMASM_NO_NEON:   Drop the NEON and crypto-extension
+ *                           transforms, leaving only base          default: off
+ * WOLFSSL_ARMASM_NO_HW_CRYPTO: Drop the crypto-extension transform default: off
+ * WOLFSSL_ARMASM_NO_NEON_IMPL: Drop the NEON transform             default: off
+ * WOLFSSL_ARMASM_NO_BASE_IMPL: Drop the base transform             default: off
+ * WOLFSSL_ARMASM_INLINE:    Take the transforms from the inline
+ *                           assembly twin rather than the .S file  default: off
  */
 
 #define WC_FIPS_LL_CRYPTO
@@ -61,6 +71,10 @@
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/hash.h>
+
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    #include <wolfssl/wolfcrypt/cpuid.h>
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -453,9 +467,178 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
         sha->hiLen++;                       /* carry low to high */
 }
 
-/* Check if custom wc_Sha transform is used */
-#ifndef XTRANSFORM
-    #define XTRANSFORM(S,B)   Transform((S),(B))
+/* AArch64 assembly block transforms - wolfcrypt/src/port/arm/armv8-sha1-asm.S,
+ * or its inline assembly twin armv8-sha1-asm_c.c.  Reached only when the
+ * hardware-acceleration chain above selected the software API bodies and did
+ * not install a transform of its own.
+ *
+ * Three implementations are built and the best one the CPU supports is chosen
+ * on wc_InitSha_ex():
+ *   crypto - the Armv8 crypto extension (sha1c/sha1p/sha1m/sha1h/sha1su*)
+ *   neon   - rounds in general-purpose registers, message schedule in NEON
+ *   base   - general-purpose registers only
+ * and Transform() below is the last resort if none of them is usable.
+ *
+ * The choice follows the CPU id, so cpuid_select_flags() reaches the
+ * implementations this CPU would not otherwise pick - clearing CPUID_SHA1
+ * leaves neon, clearing CPUID_ASIMD as well leaves base.  That is how
+ * sha_armasm_variant_test() in wolfcrypt/test/test.c checks all three on one
+ * machine, whichever the CPU would have chosen.  Call it
+ * before wc_InitSha_ex(), not part way through a hash: the selection is read
+ * again on each init. */
+#if !defined(XTRANSFORM) && defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+
+/* The assembly loads the message with rev32, so it consumes the raw big-endian
+ * byte stream: wc_ShaUpdate()/wc_ShaFinal() must not byte-reverse sha->buffer
+ * before handing a block over, and must instead put the trailing length words
+ * into the stream big-endian.  See the uses of this macro below. */
+#define WOLFSSL_ARMASM_SHA_TRANSFORM
+/* Build Transform() even though XTRANSFORM is defined here - it is the
+ * fallback when the CPU has no usable SIMD. */
+#define NEED_SOFT_SHA
+
+static int Transform(wc_Sha* sha, const byte* data);
+static int Transform_Sha_Len(wc_Sha* sha, const byte* data, word32 len);
+
+/* Initialised to the C fallback so that it is never NULL, even if it is read
+ * before Sha_SetTransform() has published the selection. */
+static int (*Transform_Sha_Len_p)(wc_Sha* sha, const byte* data, word32 len) =
+    Transform_Sha_Len;
+/* The CPU id the published selection was made from.
+ *
+ * Not a "have we chosen yet" flag.  cpuid_select_flags() lets a caller claim
+ * the CPU has fewer features than it has, and the selection has to be made
+ * again when it does, so what is remembered is the flags it was made from
+ * rather than the fact of it.  WC_CPUID_INITIALIZER is not a reachable flag
+ * set, so the first call always selects.
+ *
+ * A plain word32 rather than the atomic type: an aligned word load and store
+ * are indivisible on every architecture this builds for, and a reader that
+ * sees a stale value only repeats a selection that reaches the same answer. */
+static cpuid_flags_t sha_transform_cpuid = WC_CPUID_INITIALIZER;
+
+static WC_INLINE int Transform_Sha_aarch64(wc_Sha* sha, const byte* data)
+{
+    return (*Transform_Sha_Len_p)(sha, data, WC_SHA_BLOCK_SIZE);
+}
+
+static WC_INLINE int Transform_Sha_Len_aarch64(wc_Sha* sha, const byte* data,
+    word32 len)
+{
+    return (*Transform_Sha_Len_p)(sha, data, len);
+}
+
+/* The assembly entry points return nothing and cannot fail - wrap them so that
+ * they all have the one type the function pointer holds. */
+#if !defined(WOLFSSL_ARMASM_NO_NEON)
+#if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+static int Transform_Sha_Len_crypto_aarch64(wc_Sha* sha, const byte* data,
+    word32 len)
+{
+    Transform_Sha_Len_crypto(sha, data, len);
+    return 0;
+}
+#endif
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+static int Transform_Sha_Len_neon_aarch64(wc_Sha* sha, const byte* data,
+    word32 len)
+{
+    Transform_Sha_Len_neon(sha, data, len);
+    return 0;
+}
+#endif
+#endif
+#if !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) || defined(WOLFSSL_ARMASM_NO_NEON)
+static int Transform_Sha_Len_base_aarch64(wc_Sha* sha, const byte* data,
+    word32 len)
+{
+    Transform_Sha_Len_base(sha, data, len);
+    return 0;
+}
+#endif
+
+/* Fallback for a CPU none of the assembly implementations can run on.
+ * Transform() takes a block already reversed into big-endian words, so the
+ * reversal the update and final paths skipped happens here. */
+static int Transform_Sha_Len(wc_Sha* sha, const byte* data, word32 len)
+{
+    int ret = 0;
+
+    while (len >= WC_SHA_BLOCK_SIZE) {
+        word32 buffer[WC_SHA_BLOCK_SIZE / sizeof(word32)];
+
+        XMEMCPY(buffer, data, WC_SHA_BLOCK_SIZE);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords(buffer, buffer, WC_SHA_BLOCK_SIZE);
+    #endif
+        ret = Transform(sha, (const byte*)buffer);
+        if (ret != 0)
+            break;
+        data += WC_SHA_BLOCK_SIZE;
+        len  -= WC_SHA_BLOCK_SIZE;
+    }
+
+    return ret;
+}
+
+/* Pick the block transform for the CPU features currently selected.
+ *
+ * Idempotent: every caller computes the same answer from the same flags, so a
+ * concurrent double-write is harmless, and Transform_Sha_Len_p only ever holds
+ * one of a fixed set of correct transforms - a thread that reads it while
+ * another is publishing gets a slower implementation of the same function, not
+ * a wrong one.  Changing the selection part way through a hash is the one thing
+ * that is not safe, because wc_ShaTransform() byte-swaps or not according to
+ * which implementation is installed. */
+static void Sha_SetTransform(void)
+{
+    cpuid_flags_t cpuid_flags = cpuid_get_flags();
+
+    if (sha_transform_cpuid == cpuid_flags)
+        return;
+
+#if !defined(WOLFSSL_ARMASM_NO_NEON)
+#if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (IS_AARCH64_SHA1(cpuid_flags)) {
+        Transform_Sha_Len_p = Transform_Sha_Len_crypto_aarch64;
+    }
+    else
+#endif
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+        Transform_Sha_Len_p = Transform_Sha_Len_neon_aarch64;
+    }
+    else
+#endif
+#endif
+#if !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) || defined(WOLFSSL_ARMASM_NO_NEON)
+    {
+        Transform_Sha_Len_p = Transform_Sha_Len_base_aarch64;
+    }
+#else
+    {
+        Transform_Sha_Len_p = Transform_Sha_Len;
+    }
+#endif
+
+    sha_transform_cpuid = cpuid_flags;
+}
+
+#define XTRANSFORM      Transform_Sha_aarch64
+#define XTRANSFORM_LEN  Transform_Sha_Len_aarch64
+
+#endif /* !XTRANSFORM && WOLFSSL_ARMASM && __aarch64__ */
+
+/* Check if custom wc_Sha transform is used.  A backend that supplies its own
+ * XTRANSFORM can still ask for Transform() to be built - as the AArch64
+ * assembly does, to fall back on when the CPU has no usable SIMD - by defining
+ * NEED_SOFT_SHA. */
+#if !defined(XTRANSFORM) || defined(NEED_SOFT_SHA)
+    #ifndef XTRANSFORM
+        #define XTRANSFORM(S,B)   Transform((S),(B))
+    #endif
 
     #define blk0(i) (W[i] = *((const word32*)&data[(i)*sizeof(word32)]))
     #define blk1(i) (W[(i)&15] = \
@@ -564,7 +747,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
         return 0;
     }
-#endif /* XTRANSFORM when USE_SHA_SOFTWARE_IMPL is enabled */
+#endif /* !XTRANSFORM || NEED_SOFT_SHA, when USE_SHA_SOFTWARE_IMPL */
 
 
 /*
@@ -578,6 +761,10 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_ARMASM_SHA_TRANSFORM
+    Sha_SetTransform();
+#endif
 
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
@@ -685,7 +872,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             }
         #endif
 
-        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
+            !defined(WOLFSSL_ARMASM_SHA_TRANSFORM)
             #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
                   defined(CONFIG_IDF_TARGET_ESP8684) || \
                   defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -748,7 +936,10 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     blocksLen = len & ~(WC_SHA_BLOCK_SIZE-1);
     if (blocksLen > 0) {
         /* Byte reversal performed in function if required. */
-        XTRANSFORM_LEN(sha, data, blocksLen);
+        ret = XTRANSFORM_LEN(sha, data, blocksLen);
+        if (ret != 0) {
+            return ret;
+        }
         data += blocksLen;
         len  -= blocksLen;
     }
@@ -776,7 +967,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         }
     #endif
 
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
+        !defined(WOLFSSL_ARMASM_SHA_TRANSFORM)
         #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP8684) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -912,7 +1104,8 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         }
     #endif
 
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
+        !defined(WOLFSSL_ARMASM_SHA_TRANSFORM)
         #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP8684) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -967,7 +1160,8 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     /* WOLFSSL_WIDE_BYTE packs the whole final block (including the length
      * words) octet-wise below, so skip the in-place word reversal here. */
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
-    !defined(WOLFSSL_WIDE_BYTE)
+    !defined(WOLFSSL_WIDE_BYTE) && \
+    !defined(WOLFSSL_ARMASM_SHA_TRANSFORM)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -1007,6 +1201,20 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #else
     XMEMCPY(&local[WC_SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[WC_SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
+#endif
+
+#if defined(WOLFSSL_ARMASM_SHA_TRANSFORM) && defined(LITTLE_ENDIAN_ORDER) && \
+    !defined(WOLFSSL_WIDE_BYTE)
+    /* The assembly byte-swaps the block itself, so the rest of this block was
+     * never reversed - store the length words big-endian to match.  Only on a
+     * little-endian host: on a big-endian one the XMEMCPY above already laid
+     * them down big-endian, and reversing would corrupt the final block for the
+     * C fallback, which is the transform such a build would select.  (The
+     * WOLFSSL_WIDE_BYTE path above already placed them as octets, and cannot
+     * occur on AArch64 anyway, where CHAR_BIT is 8.) */
+    ByteReverseWords(&sha->buffer[WC_SHA_PAD_SIZE / sizeof(word32)],
+                     &sha->buffer[WC_SHA_PAD_SIZE / sizeof(word32)],
+                     2 * sizeof(word32));
 #endif
 
 #if defined(FREESCALE_MMCAU_SHA)
@@ -1097,6 +1305,20 @@ int wc_ShaTransform(wc_Sha* sha, const unsigned char* data)
     if (sha == NULL || data == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WOLFSSL_ARMASM_SHA_TRANSFORM
+    /* The caller passes a block already in the host's word order, which is what
+     * Transform() wants but not what the assembly does - it byte-swaps the
+     * block itself.  Undo the swap for the assembly implementations. */
+    if (Transform_Sha_Len_p != Transform_Sha_Len) {
+        word32 buffer[WC_SHA_BLOCK_SIZE / sizeof(word32)];
+
+        XMEMCPY(buffer, data, WC_SHA_BLOCK_SIZE);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords(buffer, buffer, WC_SHA_BLOCK_SIZE);
+    #endif
+        return Transform_Sha_aarch64(sha, (const byte*)buffer);
+    }
+#endif
     return (Transform(sha, data));
 }
 #endif

@@ -152,15 +152,20 @@ struct wc_Sha {
     cy_stc_crypto_sha_state_t hash_state;
     cy_stc_crypto_v2_sha1_buffers_t sha_buffers;
 #else
-    word32  buffLen;   /* in bytes          */
-    word32  loLen;     /* length in bytes   */
-    word32  hiLen;     /* length in bytes   */
-    word32  buffer[WC_SHA_BLOCK_SIZE  / sizeof(word32)];
+    /* digest first, as wc_Sha256 has it: the ARMv8 assembly then reaches it
+     * straight off the context pointer.  Unlike wc_Sha256 there is no ALIGN16
+     * here - a 20-byte digest would be padded to 32, growing wc_Sha past the
+     * fixed-size holder in WOLFSSL_SHA_CTX, and AArch64 loads do not require
+     * the alignment anyway. */
     #ifdef WOLFSSL_PIC32MZ_HASH
     word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
     #else
     word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
+    word32  buffer[WC_SHA_BLOCK_SIZE  / sizeof(word32)];
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
 #endif
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
@@ -221,6 +226,30 @@ WOLFSSL_API void wc_ShaSizeSet(wc_Sha* sha, word32 len);
 #ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_ShaSetFlags(wc_Sha* sha, word32 flags);
     WOLFSSL_API int wc_ShaGetFlags(wc_Sha* sha, word32* flags);
+#endif
+
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+/* Block transforms in wolfcrypt/src/port/arm/armv8-sha1-asm.S (or the inline
+ * assembly twin armv8-sha1-asm_c.c).  Each takes a byte count that is a
+ * non-zero multiple of WC_SHA_BLOCK_SIZE and byte-swaps the message itself.
+ *
+ * Guarded exactly as the assembly guards the definitions, so that a build that
+ * compiles one of them out does not declare it here. */
+#if !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) || defined(WOLFSSL_ARMASM_NO_NEON)
+WOLFSSL_LOCAL void Transform_Sha_Len_base(wc_Sha* sha, const byte* data,
+    word32 len);
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+WOLFSSL_LOCAL void Transform_Sha_Len_neon(wc_Sha* sha, const byte* data,
+    word32 len);
+#endif
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+WOLFSSL_LOCAL void Transform_Sha_Len_crypto(wc_Sha* sha, const byte* data,
+    word32 len);
+#endif
+#endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif
 
 #ifdef __cplusplus
