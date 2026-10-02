@@ -584,6 +584,9 @@ int test_wolfSSL_OCSP_parse_url_api(void)
 int test_ssl_crl_ocsp_decision_coverage(void)
 {
     EXPECT_DECLS;
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+    struct tm tm;
+#endif
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -612,8 +615,6 @@ int test_ssl_crl_ocsp_decision_coverage(void)
 #endif
 
 #if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
-    struct tm tm;
-
     XMEMSET(&tm, 0, sizeof(tm));
     /* --- 917:1 get_ocsp_producedDate_tm: 2nd != (GENERALIZED vs default) - */
     ssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;

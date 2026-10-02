@@ -2459,7 +2459,8 @@ int test_ssl_api_decision_coverage(void)
         (void)wolfSSL_GetMacSecret(nssl, 0);
         wolfSSL_free(nssl);
     }
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA)
     {
         WOLFSSL_CTX* sctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
         WOLFSSL* sssl = NULL;
@@ -2708,6 +2709,8 @@ int test_ssl_api_decision_coverage(void)
 #endif
 
     /* --- 7827:0/1/2 SSL_renegotiate_pending: s&&done&&state!=DONE -------- */
+#if defined(HAVE_SECURE_RENEGOTIATION) || \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
     (void)wolfSSL_SSL_renegotiate_pending(NULL);
     ssl->options.handShakeDone = 0;
     (void)wolfSSL_SSL_renegotiate_pending(ssl);
@@ -2718,6 +2721,7 @@ int test_ssl_api_decision_coverage(void)
     (void)wolfSSL_SSL_renegotiate_pending(ssl);
     ssl->options.handShakeDone = 0;
     ssl->options.handShakeState = NULL_STATE;
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

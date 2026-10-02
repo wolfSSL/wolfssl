@@ -4866,7 +4866,7 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFCRYPT_ONLY) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_PSK) && \
-    !defined(NO_CERTS) && !defined(NO_DH)
+    !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL_CTX *ctxHint = NULL;
     WOLFSSL *ssl = NULL;
@@ -4888,7 +4888,10 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
      * With writeDup 1 the body never touches ssl->arrays. */
     ctxHint = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     ExpectNotNull(ctxHint);
-    XSTRNCPY(ctxHint->server_hint, "hint", MAX_PSK_ID_LEN);
+    /* The guard (7870) tests only server_hint[0]; a single store keeps the
+     * state minimal and stays clear of strncpy range analysis on the
+     * macro-sized member. */
+    ctxHint->server_hint[0] = 'h';
     {
         WOLFSSL *raw = (WOLFSSL *)XMALLOC(sizeof(WOLFSSL), NULL,
                 DYNAMIC_TYPE_SSL);

@@ -3231,7 +3231,8 @@ int test_session_decision_coverage(void)
      * and by the MC/DC variant. */
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_SESSION_CACHE) && \
     (defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)) && \
-    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_SESSION* sess = NULL;
