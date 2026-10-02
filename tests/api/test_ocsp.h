@@ -29,6 +29,8 @@ int test_ocsp_resp_times(void);
 int test_ocsp_status_callback(void);
 int test_ocsp_status_request_scr(void);
 int test_ocsp_basic_verify(void);
+int test_ocsp_d2i_reuse_clears_refs(void);
+int test_ocsp_d2i_reuse_frees_single_chain(void);
 int test_ocsp_responder_keyhash_binding(void);
 int test_ocsp_response_parsing(void);
 int test_ocsp_tls_cert_cb(void);
