@@ -959,6 +959,7 @@ static int InitSha512(wc_Sha512* sha512)
 #if defined(WOLFSSL_SHA512_HASHTYPE)
     sha512->hashType = WC_HASH_TYPE_SHA512;
 #endif /* WOLFSSL_SHA512_HASHTYPE */
+
     return 0;
 }
 
@@ -3355,6 +3356,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     #endif
 
 #endif /* WOLFSSL_USE_ESP32_CRYPT_HASH_HW */
+
+#if defined(WOLFSSL_TI_AM64X_R5) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+    dst->devCtx = NULL;
+#endif
 
 #ifdef WOLFSSL_HASH_FLAGS
      dst->flags |= WC_HASH_FLAG_ISCOPY;

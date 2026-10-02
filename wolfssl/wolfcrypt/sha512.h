@@ -147,6 +147,7 @@
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #endif
+
 /* wc_Sha512 digest */
 struct wc_Sha512 {
 #if defined(PSOC6_HASH_SHA2)
