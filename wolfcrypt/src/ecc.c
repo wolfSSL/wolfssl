@@ -3435,6 +3435,8 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
             err = mp_cond_swap_ct_ex(R[0]->z, R[1]->z, (int)modulus->used,
                 (int)b, tmp);
         }
+        /* tmp holds a scalar bit (ISO/IEC 19790:2012 7.9.7). */
+        mp_forcezero(tmp);
 #endif
     }
 
@@ -6103,7 +6105,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         err = mp_set(key->pubkey.z, 1);
     if (err) {
         key->privKey = NULL;
-        XMEMSET(key->keyRaw, 0, sizeof(key->keyRaw));
+        ForceZero(key->keyRaw, sizeof(key->keyRaw));
         return err;
     }
 
@@ -7190,6 +7192,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
             if (wc_ecc_gen_deterministic_k(in, inlen,
                         key->hashType, ecc_get_k(key), key->sign_k,
                         curve->order, key->heap) != 0) {
+                mp_forcezero(key->sign_k);
                 mp_free(key->sign_k);
                 XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
                 key->sign_k = NULL;
@@ -7208,6 +7211,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         key->sign_k_set = 0;
         if (wc_ecc_gen_deterministic_k(in, inlen, key->hashType,
                 ecc_get_k(key), key->sign_k, curve->order, key->heap) != 0) {
+            mp_forcezero(key->sign_k);
             err = ECC_PRIV_KEY_E;
         }
         else {
@@ -7457,12 +7461,10 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 }
 #endif
 
-#ifdef WOLFSSL_HAVE_SP_ECC
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-/* SP only resets the logical length of k, leaving its digits in the backing
- * store. Clear it the way the software path does. */
+/* The nonce is consumed by every sign result; SP only resets its length. */
 static void ecc_sign_k_forcezero(ecc_key* key)
 {
 #ifndef WOLFSSL_NO_MALLOC
@@ -7473,14 +7475,13 @@ static void ecc_sign_k_forcezero(ecc_key* key)
         key->sign_k = NULL;
     }
 #else
-    if (key->sign_k_set) {
-        mp_forcezero(key->sign_k);
-        key->sign_k_set = 0;
-    }
+    mp_forcezero(key->sign_k);
+    key->sign_k_set = 0;
 #endif
 }
 #endif
 
+#ifdef WOLFSSL_HAVE_SP_ECC
 static int ecc_sign_hash_sp(const byte* in, word32 inlen, WC_RNG* rng,
     ecc_key* key, mp_int *r, mp_int *s)
 {
@@ -7887,6 +7888,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
            }
        }
    }
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+   /* The nonce is consumed whatever the result. */
+   ecc_sign_k_forcezero(key);
+#endif
 
    mp_clear(e);
    wc_ecc_curve_free(curve);
@@ -8283,6 +8290,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
     }
     if (ret == 0 && mp_cmp(key->sign_k, curve->order) != MP_LT) {
         ret = MP_VAL;
+        ecc_sign_k_forcezero(key);
     }
 #ifdef WOLFSSL_NO_MALLOC
     if (ret == 0) {
@@ -12501,6 +12509,16 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = _ecc_validate_public_key(key, 1, 1);
 
 #endif
+
+    if (ret != 0) {
+        /* Rejected scalar must not stay in the key
+         * (ISO/IEC 19790:2012 7.9.7). */
+        mp_forcezero(key->k);
+    #ifdef WOLFSSL_ECC_BLIND_K
+        mp_forcezero(key->kb);
+        mp_forcezero(key->ku);
+    #endif
+    }
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
@@ -17542,7 +17560,7 @@ int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx)
     /* If a different context is already set, clear it before replacing.
      * The caller is responsible for freeing any heap-allocated context. */
     if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
-        XMEMSET(key->nb_ctx, 0, sizeof(ecc_nb_ctx_t));
+        ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
     }
     if (ctx != NULL) {
         XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));

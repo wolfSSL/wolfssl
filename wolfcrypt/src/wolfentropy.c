@@ -46,6 +46,12 @@ data, use this implementation to seed and re-seed the DRBG.
 #endif
 
 #include <wolfssl/wolfcrypt/sha3.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 #if defined(__APPLE__) || defined(__MACH__)
     #include <mach/mach_time.h>
 #endif
@@ -836,6 +842,7 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
             if (ret == 0) {
                 XMEMCPY(output, hash, len);
             }
+            ForceZero(hash, sizeof(hash));
         }
     }
 
@@ -945,6 +952,9 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 #endif
 
     if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        /* Raw samples were conditioned into the seed
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(noise, sizeof(noise));
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }

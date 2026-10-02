@@ -535,7 +535,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         else
 #endif
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK(shake256, state);
         }
         if (dataLen >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
@@ -561,7 +561,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
                     xorbuf(state, data, WC_SHA3_256_COUNT * 8);
                     dataLen -= WC_SHA3_256_COUNT * 8;
                     data    += WC_SHA3_256_COUNT * 8;
-                    BlockSha3(state);
+                    WC_SHA3_BLOCK(shake256, state);
                 }
             }
         }
@@ -589,7 +589,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
     else
 #endif
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK(shake256, state);
     }
     if (hash != (byte*)shake256->s) {
         XMEMCPY(hash, shake256->s, hashLen);
@@ -660,7 +660,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         else
 #endif
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK(shake256, state);
         }
 
         if (data2Len >= WC_SHA3_256_COUNT * 8) {
@@ -686,7 +686,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
                     xorbuf(state, data2, WC_SHA3_256_COUNT * 8);
                     data2Len -= WC_SHA3_256_COUNT * 8;
                     data2    += WC_SHA3_256_COUNT * 8;
-                    BlockSha3(state);
+                    WC_SHA3_BLOCK(shake256, state);
                 }
             }
         }
@@ -718,7 +718,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
     else
 #endif
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK(shake256, state);
     }
     XMEMCPY(hash, shake256->s, hashLen);
     ret = 0;
@@ -1017,7 +1017,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
         else
 #endif
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK(shake256, state);
         }
         XMEMCPY(out, shake256->s, WC_SHA3_256_COUNT * 8);
         out += WC_SHA3_256_COUNT * 8;
@@ -5359,7 +5359,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
                     else
 #endif
                     {
-                        BlockSha3(state);
+                        WC_SHA3_BLOCK(shake256, state);
                     }
 
                     /* Restart hash block index. */
@@ -9630,6 +9630,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
         /* Step 11: Check we have a valid signature. */
         while ((ret == 0) && (!valid));
+        if (ret != 0) {
+            /* sig holds a rejected candidate (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(sig, params->sigSz);
+        }
     }
     if (ret == 0) {
         byte* ze = sig + params->lambda / 4;
@@ -10211,6 +10215,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
         /* Step 11: Check we have a valid signature. */
         while ((ret == 0) && (!valid));
+        if (ret != 0) {
+            /* sig holds a rejected candidate (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(sig, params->sigSz);
+        }
     }
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
@@ -12350,6 +12358,12 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
         }
 #endif
 
+#if !defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) && \
+    !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+        if (key->prvKeySet) {
+            ForceZero(key->k, sizeof(key->k));
+        }
+#endif
         /* Store level and indicate public and private key are not set. */
         key->level = level % WC_ML_DSA_DRAFT;
         key->pubKeySet = 0;

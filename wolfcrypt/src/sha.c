@@ -850,6 +850,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
         ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
     }
     XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
+    ForceZero(digest, sizeof(digest));
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -1135,8 +1136,18 @@ void wc_ShaFree(wc_Sha* sha)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+            #ifdef WOLFSSL_HASH_KEEP
+            if (sha->msg != NULL) {
+                ForceZero(sha->msg, sha->len);
+                XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha->msg = NULL;
+            }
+            #endif
+            ForceZero(sha, sizeof(*sha));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -1182,6 +1193,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(PSOC6_HASH_SHA1)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* digest and buffer hold keyed material for HMAC-SHA1 and the SSH KDF
+     * (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(sha, sizeof(*sha));
 }
 
 #endif /* !MAX3266X_SHA */

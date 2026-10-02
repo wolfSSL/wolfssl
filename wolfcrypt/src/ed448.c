@@ -419,6 +419,9 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         key->pubKeySet = 1;
     }
 
+    /* az holds the clamped secret scalar (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(az, sizeof(az));
+
     return ret;
 }
 
@@ -466,6 +469,13 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
         ret = wc_ed448_check_key(key);
         if (ret == 0) {
             ret = ed448_pairwise_consistency_test(key, rng);
+        }
+        if (ret != 0) {
+            /* Do not hand back a key that failed its check or PCT. */
+            key->privKeySet = 0;
+            key->pubKeySet = 0;
+            ForceZero(key->k, ED448_PRV_KEY_SIZE);
+            ForceZero(key->p, ED448_PUB_KEY_SIZE);
         }
     }
 #endif
@@ -662,7 +672,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
     }
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
-    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+    /* key may be NULL here and XFREE evaluates its heap argument. */
+    WC_FREE_VAR_EX(sha, key ? key->heap : NULL, DYNAMIC_TYPE_HASHES);
 #endif
 
     if (ret == 0) {
@@ -924,6 +935,7 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
                     "signature verification");
         return BAD_FUNC_ARG;
     }
+
 
     /* uncompress A (public key), test if valid, and negate it */
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
@@ -1588,10 +1600,18 @@ int wc_ed448_export_key(const ed448_key* key, byte* priv, word32 *privSz,
     int ret = 0;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed448_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed448_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;

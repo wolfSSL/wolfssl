@@ -141,6 +141,31 @@ enum {
     #include "cy_crypto_core.h"
 #endif
 
+/* Round scratch of the C Keccak block function lives in the context so it is
+ * wiped once at Free: word64 lanes, or word32 halves for the split variant. */
+#if (defined(WC_SHA3_NO_ASM) || (!defined(WOLFSSL_ARMASM) && \
+     !defined(WOLFSSL_RISCV_ASM) && !defined(WOLFSSL_PPC64_ASM) && \
+     !defined(WOLFSSL_PPC32_ASM))) && !defined(PSOC6_HASH_SHA3) && \
+    !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_SHA3)
+    #if defined(WOLFSSL_SHA3_SMALL)
+        #define WC_SHA3_SCRATCH_W 5
+    #elif defined(WC_SHA3_SPLIT64) || \
+          (defined(WOLFSSL_WIDE_BYTE) && !defined(BIG_ENDIAN_ORDER))
+        #define WC_SHA3_SCRATCH_W 80
+    #elif !defined(STM32_HASH_SHA3) || defined(WOLFSSL_SHAKE128) || \
+          defined(WOLFSSL_SHAKE256)
+        #define WC_SHA3_SCRATCH_W 30
+    #endif
+#endif
+#ifdef WC_SHA3_SCRATCH_W
+    typedef void (*WC_SHA3_BLOCK_FN)(word64* s, void* scratch);
+    /* Lanes to declare for a bare state that carries its own scratch. */
+    #define WC_SHA3_STATE_W (25 + WC_SHA3_SCRATCH_W)
+#else
+    typedef void (*WC_SHA3_BLOCK_FN)(word64* s);
+    #define WC_SHA3_STATE_W 25
+#endif
+
 /* Sha3 digest */
 struct wc_Sha3 {
 #if defined(PSOC6_HASH_SHA3)
@@ -152,6 +177,10 @@ struct wc_Sha3 {
     word64 s[25];
     /* Unprocessed message data. */
     byte   t[200];
+#ifdef WC_SHA3_SCRATCH_W
+    /* Round scratch for the C block function, wiped at Free. */
+    word64 scratch[WC_SHA3_SCRATCH_W];
+#endif
     /* Index into unprocessed data to place next message byte. */
     word32 i;
 
@@ -164,7 +193,7 @@ struct wc_Sha3 {
 #endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
-    void (*sha3_block)(word64 *s);
+    WC_SHA3_BLOCK_FN sha3_block;
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c);
 #endif
@@ -394,7 +423,19 @@ WOLFSSL_API int wc_Cshake256(const byte* name, word32 nameLen,
 #endif
 #endif /* WOLFSSL_KMAC || WOLFSSL_CSHAKE */
 
-WOLFSSL_LOCAL void BlockSha3(word64 *s);
+#ifdef WC_SHA3_SCRATCH_W
+WOLFSSL_LOCAL void BlockSha3(word64* s, void* scratch);
+/* obj is the wc_Sha3 or wc_Shake whose scratch the block function uses. */
+#define WC_SHA3_BLOCK(obj, s)     BlockSha3((s), (obj)->scratch)
+#define WC_SHA3_BLOCK_SCR(s, scr) BlockSha3((s), (scr))
+/* st is a word64[WC_SHA3_STATE_W] with the scratch after the state. */
+#define WC_SHA3_BLOCK_ST(st)      BlockSha3((st), (st) + 25)
+#else
+WOLFSSL_LOCAL void BlockSha3(word64* s);
+#define WC_SHA3_BLOCK(obj, s)     BlockSha3(s)
+#define WC_SHA3_BLOCK_SCR(s, scr) do { (void)(scr); BlockSha3(s); } while (0)
+#define WC_SHA3_BLOCK_ST(st)      BlockSha3(st)
+#endif
 
 #ifdef WC_SHA3_NO_ASM
     /* asm speedups disabled */

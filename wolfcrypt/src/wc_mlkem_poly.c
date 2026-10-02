@@ -1069,6 +1069,49 @@ static void mlkem_basemul(sword16* r, const sword16* a, const sword16* b,
     r[1] = MLKEM_MONT_RED(p1);
 }
 
+/* r never aliases a or b; saying so keeps the accumulate loop vectorised. */
+#if defined(__GNUC__) || defined(__clang__)
+    #define MLKEM_RESTRICT __restrict__
+#elif defined(_MSC_VER)
+    #define MLKEM_RESTRICT __restrict
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+    #define MLKEM_RESTRICT restrict
+#else
+    #define MLKEM_RESTRICT
+#endif
+
+/* Base case multiply added into r: the products of the secret vector stay in
+ * registers instead of a stack array (ISO/IEC 19790:2012 7.9.7). */
+static void mlkem_basemul_add(sword16* MLKEM_RESTRICT r,
+    const sword16* MLKEM_RESTRICT a, const sword16* MLKEM_RESTRICT b,
+    sword16 zeta)
+{
+    sword16 r0;
+    sword16 t;
+    sword16 a0 = a[0];
+    sword16 a1 = a[1];
+    sword16 b0 = b[0];
+    sword16 b1 = b[1];
+    sword32 p1;
+    sword32 p2;
+
+    /* Step 1 */
+    p1   = (sword32)a0 * b0;
+    p2   = (sword32)a1 * b1;
+    r0   = MLKEM_MONT_RED(p2);
+    p2   = (sword32)zeta * r0;
+    p2  += p1;
+    t    = MLKEM_MONT_RED(p2);
+    r[0] = (sword16)(r[0] + t);
+
+    /* Step 2 */
+    p1   = (sword32)a0 * b1;
+    p2   = (sword32)a1 * b0;
+    p1  += p2;
+    t    = MLKEM_MONT_RED(p1);
+    r[1] = (sword16)(r[1] + t);
+}
+
 /* Multiply two polynomials in NTT domain. r = a * b.
  *
  * FIPS 203, Algorithm 11: MultiplyNTTs(f_hat, g_hat)
@@ -1138,8 +1181,8 @@ static void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
  * @param  [in]       a  First polynomial multiplier.
  * @param  [in]       b  Second polynomial multiplier.
  */
-static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
-    const sword16* b)
+static void mlkem_basemul_mont_add(sword16* MLKEM_RESTRICT r,
+    const sword16* MLKEM_RESTRICT a, const sword16* MLKEM_RESTRICT b)
 {
     const sword16* zeta = zetas + 64;
 
@@ -1147,78 +1190,37 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
     /* Two multiplications per loop. */
     unsigned int i;
     for (i = 0; i < MLKEM_N; i += 4, zeta++) {
-        sword16 t0[2];
-        sword16 t2[2];
-
-        mlkem_basemul(t0, a + i + 0, b + i + 0, zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
-
-        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
-        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
-        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
-        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
+        mlkem_basemul_add(r + i + 0, a + i + 0, b + i + 0, zeta[0]);
+        mlkem_basemul_add(r + i + 2, a + i + 2, b + i + 2,
+            (sword16)(-zeta[0]));
     }
 #elif defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
     /* Four multiplications per loop. */
     unsigned int i;
     for (i = 0; i < MLKEM_N; i += 8, zeta += 2) {
-        sword16 t0[2];
-        sword16 t2[2];
-        sword16 t4[2];
-        sword16 t6[2];
-
-        mlkem_basemul(t0, a + i + 0, b + i + 0, zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
-        mlkem_basemul(t4, a + i + 4, b + i + 4, zeta[1]);
-        mlkem_basemul(t6, a + i + 6, b + i + 6, (sword16)(-zeta[1]));
-
-        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
-        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
-        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
-        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
-        r[i + 4] = (sword16)(r[i + 4] + t4[0]);
-        r[i + 5] = (sword16)(r[i + 5] + t4[1]);
-        r[i + 6] = (sword16)(r[i + 6] + t6[0]);
-        r[i + 7] = (sword16)(r[i + 7] + t6[1]);
+        mlkem_basemul_add(r + i + 0, a + i + 0, b + i + 0, zeta[0]);
+        mlkem_basemul_add(r + i + 2, a + i + 2, b + i + 2,
+            (sword16)(-zeta[0]));
+        mlkem_basemul_add(r + i + 4, a + i + 4, b + i + 4, zeta[1]);
+        mlkem_basemul_add(r + i + 6, a + i + 6, b + i + 6,
+            (sword16)(-zeta[1]));
     }
 #else
     /* Eight multiplications per loop. */
     unsigned int i;
     for (i = 0; i < MLKEM_N; i += 16, zeta += 4) {
-        sword16 t0[2];
-        sword16 t2[2];
-        sword16 t4[2];
-        sword16 t6[2];
-        sword16 t8[2];
-        sword16 t10[2];
-        sword16 t12[2];
-        sword16 t14[2];
-
-        mlkem_basemul(t0, a + i + 0, b + i + 0, zeta[0]);
-        mlkem_basemul(t2, a + i + 2, b + i + 2, (sword16)(-zeta[0]));
-        mlkem_basemul(t4, a + i + 4, b + i + 4, zeta[1]);
-        mlkem_basemul(t6, a + i + 6, b + i + 6, (sword16)(-zeta[1]));
-        mlkem_basemul(t8, a + i + 8, b + i + 8, zeta[2]);
-        mlkem_basemul(t10, a + i + 10, b + i + 10, (sword16)(-zeta[2]));
-        mlkem_basemul(t12, a + i + 12, b + i + 12, zeta[3]);
-        mlkem_basemul(t14, a + i + 14, b + i + 14, (sword16)(-zeta[3]));
-
-        r[i + 0] = (sword16)(r[i + 0] + t0[0]);
-        r[i + 1] = (sword16)(r[i + 1] + t0[1]);
-        r[i + 2] = (sword16)(r[i + 2] + t2[0]);
-        r[i + 3] = (sword16)(r[i + 3] + t2[1]);
-        r[i + 4] = (sword16)(r[i + 4] + t4[0]);
-        r[i + 5] = (sword16)(r[i + 5] + t4[1]);
-        r[i + 6] = (sword16)(r[i + 6] + t6[0]);
-        r[i + 7] = (sword16)(r[i + 7] + t6[1]);
-        r[i + 8] = (sword16)(r[i + 8] + t8[0]);
-        r[i + 9] = (sword16)(r[i + 9] + t8[1]);
-        r[i + 10] = (sword16)(r[i + 10] + t10[0]);
-        r[i + 11] = (sword16)(r[i + 11] + t10[1]);
-        r[i + 12] = (sword16)(r[i + 12] + t12[0]);
-        r[i + 13] = (sword16)(r[i + 13] + t12[1]);
-        r[i + 14] = (sword16)(r[i + 14] + t14[0]);
-        r[i + 15] = (sword16)(r[i + 15] + t14[1]);
+        mlkem_basemul_add(r + i + 0, a + i + 0, b + i + 0, zeta[0]);
+        mlkem_basemul_add(r + i + 2, a + i + 2, b + i + 2,
+            (sword16)(-zeta[0]));
+        mlkem_basemul_add(r + i + 4, a + i + 4, b + i + 4, zeta[1]);
+        mlkem_basemul_add(r + i + 6, a + i + 6, b + i + 6,
+            (sword16)(-zeta[1]));
+        mlkem_basemul_add(r + i + 8, a + i + 8, b + i + 8, zeta[2]);
+        mlkem_basemul_add(r + i + 10, a + i + 10, b + i + 10,
+            (sword16)(-zeta[2]));
+        mlkem_basemul_add(r + i + 12, a + i + 12, b + i + 12, zeta[3]);
+        mlkem_basemul_add(r + i + 14, a + i + 14, b + i + 14,
+            (sword16)(-zeta[3]));
     }
 #endif
 }
@@ -2829,7 +2831,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
@@ -2847,7 +2849,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
         ctr0 += mlkem_rej_uniform_ins(a + ctr0, MLKEM_N - ctr0, rand,
@@ -2957,7 +2959,7 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
@@ -2975,7 +2977,7 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK_SCR(state, state + 25);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
         ctr[0] += mlkem_rej_uniform_ins(a + ctr[0], MLKEM_N - ctr[0], rand,
@@ -3252,11 +3254,11 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (1 << 8) + 1;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_SCR(state, state + 25);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_SCR(state, state + 25);
         ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
@@ -3396,11 +3398,11 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (3 << 8) + 3;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_SCR(state, state + 25);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_SCR(state, state + 25);
         ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
@@ -3620,7 +3622,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         else
 #endif /* !WC_SHA3_NO_ASM */
         {
-            BlockSha3(state);
+            WC_SHA3_BLOCK(shake256, state);
         }
 
         /* Copy the state as output. */
@@ -3666,7 +3668,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
     word32 len64 = seedLen / 8;
 
     readUnalignedWords64(state, seed, len64);
@@ -3685,7 +3687,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     else
 #endif
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK_ST(state);
     }
     XMEMCPY(out, state, outLen);
 
@@ -3712,7 +3714,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
     word32 len64 = seedLen / 8;
 
     readUnalignedWords64(state, seed, len64);
@@ -3720,7 +3722,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(out, state, outLen);
 
     /* state holds secret KDF output. */
@@ -4827,7 +4829,7 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     else
 #endif /* !WC_SHA3_NO_ASM */
     {
-        BlockSha3(state);
+        WC_SHA3_BLOCK(prf, state);
     }
     mlkem_cbd_eta2_ins(p, (byte*)state);
 
@@ -5289,15 +5291,15 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
     /* ETA3_RAND_SIZE is larger than the SHAKE-256 rate - two squeezes are
      * needed, so the state cannot be squeezed in place over the output. */
-    word64 state[25];
+    word64 state[WC_SHA3_STATE_W];
 
     readUnalignedWords64(state, seed, 4);
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(rand                 , state, SHA3_256_BYTES);
-    BlockSha3(state);
+    WC_SHA3_BLOCK_ST(state);
     XMEMCPY(rand + SHA3_256_BYTES, state, ETA3_RAND_SIZE - SHA3_256_BYTES);
 
     /* state is secret-seeded; caller zeroizes rand. */
@@ -5373,7 +5375,7 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
     rand[4] = 0x1f00 + o;
     XMEMSET(rand + 5, 0, sizeof(*rand) * (25 - 5));
     rand[16] = W64LIT(0x8000000000000000);
-    BlockSha3(rand);
+    WC_SHA3_BLOCK_SCR(rand, rand + 25);
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
