@@ -84,6 +84,7 @@ int test_tls13_0rtt_ext_cache_eviction(void);
 int test_tls13_0rtt_ext_cache_replay(void);
 int test_tls13_0rtt_remove_cb_replay(void);
 int test_tls13_0rtt_ticket_ex_data_owner(void);
+int test_tls13_0rtt_ticket_ex_data_overlap(void);
 int test_tls13_early_data_bad_record_mac(void);
 int test_tls13_0rtt_fresh_start(void);
 int test_tls13_0rtt_fresh_start_check_args(void);
@@ -216,6 +217,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_remove_cb_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ticket_ex_data_owner), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_ticket_ex_data_overlap), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_bad_record_mac), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start_check_args), \

@@ -2566,13 +2566,15 @@ static int SessionExDataHasFree(void)
 }
 
 /* Move ex_data ownership from the cache entry of ssl->session to the
- * session. */
+ * session. When the entry is gone or no longer owns it, another owner holds
+ * the ex_data, so drop the stale copy and own an empty one. */
 static void SessionTakeExData(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION* session = ssl->session;
     WOLFSSL_SESSION* sess = NULL;
     const byte* id;
     word32 row = 0;
+    int taken = 0;
 
     if (session->ownExData || SslSessionCacheOff(ssl, session) ||
             !SessionExDataHasFree()) {
@@ -2587,18 +2589,20 @@ static void SessionTakeExData(WOLFSSL* ssl)
     if (session->haveAltSessionID)
         id = session->altSessionID;
 
-    if (TlsSessionCacheGetAndWrLock(id, &sess, &row, ssl->options.side) != 0 ||
-            sess == NULL) {
-        return;
+    if (TlsSessionCacheGetAndWrLock(id, &sess, &row, ssl->options.side) == 0 &&
+            sess != NULL) {
+        if (sess->ownExData) {
+            XMEMCPY(&session->ex_data, &sess->ex_data,
+                    sizeof(WOLFSSL_CRYPTO_EX_DATA));
+            XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+            sess->ownExData = 0;
+            taken = 1;
+        }
+        TlsSessionCacheUnlockRow(row);
     }
-    if (sess->ownExData) {
-        XMEMCPY(&session->ex_data, &sess->ex_data,
-                sizeof(WOLFSSL_CRYPTO_EX_DATA));
-        XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
-        session->ownExData = 1;
-        sess->ownExData = 0;
-    }
-    TlsSessionCacheUnlockRow(row);
+    if (!taken)
+        XMEMSET(&session->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+    session->ownExData = 1;
 }
 #endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
 

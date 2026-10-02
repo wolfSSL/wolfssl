@@ -6388,6 +6388,121 @@ int test_tls13_0rtt_ticket_ex_data_owner(void)
     return EXPECT_RESULT();
 }
 
+/* Two resumptions of one ticket overlap: both pass the ClientHello before
+ * either reissues its ticket. Only one new cache entry may own the session
+ * ex_data, so it is freed exactly once. */
+int test_tls13_0rtt_ticket_ex_data_overlap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EX_DATA_CRYPTO) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    byte idA[ID_LEN];
+    byte idB[ID_LEN];
+    byte idC[ID_LEN];
+    const byte* id = NULL;
+    unsigned int idLen = 0;
+    char buf[64];
+
+    XMEMSET(idA, 0, sizeof(idA));
+    XMEMSET(idB, 0, sizeof(idB));
+    XMEMSET(idC, 0, sizeof(idC));
+    test_tls13_0rtt_ex_data_frees = 0;
+    if (test_tls13_0rtt_ex_data_idx < 0) {
+        test_tls13_0rtt_ex_data_idx = wolfSSL_SESSION_get_ex_new_index(0,
+            NULL, NULL, NULL, test_tls13_0rtt_ex_data_free_cb);
+    }
+    ExpectIntGE(test_tls13_0rtt_ex_data_idx, 0);
+
+    /* Full handshake. The cache entry for the ticket owns the ex_data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx, &test_tls13_0rtt_ex_data_marker),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(id = wolfSSL_SESSION_get_id(wolfSSL_get_session(ssl_s),
+        &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    if (id != NULL)
+        XMEMCPY(idA, id, ID_LEN);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Start two resumptions without early data. Each server waits for the
+     * client Finished, so neither has reissued its ticket yet. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s2, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s2), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s2, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Finish both. Each reissued ticket gets its own ID. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 1);
+    ExpectNotNull(id = wolfSSL_SESSION_get_id(wolfSSL_get_session(ssl_s),
+        &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    if (id != NULL)
+        XMEMCPY(idB, id, ID_LEN);
+    ExpectNotNull(id = wolfSSL_SESSION_get_id(wolfSSL_get_session(ssl_s2),
+        &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    if (id != NULL)
+        XMEMCPY(idC, id, ID_LEN);
+    ExpectIntNE(XMEMCMP(idA, idB, ID_LEN), 0);
+    ExpectIntNE(XMEMCMP(idA, idC, ID_LEN), 0);
+    ExpectIntNE(XMEMCMP(idB, idC, ID_LEN), 0);
+    /* The first reissue took the ex_data. */
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx), &test_tls13_0rtt_ex_data_marker);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_free(ssl_c2); ssl_c2 = NULL;
+    wolfSSL_free(ssl_s2); ssl_s2 = NULL;
+
+    /* Drop all entries: the ex_data is freed once. */
+    (void)test_tls13_0rtt_remove_id(ctx_s, idA);
+    (void)test_tls13_0rtt_remove_id(ctx_s, idB);
+    (void)test_tls13_0rtt_remove_id(ctx_s, idC);
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8446 Section 4.2.10: after the server accepts early data, a 0-RTT
  * record that fails to decrypt must result in a fatal bad_record_mac
  * alert. Fails without the fix because the corrupted record was skipped
