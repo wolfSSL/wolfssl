@@ -1128,10 +1128,12 @@ static void wb_gen_lane_rows(void)
  *     if ((key == NULL) || (key->params == NULL)) ...
  *
  * but every public caller has already rejected a NULL key and a key without
- * params, so along the API only the (F,F) row is ever seen.  Both are file
- * static and this TU #includes wc_mldsa.c, so they take the two rejecting rows
- * directly: a NULL key for operand 0, and a zeroed key object (params NULL,
- * never dereferenced past the guard) for operand 1.
+ * params, so along the API only the (F,F) row is ever seen.  The
+ * !key->pubKeySet check after it is reached from the API with a private-only
+ * key.  Both helpers are file static and this TU #includes wc_mldsa.c, so
+ * they take the two rejecting rows directly: a NULL key for operand 0, and a
+ * zeroed key object (params NULL, never dereferenced past the guard) for
+ * operand 1.
  *
  * mldsa_get_hash_oid()'s first operand is the "is this hash algorithm known"
  * result; an unrecognised algorithm gives it the NULL side that no caller with
@@ -1302,8 +1304,8 @@ static void wb_verify_invalid(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12517,
- * :12522, :12523).
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:13240,
+ * :13245, :13246).
  *
  *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
  *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
