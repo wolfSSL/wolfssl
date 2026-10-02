@@ -2057,6 +2057,59 @@ int test_wolfSSL_EVP_PKEY_sign_verify_ec(void)
     return EXPECT_RESULT();
 }
 
+/* EVP_PKEY_verify() with a DSA key must only use the signature and digest
+ * lengths it is given. */
+int test_wolfSSL_EVP_PKEY_verify_dsa_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_FIPS_186_5_PLUS) && defined(USE_CERT_BUFFERS_2048)
+    DSA* dsa = NULL;
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY_CTX* ctx = NULL;
+    byte hash[WC_SHA_DIGEST_SIZE];
+    byte sig[DSA_MAX_SIG_SIZE];
+    size_t sigLen = sizeof(sig);
+    byte* shortSig = NULL;
+
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_LoadDer(dsa, dsa_key_der_2048,
+        (int)sizeof_dsa_key_der_2048), 1);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        DSA_free(dsa);
+    }
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &sigLen, hash, sizeof(hash)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen, hash, sizeof(hash)),
+        WOLFSSL_SUCCESS);
+
+    ExpectNotNull(shortSig = (byte*)XMALLOC(sigLen - 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (shortSig != NULL)
+        XMEMCPY(shortSig, sig, sigLen - 1);
+    ExpectIntEQ(EVP_PKEY_verify(ctx, shortSig, sigLen - 1, hash,
+        sizeof(hash)), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    XFREE(shortSig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* A valid signature and digest do not verify when the lengths given
+     * leave part of them out. */
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen - 1, hash, sizeof(hash)),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(EVP_PKEY_verify(ctx, sig, sigLen, hash, sizeof(hash) - 1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 int test_wolfSSL_EVP_MD_rsa_signing(void)
 {
