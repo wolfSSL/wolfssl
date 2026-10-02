@@ -16,27 +16,14 @@ set -uo pipefail
 LIST=${1:?package list}
 DEST=${2:?destination directory}
 
+APT_INSTALL="$(dirname "$0")/apt-install.sh"
+
 mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
 echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
-export DEBIAN_FRONTEND=noninteractive
 # Not rm -rf: in the container this directory is a bind mount.
 mkdir -p "$DEST" && rm -f "$DEST"/*.deb
 apt-get clean
-# No wolfSSL job installs from the runner's Google/Microsoft apt repos, and a
-# bad index on either fails apt-get update for everyone. Drop them. Already
-# root here, so no sudo; the container images carry neither repo, so this is a
-# no-op there.
-grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
-  /etc/apt/sources.list.d/ 2>/dev/null | xargs -r rm -vf || true
-# A single stalled mirror connection once hung -full for ~20 min (it normally
-# finishes in a few). retry() only re-runs on a non-zero exit, so a hang never
-# tripped it. Defend in depth: apt drops a stalled connection after 30s and
-# retries it (Acquire timeouts), `timeout` hard-kills a wedged apt-get, then
-# retry() re-runs from scratch.
-APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-          -o Acquire::https::Timeout=30)
-retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
+"$APT_INSTALL" --tries 5 --update-timeout 120 --drop-vendor-sources
 # Download each package's closure independently (requested package + any
 # dependency not already installed) without installing. Per package, not one
 # resolve of the whole list, so one unbundleable package - e.g. a conflict in
@@ -44,8 +31,8 @@ retry timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
 # apt for anything missing.
 skipped=0
 for pkg in "${PKGS[@]}"; do
-  retry timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
-    || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
+  "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only "$pkg" \
+    || skipped=$((skipped+1))
 done
 cp /var/cache/apt/archives/*.deb "$DEST/" 2>/dev/null || true
 # The steps that index and package these run unprivileged, and in the
