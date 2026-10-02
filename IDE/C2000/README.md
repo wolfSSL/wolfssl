@@ -54,7 +54,7 @@ if (wc_UnpackOctets(sig, (word32)sizeof(sig), sigPacked,
                     (word32)sizeof(sigPacked), WC_MLDSA_65_SIG_SIZE) == 0) {
     ret = wc_MlDsaKey_VerifyCtxHash(key, sig, WC_MLDSA_65_SIG_SIZE,
                                     ctx, ctxLen, hash, hashLen,
-                                    WC_HASH_TYPE_SHA256, &res);
+                                    WC_HASH_TYPE_SHA512, &res);
 }
 ```
 

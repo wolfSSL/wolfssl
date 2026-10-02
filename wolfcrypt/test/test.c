@@ -69001,25 +69001,27 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 
-#ifndef NO_SHA256
+#ifdef WOLFSSL_SHAKE256
     /* HashML-DSA: the pre-hash APIs take a digest plus its hash type, and
-     * reach a crypto callback with a preHashType other than NONE. */
+     * reach a crypto callback with a preHashType other than NONE.  SHAKE256
+     * is strong enough for every parameter set, FIPS 204 sec 5.4. */
     {
-        byte digest[WC_SHA256_DIGEST_SIZE];
+        byte digest[WC_SHA3_512_DIGEST_SIZE];
 
-        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+            (word32)sizeof(digest));
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
         sigLen = wc_MlDsaKey_SigSize(key);
         ret = wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen, digest,
-            (word32)sizeof(digest), WC_HASH_TYPE_SHA256, rng);
+            (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, rng);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
         res = 0;
         ret = wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0, digest,
-            (word32)sizeof(digest), WC_HASH_TYPE_SHA256, &res);
+            (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, &res);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (res != 1)
@@ -96451,11 +96453,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             ret = WC_TEST_RET_ENC_NC;
     #endif
         /* The pre-hash arms are reached only by the HashML-DSA round trip in
-         * mldsa_param_test(), so they need !NO_MAKE_KEY and SHA-256 too. */
+         * mldsa_param_test(), so they need !NO_MAKE_KEY and SHAKE256 too. */
     #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
         !defined(WOLFSSL_MLDSA_NO_SIGN) && \
         !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-        !defined(WOLFSSL_MLDSA_NO_CTX) && !defined(NO_SHA256) && \
+        !defined(WOLFSSL_MLDSA_NO_CTX) && defined(WOLFSSL_SHAKE256) && \
         !defined(HAVE_FIPS)
         if ((ret == 0) && (myCtx.mldsaSignHashCount == 0))
             ret = WC_TEST_RET_ENC_NC;
