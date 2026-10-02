@@ -193,9 +193,11 @@ static int wb_fail = 0;
  * these two counters turn that pass from a coverage sweep into a check. */
 static int wb_expect_refusal = 0;
 static int wb_contract_fail = 0;  /* a refused save failed to stop a call */
+static long wb_observed = 0;      /* instrumented calls compiled in here */
 static long wb_refused_ok = 0;    /* failed as required */
 static long wb_refused_bad = 0;   /* succeeded despite a refused save */
 #define WB_OUTCOME(ret) do {                                    \
+    wb_observed++;                                              \
     if (wb_expect_refusal) {                                    \
         if ((ret) == 0) wb_refused_bad++; else wb_refused_ok++;  \
     } } while (0)
@@ -2020,7 +2022,13 @@ int main(void)
             printf("  [wb] FAIL: a refused vector-register save did not stop the call\n");
             wb_contract_fail = 1;
         }
-        if (wb_refused_ok == 0) {
+        /* The refusal pass compiles for SP RSA or DH too, but the instrumented
+         * calls are all ECC.  In a build without them there is nothing to
+         * check, which is not the same as a check that failed. */
+        if (wb_observed == 0) {
+            printf("  [wb] no instrumented call in this configuration; nothing to check\n");
+        }
+        else if (wb_refused_ok == 0) {
             printf("  [wb] FAIL: nothing was seen failing, so this check proves nothing\n");
             wb_contract_fail = 1;
         }
