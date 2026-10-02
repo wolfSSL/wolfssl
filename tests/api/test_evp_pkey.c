@@ -3182,6 +3182,54 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     return EXPECT_RESULT();
 }
 
+/* Raw ML-DSA public key bytes have no length prefix: the decoded EVP_PKEY
+ * must hold the whole input. */
+int test_wolfSSL_d2i_PUBKEY_mldsa_raw(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    const unsigned char* raw = NULL;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectNotNull(der = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, 2048, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+    /* The raw key is the tail of the SPKI BIT STRING. */
+    ExpectIntGT(derSz, WC_MLDSA_44_PUB_KEY_SIZE);
+    if (EXPECT_SUCCESS()) {
+        raw = der + derSz - WC_MLDSA_44_PUB_KEY_SIZE;
+    }
+
+    p = raw;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p,
+        (long)WC_MLDSA_44_PUB_KEY_SIZE));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, WC_MLDSA_44_PUB_KEY_SIZE);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, raw,
+                WC_MLDSA_44_PUB_KEY_SIZE), 0);
+        }
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Typed d2i entry points for ML-DSA: a PKCS#8 key of another algorithm
  * and raw (non-DER) bytes must both be rejected; a matching PKCS#8
  * ML-DSA key must decode. */
