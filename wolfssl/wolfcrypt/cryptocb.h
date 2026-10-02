@@ -672,7 +672,8 @@ typedef struct wc_CryptoInfo {
         };
 #endif
     } pk;
-#if !defined(NO_AES) || !defined(NO_DES3) || defined(WOLFSSL_SM4)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(WOLFSSL_SM4) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     struct {
         int type; /* enum wc_CipherType */
         int enc;
@@ -789,12 +790,35 @@ typedef struct wc_CryptoInfo {
             } sm4ecb;
             #endif /* WOLFSSL_SM4_ECB */
         #endif /* WOLFSSL_SM4 */
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            struct {                   /* ChaCha20-Poly1305 AEAD one-shot */
+                const byte* inKey;     /* CHACHA20_POLY1305_AEAD_KEYSIZE */
+                const byte* inIV;      /* CHACHA20_POLY1305_AEAD_IV_SIZE */
+                const byte* inAAD;     /* optional additional data */
+                const byte* in;        /* plaintext */
+                byte*       out;       /* ciphertext */
+                byte*       outAuthTag;/* CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE */
+                word32      inAADSz;
+                word32      inSz;
+            } chacha20_poly1305_enc;
+            struct {
+                const byte* inKey;
+                const byte* inIV;
+                const byte* inAAD;
+                const byte* in;        /* ciphertext */
+                const byte* inAuthTag; /* tag to verify */
+                byte*       out;       /* plaintext */
+                word32      inAADSz;
+                word32      inSz;
+            } chacha20_poly1305_dec;
+        #endif /* HAVE_CHACHA && HAVE_POLY1305 */
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } cipher;
-#endif /* !NO_AES || !NO_DES3 || WOLFSSL_SM4 */
+#endif /* !NO_AES || !NO_DES3 || WOLFSSL_SM4 ||
+        * (HAVE_CHACHA && HAVE_POLY1305) */
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
     defined(WOLFSSL_SHA3) || defined(WOLFSSL_SM3)
@@ -1044,7 +1068,8 @@ typedef struct wc_CryptoInfo {
         } op;
     } keystore;
 #endif /* WOLF_CRYPTO_CB_KEYSTORE */
-#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
+#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF) || \
+    (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
     struct {
         int type; /* enum wc_KdfType */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
@@ -1092,12 +1117,24 @@ typedef struct wc_CryptoInfo {
                 word32      outSz;   /* Desired size of out key material. */
             } twostep_cmac;
         #endif /* HAVE_CMAC_KDf */
+        #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+            struct {                   /* PBKDF2 (PKCS#5 v2.0) */
+                byte*       output;    /* derived key out, kLen bytes */
+                const byte* passwd;
+                const byte* salt;
+                int         pLen;
+                int         sLen;
+                int         iterations;
+                int         kLen;
+                int         hashType;  /* enum wc_HashType */
+            } pbkdf2;
+        #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
             /* Future KDF type structures here */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
     #endif
     } kdf;
-#endif /* HAVE_HKDF || HAVE_CMAC_KDF */
+#endif /* HAVE_HKDF || HAVE_CMAC_KDF || (HAVE_PBKDF2 && !NO_HMAC) */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
@@ -1333,6 +1370,20 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
 #endif /* HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+/* ChaCha20-Poly1305 AEAD, dispatched on the devId bound by
+ * wc_Chacha_SetKey_ex() or wc_ChaCha20Poly1305_Init_ex(). The legacy one-shot
+ * wc_ChaCha20Poly1305_Encrypt()/_Decrypt() carry no devId and are not routed
+ * here - there would be nothing to select a device on. */
+WOLFSSL_LOCAL int wc_CryptoCb_Chacha20Poly1305Encrypt(int devId,
+    const byte* inKey, const byte* inIV, const byte* inAAD, word32 inAADSz,
+    const byte* in, word32 inSz, byte* out, byte* outAuthTag);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Chacha20Poly1305Decrypt(int devId,
+    const byte* inKey, const byte* inIV, const byte* inAAD, word32 inAADSz,
+    const byte* in, word32 inSz, const byte* inAuthTag, byte* out);
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
 WOLFSSL_LOCAL int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
@@ -1508,6 +1559,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey,
                     word32 inKeySz, const byte* info, word32 infoSz,
                     byte* out, word32 outSz, int devId);
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+WOLFSSL_LOCAL int wc_CryptoCb_Pbkdf2(byte* output, const byte* passwd, int pLen,
+    const byte* salt, int sLen, int iterations, int kLen, int hashType,
+    int devId);
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
 
 #if defined(HAVE_CMAC_KDF)
 WOLFSSL_LOCAL int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
