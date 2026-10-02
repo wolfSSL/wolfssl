@@ -372,6 +372,13 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
     if (info == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+    /* No sponge state is kept here, so a software absorb would miss saved
+     * updates. Leave all of SHAKE256 to software. */
+    if (info->hash.type == WC_HASH_TYPE_SHAKE256) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+#endif
 
     ret = wc_AsuHashResolve(info, &devCtxPtr, &shaType, &shaMode, &hashLen);
     if (ret != 0) {
