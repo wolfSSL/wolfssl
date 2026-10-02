@@ -23091,7 +23091,8 @@ out:
 #endif /* WOLFSSL_AESGCM_SIV */
 
 #if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
-    !defined(WOLFSSL_XILINX_CRYPT)
+    !defined(WOLFSSL_XILINX_CRYPT) && \
+    !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
 
 /* Number of bytes of data and AAD hashed - a whole number of blocks so the
  * bulk GHASH path is taken with the misaligned pointer. */
@@ -23206,7 +23207,7 @@ out:
 #undef AESGCM_MISALIGNED_SZ
 
 #endif /* WOLFSSL_AES_128 && !WOLFSSL_AFALG_XILINX_AES &&
-        * !WOLFSSL_XILINX_CRYPT */
+        * !WOLFSSL_XILINX_CRYPT && !WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 {
@@ -23262,7 +23263,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(ret, out);
 
 #if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
-    !defined(WOLFSSL_XILINX_CRYPT)
+    !defined(WOLFSSL_XILINX_CRYPT) && \
+    !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     ret = aesgcm_misaligned_test(enc, dec);
     if (ret != 0)
         ERROR_OUT(ret, out);
