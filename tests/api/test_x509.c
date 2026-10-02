@@ -48,13 +48,13 @@
  * include/boost/asio/ssl/impl/rfc2818_verification.ipp
  * version: boost-1.84.0 */
 static int rfc2818_verification_callback(int preverify,
-                                         WOLFSSL_X509_STORE_CTX* store)
+        WOLFSSL_X509_STORE_CTX* store)
 {
     EXPECT_DECLS;
     int depth;
     X509* cert;
     GENERAL_NAMES* gens;
-    byte address_bytes[] = {127, 0, 0, 1};
+    byte address_bytes[] = { 127, 0, 0, 1 };
     X509_NAME* name;
     int i;
     ASN1_STRING* common_name = 0;
@@ -80,20 +80,22 @@ static int rfc2818_verification_callback(int preverify,
     /* Go through the alternate names in the certificate looking for matching
      * DNS or IP address entries. */
     gens = (GENERAL_NAMES*)X509_get_ext_d2i(
-        cert, NID_subject_alt_name, NULL, NULL);
+            cert, NID_subject_alt_name, NULL, NULL);
     for (i = 0; i < sk_GENERAL_NAME_num(gens); ++i) {
         GENERAL_NAME* gen = sk_GENERAL_NAME_value(gens, i);
         if (gen->type == GEN_DNS) {
             ASN1_IA5STRING* domain = gen->d.dNSName;
             if (domain->type == V_ASN1_IA5STRING && domain->data &&
-                domain->length &&
-                XSTRCMP(domain->data, "example.com") == 0)
+                    domain->length &&
+                    XSTRCMP(domain->data, "example.com") == 0)
                 matches++;
-        } else if (gen->type == GEN_IPADD){
+        }
+        else if (gen->type == GEN_IPADD)
+        {
             ASN1_OCTET_STRING* ip_address = gen->d.iPAddress;
             if (ip_address->type == V_ASN1_OCTET_STRING && ip_address->data &&
-                ip_address->length == sizeof(address_bytes) &&
-                XMEMCMP(address_bytes, ip_address->data, 4) == 0)
+                    ip_address->length == sizeof(address_bytes) &&
+                    XMEMCMP(address_bytes, ip_address->data, 4) == 0)
                 matches++;
         }
     }
@@ -104,11 +106,13 @@ static int rfc2818_verification_callback(int preverify,
      * the list. */
     name = X509_get_subject_name(cert);
     i = -1;
-    while ((i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) >= 0){
+    while ((i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) >= 0)
+    {
         X509_NAME_ENTRY* name_entry = X509_NAME_get_entry(name, i);
         common_name = X509_NAME_ENTRY_get_data(name_entry);
     }
-    if (common_name && common_name->data && common_name->length){
+    if (common_name && common_name->data && common_name->length)
+    {
         if (XSTRCMP(common_name->data, "www.wolfssl.com") == 0)
             matches++;
     }
@@ -129,17 +133,16 @@ int test_x509_rfc2818_verification_callback(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+            wolfTLS_client_method, wolfTLS_server_method), 0);
 
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
-                                             WOLFSSL_FILETYPE_PEM), 1);
+            WOLFSSL_FILETYPE_PEM), 1);
     ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
-                                            WOLFSSL_FILETYPE_PEM), 1);
+            WOLFSSL_FILETYPE_PEM), 1);
 
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL), 1);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER,
-                       rfc2818_verification_callback);
+            rfc2818_verification_callback);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
@@ -170,9 +173,9 @@ int test_x509_GetCAByAKID(void)
     Signer signerA;
     Signer signerB;
     Signer* found;
-    byte issuerBuf[]  = {0x01, 0x02, 0x03, 0x04};
-    byte serialBuf[]  = {0x0a, 0x0b, 0x0c, 0x0d};
-    byte wrongSerial[] = {0x07, 0x07, 0x07, 0x07};
+    byte issuerBuf[]  = { 0x01, 0x02, 0x03, 0x04 };
+    byte serialBuf[]  = { 0x0a, 0x0b, 0x0c, 0x0d };
+    byte wrongSerial[] = { 0x07, 0x07, 0x07, 0x07 };
     byte issuerHash[SIGNER_DIGEST_SIZE];
     byte serialHash[SIGNER_DIGEST_SIZE];
     word32 row;
@@ -221,8 +224,7 @@ int test_x509_GetCAByAKID(void)
     ExpectNull(found);
 
     /* 4) Zero-length issuer/serial should yield NULL. */
-    found = GetCAByAKID(&cm, issuerBuf, 0, serialBuf, (word32)sizeof(serialBuf))
-    ;
+    found = GetCAByAKID(&cm, issuerBuf, 0, serialBuf, (word32)sizeof(serialBuf));
     ExpectNull(found);
     found = GetCAByAKID(&cm, issuerBuf, (word32)sizeof(issuerBuf),
                         serialBuf, 0);
@@ -265,11 +267,11 @@ int test_x509_verify_cert_hostname_check(void)
 
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
     ExpectNotNull(ca    = wolfSSL_X509_load_certificate_file(caCertFile,
-                                                             SSL_FILETYPE_PEM));
+                                                         SSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
 
     ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(svrCertFile,
-                                                            SSL_FILETYPE_PEM));
+                                                        SSL_FILETYPE_PEM));
 
     /* Case 1: no hostname constraint - must succeed. */
     ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
@@ -286,8 +288,7 @@ int test_x509_verify_cert_hostname_check(void)
     param = wolfSSL_X509_STORE_CTX_get0_param(ctx);
     ExpectNotNull(param);
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "example.com",
-                                                    XSTRLEN("example.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("example.com")), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_verify_cert(ctx), WOLFSSL_SUCCESS);
     wolfSSL_X509_STORE_CTX_free(ctx);
     ctx = NULL;
@@ -299,8 +300,7 @@ int test_x509_verify_cert_hostname_check(void)
     param = wolfSSL_X509_STORE_CTX_get0_param(ctx);
     ExpectNotNull(param);
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "wrong.com",
-                                                    XSTRLEN("wrong.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("wrong.com")), WOLFSSL_SUCCESS);
     ExpectIntNE(wolfSSL_X509_verify_cert(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(ctx),
                 X509_V_ERR_HOSTNAME_MISMATCH);
@@ -359,17 +359,16 @@ int test_x509_verify_cert_store_hostname_check(void)
 
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
     ExpectNotNull(ca    = wolfSSL_X509_load_certificate_file(caCertFile,
-                                                             SSL_FILETYPE_PEM));
+                                                         SSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
 
     ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(svrCertFile,
-                                                            SSL_FILETYPE_PEM));
+                                                        SSL_FILETYPE_PEM));
 
     /* Hostname matches a SAN DNS entry - must succeed. */
     ExpectNotNull(param = wolfSSL_X509_STORE_get0_param(store));
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "example.com",
-                                                    XSTRLEN("example.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("example.com")), WOLFSSL_SUCCESS);
     ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
     ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, leaf, NULL),
                 WOLFSSL_SUCCESS);
@@ -380,8 +379,7 @@ int test_x509_verify_cert_store_hostname_check(void)
     /* Hostname does not match - must FAIL with the right error code. */
     ExpectNotNull(param = wolfSSL_X509_STORE_get0_param(store));
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "wrong.com",
-                                                    XSTRLEN("wrong.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("wrong.com")), WOLFSSL_SUCCESS);
     ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
     ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, leaf, NULL),
                 WOLFSSL_SUCCESS);
@@ -457,17 +455,14 @@ int test_x509_ctx_param_hostname_check(void)
      * reuse these and create just the SSL objects. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+        wolfTLS_client_method, wolfTLS_server_method), 0);
     ExpectNotNull(param = wolfSSL_CTX_get0_param(ctx_c));
 
     /* Hostname matches a SAN DNS entry of the server certificate. */
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "example.com",
-                                                    XSTRLEN("example.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("example.com")), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+        wolfTLS_client_method, wolfTLS_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
@@ -478,11 +473,9 @@ int test_x509_ctx_param_hostname_check(void)
 
     /* Hostname does not match - the handshake must fail. */
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(param, "wrong.com",
-                                                    XSTRLEN("wrong.com")),
-                WOLFSSL_SUCCESS);
+                XSTRLEN("wrong.com")), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+        wolfTLS_client_method, wolfTLS_server_method), 0);
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
                 X509_V_ERR_HOSTNAME_MISMATCH);
@@ -502,8 +495,7 @@ int test_x509_ctx_param_hostname_check(void)
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, "127.0.0.1"),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+        wolfTLS_client_method, wolfTLS_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
@@ -516,8 +508,7 @@ int test_x509_ctx_param_hostname_check(void)
     ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, "192.168.1.1"),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                                 wolfTLS_client_method, wolfTLS_server_method),
-                0);
+        wolfTLS_client_method, wolfTLS_server_method), 0);
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
                 X509_V_ERR_IP_ADDRESS_MISMATCH);
@@ -540,7 +531,7 @@ int test_x509_set_serialNumber(void)
     WOLFSSL_X509*         x509 = NULL;
     WOLFSSL_ASN1_INTEGER* s    = NULL;
 #if defined(OPENSSL_EXTRA_X509_SMALL)
-    WOLFSSL_ASN1_INTEGER asnInt;
+    WOLFSSL_ASN1_INTEGER  asnInt;
 #endif
 
     ExpectNotNull(x509 = wolfSSL_X509_new());
@@ -671,7 +662,7 @@ static int accept_all_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
  * Returns 0 on success, -1 on failure.
  */
 static int craft_malicious_time_cert(const byte* orig, int origSz,
-                                     byte* out, int* outSz, int inflate)
+    byte* out, int* outSz, int inflate)
 {
     int i;
     int validityOff = -1;
@@ -715,8 +706,8 @@ static int craft_malicious_time_cert(const byte* orig, int origSz,
 
     /* Copy the rest of the cert (notAfter field onward) */
     XMEMCPY(out + notBeforeDataEnd + inflate,
-            orig + notBeforeDataEnd,
-            origSz - notBeforeDataEnd);
+             orig + notBeforeDataEnd,
+             origSz - notBeforeDataEnd);
 
     /* Fix Validity SEQUENCE length (single-byte encoding at validityOff+1) */
     out[validityOff + 1] = (byte)(orig[validityOff + 1] + inflate);
@@ -767,8 +758,8 @@ int test_x509_time_field_overread_via_tls(void)
 
     /* --- Step 1: Craft malicious certificate --- */
     ExpectIntEQ(craft_malicious_time_cert(
-                    server_cert_der_2048, (int)sizeof_server_cert_der_2048,
-                    malicious_der, &malicious_der_sz, INFLATE), 0);
+        server_cert_der_2048, (int)sizeof_server_cert_der_2048,
+        malicious_der, &malicious_der_sz, INFLATE), 0);
     ExpectIntEQ(malicious_der_sz,
                 (int)sizeof_server_cert_der_2048 + INFLATE);
 
@@ -776,14 +767,11 @@ int test_x509_time_field_overread_via_tls(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s,
-                                    &ssl_c, &ssl_s,
-                                    wolfTLSv1_2_client_method,
-                                    wolfTLSv1_2_server_method,
-                                    (byte*)ca_cert_der_2048, (int)
-                                    sizeof_ca_cert_der_2048,
-                                    malicious_der, malicious_der_sz,
-                                    (byte*)server_key_der_2048, (int)
-                                    sizeof_server_key_der_2048), 0);
+        &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        malicious_der, malicious_der_sz,
+        (byte*)server_key_der_2048, (int)sizeof_server_key_der_2048), 0);
 
     /* Client verify callback accepts all errors (signature is broken
      * because we modified the TBSCertificate without re-signing).
@@ -860,31 +848,31 @@ int test_x509_CertFromX509_akid_overflow(void)
         return EXPECT_RESULT();
 #endif
 
-    #define PUT1(b) do {buf[pos++] = (b);} while(0)
-    #define PUTN(p, n) do {XMEMCPY(buf + pos, (p), (n)); pos += (n);} while(0)
+    #define PUT1(b) do { buf[pos++] = (b); } while(0)
+    #define PUTN(p, n) do { XMEMCPY(buf + pos, (p), (n)); pos += (n); } while(0)
 
     /* Emit tag + definite-length header, return header size */
     #define TLV_HDR(tag, n, out, hlen) do {                          \
-            size_t _i = 0;                                               \
-            (out)[_i++] = (tag);                                         \
-            if ((n) < 0x80u)       {(out)[_i++] = (unsigned char)(n);} \
-            else if ((n) < 0x100u) {(out)[_i++] = 0x81;                \
-                                    (out)[_i++] = (unsigned char)(n);}                      \
-            else if ((n) < 0x10000u) {(out)[_i++] = 0x82;              \
-                                      (out)[_i++] = (unsigned char)((n)>>8);                   \
-                                      (out)[_i++] = (unsigned char)(n);}                      \
-            (hlen) = _i;                                                 \
-} while(0)
+        size_t _i = 0;                                               \
+        (out)[_i++] = (tag);                                         \
+        if ((n) < 0x80u)       { (out)[_i++] = (unsigned char)(n); } \
+        else if ((n) < 0x100u) { (out)[_i++] = 0x81;                \
+            (out)[_i++] = (unsigned char)(n); }                      \
+        else if ((n) < 0x10000u) { (out)[_i++] = 0x82;              \
+            (out)[_i++] = (unsigned char)((n)>>8);                   \
+            (out)[_i++] = (unsigned char)(n); }                      \
+        (hlen) = _i;                                                 \
+    } while(0)
 
     /* Wrap [start, pos) in-place with a TLV header */
     #define WRAP(start, tag) do {                                    \
-            size_t _len = pos - (start);                                 \
-            unsigned char _hdr[6]; size_t _hlen;                         \
-            TLV_HDR((tag), _len, _hdr, _hlen);                          \
-            XMEMMOVE(buf + (start) + _hlen, buf + (start), _len);       \
-            XMEMCPY(buf + (start), _hdr, _hlen);                        \
-            pos += _hlen;                                                \
-} while(0)
+        size_t _len = pos - (start);                                 \
+        unsigned char _hdr[6]; size_t _hlen;                         \
+        TLV_HDR((tag), _len, _hdr, _hlen);                          \
+        XMEMMOVE(buf + (start) + _hlen, buf + (start), _len);       \
+        XMEMCPY(buf + (start), _hdr, _hlen);                        \
+        pos += _hlen;                                                \
+    } while(0)
 
     /* ---- Build AKID extension value ---- */
     {
@@ -894,8 +882,7 @@ int test_x509_CertFromX509_akid_overflow(void)
 
         /* [0] keyIdentifier: 20 bytes (small, passes old check) */
         s = pos;
-        for (i = 0; i < 20; i++)
-            PUT1(0x41);
+        for (i = 0; i < 20; i++) PUT1(0x41);
         WRAP(s, 0x80);
 
         /* [1] authorityCertIssuer: one URI of ~4000 bytes
@@ -904,8 +891,7 @@ int test_x509_CertFromX509_akid_overflow(void)
         {
             const char* pfx = "http://e/";
             PUTN(pfx, (size_t)XSTRLEN(pfx));
-            for (i = 0; i < 4000; i++)
-                PUT1('Z');
+            for (i = 0; i < 4000; i++) PUT1('Z');
         }
         WRAP(s, 0x86); /* GeneralName [6] URI */
         WRAP(s, 0xA1); /* [1] IMPLICIT */
@@ -939,8 +925,8 @@ int test_x509_CertFromX509_akid_overflow(void)
         /* signature: ecdsa-with-SHA256 */
         s = pos;
         {
-            unsigned char oid[] = {0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE,
-                                   0x3D, 0x04, 0x03, 0x02};
+            unsigned char oid[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                   0x3D,0x04,0x03,0x02};
             PUTN(oid, sizeof(oid));
         }
         WRAP(s, 0x30);
@@ -949,7 +935,7 @@ int test_x509_CertFromX509_akid_overflow(void)
         s = pos;
         {
             size_t rdn = pos, atv = pos;
-            unsigned char cn[] = {0x06, 0x03, 0x55, 0x04, 0x03};
+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};
             PUTN(cn, sizeof(cn));
             PUT1(0x0C); PUT1(0x01); PUT1('A');
             WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);
@@ -958,10 +944,10 @@ int test_x509_CertFromX509_akid_overflow(void)
         /* validity */
         s = pos;
         {
-            unsigned char t1[] = {0x17, 0x0D, '2', '5', '0', '1', '0', '1',
-                                  '0', '0', '0', '0', '0', '0', 'Z'};
-            unsigned char t2[] = {0x17, 0x0D, '3', '5', '0', '1', '0', '1',
-                                  '0', '0', '0', '0', '0', '0', 'Z'};
+            unsigned char t1[] = {0x17,0x0D,'2','5','0','1','0','1',
+                                  '0','0','0','0','0','0','Z'};
+            unsigned char t2[] = {0x17,0x0D,'3','5','0','1','0','1',
+                                  '0','0','0','0','0','0','Z'};
             PUTN(t1, sizeof(t1)); PUTN(t2, sizeof(t2));
         }
         WRAP(s, 0x30);
@@ -970,7 +956,7 @@ int test_x509_CertFromX509_akid_overflow(void)
         s = pos;
         {
             size_t rdn = pos, atv = pos;
-            unsigned char cn[] = {0x06, 0x03, 0x55, 0x04, 0x03};
+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};
             PUTN(cn, sizeof(cn));
             PUT1(0x0C); PUT1(0x01); PUT1('A');
             WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);
@@ -980,10 +966,10 @@ int test_x509_CertFromX509_akid_overflow(void)
         s = pos;
         {
             size_t alg = pos, bs;
-            unsigned char ecpk[] = {0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE,
-                                    0x3D, 0x02, 0x01};
-            unsigned char p256[] = {0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE,
-                                    0x3D, 0x03, 0x01, 0x07};
+            unsigned char ecpk[] = {0x06,0x07,0x2A,0x86,0x48,0xCE,
+                                    0x3D,0x02,0x01};
+            unsigned char p256[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                    0x3D,0x03,0x01,0x07};
             PUTN(ecpk, sizeof(ecpk));
             PUTN(p256, sizeof(p256));
             WRAP(alg, 0x30);
@@ -993,14 +979,14 @@ int test_x509_CertFromX509_akid_overflow(void)
              * builds with WOLFSSL_VALIDATE_ECC_IMPORT accept the key. */
             {
                 static const unsigned char p256G[64] = {
-                    0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
-                    0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
-                    0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
-                    0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96,
-                    0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B,
-                    0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F, 0x9E, 0x16,
-                    0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE,
-                    0xCB, 0xB6, 0x40, 0x68, 0x37, 0xBF, 0x51, 0xF5
+                    0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,
+                    0xF8,0xBC,0xE6,0xE5,0x63,0xA4,0x40,0xF2,
+                    0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,
+                    0xF4,0xA1,0x39,0x45,0xD8,0x98,0xC2,0x96,
+                    0x4F,0xE3,0x42,0xE2,0xFE,0x1A,0x7F,0x9B,
+                    0x8E,0xE7,0xEB,0x4A,0x7C,0x0F,0x9E,0x16,
+                    0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,
+                    0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
                 };
                 PUTN(p256G, sizeof(p256G));
             }
@@ -1011,7 +997,7 @@ int test_x509_CertFromX509_akid_overflow(void)
         /* extensions [3] */
         {
             size_t exts_outer = pos, exts_seq = pos, ext = pos, ev;
-            unsigned char akid_oid[] = {0x06, 0x03, 0x55, 0x1D, 0x23};
+            unsigned char akid_oid[] = {0x06,0x03,0x55,0x1D,0x23};
             PUTN(akid_oid, sizeof(akid_oid));
             ev = pos;
             if (akid_val != NULL)
@@ -1027,8 +1013,8 @@ int test_x509_CertFromX509_akid_overflow(void)
         /* signatureAlgorithm */
         s = pos;
         {
-            unsigned char oid[] = {0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE,
-                                   0x3D, 0x04, 0x03, 0x02};
+            unsigned char oid[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,
+                                   0x3D,0x04,0x03,0x02};
             PUTN(oid, sizeof(oid));
         }
         WRAP(s, 0x30);
@@ -1152,7 +1138,7 @@ int test_x509_ReqCertFromX509_skid_overflow(void)
     /* Step 1: Parse the crafted CSR -- this should succeed (the parser
      * dynamically allocates subjKeyId to the parsed size). */
     req = wolfSSL_X509_REQ_d2i(NULL, crafted_csr_der,
-                               (int)sizeof(crafted_csr_der));
+                                (int)sizeof(crafted_csr_der));
     ExpectNotNull(req);
 
     /* Step 2: Attempt to re-encode. Before the fix, this triggered a
@@ -1189,26 +1175,24 @@ int test_x509_ReqCertFromX509_skid_boundary(void)
     WOLFSSL_X509*     parsed = NULL;
     WOLFSSL_X509_NAME* name = NULL;
     unsigned char*    der  = NULL;
-    int derSz = 0;
+    int               derSz = 0;
     const unsigned char* ecPriv = ecc_clikey_der_256;
     const unsigned char* ecPub  = ecc_clikeypub_der_256;
-    unsigned char expected_skid[CTC_MAX_SKID_SIZE];
+    unsigned char     expected_skid[CTC_MAX_SKID_SIZE];
 
     XMEMSET(expected_skid, 0x41, sizeof(expected_skid));
 
     /* Load a real ECC keypair so that the CSR can actually be signed
      * (ReqCertFromX509() is invoked from the signing path). */
     ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
-                                                (long)sizeof_ecc_clikey_der_256)
-                  );
+                    (long)sizeof_ecc_clikey_der_256));
     ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
-                                           (long)sizeof_ecc_clikeypub_der_256));
+                    (long)sizeof_ecc_clikeypub_der_256));
 
     ExpectNotNull(req = wolfSSL_X509_REQ_new());
     ExpectNotNull(name = wolfSSL_X509_NAME_new());
     ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
-                                                   MBSTRING_UTF8, (const byte*)
-                                                   "Test", 4, -1, 0),
+                    MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
@@ -1276,22 +1260,19 @@ int test_x509_ReqCertFromX509_ext_critical(void)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     unsigned char*     der  = NULL;
-    int derSz = 0;
+    int                derSz = 0;
     const unsigned char* ecPriv = ecc_clikey_der_256;
     const unsigned char* ecPub  = ecc_clikeypub_der_256;
 
     ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
-                                                (long)sizeof_ecc_clikey_der_256)
-                  );
+        (long)sizeof_ecc_clikey_der_256));
     ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
-                                           (long)sizeof_ecc_clikeypub_der_256));
+        (long)sizeof_ecc_clikeypub_der_256));
 
     ExpectNotNull(req = wolfSSL_X509_REQ_new());
     ExpectNotNull(name = wolfSSL_X509_NAME_new());
     ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
-                                                   MBSTRING_UTF8, (const byte*)
-                                                   "Test", 4, -1, 0),
-                WOLFSSL_SUCCESS);
+        MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
 
@@ -1313,7 +1294,7 @@ int test_x509_ReqCertFromX509_ext_critical(void)
 
     /* Signing invokes wolfssl_x509_make_der() -> ReqCertFromX509(). */
     ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
 
     ExpectIntGT((derSz = wolfSSL_i2d_X509_REQ(req, &der)), 0);
     ExpectNotNull(der);
@@ -1332,7 +1313,7 @@ int test_x509_ReqCertFromX509_ext_critical(void)
     if (EXPECT_SUCCESS() && req != NULL) {
         req->pathLength = WOLFSSL_MAX_PATH_LEN + 1;
         ExpectIntNE(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
-                    WOLFSSL_SUCCESS);
+            WOLFSSL_SUCCESS);
     }
 
     wolfSSL_X509_free(parsed);
@@ -1370,7 +1351,7 @@ int test_x509_REQ_sign_mldsa(void)
     WOLFSSL_X509*      parsed = NULL;
     WOLFSSL_X509_NAME* name   = NULL;
     unsigned char*     der    = NULL;
-    int derSz  = 0;
+    int                derSz  = 0;
     /* ML-DSA-87 (4627-byte signature) is what motivates the enlarged DER
      * buffers; cover every compiled-in level. */
     static const char* keyFiles[] = {
@@ -1387,23 +1368,21 @@ int test_x509_REQ_sign_mldsa(void)
     for (i = 0; i < sizeof(keyFiles) / sizeof(keyFiles[0]); i++) {
         ExpectNotNull(bio = wolfSSL_BIO_new_file(keyFiles[i], "rb"));
         ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
-                                                             NULL));
+            NULL));
         wolfSSL_BIO_free(bio);
         bio = NULL;
 
         ExpectNotNull(req = wolfSSL_X509_REQ_new());
         ExpectNotNull(name = wolfSSL_X509_NAME_new());
         ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
-                                                       MBSTRING_UTF8, (const
-                                                                       byte*)
-                                                       "mldsa-req", -1, -1, 0),
-                    WOLFSSL_SUCCESS);
+            MBSTRING_UTF8, (const byte*)"mldsa-req", -1, -1, 0),
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name),
-                    WOLFSSL_SUCCESS);
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pkey), WOLFSSL_SUCCESS);
 
         ExpectIntEQ(wolfSSL_X509_REQ_sign(req, pkey, wolfSSL_EVP_sha256()),
-                    WOLFSSL_SUCCESS);
+            WOLFSSL_SUCCESS);
 
         /* Round-trip the signed request through DER to prove the encoding
          * is a complete, parseable CSR (an ML-DSA signature does not fit
@@ -1438,15 +1417,14 @@ int test_x509_REQ_sign_mldsa(void)
 #endif
     return EXPECT_RESULT();
 }
-
-/* Decision-coverage drivers for the x509.c argument guards left unpaired by
- * the functional tests. Each block names the source line:condition it
- * closes; struct pokes are saved/restored around the call. */
 int test_x509_decision_coverage(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) \
-    && !defined(NO_FILESYSTEM)
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+     defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
+     defined(SESSION_CERTS))
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509* fresh = NULL;
     WOLFSSL_X509* loaded = NULL;

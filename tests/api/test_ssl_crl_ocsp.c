@@ -102,17 +102,15 @@ int test_wolfSSL_get_ocsp_producedDate(void)
 
     /* The object is required by both. */
     ExpectIntEQ(wolfSSL_get_ocsp_producedDate(NULL, date, sizeof(date),
-                                              &format), WC_NO_ERR_TRACE(
-                    BAD_FUNC_ARG));
+        &format), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_ocsp_producedDate_tm(NULL, &producedTm),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* No response processed, so no date format is recorded yet. */
     ExpectIntEQ(wolfSSL_get_ocsp_producedDate(ssl, date, sizeof(date),
-                                              &format), WC_NO_ERR_TRACE(
-                    BAD_FUNC_ARG));
+        &format), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_ocsp_producedDate_tm(ssl, &producedTm),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     if (ssl != NULL) {
         /* Pretend a response carrying this date was processed. */
@@ -122,23 +120,21 @@ int test_wolfSSL_get_ocsp_producedDate(void)
 
         /* Both output parameters are required. */
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate(ssl, NULL, sizeof(date),
-                                                  &format), WC_NO_ERR_TRACE(
-                        BAD_FUNC_ARG));
+            &format), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate(ssl, date, sizeof(date),
-                                                  NULL), WC_NO_ERR_TRACE(
-                        BAD_FUNC_ARG));
+            NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         /* The buffer must be able to hold the whole date. */
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate(ssl, date, 4, &format),
-                    WC_NO_ERR_TRACE(BUFFER_E));
+            WC_NO_ERR_TRACE(BUFFER_E));
 
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate(ssl, date, sizeof(date),
-                                                  &format), 0);
+            &format), 0);
         ExpectIntEQ(format, ASN_UTC_TIME);
         ExpectStrEQ((char*)date, "250101000000Z");
 
         /* The same date is also reported as a broken-down time. */
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate_tm(ssl, NULL),
-                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         XMEMSET(&producedTm, 0, sizeof(producedTm));
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate_tm(ssl, &producedTm), 0);
         ExpectIntEQ(producedTm.tm_year, 125);
@@ -147,7 +143,7 @@ int test_wolfSSL_get_ocsp_producedDate(void)
         XMEMSET(ssl->ocspProducedDate, 0, sizeof(ssl->ocspProducedDate));
         XMEMCPY(ssl->ocspProducedDate, "not-a-date", 11);
         ExpectIntEQ(wolfSSL_get_ocsp_producedDate_tm(ssl, &producedTm),
-                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
     }
 
     wolfSSL_free(ssl);
@@ -170,26 +166,24 @@ int test_wolfSSL_tlsext_status_type(void)
     WOLFSSL* ssl = NULL;
 
     ExpectIntEQ(wolfSSL_set_tlsext_status_type(NULL,
-                                               WOLFSSL_TLSEXT_STATUSTYPE_ocsp),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WOLFSSL_TLSEXT_STATUSTYPE_ocsp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_tlsext_status_type(NULL),
-                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* The extension is not requested until asked for. */
     ExpectIntEQ(wolfSSL_get_tlsext_status_type(ssl),
-                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 
     /* Only the OCSP status type is supported. */
     ExpectIntEQ(wolfSSL_set_tlsext_status_type(ssl, 99), WOLFSSL_FAILURE);
 
     ExpectIntEQ(wolfSSL_set_tlsext_status_type(ssl,
-                                               WOLFSSL_TLSEXT_STATUSTYPE_ocsp),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_TLSEXT_STATUSTYPE_ocsp), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_tlsext_status_type(ssl),
-                WOLFSSL_TLSEXT_STATUSTYPE_ocsp);
+        WOLFSSL_TLSEXT_STATUSTYPE_ocsp);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -199,7 +193,7 @@ int test_wolfSSL_tlsext_status_type(void)
 
 /* Guarded to match its only caller, test_wolfSSL_CTX_tlsext_status_cb(). */
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
     && defined(WOLFSSL_PEM_TO_DER) && !defined(NO_CERTS)
@@ -225,7 +219,7 @@ int test_wolfSSL_CTX_tlsext_status_cb(void)
 {
     EXPECT_DECLS;
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
     && defined(WOLFSSL_PEM_TO_DER) && !defined(NO_CERTS)
@@ -236,25 +230,21 @@ int test_wolfSSL_CTX_tlsext_status_cb(void)
     /* Every argument is required. */
     ExpectIntEQ(wolfSSL_CTX_get_tlsext_status_cb(NULL, &cb), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(NULL,
-                                                 test_ssl_crl_ocsp_status_cb),
-                WOLFSSL_FAILURE);
+        test_ssl_crl_ocsp_status_cb), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_arg(NULL, &arg),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                                                 WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                                                WOLFSSL_FILETYPE_PEM),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_CTX_get_tlsext_status_cb(ctx, NULL), WOLFSSL_FAILURE);
 
     /* Setting the callback turns stapling on so it can be used. */
     ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
-                                                 test_ssl_crl_ocsp_status_cb),
-                WOLFSSL_SUCCESS);
+        test_ssl_crl_ocsp_status_cb), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_get_tlsext_status_cb(ctx, &cb), WOLFSSL_SUCCESS);
     ExpectTrue(cb == test_ssl_crl_ocsp_status_cb);
 
@@ -275,7 +265,7 @@ int test_wolfSSL_tlsext_status_ocsp_resp(void)
 {
     EXPECT_DECLS;
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
     WOLFSSL_CTX* ctx = NULL;
@@ -299,18 +289,17 @@ int test_wolfSSL_tlsext_status_ocsp_resp(void)
 
     /* A response and a length must be given together. */
     ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp(ssl, NULL, 4),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, NULL, 0,
-                                                          1 + MAX_CHAIN_DEPTH),
-                WOLFSSL_FAILURE);
+        1 + MAX_CHAIN_DEPTH), WOLFSSL_FAILURE);
 
     /* The other half of the same rule: a response with no length. A negative
      * length is rejected before it, by the range check. */
     ExpectNotNull(bad = (unsigned char*)XMALLOC(4, NULL, 0));
     ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp(ssl, bad, 0),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp(ssl, bad, -1),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
     /* A failed call takes no ownership, so nothing was stored and this side
      * still has the response to free. */
     resp = NULL;
@@ -325,12 +314,13 @@ int test_wolfSSL_tlsext_status_ocsp_resp(void)
     if (stored != NULL) {
         XMEMCPY(stored, "resp", 4);
         owned = (wolfSSL_set_tlsext_status_ocsp_resp(ssl, stored, 4) ==
-                 WOLFSSL_SUCCESS);
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(owned, 1);
         if (owned) {
             ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(ssl, &resp), 4);
             ExpectPtrEq(resp, stored);
-        } else {
+        }
+        else {
             /* Ownership was not handed over, so this side still has it. */
             XFREE(stored, NULL, 0);
         }
@@ -338,7 +328,7 @@ int test_wolfSSL_tlsext_status_ocsp_resp(void)
 
     /* Clearing it releases the stored response and leaves nothing to get. */
     ExpectIntEQ(wolfSSL_set_tlsext_status_ocsp_resp(ssl, NULL, 0),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
     resp = NULL;
     ExpectIntEQ(wolfSSL_get_tlsext_status_ocsp_resp(ssl, &resp), 0);
     ExpectNull(resp);
@@ -360,7 +350,7 @@ int test_wolfSSL_tlsext_status_ocsp_resp(void)
  * @return  TEST_SUCCESS on success.
  */
 static int test_ssl_crl_ocsp_url_ok(const char* url, const char* eh,
-                                    const char* ep, const char* epa, int es)
+    const char* ep, const char* epa, int es)
 {
     EXPECT_DECLS;
     char* host = NULL;
@@ -369,7 +359,7 @@ static int test_ssl_crl_ocsp_url_ok(const char* url, const char* eh,
     int isSsl = -1;
 
     ExpectIntEQ(wolfSSL_OCSP_parse_url(url, &host, &port, &path, &isSsl),
-                WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
     ExpectStrEQ(host, eh);
     ExpectStrEQ(port, ep);
     ExpectStrEQ(path, epa);
@@ -396,7 +386,7 @@ static int test_ssl_crl_ocsp_url_bad(const char* url)
     int isSsl = -1;
 
     ExpectIntEQ(wolfSSL_OCSP_parse_url(url, &host, &port, &path, &isSsl),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
     ExpectNull(host);
     ExpectNull(port);
     ExpectNull(path);
@@ -432,21 +422,21 @@ int test_wolfSSL_OCSP_parse_url_api(void)
      * there is nothing to assert about them here: they still hold whatever
      * the caller left in them. */
     ExpectIntEQ(wolfSSL_OCSP_parse_url(NULL, &host, &port, &path, &isSsl),
-                WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_OCSP_parse_url("http://a/", NULL, &port, &path,
-                                       &isSsl), WOLFSSL_FAILURE);
+        &isSsl), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_OCSP_parse_url("http://a/", &host, NULL, &path,
-                                       &isSsl), WOLFSSL_FAILURE);
+        &isSsl), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_OCSP_parse_url("http://a/", &host, &port, NULL,
-                                       &isSsl), WOLFSSL_FAILURE);
+        &isSsl), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_OCSP_parse_url("http://a/", &host, &port, &path,
-                                       NULL), WOLFSSL_FAILURE);
+        NULL), WOLFSSL_FAILURE);
 
     /* Reached through the OpenSSL compatibility name, which is how
      * applications call this. The rest of the cases use the wolfSSL name so
      * they read as tests of this implementation rather than of the macro. */
     ExpectIntEQ(OCSP_parse_url("http://example.com/ocsp", &host, &port, &path,
-                               &isSsl), WOLFSSL_SUCCESS);
+        &isSsl), WOLFSSL_SUCCESS);
     ExpectStrEQ(host, "example.com");
     ExpectStrEQ(port, "80");
     ExpectStrEQ(path, "/ocsp");
@@ -458,38 +448,32 @@ int test_wolfSSL_OCSP_parse_url_api(void)
 
     /* Scheme, default ports and the default path. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/ocsp",
-                                         "example.com", "80", "/ocsp", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/ocsp", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com",
-                                         "example.com", "80", "/", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://example.com",
-                                         "example.com", "443", "/", 1),
-                TEST_SUCCESS);
+        "example.com", "443", "/", 1), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://example.com/some/path/",
-                                         "example.com", "443", "/some/path/", 1)
-                , TEST_SUCCESS);
+        "example.com", "443", "/some/path/", 1), TEST_SUCCESS);
     /* The scheme may be left out entirely, and is then http. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("example.com/ocsp",
-                                         "example.com", "80", "/ocsp", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/ocsp", 0), TEST_SUCCESS);
     /* Which means a scheme written without its colon is not rejected: there
      * is no "://" to find, so "http" is read as the host and the rest as the
      * path. The old parser refused this. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http" "//localhost",
-                                         "http", "80", "//localhost", 0),
-                TEST_SUCCESS);
+        "http", "80", "//localhost", 0), TEST_SUCCESS);
     /* It is matched case sensitively, so these are not schemes at all - and
      * without a "://" there is no authority either, so the whole string is a
      * host that happens to contain a colon. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("HTTP://example.com/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("HttpS://example.com/p"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     /* An unknown scheme is rejected. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("ftp://example.com/"), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("httpx://example.com/"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("://example.com/"), TEST_SUCCESS);
     /* Missing separator after the scheme: no "://", so "http:/example.com/"
      * is a host of "http" with a bad port. */
@@ -498,102 +482,81 @@ int test_wolfSSL_OCSP_parse_url_api(void)
     /* Ports. Returned as written rather than canonicalized, and an explicit
      * ":0" is reported as the scheme's default. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:8080/ocsp",
-                                         "example.com", "8080", "/ocsp", 0),
-                TEST_SUCCESS);
+        "example.com", "8080", "/ocsp", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://example.com:1234",
-                                         "example.com", "1234", "/", 1),
-                TEST_SUCCESS);
+        "example.com", "1234", "/", 1), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:00080/p",
-                                         "example.com", "00080", "/p", 0),
-                TEST_SUCCESS);
+        "example.com", "00080", "/p", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:0/p",
-                                         "example.com", "80", "/p", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/p", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://example.com:0/p",
-                                         "example.com", "443", "/p", 1),
-                TEST_SUCCESS);
+        "example.com", "443", "/p", 1), TEST_SUCCESS);
     /* Only an exact ":0" is the default; "000" is a port in its own right. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:000/p",
-                                         "example.com", "000", "/p", 0),
-                TEST_SUCCESS);
+        "example.com", "000", "/p", 0), TEST_SUCCESS);
     /* Length is not limited, only the value. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:065535/p",
-                                         "example.com", "065535", "/p", 0),
-                TEST_SUCCESS);
+        "example.com", "065535", "/p", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com:65536/p"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com:/p"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com:"), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com:8080junk/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
 
     /* An IPv6 literal keeps its brackets - note wolfIO_DecodeUrl() strips
      * them. Only a port may follow the literal. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://[::1]/ocsp",
-                                         "[::1]", "80", "/ocsp", 0),
-                TEST_SUCCESS);
+        "[::1]", "80", "/ocsp", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://[::1]:8443/p",
-                                         "[::1]", "8443", "/p", 0), TEST_SUCCESS
-                );
+        "[::1]", "8443", "/p", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://[2001:db8::1]:8443/ocsp",
-                                         "[2001:db8::1]", "8443", "/ocsp", 1),
-                TEST_SUCCESS);
+        "[2001:db8::1]", "8443", "/ocsp", 1), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://[::1/ocsp"), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://[::1]junk"), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://[::1]junk/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
 
     /* Userinfo runs to the FIRST '@' of the authority and is discarded, so
      * the host is what follows it - not the name that reads first. A caller
      * that logs or pins the responder must use the parsed host. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://good.example@evil.example/x",
-                                         "evil.example", "80", "/x", 0),
-                TEST_SUCCESS);
+        "evil.example", "80", "/x", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("https://u:p@ocsp.example:8443/x",
-                                         "ocsp.example", "8443", "/x", 1),
-                TEST_SUCCESS);
+        "ocsp.example", "8443", "/x", 1), TEST_SUCCESS);
     /* The first '@' delimits, so a second one is part of the host. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://a@b@c/", "b@c", "80", "/", 0),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     /* The scan is bounded by the authority, so an '@' in the path stays in
      * the path. OpenSSL 3.5 and earlier scanned the whole URL and took "b"
      * as the host here; that was fixed upstream. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/a@b",
-                                         "example.com", "80", "/a@b", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/a@b", 0), TEST_SUCCESS);
     /* Userinfo with nothing after it leaves no host. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://user@/x"), TEST_SUCCESS);
 
     /* The query stays with the path; the fragment is dropped. A path is
      * prepended when the URL has none. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com?q=1",
-                                         "example.com", "80", "/?q=1", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/?q=1", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com#f",
-                                         "example.com", "80", "/", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/p?q=1",
-                                         "example.com", "80", "/p?q=1", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/p?q=1", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/p#f",
-                                         "example.com", "80", "/p", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/p", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/p?q#f",
-                                         "example.com", "80", "/p?q", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/p?q", 0), TEST_SUCCESS);
     /* The fragment is looked for from the query onwards, so a '#' before the
      * query stays in the path. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/p#a?b",
-                                         "example.com", "80", "/p#a?b", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/p#a?b", 0), TEST_SUCCESS);
     /* A ':' in the path is not a port and is kept. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com/ocsp:8080",
-                                         "example.com", "80", "/ocsp:8080", 0),
-                TEST_SUCCESS);
+        "example.com", "80", "/ocsp:8080", 0), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_ok("http://example.com:8080/ocsp:1",
-                                         "example.com", "8080", "/ocsp:1", 0),
-                TEST_SUCCESS);
+        "example.com", "8080", "/ocsp:1", 0), TEST_SUCCESS);
 
     /* An empty host is refused rather than returned as "", which is where
      * this deliberately differs from OpenSSL - nothing can be fetched from
@@ -604,36 +567,31 @@ int test_wolfSSL_OCSP_parse_url_api(void)
     /* CR/LF anywhere is refused so the parts cannot inject header lines into
      * a request built from them. Also not a check OpenSSL makes. */
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com\r\n/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com/oc\rsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://example.com/oc\nsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://exa\rmple.com/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("http://exa\nmple.com/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_ssl_crl_ocsp_url_bad("\rhttp://example.com/ocsp"),
-                TEST_SUCCESS);
+        TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
-
-/* Decision-coverage drivers for the ssl_api_crl_ocsp.c argument guards that
- * the functional tests leave unpaired. Each block names the source
- * line:condition it closes; struct pokes are saved/restored around the call. */
 int test_ssl_crl_ocsp_decision_coverage(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    struct tm tm;
 
-    XMEMSET(&tm, 0, sizeof(tm));
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
+#ifdef HAVE_CRL
     /* --- 77:0/1 wolfSSL_LoadCRLBuffer: ssl==NULL || ssl->ctx==NULL ------ */
     {
         WOLFSSL* cssl = wolfSSL_new(ctx);
@@ -651,13 +609,20 @@ int test_ssl_crl_ocsp_decision_coverage(void)
         cssl->ctx = ctx;
         wolfSSL_free(cssl);
     }
+#endif
 
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+    struct tm tm;
+
+    XMEMSET(&tm, 0, sizeof(tm));
     /* --- 917:1 get_ocsp_producedDate_tm: 2nd != (GENERALIZED vs default) - */
     ssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;
     (void)wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
     ssl->ocspProducedDateFormat = 0;
     (void)wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
+#endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) ||     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     /* --- 1120/1152/1187:1 CTX status cb/arg: ctx->cm == NULL ------------ */
     {
         WOLFSSL_CTX* nctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
@@ -675,6 +640,7 @@ int test_ssl_crl_ocsp_decision_coverage(void)
 
     /* --- 1276:0 set_tlsext_status_ocsp_resp_multi: ssl == NULL ----------- */
     (void)wolfSSL_set_tlsext_status_ocsp_resp_multi(NULL, NULL, 0, 0);
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

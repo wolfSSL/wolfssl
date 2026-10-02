@@ -8501,6 +8501,13 @@ int test_chain_verify_cb_stapling(void)
 int test_internal_SetSSL_CTX_DecisionCoverage(void)
 {
     EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL SetSSL_CTX(), hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_PSK) && \
+    !defined(NO_CERTS) && !defined(NO_DH)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL_CTX *ctxHint = NULL;
     WOLFSSL *ssl = NULL;
@@ -8688,11 +8695,10 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     wolfSSL_CTX_free(ctxHint);
+#endif
     return EXPECT_RESULT();
 }
-#endif /* !NO_PSK && !NO_CERTS && !NO_DH */
 
-#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
 /* Decision-coverage driver for CheckVersion() (src/internal.c), called with
  * crafted protocol versions and poked option state. The version pairs are
  * chosen so that lowerVersion/higherVersion land exactly where each target
@@ -8700,6 +8706,11 @@ int test_internal_SetSSL_CTX_DecisionCoverage(void)
 int test_internal_CheckVersion_DecisionCoverage(void)
 {
     EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL CheckVersion(), hidden from the .so - shared
+     * builds compile this out; WOLFSSL_TEST_STATIC_BUILD is set for
+     * static-only builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     ProtocolVersion pv;
@@ -8867,6 +8878,6 @@ int test_internal_CheckVersion_DecisionCoverage(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
     return EXPECT_RESULT();
 }
-#endif /* HAVE_SECURE_RENEGOTIATION && !WOLFSSL_NO_TLS12 */
