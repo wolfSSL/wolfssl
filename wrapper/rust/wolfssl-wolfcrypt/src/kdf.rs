@@ -489,8 +489,8 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 ///
 /// # Returns
 ///
@@ -544,8 +544,8 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 /// * `heap`: Optional heap hint.
 /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
 ///
