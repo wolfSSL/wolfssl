@@ -36,6 +36,8 @@ int test_tls_shutdown_in_init(void);
 int test_tls_unknown_record_type_alert(void);
 int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
+int test_tls12_dhe_renegotiate_larger_prime(void);
+int test_tls12_dhe_reuse_prime_check(void);
 int test_tls12_ske_sig_param_binding(void);
 int test_tls12_bad_cv_sig_content(void);
 int test_tls13_curve_intersection(void);
@@ -91,6 +93,8 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls_unknown_record_type_alert),            \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \
         TEST_DECL_GROUP("tls", test_tls12_dhe_rsa_pss_sigalg),                 \
+        TEST_DECL_GROUP("tls", test_tls12_dhe_renegotiate_larger_prime),       \
+        TEST_DECL_GROUP("tls", test_tls12_dhe_reuse_prime_check),              \
         TEST_DECL_GROUP("tls", test_tls12_ske_sig_param_binding),              \
         TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_content),                 \
         TEST_DECL_GROUP("tls", test_tls13_curve_intersection),                 \
