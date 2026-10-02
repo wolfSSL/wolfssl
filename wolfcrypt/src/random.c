@@ -5079,12 +5079,11 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     else {
         wc_drbg_reseed_ctr_t ctr = WC_RESEED_INTERVAL;
         (void)wc_RNG_DRBG_GetReseedCtr(rng, &ctr);
-        /* A seed verdict says the module's own source is bad, not that it is
-         * briefly busy, so it condemns whatever runway is left, as
-         * wc_RNG_GenerateBlock() and rng_pid_change_check() already do. */
-        if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
-            (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)) ||
-            (ctr >= WC_RESEED_INTERVAL)) {
+        /* A rejected seed never entered the state, so the instantiation is
+         * still valid and only loses the reseed (SP 800-90A 9.2 returns the
+         * status; 11.4.1 treats unavailable entropy as a normal-operation
+         * error).  Out of runway is different: that one condemns. */
+        if (ctr >= WC_RESEED_INTERVAL) {
             rng->status = DRBG_FAILED;
         }
         if (ret > 0) {

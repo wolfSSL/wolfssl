@@ -1013,7 +1013,8 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
     service.
     \return RNG_FAILURE_E The DRBG is out of service or reseeding failed.
     \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
-    rejected the gathered seed; the instance is condemned.
+    rejected the gathered seed; the reseed did not happen and the instance
+    remains usable until its reseed interval is reached.
 
     \param rng The RNG object to reseed.
     \param nonce Optional additional input.
