@@ -31778,6 +31778,7 @@ int test_wc_MlDsaKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
     wc_MlDsaKey key;
     byte seed[MLDSA_SEED_SZ];
