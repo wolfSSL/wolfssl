@@ -443,8 +443,7 @@ int wc_FrodoKemKey_Free(FrodoKemKey* key)
 #endif
         key->flags = 0;
 #ifdef WOLF_CRYPTO_CB
-        /* Mark the key as having no device so a second free does not call
-         * out to it again. */
+        /* Clear device ownership so a subsequent free has nothing to do. */
         key->devCtx = NULL;
         key->devId = INVALID_DEVID;
 #endif
