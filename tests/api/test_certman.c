@@ -4210,7 +4210,7 @@ int test_certman_decision_coverage(void)
      * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
      * builds (configure) and by the MC/DC variant. */
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFCRYPT_ONLY) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_CERTS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     byte hash[SIGNER_DIGEST_SIZE];

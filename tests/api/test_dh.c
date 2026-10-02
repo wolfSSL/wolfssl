@@ -1144,7 +1144,7 @@ int test_dh_decision_coverage(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_DH)
+    !defined(NO_DH) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte p[512];

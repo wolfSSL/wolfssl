@@ -1385,7 +1385,7 @@ int test_wc_DrbgReworkDecisionCoverage(void)
         savedPtr = rng.drbg512;
         rng.drbg512 = NULL;
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
-        rng.drbg512 = savedPtr;
+        rng.drbg512 = (struct DRBG_SHA512 *)savedPtr;
         /* SHA-256 arm skipped (type mismatch), SHA-512 arm taken. */
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
         ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
@@ -1414,7 +1414,7 @@ int test_wc_DrbgReworkDecisionCoverage(void)
         savedPtr = rng.drbg;
         rng.drbg = NULL;
         ExpectIntEQ(wc_RNG_DRBG_Present(&rng), 0);
-        rng.drbg = savedPtr;
+        rng.drbg = (struct DRBG *)savedPtr;
         /* SHA-256 arm taken, SHA-512 arm skipped. */
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr), 0);
         ExpectIntEQ(wc_RNG_DRBG_ScheduleReseed(&rng), 0);
@@ -1431,7 +1431,7 @@ int test_wc_DrbgReworkDecisionCoverage(void)
         rng.drbg = NULL;
         ExpectIntEQ(wc_RNG_DRBG_GetReseedCtr(&rng, &ctr),
             WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E));
-        rng.drbg = savedPtr;
+        rng.drbg = (struct DRBG *)savedPtr;
     }
     /* No-DRBG instance: both arms false (zeroed type, NULL pointers). */
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
