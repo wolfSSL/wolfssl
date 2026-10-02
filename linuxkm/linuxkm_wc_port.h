@@ -616,6 +616,7 @@
         #include <linux/module.h>
         #include <linux/moduleparam.h>
         #include <linux/delay.h>
+        #include <linux/dmi.h>
     #endif
 
     #if defined(HAVE_KVMALLOC) && \

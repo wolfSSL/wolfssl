@@ -356,9 +356,11 @@ enum wolfCrypt_ErrorCodes {
                                  /* operation */
     NEEDS_RECOVERY_E    = -1033, /* Object needs recovery before use */
     UNEXPECTED_STATE_E  = -1034, /* Object has unexpected state */
+    STILL_REFERENCED_E  = -1035, /* Object is still referenced (unsafe to
+                                  * deallocate) */
 
-    WC_SPAN2_LAST_E     = -1034, /* Update to indicate last used error code */
-    WC_LAST_E           = -1034, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1035, /* Update to indicate last used error code */
+    WC_LAST_E           = -1035, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

@@ -1212,6 +1212,10 @@ int wolfCrypt_Cleanup(void)
     #endif
 #endif /* HAVE_ECC */
 
+    #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
+        (void)wc_RNG_global_fallback_free();
+    #endif
+
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
         {
             int ret2 = wc_LoggingCleanup();

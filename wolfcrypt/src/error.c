@@ -766,6 +766,9 @@ const char* wc_GetErrorString(int error)
     case UNEXPECTED_STATE_E:
         return "Object has unexpected state";
 
+    case STILL_REFERENCED_E:
+        return "Object is still referenced (unsafe to deallocate)";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

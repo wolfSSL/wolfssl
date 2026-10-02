@@ -28469,6 +28469,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void)
 #define RNG_STATS_EXPECT_SAME_DELTA(rng, f1, f2, fail_action) WC_DO_NOTHING
 #endif /* WC_RNG_DEBUG_STATS */
 
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define RESEED_CTR(rng) ((rng)->reseedCtr)
+#else
+    #define RESEED_CTR(rng) (((struct DRBG_internal *)(rng)->drbg)->reseedCtr)
+#endif
+
 static wc_test_ret_t _rng_test(WC_RNG* rng)
 {
     byte block[32];
@@ -28517,23 +28524,7 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
          * compiled in. Gate the else keyword and the SHA-256 fallback
          * body together so a NO_SHA256 + WOLFSSL_DRBG_SHA512 build (in
          * which drbgType is always WC_DRBG_SHA512) still compiles. */
-    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        if (rng->drbgType == WC_DRBG_SHA512) {
-            ((struct DRBG_SHA512_internal *)rng->drbg512)->reseedCtr =
-                WC_RESEED_INTERVAL;
-        }
-    #ifndef NO_SHA256
-        else
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        {
-            ((struct DRBG_internal *)rng->drbg)->reseedCtr =
-                WC_RESEED_INTERVAL;
-        }
-    #endif
-
+        RESEED_CTR(rng) = WC_RESEED_INTERVAL;
         {
         RNG_STATS_DECLS;
         RNG_STATS_SNAP(rng);
@@ -28554,24 +28545,8 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
                          return WC_TEST_RET_ENC_I((int)rng_stats_d_));
         }
 
-    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        if (rng->drbgType == WC_DRBG_SHA512) {
-            if (((struct DRBG_SHA512_internal *)rng->drbg512)->reseedCtr ==
-                    WC_RESEED_INTERVAL)
-                return WC_TEST_RET_ENC_NC;
-        }
-    #ifndef NO_SHA256
-        else
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        {
-            if (((struct DRBG_internal *)rng->drbg)->reseedCtr ==
-                    WC_RESEED_INTERVAL)
-                return WC_TEST_RET_ENC_NC;
-        }
-    #endif
+        if (RESEED_CTR(rng) == WC_RESEED_INTERVAL)
+            return WC_TEST_RET_ENC_NC;
 #ifdef WOLF_CRYPTO_CB
     }
 #endif

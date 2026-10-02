@@ -1230,6 +1230,30 @@ static int wolfssl_init(void)
     wolfssl_inited = 1;
 #endif
 
+#ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
+    {
+        unsigned long uncredited_nonce = random_get_entropy();
+        const char *perso = dmi_get_system_info(DMI_PRODUCT_UUID);
+        word32 persoSz;
+        if (perso)
+            persoSz = strlen(perso);
+        else {
+            static uintptr_t init_addr;
+            init_addr = (uintptr_t)&wolfssl_init;
+            perso = (const char *)&init_addr;
+            persoSz = (word32)sizeof(init_addr);
+        }
+        ret = wc_RNG_Fallback_Init((const byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
+                                   (const byte *)perso, persoSz,
+                                   NULL /* heap */, INVALID_DEVID, WC_RNG_INIT_FLAG_NONE);
+        if (ret != 0) {
+            pr_err("ERROR: wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+            (void)libwolfssl_cleanup();
+            return -ECANCELED;
+        }
+    }
+#endif /* WC_RNG_HAVE_GLOBAL_FALLBACK_RNG */
+
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG

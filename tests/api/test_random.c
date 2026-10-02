@@ -97,6 +97,13 @@ int test_wc_RNG_GenerateBlock_Reseed(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define RESEED_CTR(rng) ((rng)->reseedCtr)
+#else
+    #define RESEED_CTR(rng) (((struct DRBG_internal *)(rng)->drbg)->reseedCtr)
+#endif
+
 int test_wc_RNG_ReseedBoundary(void)
 {
     EXPECT_DECLS;
@@ -111,20 +118,19 @@ int test_wc_RNG_ReseedBoundary(void)
 
 #ifndef NO_SHA256
     if (rng.drbgType == WC_DRBG_SHA256) {
-        struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
-        if (drbg != NULL && rng.status == WC_DRBG_OK) {
+        if (rng.drbg != NULL && rng.status == WC_DRBG_OK) {
         #ifdef WORD64_AVAILABLE
-            word64 startCtr = drbg->reseedCtr;
+            word64 startCtr = RESEED_CTR(&rng);
         #else
-            word32 startCtr = drbg->reseedCtr;
+            word32 startCtr = RESEED_CTR(&rng);
         #endif
             ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-            if (drbg->reseedCtr == startCtr + 1) {
-                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+            if (RESEED_CTR(&rng) == startCtr + 1) {
+                RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == 2);
+                ExpectTrue(RESEED_CTR(&rng) == 2);
                 drbgChecked = 1;
             }
         }
@@ -132,17 +138,15 @@ int test_wc_RNG_ReseedBoundary(void)
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if (!drbgChecked && rng.drbgType == WC_DRBG_SHA512) {
-        struct DRBG_SHA512_internal* drbg =
-            (struct DRBG_SHA512_internal*)rng.drbg512;
-        if (drbg != NULL && rng.status == WC_DRBG_OK) {
-            word64 startCtr = drbg->reseedCtr;
+        if (rng.drbg512 != NULL && rng.status == WC_DRBG_OK) {
+            word64 startCtr = RESEED_CTR(&rng);
             ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-            if (drbg->reseedCtr == startCtr + 1) {
-                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+            if (RESEED_CTR(&rng) == startCtr + 1) {
+                RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
-                ExpectTrue(drbg->reseedCtr == 2);
+                ExpectTrue(RESEED_CTR(&rng) == 2);
                 drbgChecked = 1;
             }
         }
@@ -1655,37 +1659,34 @@ int test_wc_DrbgFeatureCoverage(void)
          * that bypass the Hash_DRBG path (e.g. --enable-intelrand) skip it. */
     #ifndef NO_SHA256
         if (rng.drbgType == WC_DRBG_SHA256) {
-            struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
-            if (drbg != NULL && rng.status == WC_DRBG_OK) {
+            if (rng.drbg != NULL && rng.status == WC_DRBG_OK) {
             #ifdef WORD64_AVAILABLE
-                word64 startCtr = drbg->reseedCtr;
+                word64 startCtr = RESEED_CTR(&rng);
             #else
-                word32 startCtr = drbg->reseedCtr;
+                word32 startCtr = RESEED_CTR(&rng);
             #endif
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                if (drbg->reseedCtr == startCtr + 1) {
-                    drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                if (RESEED_CTR(&rng) == startCtr + 1) {
+                    RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg->reseedCtr == 2);
+                    ExpectTrue(RESEED_CTR(&rng) == 2);
                 }
             }
         }
     #endif
     #ifdef WOLFSSL_DRBG_SHA512
         if (rng.drbgType == WC_DRBG_SHA512) {
-            struct DRBG_SHA512_internal* drbg512 =
-                (struct DRBG_SHA512_internal*)rng.drbg512;
-            if (drbg512 != NULL && rng.status == WC_DRBG_OK) {
-                word64 startCtr = drbg512->reseedCtr;
+            if (rng.drbg512 != NULL && rng.status == WC_DRBG_OK) {
+                word64 startCtr = RESEED_CTR(&rng);
                 ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                if (drbg512->reseedCtr == startCtr + 1) {
-                    drbg512->reseedCtr = WC_RESEED_INTERVAL - 1;
+                if (RESEED_CTR(&rng) == startCtr + 1) {
+                    RESEED_CTR(&rng) = WC_RESEED_INTERVAL - 1;
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg512->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectTrue(RESEED_CTR(&rng) == WC_RESEED_INTERVAL);
                     ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
-                    ExpectTrue(drbg512->reseedCtr == 2);
+                    ExpectTrue(RESEED_CTR(&rng) == 2);
                 }
             }
         }

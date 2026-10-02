@@ -2319,6 +2319,8 @@ static int wc_linuxkm_rng_state_invalidate(void) {
     struct linuxkm_rng_object *obj;
     int ret = 0;
 
+    wc_RNG_global_invalidate_entropy();
+
     last_invalidation_at = jiffies;
 
     /* Process context (vmfork notifier / pm notifier); the registry mutex
@@ -2326,9 +2328,11 @@ static int wc_linuxkm_rng_state_invalidate(void) {
     mutex_lock(&wc_linuxkm_rng_registry_mutex);
     for (obj = wc_linuxkm_rng_registry_head; obj != NULL; obj = obj->next) {
         if (obj->is_bank) {
+#if 0
             int this_ret = wc_rng_bank_invalidate_entropy(obj->bank, 0);
             if ((this_ret != 0) && (ret == 0))
                 ret = this_ret;
+#endif /* 0 */
 #ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
             if (WOLFSSL_ATOMIC_LOAD(obj->bank->daemon_magic) ==
                 WC_LINUXKM_ENTROPY_DAEMON_MAGIC)
@@ -2344,7 +2348,7 @@ static int wc_linuxkm_rng_state_invalidate(void) {
                  * FOR_RECOVERY claim path in wc_rng_bank_reseed_range()'s
                  * checkouts claims the quarantined instances. */
                 unsigned long uncredited_nonce = random_get_entropy();
-                this_ret = wc_rng_bank_reseed_range(
+                int this_ret = wc_rng_bank_reseed_range(
                     obj->bank, 0, -1,
                     (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
                     WC_LINUXKM_INITRNG_TIMEOUT_SEC,
@@ -2354,18 +2358,23 @@ static int wc_linuxkm_rng_state_invalidate(void) {
                     ret = this_ret;
             }
         }
+#if 0
         else {
             (void)wc_RNG_invalidate_entropy(obj->rng);
         }
+#endif /* 0 */
     }
+#if 0
     (void)wolfSSL_Atomic_Int_FetchAdd(&wc_linuxkm_rng_registry_needs_recovery,
                                       1);
     mutex_unlock(&wc_linuxkm_rng_registry_mutex);
+#endif
 
     if (ret != 0) {
         pr_err("ERROR: wc_linuxkm_rng_state_invalidate() walk returned err %d.\n", ret);
         return -EINVAL;
     }
+
     pr_notice("wolfssl: RNG state invalidated; all instances will recover by credited reseed\n");
     return 0;
 }
@@ -2802,12 +2811,26 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 #ifdef WC_LINUXKM_VMGENID_POLL
     struct wc_linuxkm_vmgenid_poll_state vmgenid_poll_state = {};
 #endif
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    struct WC_RNG *root_rng;
+#endif
+#ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
+    WC_RNG *global_fallback_rng = NULL;
+#endif
+    int root_rng_reseed_countdown = 0;
 
     if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != WC_LINUXKM_ENTROPY_DAEMON_MAGIC)
         return -EINVAL;
 
-    struct WC_RNG *root_rng;
-    int root_rng_reseed_countdown = 0;
+#ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
+    if (bank->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+        ret = wc_RNG_Fallback_Get(&global_fallback_rng);
+        if (ret != 0) {
+            pr_err("wc_linuxkm_entropy_daemon: wc_RNG_Fallback_Get() failed with  "
+                   "code %d -- continuing without.\n", ret);
+        }
+    }
+#endif
 
 #ifdef WC_RNG_BANK_HAVE_ROOT_RNG
     root_rng = wc_rng_bank_root_rng_get(bank);
@@ -2863,15 +2886,12 @@ static int wc_linuxkm_entropy_daemon(void *arg)
          * root is unleased by design), so the flag is the authoritative
          * signal and this is the authoritative response. */
         if (root_rng != NULL) {
-            WC_RNG_lock_arg_t root_lock_state = 0;
             int inv_ret;
-            while (((inv_ret = wc_RNG_lock_read(root_rng, &root_lock_state)) == 0) &&
-                   (root_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
-            {
+            while ((inv_ret = wc_RNG_entropy_needs_recovery(root_rng)) != 0) {
                 unsigned long uncredited_nonce = random_get_entropy();
 
 #ifdef WC_VERBOSE_RNG
-                pr_info("wc_linuxkm_entropy_daemon: starting root recovery reseed.\n");
+                pr_info("wc_linuxkm_entropy_daemon: starting root recovery reseed (%d).\n", inv_ret);
 #endif
 
 #if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || defined(WC_SVR_USE_NATIVE_REG_BUFS)
@@ -2991,6 +3011,14 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             }
         }
 #endif
+
+#ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
+        if ((global_fallback_rng != NULL) &&
+            (wc_RNG_entropy_needs_recovery(global_fallback_rng) == NEEDS_RECOVERY_E))
+        {
+xyz
+        }
+#endif /* WC_RNG_HAVE_GLOBAL_FALLBACK_RNG */
 
 #if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC)
         /* recovery pass: push RBGC seeds to all WC_RNG_LOCK_ENTROPY_INVALIDATED

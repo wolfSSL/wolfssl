@@ -302,6 +302,14 @@ WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
 #endif
 #endif
 
+WOLFSSL_LOCAL int wc_rng_bank_reinit_rng(
+    struct wc_rng_bank *bank,
+    WC_RNG *rng,
+    WC_RNG *seedRng,
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
+    word32 flags);
+
 WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
