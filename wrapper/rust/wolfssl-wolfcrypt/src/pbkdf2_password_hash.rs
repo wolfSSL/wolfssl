@@ -252,7 +252,7 @@ impl password_hash::CustomizedPasswordHasher<PasswordHash> for Pbkdf2 {
 
         let salt = Salt::new(salt)?;
 
-        let mut out_buf = [0u8; Output::MAX_LENGTH];
+        let mut out_buf = zeroize::Zeroizing::new([0u8; Output::MAX_LENGTH]);
         let out_slice = &mut out_buf[..params.output_len];
         kdf::pbkdf2(password, salt.as_ref(), iterations, algorithm.hmac_type(), out_slice)
             .map_err(|_| Error::Crypto)?;
