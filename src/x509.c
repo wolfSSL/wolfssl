@@ -6999,12 +6999,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 /* Returns the public key of x509 without a new reference.
  *
  * returns a pointer to the WOLFSSL_EVP_PKEY on success and NULL on fail.
- * The key is valid for the lifetime of x509 and must not be freed.
+ * The key must not be freed. It is valid until x509 is freed or its public
+ * key is changed.
  */
 WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get0_pubkey");
-    /* The cache is the only thing written, like X509_get_X509_PUBKEY(). */
+    /* Only the lazily decoded key cache is written. */
     return X509CachedPubKey((WOLFSSL_X509*)x509);
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
@@ -12070,7 +12071,8 @@ WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
         return NULL;
     }
 
-    /* Decode the key so pkey is usable through the returned object. */
+    /* OpenSSL also takes a const X509 and returns a mutable X509_PUBKEY.
+     * Only the lazily decoded key cache is written here. */
     (void)X509CachedPubKey((WOLFSSL_X509*)x509);
 
     return (WOLFSSL_X509_PUBKEY*)&x509->key;
@@ -12134,7 +12136,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
 }
 
 /* Returns the pkey without a new reference. */
-WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(WOLFSSL_X509_PUBKEY* key)
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(const WOLFSSL_X509_PUBKEY* key)
 {
     WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get0");
     if (key == NULL)

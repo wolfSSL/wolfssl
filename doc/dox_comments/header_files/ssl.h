@@ -5461,8 +5461,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
     \ingroup CertsKeys
 
     \brief This function returns the public key of the certificate without a
-    new reference. The key is owned by the certificate, stays valid for its
-    lifetime, and must not be freed. Treat it as read only.
+    new reference. The key is owned by the certificate and must not be freed.
+    It stays valid until the certificate is freed or its public key is
+    changed. Treat it as read only.
 
     \return pointer to the WOLFSSL_EVP_PKEY on success.
     \return NULL if x509 is NULL, has no public key, or the key cannot be
@@ -5508,7 +5509,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509);
     \sa wolfSSL_X509_PUBKEY_get
     \sa wolfSSL_X509_get_X509_PUBKEY
 */
-WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(WOLFSSL_X509_PUBKEY* key);
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(const WOLFSSL_X509_PUBKEY* key);
 
 /*!
     \ingroup CertsKeys
