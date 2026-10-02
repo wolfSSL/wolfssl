@@ -17696,6 +17696,22 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                     &idx) == 0) {
                 decodeOk = 1;
             }
+        #ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+            /* Derive the public key of a private-only encoding, or check that
+             * an embedded one belongs to the private key. Callback-only builds
+             * cannot do either, so they keep an embedded public key as is. */
+            if (decodeOk &&
+                #ifndef WC_MLDSA_HAVE_NATIVE
+                    (!mldsa->pubKeySet) &&
+                #endif
+                    (wc_MlDsaKey_MakePublicKey(mldsa) != 0)) {
+                PRIVATE_KEY_LOCK();
+                WOLFSSL_MSG("Error deriving or checking ML-DSA public key");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+        #endif
             PRIVATE_KEY_LOCK();
         #endif
             if (!decodeOk) {
