@@ -33,8 +33,11 @@
  *   Sha3Update multi-block fast path (line ~874):
  *       (sha3_block_n != NULL) && (blocks > 0)
  *
- * On a capable host cpuid reports AVX2, so the runtime always takes the AVX2
- * branch: the "cached", BMI, and non-fast-path conditions are unreachable from
+ * On a capable host the runtime now takes the BMI2 branch, because sha3.c
+ * prefers the BMI2 block (it needs no vector-register claim) and only puts
+ * AVX2 first when WOLFSSL_SHA3_AVX2 is defined, which no configure- or
+ * CMake-reachable build defines. So the AVX2 selection, the "cached"
+ * condition and the non-fast-path condition are the ones unreachable from
  * tests/api. This TU #includes sha3.c so those static items are in scope and drives
  * InitSha3 / Update with cpuid_flags and the block pointers forced.
  *

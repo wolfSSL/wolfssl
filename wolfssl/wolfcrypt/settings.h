@@ -6161,6 +6161,22 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
 #endif
 
+/* Keccak-256 uses the legacy 0x01 pad and is not one of the functions FIPS 202
+ * specifies, so a certifiable build refuses it.  dev and dev-no-post are not
+ * certifiable and keep it, as they keep the run-time C block switch. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV)
+    #define WOLFSSL_NO_KECCAK256
+#endif
+
+/* KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary, so a
+ * validated build drops them however they were requested; the dev and ready
+ * prep builds keep them. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV) && \
+    !defined(WOLFSSL_FIPS_READY)
+    #undef WOLFSSL_KMAC
+    #undef WOLFSSL_CSHAKE
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH

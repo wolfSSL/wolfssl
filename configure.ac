@@ -1760,8 +1760,14 @@ then
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 7
     then
         test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-        test "$enable_cshake" = "" && enable_cshake=yes
-        test "$enable_kmac" = "" && enable_kmac=yes
+        # KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary,
+        # so only non-FIPS and the dev/ready prep builds turn them on here.
+        if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS_DEV" = "yes" \
+            || test "$ENABLED_FIPS_READY" = "yes"
+        then
+            test "$enable_cshake" = "" && enable_cshake=yes
+            test "$enable_kmac" = "" && enable_kmac=yes
+        fi
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
@@ -8598,6 +8604,19 @@ then
     fi
 else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+fi
+
+# An explicit --enable-kmac/--enable-cshake against a validated module version
+# fails here, with the clear configure error this file's convention calls for,
+# rather than building a module that silently excludes them (SP 800-185).
+if test "$ENABLED_FIPS" != "no" && test -n "$HAVE_FIPS_VERSION" \
+    && test "$HAVE_FIPS_VERSION" -ge 7 && test "$ENABLED_FIPS_DEV" != "yes" \
+    && test "$ENABLED_FIPS_READY" != "yes"
+then
+    if test "$ENABLED_CSHAKE" != "no" || test "$ENABLED_KMAC" != "no"
+    then
+        AC_MSG_ERROR([cshake and kmac are not part of the FIPS module boundary for this version])
+    fi
 fi
 
 # Set cSHAKE / KMAC flags. Both are built on SHAKE, so re-check here (after any
