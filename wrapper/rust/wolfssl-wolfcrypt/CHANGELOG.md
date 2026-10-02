@@ -11,6 +11,13 @@ New features:
 
 - Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
   between keys via Rc (requires the alloc feature)
+- Add HMAC::copy(), a fallible equivalent of HMAC::clone()
+
+Fixes and improvements:
+
+- Fix undefined behavior in HMAC::clone(): wc_HmacCopy() takes its source by
+  non-const pointer and may write through it, but the pointer was cast from a
+  shared reference. The wolfSSL context is now held in an UnsafeCell
 
 ## v2.2.0
 
