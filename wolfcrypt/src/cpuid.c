@@ -992,6 +992,28 @@
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
+    /* FIPS v7 reads the CPU features once at power on and ignores changes.
+     * Linux only warns when microcode changes features while running and
+     * says to reboot (Documentation/arch/x86/microcode.rst, late loading);
+     * Intel marks such updates unfit to load while running ("Minimum Runtime
+     * Microcode Update Revision").  A reboot re-reads the features. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    void cpuid_select_flags(cpuid_flags_t flags)
+    {
+        (void)flags;
+    }
+
+    void cpuid_set_flag(cpuid_flags_t flag)
+    {
+        (void)flag;
+    }
+
+    void cpuid_clear_flag(cpuid_flags_t flag)
+    {
+        (void)flag;
+    }
+#else
     void cpuid_select_flags(cpuid_flags_t flags)
     {
         WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
@@ -1012,5 +1034,6 @@
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
     }
+#endif
 
 #endif /* HAVE_CPUID */
