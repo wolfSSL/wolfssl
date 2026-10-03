@@ -515,8 +515,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (in == NULL) {
-        static const byte ed25519_empty_msg = 0;
-        in = &ed25519_empty_msg;
+        static const byte ed25519_empty_msg[] = {0};
+        in = ed25519_empty_msg;
     }
 
     if ((type == Ed25519ph) &&
@@ -558,8 +558,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (in == NULL) {
-        static const byte ed25519_empty_msg = 0;
-        in = &ed25519_empty_msg;
+        static const byte ed25519_empty_msg[] = {0};
+        in = ed25519_empty_msg;
     }
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
@@ -1142,8 +1142,8 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (msg == NULL) {
-        static const byte ed25519_empty_msg = 0;
-        msg = &ed25519_empty_msg;
+        static const byte ed25519_empty_msg[] = {0};
+        msg = ed25519_empty_msg;
     }
 
     if ((type == Ed25519ph) &&
@@ -1191,8 +1191,8 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (msg == NULL) {
-        static const byte ed25519_empty_msg = 0;
-        msg = &ed25519_empty_msg;
+        static const byte ed25519_empty_msg[] = {0};
+        msg = ed25519_empty_msg;
     }
 
     if ((type == Ed25519ph) &&
