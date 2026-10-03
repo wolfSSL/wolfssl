@@ -204,6 +204,14 @@
 #endif
 #endif /* WC_ML_KEM_MAX_K */
 
+/* Scratch block for one compressed cipher text polynomial in decapsulation's
+ * comparison. Only the C compressors, which write no slack, reach it. */
+#if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(11)
+#else
+#define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(10)
+#endif
+
 #define KYBER_N             MLKEM_N
 
 /* Size of a polynomial vector based on dimensions. */
@@ -549,7 +557,7 @@ int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
 #else
 WOLFSSL_LOCAL
 int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
-    sword16* e, int kp, byte* seed, byte* noiseSeed);
+    sword16* e, sword16* cacheA, int kp, byte* seed, byte* noiseSeed);
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
@@ -558,9 +566,10 @@ int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
-    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
-    byte* coins);
+int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
+    const byte* cmp, int* fail, sword16* bp, sword16* tp, sword16* sp, int kp,
+    const byte* msg, byte* seed, byte* coins, const sword16* cacheA,
+    sword16* fillA);
 #endif
 WOLFSSL_LOCAL
 int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
@@ -605,7 +614,7 @@ int mlkem_cmp(const byte* a, const byte* b, int sz);
 WOLFSSL_LOCAL
 void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_compress_11(byte* r, sword16* v);
+void mlkem_vec_compress_11(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
 void mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
