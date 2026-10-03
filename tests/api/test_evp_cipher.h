@@ -32,6 +32,7 @@ int test_wolfSSL_EVP_get_cipherbynid(void);
 int test_wolfSSL_EVP_CIPHER_block_size(void);
 int test_wolfSSL_EVP_CIPHER_iv_length(void);
 int test_wolfSSL_EVP_CipherUpdate_Null(void);
+int test_wolfSSL_EVP_DecryptUpdate_partial(void);
 int test_wolfSSL_EVP_CIPHER_type_string(void);
 int test_wolfSSL_EVP_BytesToKey(void);
 int test_wolfSSL_EVP_Cipher_extra(void);
@@ -77,6 +78,7 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_block_size),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_iv_length),       \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CipherUpdate_Null),      \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_DecryptUpdate_partial),  \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_type_string),     \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_BytesToKey),             \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_Cipher_extra),           \

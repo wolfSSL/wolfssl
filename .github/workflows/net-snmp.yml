@@ -49,6 +49,11 @@ jobs:
         # List of releases to test
         include:
           - ref: 5.9.3
+            patch_file: $GITHUB_WORKSPACE/osp/net-snmp/5.9.3.patch
+            test_opts: -e 'agentxperl'
+          # 5.9.5+ has wolfSSL support upstream, no patch needed
+          - ref: 5.9.5.2
+            patch_file: ''
             test_opts: -e 'agentxperl'
     name: ${{ matrix.ref }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -78,7 +83,7 @@ jobs:
           repository: net-snmp/net-snmp
           ref: v${{ matrix.ref }}
           path: net-snmp
-          patch-file: $GITHUB_WORKSPACE/osp/net-snmp/${{ matrix.ref }}.patch
+          patch-file: ${{ matrix.patch_file }}
           configure: --disable-shared --with-wolfssl=$GITHUB_WORKSPACE/build-dir
           check: false
 
