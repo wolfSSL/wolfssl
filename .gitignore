@@ -340,6 +340,8 @@ mqx/wolfcrypt_benchmark/SaAnalysispointsManager.apconfig
 
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
+wrapper/CSharp/wolfCrypt-FIPS*/bin/
+wrapper/CSharp/wolfCrypt-FIPS*/obj/
 
 # Visual Studio Code Workspace Files
 *.vscode
