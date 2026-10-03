@@ -13,6 +13,15 @@
 
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
 
+## Behavioral Changes
+* **Behavioral change (`X509_get0_pubkey()` returns a borrowed key)**:
+  `wolfSSL_X509_get_pubkey()` now returns the public key cached on the
+  certificate with a new reference, and the new `wolfSSL_X509_get0_pubkey()`
+  (`X509_get0_pubkey()`, `X509_REQ_get0_pubkey()`) returns it without one, as
+  in OpenSSL.  Code that freed the result of `X509_get0_pubkey()` to avoid a
+  leak must stop doing so, and the returned key is shared with the
+  certificate, so it must be treated as read only.
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
