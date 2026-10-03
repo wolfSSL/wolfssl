@@ -5800,6 +5800,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
+        /* Per-connection budgets, not cumulative across a reused object. */
+        ssl->options.alertCount = 0;
+        ssl->options.emptyRecordCount = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -5823,8 +5826,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
+        ssl->fragOffset = 0;
+        ssl->options.buildingMsg = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
@@ -5933,7 +5937,18 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         #endif
         ssl->options.rejectTicket = 0;
+        ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
     #endif
+        /* A server keeps its session across the reset, but the next client
+         * has not asked for it. A client is the side that resumes what it
+         * held, so it keeps both. */
+        if ((ssl->options.side == WOLFSSL_SERVER_END) &&
+                (ssl->session != NULL)) {
+            ssl->session->haveAltSessionID = 0;
+            ForceZero(ssl->session->altSessionID, ID_LEN);
+            ssl->session->peerAuthOk = 0;
+        }
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;

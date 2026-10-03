@@ -2313,6 +2313,12 @@ WOLFSSL_LOCAL int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret,
 WOLFSSL_LOCAL int CookiePolicyEnable(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #endif
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl);
+#else
+/* No client certificate can be asked for, so none can be required. */
+#define ClientAuthRequired(ssl) 0
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -3902,12 +3908,20 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
+/* Bits of InternalTicket.flags. Bit 0 is where this byte has always held
+ * haveEMS, so sizeof(InternalTicket) and every offset are unchanged and an
+ * older ticket parses with the newer bits clear. An older peer handed a ticket
+ * carrying bit 1 copies the whole byte into haveEMS and fails the handshake
+ * cleanly, so a shared TLS 1.2 ticket key needs matching versions. */
+#define WOLFSSL_TICKET_FLAG_EMS       0x01
+#define WOLFSSL_TICKET_FLAG_PEER_AUTH 0x02
+
 typedef struct InternalTicket {
     ProtocolVersion pv;                    /* version when ticket created */
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-    byte            haveEMS;               /* have extended master secret */
+    byte            flags;                 /* WOLFSSL_TICKET_FLAG_* */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
@@ -5232,6 +5246,9 @@ struct WOLFSSL_SESSION {
 
     byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
+    /* Client presented a certificate and proved key possession. Server
+     * sessions only; after heap so wolfSSL_DupSession carries it. */
+    byte               peerAuthOk;
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */

@@ -2825,6 +2825,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+    /* peerAuthOk, last so an older reader stops before it. */
+    size += OPAQUE8_LEN;
 
     if (p != NULL) {
         unsigned char *data;
@@ -2920,6 +2922,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+        data[idx++] = sess->peerAuthOk;
     }
 #endif
 
@@ -3226,6 +3229,11 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+    /* Absent from a blob written before the field existed, which leaves the
+     * zero a new session carries. */
+    if (i - idx == OPAQUE8_LEN) {
+        s->peerAuthOk = (data[idx++] != 0);
+    }
     (void)idx;
 
     if (sess != NULL) {
@@ -3797,6 +3805,14 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
+    /* Server only: on a client these flags describe the server certificate,
+     * a different statement that nothing reads. A resumed connection sends no
+     * Certificate, so it keeps what it inherited. */
+    if (!ssl->options.resuming &&
+            (ssl->options.side == WOLFSSL_SERVER_END)) {
+        session->peerAuthOk = (byte)(ssl->options.havePeerCert &&
+                                     ssl->options.havePeerVerify);
+    }
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */

@@ -7041,6 +7041,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
             if (ret == 0)
                 DoClientTicketFinalize(ssl, current->it, current->sess);
+            if (ret == 0 && ClientAuthRequired(ssl) &&
+                    !ssl->session->peerAuthOk) {
+                WOLFSSL_MSG("Ticket session lacks client auth, skipping PSK");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
             if (current->sess_free_cb != NULL) {
                 current->sess_free_cb(ssl, current->sess,
                         &current->sess_free_cb_ctx);
