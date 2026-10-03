@@ -886,8 +886,11 @@ static int SetupSocketAndConnect(info_t* info, const char* host,
     /* Resolve host */
     entry = gethostbyname(host);
     if (entry) {
-        XMEMCPY(&servAddr.sin_addr.s_addr, entry->h_addr_list[0],
-            (size_t)entry->h_length);
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy the pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
+        XMEMCPY(&servAddr.sin_addr.s_addr, hAddr, (size_t)entry->h_length);
     }
     else {
         servAddr.sin_addr.s_addr = inet_addr(host);
