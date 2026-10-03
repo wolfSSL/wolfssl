@@ -33,6 +33,7 @@ int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_cid_args(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
 int test_wolfSSL_dtls_set_pending_peer_not_newest(void);
+int test_wolfSSL_dtls_pending_peer_app_data_pending(void);
 int test_dtls13_new_connection_id(void);
 int test_dtls13_new_connection_id_long_cid(void);
 int test_dtls13_new_connection_id_not_negotiated(void);
@@ -211,6 +212,8 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls12_packet_forgeries),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_packet_forgeries),                 \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer_not_newest),\
+        TEST_DECL_GROUP("dtls",                                                \
+            test_wolfSSL_dtls_pending_peer_app_data_pending),                  \
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id),                \
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_long_cid),       \
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_not_negotiated), \
