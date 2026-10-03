@@ -708,7 +708,8 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
-    int depth;                   /* used in X509_STORE_CTX_*_depth */
+    int depth;                   /* used in X509_STORE_CTX_*_depth: defaults
+                                    to WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH */
 #endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
