@@ -122,6 +122,7 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const WOLFSSL_INIT_SETT
 #define OPENSSL_INIT_ADD_ALL_CIPHERS    0x00000004L
 #define OPENSSL_INIT_ADD_ALL_DIGESTS    0x00000008L
 #define OPENSSL_INIT_LOAD_CONFIG        0x00000040L
+#define OPENSSL_INIT_ASYNC              0x00000100L
 
 #define OPENSSL_init_crypto wolfSSL_OPENSSL_init_crypto
 

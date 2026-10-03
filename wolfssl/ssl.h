@@ -2012,7 +2012,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
 #endif
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -2026,6 +2026,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 WOLFSSL_API int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx);
 WOLFSSL_API void* wolfSSL_sk_pop(WOLFSSL_STACK* sk);
+WOLFSSL_API void* wolfSSL_sk_delete(WOLFSSL_STACK* sk, int idx);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_ALL)
@@ -2572,6 +2573,8 @@ WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
+WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_time(
+        WOLFSSL_X509_VERIFY_PARAM *param, time_t t);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
@@ -3035,6 +3038,11 @@ enum {
     WOLFSSL_CRL_CHECKALL = 1,
     WOLFSSL_CRL_CHECK    = 2
 };
+
+/* OpenSSL values of X509_V_FLAG_CRL_CHECK(_ALL). WOLFSSL_CRL_CHECK is 0x2, the
+ * value of X509_V_FLAG_USE_CHECK_TIME. */
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK     0x4
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL 0x8
 
 /* Separated out from other enums because of size */
 enum {
@@ -3737,6 +3745,10 @@ WOLFSSL_API int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl,
 #endif /* WOLFSSL_CERT_GEN */
 WOLFSSL_API int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl,
                                      unsigned char** out);
+#ifndef NO_BIO
+WOLFSSL_API int wolfSSL_i2d_X509_CRL_bio(WOLFSSL_BIO* bio,
+                                         WOLFSSL_X509_CRL* crl);
+#endif
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 #if defined(WOLFSSL_CERT_EXT) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -6334,7 +6346,7 @@ WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_find(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, const WOLFSSL_CIPHER* toFind);
 WOLFSSL_API void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx);
 #endif

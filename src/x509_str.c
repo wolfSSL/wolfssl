@@ -2261,14 +2261,24 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
     int ret = WOLFSSL_SUCCESS;
+    int crlOpts = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_set_flags");
 
     if (store == NULL)
         return WOLFSSL_FAILURE;
 
-    if ((flag & WOLFSSL_CRL_CHECKALL) || (flag & WOLFSSL_CRL_CHECK)) {
-        ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
+    /* X509_V_FLAG_CRL_CHECK(_ALL), and the native WOLFSSL_CRL_CHECK(ALL)
+     * options for compatibility. */
+    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK | WOLFSSL_CRL_CHECK)) {
+        crlOpts |= WOLFSSL_CRL_CHECK;
+    }
+    if (flag & (WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL | WOLFSSL_CRL_CHECKALL)) {
+        crlOpts |= WOLFSSL_CRL_CHECKALL;
+    }
+
+    if (crlOpts != 0) {
+        ret = wolfSSL_CertManagerEnableCRL(store->cm, crlOpts);
     }
 #if defined(OPENSSL_COMPATIBLE_DEFAULTS)
     else if (flag == 0) {

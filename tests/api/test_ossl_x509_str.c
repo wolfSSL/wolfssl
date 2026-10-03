@@ -156,6 +156,35 @@ int test_wolfSSL_X509_STORE_check_time(void)
     wolfSSL_X509_free(ca);
     ca = NULL;
 
+    /* A CRL flag must not make verification use check_time */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL) {
+        ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+                            SSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+        ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(srvCertFile,
+                        SSL_FILETYPE_PEM));
+        ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL),
+                    WOLFSSL_SUCCESS);
+        if (ctx != NULL) {
+            ctx->param->check_time = (time_t)959320800;
+            ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(ctx->param,
+                WOLFSSL_X509_V_FLAG_CRL_CHECK), WOLFSSL_SUCCESS);
+            ExpectIntEQ(ctx->param->flags & WOLFSSL_USE_CHECK_TIME, 0);
+        }
+        ret = wolfSSL_X509_verify_cert(ctx);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        wolfSSL_X509_STORE_CTX_free(ctx);
+        ctx = NULL;
+    }
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
+    wolfSSL_X509_free(cert);
+    cert = NULL;
+    wolfSSL_X509_free(ca);
+    ca = NULL;
+
     /* Test WOLFSSL_NO_CHECK_TIME flag with expired certificate */
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
     if (store != NULL) {
@@ -3015,6 +3044,16 @@ int test_wolfSSL_X509_STORE_set_flags(void)
    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509_STORE* store = NULL;
     X509* x509 = NULL;
+#ifdef HAVE_CRL
+    X509_STORE_CTX* storeCtx = NULL;
+    X509* ca = NULL;
+    int err = 0;
+#endif
+
+    /* The CRL flags must not share bits with the other verify flags */
+    ExpectIntEQ((X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL) &
+        (X509_V_FLAG_USE_CHECK_TIME | X509_V_FLAG_NO_CHECK_TIME |
+         X509_V_FLAG_PARTIAL_CHAIN), 0);
 
     ExpectNotNull((store = wolfSSL_X509_STORE_new()));
     ExpectNotNull((x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
@@ -3024,13 +3063,41 @@ int test_wolfSSL_X509_STORE_set_flags(void)
 #ifdef HAVE_CRL
     ExpectIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK_ALL),
+        WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
         WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
+
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
+
+#ifdef HAVE_CRL
+    /* X509_V_FLAG_CRL_CHECK turns on CRL checks. No CRL is loaded. */
+    ExpectNotNull((store = wolfSSL_X509_STORE_new()));
+    ExpectNotNull((ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM)));
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull((storeCtx = X509_STORE_CTX_new()));
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, x509, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), WOLFSSL_SUCCESS);
+    err = X509_STORE_CTX_get_error(storeCtx);
+    ExpectTrue((err == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL) ||
+               (err == WC_NO_ERR_TRACE(CRL_MISSING)));
+    X509_STORE_CTX_free(storeCtx);
+    wolfSSL_X509_free(ca);
+    wolfSSL_X509_STORE_free(store);
 #endif
 
     wolfSSL_X509_free(x509);
-    wolfSSL_X509_STORE_free(store);
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) &&
         * !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
     return EXPECT_RESULT();
