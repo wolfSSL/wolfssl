@@ -5856,6 +5856,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
         ssl->options.hrrSentKeyShare = 0;
         ssl->options.sentChangeCipher = 0;
+        ssl->options.ccsIgnoredCount = 0;
         /* Matches InitSSL_Tls13Options(); the server clears it again when the
          * next ClientHello carries an empty session id. */
         ssl->options.tls13MiddleBoxCompat = 1;
