@@ -21504,7 +21504,13 @@ static int _DtlsCheckWindow(WOLFSSL* ssl)
     }
     else {
         curLT = cur_hi < next_hi;
-        diff = curLT ? cur_lo - next_lo : next_lo - cur_lo;
+        /* only a low word crossing the 2^32 boundary can be inside window */
+        if (curLT) {
+            diff = (cur_lo > next_lo) ? next_lo - cur_lo : 0xFFFFFFFFU;
+        }
+        else {
+            diff = (next_lo > cur_lo) ? cur_lo - next_lo : 0xFFFFFFFFU;
+        }
     }
 
     /* Check to see that the next value is greater than the number of messages
