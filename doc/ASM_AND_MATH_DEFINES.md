@@ -420,6 +420,8 @@ kernel-module builds, `WC_C_DYNAMIC_FALLBACK` keeps a C path available.
 | `WOLFSSL_ARMASM_INLINE` | Use the `*_asm_c.c` inline-assembly variants instead of the `.S` files. Needed when the toolchain will not assemble `.S`, and used for FIPS on ARMv7. |
 | `WOLFSSL_ARMASM_NO_HW_CRYPTO` | No ARMv8 Crypto Extensions (no AES/SHA instructions) |
 | `WOLFSSL_ARMASM_NO_NEON` | No NEON |
+| `WOLFSSL_ARMASM_SHA512_NO_NEON` | 32-bit Arm: SHA-512 uses its scalar body; implied by `WOLFSSL_ARMASM_NO_NEON` |
+| `WOLFSSL_ARMASM_SHA3_NO_NEON` | 32-bit Arm: SHA-3 uses its scalar body; implied by `WOLFSSL_ARMASM_NO_NEON` |
 | `WOLFSSL_ARMASM_THUMB2` | Thumb-2 encoding (Cortex-M, ARMv7-M) |
 | `WOLFSSL_ARM_ARCH=<n>` | Architecture level: `4`, `6`, `7`… Gates instruction availability. |
 | `WOLFSSL_AARCH64_BUILD` | Aarch64 target |

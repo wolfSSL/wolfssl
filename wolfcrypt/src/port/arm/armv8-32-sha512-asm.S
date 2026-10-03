@@ -34,7 +34,7 @@
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
-#ifdef WOLFSSL_ARMASM_NO_NEON
+#ifdef WOLFSSL_ARMASM_SHA512_NO_NEON
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_len_k, %object
@@ -7509,8 +7509,8 @@ L_SHA512_transform_len_start:
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	Transform_Sha512_Len_base,.-Transform_Sha512_Len_base
-#endif /* WOLFSSL_ARMASM_NO_NEON */
-#ifndef WOLFSSL_ARMASM_NO_NEON
+#endif /* WOLFSSL_ARMASM_SHA512_NO_NEON */
+#ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_neon_len_k, %object
@@ -9063,7 +9063,7 @@ L_SHA512_transform_neon_len_start:
 	vpop	{d8-d15}
 	bx	lr
 	.size	Transform_Sha512_Len_neon,.-Transform_Sha512_Len_neon
-#endif /* !WOLFSSL_ARMASM_NO_NEON */
+#endif /* !WOLFSSL_ARMASM_SHA512_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 
 #if defined(__linux__) && defined(__ELF__)

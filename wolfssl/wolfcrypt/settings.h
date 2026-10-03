@@ -4925,6 +4925,41 @@
     #define WOLFSSL_CURVE25519_BLINDING
 #endif
 
+#if ((defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)) || \
+     defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
+    defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2)
+    /* One AES and one SHA-256 per build, nothing picked at run time; the asm
+     * files still keep the body a no-crypto or no-NEON build needs. */
+    #ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
+        #define WOLFSSL_ARMASM_NO_BASE_IMPL
+    #endif
+    #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+        !defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
+        #define WOLFSSL_ARMASM_NO_NEON_IMPL
+    #endif
+    /* The kernel module's DRBG runs SHA-512, and reseeds through wolfEntropy's
+     * SHA-3, from hardirq, where NEON is never usable. */
+    #ifdef WOLFSSL_LINUXKM
+        #ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
+            #define WOLFSSL_ARMASM_SHA512_NO_NEON
+        #endif
+        #ifndef WOLFSSL_ARMASM_SHA3_NO_NEON
+            #define WOLFSSL_ARMASM_SHA3_NO_NEON
+        #endif
+    #endif
+#endif
+
+/* WOLFSSL_ARMASM_NO_NEON drops every NEON body, SHA-512's and SHA-3's too. */
+#ifdef WOLFSSL_ARMASM_NO_NEON
+    #ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
+        #define WOLFSSL_ARMASM_SHA512_NO_NEON
+    #endif
+    #ifndef WOLFSSL_ARMASM_SHA3_NO_NEON
+        #define WOLFSSL_ARMASM_SHA3_NO_NEON
+    #endif
+#endif
+
 /* curve25519/ed25519 implementation selection.
  *
  * These are derived here rather than in fe_operations.h because the generated

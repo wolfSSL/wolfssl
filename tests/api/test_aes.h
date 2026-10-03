@@ -59,6 +59,7 @@ int test_wc_AesGcmStream(void);
 int test_wc_AesGcmStream_MidStreamState(void);
 int test_wc_AesGcmStream_ReinitAfterFinal(void);
 int test_wc_AesGcmStream_BadAuthTag(void);
+int test_wc_AesGcmDecrypt_WipeOnAuthFail(void);
 int test_wc_AesKeyWrapVectors(void);
 int test_wc_AesKeyWrapDecisionCoverage(void);
 int test_wc_AesGcmDecisionCoverage(void);
@@ -88,6 +89,9 @@ int test_wc_AesXtsEncryptDecryptSector(void);
 int test_wc_AesXtsStream(void);
 int test_wc_AesXtsStream_MidStreamState(void);
 int test_wc_AesXtsStream_ReinitAfterFinal(void);
+int test_wc_AesXtsStream_CounterOverflow(void);
+int test_wc_AesUnalignedBuffers(void);
+int test_wc_AesXtsDataUnitLimit(void);
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int test_wc_AesEaxVectors(void);
@@ -222,6 +226,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_MidStreamState),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_ReinitAfterFinal), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_BadAuthTag),       \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmDecrypt_WipeOnAuthFail),    \
     TEST_DECL_GROUP("aes", test_wc_AesKeyWrapVectors),          \
     TEST_DECL_GROUP("aes", test_wc_AesKeyWrapDecisionCoverage), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmDecisionCoverage),     \
@@ -248,6 +253,9 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream),                   \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_MidStreamState),     \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_ReinitAfterFinal),  \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsStream_CounterOverflow),   \
+    TEST_DECL_GROUP("aes", test_wc_AesUnalignedBuffers),           \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsDataUnitLimit),            \
     TEST_DECL_GROUP("aes", test_wc_AesCbc_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCtr_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_MonteCarlo),    \
