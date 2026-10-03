@@ -125,6 +125,7 @@ int test_wolfSSL_mcast_read(void);
 int test_wolfSSL_dtls_got_timeout(void);
 int test_wolfSSL_DTLS_SetCookieSecret(void);
 int test_wolfSSL_set_secret(void);
+int test_wolfSSL_mcast_ccs_peer_entry(void);
 
 /* DTLS tests moved out of tests/api.c. */
 int test_dtls_msg_from_other_peer(void);
@@ -348,6 +349,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_got_timeout),                \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_SetCookieSecret),            \
         TEST_DECL_GROUP("dtls", test_wolfSSL_set_secret),                      \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_ccs_peer_entry),            \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary),          \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_dropped),  \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_cleared),  \

@@ -14590,8 +14590,9 @@ int SessionTicketNoncePopulate(WOLFSSL_SESSION *session, const byte *nonce,
  *
  * ssl       The SSL/TLS object.
  * input     The message buffer.
- * inOutIdx  On entry, the index into the message buffer of Finished.
- *           On exit, the index of byte after the Finished message and padding.
+ * inOutIdx  On entry, the index into the message buffer of NewSessionTicket.
+ *           On exit, the index of byte after the NewSessionTicket message.
+ *           Record padding is skipped by the caller.
  * size      The length of the current handshake message.
  * returns 0 on success, otherwise failure.
  */
@@ -14619,7 +14620,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     /* ignore session ticket when ECH is rejected */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
             !ssl->options.echAccepted) {
-        *inOutIdx += size + ssl->keys.padSz;
+        *inOutIdx += size;
         return 0;
     }
 #endif

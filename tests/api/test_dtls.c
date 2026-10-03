@@ -13286,6 +13286,64 @@ int test_wolfSSL_set_secret(void)
     return EXPECT_RESULT();
 }
 
+/* A multicast ChangeCipherSpec updates the sending peer's entry. */
+int test_wolfSSL_mcast_ccs_peer_entry(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    WOLFSSL_DTLS_PEERSEQ_SZ > 1
+    /* Plaintext ChangeCipherSpec, epoch 0, from multicast peer 0. */
+    const byte ccs[] = {
+        change_cipher_spec, DTLS_MAJOR, DTLSv1_2_MINOR,
+        0x00, 0x00,                         /* epoch */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* peer id, sequence number */
+        0x00, 0x01,                         /* length */
+        0x01
+    };
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_DTLS_PEERSEQ* peer = NULL;
+    int i;
+    byte buf[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 1), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 0, 0), WOLFSSL_SUCCESS);
+    for (i = 0; ssl != NULL && i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+        if (ssl->keys.peerSeq[i].peerId == 0)
+            peer = &ssl->keys.peerSeq[i];
+    }
+    ExpectNotNull(peer);
+    /* The last free entry handed out is not entry 0. */
+    ExpectPtrNE(peer, &ssl->keys.peerSeq[0]);
+
+    if (EXPECT_SUCCESS()) {
+        ssl->msgsReceived.got_server_hello = 1;
+        ssl->msgsReceived.got_server_hello_done = 1;
+        ssl->options.dtlsHsRetain = 1;
+        wolfSSL_SSLSetIORecv(ssl, test_memio_read_cb);
+        wolfSSL_SetIOReadCtx(ssl, &test_ctx);
+    }
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)ccs,
+        (int)sizeof(ccs)), 0);
+    (void)wolfSSL_read(ssl, buf, (int)sizeof(buf));
+
+    if (peer != NULL)
+        ExpectIntEQ(peer->nextEpoch, 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /* ---------------------------------------------------------------------------
  * DTLS handshakes corrupted, replayed, dropped and reordered in flight.
