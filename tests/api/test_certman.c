@@ -2155,6 +2155,51 @@ int test_wolfSSL_X509_get_ext_d2i_RID_SAN(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_get_ext_d2i_bundleEID_SAN(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(WOLFSSL_DTN) && \
+    defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+    /* An id-on-bundleEID OtherName is stored with its oidSum set, so the SAN
+     * getters must map that OID back to its encoded form. Without a mapping
+     * the conversion fails and the whole SAN list - including the dNSName
+     * beside it - is lost. */
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_STACK *altNames = NULL;
+    WOLFSSL_GENERAL_NAME *gn = NULL;
+    int foundOther = 0;
+    int foundDns = 0;
+    int i;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+                "./certs/bundle-eid-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull(altNames = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+                NID_subject_alt_name, NULL, NULL));
+    if (altNames != NULL) {
+        for (i = 0; i < wolfSSL_sk_num(altNames); i++) {
+            gn = (WOLFSSL_GENERAL_NAME*)wolfSSL_sk_value(altNames, i);
+            if (gn == NULL) {
+                continue;
+            }
+            if (gn->type == ASN_OTHER_TYPE) {
+                ExpectNotNull(gn->d.otherName);
+                foundOther = 1;
+            }
+            else if (gn->type == ASN_DNS_TYPE) {
+                foundDns = 1;
+            }
+        }
+        wolfSSL_sk_pop_free(altNames,
+                (void (*)(void*))wolfSSL_GENERAL_NAME_free);
+    }
+    ExpectIntEQ(foundOther, 1);
+    ExpectIntEQ(foundDns, 1);
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void)
 {
     EXPECT_DECLS;
@@ -2309,6 +2354,44 @@ int test_wolfSSL_X509_check_host_URI_SAN_not_DNS_match(void)
     wolfSSL_X509_free(leafUri);
     wolfSSL_X509_free(leafUriDns);
     wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_check_host_otherName_SAN_not_DNS_match(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_FPKI) && !defined(NO_RSA)
+    /* RFC 9525 Sec. 6.3: a DNS-ID reference identifier is matched only
+     * against dNSName SANs. An otherName holds a type-specific identifier
+     * (UPN, FASC-N, bundleEID, ...), not a host name, so its value must not
+     * satisfy a host name check.
+     *
+     * certs/fpki-cert.der carries a UPN OtherName whose value is
+     * "facts@wolfssl.com"; that value reached the host name matcher. */
+    WOLFSSL_X509 *x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+                "./certs/fpki-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, "facts@wolfssl.com",
+                XSTRLEN("facts@wolfssl.com"), 0, NULL),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+#if defined(WOLFSSL_DTN) && defined(HAVE_ECC)
+    /* Likewise for an id-on-bundleEID OtherName value, while a dNSName
+     * sharing the same SAN must still match. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+                "./certs/bundle-eid-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, "dtn://node000/",
+                XSTRLEN("dtn://node000/"), 0, NULL),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, "node000.local",
+                XSTRLEN("node000.local"), 0, NULL), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+#endif
 #endif
     return EXPECT_RESULT();
 }
