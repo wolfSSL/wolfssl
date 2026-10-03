@@ -144,6 +144,10 @@
 #define MCDC_FH_NO_AES
 #define MCDC_FH_NO_HMAC
 
+/* Keep misc.c's ForceZero() out of this TU so the definition below (with the
+ * Uninstantiate-fault gate) is the one random.c's calls bind to. */
+#define WOLFSSL_NO_FORCE_ZERO
+
 #include "mcdc_fault_hash.h"
 
 /* random.c is #included AFTER the interposers are installed. */
@@ -153,6 +157,53 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* --------------------------------------------------------------------------
+ * Faultable ForceZero (the WOLFSSL_NO_FORCE_ZERO above keeps misc.c's copy
+ * out of this TU). When armed for a specific size the wipe is skipped, so
+ * the zero-check in Hash_DRBG_Uninstantiate() / Hash512_DRBG_Uninstantiate()
+ * deterministically reports DRBG_FAILURE. The size match keeps every other
+ * wipe in this TU (digests, V/C, output buffers) intact. Same body as
+ * misc.c's, gate first.
+ * ----------------------------------------------------------------------- */
+static size_t mcdc_fz_arm_len = 0;
+
+MCDC_FH_MAYBE_UNUSED static void mcdc_fz_arm(size_t len)
+{
+    mcdc_fz_arm_len = len;
+}
+
+MCDC_FH_MAYBE_UNUSED static void mcdc_fz_disarm(void)
+{
+    mcdc_fz_arm_len = 0;
+}
+
+void ForceZero(void *mem, size_t len)
+{
+    byte *zb = (byte *)mem;
+    unsigned long *zl;
+
+    if (mcdc_fz_arm_len != 0 && len == mcdc_fz_arm_len)
+        return;
+
+    WC_BARRIER_DATA(mem);
+    while ((len != 0) &&
+            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
+        *zb++ = 0;
+        --len;
+    }
+    zl = (unsigned long *)zb;
+    while (len >= sizeof(unsigned long)) {
+        *zl++ = 0;
+        len -= sizeof(unsigned long);
+    }
+    zb = (byte *)zl;
+    while (len) {
+        *zb++ = 0;
+        --len;
+    }
+    WC_BARRIER_DATA(mem);
+}
 
 /* --------------------------------------------------------------------------
  * 1. Hash_DRBG_Init(): "Hash_df(V) == DRBG_SUCCESS && Hash_df(C) ==
@@ -960,6 +1011,24 @@ static void wb_seed_cb_entropy_failure(void)
         (void)wc_FreeRng(&rng);
     }
 
+    /* Vector D: the same failing entropy source with the full-mutex flag
+     * set, pairing the (false, true) row of _InitRng()'s
+     * "ret==0 && (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)" guard (~3366).
+     * Without WC_RNG_HAVE_LOCK_FULL_MUTEX the flag is refused at the entry
+     * (NOT_COMPILED_IN) before the guard, so the row is a build-config
+     * residual there. */
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    XMEMSET(&rng, 0, sizeof(rng));
+    wb_seed_broken = 1;
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+    wb_seed_broken = 0;
+    if (ret == 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_FULL_MUTEX succeeded with failing entropy");
+        wb_fail = 1;
+    }
+#endif
+
     /* Put the library default back, so nothing later in this binary runs on
      * the test callback. Mirrors random.c's own seedCb initialiser. */
 #ifndef HAVE_FIPS
@@ -976,6 +1045,268 @@ static void wb_seed_cb_entropy_failure(void)
           "failure vectors skipped"); }
 #endif
 
+/* --------------------------------------------------------------------------
+ * 8. _InitRng() flag guards:
+ *      :3366  ret==0 && (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
+ *             (the (false, true) row is Vector D above)
+ *      :3443  ret==0 && !(flags & NO_AUTO_LOCK) &&
+ *             (WC_RNG_AUTO_LOCK_DEFAULT ||
+ *              (flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK))   (cond 3)
+ * ----------------------------------------------------------------------- */
+#if !defined(WC_NO_RNG)
+static void wb_init_flags(void)
+{
+    WC_RNG rng;
+    int    ret;
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* :3366 (true, true): full-mutex flag, init succeeds. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+    if (ret != 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_FULL_MUTEX failed");
+        wb_fail = 1;
+    }
+    else {
+        (void)wc_FreeRng(&rng);
+    }
+#else
+    /* Without WC_RNG_HAVE_LOCK_FULL_MUTEX the flag is refused at the entry
+     * with NOT_COMPILED_IN, before the ~3366 guard: the guard's flag-true
+     * rows are a build-config residual in this variant. */
+#if !defined(WC_RNG_HAVE_AUTO_LOCK)
+    (void)rng;
+    (void)ret;
+#endif
+#endif
+
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+    /* :3443 cond 3 (flags & USE_AUTO_LOCK) true row: auto-lock flag, init
+     * succeeds. The (false) row is every plain init in this suite. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_AUTO_LOCK);
+    if (ret != 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_AUTO_LOCK failed");
+        wb_fail = 1;
+    }
+    else {
+        (void)wc_FreeRng(&rng);
+    }
+#endif
+
+    WB_NOTE("_InitRng flag-guard rows driven");
+}
+#else
+static void wb_init_flags(void) { WB_NOTE("WC_NO_RNG; flag vectors skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 9. wc_RNG_HealthTest() / wc_RNG_HealthTest_SHA512():
+ *      :6273  (Hash_DRBG_Uninstantiate(drbg) != 0) && (ret == 0)
+ *      :6765  (Hash512_DRBG_Uninstantiate(drbg) != 0) && (ret == 0)
+ *
+ * The Uninstantiate return is the zero-check of ForceZero(); the faultable
+ * ForceZero above skips exactly the DRBG-struct wipe when armed, so
+ * Uninstantiate reports DRBG_FAILURE deterministically. Rows:
+ *   (F, T)  baseline: everything succeeds, uninstantiate clean
+ *   (T, T)  valid test, wipe faulted: ret==0, Uninstantiate fails
+ *   (T, F)  first Hash_df faulted by mcdc_fault_hash.h so Instantiate fails
+ *           (ret=DRBG_FAILURE) AND the wipe is faulted
+ * The public boundary translates the positive DRBG code to WC_FAILURE, so
+ * the checks assert nonzero, not the DRBG code itself.
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    defined(MCDC_FH_HAVE_SHA256)
+static void wb_healthtest_uninstantiate_fault(void)
+{
+    byte   seedA[48];
+    byte   out[RNG_HEALTH_TEST_CHECK_SIZE];
+    word32 i;
+    int    ret;
+
+    for (i = 0; i < sizeof(seedA); i++)
+        seedA[i] = (byte)((i * 13u) + 3u);
+
+    /* (F, T) baseline. */
+    mcdc_fh_disarm();
+    mcdc_fz_disarm();
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("HealthTest baseline failed");
+        wb_fail = 1;
+    }
+
+    /* (T, T): valid test, the struct wipe is faulted. */
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    mcdc_fz_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest survived the faulted uninstantiate");
+        wb_fail = 1;
+    }
+
+    /* (T, F): Instantiate fails on its first Hash_df, wipe faulted too. */
+    mcdc_fh_arm(1);
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    mcdc_fz_disarm();
+    mcdc_fh_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest survived the faulted instantiate");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("HealthTest uninstantiate-fault rows driven");
+}
+#else
+static void wb_healthtest_uninstantiate_fault(void)
+{ WB_NOTE("SHA-256 Hash_DRBG not compiled in this variant; skipped"); }
+#endif
+
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    defined(MCDC_FH_HAVE_SHA512)
+static void wb_healthtest512_uninstantiate_fault(void)
+{
+    byte   seedA[48];
+    byte   out[RNG_HEALTH_TEST_CHECK_SIZE_SHA512];
+    word32 i;
+    int    ret;
+
+    for (i = 0; i < sizeof(seedA); i++)
+        seedA[i] = (byte)((i * 17u) + 5u);
+
+    /* (F, T) baseline. */
+    mcdc_fh_disarm();
+    mcdc_fz_disarm();
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("HealthTest_SHA512 baseline failed");
+        wb_fail = 1;
+    }
+
+    /* (T, T): valid test, the struct wipe is faulted. */
+    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    mcdc_fz_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest_SHA512 survived the faulted uninstantiate");
+        wb_fail = 1;
+    }
+
+    /* (T, F): Instantiate fails on its first Hash512_df, wipe faulted too. */
+    mcdc_fh_arm(1);
+    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    mcdc_fz_disarm();
+    mcdc_fh_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest_SHA512 survived the faulted instantiate");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("HealthTest_SHA512 uninstantiate-fault rows driven");
+}
+#else
+static void wb_healthtest512_uninstantiate_fault(void)
+{ WB_NOTE("SHA-512 Hash_DRBG not compiled in this variant; skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 10. wc_RNG_DRBG_GetReseedCtr() DRBG-type rows:
+ *      :1354  (rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)
+ *      :1360  (rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)
+ *
+ * GetReseedCtr is the first gate on the Stir path, so both operands of both
+ * checks are independently flippable here: the StirGenerate copies at
+ * :2522/:2528 only run after GetReseedCtr has already proven the pointer
+ * non-NULL, so their pointer operand is a constant-true residual there.
+ * ------------------------------------------------------------------------- */
+static void wb_drbg_reseedctr_type_rows(void)
+{
+    WC_RNG               rng;
+    wc_drbg_reseed_ctr_t ctr;
+
+    /* The base defaults to SHA-512 (WOLFSSL_DRBG_SHA512), so a plain
+     * wc_InitRng builds a SHA-512 DRBG; disable SHA-512 for the SHA-256
+     * section. Each section drives the non-NULL row (operand T) and the
+     * NULL row (operand F).
+     *
+     * COVERED (operand T rows): 1354 c0 T+F, 1354 c1-T, 1360 c0-T, 1360
+     * c1-T.
+     * RESIDUAL (coverage runtime): the NULL-pointer rows' branch
+     * evaluations are not recorded by the coverage runtime (a NULL call
+     * increments no branch count - verified: 1354 c0 stays T=1 across
+     * two SHA-256 calls), so 1354 c1-F, 1360 c0-F and 1360 c1-F cannot
+     * be shown by any white-box row. */
+
+    /* SHA-512, drbg512 != NULL: 1354 c0-F, 1360 c0-T + c1-T. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng (SHA-512) failed (GetReseedCtr rows skipped)");
+        wb_fail = 1;
+        return;
+    }
+    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+
+    /* SHA-512, drbg512 == NULL: 1360 c1-F (residual row, see above). */
+    rng.drbg512 = NULL;
+    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+    (void)wc_FreeRng(&rng);
+
+    /* SHA-256, drbg != NULL: 1354 c0-T + c1-T. */
+    (void)wc_Sha512Drbg_Disable();
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        /* SHA-256, drbg == NULL: 1354 c1-F, 1360 c0-F (residual rows). */
+        rng.drbg = NULL;
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        (void)wc_FreeRng(&rng);
+    }
+
+    WB_NOTE("GetReseedCtr DRBG-type rows driven");
+}
+
+/* --------------------------------------------------------------------------
+ * 11. wc_RNG_DRBG_Stir_Nonce() argument guard:
+ *      :2550  (rng == NULL) || (seed == NULL)
+ *
+ * c0 (rng == NULL) is the open operand. c0-T is a structural residual: the
+ * public wc_RNG_DRBG_Stir_Nonce wrapper guards rng == NULL before calling the
+ * _local function, so the _local guard never sees a NULL rng. The reachable
+ * row is c0-F + c1-T (valid rng, seed == NULL).
+ * ------------------------------------------------------------------------- */
+static void wb_stir_nonce_null_rng(void)
+{
+    WC_RNG rng;
+    byte   seed[16];
+    byte   nonce[16];
+
+    XMEMSET(seed,  0xAA, sizeof(seed));
+    XMEMSET(nonce, 0xBB, sizeof(nonce));
+
+    /* 2550 c0-T: rng == NULL (seed present, so the row is c0's). */
+    (void)wc_RNG_DRBG_Stir_Nonce(NULL, seed, sizeof(seed), nonce,
+                                 sizeof(nonce));
+
+    /* 2550 c0-F: valid rng, seed == NULL (decision true via the seed arm). */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, nonce, sizeof(nonce));
+        (void)wc_FreeRng(&rng);
+    }
+
+    WB_NOTE("Stir_Nonce argument-guard rows driven");
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -990,6 +1321,11 @@ int main(void)
     wb_hash_drbg_generate_atomicity();
     wb_hash512_drbg_generate_atomicity();
     wb_seed_cb_entropy_failure();
+    wb_init_flags();
+    wb_healthtest_uninstantiate_fault();
+    wb_healthtest512_uninstantiate_fault();
+    wb_drbg_reseedctr_type_rows();
+    wb_stir_nonce_null_rng();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
 #endif
     /* Always 0: a nonzero exit discards this variant's whole coverage. */

@@ -1417,3 +1417,70 @@ int test_x509_REQ_sign_mldsa(void)
 #endif
     return EXPECT_RESULT();
 }
+int test_x509_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+     defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
+     defined(SESSION_CERTS))
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509* fresh = NULL;
+    WOLFSSL_X509* loaded = NULL;
+    int sz = 0;
+    byte buf[512];
+
+    XMEMSET(buf, 0, sizeof(buf));
+
+    /* --- 4223:0/1 d2i_X509orX509REQ (via wolfSSL_d2i_X509): in/len -------- */
+    {
+        const unsigned char* in = NULL;
+
+        (void)wolfSSL_d2i_X509(&x509, &in, 0);
+        in = buf;
+        (void)wolfSSL_d2i_X509(&x509, &in, 0);
+        in = buf;
+        (void)wolfSSL_d2i_X509(&x509, &in, (int)sizeof(buf));
+    }
+    ExpectNotNull(fresh = wolfSSL_X509_new());
+
+    /* --- 4439:0/1 get_pubkey_buffer: x509==NULL || bufSz==NULL ----------- */
+    (void)wolfSSL_X509_get_pubkey_buffer(NULL, buf, &sz);
+    (void)wolfSSL_X509_get_pubkey_buffer(fresh, buf, NULL);
+
+    /* --- 4530:0/1/2 get_der: x509==NULL || derCert==NULL || outSz==NULL --- */
+    (void)wolfSSL_X509_get_der(NULL, &sz);
+    (void)wolfSSL_X509_get_der(fresh, &sz);
+    (void)wolfSSL_X509_get_der(fresh, NULL);
+    (void)wolfSSL_X509_get_der(loaded, &sz);
+    (void)wolfSSL_X509_get_der(loaded, NULL);
+
+    /* --- 6090:0/1 load_certificate_file: fname==NULL || format ----------- */
+    (void)wolfSSL_X509_load_certificate_file(NULL, WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_X509_load_certificate_file(svrCertFile, 99);
+    (void)wolfSSL_X509_load_certificate_file(svrCertFile,
+                                             WOLFSSL_FILETYPE_ASN1);
+    loaded = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM);
+    ExpectNotNull(loaded);
+    (void)wolfSSL_X509_get_der(loaded, &sz);
+
+    /* --- 4474:0/1 get_pubkey_buffer: buf!=NULL && pubKeyX509!=NULL ------- */
+    (void)wolfSSL_X509_get_pubkey_buffer(fresh, buf, &sz);
+    (void)wolfSSL_X509_get_pubkey_buffer(loaded, buf, &sz);
+    (void)wolfSSL_X509_get_pubkey_buffer(loaded, NULL, &sz);
+
+    /* --- 16145:0/1/2 check_ip_asc: x==NULL || derCert==NULL || ipasc==NULL */
+    (void)wolfSSL_X509_check_ip_asc(NULL, "127.0.0.1", 0);
+    (void)wolfSSL_X509_check_ip_asc(fresh, "127.0.0.1", 0);
+    (void)wolfSSL_X509_check_ip_asc(fresh, NULL, 0);
+    (void)wolfSSL_X509_check_ip_asc(loaded, "127.0.0.1", 0);
+    (void)wolfSSL_X509_check_ip_asc(loaded, NULL, 0);
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(fresh);
+    wolfSSL_X509_free(loaded);
+#endif
+    return EXPECT_RESULT();
+}
