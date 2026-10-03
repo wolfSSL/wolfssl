@@ -66,6 +66,8 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
+ * WOLF_CRYPTO_CB_ONLY_LMS: Use only callbacks for LMS/HSS     default: off
+ * WOLF_CRYPTO_CB_ONLY_XMSS: Use only callbacks for XMSS       default: off
  * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
  *                      as well as update and final. Off by
  *                      default because a callback that predates
@@ -1922,9 +1924,12 @@ int wc_CryptoCb_PqcStatefulSigKeyGen(int type, void* key, WC_RNG* rng)
     if (key == NULL)
         return ret;
 
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
@@ -1952,9 +1957,12 @@ int wc_CryptoCb_PqcStatefulSigSign(const byte* msg, word32 msgSz, byte* out,
     if (key == NULL)
         return ret;
 
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
@@ -1985,9 +1993,12 @@ int wc_CryptoCb_PqcStatefulSigVerify(const byte* sig, word32 sigSz,
     if (key == NULL)
         return ret;
 
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
@@ -2018,9 +2029,12 @@ int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key, word32* sigsLeft)
     if (key == NULL)
         return ret;
 
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
