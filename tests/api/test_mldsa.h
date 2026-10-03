@@ -38,6 +38,7 @@ int test_mldsa_public_der_decode(void);
 int test_mldsa_der(void);
 int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
+int test_mldsa_make_key_twice(void);
 int test_mldsa_sig_kats(void);
 int test_mldsa_sign_ctx_kats(void);
 int test_mldsa_verify_ctx_kats(void);
@@ -72,6 +73,7 @@ int test_mldsa_cb_free(void);
 
 int test_wc_MlDsaKey_seed_service_indicator(void);
 int test_wc_MlDsaKey_SetPrecompA(void);
+int test_mldsa_make_key_rej_ntt_fail(void);
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_pubonly_fails),                   \
@@ -84,6 +86,7 @@ int test_wc_MlDsaKey_SetPrecompA(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_der),                                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_oneasymkey_version),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_twice),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_sig_kats),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_ctx_kats),                        \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_ctx_kats),                      \
@@ -105,6 +108,7 @@ int test_wc_MlDsaKey_SetPrecompA(void);
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_seed_service_indicator),         \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage),                \
     TEST_DECL_GROUP("mldsa", test_mldsa_cb_free),                              \
-    TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA)
+    TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA),                    \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_key_rej_ntt_fail)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */
