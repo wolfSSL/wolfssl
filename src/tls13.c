@@ -10575,37 +10575,37 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
     return isSha1;
 }
 
-/* Certificate is self signed. RFC 8446 Section 4.4.2.2: "Certificates that are
+/* Certificate is self issued. RFC 8446 Section 4.4.2.2: "Certificates that are
  * self-signed or certificates that are expected to be trust anchors are not
  * validated as part of the chain and therefore MAY be signed with any
  * algorithm."
  *
- * DecodedCert.selfSigned is an issuer/subject name hash compare rather than a
- * verified self-signature, which is enough here: the chain is the one this end
- * was configured with, not one an attacker supplies.
+ * The rule is applied to self-issued certificates (issuer name equals subject
+ * name), which is enough here: the chain is the one this end was configured
+ * with, not one an attacker supplies.
  *
  * The certificate is parsed as CA_TYPE rather than CERT_TYPE so a trust anchor
  * carrying serial number 0 still decodes. ParseCertRelative() rejects a zero
  * serial for CERT_TYPE, and legacy roots, the certificates most likely to be
  * SHA-1 signed, are the ones that use it. With NO_VERIFY and no certificate
  * manager the serial exemption is all the type changes, and that exemption
- * still requires a self signed CA, so a leaf carrying serial 0 is reported as
- * not self signed and stays subject to the SHA-1 rule.
+ * still requires a self-issued CA, so a leaf carrying serial 0 is reported as
+ * not self issued and stays subject to the SHA-1 rule.
  *
  * ssl           The SSL/TLS object.
  * der           Buffer holding the DER encoded certificate.
  * derSz         Length of the DER encoded certificate.
- * isSelfSigned  On success, 1 when self signed, 0 otherwise. A certificate
- *               that will not parse is reported as not self signed so the
+ * isSelfIssued  On success, 1 when self issued, 0 otherwise. A certificate
+ *               that will not parse is reported as not self issued so the
  *               SHA-1 rule still applies to it.
  * returns 0 on success, MEMORY_E when the decoder cannot be allocated.
  */
-static int IsSelfSignedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
-                            int* isSelfSigned)
+static int IsSelfIssuedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
+                            int* isSelfIssued)
 {
     DecodedCert* cert;
 
-    *isSelfSigned = 0;
+    *isSelfIssued = 0;
 
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
                                  DYNAMIC_TYPE_DCERT);
@@ -10614,9 +10614,9 @@ static int IsSelfSignedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
 
     InitDecodedCert(cert, der, derSz, ssl->heap);
     if (ParseCertRelative(cert, CA_TYPE, NO_VERIFY, NULL, NULL) == 0)
-        *isSelfSigned = (cert->selfSigned != 0);
+        *isSelfIssued = (cert->selfIssued != 0);
     else
-        WOLFSSL_MSG("Cannot decode certificate, not treating as self signed");
+        WOLFSSL_MSG("Cannot decode certificate, not treating as self issued");
     FreeDecodedCert(cert);
     XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
 
@@ -10643,7 +10643,7 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
     word32 chainSz;
     word32 len;
     word32 idx = 0;
-    int    selfSigned = 0;
+    int    selfIssued = 0;
     int    ret = 0;
 
     if (ssl->options.peerSha1CertOk)
@@ -10656,11 +10656,11 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
 
     if (IsSha1SignedCert(ssl->buffers.certificate->buffer,
                          ssl->buffers.certificate->length)) {
-        ret = IsSelfSignedCert(ssl, ssl->buffers.certificate->buffer,
-                               ssl->buffers.certificate->length, &selfSigned);
+        ret = IsSelfIssuedCert(ssl, ssl->buffers.certificate->buffer,
+                               ssl->buffers.certificate->length, &selfIssued);
         if (ret != 0)
             return ret;
-        if (!selfSigned)
+        if (!selfIssued)
             ret = MATCH_SUITE_ERROR;
     }
 
@@ -10684,10 +10684,10 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
             len -= CERT_HEADER_SZ;
 
             if (IsSha1SignedCert(cur, len)) {
-                ret = IsSelfSignedCert(ssl, cur, len, &selfSigned);
+                ret = IsSelfIssuedCert(ssl, cur, len, &selfIssued);
                 if (ret != 0)
                     return ret;
-                if (!selfSigned)
+                if (!selfIssued)
                     ret = MATCH_SUITE_ERROR;
             }
         }
