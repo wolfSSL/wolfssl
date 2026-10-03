@@ -715,6 +715,58 @@ int test_wolfSSL_inject_app_data_ready(void)
     return EXPECT_RESULT();
 }
 
+/* Deliver a buffered application record before reading the next record. */
+int test_wolfSSL_inject_coalesced_read(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte first[32];
+    byte second[4096];
+    byte received[sizeof(first)];
+    int firstRecordSz;
+
+    XMEMSET(first, 0x41, sizeof(first));
+    XMEMSET(second, 0x42, sizeof(second));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, first, sizeof(first)), sizeof(first));
+    ExpectIntEQ(wolfSSL_write(ssl_s, second, sizeof(second)), sizeof(second));
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (test_ctx.c_len <= RECORD_HEADER_SZ)
+        goto cleanup;
+    /* The record length occupies the final two header bytes. */
+    firstRecordSz = RECORD_HEADER_SZ +
+        ((int)test_ctx.c_buff[RECORD_HEADER_SZ - 2] << 8) +
+        (int)test_ctx.c_buff[RECORD_HEADER_SZ - 1];
+    ExpectIntGT(test_ctx.c_len, firstRecordSz + RECORD_HEADER_SZ);
+    if (test_ctx.c_len <= firstRecordSz + RECORD_HEADER_SZ)
+        goto cleanup;
+    ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
+        firstRecordSz + RECORD_HEADER_SZ), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(wolfSSL_read(ssl_c, received, sizeof(received)),
+        sizeof(received));
+    ExpectBufEQ(received, first, sizeof(first));
+
+cleanup:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /* QUIC secret callback. Only send_alert below matters to this test.
