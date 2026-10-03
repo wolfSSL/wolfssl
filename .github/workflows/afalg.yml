@@ -82,8 +82,8 @@ jobs:
           done
           if [ -n "$missing" ]; then
             grep -rn 'algif_' /etc/modprobe.d /lib/modprobe.d || true
-            sudo apt-get update -qq || true
-            sudo apt-get install -y "linux-modules-extra-$(uname -r)" || true
+            .github/scripts/apt-install.sh --tries 2 --warn-only \
+              --drop-vendor-sources "linux-modules-extra-$(uname -r)" || true
             for m in $missing; do
               if sudo modprobe --ignore-install "$m"; then
                 echo "modprobe $m: ok after modules-extra"
