@@ -70,11 +70,11 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \param [in] saltSz Size of random in bytes.
     \param [in] kdrIdx Key derivation rate. kdr = 0 when -1, otherwise kdr = 2^kdrIdx.
     \param [in] idx Index value to XOR in.
-    \param [out] key1 First key. Label value of 0x00.
+    \param [out] key1 First key. Label value of 0x03 (WC_SRTCP_LABEL_ENCRYPTION).
     \param [in] key1Sz Size of first key in bytes.
-    \param [out] key2 Second key. Label value of 0x01.
+    \param [out] key2 Second key. Label value of 0x04 (WC_SRTCP_LABEL_MSG_AUTH).
     \param [in] key2Sz Size of second key in bytes.
-    \param [out] key3 Third key. Label value of 0x02.
+    \param [out] key3 Third key. Label value of 0x05 (WC_SRTCP_LABEL_SALT).
     \param [in] key3Sz Size of third key in bytes.
 
 
