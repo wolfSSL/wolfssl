@@ -1,0 +1,34 @@
+name: wolfCOSE cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfcose
+      repo: wolfSSL/wolfCOSE
+      # Match wolfCOSE's complete supported algorithm configuration.
+      wolfssl_configure: >-
+        --enable-ecc --enable-ed25519 --enable-ed448 --enable-curve25519
+        --enable-curve448 --enable-aesgcm --enable-aesccm --enable-aescbc
+        --enable-sha384 --enable-sha512 --enable-keygen --enable-hkdf
+        --enable-aeskeywrap --enable-chacha --enable-poly1305 --enable-mldsa
+        --enable-rsapss
+      # wolfCOSE's native CI is Makefile-based; keep the matching commands
+      # inline in the reusable workflow rather than in a product shell adapter.
+      build_mode: makefile
