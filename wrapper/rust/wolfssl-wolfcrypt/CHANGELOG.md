@@ -26,6 +26,11 @@ Fixes and improvements:
   non-const pointer and may write through it, but the pointer was cast from a
   shared reference. The wolfSSL context is now held in an UnsafeCell
 
+Fixes and improvements:
+
+- Validate PBKDF2 and scrypt password hash output length against the PHC
+  minimum before running the KDF
+
 ## v2.2.0
 
 New features:
