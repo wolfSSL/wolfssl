@@ -1413,6 +1413,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case WC_AES_128_CCM_TYPE:
         case WC_AES_192_CCM_TYPE:
         case WC_AES_256_CCM_TYPE:
+            if (ctx->enc && ctx->authIvUsed) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0)
              || (ctx->authBufferLen == 0)) {
                 if (ctx->authBufferLen > 0 && out == NULL) {
@@ -1425,6 +1433,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                         ctx->iv, (word32)ctx->ivSz, ctx->authTag,
                         (word32)ctx->authTagSz, ctx->authIn,
                         (word32)ctx->authInSz);
+                    if (ret == 0)
+                        ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                 }
                 else {
                     ret = wc_AesCcmDecrypt(&ctx->cipher.aes, out,
@@ -1448,7 +1458,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.aes.reg, ctx->cipher.aes.nonceSz);
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                     ctx->authIncIv = 0;
                 }
             }
@@ -1456,13 +1466,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 *outl = 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
-                if (ctx->authIncIv) {
-                    ctx->authIncIv = 0;
-                }
-                else {
+                if (!ctx->enc || ctx->authIvUsed) {
                     /* Clear IV, since IV reuse is not recommended
                      * for AES CCM. */
                     XMEMSET(ctx->iv, 0, WC_AES_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1558,6 +1566,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 #endif
 #ifdef WOLFSSL_SM4_GCM
         case WC_SM4_GCM_TYPE:
+            if (ctx->enc && ctx->authIvUsed) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0) ||
                      (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -1572,6 +1588,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->authIn, ctx->authInSz);
 
                 if (ret == 0) {
+                    if (ctx->enc)
+                        ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                     ret = WOLFSSL_SUCCESS;
                     *outl = ctx->authBufferLen;
                 }
@@ -1585,7 +1603,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.sm4.iv, ctx->cipher.sm4.nonceSz);
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                     ctx->authIncIv = 0;
                 }
             }
@@ -1593,13 +1611,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 *outl = 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
-                if (ctx->authIncIv) {
-                    ctx->authIncIv = 0;
-                }
-                else {
+                if (!ctx->enc || ctx->authIvUsed) {
                     /* Clear IV, since IV reuse is not recommended for SM4 GCM.
                      */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -1609,6 +1625,14 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 #endif
 #ifdef WOLFSSL_SM4_CCM
         case WC_SM4_CCM_TYPE:
+            if (ctx->enc && ctx->authIvUsed) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0) ||
                     (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -1623,6 +1647,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->authIn, ctx->authInSz);
 
                 if (ret == 0) {
+                    if (ctx->enc)
+                        ctx->authIvUsed = 1;
                     ret = WOLFSSL_SUCCESS;
                     *outl = ctx->authBufferLen;
                 }
@@ -1651,6 +1677,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     /* Clear IV, since IV reuse is not recommended
                      * for SM4 CCM. */
                     XMEMSET(ctx->iv, 0, SM4_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -6798,6 +6825,10 @@ void wolfSSL_EVP_init(void)
             case WOLFSSL_EVP_CTRL_GCM_IV_GEN:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
+#ifdef WOLFSSL_SM4_CCM
+                if (ctx->cipherType == WC_SM4_CCM_TYPE)
+                    break;
+#endif
                 if (!ctx->authIvGenEnable) {
                     WOLFSSL_MSG("Must use EVP_CTRL_AEAD_SET_IV_FIXED before "
                                 "EVP_CTRL_GCM_IV_GEN");
@@ -7067,8 +7098,12 @@ void wolfSSL_EVP_init(void)
             XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
             ctx->authIn = NULL;
             ctx->authInSz = 0;
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             ctx->authIvGenEnable = 0;
             ctx->authIncIv = 0;
+            ctx->authIvUsed = 0;
+#endif
 #endif
         }
 
@@ -7451,7 +7486,9 @@ void wolfSSL_EVP_init(void)
             WOLFSSL_MSG("wc_AesCcmSetNonce() failed");
             ret = WOLFSSL_FAILURE;
         }
-
+        if (ret == WOLFSSL_SUCCESS && iv && iv != ctx->iv) {
+            XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
+        }
         /*
          * OpenSSL clears this flag, which permits subsequent use of
          * EVP_CTRL_CCM_IV_GEN, when EVP_CipherInit is called with no key.
@@ -7475,10 +7512,14 @@ void wolfSSL_EVP_init(void)
         }
         else if (src != NULL && dst != NULL) {
             if (ctx->enc) {
+                if (ctx->authIvUsed)
+                    return WC_NO_ERR_TRACE(BAD_STATE_E);
                 ret = wc_AesCcmEncrypt(&ctx->cipher.aes, dst, src,
                         len, ctx->iv, (word32)ctx->ivSz, ctx->authTag,
                         (word32)ctx->authTagSz, ctx->authIn,
                         (word32)ctx->authInSz);
+                if (ret == 0)
+                    ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
             }
             else {
                 ret = wc_AesCcmDecrypt(&ctx->cipher.aes, dst, src,
@@ -7487,8 +7528,7 @@ void wolfSSL_EVP_init(void)
                         (word32)ctx->authInSz);
             }
             if (ctx->authIncIv) {
-                IncCtr((byte*)ctx->cipher.aes.reg,
-                       ctx->cipher.aes.nonceSz);
+                IncCtr(ctx->iv, (word32)ctx->ivSz);
                 ctx->authIncIv = 0;
             }
         }
@@ -7595,6 +7635,11 @@ void wolfSSL_EVP_init(void)
                                const byte* iv, int enc)
     {
         int ret = 0;
+#if (defined(HAVE_AESCCM) && ((!defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+        int ivProvided = (iv != NULL);
+#endif
         (void)key;
         (void)iv;
         (void)enc;
@@ -7767,6 +7812,8 @@ void wolfSSL_EVP_init(void)
                 != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
         }
     #endif /* HAVE_AESCCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
             * HAVE_FIPS_VERSION >= 2 */
@@ -8588,6 +8635,8 @@ void wolfSSL_EVP_init(void)
             if (iv != NULL) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
         }
 #endif
 #ifdef WOLFSSL_SM4_CCM
@@ -8618,6 +8667,8 @@ void wolfSSL_EVP_init(void)
             if (iv != NULL) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
         }
 #endif
 #ifndef NO_DES3
@@ -9241,10 +9292,14 @@ void wolfSSL_EVP_init(void)
                 }
                 else if (src != NULL && dst != NULL) {
                     if (ctx->enc) {
+                        if (ctx->authIvUsed)
+                            return WC_NO_ERR_TRACE(BAD_STATE_E);
                         ret = wc_Sm4GcmEncrypt(&ctx->cipher.sm4, dst, src,
                                 len, ctx->iv, ctx->ivSz, ctx->authTag,
                                 ctx->authTagSz, ctx->authIn,
                                 ctx->authInSz);
+                        if (ret == 0)
+                            ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                     }
                     else {
                         ret = wc_Sm4GcmDecrypt(&ctx->cipher.sm4, dst, src,
@@ -9253,10 +9308,11 @@ void wolfSSL_EVP_init(void)
                                 ctx->authInSz);
                     }
                     if (ctx->authIncIv) {
-                        IncCtr((byte*)ctx->cipher.sm4.iv,
-                               ctx->cipher.sm4.nonceSz);
+                        IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
+                    if (ret == 0)
+                        ret = (int)len;
                 }
                 break;
 #endif
@@ -9269,10 +9325,14 @@ void wolfSSL_EVP_init(void)
                 }
                 else if (src != NULL && dst != NULL) {
                     if (ctx->enc) {
+                        if (ctx->authIvUsed)
+                            return WC_NO_ERR_TRACE(BAD_STATE_E);
                         ret = wc_Sm4CcmEncrypt(&ctx->cipher.sm4, dst, src,
                                 len, ctx->iv, ctx->ivSz, ctx->authTag,
                                 ctx->authTagSz, ctx->authIn,
                                 ctx->authInSz);
+                        if (ret == 0)
+                            ctx->authIvUsed = 1;
                     }
                     else {
                         ret = wc_Sm4CcmDecrypt(&ctx->cipher.sm4, dst, src,
