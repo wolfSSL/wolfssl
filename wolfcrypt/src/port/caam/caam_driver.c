@@ -81,6 +81,17 @@ struct CAAM_DEVICE {
 
 static struct CAAM_DEVICE caam;
 
+#if defined(__QNX__) || defined(__QNXNTO__)
+static unsigned int caamGetPartitionCount(void)
+{
+    unsigned int lastPartition;
+
+    lastPartition = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
+        0xFU;
+    return lastPartition + 1U;
+}
+#endif
+
 /* function declarations */
 Error caamAddJob(DESCSTRUCT* desc);
 Error caamDoJob(DESCSTRUCT* desc);
@@ -172,7 +183,7 @@ static void printSecureMemoryInfo()
     printf("SMPO  = 0x%08X\n", CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO));
     SMVID_MS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS);
     SMVID_LS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_LS);
-    printf("\tNumber Partitions : %d\n", ((SMVID_MS >> 12) & 0xFU));
+    printf("\tHighest Partition : %d\n", ((SMVID_MS >> 12) & 0xFU));
     printf("\tNumber Pages : %d\n", (SMVID_MS & 0x3FFU));
     printf("\tPage Size : 2^%d\n", ((SMVID_LS >> 16) & 0x7U));
 }
@@ -248,6 +259,14 @@ Error caamFreePart(unsigned int part)
 {
     unsigned int status;
 
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(part) ||
+            part >= caamGetPartitionCount()) {
+        WOLFSSL_MSG("invalid secure memory partition");
+        return CAAM_ARGS_E;
+    }
+#endif
+
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
     printf("freeing partition %d\n", part);
     #endif
@@ -276,10 +295,15 @@ static Error caamFreeAllPart()
 {
     unsigned int SMPO;
     unsigned int i;
+#if defined(__QNX__) || defined(__QNXNTO__)
+    unsigned int partitionCount = caamGetPartitionCount();
+#else
+    unsigned int partitionCount = 15U;
+#endif
 
     WOLFSSL_MSG("Free all partitions");
     SMPO = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
-    for (i = 0; i < 15U; i = i + 1U) {
+    for (i = 0; i < partitionCount; i = i + 1U) {
         if ((SMPO & (0x3U << (i * 2U))) == (0x3U << (i * 2U))) {
             caamFreePart(i);
         }
@@ -299,9 +323,14 @@ int caamFindUnusedPartition()
     unsigned int SMPO;
     unsigned int i;
     int ret = -1;
+#if defined(__QNX__) || defined(__QNXNTO__)
+    unsigned int partitionCount = caamGetPartitionCount();
+#else
+    unsigned int partitionCount = 15U;
+#endif
 
     SMPO = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
-    for (i = 0; i < 15U; i = i + 1) {
+    for (i = 0; i < partitionCount; i = i + 1U) {
         if ((SMPO & (0x3U << (i * 2U))) == 0U) {
             ret = (int)i;
             break;
@@ -322,6 +351,12 @@ static Error caamCreatePartition(unsigned int* page, unsigned int par,
 {
     int testPage;
     unsigned int status;
+
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(par) ||
+            par >= caamGetPartitionCount())
+        return CAAM_ARGS_E;
+#endif
 
     /* check ownership of partition */
     status = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
@@ -383,6 +418,14 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
     int err;
 
     (void)flag; /* flag is for future changes to flag passed when creating */
+
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(part) ||
+            part >= caamGetPartitionCount()) {
+        WOLFSSL_MSG("invalid secure memory partition");
+        return 0;
+    }
+#endif
 
     /* create and claim the partition */
     err = caamCreatePartition(&part, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
@@ -1277,6 +1320,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     void *vaddr[2];
 #ifndef WOLFSSL_CAAM_NO_SM
     unsigned int part = 0;
+    unsigned int page = 0;
     unsigned int phys;
 #endif
 
@@ -1302,8 +1346,9 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
             return -1;
         }
 
-        /* create and claim the partition */
-        err = caamCreatePartition(&part, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
+        /* create and claim the partition, the allocated page is returned in
+         * page while part keeps the partition number */
+        err = caamCreatePartition(&page, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
                 CAAM_SM_CSP | CAAM_SM_ALL_RW);
         if (err != Success) {
             WOLFSSL_MSG("error creating partition for secure ecc key");
@@ -1311,7 +1356,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         }
 
         /* map secure partition to virtual address */
-        phys = (CAAM_PAGE + (part << 12));
+        phys = (CAAM_PAGE + (page << 12));
         pt = (unsigned char*)buf[0].TheAddress;
         pt[0] = (phys >> 24) & 0xFF;
         pt[1] = (phys >> 16) & 0xFF;
