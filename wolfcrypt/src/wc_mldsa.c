@@ -597,7 +597,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
     ret = 0;
 #else
     /* Initialize SHAKE-256 operation. */
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_Shake256_Reset(shake256);
     if (ret == 0) {
         /* Update with data. */
         ret = wc_Shake256_Update(shake256, data, dataLen);
@@ -724,7 +724,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
     ret = 0;
 #else
     /* Initialize SHAKE-256 operation. */
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_Shake256_Reset(shake256);
     if (ret == 0) {
         /* Update with first data. */
         ret = wc_Shake256_Update(shake256, data1, data1Len);
@@ -781,7 +781,7 @@ static int mldsa_hash256_ctx_msg(wc_Shake* shake256, const byte* tr,
     prefix[1] = ctxLen;
 
     /* Initialize SHAKE-256 operation. */
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_Shake256_Reset(shake256);
     if (ret == 0) {
         /* Update with public key hash. */
         ret = wc_Shake256_Update(shake256, tr, trLen);
@@ -961,7 +961,7 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
     int ret;
 
     /* Initialize SHAKE-128 operation. */
-    ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
+    ret = wc_Shake128_Reset(shake128);
     if (ret == 0) {
         /* Absorb data - update plus final. */
         ret = wc_Shake128_Absorb(shake128, in, inLen);
@@ -1025,7 +1025,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
     ret = 0;
 #else
     /* Initialize SHAKE-256 operation. */
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_Shake256_Reset(shake256);
     if (ret == 0) {
         /* Absorb data - update plus final. */
         ret = wc_Shake256_Absorb(shake256, in, inLen);
@@ -2781,7 +2781,7 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
 #endif
 
     /* Initialize SHAKE-128 object for new hash. */
-    ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
+    ret = wc_Shake128_Reset(shake128);
     if (ret == 0) {
         /* Absorb the seed. */
         ret = wc_Shake128_Absorb(shake128, seed, MLDSA_GEN_A_SEED_SZ);
@@ -4003,7 +4003,7 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
     wc_MemZero_Add("mldsa_rej_bound_poly z", z, sizeof(z));
 #endif
     /* Initialize SHAKE-256 object for new hash. */
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_Shake256_Reset(shake256);
     if (ret == 0) {
         /* Absorb the seed. */
         ret = wc_Shake256_Absorb(shake256, seed, MLDSA_GEN_S_SEED_SZ);
@@ -12143,12 +12143,11 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p)
  * heap [in]  Heap hint.
  * devId[in]  Device ID.
  * returns BAD_FUNC_ARG when key is NULL
+ * returns other negative value when initializing the SHAKE object fails
  */
 int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
 {
     int ret = 0;
-
-    (void)devId;
 
     /* Validate parameters. */
     if (key == NULL) {
@@ -12168,6 +12167,8 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
         key->labelLen = 0;
     #endif
         key->heap = heap;
+
+        ret = wc_InitShake256(&key->shake, heap, devId);
     }
 
 #if defined(USE_INTEL_SPEEDUP)
@@ -12420,11 +12421,11 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
         XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
 #endif
-        /* Intel speedup code manually manipulates the state. */
-#ifndef USE_INTEL_SPEEDUP
-        /* Free the SHAKE-128/256 object. */
-        wc_Shake256_Free(&key->shake);
+        /* Free the SHAKE-128/256 object, typed as it was created. */
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+        key->shake.hashType = WC_HASH_TYPE_SHAKE256;
 #endif
+        wc_Shake256_Free(&key->shake);
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
         if (key->k != NULL) {
             ForceZero(key->k, key->kSz);

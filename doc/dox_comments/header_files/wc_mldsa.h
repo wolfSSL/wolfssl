@@ -14,6 +14,8 @@
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key is NULL.
+    \return Other negative value if initializing the key's SHAKE-256
+    object fails.
 
     \param [in,out] key Pointer to the wc_MlDsaKey to initialize.
     \param [in] heap Heap hint for dynamic memory allocation. May be

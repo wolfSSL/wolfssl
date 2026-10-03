@@ -963,7 +963,9 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         XMEMCPY(key->z, z, sizeof(key->z));
 
         /* Initialize PRF for use in noise generation. */
-        mlkem_prf_init(&key->prf);
+        ret = mlkem_prf_reset(&key->prf);
+    }
+    if (ret == 0) {
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
         /* Generate noise using PRF.
          * Alg 13: Steps 8-15: generate s and e
@@ -1352,7 +1354,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     }
     if (ret == 0) {
         /* Initialize the PRF for use in the noise generation. */
-        mlkem_prf_init(&key->prf);
+        ret = mlkem_prf_reset(&key->prf);
+    }
+    if (ret == 0) {
         /* Generate noise using PRF.
          * Steps 9-17: generate y, e_1, e_2
          */
@@ -1396,7 +1400,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         a = y + MLKEM_N * k;
 
         /* Initialize the PRF for use in the noise generation. */
-        mlkem_prf_init(&key->prf);
+        ret = mlkem_prf_reset(&key->prf);
+    }
+    if (ret == 0) {
         /* Generate noise using PRF.
          * Steps 9-12: generate y */
         ret = mlkem_get_noise(&key->prf, (int)k, y, NULL, NULL, r);
