@@ -6396,6 +6396,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
+        #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+            !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
+            /* Let a device run it first, as a one-block ECB request.
+             * CB-only and MAX3266X builds already do this in wc_AesEncrypt. */
+            #ifndef WOLF_CRYPTO_CB_FIND
+            if (aes->devId != INVALID_DEVID)
+            #endif
+            {
+                ret = wc_CryptoCb_AesEcbEncrypt(aes, out, in,
+                                                WC_AES_BLOCK_SIZE);
+                if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                    return ret;
+                /* fall-through when unavailable */
+            }
+        #endif
             if (!WC_AES_KEY_IS_SET(aes)) {
                 WOLFSSL_MSG("AES key not set");
                 return MISSING_KEY;
@@ -6419,8 +6434,23 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         {
             int ret;
 
-            if (aes == NULL)
+            if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
+        #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+            !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
+            /* Let a device run it first, as a one-block ECB request.
+             * CB-only and MAX3266X builds already do this in wc_AesDecrypt. */
+            #ifndef WOLF_CRYPTO_CB_FIND
+            if (aes->devId != INVALID_DEVID)
+            #endif
+            {
+                ret = wc_CryptoCb_AesEcbDecrypt(aes, out, in,
+                                                WC_AES_BLOCK_SIZE);
+                if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                    return ret;
+                /* fall-through when unavailable */
+            }
+        #endif
             if (!WC_AES_KEY_IS_SET(aes)) {
                 WOLFSSL_MSG("AES key not set");
                 return MISSING_KEY;

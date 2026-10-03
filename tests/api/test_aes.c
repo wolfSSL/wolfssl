@@ -9095,6 +9095,12 @@ int test_wc_AesSetKeyArgMcdc(void)
 #if defined(HAVE_AES_DECRYPT)
     ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_DECRYPTION),
         0);
+    /* wc_AesDecryptDirect() NULL out/in, like the encrypt checks above.
+     * The CAAM, AF_ALG and devcrypto versions make the same checks. */
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, NULL, in),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in), 0);
 
 #ifndef WC_TEST_AES_ROUNDS_OFFLOADED
@@ -11261,7 +11267,8 @@ int test_wc_AesSivEncryptDecrypt(void)
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
 /* Test CryptoCB device IDs must be unique across test_aes.c. Taken below:
- * 7 SetKey, 8 AES-GCM, 9 TLS13, 10 AES-CFB, 11 AES-OFB. */
+ * 7 SetKey, 8 AES-GCM, 9 TLS13, 10 AES-CFB, 11 AES-OFB, 13 key wrap and
+ * AES-ECB fail, 14 key wrap over ECB, 15 AES Direct. */
 #define TEST_CRYPTOCB_KEYWRAP_DEVID  13
 
 static int cbKwWrapCalled = 0;
@@ -11515,6 +11522,349 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void)
 #endif /* HAVE_AES_ECB && !WOLF_CRYPTO_CB_ONLY_AES */
 
 #endif /* WOLF_CRYPTO_CB && HAVE_AES_KEYWRAP && !NO_AES && WOLFSSL_AES_128 */
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB AES Direct Test
+ *----------------------------------------------------------------------------*/
+
+/* Port builds (CAAM, AF_ALG, devcrypto) have their own Direct API that does
+ * not use the crypto callback. CB-only builds, and MAX3266X builds with
+ * HAVE_AES_ECB, ask the device from inside wc_AesEncrypt instead. */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST) && \
+    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+      !defined(WOLFSSL_QNX_CAAM)) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && \
+    !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+/* Mock device for the Direct API: counts the one-block ECB requests. It
+ * declines them, fails them, or does them itself, based on the flags. */
+#define TEST_CRYPTOCB_AES_DIRECT_DEVID 15
+
+/* What the mock device writes when it does the work. Software would never
+ * produce this, so it proves software did not run afterwards. */
+#define TEST_CRYPTOCB_AES_DIRECT_MARK 0xA5
+
+static int cbDirectEncCalled = 0;
+static int cbDirectDecCalled = 0;
+static int cbDirectFail = 0;
+static int cbDirectHandle = 0;
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+/* Finder for the find-mode section: sends "no device" to the mock */
+static int test_CryptoCb_AesDirect_FindCb(int currentId, int algoType)
+{
+    (void)algoType;
+    if (currentId == INVALID_DEVID)
+        return TEST_CRYPTOCB_AES_DIRECT_DEVID;
+    return currentId;
+}
+#endif
+
+#if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
+    #define TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
+/* Device owns the key: it takes SetKey, so wolfSSL keeps no software key,
+ * and it runs each block itself with the key it was given. */
+static int cbDirectOwnKey = 0;
+static byte cbDirectKey[AES_MAX_KEY_SIZE / 8];
+static word32 cbDirectKeySz = 0;
+
+static int test_CryptoCb_AesDirect_SaveKey(const byte* key, word32 keySz)
+{
+    if (key == NULL || keySz == 0 || keySz > sizeof(cbDirectKey))
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    XMEMCPY(cbDirectKey, key, keySz);
+    cbDirectKeySz = keySz;
+    return 0;
+}
+
+/* Run one block in software with the key the device was given */
+static int test_CryptoCb_AesDirect_OwnBlock(wc_CryptoInfo* info)
+{
+    Aes swAes;
+    int ret;
+
+    if (info == NULL || info->cipher.aesecb.out == NULL ||
+            info->cipher.aesecb.in == NULL)
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    ret = wc_AesInit(&swAes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    if (info->cipher.enc) {
+        ret = wc_AesSetKey(&swAes, cbDirectKey, cbDirectKeySz, NULL,
+                           AES_ENCRYPTION);
+        if (ret == 0) {
+            ret = wc_AesEncryptDirect(&swAes, info->cipher.aesecb.out,
+                                      info->cipher.aesecb.in);
+        }
+    }
+    else {
+        ret = wc_AesSetKey(&swAes, cbDirectKey, cbDirectKeySz, NULL,
+                           AES_DECRYPTION);
+        if (ret == 0) {
+            ret = wc_AesDecryptDirect(&swAes, info->cipher.aesecb.out,
+                                      info->cipher.aesecb.in);
+        }
+    }
+    wc_AesFree(&swAes);
+    return ret;
+}
+#endif
+
+static int test_CryptoCb_AesDirect_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+    if (devId != TEST_CRYPTOCB_AES_DIRECT_DEVID || info == NULL)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#ifdef TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
+    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    if (cbDirectOwnKey && info->algo_type == WC_ALGO_TYPE_CIPHER &&
+            info->cipher.type == WC_CIPHER_AES) {
+        return test_CryptoCb_AesDirect_SaveKey(info->cipher.aessetkey.key,
+                                               info->cipher.aessetkey.keySz);
+    }
+    #endif
+    #ifdef WOLF_CRYPTO_CB_SETKEY
+    if (cbDirectOwnKey && info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES) {
+        return test_CryptoCb_AesDirect_SaveKey((const byte*)info->setkey.key,
+                                               info->setkey.keySz);
+    }
+    #endif
+#endif
+    if (info->algo_type != WC_ALGO_TYPE_CIPHER ||
+            info->cipher.type != WC_CIPHER_AES_ECB)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    /* Direct always asks for exactly one block */
+    if (info->cipher.aesecb.sz != WC_AES_BLOCK_SIZE)
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    if (info->cipher.enc) {
+        cbDirectEncCalled++;
+    }
+    else {
+        cbDirectDecCalled++;
+    }
+    if (cbDirectFail) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+#ifdef TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
+    if (cbDirectOwnKey) {
+        return test_CryptoCb_AesDirect_OwnBlock(info);
+    }
+#endif
+    if (cbDirectHandle) {
+        if (info->cipher.aesecb.out == NULL)
+            return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        XMEMSET(info->cipher.aesecb.out, TEST_CRYPTOCB_AES_DIRECT_MARK,
+                WC_AES_BLOCK_SIZE);
+        return 0;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int test_wc_CryptoCb_AesDirect(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    /* FIPS-197 appendix C.1 */
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte plain[] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte cipher[] = {
+        0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30,
+        0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a
+    };
+    byte out[WC_AES_BLOCK_SIZE];
+    byte mark[WC_AES_BLOCK_SIZE];
+
+    cbDirectEncCalled = 0;
+    cbDirectDecCalled = 0;
+    cbDirectFail = 0;
+    cbDirectHandle = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_DIRECT_DEVID,
+                    test_CryptoCb_AesDirect_Cb, NULL), 0);
+
+    /* Device declines: it is asked once, then software gives the answer */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DIRECT_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, cipher, sizeof(cipher));
+    ExpectIntEQ(cbDirectEncCalled, 1);
+
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, plain, sizeof(plain));
+    ExpectIntEQ(cbDirectDecCalled, 1);
+    wc_AesFree(&aes);
+
+    /* Device fails: its error must reach the caller, not a software result */
+    cbDirectFail = 1;
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DIRECT_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain),
+                WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher),
+                WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(cbDirectEncCalled, 2);
+    ExpectIntEQ(cbDirectDecCalled, 2);
+    wc_AesFree(&aes);
+    cbDirectFail = 0;
+
+    /* Device does the work: its output must be returned as-is, with no
+     * software run afterwards */
+    cbDirectHandle = 1;
+    XMEMSET(mark, TEST_CRYPTOCB_AES_DIRECT_MARK, sizeof(mark));
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DIRECT_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    ExpectIntEQ(cbDirectEncCalled, 3);
+    ExpectIntEQ(cbDirectDecCalled, 3);
+    wc_AesFree(&aes);
+
+    /* No key set at all: the device still gets asked first and its result
+     * wins. If it declines, the software key check gives MISSING_KEY. */
+    cbDirectEncCalled = 0;
+    cbDirectDecCalled = 0;
+    cbDirectHandle = 1;
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DIRECT_DEVID), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    cbDirectHandle = 0;
+#ifdef WOLFSSL_AES_REQUIRE_KEY_SET
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(cbDirectEncCalled, 2);
+    ExpectIntEQ(cbDirectDecCalled, 2);
+#endif
+    wc_AesFree(&aes);
+
+    /* No device on this Aes: the registered device must not be asked, and
+     * software gives the answer. If it were asked, out would be the mark. */
+    cbDirectEncCalled = 0;
+    cbDirectDecCalled = 0;
+    cbDirectHandle = 1;
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, cipher, sizeof(cipher));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, plain, sizeof(plain));
+    ExpectIntEQ(cbDirectEncCalled, 0);
+    ExpectIntEQ(cbDirectDecCalled, 0);
+    wc_AesFree(&aes);
+    cbDirectHandle = 0;
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    /* Find mode: the finder sends a no-device Aes to the mock, so Direct
+     * must ask it, and the mock's output must be returned as-is */
+    wc_CryptoCb_SetDeviceFindCb(test_CryptoCb_AesDirect_FindCb);
+    cbDirectEncCalled = 0;
+    cbDirectDecCalled = 0;
+    cbDirectHandle = 1;
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, mark, sizeof(mark));
+    ExpectIntEQ(cbDirectEncCalled, 1);
+    ExpectIntEQ(cbDirectDecCalled, 1);
+    wc_AesFree(&aes);
+    cbDirectHandle = 0;
+    /* Put back the finder the test harness uses */
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif /* WOLF_CRYPTO_CB_FIND */
+
+#ifdef TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
+    /* Device owns the key: wolfSSL has no software key, so the right answer
+     * can only come from the device. Software would give a wrong block. */
+    cbDirectOwnKey = 1;
+    cbDirectEncCalled = 0;
+    cbDirectDecCalled = 0;
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DIRECT_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, plain), 0);
+    ExpectBufEQ(out, cipher, sizeof(cipher));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, cipher), 0);
+    ExpectBufEQ(out, plain, sizeof(plain));
+    ExpectIntEQ(cbDirectEncCalled, 1);
+    ExpectIntEQ(cbDirectDecCalled, 1);
+    wc_AesFree(&aes);
+    cbDirectOwnKey = 0;
+    XMEMSET(cbDirectKey, 0, sizeof(cbDirectKey));
+    cbDirectKeySz = 0;
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DIRECT_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_AES_DIRECT && WOLFSSL_AES_128 */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test
