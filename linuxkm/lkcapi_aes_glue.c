@@ -2235,8 +2235,14 @@ static int ccmAesAead_rfc4309_loaded = 0;
     #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
 #endif
 
-#if defined(WOLFSSL_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
-    #error LKCAPI registration of AES-XTS with AESNI requires WC_C_DYNAMIC_FALLBACK.
+/* AES-XTS asm needs a vector save on every call.  Without the fallback the
+ * whole context is pinned to C at setkey, so no save is ever taken. */
+#if defined(WOLFSSL_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
+    #define WC_LINUXKM_XTS_NO_AESNI
+    #ifndef WC_FLAG_DONT_USE_VECTOR_OPS
+        #error AES-XTS without WC_C_DYNAMIC_FALLBACK needs WC_FLAG_DONT_USE_VECTOR_OPS.
+    #endif
 #endif
 
 struct km_AesXtsCtx {
@@ -2286,6 +2292,15 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     int err;
     struct km_AesXtsCtx * ctx = crypto_skcipher_ctx(tfm);
 
+#ifdef WC_LINUXKM_XTS_NO_AESNI
+    /* Set before the key schedule is built so the C schedule is the one made. */
+    ctx->aesXts->aes.use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
+    ctx->aesXts->tweak.use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
+#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ctx->aesXts->aes_decrypt.use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
+#endif
+#endif
+
     err = wc_AesXtsSetKeyNoInit(ctx->aesXts, in_key, key_len,
                                 AES_ENCRYPTION_AND_DECRYPTION);
 
@@ -2295,12 +2310,6 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
         return -EINVAL;
     }
-
-    /* It's possible to set ctx->aesXts->{tweak,aes,aes_decrypt}.use_aesni to
-     * WC_FLAG_DONT_USE_VECTOR_OPS here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
-     * AES-XTS, but we can use the WC_C_DYNAMIC_FALLBACK mechanism
-     * unconditionally because there's no AES-XTS in Cert 4718.
-     */
 
     #ifdef WOLFKM_DEBUG_AES
     pr_info("info: exiting km_AesXtsSetKey: %d\n", key_len);
@@ -2321,7 +2330,8 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
 #endif
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    !defined(WC_LINUXKM_SVR_NO_BATCHING) && !defined(WC_LINUXKM_XTS_NO_AESNI)
     #ifndef WC_LINUXKM_XTS_SVR_BATCH
         #define WC_LINUXKM_XTS_SVR_BATCH (16 * 4096)
     #endif

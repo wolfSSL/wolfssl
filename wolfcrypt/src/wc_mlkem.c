@@ -1348,15 +1348,17 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Convert msg to a polynomial.
          * Step 20: mu <- Decompress_1(ByteDecode_1(m)) */
-        MLKEM_ARM64_SVR(mlkem_from_msg(mu, m));
+        MLKEM_ARM64_SVR(ret = mlkem_from_msg(mu, m));
     }
     if (ret == 0) {
         /* Initialize the PRF for use in the noise generation. */
         mlkem_prf_init(&key->prf);
-        /* Generate noise using PRF.
-         * Steps 9-17: generate y, e_1, e_2
-         */
-        ret = mlkem_get_noise(&key->prf, (int)k, y, e1, e2, r);
+        if (ret == 0) {
+            /* Generate noise using PRF.
+             * Steps 9-17: generate y, e_1, e_2
+             */
+            ret = mlkem_get_noise(&key->prf, (int)k, y, e1, e2, r);
+        }
     }
     #ifdef WOLFSSL_MLKEM_CACHE_A
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_A_SET) != 0)) {
@@ -1424,8 +1426,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
             /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
              * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
             MLKEM_ARM64_SVR({
-                mlkem_vec_compress_10(c1, u, k);
-                mlkem_compress_4(c2, v);
+                ret = mlkem_vec_compress_10(c1, u, k);
+                if (ret == 0)
+                    ret = mlkem_compress_4(c2, v);
             });
             /* Step 24: return c <- (c_1||c_2) */
         }
@@ -1435,8 +1438,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
             /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
              * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
             MLKEM_ARM64_SVR({
-                mlkem_vec_compress_10(c1, u, k);
-                mlkem_compress_4(c2, v);
+                ret = mlkem_vec_compress_10(c1, u, k);
+                if (ret == 0)
+                    ret = mlkem_compress_4(c2, v);
             });
             /* Step 24: return c <- (c_1||c_2) */
         }
@@ -1446,8 +1450,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
             /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
              * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
             MLKEM_ARM64_SVR({
-                mlkem_vec_compress_11(c1, u);
-                mlkem_compress_5(c2, v);
+                ret = mlkem_vec_compress_11(c1, u);
+                if (ret == 0)
+                    ret = mlkem_compress_5(c2, v);
             });
             /* Step 24: return c <- (c_1||c_2) */
         }
@@ -1937,37 +1942,51 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
         if (k == WC_ML_KEM_512_K) {
             /* Step 3: u' <- Decompress_d_u(ByteDecode_d_u(c1)) */
-            mlkem_vec_decompress_10(u, c1, k);
+            if (ret == 0) {
+                ret = mlkem_vec_decompress_10(u, c1, k);
+            }
             /* Step 4: v' <- Decompress_d_v(ByteDecode_d_v(c2)) */
-            mlkem_decompress_4(v, c2);
+            if (ret == 0) {
+                ret = mlkem_decompress_4(v, c2);
+            }
         }
     #endif
     #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
         if (k == WC_ML_KEM_768_K) {
             /* Step 3: u' <- Decompress_d_u(ByteDecode_d_u(c1)) */
-            mlkem_vec_decompress_10(u, c1, k);
+            if (ret == 0) {
+                ret = mlkem_vec_decompress_10(u, c1, k);
+            }
             /* Step 4: v' <- Decompress_d_v(ByteDecode_d_v(c2)) */
-            mlkem_decompress_4(v, c2);
+            if (ret == 0) {
+                ret = mlkem_decompress_4(v, c2);
+            }
         }
     #endif
     #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
         if (k == WC_ML_KEM_1024_K) {
             /* Step 3: u' <- Decompress_d_u(ByteDecode_d_u(c1)) */
-            mlkem_vec_decompress_11(u, c1);
+            if (ret == 0) {
+                ret = mlkem_vec_decompress_11(u, c1);
+            }
             /* Step 4: v' <- Decompress_d_v(ByteDecode_d_v(c2)) */
-            mlkem_decompress_5(v, c2);
+            if (ret == 0) {
+                ret = mlkem_decompress_5(v, c2);
+            }
         }
     #endif
 
         /* Decapsulate the cipher text into polynomial.
          * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
-        ret = mlkem_decapsulate(key->priv, w, u, v, (int)k);
+        if (ret == 0) {
+            ret = mlkem_decapsulate(key->priv, w, u, v, (int)k);
+        }
     }
     if (ret == 0) {
 
         /* Convert the polynomial into a array of bytes (message).
          * Step 7: m <- ByteEncode_1(Compress_1(w)) */
-        MLKEM_ARM64_SVR(mlkem_to_msg(m, w));
+        MLKEM_ARM64_SVR(ret = mlkem_to_msg(m, w));
         /* Step 8: return m */
     }
 
@@ -2127,6 +2146,11 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         ret = 0;
     }
 #endif
+    /* Software decapsulation re-encrypts with the public key (FIPS 203,
+     * Algorithm 18, steps 2 and 8), so refuse before decrypting without it. */
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PUB_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
@@ -2166,7 +2190,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
     if (ret == 0) {
         /* Compare generated cipher text with that passed in. */
-        MLKEM_ARM64_SVR(fail = mlkem_cmp(ct, cmp, (int)ctSz));
+        MLKEM_ARM64_SVR(ret = mlkem_cmp(ct, cmp, (int)ctSz, &fail));
     }
     if (ret == 0) {
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
@@ -2243,15 +2267,17 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
  * @param [out] pubSeed  Public seed.
  * @param [in]  p        Public key data.
  * @param [in]  k        Number of polynomials in vector.
+ * @return  0 on success, or the error from a refused vector-register save.
  */
-static void mlkemkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
+static int mlkemkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
     unsigned int k)
 {
+    int ret;
     unsigned int i;
 
     /* Decode public key that is vector of polynomials.
      * Step 2: t <- ByteDecode_12(ek_PKE[0 : 384k]) */
-    mlkem_from_bytes(pub, p, (int)k);
+    ret = mlkem_from_bytes(pub, p, (int)k);
     p += k * WC_ML_KEM_POLY_SIZE;
 
     /* Read public key seed.
@@ -2259,6 +2285,7 @@ static void mlkemkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
     for (i = 0; i < WC_ML_KEM_SYM_SZ; i++) {
         pubSeed[i] = p[i];
     }
+    return ret;
 }
 
 /**
@@ -2380,19 +2407,24 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         /* Clear the key-set flags first so any failure below (size, reduction
          * check, or hash) leaves a reused key object consistently unusable
          * rather than flagged-set with zeroed material. */
-        key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET);
+        key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET |
+                        MLKEM_FLAG_A_SET);
 
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
          * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
-        mlkem_from_bytes(key->priv, p, (int)k);
+        ret = mlkem_from_bytes(key->priv, p, (int)k);
         p += k * WC_ML_KEM_POLY_SIZE;
 
         /* Both vectors must decode to coefficients reduced modulo q. */
-        ret = mlkem_check_reduced(key->priv, (int)k);
+        if (ret == 0) {
+            ret = mlkem_check_reduced(key->priv, (int)k);
+        }
         if (ret == 0) {
             /* Decode the public key that is after the private key. */
-            mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+            ret = mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+        }
+        if (ret == 0) {
             ret = mlkem_check_reduced(key->pub, (int)k);
         }
         if (ret != 0) {
@@ -2517,8 +2549,14 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
+        /* Forget the old public key and the matrix cached from it, so a
+         * failed decode leaves no public key to encapsulate or decapsulate. */
+        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET |
+                        MLKEM_FLAG_A_SET);
         /* Decode public key and check public key matches parameters. */
-        mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+        ret = mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+    }
+    if (ret == 0) {
         ret = mlkem_check_reduced(key->pub, (int)k);
     }
     if (ret == 0) {
@@ -2764,7 +2802,7 @@ int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out, word32 len)
 
     if (ret == 0) {
         /* Encode private key that is vector of polynomials. */
-        MLKEM_ARM64_SVR(mlkem_to_bytes(p, key->priv, (int)k));
+        MLKEM_ARM64_SVR(ret = mlkem_to_bytes(p, key->priv, (int)k));
     }
     if (ret == 0) {
         p += WC_ML_KEM_POLY_SIZE * k;
@@ -2876,7 +2914,7 @@ int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out, word32 len)
 
     if (ret == 0) {
         /* Encode public key polynomial by polynomial. */
-        MLKEM_ARM64_SVR(mlkem_to_bytes(p, key->pub, (int)k));
+        MLKEM_ARM64_SVR(ret = mlkem_to_bytes(p, key->pub, (int)k));
     }
     if (ret == 0) {
         int i;

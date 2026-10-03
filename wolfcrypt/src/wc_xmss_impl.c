@@ -3255,10 +3255,15 @@ static void wc_xmss_wots_gen_pk(XmssState* state, const byte* sk,
         /* Every chain here runs the full XMSS_WOTS_W - 1 steps, so the lanes
          * stay in step and the batch needs no scheduling. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_pk_chains_n_way(state, seed,
-                addr_buf, lanes, pk);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_pk_chains_n_way(state, seed,
+                    addr_buf, lanes, pk);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }
@@ -3287,10 +3292,15 @@ static void wc_xmss_wots_gen_pk(XmssState* state, const byte* sk,
         /* SHAKE parameter sets of the right shape batch here; everything
          * else falls through to the chain-at-a-time code below. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_pk_chains_n_way(state, seed,
-                addr_buf, lanes, pk);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_pk_chains_n_way(state, seed,
+                    addr_buf, lanes, pk);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }
@@ -3359,10 +3369,15 @@ static void wc_xmss_wots_sign(XmssState* state, const byte* m,
         /* Chain i stops at msg[i], so a batch runs as long as its longest
          * chain and the shorter ones idle at their final value. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
-                NULL, state->encMsg, lanes, sig, sig);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
+                    NULL, state->encMsg, lanes, sig, sig);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }
@@ -3390,10 +3405,15 @@ static void wc_xmss_wots_sign(XmssState* state, const byte* m,
 #ifdef WC_XMSS_N_WAY
         /* SHAKE parameter sets of the right shape batch here. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
-                NULL, state->encMsg, lanes, sig, sig);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
+                    NULL, state->encMsg, lanes, sig, sig);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }
@@ -3457,10 +3477,15 @@ static void wc_xmss_wots_pk_from_sig(XmssState* state, const byte* sig,
         /* Chain i resumes at msg[i] and runs to XMSS_WOTS_W - 1, so a batch
          * is bounded by the chain of the group that resumed earliest. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
-                state->encMsg, NULL, lanes, sig, pk);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
+                    state->encMsg, NULL, lanes, sig, pk);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }
@@ -3487,10 +3512,15 @@ static void wc_xmss_wots_pk_from_sig(XmssState* state, const byte* sig,
 #ifdef WC_XMSS_N_WAY
         /* SHAKE parameter sets of the right shape batch here. */
         lanes = XMSS_N_WAY_LANES(params);
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
-                state->encMsg, NULL, lanes, sig, pk);
-            RESTORE_VECTOR_REGISTERS();
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            int ret = SAVE_VECTOR_REGISTERS2();
+
+            if (ret == 0) {
+                ret = wc_xmss_wots_chains_n_way(state, seed, addr_buf,
+                    state->encMsg, NULL, lanes, sig, pk);
+                RESTORE_VECTOR_REGISTERS();
+            }
             if (state->ret == 0) {
                 state->ret = ret;
             }

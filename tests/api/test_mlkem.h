@@ -39,6 +39,8 @@ int test_wc_mlkem_encapsulate_pubkey_unset_decision(void);
 int test_wc_mlkem_encode_key_len_decision(void);
 int test_wc_mlkem_cb_free(void);
 int test_wc_mlkem_cb_pending_rejected(void);
+int test_wc_mlkem_decode_pubkey_refused_save(void);
+int test_wc_mlkem_decode_reused_key(void);
 
 #define TEST_MLKEM_DECLS                                                \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),              \
@@ -55,6 +57,8 @@ int test_wc_mlkem_cb_pending_rejected(void);
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_pubkey_unset_decision), \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_encode_key_len_decision), \
     TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_free),                    \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_pending_rejected)
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_cb_pending_rejected),        \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decode_pubkey_refused_save), \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decode_reused_key)
 
 #endif /* WOLFCRYPT_TEST_MLKEM_H */
