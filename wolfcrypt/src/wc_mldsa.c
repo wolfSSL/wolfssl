@@ -14240,39 +14240,46 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    const byte* pub = NULL;
+    word32 pubLen = 0;
 
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet) {
+        if (key->pubKeySet && key->params != NULL) {
+            pub = key->p;
+            pubLen = (word32)key->params->pkSz;
+        }
+
         /* Create DER for level. */
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
         if (key->params == NULL) {
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, pub, pubLen,
                 output, len, DILITHIUM_LEVEL2k);
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, pub, pubLen,
                 output, len, DILITHIUM_LEVEL3k);
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, pub, pubLen,
                 output, len, DILITHIUM_LEVEL5k);
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_44k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, pub, pubLen,
+                output, len, ML_DSA_44k);
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_65k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, pub, pubLen,
+                output, len, ML_DSA_65k);
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_87k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, pub, pubLen,
+                output, len, ML_DSA_87k);
         }
     }
 
