@@ -5221,6 +5221,33 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_EARLY_DATA */
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+static WC_INLINE void PrintEchStatus(WOLFSSL* ssl)
+{
+    const char* status;
+
+    switch (wolfSSL_GetEchStatus(ssl)) {
+        case WOLFSSL_ECH_STATUS_NOT_OFFERED:
+            status = "not offered";
+            break;
+        case WOLFSSL_ECH_STATUS_GREASE:
+            status = "GREASE";
+            break;
+        case WOLFSSL_ECH_STATUS_REJECTED:
+            status = "rejected";
+            break;
+        case WOLFSSL_ECH_STATUS_ACCEPTED:
+            status = "accepted";
+            break;
+        default:
+            status = "unknown";
+            break;
+    }
+
+    printf("ECH status: %s\n", status);
+}
+#endif /* WOLFSSL_TLS13 && HAVE_ECH */
+
 #if defined(HAVE_SESSION_TICKET) || defined (WOLFSSL_DTLS13)
 static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
     int* zero_return)
