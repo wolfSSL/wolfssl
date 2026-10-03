@@ -32,6 +32,7 @@ int test_wolfSSL_ASN1_INTEGER_get_set(void);
 int test_wolfSSL_d2i_ASN1_INTEGER(void);
 int test_wolfSSL_a2i_ASN1_INTEGER(void);
 int test_wolfSSL_i2c_ASN1_INTEGER(void);
+int test_wolfSSL_X509_REVOKED_serialNumber(void);
 int test_wolfSSL_ASN1_OBJECT(void);
 int test_wolfSSL_ASN1_get_object(void);
 int test_wolfSSL_i2a_ASN1_OBJECT(void);
@@ -70,7 +71,8 @@ int test_ASN1_strings(void);
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_ASN1_INTEGER_get_set),    \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_d2i_ASN1_INTEGER),        \
     TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_a2i_ASN1_INTEGER),        \
-    TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_i2c_ASN1_INTEGER)
+    TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_i2c_ASN1_INTEGER),        \
+    TEST_DECL_GROUP("ossl_asn1_int", test_wolfSSL_X509_REVOKED_serialNumber)
 
 #define TEST_OSSL_ASN1_OBJECT_DECLS                                         \
     TEST_DECL_GROUP("ossl_asn1_obj", test_wolfSSL_ASN1_OBJECT),             \
