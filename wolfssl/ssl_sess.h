@@ -120,7 +120,7 @@
 
     #ifndef NO_CLIENT_CACHE
         #ifndef CLIENT_SESSIONS_MULTIPLIER
-            #ifdef NO_SESSION_CACHE_REF
+            #if defined(NO_SESSION_CACHE_REF) || SESSION_ROWS > (65535 / 8)
                 #define CLIENT_SESSIONS_MULTIPLIER 1
             #else
                 /* ClientSession objects are lightweight (compared to
@@ -135,11 +135,14 @@
                                 (SESSIONS_PER_ROW * CLIENT_SESSIONS_MULTIPLIER)
         #define CLIENT_SESSION_ROWS (SESSION_ROWS * CLIENT_SESSIONS_MULTIPLIER)
 
+        #if CLIENT_SESSIONS_MULTIPLIER < 1
+            #error CLIENT_SESSIONS_MULTIPLIER must be a positive integer
+        #endif
         #if CLIENT_SESSIONS_PER_ROW > 65535
-            #error CLIENT_SESSIONS_PER_ROW too big
+            #error CLIENT_SESSIONS_PER_ROW too big, lower CLIENT_SESSIONS_MULTIPLIER
         #endif
         #if CLIENT_SESSION_ROWS > 65535
-            #error CLIENT_SESSION_ROWS too big
+            #error CLIENT_SESSION_ROWS too big, lower CLIENT_SESSIONS_MULTIPLIER
         #endif
 
         struct ClientSession {
@@ -163,14 +166,24 @@
     #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
     /* for persistence, if changes to layout need to increment and modify
        save_session_cache() and restore_session_cache and memory versions too */
-    #define WOLFSSL_CACHE_VERSION 3
+    #define WOLFSSL_CACHE_VERSION 4
+
+    #ifndef NO_CLIENT_CACHE
+        #define CACHE_HEADER_CLIENT_ROWS    CLIENT_SESSION_ROWS
+        #define CACHE_HEADER_CLIENT_COLUMNS CLIENT_SESSIONS_PER_ROW
+    #else
+        #define CACHE_HEADER_CLIENT_ROWS    0
+        #define CACHE_HEADER_CLIENT_COLUMNS 0
+    #endif
 
     /* Session Cache Header information */
     typedef struct {
-        int version;     /* cache layout version id */
-        int rows;        /* session rows */
-        int columns;     /* session columns */
-        int sessionSz;   /* sizeof WOLFSSL_SESSION */
+        int version;       /* cache layout version id */
+        int rows;          /* session rows */
+        int columns;       /* session columns */
+        int sessionSz;     /* sizeof WOLFSSL_SESSION */
+        int clientRows;    /* client cache rows, 0 when compiled out */
+        int clientColumns; /* client cache columns, 0 when compiled out */
     } cache_header_t;
 
     /* current persistence layout is:

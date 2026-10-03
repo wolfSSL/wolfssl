@@ -2612,6 +2612,23 @@ if(WOLFSSL_SESSION_TICKET)
         "-DHAVE_SESSION_TICKET")
 endif()
 
+add_option("WOLFSSL_SESSION_CACHE_REF"
+    "Enable deprecated wolfSSL_get_session() session cache references (default: disabled)"
+    "no" "yes;no")
+
+if(NOT WOLFSSL_SESSION_CACHE_REF)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE_REF")
+elseif(NOT "-DNO_SESSION_CACHE_REF" IN_LIST WOLFSSL_DEFINITIONS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SESSION_CACHE_REF")
+else()
+    # A bundle (WOLFSSL_NGINX, WOLFSSL_CURL, ...) appends the define straight
+    # to the list. Sync the option with it, as configure warns and clears
+    # ENABLED_SESSION_CACHE_REF.
+    message(WARNING "WOLFSSL_SESSION_CACHE_REF=yes ignored: "
+        "NO_SESSION_CACHE_REF is already set by another option")
+    override_cache(WOLFSSL_SESSION_CACHE_REF "no")
+endif()
+
 if(NOT WOLFSSL_TLSV12)
     # A wolfCrypt-only build has no handshake to be left without, so only a
     # build that keeps TLS has to agree on which versions remain.

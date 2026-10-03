@@ -1,5 +1,44 @@
 # wolfSSL Release (unreleased)
 
+## Behavioral Changes
+* **Behavioral change (`NO_SESSION_CACHE_REF` no longer disables the client
+  cache)**: the macro suppressed the `AddSession()` write to the ClientCache as
+  well as the `wolfSSL_get_session()` return value, because one field served as
+  both the handle and the write trigger.  Nothing populated that cache while
+  `wolfSSL_GetSessionClient()` kept searching it, so
+  `wolfSSL_SetServerID(ssl, id, len, 0)` resumption silently never resumed in
+  any build defining the macro.  The write is now gated on `NO_CLIENT_CACHE`
+  alone, which is what declares the field; the cache is not resized.
+
+* **Behavioral change (`NO_SESSION_CACHE_REF` is now the default everywhere)**:
+  `settings.h` defines it unless `WOLFSSL_SESSION_CACHE_REF` is defined, so
+  every build selects it, including `user_settings.h`, IDE and bare-metal
+  builds with no configure step.  `wolfSSL_get_session()` therefore returns a
+  non-persistent reference to `ssl->session` rather than a handle into the
+  process-global client cache.  **Mind the lifetime when migrating**: the old
+  handle stayed valid after `wolfSSL_free()`, this one does not, so code
+  holding the result past its `WOLFSSL` must move to `wolfSSL_get1_session()`
+  plus `wolfSSL_SESSION_free()`.  The old behaviour is opt-in through
+  `WOLFSSL_SESSION_CACHE_REF`, `--enable-session-cache-ref` or
+  `-DWOLFSSL_SESSION_CACHE_REF=yes`; such a build warns at compile time and
+  marks `wolfSSL_get_session()` deprecated at every call site, unless
+  `WOLFSSL_SESSION_CACHE_REF_WARNED` is defined.  The recipes that
+  already defined `NO_SESSION_CACHE_REF` still force it on over the option,
+  which both build systems now report.
+
+  Two consequences of the new default worth planning for.  The `ClientCache`
+  is sized by `CLIENT_SESSIONS_MULTIPLIER`, which is 1 under
+  `NO_SESSION_CACHE_REF` and 8 without it.  It scales both the rows and the
+  columns, so a build that previously left the macro unset gets 8x fewer rows
+  and 8x fewer columns, a client cache with 64x fewer slots (2112 down to 33
+  with the default cache size).  Define `CLIENT_SESSIONS_MULTIPLIER` to a
+  positive integer to choose the size yourself; the resulting rows and columns
+  must each stay at or below 65535.  Because that cache is part of the `PERSIST_SESSION_CACHE` image,
+  `WOLFSSL_CACHE_VERSION` goes to 4 and the header now records the client
+  cache rows and columns, so an image written by a build with different
+  dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
+  A saved cache from an older release cannot be restored by this one.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

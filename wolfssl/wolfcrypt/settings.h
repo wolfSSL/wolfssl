@@ -5517,9 +5517,8 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
         #define WOLF_PRIVATE_KEY_ID
 #endif
 
-/* With titan cache size there is too many sessions to fit with the default
- * multiplier of 8 */
-#if defined(TITAN_SESSION_CACHE) && !defined(NO_SESSION_CACHE_REF)
+/* The wolfSSL_get_session() cache reference is deprecated and opt-in only. */
+#if !defined(WOLFSSL_SESSION_CACHE_REF) && !defined(NO_SESSION_CACHE_REF)
     #define NO_SESSION_CACHE_REF
 #endif
 
