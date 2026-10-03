@@ -12532,15 +12532,20 @@ int wc_MlDsaKey_PrivSize(wc_MlDsaKey* key)
  * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Private key size for set level.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
+ * @return  BAD_FUNC_ARG when key or len is NULL or level not set,
  */
 int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
-    *len = wc_MlDsaKey_PrivSize(key);
-    if (*len < 0) {
-        ret = *len;
+    if (len == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        *len = wc_MlDsaKey_PrivSize(key);
+        if (*len < 0) {
+            ret = *len;
+        }
     }
 
     return ret;
@@ -12594,15 +12599,20 @@ int wc_MlDsaKey_PubSize(wc_MlDsaKey* key)
  * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Public key size for set level.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
+ * @return  BAD_FUNC_ARG when key or len is NULL or level not set,
  */
 int wc_MlDsaKey_GetPubLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
-    *len = wc_MlDsaKey_PubSize(key);
-    if (*len < 0) {
-        ret = *len;
+    if (len == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        *len = wc_MlDsaKey_PubSize(key);
+        if (*len < 0) {
+            ret = *len;
+        }
     }
 
     return ret;
@@ -12655,15 +12665,20 @@ int wc_MlDsaKey_SigSize(wc_MlDsaKey* key)
  * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Signature size for set level.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
+ * @return  BAD_FUNC_ARG when key or len is NULL or level not set,
  */
 int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
-    *len = wc_MlDsaKey_SigSize(key);
-    if (*len < 0) {
-        ret = *len;
+    if (len == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        *len = wc_MlDsaKey_SigSize(key);
+        if (*len < 0) {
+            ret = *len;
+        }
     }
 
     return ret;

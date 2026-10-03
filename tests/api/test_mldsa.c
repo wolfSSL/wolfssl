@@ -30713,6 +30713,9 @@ int test_wc_MldsaDecisionCoverage(void)
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetPubLen(NULL, &len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid key with a NULL len -> BAD_FUNC_ARG. */
+    ExpectIntEQ(wc_MlDsaKey_GetPubLen(&key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Valid key with a level set -> *len >= 0, decision FALSE side, ret 0. */
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetPubLen(&key, &len), 0);
@@ -30722,6 +30725,8 @@ int test_wc_MldsaDecisionCoverage(void)
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetPrivLen(NULL, &len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetPrivLen(&key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetPrivLen(&key, &len), 0);
     ExpectIntGT(len, 0);
@@ -30729,6 +30734,8 @@ int test_wc_MldsaDecisionCoverage(void)
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetSigLen(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetSigLen(&key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     len = 0;
     ExpectIntEQ(wc_MlDsaKey_GetSigLen(&key, &len), 0);
