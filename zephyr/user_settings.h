@@ -96,18 +96,13 @@ extern "C" {
     #define HAVE_FIPS
     /* Version triples mirror configure.ac's --enable-fips=VERSION mapping, and
      * each is only a default: define it on the compile line or in a project
-     * header to pin a bundle the Kconfig choice does not cover. Note that
-     * settings.h force-collapses the triple to 7.0.0 whenever
-     * WOLFSSL_FIPS_READY or WOLFSSL_FIPS_DEV is defined, so an override only
-     * takes effect for the certified versions. */
+     * header to pin a bundle the Kconfig choice does not cover. */
     #if defined(CONFIG_WOLFCRYPT_FIPS_READY)
-        /* FIPS Ready: in-tree, feature locked, one ahead of the latest.
-         * configure.ac's "ready" also sets WOLFSSL_FIPS_READY, which makes
-         * settings.h collapse the triple back to 7.0.0. Matched here so a
-         * Zephyr FIPS-Ready build gates identically to --enable-fips=ready. */
+        /* Matches --enable-fips=ready: FIPS_DEVREADY_MAJOR plus
+         * WOLFSSL_FIPS_READY. */
         #define WOLFSSL_FIPS_READY
         #ifndef HAVE_FIPS_VERSION
-            #define HAVE_FIPS_VERSION       8
+            #define HAVE_FIPS_VERSION       7
         #endif
         #ifndef HAVE_FIPS_VERSION_MINOR
             #define HAVE_FIPS_VERSION_MINOR 0
@@ -116,9 +111,8 @@ extern "C" {
             #define HAVE_FIPS_VERSION_PATCH 0
         #endif
     #elif defined(CONFIG_WOLFCRYPT_FIPS_V7)
-        /* FIPS 140-3 v7 full submission. configure.ac sets WOLFSSL_FIPS_READY
-         * for v7 as well; without it the build would select WC_FIPS_186_5
-         * where the autotools build selects WC_FIPS_186_4. */
+        /* FIPS 140-3 v7 full submission. The validated module defines
+         * WOLFSSL_FIPS_READY and so FIPS 186-4, as IDE/WIN-PQ-FIPSv7 does. */
         #define WOLFSSL_FIPS_READY
         #ifndef HAVE_FIPS_VERSION
             #define HAVE_FIPS_VERSION       7
@@ -163,9 +157,7 @@ extern "C" {
             #define HAVE_FIPS_VERSION_PATCH 0
         #endif
     #endif
-    /* configure.ac defines the major alongside the version for every FIPS
-     * build. Only settings.h's FIPS-Ready/dev block consumes it, but keep the
-     * two in sync. */
+    /* configure.ac always defines the major alongside the version. */
     #if defined(HAVE_FIPS_VERSION) && !defined(HAVE_FIPS_VERSION_MAJOR)
         #define HAVE_FIPS_VERSION_MAJOR HAVE_FIPS_VERSION
     #endif
