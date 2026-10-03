@@ -3643,6 +3643,15 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
     ExpectNotNull(tctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(dssl = wolfSSL_new(dctx));
     ExpectNotNull(tssl = wolfSSL_new(tctx));
+    /* A failed constructor leaves the later calls holding NULL. Those calls
+     * are not inside Expect(), so they would run anyway and dereference it. */
+    if (dctx == NULL || tctx == NULL || dssl == NULL || tssl == NULL) {
+        wolfSSL_free(dssl);
+        wolfSSL_free(tssl);
+        wolfSSL_CTX_free(dctx);
+        wolfSSL_CTX_free(tctx);
+        return EXPECT_RESULT();
+    }
 
     /* `ssl == NULL || !ssl->options.dtls` -- three vectors, one per outcome */
     (void)wolfSSL_dtls_got_timeout(NULL);
@@ -4180,6 +4189,13 @@ int test_wolfSSL_dtls_api_more_guards(void)
     XMEMSET(peer, 0, sizeof(peer));
     ExpectNotNull(dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
     ExpectNotNull(dssl = wolfSSL_new(dctx));
+    /* A failed constructor leaves the later calls holding NULL. Those calls
+     * are not inside Expect(), so they would run anyway and dereference it. */
+    if (dctx == NULL || dssl == NULL) {
+        wolfSSL_free(dssl);
+        wolfSSL_CTX_free(dctx);
+        return EXPECT_RESULT();
+    }
 
     /* `peer == NULL || peerSz == NULL` -- one call per operand */
     (void)wolfSSL_dtls_get0_peer(NULL, &p0, &p0Sz);
