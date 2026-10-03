@@ -6198,6 +6198,12 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
                 WOLFSSL_MSG("Writing DH PUBKEY not supported!");
                 break;
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
+#ifdef WOLFSSL_HAVE_MLDSA
+            case WC_EVP_PKEY_DILITHIUM:
+                /* ML-DSA public key not supported. */
+                WOLFSSL_MSG("Writing ML-DSA PUBKEY not supported!");
+                break;
+#endif /* WOLFSSL_HAVE_MLDSA */
             default:
                 /* Key type not supported. */
                 WOLFSSL_MSG("Unknown Key type!");
@@ -7331,7 +7337,7 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
 #ifdef OPENSSL_ALL
 #if !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
 
-/* Encrypt the key into a buffer using PKCS$8 and a password.
+/* Encrypt the key into a buffer using PKCS#8 and a password.
  *
  * @param [in]      pkey      Private key to encrypt.
  * @param [in]      enc       EVP cipher.
@@ -7421,6 +7427,32 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
             }
             else
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+#ifdef WOLFSSL_HAVE_MLDSA
+            if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+                word32 idx = 0;
+                word32 keyOid = 0;
+
+                /* TraditionalEnc() would wrap the key again, so encrypt
+                 * the stored encoding directly. */
+                if ((pkey->pkey.ptr == NULL) || (pkey->pkey_sz <= 0)) {
+                    ret = BAD_FUNC_ARG;
+                }
+                else if (ToTraditionalInline_ex((const byte*)pkey->pkey.ptr,
+                        &idx, (word32)pkey->pkey_sz, &keyOid) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    ret = wc_EncryptPKCS8Key((byte*)pkey->pkey.ptr,
+                        (word32)pkey->pkey_sz, key, keySz, passwd, passwdSz,
+                        PKCS5, PBES2, encAlgId, NULL, 0, WC_PKCS12_ITT_DEFAULT,
+                        &rng, NULL);
+                    if (ret > 0) {
+                        *keySz = (word32)ret;
+                    }
+                }
+            }
+            else
+#endif /* WOLFSSL_HAVE_MLDSA */
             {
                 /* Encrypt private into buffer. */
                 ret = TraditionalEnc(
@@ -7489,11 +7521,15 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
             if (keySz == NULL)
                 return BAD_FUNC_ARG;
 
-            *keySz = (word32)pkey->pkey_sz;
-            if (key == NULL)
+            if (key == NULL) {
+                *keySz = (word32)pkey->pkey_sz;
                 return LENGTH_ONLY_E;
+            }
+            if (*keySz < (word32)pkey->pkey_sz)
+                return BUFFER_E;
 
             XMEMCPY(key, pkey->pkey.ptr, pkey->pkey_sz);
+            *keySz = (word32)pkey->pkey_sz;
             return pkey->pkey_sz;
         }
 
@@ -7532,7 +7568,34 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         return NOT_COMPILED_IN;
     #endif /* HAVE_ED25519_KEY_EXPORT */
     }
-#endif
+#endif /* HAVE_ED25519 */
+#ifdef WOLFSSL_HAVE_MLDSA
+    else if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+        word32 idx = 0;
+        word32 keyOid = 0;
+
+        /* ML-DSA buffer is expected to be in PKCS8 format */
+        if ((keySz == NULL) || (pkey->pkey.ptr == NULL) ||
+                (pkey->pkey_sz <= 0)) {
+            return BAD_FUNC_ARG;
+        }
+        if (ToTraditionalInline_ex((const byte*)pkey->pkey.ptr, &idx,
+                (word32)pkey->pkey_sz, &keyOid) < 0) {
+            return ASN_PARSE_E;
+        }
+
+        if (key == NULL) {
+            *keySz = (word32)pkey->pkey_sz;
+            return LENGTH_ONLY_E;
+        }
+        if (*keySz < (word32)pkey->pkey_sz)
+            return BUFFER_E;
+
+        XMEMCPY(key, pkey->pkey.ptr, pkey->pkey_sz);
+        *keySz = (word32)pkey->pkey_sz;
+        return pkey->pkey_sz;
+    }
+#endif /* WOLFSSL_HAVE_MLDSA */
     else {
         ret = NOT_COMPILED_IN;
     }
