@@ -1423,9 +1423,9 @@ impl Drop for Ed448 {
 
 /// RustCrypto `signature` crate trait implementations.
 ///
-/// Provides a fixed-size [`Signature`] and a [`VerifyingKey`] type so that
-/// [`Ed448`] can be used wherever the `signature` crate's
-/// [`signature::SignerMut`], [`signature::Keypair`], and
+/// Provides a fixed-size [`Signature`], a [`VerifyingKey`] and a
+/// [`SigningKey`] type so that Ed448 keys can be used wherever the
+/// `signature` crate's [`signature::SignerMut`], [`signature::Keypair`], and
 /// [`signature::Verifier`] traits are accepted.
 ///
 /// These impls use the plain Ed448 (pure) signature variant with no context;
@@ -1434,6 +1434,10 @@ impl Drop for Ed448 {
 #[cfg(feature = "signature")]
 mod signature_impl {
     use super::Ed448;
+    #[cfg(all(ed448_sign, ed448_export))]
+    use zeroize::Zeroize;
+    #[cfg(all(ed448_sign, ed448_export, random))]
+    use crate::random::RNG;
     use signature::Error;
 
     /// Ed448 signature in its standard 114-byte encoded form.
@@ -1510,13 +1514,191 @@ mod signature_impl {
         }
     }
 
+    /// Ed448 signing (private) key that is guaranteed to carry a public key.
+    ///
+    /// An [`Ed448`] on its own may hold no public key: `Ed448::new()` leaves
+    /// the key empty and `Ed448::import_private_only()` loads only the
+    /// private scalar. [`signature::Keypair::verifying_key()`] cannot fail,
+    /// so it is implemented for this type rather than for [`Ed448`]. Every
+    /// constructor here derives or validates the public key and caches it,
+    /// which makes handing out a [`VerifyingKey`] infallible.
     #[cfg(all(ed448_sign, ed448_export))]
-    impl signature::Keypair for Ed448 {
+    pub struct SigningKey {
+        inner: Ed448,
+        public: [u8; Ed448::PUB_KEY_SIZE],
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl SigningKey {
+        /// Generate a new Ed448 signing key.
+        ///
+        /// # Parameters
+        ///
+        /// * `rng`: Random number generator to use.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(all(feature = "signature", ed448_sign, ed448_export, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::SigningKey;
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let sk = SigningKey::generate(&rng).expect("Error with generate()");
+        /// }
+        /// ```
+        #[cfg(random)]
+        pub fn generate(rng: &RNG) -> Result<Self, i32> {
+            Self::from_key(Ed448::generate(rng)?)
+        }
+
+        /// Create a signing key from a private key, deriving its public key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed448::KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// let sk = SigningKey::from_private_only(&private).expect("Error with from_private_only()");
+        /// }
+        /// ```
+        #[cfg(ed448_import)]
+        pub fn from_private_only(private: &[u8; Ed448::KEY_SIZE]) -> Result<Self, i32> {
+            let mut key = Ed448::new()?;
+            key.import_private_only(private)?;
+            let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+            key.make_public(&mut public)?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Create a signing key from a private key and its public key.
+        ///
+        /// The public key is untrusted and is checked against the private key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        /// * `public`: Input buffer containing the public key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed448::KEY_SIZE];
+        /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// ed.export_public(&mut public).expect("Error with export_public()");
+        /// let sk = SigningKey::from_keypair(&private, &public).expect("Error with from_keypair()");
+        /// }
+        /// ```
+        #[cfg(ed448_import)]
+        pub fn from_keypair(private: &[u8; Ed448::KEY_SIZE],
+            public: &[u8; Ed448::PUB_KEY_SIZE]) -> Result<Self, i32>
+        {
+            let mut key = Ed448::new()?;
+            key.import_private_key(private, Some(public))?;
+            Ok(Self { inner: key, public: *public })
+        }
+
+        /// Create a signing key from an existing [`Ed448`] key.
+        ///
+        /// Both key components must be present. Fails with the wolfSSL error
+        /// code `PUBLIC_KEY_E` when `key` holds no public key, for instance
+        /// after `Ed448::new()` or `Ed448::import_private_only()`, and with
+        /// `BAD_FUNC_ARG` when it holds no private key, for instance after
+        /// `Ed448::import_public()`.
+        ///
+        /// # Parameters
+        ///
+        /// * `key`: The Ed448 key to wrap.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(all(feature = "signature", ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let sk = SigningKey::from_key(ed).expect("Error with from_key()");
+        /// }
+        /// ```
+        pub fn from_key(key: Ed448) -> Result<Self, i32> {
+            let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+            key.export_public(&mut public)?;
+            /* A key carrying only a public component would build a SigningKey
+             * that cannot sign, so require the private component too.
+             * Exporting it is the only way to ask wolfCrypt whether it is
+             * there; the copy is wiped again right away. */
+            let mut private = [0u8; Ed448::KEY_SIZE];
+            let ret = key.export_private_only(&mut private);
+            private.zeroize();
+            ret?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Borrow the wrapped [`Ed448`] key for operations that are not
+        /// covered by the signature traits.
+        pub fn as_key(&self) -> &Ed448 {
+            &self.inner
+        }
+
+        /// Consume the signing key and return the wrapped [`Ed448`] key.
+        pub fn into_key(self) -> Ed448 {
+            self.inner
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::Keypair for SigningKey {
         type VerifyingKey = VerifyingKey;
         fn verifying_key(&self) -> Self::VerifyingKey {
-            let mut pub_key = [0u8; Ed448::PUB_KEY_SIZE];
-            self.export_public(&mut pub_key).expect("ed448 export_public failed");
-            VerifyingKey(pub_key)
+            VerifyingKey(self.public)
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::SignerMut<Signature> for SigningKey {
+        fn try_sign(&mut self, msg: &[u8]) -> Result<Signature, Error> {
+            let mut sig = [0u8; Ed448::SIG_SIZE];
+            self.inner.sign_msg(msg, None, &mut sig).map_err(|_| Error::new())?;
+            Ok(Signature(sig))
         }
     }
 
@@ -1544,3 +1726,5 @@ mod signature_impl {
 
 #[cfg(feature = "signature")]
 pub use signature_impl::{Signature, VerifyingKey};
+#[cfg(all(feature = "signature", ed448_sign, ed448_export))]
+pub use signature_impl::SigningKey;
