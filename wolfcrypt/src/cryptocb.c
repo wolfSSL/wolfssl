@@ -66,6 +66,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
+ * WOLF_CRYPTO_CB_ONLY_MLKEM: Use only callbacks for ML-KEM    default: off
  * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
  *                      as well as update and final. Off by
  *                      default because a callback that predates
@@ -2073,8 +2074,10 @@ int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type, int keySize, void* key)
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -2107,8 +2110,10 @@ int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -2143,8 +2148,10 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 
     /* get devId */
     devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
     if (devId == INVALID_DEVID)
         return ret;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);

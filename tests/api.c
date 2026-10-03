@@ -34508,7 +34508,8 @@ static int test_SSL_CIPHER_get_current_kx(void)
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
      !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519))
+     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_MLKEM))
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -36110,7 +36111,8 @@ static int test_wc_CryptoCb(void)
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
      !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519))
+     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_MLKEM))
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519))
     int tlsVer;
@@ -44078,7 +44080,8 @@ TEST_CASE testCases[] = {
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
      !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519))
+     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_MLKEM))
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb_registry),
 #endif

@@ -33,7 +33,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -12072,7 +12072,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 #ifndef __APPLE__
 	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 
