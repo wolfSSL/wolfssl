@@ -651,6 +651,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 40;
+        a->length = 3;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -670,6 +671,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 128;
+        a->length = 3;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
@@ -690,6 +692,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 40;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -710,6 +713,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 128;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -730,6 +734,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 200;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -750,6 +755,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
     if (a != NULL) {
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 0;
+        a->length = 2;
         a->negative = 0;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -770,6 +776,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[0] = ASN_INTEGER;
         a->intData[1] = 1;
         a->intData[2] = 0;
+        a->length = 3;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
@@ -791,6 +798,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x01;
         a->intData[3] = 0x00;
+        a->length = 4;
         a->negative = 0;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -813,6 +821,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x80;
         a->intData[3] = 0x00;
+        a->length = 4;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
@@ -835,6 +844,7 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         a->intData[1] = 2;
         a->intData[2] = 0x80;
         a->intData[3] = 0x01;
+        a->length = 4;
         a->negative = 1;
     }
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 3);
@@ -848,6 +858,56 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
         ExpectIntEQ(tpp[0], 0xFF);
         ExpectIntEQ(tpp[1], 0x7F);
         ExpectIntEQ(tpp[2], 0xFF);
+    }
+    XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pp = NULL;
+
+    /* Raw value bytes without DER header (X509_CRL_get_REVOKED serial). The
+     * second byte must not be taken as a DER length. */
+    if (a != NULL) {
+        a->intData[0] = 0x01;
+        a->intData[1] = 0x02;
+        a->intData[2] = 0x03;
+        a->length = 3;
+        a->negative = 0;
+    }
+    ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 3);
+    ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    tpp = pp;
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 3);
+        tpp -= 3;
+        ExpectIntEQ(tpp[0], 0x01);
+        ExpectIntEQ(tpp[1], 0x02);
+        ExpectIntEQ(tpp[2], 0x03);
+    }
+    XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pp = NULL;
+
+    /* Raw value bytes whose DER-looking header claims more than a->length.
+     * Must be treated as raw bytes and read no more than a->length. */
+    if (a != NULL) {
+        a->intData[0] = ASN_INTEGER;
+        a->intData[1] = 0x82;
+        a->intData[2] = 0x40;
+        a->intData[3] = 0x00;
+        a->length = 4;
+        a->negative = 0;
+    }
+    ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 4);
+    ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+    tpp = pp;
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 4);
+        tpp -= 4;
+        ExpectIntEQ(tpp[0], ASN_INTEGER);
+        ExpectIntEQ(tpp[1], 0x82);
+        ExpectIntEQ(tpp[2], 0x40);
+        ExpectIntEQ(tpp[3], 0x00);
     }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 

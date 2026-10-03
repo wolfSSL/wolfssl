@@ -1760,7 +1760,8 @@ static void wolfssl_asn1_integer_pad(unsigned char* data, int len,
 
 /* Convert ASN.1 INTEGER object into content octets.
  *
- * TODO: compatibility with OpenSSL? OpenSSL assumes data not DER encoded.
+ * Data may be DER encoded (tag, length, value) or, as in OpenSSL, the raw
+ * value bytes. In both cases a->length bounds the bytes read from a->data.
  *
  * When pp points to a buffer, on success pp will point to after the encoded
  * data.
@@ -1768,7 +1769,7 @@ static void wolfssl_asn1_integer_pad(unsigned char* data, int len,
  * @param [in]      a   ASN.1 INTEGER object.
  * @param [in, out] pp  Pointer to buffer. May be NULL. Cannot point to NULL.
  * @return  Length of encoding on success.
- * @return  0 when a is NULL, pp points to NULL or DER length encoding invalid.
+ * @return  0 when a is NULL or pp points to NULL.
  */
 int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
 {
@@ -1785,9 +1786,15 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
         err = 1;
     }
 
-    /* Get length from DER encoding. */
-    if ((!err) && (GetLength_ex(a->data, &idx, &len, a->dataMax, 0) < 0)) {
-        err = 1;
+    /* Get length from DER encoding. The header must be consistent with
+     * a->length - the data can't be trusted to bound itself. */
+    if ((!err) && ((a->length <= 0) || (a->data[0] != ASN_INTEGER) ||
+            (GetLength(a->data, &idx, &len, (word32)a->length) < 0) ||
+            (idx + (word32)len != (word32)a->length))) {
+        /* WOLFSSL_QT / WOLFSSL_HAPROXY / X509_CRL_get_REVOKED format: raw
+         * value bytes without DER header. */
+        idx = 0;
+        len = (a->length > 0) ? a->length : 0;
     }
 
     if (!err) {
