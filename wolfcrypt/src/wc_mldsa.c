@@ -10680,7 +10680,8 @@ static void mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
  * @param [in]      mu      Data to verify.
  * @param [in]      sig     Signature to verify message.
  * @param [in]      sigLen  Length of message in bytes.
- * @param [out]     res     Result of verification.
+ * @param [out]     res     1 when the signature is valid, else 0, including
+ *                          when an error is returned.
  * @return  0 on success.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
@@ -10891,12 +10892,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ, w1e,
             params->w1EncSz, commit_calc, params->lambda / 4);
     }
+    *res = 0;
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
+        *res = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
     }
-
-    *res = valid;
     XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #else
@@ -11197,12 +11197,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ, w1e,
             params->w1EncSz, commit_calc, params->lambda / 4);
     }
+    *res = 0;
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
+        *res = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
     }
-
-    *res = valid;
 #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
 #endif
@@ -11219,7 +11218,8 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
  * @param [in]      msgLen  Length of message in bytes.
  * @param [in]      sig     Signature to verify message.
  * @param [in]      sigLen  Length of message in bytes.
- * @param [out]     res     Result of verification.
+ * @param [out]     res     Result of verification. Early errors here
+ *                          leave it as the caller set it.
  * @return  0 on success.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
@@ -11264,7 +11264,8 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
  * @param [in]      msgLen  Length of message in bytes.
  * @param [in]      sig     Signature to verify message.
  * @param [in]      sigLen  Length of message in bytes.
- * @param [out]     res     Result of verification.
+ * @param [out]     res     Result of verification. Early errors here
+ *                          leave it as the caller set it.
  * @return  0 on success.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
@@ -11311,7 +11312,8 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
  * @param [in]      hashLen   Length of message hash in bytes.
  * @param [in]      sig       Signature to verify message.
  * @param [in]      sigLen    Length of message in bytes.
- * @param [out]     res       Result of verification.
+ * @param [out]     res       Result of verification. Early errors here
+ *                            leave it as the caller set it.
  * @return  0 on success.
  * @return  SIG_VERIFY_E when hint is malformed.
  * @return  BUFFER_E when the length of the signature does not match
@@ -11846,7 +11848,8 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  ctxLen      [in]  Length of context in bytes.
  *  msg         [in]  Message to verify.
  *  msgLen      [in]  Length of the message in bytes.
- *  res         [out] *res is set to 1 on successful verification.
+ *  res         [out] *res is set to 1 on successful verification and 0
+ *                    otherwise, including when an error is returned.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
@@ -11862,6 +11865,10 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (res == NULL) ||
             ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Any error return leaves the signature reported as invalid. */
+    if (res != NULL) {
+        *res = 0;
     }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
@@ -11886,6 +11893,10 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, ctx, ctxLen,
                     WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_MLDSA, key);
+            /* Includes a device that wrote *res and then declined. */
+            if (ret != 0) {
+                *res = 0;
+            }
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -11910,7 +11921,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  sigLen      [in]  Size of signature in bytes.
  *  msg         [in]  Message to verify.
  *  msgLen      [in]  Length of the message in bytes.
- *  res         [out] *res is set to 1 on successful verification.
+ *  res         [out] *res is set to 1 on successful verification and 0
+ *                    otherwise, including when an error is returned.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
@@ -11928,6 +11940,10 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
             ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
     }
+    /* Any error return leaves the signature reported as invalid. */
+    if (res != NULL) {
+        *res = 0;
+    }
     /* An empty message may be passed as (NULL, 0); canonicalize it to a
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
@@ -11944,6 +11960,10 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, NULL, 0,
                     WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_MLDSA, key);
+            /* Includes a device that wrote *res and then declined. */
+            if (ret != 0) {
+                *res = 0;
+            }
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -11970,7 +11990,8 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  hashAlg     [in]  Hash algorithm used on message.
  *  hash        [in]  Hash of message to verify.
  *  hashLen     [in]  Length of the message hash in bytes.
- *  res         [out] *res is set to 1 on successful verification.
+ *  res         [out] *res is set to 1 on successful verification and 0
+ *                    otherwise, including when an error is returned.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
@@ -11987,6 +12008,10 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (hash == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* Any error return leaves the signature reported as invalid. */
+    if (res != NULL) {
+        *res = 0;
+    }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
@@ -11999,6 +12024,10 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, hash, hashLen, ctx, ctxLen,
                     (word32)hashAlg, res, WC_PQC_SIG_TYPE_MLDSA, key);
+            /* Includes a device that wrote *res and then declined. */
+            if (ret != 0) {
+                *res = 0;
+            }
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -12062,7 +12091,8 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
  *  sigLen      [in]  Size of signature in bytes.
  *  mu          [in]  Pre-computed mu value (64 bytes).
  *  muLen       [in]  Length of mu in bytes (must be 64).
- *  res         [out] *res is set to 1 on successful verification.
+ *  res         [out] *res is set to 1 on successful verification and 0
+ *                    otherwise, including when an error is returned.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
  *          0 otherwise.
@@ -12076,6 +12106,10 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
             (mu == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Any error return leaves the signature reported as invalid. */
+    if (res != NULL) {
+        *res = 0;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
         ret = BAD_FUNC_ARG;

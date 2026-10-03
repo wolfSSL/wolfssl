@@ -1197,11 +1197,12 @@ static void wb_arg_guards(void)
  *
  *     if ((ret == 0) && valid) { ... }
  *
- * guards: `valid` goes false when a decoded hint is malformed, a norm check
- * fails, or the recomputed commitment differs.  A suite that only ever
- * verifies signatures it just produced sees valid == 1 at every one of them,
- * so the operand is undriven -- and a genuinely corrupt signature is the
- * ordinary, in-spec way to drive it.
+ * guards: `valid` goes false only when a norm check fails.  A malformed hint
+ * is rejected through ret (SIG_VERIFY_E), and a recomputed commitment that
+ * differs sets *res to 0 directly.
+ * A suite that only ever verifies signatures it just produced sees valid == 1
+ * at every one of them, so the operand is undriven -- and a genuinely corrupt
+ * signature is the ordinary, in-spec way to drive it.
  *
  * Single-bit flips are spread across the signature so different structural
  * parts (c-tilde, the z vector, the hint block, and its trailing padding)
@@ -1302,8 +1303,8 @@ static void wb_verify_invalid(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12517,
- * :12522, :12523).
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12809,
+ * :12814, :12815).
  *
  *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
  *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
@@ -1380,8 +1381,8 @@ static void wb_check_key_range(void)
     savedS1 = s1p[0];
     savedS2 = s2p[0];
 
-    /* s1[0] out of range on the low side: :12517 idx0 true, and the s2 loop
-     * header (:12522 idx0) is then evaluated with ret != 0. */
+    /* s1[0] out of range on the low side: :12809 idx0 true, and the s2 loop
+     * header (:12814 idx0) is then evaluated with ret != 0. */
     s1p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1390,7 +1391,7 @@ static void wb_check_key_range(void)
     s1p[0] = savedS1;
 
     /* s2[0] out of range: the s1 loop runs clean, the s2 header is true, and
-     * :12523 idx0 takes its true side. */
+     * :12815 idx0 takes its true side. */
     s2p[0] = 0xFF;
     ret = wc_MlDsaKey_CheckKey(&key);
     if (ret == 0) {
@@ -1399,7 +1400,7 @@ static void wb_check_key_range(void)
     s2p[0] = savedS2;
 
     wc_MlDsaKey_Free(&key);
-    WB_NOTE("CheckKey s1/s2 range rows exercised (12517, 12522, 12523)");
+    WB_NOTE("CheckKey s1/s2 range rows exercised (12809, 12814, 12815)");
 }
 #else
 static void wb_check_key_range(void)
