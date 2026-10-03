@@ -1133,6 +1133,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
             WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
         }
+#else
+        (void)in_bracketed_consume;
 #endif
 
         ret = Hash512_DRBG_Reseed(drbg512, seed, seedSz,

@@ -1339,11 +1339,12 @@ enum Misc_ASN {
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    KEYID_SIZE          = WC_SM3_DIGEST_SIZE,
-#elif defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
-    KEYID_SIZE          = WC_SHA256_DIGEST_SIZE,
+    /* SM builds use the fallback hash for non-SM signatures; hold the
+     * larger. */
+    KEYID_SIZE          = (WC_SM3_DIGEST_SIZE > WC_ASN_KEYID_SZ) ?
+                              WC_SM3_DIGEST_SIZE : WC_ASN_KEYID_SZ,
 #else
-    KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
+    KEYID_SIZE          = WC_ASN_KEYID_SZ,
 #endif
     RSA_INTS            =   2      /* RSA ints in private key */
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -1528,7 +1529,8 @@ enum KeyIdType {
     #define WOLFSSL_IP6_ADDR_LEN 16
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
-/* No allocator: reference key/alt-name data in the source DER, not copies. */
+/* No allocator: parse by referencing key/alt-name data in the source DER
+ * rather than copies, and encode from the stack. */
 #if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_USER) && !defined(WOLFSSL_STATIC_MEMORY)
     #define WC_ASN_NO_HEAP
@@ -2290,13 +2292,8 @@ struct DecodedCert {
 #endif
 };
 
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    #define SIGNER_DIGEST_SIZE WC_SM3_DIGEST_SIZE
-#elif defined(NO_SHA)
-    #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-    #define SIGNER_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
+/* Signer and CRL hashes come from CalcHashId*(). */
+#define SIGNER_DIGEST_SIZE KEYID_SIZE
 
 /* CA Signers */
 /* if change layout change PERSIST_CERT_CACHE functions too */
@@ -3007,21 +3004,13 @@ struct CertStatus {
 
 typedef struct OcspEntry OcspEntry;
 
+/* A CertID carries cert->issuerHash and issuerKeyHash, so name their hash. */
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-#define OCSP_DIGEST WC_HASH_TYPE_SM3
-#elif defined(NO_SHA)
-#define OCSP_DIGEST WC_HASH_TYPE_SHA256
+#define OCSP_DIGEST      WC_HASH_TYPE_SM3
 #else
-#define OCSP_DIGEST WC_HASH_TYPE_SHA
+#define OCSP_DIGEST      WC_ASN_KEYID_HASH_TYPE
 #endif
-
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-#define OCSP_DIGEST_SIZE WC_SM3_DIGEST_SIZE
-#elif defined(NO_SHA)
-#define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-#define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
+#define OCSP_DIGEST_SIZE KEYID_SIZE
 
 struct OcspEntry
 {
@@ -3041,11 +3030,8 @@ struct OcspEntry
 };
 
 #define OCSP_RESPONDER_ID_KEY_SZ 20
-#if !defined(NO_SHA)
-#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA
-#else
-#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA256
-#endif
+/* Passed to CalcHashId_ex() for a responder name. */
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_ASN_KEYID_HASH_TYPE
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,

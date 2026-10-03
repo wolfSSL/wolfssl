@@ -662,6 +662,9 @@ C149F3285397DFBD0C6720E14818475C3A50B10880EF9619463173A6D5ED15E7
     #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 
     #define XSNPRINTF snprintf
+
+    #include <stdlib.h>
+    #define XATOI(s)          atoi((s))
 #endif
 
 
