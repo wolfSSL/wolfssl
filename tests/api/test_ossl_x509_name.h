@@ -30,6 +30,7 @@ int test_wolfSSL_X509_NAME_hash(void);
 int test_wolfSSL_X509_NAME_print_ex(void);
 int test_wolfSSL_X509_NAME_ENTRY(void);
 int test_wolfSSL_X509_NAME_ENTRY_get_object(void);
+int test_wolfSSL_X509_NAME_oneline_escape(void);
 
 #define TEST_OSSL_X509_NAME_DECLS                                              \
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_get_entry),       \
@@ -37,6 +38,7 @@ int test_wolfSSL_X509_NAME_ENTRY_get_object(void);
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_hash),            \
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_print_ex),        \
     TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_ENTRY),           \
-    TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_ENTRY_get_object)
+    TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_ENTRY_get_object),\
+    TEST_DECL_GROUP("ossl_x509_name", test_wolfSSL_X509_NAME_oneline_escape)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_NAME_H */
