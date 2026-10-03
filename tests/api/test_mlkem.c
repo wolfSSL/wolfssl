@@ -5177,6 +5177,15 @@ int test_wc_mlkem_decode_reused_key(void)
     ExpectIntEQ(wc_MlKemKey_Decapsulate(kA, ss2, ct, ctLen), 0);
     ExpectBufEQ(ss1, ss2, sizeof(ss1));
 
+    /* A failed public key decode into a full key: decapsulate is refused. */
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kA, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(kA, ct, ss1, &rng), 0);
+    pkB[0] = 0xff;
+    pkB[1] = 0xff;
+    ExpectIntNE(wc_MlKemKey_DecodePublicKey(kA, pkB, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(kA, ss2, ct, ctLen),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
     wc_MlKemKey_Free(kB);
     wc_MlKemKey_Free(kA);
     XFREE(kB, NULL, DYNAMIC_TYPE_TMP_BUFFER);

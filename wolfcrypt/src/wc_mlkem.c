@@ -2146,6 +2146,11 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         ret = 0;
     }
 #endif
+    /* Software decapsulation re-encrypts with the public key (FIPS 203,
+     * Algorithm 18, steps 2 and 8), so refuse before decrypting without it. */
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PUB_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
@@ -2544,8 +2549,8 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
-        /* Forget the old key and the matrix cached from it: a failed decode
-         * leaves the key unusable, a good one gets its own matrix. */
+        /* Forget the old public key and the matrix cached from it, so a
+         * failed decode leaves no public key to encapsulate or decapsulate. */
         key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET |
                         MLKEM_FLAG_A_SET);
         /* Decode public key and check public key matches parameters. */
