@@ -370,11 +370,33 @@ config WOLFSSL_CHACHA_POLY
     Enable ChaCha20 and Poly1305 (HAVE_CHACHA, HAVE_POLY1305).
 
 config WOLFSSL_CURVE25519
-  bool "wolfCrypt Curve25519 / Ed25519 support"
+  bool "wolfCrypt Curve25519 (X25519) support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
   default n
   help
-    Enable Curve25519 and Ed25519 (HAVE_CURVE25519, HAVE_ED25519).
+    Enable X25519 key agreement (HAVE_CURVE25519).
+
+config WOLFSSL_ED25519
+  bool "wolfCrypt Ed25519 support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default y if WOLFSSL_CURVE25519
+  help
+    Enable Ed25519 signatures (HAVE_ED25519). Defaults on with
+    WOLFSSL_CURVE25519, which used to enable both.
+
+config WOLFSSL_CURVE448
+  bool "wolfCrypt Curve448 (X448) support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Enable X448 key agreement (HAVE_CURVE448).
+
+config WOLFSSL_ED448
+  bool "wolfCrypt Ed448 support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default y if WOLFSSL_CURVE448
+  help
+    Enable Ed448 signatures (HAVE_ED448), together with the SHAKE-256
+    that Ed448 hashes with.
 
 config WOLFSSL_SNI
   bool "wolfSSL Server Name Indication (SNI)"
@@ -382,6 +404,14 @@ config WOLFSSL_SNI
   default y
   help
     Enable TLS Server Name Indication (HAVE_SNI).
+
+config WOLFSSL_POST_HANDSHAKE_AUTH
+  bool "wolfSSL TLS 1.3 post-handshake authentication"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_TLS_VERSION_1_3
+  help
+    Enable TLS 1.3 post-handshake client authentication
+    (WOLFSSL_POST_HANDSHAKE_AUTH).
 
 config WOLFSSL_SESSION_CACHE
   bool "wolfSSL TLS session cache"
@@ -443,6 +473,86 @@ config WOLFSSL_OPENSSL_EXTRA_X509_SMALL
     Define OPENSSL_EXTRA_X509_SMALL. Exposes a small subset of X509
     helpers (wolfSSL_X509_free, wolfSSL_get_verify_result, ...) without
     the rest of OPENSSL_EXTRA.
+
+config WOLFSSL_USER_IO
+  bool "wolfSSL transport supplied by the application"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Define WOLFSSL_USER_IO. Leaves the built-in socket send/receive
+    callbacks out of the build, for an application that installs its own
+    with wolfSSL_CTX_SetIOSend()/SetIORecv(). Without a transport of its
+    own such a build cannot do TLS at all; with one it needs no network
+    stack, so CONFIG_NETWORKING can stay off.
+
+config WOLFSSL_CERT_GEN
+  bool "wolfSSL certificate generation"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Define WOLFSSL_CERT_GEN. Builds wc_InitCert(), wc_MakeCert() and
+    wc_SignCert(), so the application can issue X.509 certificates.
+
+config WOLFSSL_CERT_REQ
+  bool "wolfCrypt certificate request generation"
+  depends on WOLFSSL_CERT_GEN
+  help
+    Enable PKCS#10 certificate signing request generation
+    (WOLFSSL_CERT_REQ).
+
+config WOLFSSL_CERT_EXT
+  bool "wolfSSL certificate extensions"
+  depends on WOLFSSL_CERT_GEN
+  help
+    Define WOLFSSL_CERT_EXT. Adds the v3 extension setters -
+    wc_SetKeyUsage(), wc_SetExtKeyUsage(), wc_SetSubjectKeyId...() and
+    wc_SetAuthKeyId...() - to certificate generation.
+
+config WOLFSSL_KEY_GEN
+  bool "wolfCrypt key generation"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Enable RSA key generation and private key export to DER and PEM
+    (WOLFSSL_KEY_GEN).
+
+config WOLFSSL_ALT_NAMES
+  bool "wolfCrypt subject alternative names in generated certificates"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Write subject alternative names into generated certificates and
+    requests (WOLFSSL_ALT_NAMES).
+
+config WOLFSSL_IP_ALT_NAME
+  bool "wolfCrypt IP address subject alternative names"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on NETWORKING
+  help
+    Decode and match IP address subject alternative names
+    (WOLFSSL_IP_ALT_NAME).
+
+    Needs NETWORKING: the matching uses the socket address types.
+
+config WOLFSSL_CERT_NAME_ALL
+  bool "wolfCrypt all certificate name attributes"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Add the given name, initials, DN qualifier and name attributes to
+    certificate subjects (WOLFSSL_CERT_NAME_ALL).
+
+config WOLFSSL_PUBLIC_ASN
+  bool "wolfCrypt public ASN.1 helpers"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Define WOLFSSL_PUBLIC_ASN, which makes the ASN.1 helpers declared
+    WOLFSSL_ASN_API, such as wc_SetDNSEntry(), wc_SetAltNamesFromList()
+    and SetLength(), public API. The module builds without hidden symbol
+    visibility, so this changes what the headers promise, not what links.
+
+config WOLFSSL_PKCS7
+  bool "wolfCrypt PKCS#7 / CMS"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  help
+    Enable PKCS#7 (HAVE_PKCS7) with the AES key wrap and, with ECC, the
+    X9.63 KDF that its enveloped-data recipients need, as
+    --enable-pkcs7 does.
 
 config WOLFCRYPT_ASM
 	bool "wolfCrypt assembly optimisations"

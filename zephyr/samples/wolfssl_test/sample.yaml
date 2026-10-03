@@ -33,6 +33,12 @@ tests:
     extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_cert:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-cert.conf"
+    integration_platforms:
+      - qemu_x86
   # One scenario per assembly port CONFIG_WOLFCRYPT_ASM can select, so a
   # regression in the generated sources or in the arch dispatch fails here
   # rather than on hardware.
