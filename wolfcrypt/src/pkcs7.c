@@ -1894,16 +1894,18 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
                                             PKCS7Attrib* attribs, int attribsSz)
 {
     int i;
-    int maxSz;
     word32 allAttribsSz = 0;
 
     if (eaSz < 0 || attribsSz < 0) {
         return BAD_FUNC_ARG;
     }
 
-    maxSz = (int)min((word32)eaSz, (word32)attribsSz);
+    /* every attribute must fit in the output array; do not silently drop */
+    if (attribsSz > eaSz) {
+        return BUFFER_E;
+    }
 
-    for (i = 0; i < maxSz; i++)
+    for (i = 0; i < attribsSz; i++)
     {
         word32 attribSz = 0;
         word32 boundSz = 0;
@@ -3526,8 +3528,22 @@ static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
             idx += (word32)padSz;
         }
 
+        /* The pad can push the tail past a full chunk. StreamOctetString(),
+         * which sized the output, never emits more than BER_OCTET_LENGTH per
+         * octet string, so split here to match it. */
+        if (ret == 0 && idx > BER_OCTET_LENGTH) {
+            ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+                        encContentOut, contentData, BER_OCTET_LENGTH, out,
+                        &outIdx, esd);
+            if (ret == 0) {
+                idx -= BER_OCTET_LENGTH;
+                XMEMMOVE(contentData, contentData + BER_OCTET_LENGTH, idx);
+            }
+        }
+
         /* encrypt and flush out remainder of content data */
-        ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+        if (ret == 0)
+            ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
                     encContentOut, contentData, (int)idx, out, &outIdx, esd);
         if (ret == 0) {
             if (cipherType == WC_CIPHER_NONE && esd &&
