@@ -5681,7 +5681,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 
     \brief This function takes in a flag to change the behavior of the
     WOLFSSL_X509_STORE structure passed in. An example of a flag used
-    is WOLFSSL_CRL_CHECK.
+    is WOLFSSL_X509_V_FLAG_CRL_CHECK.
 
     \return SSL_SUCCESS If no errors were encountered when setting the flag.
     \return <0 a negative value will be returned upon failure.
@@ -5694,7 +5694,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
     WOLFSSL_X509_STORE* str;
     int ret;
     // create and set up str
-    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_X509_V_FLAG_CRL_CHECK);
     If (ret != SSL_SUCCESS) {
     	//check ret value and handle error case
     }

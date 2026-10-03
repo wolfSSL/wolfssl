@@ -207,6 +207,11 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
 
     ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), 0);
 
+    /* High bit must read back without sign extension */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(paramTo, 0x80000000UL), 1);
+    ExpectTrue(X509_VERIFY_PARAM_get_flags(paramTo) == 0x80000000UL);
+    ExpectIntEQ(X509_VERIFY_PARAM_clear_flags(paramTo, 0x80000000UL), 1);
+
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(NULL));
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(""));
     ExpectNotNull(wolfSSL_X509_VERIFY_PARAM_lookup("ssl_client"));
@@ -215,6 +220,30 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     X509_VERIFY_PARAM_free(paramTo);
     X509_VERIFY_PARAM_free(paramFrom);
     X509_VERIFY_PARAM_free(NULL); /* to confirm NULL parameter gives no harm */
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify flags must have the same values as in OpenSSL */
+int test_wolfSSL_X509_VERIFY_PARAM_openssl_values(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    static const struct {
+        unsigned long flag;
+        unsigned long opensslValue;
+    } flags[] = {
+        { X509_V_FLAG_USE_CHECK_TIME, 0x2 },
+        { X509_V_FLAG_CRL_CHECK,      0x4 },
+        { X509_V_FLAG_CRL_CHECK_ALL,  0x8 },
+        { X509_V_FLAG_PARTIAL_CHAIN,  0x80000 },
+        { X509_V_FLAG_NO_CHECK_TIME,  0x200000 }
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        ExpectIntEQ(flags[i].flag, flags[i].opensslValue);
+    }
 #endif
     return EXPECT_RESULT();
 }
