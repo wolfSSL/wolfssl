@@ -1733,9 +1733,10 @@ static void wb_decode_dsa_asn1_sig(void)
     contentSz += wb_tlv(content + contentSz, ASN_INTEGER, &sVal, 1);
     sigSz = WB_SEQ(sig, content, contentSz);
 
-    ret = DecodeDsaAsn1Sig(sig, sigSz, sigCpy, NULL);
+    /* qSz 1: r and s are one byte each, so sigCpy holds them unpadded. */
+    ret = DecodeDsaAsn1Sig(sig, sigSz, sigCpy, 1, NULL);
     WB_CHECK(ret == 0 && sigCpy[0] == rVal && sigCpy[1] == sVal,
-            "valid r/s -> mp_to_unsigned_bin() succeeds both times "
+            "valid r/s -> mp_to_unsigned_bin_len() succeeds both times "
             "(:17294 false side)");
 }
 #else
