@@ -9459,8 +9459,9 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @param [in, out] sigSz  On in, length of signature buffer.
  *                         On out, length of signature data.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, key's parameters, msg or sig is NULL.
+ * @return  BAD_FUNC_ARG when key, key's parameters, sig or sigSz is NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
+ * @return  BAD_FUNC_ARG when msg is NULL but msg length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length.
  * @return  MISSING_KEY when the public key seed is not set, or when
  *          there is no device and no private key to sign with.
@@ -9502,8 +9503,10 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  *                          On out, length of signature data.
  * @param [in]      addRnd  Additional random for signature.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, key's parameters, msg, sig or addrnd is NULL.
+ * @return  BAD_FUNC_ARG when key, key's parameters, sig, sigSz or addRnd is
+ *          NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
+ * @return  BAD_FUNC_ARG when msg is NULL but msg length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length.
  * @return  MISSING_KEY when private key not set.
  * @return  MEMORY_E on dynamic memory allocation failure.
@@ -9516,7 +9519,8 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) ||
-            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) ||
+            ((msg == NULL) && (msgSz != 0)) || (sig == NULL) ||
             (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
@@ -9528,6 +9532,12 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if (addRnd == NULL) {
         /* Alg 22, Step 6: Return error. */
         ret = BAD_FUNC_ARG;
+    }
+
+    /* Accept an empty message as (NULL, 0), as wc_SlhDsaKey_Sign() does. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte slhdsa_empty_msg[] = {0};
+        msg = slhdsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
