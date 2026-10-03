@@ -230,6 +230,7 @@ static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
     case finished:
     case certificate_status:
     case key_update:
+    case compressed_certificate:
     case request_connection_id:
     case new_connection_id:
     case change_cipher_hs:
@@ -1806,6 +1807,7 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                 }
                 break;
             case certificate_request:
+            case compressed_certificate:
             case certificate:
             case certificate_verify:
             case finished:
@@ -2151,8 +2153,11 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
            arrived out-of-order (before the server finished) so likely an ACK
            was already sent. In the worst case we will ACK the server
            retranmission*/
-        if (handshakeType == certificate || handshakeType == finished ||
-            handshakeType == server_hello || handshakeType == client_hello)
+        if (handshakeType == certificate ||
+            handshakeType == compressed_certificate ||
+            handshakeType == finished ||
+            handshakeType == server_hello ||
+            handshakeType == client_hello)
             Dtls13RtxFlushAcks(ssl);
     }
 

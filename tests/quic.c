@@ -1384,6 +1384,10 @@ static void check_crypto_records(QuicTestContext *from, OutputBuffer *out,
                 check_rec = check_ee;
                 break;
             case certificate:
+        #ifdef WOLFSSL_CERT_COMPRESSION
+            /* a compressed Certificate counts as a Certificate here */
+            case compressed_certificate:
+        #endif
                 rec_name = "Certificate";
                 break;
             case certificate_verify:

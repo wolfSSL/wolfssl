@@ -11178,6 +11178,26 @@ AC_ARG_WITH([libz],
     ]
 )
 
+# TLS 1.3 Certificate Compression (RFC 8879)
+AC_ARG_ENABLE([cert-compression],
+    [AS_HELP_STRING([--enable-cert-compression],[Enable TLS 1.3 Certificate Compression, RFC 8879 (requires --with-libz) (default: disabled)])],
+    [ ENABLED_CERT_COMPRESSION=$enableval ],
+    [ ENABLED_CERT_COMPRESSION=no ]
+    )
+
+if test "x$ENABLED_CERT_COMPRESSION" = "xyes"
+then
+    if test "x$ENABLED_LIBZ" = "xno"
+    then
+        AC_MSG_ERROR([--enable-cert-compression requires zlib. Add --with-libz.])
+    fi
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_ERROR([--enable-cert-compression requires TLS 1.3. Do not disable TLS 1.3.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DWOLFSSL_CERT_COMPRESSION"
+fi
+
 
 # PKCS#11
 AC_ARG_ENABLE([pkcs11],
@@ -14724,6 +14744,7 @@ echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+echo "   * Certificate Compression:    $ENABLED_CERT_COMPRESSION"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"

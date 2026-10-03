@@ -4272,6 +4272,20 @@ if(WOLFSSL_LIBZ)
     list(APPEND WOLFSSL_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
 endif()
 
+# TLS 1.3 Certificate Compression (RFC 8879)
+add_option("WOLFSSL_CERT_COMPRESSION"
+    "Enable TLS 1.3 Certificate Compression, RFC 8879 (requires WOLFSSL_LIBZ) (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_CERT_COMPRESSION)
+    if(NOT WOLFSSL_LIBZ)
+        message(FATAL_ERROR "WOLFSSL_CERT_COMPRESSION requires zlib. Add -DWOLFSSL_LIBZ=yes.")
+    endif()
+    if(NOT WOLFSSL_TLS13)
+        message(FATAL_ERROR "WOLFSSL_CERT_COMPRESSION requires TLS 1.3. Do not disable WOLFSSL_TLS13.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS" "-DWOLFSSL_CERT_COMPRESSION")
+endif()
+
 
 ####################################################
 # Maximum key size options (parity with configure.ac)
@@ -4831,6 +4845,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_evp_pkey.c
         tests/api/test_certman.c
         tests/api/test_tls13.c
+        tests/api/test_tls13_cert_compression.c
         tests/api/test_tls13_bounds.c
         tests/api/test_tls13_features.c
         tests/srp.c

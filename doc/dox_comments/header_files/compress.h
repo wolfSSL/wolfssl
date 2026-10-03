@@ -198,3 +198,224 @@ int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
 int wc_DeCompressDynamic(byte** out, int max, int memoryType,
                          const byte* in, word32 inSz, int windowBits,
                          void* heap);
+
+/*!
+    \ingroup Compression
+
+    \brief Checks whether a compression algorithm is compiled into this build
+    and usable with the wc_CompressionData functions. The algorithm ids are
+    the TLS CertificateCompressionAlgorithm code points (RFC 8879), e.g.
+    WC_ZLIB.
+
+    \return 1 if the algorithm is supported
+    \return 0 if the algorithm is not supported, or is WC_NO_COMPRESSION
+
+    \param alg compression algorithm id to check
+
+    _Example_
+    \code
+    if (wc_IsCompressionAlgSupported(WC_ZLIB)) {
+        // zlib can be used
+    }
+    \endcode
+
+    \sa wc_CompressionData_InitComp
+    \sa wc_CompressionData_InitDeComp
+*/
+byte wc_IsCompressionAlgSupported(word16 alg);
+
+/*!
+    \ingroup Compression
+
+    \brief Initializes a wc_CompressionData object to decompress the given
+    compressed data. The object does not take ownership of data; it is only
+    read from and must stay valid until the object is decompressed or freed.
+    If reusing an object, call wc_CompressionData_Free on it first.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if cd or data is NULL, uncompSz is 0, or alg is not
+    supported
+
+    \param cd object to initialize
+    \param data buffer holding the compressed data
+    \param compSz size of the compressed data in bytes
+    \param uncompSz exact size of the data once decompressed
+    \param alg compression algorithm used to compress data
+
+    _Example_
+    \code
+    wc_CompressionData cd;
+    byte compressed[] = { // compressed data };
+    word32 uncompSz = // exact decompressed size;
+
+    if (wc_CompressionData_InitDeComp(&cd, compressed, sizeof(compressed),
+            uncompSz, WC_ZLIB) == 0 &&
+            wc_CompressionData_DeCompress(&cd) == 0) {
+        // cd.data holds cd.uncompressedSz bytes of decompressed data
+    }
+    wc_CompressionData_Free(&cd);
+    \endcode
+
+    \sa wc_CompressionData_DeCompress
+    \sa wc_CompressionData_DeCompToBuf
+    \sa wc_CompressionData_Free
+*/
+int wc_CompressionData_InitDeComp(wc_CompressionData* cd,
+        const byte* data, word32 compSz, word32 uncompSz,
+        word16 alg);
+
+/*!
+    \ingroup Compression
+
+    \brief Initializes a wc_CompressionData object to compress the given data.
+    The object does not take ownership of data; it is only read from and must
+    stay valid until the object is compressed or freed. If reusing an object,
+    call wc_CompressionData_Free on it first.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if cd or data is NULL, uncompSz is 0, or alg is not
+    supported
+
+    \param cd object to initialize
+    \param data buffer holding the data to compress
+    \param uncompSz size of data in bytes
+    \param alg compression algorithm to use
+
+    _Example_
+    \code
+    wc_CompressionData cd;
+    byte msg[] = { // data to compress };
+
+    if (wc_CompressionData_InitComp(&cd, msg, sizeof(msg), WC_ZLIB) == 0 &&
+            wc_CompressionData_Compress(&cd) == 0) {
+        // cd.data holds cd.compressedSz bytes of compressed data
+    }
+    wc_CompressionData_Free(&cd);
+    \endcode
+
+    \sa wc_CompressionData_Compress
+    \sa wc_CompressionData_CompToBuf
+    \sa wc_CompressionData_Free
+*/
+int wc_CompressionData_InitComp(wc_CompressionData* cd,
+        const byte* data, word32 uncompSz, word16 alg);
+
+/*!
+    \ingroup Compression
+
+    \brief Sets the heap hint used for buffers that
+    wc_CompressionData_Compress and wc_CompressionData_DeCompress allocate.
+    Call after the Init function, since Init clears the object.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if cd is NULL
+
+    \param cd initialized object
+    \param heap heap hint (can be NULL)
+
+    \sa wc_CompressionData_Compress
+    \sa wc_CompressionData_DeCompress
+*/
+int wc_CompressionData_SetHeap(wc_CompressionData* cd, void* heap);
+
+/*!
+    \ingroup Compression
+
+    \brief Releases the buffer owned by the object (the output of a previous
+    Compress or DeCompress call), zeroizing it first, and clears the object.
+    A buffer passed to an Init function is not freed. Safe to call with NULL.
+
+    \return none No returns.
+
+    \param cd object to free
+
+    \sa wc_CompressionData_InitComp
+    \sa wc_CompressionData_InitDeComp
+*/
+void wc_CompressionData_Free(wc_CompressionData* cd);
+
+/*!
+    \ingroup Compression
+
+    \brief Compresses the object's data into a newly allocated buffer, which
+    the object then owns. On success cd->data points at the compressed data
+    and cd->compressedSz holds its size. Compression fails when the output
+    does not fit in the uncompressed size.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if data is NULL, not initialized for compression, or
+    the algorithm is not supported
+    \return MEMORY_E if allocation fails
+    \return COMPRESS_E or another negative value if compression fails
+
+    \param data object initialized with wc_CompressionData_InitComp
+
+    \sa wc_CompressionData_InitComp
+    \sa wc_CompressionData_CompToBuf
+*/
+int wc_CompressionData_Compress(wc_CompressionData* data);
+
+/*!
+    \ingroup Compression
+
+    \brief Compresses the object's data into a caller-supplied buffer. The
+    object is not modified.
+
+    \return the number of compressed bytes written to out on success
+    \return BAD_FUNC_ARG if data or out is NULL or the algorithm is not
+    supported
+    \return COMPRESS_E or another negative value if compression fails,
+    including when out is too small
+
+    \param data object initialized with wc_CompressionData_InitComp
+    \param out buffer to write the compressed data to
+    \param outSz size of out in bytes
+
+    \sa wc_CompressionData_Compress
+*/
+int wc_CompressionData_CompToBuf(const wc_CompressionData* data,
+        byte* out, word32 outSz);
+
+/*!
+    \ingroup Compression
+
+    \brief Decompresses the object's data into a newly allocated buffer of
+    cd->uncompressedSz bytes, which the object then owns. On success cd->data
+    points at the decompressed data. Decompression fails unless the output is
+    exactly the uncompressed size given to wc_CompressionData_InitDeComp.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if data is NULL, not initialized for decompression,
+    or the algorithm is not supported
+    \return MEMORY_E if allocation fails
+    \return BUFFER_E if the decompressed size is too small
+    \return other negative values if decompression fails
+
+    \param data object initialized with wc_CompressionData_InitDeComp
+
+    \sa wc_CompressionData_InitDeComp
+    \sa wc_CompressionData_DeCompToBuf
+*/
+int wc_CompressionData_DeCompress(wc_CompressionData* data);
+
+/*!
+    \ingroup Compression
+
+    \brief Decompresses the object's data into a caller-supplied buffer. The
+    object is not modified.
+
+    \return the number of decompressed bytes written to out on success
+    \return BAD_FUNC_ARG if data or out is NULL or the algorithm is not
+    supported
+    \return BUFFER_E if outSz is smaller than the uncompressed size, or the
+    decompressed size does not match it
+    \return other negative values if decompression fails
+
+    \param data object initialized with wc_CompressionData_InitDeComp
+    \param out buffer to write the decompressed data to
+    \param outSz size of out in bytes
+
+    \sa wc_CompressionData_DeCompress
+*/
+int wc_CompressionData_DeCompToBuf(const wc_CompressionData* data,
+        byte* out, word32 outSz);

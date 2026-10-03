@@ -14864,6 +14864,95 @@ int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
+    \brief This function sets the certificate compression algorithms
+    (RFC 8879) that WOLFSSL objects created from this context will offer, in
+    order of preference. Defaults to negotiate all supported compression
+    algorithms by the build (see wc_IsCompressionAlgSupported()).
+    Passing an empty alg list turns off certificate compression.
+
+    Available when wolfSSL is built with --enable-cert-compression and
+    --with-libz. Certificate compression is available with (D)TLS 1.3.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX Object.
+    \param [in] algs array of RFC 8879 algorithm IDs, most preferred first.
+    Every entry must be supported by this build (see
+    wc_IsCompressionAlgSupported()). May be NULL only when count is 0.
+    \param [in] count number of entries in algs, from 0 to 127. A count of 0
+    turns off certificate compression.
+
+    \return WOLFSSL_SUCCESS if successful.
+    \return BAD_FUNC_ARG if ctx is NULL, algs is NULL while count is not 0,
+    count is negative or greater than 127, or an entry in algs is not a
+    supported algorithm.
+    \return MEMORY_E if the copy of the list could not be allocated.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    const word16 algs[] = { WC_ZLIB };
+    ...
+    ret = wolfSSL_CTX_set_cert_compression_algs(ctx, algs,
+        (int)(sizeof(algs) / sizeof(algs[0])));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set compression algorithms
+    }
+    \endcode
+
+    \sa wolfSSL_set_cert_compression_algs
+    \sa wc_IsCompressionAlgSupported
+*/
+int wolfSSL_CTX_set_cert_compression_algs(WOLFSSL_CTX* ctx,
+    const word16* algs, int count);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the certificate compression algorithms
+    (RFC 8879) that the wolfSSL object will negotiate. Defaults to negotiate
+    all supported compression algorithms by the build (see
+    wc_IsCompressionAlgSupported()). Passing an empty alg list turns off
+    certificate compression.
+
+    Available when wolfSSL is built with --enable-cert-compression and
+    --with-libz. Certificate compression is available with (D)TLS 1.3.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] algs array of RFC 8879 algorithm IDs, most preferred first.
+    Every entry must be supported by this build (see
+    wc_IsCompressionAlgSupported()). May be NULL only when count is 0.
+    \param [in] count number of entries in algs, from 0 to 127. A count of 0
+    turns off certificate compression.
+
+    \return WOLFSSL_SUCCESS if successful.
+    \return BAD_FUNC_ARG if ssl is NULL, algs is NULL while count is not 0,
+    count is negative or greater than 127, or an entry in algs is not a
+    supported algorithm.
+    \return MEMORY_E if the copy of the list could not be allocated.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    const word16 algs[] = { WC_ZLIB };
+    ...
+    ret = wolfSSL_set_cert_compression_algs(ssl, algs,
+        (int)(sizeof(algs) / sizeof(algs[0])));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set compression algorithms
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_cert_compression_algs
+    \sa wc_IsCompressionAlgSupported
+*/
+int wolfSSL_set_cert_compression_algs(WOLFSSL* ssl,
+    const word16* algs, int count);
+
+/*!
+    \ingroup Setup
+
     \brief This function is called on a TLS v1.3 wolfSSL context to disallow
     Diffie-Hellman (DH) style key exchanges when handshakes are using
     pre-shared keys for authentication.

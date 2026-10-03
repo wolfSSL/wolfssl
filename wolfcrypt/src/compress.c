@@ -20,11 +20,12 @@
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/compress.h>
 
+
+/* zlib backend */
 #ifdef HAVE_LIBZ
 
-
-#include <wolfssl/wolfcrypt/compress.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -50,7 +51,7 @@ static void myFree(void* opaque, void* memory)
 }
 
 
-#ifdef HAVE_MCAPI
+#if defined(HAVE_MCAPI)
     #define DEFLATE_DEFAULT_WINDOWBITS  11
     #define DEFLATE_DEFAULT_MEMLEVEL     1
 #else
@@ -347,3 +348,241 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
 
 #endif /* HAVE_LIBZ */
 
+#ifdef WOLFSSL_HAVE_COMPRESSION_BACKEND
+
+/* Start of compression object interfaces */
+int wc_CompressionData_InitDeComp(wc_CompressionData* cd,
+        const byte* data, word32 compSz, word32 uncompSz, word16 alg)
+{
+    if (cd == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(cd, 0, sizeof(*cd));
+
+    if (data == NULL || uncompSz == 0 || !wc_IsCompressionAlgSupported(alg)) {
+        return BAD_FUNC_ARG;
+    }
+
+    cd->compressionAlg = alg;
+    cd->compressedSz = compSz;
+    cd->uncompressedSz = uncompSz;
+    /* not owned, so it is only read from and never freed */
+    cd->data = (byte*)(wc_ptr_t)data;
+    cd->isCompressed = 1;
+    return 0;
+}
+
+int wc_CompressionData_InitComp(wc_CompressionData* cd, const byte* data,
+        word32 uncompSz, word16 alg)
+{
+    if (cd == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(cd, 0, sizeof(*cd));
+
+    if (data == NULL || uncompSz == 0 || !wc_IsCompressionAlgSupported(alg)) {
+        return BAD_FUNC_ARG;
+    }
+
+
+    cd->compressionAlg = alg;
+    cd->uncompressedSz = uncompSz;
+    /* not owned, so it is only read from and never freed */
+    cd->data = (byte*)(wc_ptr_t)data;
+    return 0;
+}
+
+void wc_CompressionData_Free(wc_CompressionData* cd)
+{
+    void* heap;
+
+    if (cd == NULL)
+        return;
+
+    heap = cd->heap;
+    if (cd->dataIsOwned) {
+        if (cd->data != NULL) {
+            ForceZero(cd->data, cd->isCompressed ? cd->compressedSz :
+                                                   cd->uncompressedSz);
+            XFREE(cd->data, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+    ForceZero(cd, sizeof(wc_CompressionData));
+}
+
+int wc_CompressionData_CompToBuf(const wc_CompressionData* data, byte* out,
+        word32 outSz)
+{
+    int ret = 0;
+
+    if (data == NULL || data->data == NULL || data->isCompressed ||
+            data->uncompressedSz == 0 || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (data->compressionAlg) {
+        case WC_ZLIB:
+#ifdef HAVE_LIBZ
+            ret = wc_Compress(out, outSz,
+                    data->data, data->uncompressedSz, 0);
+            break;
+#endif
+
+        /* implement more compression algs here */
+        case WC_NO_COMPRESSION:
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
+int wc_CompressionData_Compress(wc_CompressionData* data)
+{
+    int ret;
+    byte* out;
+
+    if (data == NULL || data->data == NULL || data->isCompressed ||
+            data->uncompressedSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (!wc_IsCompressionAlgSupported(data->compressionAlg)) {
+        return BAD_FUNC_ARG;
+    }
+
+    out = (byte*)XMALLOC(data->uncompressedSz, data->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return MEMORY_E;
+
+    ret = wc_CompressionData_CompToBuf(data, out, data->uncompressedSz);
+
+    if (ret <= 0) {
+        XFREE(out, data->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return (ret == 0) ? COMPRESS_E : ret;
+    }
+
+    if (data->dataIsOwned) {
+        ForceZero(data->data, data->uncompressedSz);
+        XFREE(data->data, data->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    data->data = out;
+    data->isCompressed = 1;
+    data->compressedSz = (word32)ret;
+    data->dataIsOwned = 1;
+
+    /* free last bit of extra memory */
+#ifndef WOLFSSL_NO_REALLOC
+    {
+        byte* tmp = (byte*)XREALLOC(out, data->compressedSz, data->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp != NULL) {
+            data->data = tmp;
+        }
+    }
+#endif
+
+    return 0;
+}
+
+int wc_CompressionData_DeCompToBuf(const wc_CompressionData* data,
+        byte* out, word32 outSz)
+{
+    int ret = 0;
+
+    if (data == NULL || data->data == NULL || !data->isCompressed ||
+            data->compressedSz == 0 || data->uncompressedSz == 0 ||
+            out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (outSz < data->uncompressedSz) {
+        return BUFFER_E;
+    }
+
+    switch (data->compressionAlg) {
+        case WC_ZLIB:
+#ifdef HAVE_LIBZ
+            ret = wc_DeCompress_ex(out, outSz,
+                    data->data, data->compressedSz, 15);
+            if (ret >= 0 && (word32)ret != data->uncompressedSz) {
+                return BUFFER_E;
+            }
+            return ret;
+#endif
+
+        /* implement more compression algs here */
+        case WC_NO_COMPRESSION:
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
+int wc_CompressionData_DeCompress(wc_CompressionData* data)
+{
+    int ret;
+    byte* out;
+
+    if (data == NULL || data->data == NULL || !data->isCompressed ||
+            data->compressedSz == 0 || data->uncompressedSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (!wc_IsCompressionAlgSupported(data->compressionAlg)) {
+        return BAD_FUNC_ARG;
+    }
+
+    out = (byte*)XMALLOC(data->uncompressedSz, data->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return MEMORY_E;
+
+    ret = wc_CompressionData_DeCompToBuf(data, out, data->uncompressedSz);
+
+    if (ret < 0) {
+        XFREE(out, data->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    if (data->dataIsOwned) {
+        ForceZero(data->data, data->compressedSz);
+        XFREE(data->data, data->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    data->data = out;
+    data->isCompressed = 0;
+    data->uncompressedSz = (word32)ret;
+    data->dataIsOwned = 1;
+
+    return 0;
+}
+
+int wc_CompressionData_SetHeap(wc_CompressionData* cd, void* heap)
+{
+    if (cd == NULL)
+        return BAD_FUNC_ARG;
+
+    cd->heap = heap;
+    return 0;
+}
+
+
+byte wc_IsCompressionAlgSupported(word16 alg)
+{
+    switch (alg) {
+#ifdef HAVE_LIBZ
+        case WC_ZLIB:
+        return 1;
+#endif
+
+        case WC_NO_COMPRESSION:
+        default:
+        return 0;
+    }
+}
+
+#endif /* WOLFSSL_HAVE_COMPRESSION_BACKEND */

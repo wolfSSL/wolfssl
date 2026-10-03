@@ -317,6 +317,7 @@
 #include <tests/api/test_evp_pkey.h>
 #include <tests/api/test_certman.h>
 #include <tests/api/test_tls13.h>
+#include <tests/api/test_tls13_cert_compression.h>
 #include <tests/api/test_tls13_bounds.h>
 #include <tests/api/test_tls13_features.h>
 #if !defined(NO_CERTS) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC)
@@ -43732,6 +43733,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_options),
 
     TEST_TLS13_DECLS,
+    TEST_TLS13_CERT_COMPRESSION_DECLS,
     TEST_TLS13_BOUNDS_DECLS,
     TEST_TLS13_FEATURES_DECLS,
 
