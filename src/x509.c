@@ -1385,6 +1385,155 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 }
 #endif /* WOLFSSL_CUSTOM_OID */
 
+/* Map a DER encoded KeyPurposeId to its EXTKEYUSE_* bit.
+ *
+ * @param [in]  der    DER encoded OBJECT IDENTIFIER.
+ * @param [in]  derSz  Length of @der in bytes.
+ * @param [out] bit    Usage bit, 0 when wolfSSL tracks no bit for the OID.
+ * @return  0 on success, ASN_PARSE_E when @der is not one OBJECT IDENTIFIER.
+ */
+static int wolfssl_eku_der_to_bit(const byte* der, word32 derSz, byte* bit)
+{
+    word32 idx = 0;
+    word32 oid = 0;
+
+    *bit = 0;
+
+    /* wolfSSL_d2i_ASN1_OBJECT() reads back at most this much. */
+    if (derSz > (word32)(MAX_OID_SZ + 2)) {
+        return ASN_PARSE_E;
+    }
+    if (GetObjectId(der, &idx, &oid, oidIgnoreType, derSz) != 0) {
+        return ASN_PARSE_E;
+    }
+    /* One OID, no trailing bytes. */
+    if (idx != derSz) {
+        return ASN_PARSE_E;
+    }
+
+    switch (oid) {
+    case EKU_ANY_OID:
+        *bit = EXTKEYUSE_ANY;
+        break;
+    case EKU_SERVER_AUTH_OID:
+        *bit = EXTKEYUSE_SERVER_AUTH;
+        break;
+    case EKU_CLIENT_AUTH_OID:
+        *bit = EXTKEYUSE_CLIENT_AUTH;
+        break;
+    case EKU_CODESIGNING_OID:
+        *bit = EXTKEYUSE_CODESIGN;
+        break;
+    case EKU_EMAILPROTECT_OID:
+        *bit = EXTKEYUSE_EMAILPROT;
+        break;
+    case EKU_TIMESTAMP_OID:
+        *bit = EXTKEYUSE_TIMESTAMP;
+        break;
+    case EKU_OCSP_SIGN_OID:
+        *bit = EXTKEYUSE_OCSP_SIGN;
+        break;
+    default:
+        /* Unknown OID: kept in the list, no bit. */
+        break;
+    }
+
+    return 0;
+}
+
+/* Check that every entry of a KeyPurposeId stack is one DER OBJECT
+ * IDENTIFIER, reporting the size of the encoded list and the usage bits.
+ *
+ * @return  WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+static int wolfssl_x509_eku_sk_check(WOLFSSL_STACK* sk, word32* derSz,
+    byte* usage)
+{
+    int i;
+    int num;
+    word32 sz = 0;
+    byte bits = 0;
+    byte bit = 0;
+
+    num = wolfSSL_sk_num(sk);
+    if (num <= 0) {
+        WOLFSSL_MSG("extKeyUsage object stack is empty");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < num; i++) {
+        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(sk,
+            i);
+
+        if ((obj == NULL) || (obj->obj == NULL) || (obj->objSz == 0)) {
+            WOLFSSL_MSG("extKeyUsage entry has no OID encoding");
+            return WOLFSSL_FAILURE;
+        }
+        if (wolfssl_eku_der_to_bit(obj->obj, obj->objSz, &bit) != 0) {
+            WOLFSSL_MSG("extKeyUsage entry is not a KeyPurposeId");
+            return WOLFSSL_FAILURE;
+        }
+        bits |= bit;
+        sz += obj->objSz;
+    }
+
+    *derSz = sz;
+    *usage = bits;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the extKeyUsage of @x509 from the stack of ASN.1 OBJECTs that
+ * wolfSSL_X509V3_EXT_i2d() builds for WC_NID_ext_key_usage.
+ *
+ * The KeyPurposeId list is stored as the bare concatenation of its DER
+ * OBJECT IDENTIFIERs, the layout DecodeExtKeyUsage() hands to WOLFSSL_X509,
+ * so that wolfSSL_X509_get_ext_d2i() reads it back. OIDs wolfSSL has no bit
+ * for stay in the list.
+ *
+ * @return  WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+static int wolfssl_x509_add_ext_key_usage_sk(WOLFSSL_X509* x509,
+    WOLFSSL_X509_EXTENSION* ext)
+{
+    int i;
+    int num;
+    byte* der;
+    word32 derSz = 0;
+    word32 idx = 0;
+    byte usage = 0;
+
+    /* Validate before allocating so a bad entry changes nothing. */
+    if (wolfssl_x509_eku_sk_check(ext->ext_sk, &derSz, &usage) !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+    num = wolfSSL_sk_num(ext->ext_sk);
+
+    der = (byte*)XMALLOC(derSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    if (der == NULL) {
+        WOLFSSL_MSG("Memory allocation failure");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < num; i++) {
+        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(
+            ext->ext_sk, i);
+
+        XMEMCPY(der + idx, obj->obj, obj->objSz);
+        idx += obj->objSz;
+    }
+
+    XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->extKeyUsageSrc   = der;
+    x509->extKeyUsageSz    = derSz;
+    x509->extKeyUsageCount = (word32)num;
+    x509->extKeyUsage      = usage;
+    x509->extKeyUsageCrit  = (byte)ext->crit;
+
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
     int loc)
 {
@@ -1473,6 +1622,14 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
                 return WOLFSSL_FAILURE;
             }
         }
+        else if (ext && ext->ext_sk != NULL) {
+            if (wolfssl_x509_add_ext_key_usage_sk(x509, ext) !=
+                    WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        /* No data and no object stack: nothing to set, treat as no-op like the
+         * WC_NID_key_usage case above. */
         break;
     case WC_NID_basic_constraints:
         if (ext->obj) {
@@ -3510,8 +3667,10 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         /* WOLFSSL_BASIC_CONSTRAINTS */
         WOLFSSL_BASIC_CONSTRAINTS* bc = (WOLFSSL_BASIC_CONSTRAINTS*)data;
 
-        if (!(ext->obj = wolfSSL_ASN1_OBJECT_new())) {
-            WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
+        /* Build from the NID like the other cases: a bare ASN1_OBJECT has
+         * type 0, which wolfSSL_X509_add_ext() rejects. */
+        if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
+            WOLFSSL_MSG("wolfSSL_OBJ_nid2obj failed");
             goto err_cleanup;
         }
 
@@ -3582,6 +3741,242 @@ err_cleanup:
         wolfSSL_X509_EXTENSION_free(ext);
     }
     return NULL;
+}
+
+/* Report whether an extension of type @nid is present in the in-memory @x509,
+ * based on wolfSSL's typed extension storage. Only the NIDs that
+ * wolfSSL_X509_add_ext() can consume have such storage.
+ *
+ * @return 1 when present, 0 when absent and -1 when @nid has no typed storage
+ * and presence therefore cannot be determined. */
+static int wolfssl_x509_ext_is_set(const WOLFSSL_X509 *x509, int nid)
+{
+    switch (nid) {
+    case WC_NID_subject_alt_name:
+        return (x509->subjAltNameSet != 0) || (x509->altNames != NULL);
+    case WC_NID_key_usage:
+        return x509->keyUsageSet != 0;
+    case WC_NID_ext_key_usage:
+        return (x509->extKeyUsage != 0) || (x509->extKeyUsageSrc != NULL);
+    case WC_NID_basic_constraints:
+        return x509->basicConstSet != 0;
+    case WC_NID_subject_key_identifier:
+        return (x509->subjKeyId != NULL) || (x509->subjKeyIdSet != 0);
+    case WC_NID_authority_key_identifier:
+        return (x509->authKeyId != NULL) || (x509->authKeyIdSet != 0);
+    default:
+        return -1;
+    }
+}
+
+/* Remove the extension of type @nid from the in-memory @x509 by clearing the
+ * matching typed storage (mirrors the frees in FreeX509()). Every field the
+ * accessors for @nid look at has to be cleared, including the cached and
+ * "is set" flags, or the removed extension stays observable.
+ *
+ * The encoded certificate (x509->derCert) is not re-generated, so APIs that
+ * decode the DER again - wolfSSL_X509_get_ext_count(),
+ * wolfSSL_X509_get_ext_by_NID() - keep reporting the original extensions.
+ * That limitation is shared with wolfSSL_X509_add_ext().
+ *
+ * Returns WOLFSSL_SUCCESS if @nid is a supported, removable extension,
+ * otherwise WOLFSSL_FAILURE. */
+static int wolfssl_x509_remove_ext(WOLFSSL_X509 *x509, int nid)
+{
+    switch (nid) {
+    case WC_NID_subject_alt_name:
+        if (x509->altNames != NULL) {
+            FreeAltNames(x509->altNames, x509->heap);
+            x509->altNames = NULL;
+        }
+        /* Retrieval hint indexes into the list just freed. */
+        x509->altNamesNext = NULL;
+    #ifdef OPENSSL_ALL
+        XFREE(x509->subjAltNameSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->subjAltNameSrc = NULL;
+        x509->subjAltNameSz = 0;
+    #endif
+        x509->subjAltNameSet = 0;
+        x509->subjAltNameCrit = 0;
+        break;
+    case WC_NID_key_usage:
+        x509->keyUsage = 0;
+        x509->keyUsageCrit = 0;
+        x509->keyUsageSet = 0;
+        break;
+    case WC_NID_ext_key_usage:
+        XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->extKeyUsageSrc = NULL;
+        x509->extKeyUsageSz = 0;
+        x509->extKeyUsageCount = 0;
+        x509->extKeyUsage = 0;
+        x509->extKeyUsageCrit = 0;
+        break;
+    case WC_NID_basic_constraints:
+        x509->isCa = 0;
+        x509->pathLength = 0;
+        x509->basicConstCrit = 0;
+        x509->basicConstSet = 0;
+        x509->basicConstPlSet = 0;
+        x509->pathLengthSet = 0;
+        break;
+    case WC_NID_subject_key_identifier:
+        XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->subjKeyId = NULL;
+        x509->subjKeyIdSz = 0;
+        /* Cached ASN1_STRING handed out by get0_subject_key_id(). */
+        wolfSSL_ASN1_STRING_free(x509->subjKeyIdStr);
+        x509->subjKeyIdStr = NULL;
+        x509->subjKeyIdSet = 0;
+        x509->subjKeyIdCrit = 0;
+        break;
+    case WC_NID_authority_key_identifier:
+        /* authKeyId may point into authKeyIdSrc; free the source first. */
+        if (x509->authKeyIdSrc != NULL) {
+            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->authKeyIdSrc = NULL;
+        }
+        else {
+            XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        x509->authKeyId = NULL;
+        x509->authKeyIdSz = 0;
+        x509->authKeyIdSrcSz = 0;
+        x509->authKeyIdSet = 0;
+        x509->authKeyIdCrit = 0;
+        break;
+    default:
+        WOLFSSL_MSG("Extension NID not supported for removal");
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+/**
+ * Encode @value as an extension of type @nid and add it to @x, honoring the
+ * OpenSSL X509V3_ADD_* operation selected by the low nibble of @flags:
+ *   X509V3_ADD_DEFAULT          - add, fail if already present
+ *   X509V3_ADD_APPEND           - add without checking for an existing one
+ *   X509V3_ADD_REPLACE          - replace any existing, else add
+ *   X509V3_ADD_REPLACE_EXISTING - replace, fail if not already present
+ *   X509V3_ADD_KEEP_EXISTING    - keep existing (no-op if present), else add
+ *   X509V3_ADD_DELETE           - delete existing, fail if not present
+ * X509V3_ADD_SILENT is accepted but inert: this function reports nothing that
+ * could be suppressed, and the flag never changes the result.
+ *
+ * Presence can only be determined for the extensions wolfSSL_X509_add_ext()
+ * stores in typed fields. For any other NID every operation except
+ * X509V3_ADD_APPEND - the one defined as not checking - fails.
+ *
+ * @return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
+                              int crit, unsigned long flags)
+{
+    WOLFSSL_X509_EXTENSION *ext = NULL;
+    int ret;
+    unsigned long op;
+    int exists;
+
+    WOLFSSL_ENTER("wolfSSL_X509_add1_ext_i2d");
+
+    if (x == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    op = flags & WOLFSSL_X509V3_ADD_OP_MASK;
+    exists = wolfssl_x509_ext_is_set(x, nid);
+    if (exists < 0) {
+        if (op != WOLFSSL_X509V3_ADD_APPEND) {
+            WOLFSSL_MSG("Extension presence not tracked for this NID");
+            return WOLFSSL_FAILURE;
+        }
+        exists = 0;
+    }
+
+    switch (op) {
+    case WOLFSSL_X509V3_ADD_DELETE:
+        if (!exists) {
+            WOLFSSL_MSG("No extension to delete (X509V3_ADD_DELETE)");
+            return WOLFSSL_FAILURE;
+        }
+        return wolfssl_x509_remove_ext(x, nid);
+    case WOLFSSL_X509V3_ADD_DEFAULT:
+        if (exists) {
+            WOLFSSL_MSG("Extension already present (X509V3_ADD_DEFAULT)");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+    case WOLFSSL_X509V3_ADD_APPEND:
+    case WOLFSSL_X509V3_ADD_REPLACE:
+        break;
+    case WOLFSSL_X509V3_ADD_REPLACE_EXISTING:
+        if (!exists) {
+            WOLFSSL_MSG("No extension to replace "
+                        "(X509V3_ADD_REPLACE_EXISTING)");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+    case WOLFSSL_X509V3_ADD_KEEP_EXISTING:
+        if (exists) {
+            /* Keep the existing extension; nothing to add. */
+            return WOLFSSL_SUCCESS;
+        }
+        break;
+    default:
+        WOLFSSL_MSG("Unsupported X509V3_ADD_* operation");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (value == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Encode the new extension before dropping the old one so that a failure
+     * leaves the certificate untouched. */
+    ext = wolfSSL_X509V3_EXT_i2d(nid, crit, value);
+    if (ext == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* wolfSSL_X509_add_ext() dispatches on the encoded object, which for an
+     * authorityKeyIdentifier built from an issuer name is caller supplied.
+     * Refuse here rather than remove one extension and write another. */
+    if (((ext->obj != NULL) ? ext->obj->type : ext->value.nid) != nid) {
+        WOLFSSL_MSG("Encoded extension is not the requested NID");
+        wolfSSL_X509_EXTENSION_free(ext);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* wolfSSL_X509V3_EXT_i2d() copies an extKeyUsage stack without looking
+     * inside it, so encoding is not the check that matters here. Reject a bad
+     * stack before the existing extension is dropped for it. */
+    if ((nid == WC_NID_ext_key_usage) && (ext->value.data == NULL) &&
+            (ext->ext_sk != NULL)) {
+        word32 ekuSz = 0;
+        byte ekuUsage = 0;
+
+        if (wolfssl_x509_eku_sk_check(ext->ext_sk, &ekuSz, &ekuUsage) !=
+                WOLFSSL_SUCCESS) {
+            wolfSSL_X509_EXTENSION_free(ext);
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    if (exists && ((op == WOLFSSL_X509V3_ADD_REPLACE) ||
+                   (op == WOLFSSL_X509V3_ADD_REPLACE_EXISTING))) {
+        if (wolfssl_x509_remove_ext(x, nid) != WOLFSSL_SUCCESS) {
+            wolfSSL_X509_EXTENSION_free(ext);
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    ret = wolfSSL_X509_add_ext(x, ext, -1);
+    wolfSSL_X509_EXTENSION_free(ext);
+
+    return ret;
 }
 
 /* Returns pointer to ASN1_OBJECT from an X509_EXTENSION object */
