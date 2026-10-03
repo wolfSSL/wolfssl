@@ -2537,6 +2537,38 @@ int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode);
 
 /*!
+    \ingroup Setup
+
+    \brief この関数は、アプリケーションが管理する外部セッションキャッシュからセッションを検索するためにwolfSSLが使用するコールバックを登録します。このコールバックはサーバー側で、ピアが再開のためにセッションIDを提示した際、内部キャッシュを参照する前に呼び出されます。互換レイヤのSSL_CTX_sess_set_get_cb()に相当します。
+
+    \return none 戻り値はありません。
+
+    \param ctx wolfSSL_CTX_new()で作成されたSSLコンテキストへのポインタ。
+    \param f 検索コールバック。既に登録されているコールバックを解除する場合はNULLを指定します。コールバックには、ネゴシエーション中のWOLFSSLオブジェクト、検索対象のセッションIDとその長さ、およびcopyフラグへのポインタが渡されます。コールバックは一致したWOLFSSL_SESSIONを返し、そのIDに対応するセッションがキャッシュに無い場合はNULLを返します。wolfSSLは呼び出し前にcopyフラグを1に設定します。1のままにした場合、返されたセッションの所有権はコールバック側に残り、wolfSSLはセッションの参照カウントをインクリメントして保持します。0に設定した場合は、コールバックが保持していた参照カウントをwolfSSLが引き継ぎます。いずれの場合もwolfSSLはセッションの使用を終えた時点で参照カウントをデクリメントします。そのためコールバックは、wolfSSLがインクリメントを完了するまで解放されないセッションを返す必要があります。参照カウントをインクリメントできないセッションは、該当セッション無しとして扱われます。
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* myGetSession(WOLFSSL* ssl, const unsigned char* id,
+                                  int idLen, int* copy)
+    {
+        (void)ssl;
+        // キャッシュがセッションを保持し続けるため、copyは変更しません。
+        return myCacheLookup(id, idLen);
+    }
+    ...
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_sess_set_get_cb(ctx, myGetSession);
+    \endcode
+
+    \sa wolfSSL_CTX_set_session_cache_mode
+    \sa wolfSSL_get1_session
+    \sa wolfSSL_SESSION_free
+    \sa wolfSSL_flush_sessions
+*/
+void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
+    WOLFSSL_SESSION*(*f)(WOLFSSL* ssl, const unsigned char*, int, int*));
+
+/*!
     \brief この関数は、セッションシークレットコールバック関数を設定します。SessionSecretCb型は次のシグネチャを持ちます:int (*SessionSecretCb)(WOLFSSL* ssl, void* secret, int* secretSz, void* ctx)。WOLFSSL構造体のsessionSecretCbメンバが、パラメータcbに設定されます。
 
     \return SSL_SUCCESS 関数の実行がエラーを返さなかった場合に返されます。

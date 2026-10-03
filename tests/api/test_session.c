@@ -383,8 +383,7 @@ static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
      */
     fprintf(stderr, "\t\ttwcase_get_session_called %d\n",
             ++twcase_get_session_called);
-    /* This callback want to retain a copy of the object. If we want wolfSSL to
-     * be responsible for the pointer then set to 0. */
+    /* This cache keeps its own reference to the session. */
     *ref = 1;
 
     for (i = 0; i < SESSION_CACHE_SIZE; i++) {
@@ -960,6 +959,141 @@ int test_wolfSSL_CTX_add_session_ext_dtls1(void)
     ExpectIntEQ(test_wolfSSL_CTX_add_session_ext(param), TEST_SUCCESS);
 #endif
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_NO_TLS12)
+
+/* tdcase - prefix for test_wolfSSL_CTX_sess_get_cb_default_copy */
+static WOLFSSL_SESSION* tdcase_server_session_ptr = NULL;
+static WOLFSSL_SESSION* tdcase_client_session_ptr = NULL;
+static int tdcase_get_session_called = 0;
+static int tdcase_clear_copy = 0;
+
+static WOLFSSL_SESSION* tdcase_get_sessionCb(WOLFSSL* ssl,
+        const unsigned char* id, int len, int* copy)
+{
+    (void)ssl;
+    (void)id;
+    (void)len;
+
+    /* Left alone, this cache keeps its session. Cleared, it hands the
+     * reference to wolfSSL. */
+    if (tdcase_clear_copy)
+        *copy = 0;
+    tdcase_get_session_called++;
+    return tdcase_server_session_ptr;
+}
+
+static int tdcase_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    /* Only the external cache, so nothing else can reach the session. */
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_sess_set_get_cb(ctx, tdcase_get_sessionCb);
+    wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TICKET);
+
+    return EXPECT_RESULT();
+}
+
+static int tdcase_on_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION** sess;
+
+    sess = wolfSSL_is_server(ssl) ? &tdcase_server_session_ptr
+                                  : &tdcase_client_session_ptr;
+    if (*sess == NULL)
+        ExpectNotNull(*sess = wolfSSL_get1_session(ssl));
+
+    return EXPECT_RESULT();
+}
+
+static int tdcase_client_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(tdcase_client_session_ptr);
+    ExpectIntEQ(wolfSSL_set_session(ssl, tdcase_client_session_ptr),
+            WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_CTX_sess_get_cb_default_copy(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_NO_TLS12)
+    test_ssl_cbf client_cb;
+    test_ssl_cbf server_cb;
+    int refBefore = 0;
+
+    tdcase_server_session_ptr = NULL;
+    tdcase_client_session_ptr = NULL;
+    tdcase_get_session_called = 0;
+    tdcase_clear_copy = 0;
+
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
+    client_cb.method = wolfTLSv1_2_client_method;
+    server_cb.method = wolfTLSv1_2_server_method;
+    server_cb.ctx_ready = tdcase_server_ctx_ready;
+    server_cb.on_result = tdcase_on_result;
+    client_cb.on_result = tdcase_on_result;
+
+    /* connection 1 - full handshake */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+            &server_cb, NULL), TEST_SUCCESS);
+    ExpectNotNull(tdcase_server_session_ptr);
+    ExpectNotNull(tdcase_client_session_ptr);
+    ExpectIntEQ(tdcase_get_session_called, 0);
+
+    /* Hold a second reference so a dropped one is still observable. */
+    ExpectIntEQ(wolfSSL_SESSION_up_ref(tdcase_server_session_ptr),
+            WOLFSSL_SUCCESS);
+    if (tdcase_server_session_ptr != NULL)
+        refBefore = (int)wolfSSL_RefCur(tdcase_server_session_ptr->ref);
+
+    /* connection 2 - resume through the callback, which never writes copy */
+    server_cb.on_result = NULL;
+    client_cb.on_result = NULL;
+    client_cb.ssl_ready = tdcase_client_ssl_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+            &server_cb, NULL), TEST_SUCCESS);
+    ExpectIntEQ(tdcase_get_session_called, 1);
+
+    if (tdcase_server_session_ptr != NULL) {
+        ExpectIntEQ((int)wolfSSL_RefCur(tdcase_server_session_ptr->ref),
+                refBefore);
+    }
+
+    /* connection 3 - same resume, but the callback clears copy */
+    tdcase_clear_copy = 1;
+    tdcase_get_session_called = 0;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+            &server_cb, NULL), TEST_SUCCESS);
+    ExpectIntEQ(tdcase_get_session_called, 1);
+
+    if (tdcase_server_session_ptr != NULL) {
+        ExpectIntEQ((int)wolfSSL_RefCur(tdcase_server_session_ptr->ref),
+                refBefore - 1);
+    }
+
+    /* The cleared copy consumed one of the two references held here. */
+    wolfSSL_SESSION_free(tdcase_server_session_ptr);
+    wolfSSL_SESSION_free(tdcase_client_session_ptr);
+    tdcase_server_session_ptr = NULL;
+    tdcase_client_session_ptr = NULL;
 #endif
     return EXPECT_RESULT();
 }
