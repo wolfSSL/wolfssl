@@ -1322,21 +1322,40 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
 
 #ifdef HAVE_HTTP_CLIENT
 
-#ifndef HAVE_IO_TIMEOUT
-    #define io_timeout_sec 0
-#else
+#if defined(HAVE_OCSP) || (defined(HAVE_CRL) && defined(HAVE_CRL_IO))
+    #define WOLFSSL_HTTP_REVOCATION_FETCH
+#endif
+
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+    #include <limits.h>
+    #include <poll.h>
+#endif
 
     #ifndef DEFAULT_TIMEOUT_SEC
-        #define DEFAULT_TIMEOUT_SEC 0 /* no timeout */
+        #ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+            #define DEFAULT_TIMEOUT_SEC 10
+        #else
+            #define DEFAULT_TIMEOUT_SEC 0
+        #endif
     #endif
 
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     static int io_timeout_sec = DEFAULT_TIMEOUT_SEC;
+#else
+    #define io_timeout_sec 0
+#endif
 
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     void wolfIO_SetTimeout(int to_sec)
     {
         io_timeout_sec = to_sec;
     }
+#endif
 
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
+#ifndef HAVE_IO_TIMEOUT
+    static
+#endif
     int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking)
     {
         int ret = 0;
@@ -1366,45 +1385,155 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         return ret;
     }
 
+#ifndef HAVE_IO_TIMEOUT
+    static
+#endif
     int wolfIO_Select(SOCKET_T sockfd, int to_sec)
     {
-        fd_set rfds, wfds;
+        fd_set wfds;
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+        struct pollfd pfd;
+#endif
         int nfds = 0;
-        struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
+        struct timeval timeout;
         int ret;
+        int soErr = 0;
+        XSOCKLENT soErrSz = (XSOCKLENT)sizeof(soErr);
+
+        timeout.tv_sec = (to_sec > 0) ? to_sec : 0;
+        timeout.tv_usec = 0;
 
     #ifndef USE_WINDOWS_API
         nfds = (int)sockfd + 1;
 
-        if ((sockfd < 0) || (sockfd >= FD_SETSIZE)) {
+        if (sockfd < 0) {
             WOLFSSL_MSG("socket fd out of FDSET range");
             return WOLFSSL_FATAL_ERROR;
         }
+#if defined(WOLFSSL_HTTP_SOCKET_TIMEOUT) && !defined(USE_WINDOWS_API)
+        if (sockfd >= FD_SETSIZE) {
+            pfd.fd = sockfd;
+            pfd.events = POLLOUT;
+            pfd.revents = 0;
+            ret = poll(&pfd, 1,
+                (to_sec > INT_MAX / 1000) ? INT_MAX : to_sec * 1000);
+            if (ret == 0)
+                return HTTP_TIMEOUT;
+            if (ret > 0 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) &&
+                XSOCKET_GETSOCKOPT(sockfd, SOL_SOCKET, SO_ERROR,
+                    (char*)&soErr, &soErrSz) == 0 && soErr == 0)
+                return 0;
+            return SOCKET_ERROR_E;
+        }
+#else
+        if (sockfd >= FD_SETSIZE) {
+            WOLFSSL_MSG("socket fd out of FDSET range");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
     #endif
 
-        FD_ZERO(&rfds);
-        FD_SET(sockfd, &rfds);
-        wfds = rfds;
+        FD_ZERO(&wfds);
+        FD_SET(sockfd, &wfds);
 
-        ret = select(nfds, &rfds, &wfds, NULL, &timeout);
+        ret = select(nfds, NULL, &wfds, NULL, &timeout);
         if (ret == 0) {
     #ifdef DEBUG_HTTP
             fprintf(stderr, "Timeout: %d\n", ret);
     #endif
             return HTTP_TIMEOUT;
         }
-        else if (ret > 0) {
-            if (FD_ISSET(sockfd, &wfds)) {
-                if (!FD_ISSET(sockfd, &rfds)) {
-                    return 0;
-                }
-            }
+        else if (ret > 0 && FD_ISSET(sockfd, &wfds)) {
+            if (XSOCKET_GETSOCKOPT(sockfd, SOL_SOCKET, SO_ERROR,
+                    (char*)&soErr, &soErrSz) == 0 && soErr == 0)
+                return 0;
         }
 
         WOLFSSL_MSG("Select error");
         return SOCKET_ERROR_E;
     }
-#endif /* HAVE_IO_TIMEOUT */
+#endif /* HAVE_IO_TIMEOUT || WOLFSSL_HTTP_SOCKET_TIMEOUT */
+
+#ifdef WOLFSSL_HTTP_REVOCATION_FETCH
+typedef struct WolfIoHttpFetchCtx {
+    SOCKET_T sfd;
+    int timeoutSec;
+    word32 startTime;
+} WolfIoHttpFetchCtx;
+
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+static int wolfIO_HttpFetchSetTimeout(WolfIoHttpFetchCtx* fetch,
+    int option)
+{
+    word32 elapsed;
+    word32 remaining;
+#ifdef USE_WINDOWS_API
+    DWORD timeout;
+#else
+    struct timeval timeout;
+#endif
+
+    if (fetch->timeoutSec <= 0)
+        return 0;
+
+    elapsed = LowResTimer() - fetch->startTime;
+    if (elapsed >= (word32)fetch->timeoutSec)
+        return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    remaining = (word32)fetch->timeoutSec - elapsed;
+    if (remaining > 86400U)
+        remaining = 86400U;
+
+#ifdef USE_WINDOWS_API
+    timeout = remaining * 1000U;
+#else
+    XMEMSET(&timeout, 0, sizeof(timeout));
+    timeout.tv_sec = (time_t)remaining;
+#endif
+    if (XSOCKET_SETSOCKOPT(fetch->sfd, SOL_SOCKET, option,
+            (char*)&timeout, sizeof(timeout)) != 0)
+        return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
+    return 0;
+}
+#endif /* WOLFSSL_HTTP_SOCKET_TIMEOUT */
+
+static int wolfIO_HttpFetchSend(WolfIoHttpFetchCtx* fetch, char* buf, int sz)
+{
+    int ret;
+    int sent = 0;
+
+    while (sent < sz) {
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+        ret = wolfIO_HttpFetchSetTimeout(fetch, SO_SNDTIMEO);
+        if (ret != 0)
+            return ret;
+#endif
+        ret = wolfIO_Send(fetch->sfd, buf + sent, sz - sent, 0);
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_WRITE))
+            return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+        if (ret < 0)
+            return ret;
+        if (ret == 0)
+            return WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
+        sent += ret;
+    }
+    return sent;
+}
+
+static int wolfIO_HttpFetchRecv(char* buf, int sz, void* ctx)
+{
+    WolfIoHttpFetchCtx* fetch = (WolfIoHttpFetchCtx*)ctx;
+    int ret = 0;
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+    ret = wolfIO_HttpFetchSetTimeout(fetch, SO_RCVTIMEO);
+#endif
+    if (ret != 0)
+        return ret;
+    ret = wolfIO_Recv(fetch->sfd, buf, sz, 0);
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ))
+        ret = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    return ret;
+}
+#endif /* WOLFSSL_HTTP_REVOCATION_FETCH */
 
 static word32 wolfIO_Word16ToString(char* d, word16 number)
 {
@@ -1556,17 +1685,21 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#ifdef HAVE_IO_TIMEOUT
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     /* if timeout value provided then set socket non-blocking */
     if (to_sec > 0) {
-        wolfIO_SetBlockingMode(*sockfd, 1);
+        if (wolfIO_SetBlockingMode(*sockfd, 1) < 0) {
+            CloseSocket(*sockfd);
+            *sockfd = SOCKET_INVALID;
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 #else
     (void)to_sec;
-#endif /* HAVE_IO_TIMEOUT */
+#endif /* HAVE_IO_TIMEOUT || WOLFSSL_HTTP_SOCKET_TIMEOUT */
 
     ret = XSOCKET_CONNECT(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
-#ifdef HAVE_IO_TIMEOUT
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
     if ((ret != 0) && (to_sec > 0)) {
 #ifdef USE_WINDOWS_API
         if ((ret == SOCKET_ERROR) &&
@@ -1577,17 +1710,17 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         {
             /* wait for connect to complete */
             ret = wolfIO_Select(*sockfd, to_sec);
-
-            /* restore blocking mode */
-            wolfIO_SetBlockingMode(*sockfd, 0);
         }
     }
-#endif /* HAVE_IO_TIMEOUT */
+    if (to_sec > 0 && wolfIO_SetBlockingMode(*sockfd, 0) < 0 && ret == 0)
+        ret = WOLFSSL_FATAL_ERROR;
+#endif /* HAVE_IO_TIMEOUT || WOLFSSL_HTTP_SOCKET_TIMEOUT */
     if (ret != 0) {
         WOLFSSL_MSG("Responder tcp connect failed");
         CloseSocket(*sockfd);
         *sockfd = SOCKET_INVALID;
-        return WOLFSSL_FATAL_ERROR;
+        return (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT)) ?
+            WC_NO_ERR_TRACE(HTTP_TIMEOUT) : WOLFSSL_FATAL_ERROR;
     }
     return ret;
 #else
@@ -1887,6 +2020,8 @@ static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
         else {
             WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf recv failed");
             XFREE(newRecvBuf, heap, dynType);
+            if (rxSz == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT))
+                return HTTP_TIMEOUT;
             return WOLFSSL_FATAL_ERROR;
         }
     }
@@ -1944,6 +2079,9 @@ int wolfIO_HttpProcessResponseGenericIO(WolfSSLGenericIORecvCb ioCb,
             else {
                 if (result == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
                     return OCSP_WANT_READ;
+                }
+                if (result == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT)) {
+                    return HTTP_TIMEOUT;
                 }
 
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse recv http from peer failed");
@@ -2473,6 +2611,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
     SOCKET_T sfd = SOCKET_INVALID;
+    WolfIoHttpFetchCtx fetch;
     word16   port;
     int      ret = -1;
 #ifdef WOLFSSL_SMALL_STACK
@@ -2519,6 +2658,12 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         int   httpBufSz = HTTP_SCRATCH_BUFFER_SIZE;
         byte* httpBuf   = (byte*)XMALLOC((size_t)httpBufSz, ctx, DYNAMIC_TYPE_OCSP);
 
+        *ocspRespBuf = NULL;
+        XMEMSET(&fetch, 0, sizeof(fetch));
+        fetch.timeoutSec = io_timeout_sec;
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+        fetch.startTime = LowResTimer();
+#endif
         if (httpBuf == NULL) {
             WOLFSSL_MSG("Unable to create OCSP response buffer");
         }
@@ -2530,23 +2675,40 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                 WOLFSSL_MSG("Unable to build OCSP request");
             }
             else if ((ret = wolfIO_TcpConnect(&sfd, domainName, port,
-                                              io_timeout_sec)) != 0) {
+                                              fetch.timeoutSec)) != 0) {
                 WOLFSSL_MSG("OCSP Responder connection failed");
             }
-            else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0) !=
-                                                                    httpBufSz) {
-                WOLFSSL_MSG("OCSP http request failed");
-            }
-            else if (wolfIO_Send(sfd, (char*)ocspReqBuf, ocspReqSz, 0) !=
-                                                                    ocspReqSz) {
-                WOLFSSL_MSG("OCSP ocsp request failed");
-            }
             else {
-                ret = wolfIO_HttpProcessResponseOcsp((int)sfd, ocspRespBuf, httpBuf,
-                                                 HTTP_SCRATCH_BUFFER_SIZE, ctx);
+                fetch.sfd = sfd;
+                ret = wolfIO_HttpFetchSend(&fetch, (char*)httpBuf, httpBufSz);
+                if (ret != httpBufSz) {
+                    WOLFSSL_MSG("OCSP http request failed");
+                    if (ret >= 0)
+                        ret = WOLFSSL_FATAL_ERROR;
+                }
+                else {
+                    ret = wolfIO_HttpFetchSend(&fetch, (char*)ocspReqBuf,
+                        ocspReqSz);
+                    if (ret != ocspReqSz) {
+                        WOLFSSL_MSG("OCSP ocsp request failed");
+                        if (ret >= 0)
+                            ret = WOLFSSL_FATAL_ERROR;
+                    }
+                    else {
+                        ret = wolfIO_HttpProcessResponseOcspGenericIO(
+                            wolfIO_HttpFetchRecv, &fetch, ocspRespBuf, httpBuf,
+                            HTTP_SCRATCH_BUFFER_SIZE, ctx);
+                    }
+                }
             }
             if (sfd != SOCKET_INVALID)
                 CloseSocket(sfd);
+            if (ret < 0 && *ocspRespBuf != NULL) {
+                XFREE(*ocspRespBuf, ctx, DYNAMIC_TYPE_OCSP);
+                *ocspRespBuf = NULL;
+            }
+            if (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT))
+                ret = WOLFSSL_CBIO_ERR_TIMEOUT;
             XFREE(httpBuf, ctx, DYNAMIC_TYPE_OCSP);
         }
     }
@@ -2577,8 +2739,8 @@ int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
                                    cacheCtl, buf, bufSize);
 }
 
-int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
-    int httpBufSz)
+static int wolfIO_HttpProcessResponseCrlGenericIO(WOLFSSL_CRL* crl,
+    WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, byte* httpBuf, int httpBufSz)
 {
     int ret;
     byte *respBuf = NULL;
@@ -2590,7 +2752,7 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     };
 
 
-    ret = wolfIO_HttpProcessResponse(sfd, appStrList,
+    ret = wolfIO_HttpProcessResponseGenericIO(ioCb, ioCbCtx, appStrList,
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (ret >= 0) {
         ret = BufferLoadCRL(crl, respBuf, ret, WOLFSSL_FILETYPE_ASN1, 0);
@@ -2600,9 +2762,17 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     return ret;
 }
 
+int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
+    int httpBufSz)
+{
+    return wolfIO_HttpProcessResponseCrlGenericIO(crl, httpResponseIoCb,
+        (void*)(uintptr_t)sfd, httpBuf, httpBufSz);
+}
+
 int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
 {
     SOCKET_T sfd = SOCKET_INVALID;
+    WolfIoHttpFetchCtx fetch;
     word16   port;
     int      ret = -1;
     WC_DECLARE_VAR(domainName, char, MAX_URL_ITEM_SIZE, 0);
@@ -2622,6 +2792,11 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
         int   httpBufSz = HTTP_SCRATCH_BUFFER_SIZE;
         byte* httpBuf   = (byte*)XMALLOC((size_t)httpBufSz, crl->heap,
                                                               DYNAMIC_TYPE_CRL);
+        XMEMSET(&fetch, 0, sizeof(fetch));
+        fetch.timeoutSec = io_timeout_sec;
+#ifdef WOLFSSL_HTTP_SOCKET_TIMEOUT
+        fetch.startTime = LowResTimer();
+#endif
         if (httpBuf == NULL) {
             WOLFSSL_MSG("Unable to create CRL response buffer");
         }
@@ -2633,19 +2808,27 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
                 WOLFSSL_MSG("Unable to build CRL request");
             }
             else if ((ret = wolfIO_TcpConnect(&sfd, domainName, port,
-                                              io_timeout_sec)) != 0) {
+                                              fetch.timeoutSec)) != 0) {
                 WOLFSSL_MSG("CRL connection failed");
             }
-            else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0)
-                                                                 != httpBufSz) {
-                WOLFSSL_MSG("CRL http get failed");
-            }
             else {
-                ret = wolfIO_HttpProcessResponseCrl(crl, sfd, httpBuf,
-                                                      HTTP_SCRATCH_BUFFER_SIZE);
+                fetch.sfd = sfd;
+                ret = wolfIO_HttpFetchSend(&fetch, (char*)httpBuf, httpBufSz);
+                if (ret != httpBufSz) {
+                    WOLFSSL_MSG("CRL http get failed");
+                    if (ret >= 0)
+                        ret = WOLFSSL_FATAL_ERROR;
+                }
+                else {
+                    ret = wolfIO_HttpProcessResponseCrlGenericIO(crl,
+                        wolfIO_HttpFetchRecv, &fetch, httpBuf,
+                        HTTP_SCRATCH_BUFFER_SIZE);
+                }
             }
             if (sfd != SOCKET_INVALID)
                 CloseSocket(sfd);
+            if (ret == WC_NO_ERR_TRACE(HTTP_TIMEOUT))
+                ret = WOLFSSL_CBIO_ERR_TIMEOUT;
             XFREE(httpBuf, crl->heap, DYNAMIC_TYPE_CRL);
         }
     }

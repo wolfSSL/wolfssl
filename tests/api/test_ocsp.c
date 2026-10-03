@@ -283,6 +283,20 @@ int test_ocsp_response_parsing(void)
         DYNAMIC_TYPE_OCSP, NULL), OCSP_WANT_READ);
 
     XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_TIMEOUT);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = validHttpResp;
+    ioCtx.dataSz = (int)sizeof(validHttpResp) - 3;
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_TIMEOUT);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
     ioCtx.data = headerEarlyEndResp;
     ioCtx.dataSz = (int)sizeof(headerEarlyEndResp) - 1;
     ioCtx.maxChunk = 9;
@@ -298,6 +312,58 @@ int test_ocsp_response_parsing(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_OCSP && !NO_SHA */
+
+int test_http_connect_blocking_mode(void)
+{
+#if (defined(HAVE_OCSP) || (defined(HAVE_CRL) && defined(HAVE_CRL_IO))) && \
+    defined(HAVE_HTTP_CLIENT) && defined(HAVE_SOCKADDR) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_LWIP) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(SO_RCVTIMEO) && \
+    defined(SO_SNDTIMEO) && (defined(__unix__) || defined(__APPLE__))
+    EXPECT_DECLS;
+    SOCKET_T listener = SOCKET_INVALID;
+    SOCKET_T client = SOCKET_INVALID;
+    SOCKADDR_IN addr;
+    XSOCKLENT addrSz = (XSOCKLENT)sizeof(addr);
+    int ret;
+    int flags;
+
+    listener = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+    ExpectTrue(listener != SOCKET_INVALID);
+    if (listener != SOCKET_INVALID) {
+        XMEMSET(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        ret = XSOCKET_BIND(listener, (SOCKADDR*)&addr, sizeof(addr));
+        ExpectIntEQ(ret, 0);
+        if (ret == 0) {
+            ret = XSOCKET_LISTEN(listener, 1);
+            ExpectIntEQ(ret, 0);
+        }
+        if (ret == 0) {
+            ret = getsockname(listener, (SOCKADDR*)&addr, &addrSz);
+            ExpectIntEQ(ret, 0);
+        }
+        if (ret == 0) {
+            ExpectIntEQ(wolfIO_TcpConnect(&client, "127.0.0.1",
+                ntohs(addr.sin_port), 1), 0);
+            if (client != SOCKET_INVALID) {
+                flags = fcntl(client, F_GETFL, 0);
+                ExpectTrue(flags >= 0);
+                if (flags >= 0)
+                    ExpectIntEQ(flags & O_NONBLOCK, 0);
+            }
+        }
+    }
+    if (client != SOCKET_INVALID)
+        CloseSocket(client);
+    if (listener != SOCKET_INVALID)
+        CloseSocket(listener);
+    return EXPECT_SUCCESS();
+#else
+    return TEST_SKIPPED;
+#endif
+}
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA) && \
     !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
@@ -2455,6 +2521,135 @@ int test_ocsp_ctx_request_cache(void)
 }
 #else
 int test_ocsp_ctx_request_cache(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI) &&      \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_SHA)
+
+static int test_ocsp_chain_stapling_timeout_calls;
+static byte test_ocsp_chain_stapling_leaf_response[4096];
+static int test_ocsp_chain_stapling_leaf_response_sz;
+
+static int test_ocsp_chain_stapling_timeout_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)req;
+    (void)reqSz;
+    if (test_ocsp_chain_stapling_timeout_calls++ == 0) {
+        *respBuf = test_ocsp_chain_stapling_leaf_response;
+        return test_ocsp_chain_stapling_leaf_response_sz;
+    }
+    return WOLFSSL_CBIO_ERR_TIMEOUT;
+}
+
+static int test_ocsp_chain_stapling_timeout_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx,
+        WOLFSSL_OCSP_NO_NONCE | WOLFSSL_OCSP_URL_OVERRIDE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+        test_ocsp_chain_stapling_timeout_cb, NULL, NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_chain_stapling_timeout_client_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_chain_stapling_timeout(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+    XFILE f = XBADFILE;
+    int mode;
+    int modes = 1;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(WOLFSSL_NO_TLS12)
+    modes = 2;
+#endif
+
+    ExpectTrue((f = XFOPEN("./certs/ocsp/test-leaf-response.der", "rb")) !=
+        XBADFILE);
+    if (f != XBADFILE) {
+        test_ocsp_chain_stapling_leaf_response_sz = (int)XFREAD(
+            test_ocsp_chain_stapling_leaf_response, 1,
+            sizeof(test_ocsp_chain_stapling_leaf_response), f);
+        XFCLOSE(f);
+    }
+    ExpectIntGT(test_ocsp_chain_stapling_leaf_response_sz, 0);
+
+    /* The leaf has a valid response. The intermediate's responder times out. */
+    for (mode = 0; mode < modes && EXPECT_SUCCESS(); mode++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ocsp_chain_stapling_timeout_calls = 0;
+        test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+        test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(WOLFSSL_NO_TLS12)
+        if (mode == 1) {
+            test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+            test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+        }
+#endif
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready =
+            test_ocsp_chain_stapling_timeout_client_ctx_ready;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+        test_ctx.s_cb.ctx_ready = test_ocsp_chain_stapling_timeout_ctx_ready;
+
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        /* OCSP is enabled for stapling, but the server need not check the
+         * client's certificate against its responder in this test. */
+        wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx),
+            WOLFSSL_SUCCESS);
+        if (mode == 0) {
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+        }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(WOLFSSL_NO_TLS12)
+        else {
+            ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+        }
+#endif
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        ExpectIntGT(test_ocsp_chain_stapling_timeout_calls, 1);
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_chain_stapling_timeout(void)
 {
     return TEST_SKIPPED;
 }

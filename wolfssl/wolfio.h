@@ -605,10 +605,19 @@
 
 
 /* IO API's */
+#if defined(HAVE_HTTP_CLIENT) && \
+    (defined(HAVE_OCSP) || (defined(HAVE_CRL) && defined(HAVE_CRL_IO))) && \
+    !defined(NO_ASN_TIME) && defined(HAVE_SOCKADDR) && \
+    defined(SO_RCVTIMEO) && defined(SO_SNDTIMEO) && \
+    (defined(__unix__) || defined(__APPLE__) || defined(USE_WINDOWS_API))
+    #define WOLFSSL_HTTP_SOCKET_TIMEOUT
+#endif
 #ifdef HAVE_IO_TIMEOUT
     WOLFSSL_API  int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking);
-    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);
     WOLFSSL_API  int wolfIO_Select(SOCKET_T sockfd, int to_sec);
+#endif
+#if defined(HAVE_IO_TIMEOUT) || defined(WOLFSSL_HTTP_SOCKET_TIMEOUT)
+    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);
 #endif
 WOLFSSL_API  int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,
     unsigned short port, int to_sec);
