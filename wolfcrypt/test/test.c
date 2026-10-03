@@ -71511,6 +71511,21 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
+
+        /* Same for the deterministic variant, which signs through
+         * wc_SlhDsaKey_SignWithRandom(). */
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0, NULL, 0, sig,
+            &sigLen);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        ret = wc_SlhDsaKey_Verify(key_vfy, NULL, 0, NULL, 0, sig, sigLen);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
     }
 
     /* HashSLH-DSA takes the caller's pre-hashed digest as input. */

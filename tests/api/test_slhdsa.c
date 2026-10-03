@@ -3283,6 +3283,10 @@ int test_wc_SlhdsaDecisionCoverage(void)
             sizeof(dummyMsg), dummySig, &tinySigSz, dummyAddRnd),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));    /* msg==NULL */
         tinySigSz = 1;
+        ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, dummyMsg, 0, NULL,
+            0, dummySig, &tinySigSz, dummyAddRnd),
+            WC_NO_ERR_TRACE(BAD_LENGTH_E));    /* msg==NULL, msgSz==0 */
+        tinySigSz = 1;
         ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, NULL, 0, dummyMsg,
             sizeof(dummyMsg), NULL, &tinySigSz, dummyAddRnd),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));    /* sig==NULL */
