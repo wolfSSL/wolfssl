@@ -120,6 +120,9 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # only so the source-completeness check accounts for them and so they ship in
 # the dist tarball -- the same treatment tests/api/include.am gives its
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
+#
+# Exception: mcdc_fault_alloc.h is also included by tests/api/test_mldsa.c, so
+# it must stay header-only and build warning-free as part of unit.test.
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
               tests/unit-mcdc/run-whitebox-smoke.sh \

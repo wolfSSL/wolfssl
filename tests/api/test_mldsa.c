@@ -51,6 +51,18 @@
 #include <tests/api/api.h>
 #include <tests/api/test_mldsa.h>
 
+/* The MakePublicKey OOM test swaps in a failing allocator, which needs the
+ * plain wolfSSL allocator callbacks. */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_MEM_FAIL_COUNT) && !defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST)
+    #define MLDSA_TEST_OOM_ENABLED
+    #include "tests/unit-mcdc/mcdc_fault_alloc.h"
+#endif
+
 
 #if defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
@@ -7774,6 +7786,431 @@ int test_mldsa_make_key_from_seed(void)
     ExpectIntEQ(XMEMCMP(key->k, sk_87_draft, sizeof(sk_87_draft)), 0);
 #endif
 #endif
+
+    wc_MlDsaKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Names a device that no test registers, so MakePublicKey takes the
+ * "devId set, no device" path. */
+#define TEST_MLDSA_MAKEPUB_DEVID 0x4D4C4450
+
+int test_mldsa_make_public_key(void)
+{
+    EXPECT_DECLS;
+/* Derives locally even with WOLF_CRYPTO_CB_FIND. */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    /* NULL key. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+
+    /* Private key not set yet. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Public key set but private key still not set. */
+    if (key != NULL) {
+        key->pubKeySet = 1;
+    }
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (key != NULL) {
+        key->pubKeySet = 0;
+    }
+
+    /* Import private-only key and derive its public key. */
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_44_pubkey,
+        sizeof_bench_mldsa_44_pubkey), 0);
+
+    /* Already set: only checked against the private key. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+
+    wc_MlDsaKey_Free(key);
+
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    /* A private-only import leaves an earlier public key set; one that
+     * belongs to another key must not pass as this key's. */
+    {
+        byte* otherPub;
+
+        otherPub = (byte*)XMALLOC(WC_MLDSA_44_PUB_KEY_SIZE, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(otherPub);
+        if (otherPub != NULL) {
+            XMEMCPY(otherPub, bench_mldsa_44_pubkey, WC_MLDSA_44_PUB_KEY_SIZE);
+            otherPub[WC_MLDSA_44_PUB_KEY_SIZE - 1] ^= 0x01;
+        }
+        ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+        ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, otherPub,
+            WC_MLDSA_44_PUB_KEY_SIZE), 0);
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+            sizeof_bench_mldsa_44_key), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+            WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        wc_MlDsaKey_Free(key);
+        XFREE(otherPub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+#endif /* !WOLFSSL_NO_ML_DSA_44 */
+
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_65_key,
+        sizeof_bench_mldsa_65_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_65_pubkey,
+        sizeof_bench_mldsa_65_pubkey), 0);
+
+    wc_MlDsaKey_Free(key);
+#endif /* !WOLFSSL_NO_ML_DSA_65 */
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_87_key,
+        sizeof_bench_mldsa_87_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_87_pubkey,
+        sizeof_bench_mldsa_87_pubkey), 0);
+
+    wc_MlDsaKey_Free(key);
+#endif /* !WOLFSSL_NO_ML_DSA_87 */
+
+#ifdef WOLF_CRYPTO_CB
+    /* devId key: reject software derivation. The guard does not depend on
+     * the parameter set, so use whichever level this build has. */
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_MAKEPUB_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_65_key,
+        sizeof_bench_mldsa_65_key), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_87_key,
+        sizeof_bench_mldsa_87_key), 0);
+#endif
+    ExpectIntEQ(key->pubKeySet, 0);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    /* devId key with public key already set: no-op, not rejected. */
+    if (key != NULL) {
+        key->pubKeySet = 1;
+    }
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    wc_MlDsaKey_Free(key);
+#endif /* WOLF_CRYPTO_CB */
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Verify MakePublicKey fails gracefully on OOM. */
+#ifdef MLDSA_TEST_OOM_ENABLED
+
+/* OOM test helper. */
+static int mldsa_oom_make_public_key_level(int level, const byte* privOnly,
+    word32 privOnlySz)
+{
+    EXPECT_DECLS;
+    wc_MlDsaKey* key;
+    word32 idx;
+    int allocCount = 0;
+    int i;
+    byte* pubKey;
+    word32 pubKeyLen;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    pubKey = (byte*)XMALLOC(WC_MLDSA_87_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubKey);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    /* Pass 1: count allocations. */
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, privOnly, privOnlySz,
+        &idx), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    /* Accessors must fail without allocating. Arming past any reachable
+     * index only counts; read the count before disarm resets it. */
+    mcdc_fa_arm(INT_MAX);
+    pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, &pubKeyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    allocCount = (int)mcdc_fa_count;
+    mcdc_fa_disarm();
+    ExpectIntEQ(allocCount, 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    mcdc_fa_arm(INT_MAX);
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    allocCount = (int)mcdc_fa_count;
+    mcdc_fa_disarm();
+    ExpectIntEQ(key->pubKeySet, 1);
+    /* The sweep below should always inject failures, because MakePublicKey
+     * always allocates its own scratch space (even if small). */
+    ExpectIntGT(allocCount, 0);
+    wc_MlDsaKey_Free(key);
+
+    /* Pass 2: verify clean MEMORY_E failure for each allocation. */
+    for (i = 1; (i <= allocCount) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, privOnly, privOnlySz,
+            &idx), 0);
+        ExpectIntEQ(key->pubKeySet, 0);
+
+        /* Fail only allocation i, so later ones succeed and each site's
+         * failure path is exercised on its own. */
+        mcdc_fa_arm_only(i);
+        ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key),
+            WC_NO_ERR_TRACE(MEMORY_E));
+        /* The failure was injected, not skipped. */
+        ExpectIntGE((int)mcdc_fa_count, i);
+        mcdc_fa_disarm();
+
+        ExpectIntEQ(key->prvKeySet, 1);
+        ExpectIntEQ(key->pubKeySet, 0);
+        wc_MlDsaKey_Free(key);
+    }
+
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_mldsa_make_public_key_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(MLDSA_TEST_OOM_ENABLED) && defined(USE_WOLFSSL_MEMORY)
+    wolfSSL_Malloc_cb prevMalloc = NULL;
+    wolfSSL_Free_cb prevFree = NULL;
+    wolfSSL_Realloc_cb prevRealloc = NULL;
+
+    /* mcdc_fa_restore() skips NULL originals, the default here, so restore
+     * them directly. */
+    (void)wolfSSL_GetAllocators(&prevMalloc, &prevFree, &prevRealloc);
+    mcdc_fa_install();
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    /* Pin dispatch to the C path: under SVR2 fuzzing the AVX2 and C paths
+     * make different numbers of allocations, so the count drifts per call. */
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+#endif
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    EXPECT_TEST(mldsa_oom_make_public_key_level(WC_ML_DSA_44, mldsa44_priv_only,
+        sizeof_mldsa44_priv_only));
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    EXPECT_TEST(mldsa_oom_make_public_key_level(WC_ML_DSA_65, mldsa65_priv_only,
+        sizeof_mldsa65_priv_only));
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    EXPECT_TEST(mldsa_oom_make_public_key_level(WC_ML_DSA_87, mldsa87_priv_only,
+        sizeof_mldsa87_priv_only));
+#endif
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+#endif
+    mcdc_fa_restore();
+    (void)wolfSSL_SetAllocators(prevMalloc, prevFree, prevRealloc);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Ensure MakePublicKey leaves the privVecsSet cache intact. */
+int test_mldsa_make_public_key_keeps_cache(void)
+{
+    EXPECT_DECLS;
+/* Excluded for WOLF_CRYPTO_CB_FIND. */
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    !defined(WOLF_CRYPTO_CB_FIND) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    wc_MlDsaKey* key;
+    WC_RNG rng;
+    byte msg[] = "cache test message";
+    byte* sig;
+    word32 sigLen;
+    int verifyRes = 0;
+    word32 idx;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    sig = (byte*)XMALLOC(WC_MLDSA_44_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, mldsa44_priv_only,
+        sizeof_mldsa44_priv_only, &idx), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+    /* PrivateKeyDecode -> ImportPrivRaw populates the privVecsSet cache. */
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    ExpectIntEQ(key->privVecsSet, 1);
+#endif
+
+    /* Derive the public key; the cache must remain valid. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    ExpectIntEQ(key->privVecsSet, 1);
+#endif
+
+    /* Signing from the kept cache must verify correctly. */
+    sigLen = WC_MLDSA_44_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, msg,
+        sizeof(msg), &rng), 0);
+    /* Check privVecsSet based on build config. */
+#if defined(WC_MLDSA_CACHE_PRIV_VECTORS) && \
+    (!defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) || \
+     defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC))
+    ExpectIntEQ(key->privVecsSet, 1);
+#endif
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        sizeof(msg), &verifyRes), 0);
+    ExpectIntEQ(verifyRes, 1);
+
+    wc_MlDsaKey_Free(key);
+    wc_FreeRng(&rng);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test MakePublicKey rejects 'tr' mismatch. */
+int test_mldsa_make_public_key_tr_mismatch(void)
+{
+    EXPECT_DECLS;
+/* Runs under WOLF_CRYPTO_CB_FIND too. */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    wc_MlDsaKey* key;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    /* Flip 'tr' byte so derived public key can never match it. prvKeySet
+     * gates the access: Expect* skips argument evaluation after an earlier
+     * failure, so the import above may not have run and key->k may be NULL
+     * under WOLFSSL_MLDSA_DYNAMIC_KEYS. */
+    if ((key != NULL) && (key->prvKeySet != 0)) {
+        key->k[MLDSA_PUB_SEED_SZ + MLDSA_K_SZ] ^= 0xFF;
+    }
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    wc_MlDsaKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test MakePublicKey rejects a t0 mismatch. Covers the t0 compare on its own:
+ * 'tr' still matches the derived public key here, so only the t0 check fires.
+ */
+int test_mldsa_make_public_key_t0_mismatch(void)
+{
+    EXPECT_DECLS;
+/* Runs under WOLF_CRYPTO_CB_FIND too. */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    wc_MlDsaKey* key;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    /* Flip a byte of the encoded t0 in the private key. prvKeySet gates the
+     * access - see test_mldsa_make_public_key_tr_mismatch. */
+    if ((key != NULL) && (key->prvKeySet != 0) && (key->params != NULL)) {
+        key->k[MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ +
+            key->params->s1EncSz + key->params->s2EncSz] ^= 0xFF;
+    }
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(key->pubKeySet, 0);
 
     wc_MlDsaKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -31330,8 +31767,10 @@ int test_wc_MldsaDecisionCoverage2(void)
 
 #if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
         /* wc_MlDsaKey_KeyToDer: independence of prvKeySet/pubKeySet.
-         * Private-only key (prvKeySet TRUE, pubKeySet FALSE) ->
-         * BAD_FUNC_ARG. */
+         * KeyToDer is a pure accessor - it never derives. Private-only key
+         * (prvKeySet TRUE, pubKeySet FALSE) -> BAD_FUNC_ARG regardless of
+         * whether wc_MlDsaKey_MakePublicKey() itself is compiled in; the
+         * caller must derive explicitly first. */
         {
             byte der[16];
             byte pubBuf[WC_MLDSA_44_PUB_KEY_SIZE];
