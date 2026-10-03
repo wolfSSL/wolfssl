@@ -678,8 +678,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
 
 /* Set size, in bytes, of temporary ECDHE key into SSL/TLS context.
  *
- * Values can be: 14 - 66 (112 - 521 bit)
- * Uses the private key length if sz is 0.
+ * Non-zero values must be between ECC_MINSIZE and ECC_MAXSIZE, inclusive.
+ * A sz of 0 uses the loaded ECDSA private key size. For other private key
+ * types, the context setting is unchanged.
  *
  * @param [in] ctx  SSL/TLS context.
  * @param [in] sz   Size of EC key in bytes.
