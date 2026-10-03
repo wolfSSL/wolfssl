@@ -3696,6 +3696,60 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY)
+static void* test_add_crl_fail_malloc(size_t size)
+{
+    (void)size;
+    return NULL;
+}
+#endif
+
+/* Adding a CRL to a store that already holds one fails when copying the new
+ * CRL's entries runs out of memory. */
+int test_wolfSSL_X509_STORE_add_crl_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY)
+    X509_STORE* store = NULL;
+    X509_CRL* crl = NULL;
+    X509_CRL* crl2 = NULL;
+    XFILE fp = XBADFILE;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
+    ExpectNotNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
+    ExpectNotNull(crl2 = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectIntEQ(X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(test_add_crl_fail_malloc, prevF, prevR),
+        0);
+    ExpectIntNE(X509_STORE_add_crl(store, crl2), WOLFSSL_SUCCESS);
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+    X509_CRL_free(crl2);
+    X509_CRL_free(crl);
+    X509_STORE_free(store);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
     defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
 static STACK_OF(X509_CRL)* test_set0_crls_stack;
