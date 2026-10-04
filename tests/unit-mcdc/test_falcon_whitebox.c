@@ -785,7 +785,7 @@ static void wb_sm_do_sign_guard(void)
 
 /* ------------------------------------------------------------------ *
  * falcon_keygen (internal) NULL/logn guard:
- *   rng==NULL || f==NULL || g==NULL || F==NULL || G==NULL   (5 operands)
+ *   rng==NULL || f==NULL || g==NULL || F==NULL   (4 operands)
  *   logn < 1 || logn > 10
  * The native make-key path always calls falcon_keygen with valid args, so only
  * the FALSE (proceed) half is covered by the round-trip. Drive each operand's
@@ -807,7 +807,6 @@ static void wb_keygen_guard(WC_RNG* rng)
     (void)falcon_keygen(rng, NULL, g, F, G, h, 1); /* f==NULL   (cond1) */
     (void)falcon_keygen(rng, f, NULL, F, G, h, 1); /* g==NULL   (cond2) */
     (void)falcon_keygen(rng, f, g, NULL, G, h, 1); /* F==NULL   (cond3) */
-    (void)falcon_keygen(rng, f, g, F, NULL, h, 1); /* G==NULL   (cond4) */
     (void)falcon_keygen(rng, f, g, F, G, h, 0);    /* logn<1    (cond0) */
     (void)falcon_keygen(rng, f, g, F, G, h, 11);   /* logn>10   (cond1) */
     WB_OK("falcon_keygen NULL+logn guard TRUE halves exercised");

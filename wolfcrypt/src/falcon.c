@@ -567,7 +567,7 @@ static int falcon_sampler_z(void* ctx, fpr mu, fpr isigma);
  *   rng   initialized WC_RNG used to seed the SHAKE256 sampler stream.
  *   f,g   output secret polynomials (n signed coefficients each).
  *   F,G   output NTRU completion polynomials (n signed coefficients each);
- *         G may be reconstructed internally but is always written out here.
+ *         G may be NULL, as it can be recomputed from f, g and F.
  *   h     output public key polynomial (n coefficients in [0, q)); may be
  *         NULL if only the (f,g,F,G) basis is required.
  *   logn  base-2 logarithm of the ring degree (1..10; 9 and 10 are the
@@ -6241,7 +6241,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     size_t tmpSz, rcSz;
     int ret;
 
-    if (rng == NULL || f == NULL || g == NULL || F == NULL || G == NULL) {
+    if (rng == NULL || f == NULL || g == NULL || F == NULL) {
         return BAD_FUNC_ARG;
     }
     if (logn < 1 || logn > 10) {
@@ -9878,7 +9878,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     unsigned logn = 0;
     int n = 0;
     word32 pubSz = 0, keySz = 0;
-    sword8 *f = NULL, *g = NULL, *F = NULL, *G = NULL;
+    sword8 *f = NULL, *g = NULL, *F = NULL;
     word16* h = NULL;
     byte* arena = NULL;
     size_t arenaSz = 0;
@@ -9894,15 +9894,14 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
                                             : FALCON_LEVEL5_KEY_SIZE;
     heap = key->heap;
 
-    /* f/g/F/G only; h is derived once the key generator's scratch is gone,
-     * so it does not add to the peak. */
-    arenaSz = 4 * (size_t)n;
+    /* f/g/F only, as G is not encoded; h is derived once the key generator's
+     * scratch is gone, so it does not add to the peak. */
+    arenaSz = 3 * (size_t)n;
     arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (arena != NULL) {
         f = (sword8*)arena;
         g = f + n;
         F = g + n;
-        G = F + n;
     }
     if (arena == NULL) {
         ret = MEMORY_E;
@@ -9918,7 +9917,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
         goto out;
     }
 #endif
-    ret = falcon_keygen(rng, f, g, F, G, NULL, logn);
+    ret = falcon_keygen(rng, f, g, F, NULL, NULL, logn);
 #ifdef WOLFSSL_FALCON_SAVE_VREGS
     RESTORE_VECTOR_REGISTERS();
 #endif
@@ -9959,7 +9958,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     key->prvKeySet = 1;
 
 out:
-    /* f/g/F/G are secret; h is public and its scratch already wiped. */
+    /* f/g/F are secret; h is public and its scratch already wiped. */
     XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (arena != NULL) {
         ForceZero(arena, (word32)arenaSz);
