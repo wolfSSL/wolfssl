@@ -674,3 +674,36 @@ int test_X509_LOOKUP_add_dir(void)
     return EXPECT_RESULT();
 }
 
+/* d2i_X509_CRL must advance the caller's pointer past the object it
+ * decoded. A caller walking a buffer relies on it, and the standard call
+ * passes the address of its own pointer variable, so a function taking the
+ * buffer directly would parse that address instead. */
+int test_wolfSSL_d2i_X509_CRL_advances(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    XFILE f = XBADFILE;
+    unsigned char der[4096];
+    size_t derSz = 0;
+    const unsigned char* p = der;
+    WOLFSSL_X509_CRL* crl = NULL;
+
+    ExpectTrue((f = XFOPEN("certs/crl/crl.der", "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        derSz = XFREAD(der, 1, sizeof(der), f);
+        XFCLOSE(f);
+    }
+    ExpectIntGT((int)derSz, 0);
+
+    if (EXPECT_SUCCESS()) {
+        p = der;
+        ExpectNotNull(crl = d2i_X509_CRL(NULL, &p, (long)derSz));
+        /* the whole object was consumed, so the pointer lands at its end */
+        ExpectIntEQ((int)(p - der), (int)derSz);
+    }
+
+    X509_CRL_free(crl);
+#endif
+    return EXPECT_RESULT();
+}
