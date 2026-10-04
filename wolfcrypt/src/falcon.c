@@ -63,6 +63,7 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/memory.h>
+
 /* fpr / FFT / poly seam declarations, folded in from the former internal
  * wc_falcon_{fpr,fft,poly}.h so the native Falcon implementation is a single
  * translation unit (the AVX2/NEON FFT backends at the end of this file
@@ -459,6 +460,7 @@ static size_t falcon_trim_i8_decode(sword8* x, unsigned logn,
  * wolfCrypt error. */
 static int falcon_privkey_decode(const byte* sk, size_t sklen,
         sword8* f, sword8* g, sword8* F, unsigned logn);
+static word32 poly_small_sqnorm(const sword8* f, unsigned logn);
 
 /* Encode a Falcon secret key from (f, g, F). Inverse of falcon_privkey_decode.
  * Returns bytes written, or 0 on failure. */
@@ -4215,6 +4217,7 @@ int falcon_privkey_decode(const byte* sk, size_t sklen, sword8* f, sword8* g,
         sword8* F, unsigned logn)
 {
     size_t u, v;
+    word32 norm, ng;
 
     if (sk == NULL || f == NULL || g == NULL || F == NULL) {
         return BAD_FUNC_ARG;
@@ -4243,6 +4246,14 @@ int falcon_privkey_decode(const byte* sk, size_t sklen, sword8* f, sword8* g,
         return ASN_PARSE_E;
     }
     u += v;
+
+    /* Keygen keeps ||(f,g)||^2 below (1.17^2)*q and the signers rely on it. */
+    norm = poly_small_sqnorm(f, logn);
+    ng = poly_small_sqnorm(g, logn);
+    norm = (norm + ng) | (0U - ((norm | ng) >> 31));
+    if (norm >= 16823) {
+        return ASN_PARSE_E;
+    }
 
     v = falcon_trim_i8_decode(F, logn, FALCON_MAX_FG_BITS,
             sk + u, sklen - u);
@@ -9059,6 +9070,14 @@ static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
     return falcon_sm_center(x, FALCON_SM_PQ);
 }
 
+/* z - r/q mod p for a sample z and its target numerator r. */
+static WC_INLINE word16 falcon_sm_fold(sword32 z, sword16 r)
+{
+    return (word16)falcon_sm_csubp(falcon_sm_lift(z, FALCON_SM_P) +
+        FALCON_SM_P - falcon_sm_redp(falcon_sm_lift(r, FALCON_SM_P) *
+        FALCON_SM_QINV_P));
+}
+
 /* Polynomials of the secret basis, in falcon_sm_basis order. */
 #define FALCON_SM_F     0
 #define FALCON_SM_G     1
@@ -9172,7 +9191,7 @@ static void falcon_sm_intt_p(word16* a, unsigned logn)
 }
 
 /* r = c*s mod q (negated when neg is set), centered, for basis polynomial
- * s. tmp holds 2n word16; r may be where c came from. */
+ * s; r may be where c came from. tmp (2n word16) ends with NTT_q(s) at n. */
 static int falcon_sm_target(sword16* r, wc_Shake* cst,
         const falcon_sm_basis* b, int which, int neg, word16* tmp)
 {
@@ -9203,11 +9222,16 @@ static int falcon_sm_target(sword16* r, wc_Shake* cst,
     return 0;
 }
 
+/* falcon_sm_gram flags: x already holds u0 in the q NTT, or accq is done. */
+#define FALCON_SM_GRAM_XREADY   1U
+#define FALCON_SM_GRAM_QDONE    2U
+
 /* accq/accp = u0*adj(v0) + u1*adj(v1) mod q and mod p for basis polynomials
  * u0..v1. x and y are scratch; all four hold n word16. In the NTT domain
  * adj(v)[i] = v[n - 1 - i]. */
 static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
-        const falcon_sm_basis* b, int u0, int v0, int u1, int v1)
+        const falcon_sm_basis* b, int u0, int v0, int u1, int v1,
+        unsigned flags)
 {
     unsigned logn = b->logn;
     int n = (int)MKN(logn), u, k;
@@ -9217,11 +9241,13 @@ static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
 
     uv[0] = u0; uv[1] = v0; uv[2] = u1; uv[3] = v1;
     falcon_get_tables(logn, &zetas, &izetas);
-    for (k = 0; k < 4; k += 2) {
+    for (k = 0; k < 4 && (flags & FALCON_SM_GRAM_QDONE) == 0; k += 2) {
         const word16* yy = (uv[k] == uv[k + 1]) ? x : y;
 
-        falcon_sm_lift_key(x, b, uv[k], FALCON_Q);
-        falcon_ntt(x, n, zetas);
+        if (k != 0 || (flags & FALCON_SM_GRAM_XREADY) == 0) {
+            falcon_sm_lift_key(x, b, uv[k], FALCON_Q);
+            falcon_ntt(x, n, zetas);
+        }
         if (yy == y) {
             falcon_sm_lift_key(y, b, uv[k + 1], FALCON_Q);
             falcon_ntt(y, n, zetas);
@@ -9231,7 +9257,9 @@ static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
             accq[u] = (word16)((k == 0) ? t : falcon_csub(accq[u] + t));
         }
     }
-    falcon_intt(accq, n, izetas);
+    if ((flags & FALCON_SM_GRAM_QDONE) == 0) {
+        falcon_intt(accq, n, izetas);
+    }
 
     for (k = 0; k < 4; k += 2) {
         const word16* yy = (uv[k] == uv[k + 1]) ? x : y;
@@ -9391,8 +9419,8 @@ typedef struct falcon_sm_frame {
 } falcon_sm_frame;
 
 /* Sample t against the self-adjoint Gram value a, laid out [a | t | free] in
- * p (2^(logn+1) fpr), writing t - z over t. The fractional part of the
- * target is added from w at the leaves, which receive the samples. */
+ * p (2^(logn+1) fpr), writing t - z over t. The leaves add the target
+ * numerator r from w and leave z - r/q mod p in its place. */
 static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
         sword16* w, unsigned logn, unsigned flags)
 {
@@ -9420,14 +9448,17 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
             fpr isig = fpr_mul(fpr_sqrt(P[0]), fpr_inv_sigma[logn]);
             fpr x0, x1;
             int z0, z1;
+            sword16 r0, r1;
 
             leaf--;
             j = 0;
             for (k = 0; k < logn - 1; k++) {
                 j |= ((leaf >> k) & 1) << (logn - 2 - k);
             }
-            x0 = fpr_mul(fpr_of(w[j]), fpr_inverse_of_q);
-            x1 = fpr_mul(fpr_of(w[j + hn]), fpr_inverse_of_q);
+            r0 = w[j];
+            r1 = w[j + hn];
+            x0 = fpr_mul(fpr_of(r0), fpr_inverse_of_q);
+            x1 = fpr_mul(fpr_of(r1), fpr_inverse_of_q);
             if ((fr->flags & FALCON_SM_ZERO) == 0) {
                 x0 = fpr_add(P[1], x0);
                 x1 = fpr_add(P[2], x1);
@@ -9436,8 +9467,8 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
             z1 = samp(ctx, x1, isig);
             P[1] = fpr_sub(x0, fpr_of(z0));
             P[2] = fpr_sub(x1, fpr_of(z1));
-            w[j] = (sword16)z0;
-            w[j + hn] = (sword16)z1;
+            w[j] = (sword16)falcon_sm_fold(z0, r0);
+            w[j + hn] = (sword16)falcon_sm_fold(z1, r1);
             sp--;
             continue;
         }
@@ -9499,10 +9530,10 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
     }
 }
 
-/* G = g*F/f mod q from the basis. Fails unless f is invertible mod q and G
- * fits in 8 bits. tmp holds 3n word16. */
-static int falcon_sm_complete_private(sword8* G, const falcon_sm_basis* b,
-        word16* tmp)
+/* G = g*F/f and, unless accq is NULL, accq = F*adj(f) + G*adj(g) mod q.
+ * Fails unless f is invertible mod q and G fits in 8 bits; tmp is 3n word16. */
+static int falcon_sm_complete_private(sword8* G, word16* accq,
+        const falcon_sm_basis* b, word16* tmp)
 {
     unsigned logn = b->logn;
     int n = (int)MKN(logn), u;
@@ -9510,26 +9541,41 @@ static int falcon_sm_complete_private(sword8* G, const falcon_sm_basis* b,
     const word16* izetas = NULL;
     word16* x = tmp;
     word16* y = tmp + n;
+    word16* z = tmp + 2 * n;
     word32 bad = 0;
 
     falcon_get_tables(logn, &zetas, &izetas);
     falcon_sm_lift_key(x, b, FALCON_SM_G, FALCON_Q);
     falcon_sm_lift_key(y, b, FALCON_SM_BF, FALCON_Q);
+    falcon_sm_lift_key(z, b, FALCON_SM_F, FALCON_Q);
     falcon_ntt(x, n, zetas);
     falcon_ntt(y, n, zetas);
-    for (u = 0; u < n; u++) {
-        x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
+    falcon_ntt(z, n, zetas);
+    if (accq != NULL) {
+        for (u = 0; u < n; u++) {
+            accq[u] = (word16)falcon_barrett((word32)y[u] * z[n - 1 - u]);
+        }
     }
-    falcon_sm_lift_key(y, b, FALCON_SM_F, FALCON_Q);
-    falcon_ntt(y, n, zetas);
-    falcon_invq_all(y, tmp + 2 * n, n);
     for (u = 0; u < n; u++) {
-        bad |= ((word32)y[u] - 1) >> 31;
-        x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
+        y[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
     }
-    falcon_intt(x, n, izetas);
+    falcon_invq_all(z, x, n);
     for (u = 0; u < n; u++) {
-        sword32 v = falcon_sm_center(x[u], FALCON_Q);
+        bad |= ((word32)z[u] - 1) >> 31;
+        y[u] = (word16)falcon_barrett((word32)y[u] * z[u]);
+    }
+    if (accq != NULL) {
+        falcon_sm_lift_key(x, b, FALCON_SM_G, FALCON_Q);
+        falcon_ntt(x, n, zetas);
+        for (u = 0; u < n; u++) {
+            accq[u] = (word16)falcon_csub(accq[u] +
+                falcon_barrett((word32)y[u] * x[n - 1 - u]));
+        }
+        falcon_intt(accq, n, izetas);
+    }
+    falcon_intt(y, n, izetas);
+    for (u = 0; u < n; u++) {
+        sword32 v = falcon_sm_center(y[u], FALCON_Q);
         bad |= (word32)((v + 127) | (127 - v)) >> 31;
         G[u] = (sword8)v;
     }
@@ -9547,6 +9593,7 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     size_t n = MKN(logn), hn = n >> 1, u;
     sword16* w1 = (sword16*)tmp;
     sword16* w0 = w1 + n;
+    sword16* a = w0;
     fpr* S = (fpr*)(tmp + 4 * n);
     word16* ws = (word16*)S;
     word16* x;
@@ -9563,10 +9610,17 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     if (ret != 0) {
         return ret;
     }
-    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws, ws + n, b, FALCON_SM_F,
-        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G);
+    /* The target left f in the q NTT at ws + n. |a[i]| <= a[0] = ||(f,g)||^2,
+     * which a conformant key bounds by 16822, so a fits idle w0 as int16. */
+    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws + n, ws, b, FALCON_SM_F,
+        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G, FALCON_SM_GRAM_XREADY);
+    if (falcon_sm_crt(ws[2 * n], ws[3 * n]) > 32767) {
+        return BAD_FUNC_ARG;
+    }
     for (u = 0; u < hn; u++) {
-        S[u] = fpr_of(falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]));
+        sword32 v = falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]);
+        a[u] = (sword16)v;
+        S[u] = fpr_of(v);
     }
     falcon_sm_fft_selfadj(S, logn);
     for (u = 0; u < hn; u++) {
@@ -9575,28 +9629,29 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     falcon_sm_ffsamp(samp, ctx, S, w1, logn, FALCON_SM_ZERO);
 
     /* (t1 - z1) * L10 with L10 = (Ff* + Gg*)/(ff* + gg*); G is rebuilt in
-     * the idle w0 unless it is cached. */
+     * the upper half of w0 unless it is cached. */
     XMEMMOVE(S, S + hn, n * sizeof(fpr));
     ws = (word16*)(S + n);
     if (b->fgFG == NULL) {
-        ret = falcon_sm_complete_private((sword8*)w0, b, ws);
+        sword8* G = (sword8*)w0 + n;
+
+        ret = falcon_sm_complete_private(G, ws, b, ws + n);
         if (ret != 0) {
             return ret;
         }
-        b->G = (const sword8*)w0;
+        b->G = G;
     }
     falcon_sm_gram(ws, ws + n, ws + 2 * n, ws + 3 * n, b, FALCON_SM_BF,
-        FALCON_SM_F, FALCON_SM_BG, FALCON_SM_G);
+        FALCON_SM_F, FALCON_SM_BG, FALCON_SM_G,
+        (b->G != NULL) ? FALCON_SM_GRAM_QDONE : 0U);
     b->G = NULL;
     for (u = 0; u < n; u++) {
         ((sword32*)(ws + 2 * n))[u] = falcon_sm_crt(ws[u], ws[n + u]);
     }
     falcon_sm_fft_i32(S + n, (sword32*)(ws + 2 * n), logn);
     falcon_poly_mul_fft(S, S + n, logn);
-    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws, ws + n, b, FALCON_SM_F,
-        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G);
     for (u = 0; u < hn; u++) {
-        S[n + u] = fpr_of(falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]));
+        S[n + u] = fpr_of(a[u]);
     }
     falcon_sm_fft_selfadj(S + n, logn);
     falcon_poly_div_autoadj_fft(S, S + n, logn);
@@ -9612,31 +9667,11 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     XMEMCPY(S, S + 3 * hn, hn * sizeof(fpr));
     falcon_sm_ffsamp(samp, ctx, S, w0, logn, FALCON_SM_DISCARD);
 
-    /* s2 = f*z0 + F*z1 - (f*r0 + F*r1)/q mod p, r being the sampled
-     * fractions; a valid s2 is far below p/2. */
+    /* s2 = f*w0 + F*w1 mod p, the leaves having left w = z - r/q with r the
+     * sampled fractions; a valid s2 is far below p/2. */
     ws = (word16*)S;
     x = ws;
     y = ws + n;
-    ret = falcon_sm_target((sword16*)y, cst, b, FALCON_SM_F, 0, ws + 2 * n);
-    if (ret != 0) {
-        return ret;
-    }
-    for (u = 0; u < n; u++) {
-        word32 r = falcon_sm_lift(((sword16*)y)[u], FALCON_SM_P);
-        ((word16*)w1)[u] = (word16)falcon_sm_csubp(
-            falcon_sm_lift(w1[u], FALCON_SM_P) + FALCON_SM_P -
-            falcon_sm_redp(r * FALCON_SM_QINV_P));
-    }
-    ret = falcon_sm_target((sword16*)y, cst, b, FALCON_SM_BF, 1, ws + 2 * n);
-    if (ret != 0) {
-        return ret;
-    }
-    for (u = 0; u < n; u++) {
-        word32 r = falcon_sm_lift(((sword16*)y)[u], FALCON_SM_P);
-        ((word16*)w0)[u] = (word16)falcon_sm_csubp(
-            falcon_sm_lift(w0[u], FALCON_SM_P) + FALCON_SM_P -
-            falcon_sm_redp(r * FALCON_SM_QINV_P));
-    }
     falcon_sm_lift_key(x, b, FALCON_SM_F, FALCON_SM_P);
     falcon_sm_ntt_p(x, (int)n);
     falcon_sm_ntt_p((word16*)w0, (int)n);
@@ -9993,7 +10028,7 @@ static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
             b.G = NULL;
             b.heap = key->heap;
             b.logn = logn;
-            ret = falcon_sm_complete_private(G, &b, (word16*)scratch);
+            ret = falcon_sm_complete_private(G, NULL, &b, (word16*)scratch);
         }
 #endif
 #ifdef WC_FALCON_CACHE_PRIV_BASIS
