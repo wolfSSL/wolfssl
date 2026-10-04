@@ -35,6 +35,7 @@ int test_wc_falcon_deterministic(void);
 int test_wc_falcon_key_reuse(void);
 int test_wc_falcon_level_overwrite(void);
 int test_wc_falcon_set_level_oom_callers(void);
+int test_wc_falcon_verify_oom(void);
 int test_wc_FalconDecisionCoverage(void);
 int test_falcon_cb_free(void);
 
@@ -50,6 +51,7 @@ int test_falcon_cb_free(void);
     TEST_DECL_GROUP("falcon", test_wc_falcon_key_reuse),                      \
     TEST_DECL_GROUP("falcon", test_wc_falcon_level_overwrite),                \
     TEST_DECL_GROUP("falcon", test_wc_falcon_set_level_oom_callers),          \
+    TEST_DECL_GROUP("falcon", test_wc_falcon_verify_oom),                     \
     TEST_DECL_GROUP("falcon", test_wc_FalconDecisionCoverage),                \
     TEST_DECL_GROUP("falcon", test_falcon_cb_free)
 

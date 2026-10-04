@@ -205,6 +205,8 @@ jobs:
           - { name: 'level1+dynamic-keys', runner: ubuntu-latest,  opts: '--enable-falcon=level1,dynamic-keys', full_suite: true }
           - { name: 'cache-key+dynamic-keys', runner: ubuntu-latest, opts: '--enable-falcon=cache-key,dynamic-keys', full_suite: true }
           - { name: 'level5+dynamic-keys', runner: ubuntu-latest,  opts: '--enable-falcon=level5,dynamic-keys', full_suite: true }
+          - { name: 'verify-no-malloc',  runner: ubuntu-latest,    opts: '--enable-falcon=verify-no-malloc', full_suite: true }
+          - { name: 'level1+dynamic-keys+verify-no-malloc', runner: ubuntu-latest, opts: '--enable-falcon=level1,dynamic-keys,verify-no-malloc', full_suite: true }
           # verify-only strips keygen/sign; the KAT verifies still run, and
           # this is the only config where the verify path is all there is.
           - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon', cppflags: '-DWOLFSSL_FALCON_VERIFY_ONLY' }
