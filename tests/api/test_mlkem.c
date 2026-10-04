@@ -5240,8 +5240,10 @@ static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
 {
     int ret;
 
-    if (wolfSSL_SetAllocators(mlkem_oom_malloc, mlkem_oom_free,
-            mlkem_oom_realloc) != 0) {
+    if ((wolfSSL_GetAllocators(&mlkem_oom_mf, &mlkem_oom_ff,
+            &mlkem_oom_rf) != 0) ||
+        (wolfSSL_SetAllocators(mlkem_oom_malloc, mlkem_oom_free,
+            mlkem_oom_realloc) != 0)) {
         return -1;
     }
     mlkem_oom_armed = 1;
@@ -5287,8 +5289,6 @@ int test_wc_mlkem_decode_alloc_fail(void)
 
     XMEMSET(&rng, 0, sizeof(rng));
     mlkem_oom_size = (size_t)k * MLKEM_N * sizeof(sword16);
-    ExpectIntEQ(wolfSSL_GetAllocators(&mlkem_oom_mf, &mlkem_oom_ff,
-        &mlkem_oom_rf), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
