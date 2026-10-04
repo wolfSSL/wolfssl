@@ -495,11 +495,11 @@ static size_t falcon_privkey_encode(byte* sk, size_t max_sk,
     extern "C" {
 #endif
 
-/* PRNG buffer: an integral number of SHAKE256 squeeze blocks (rate = 136
- * bytes). 136 is divisible by 8, so 8-byte reads never straddle the boundary
- * that triggers a refill. */
+/* PRNG buffer: one SHAKE256 squeeze block (rate = 136 bytes). The stream is
+ * consumed in batches of FALCON_PRNG_BLOCKS blocks: an 8-byte read spans a
+ * block boundary inside a batch and drops the batch tail at its end. */
 #define FALCON_PRNG_BLOCKS   8
-#define FALCON_PRNG_BUFLEN   (FALCON_PRNG_BLOCKS * WC_SHA3_256_BLOCK_SIZE)
+#define FALCON_PRNG_BUFLEN   WC_SHA3_256_BLOCK_SIZE
 
 /* SHAKE256-backed pseudo-random byte stream.
  *
@@ -512,6 +512,7 @@ typedef struct falcon_prng {
     byte     buf[FALCON_PRNG_BUFLEN];/* squeezed stream buffer         */
     word32   ptr;                   /* index of next byte to consume  */
     word32   len;                   /* number of valid bytes in buf   */
+    word32   blk;                   /* index of buf within its batch  */
     int      err;                   /* sticky: first refill error, or 0 */
 } falcon_prng;
 
@@ -4363,14 +4364,15 @@ static const fpr falcon_fpr_sigma_min[11] = {
 /* SHAKE256 pseudo-random byte stream.                                        */
 /*                                                                            */
 /* Construction: absorb FALCON_PRNG_SEED_LEN fresh bytes from WC_RNG into a   */
-/* SHAKE256 sponge, then squeeze the output in fixed FALCON_PRNG_BLOCKS-block */
-/* batches. get_u64 reads 8 stream bytes little-endian; get_u8 reads one.     */
+/* SHAKE256 sponge, then squeeze the output one block at a time, in batches  */
+/* of FALCON_PRNG_BLOCKS. get_u64 reads 8 stream bytes little-endian; get_u8  */
+/* reads one.                                                                 */
 /* The refill is a fixed-size squeeze, hence constant-time; consumption order */
 /* (and thus how many bytes are discarded at a refill boundary) never         */
 /* depends on a secret.                                                       */
 /* -------------------------------------------------------------------------- */
 
-/* Squeeze a fresh batch of blocks into the buffer. Constant-time. */
+/* Squeeze the next block into the buffer. Constant-time. */
 static int falcon_prng_refill(falcon_prng* p)
 {
     int ret;
@@ -4382,9 +4384,10 @@ static int falcon_prng_refill(falcon_prng* p)
         p->len = 0;
         return p->err;
     }
-    ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, FALCON_PRNG_BLOCKS);
+    ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, 1);
     p->ptr = 0;
     p->len = (ret == 0) ? (word32)FALCON_PRNG_BUFLEN : 0;
+    p->blk = (p->blk + 1U) % FALCON_PRNG_BLOCKS;
     /* Latch the first failure. get_u8/get_u64 have no error return, so a squeeze
      * failure is made sticky here and checked by the signer (falcon_sign_core),
      * which rejects any signature produced from an invalid PRNG state instead of
@@ -4404,6 +4407,7 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
 
     p->ptr = 0;
     p->len = 0;
+    p->blk = FALCON_PRNG_BLOCKS - 1U;
     p->err = 0;
 
     ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
@@ -4468,8 +4472,21 @@ word64 falcon_prng_get_u64(falcon_prng* p)
     word64 v;
     word32 i;
 
-    if (p->ptr + 8U > p->len)
+    if (p->ptr + 8U > p->len) {
+        if (p->len != 0 && p->blk + 1U < FALCON_PRNG_BLOCKS) {
+            byte t[8];
+            word32 r = p->len - p->ptr;
+
+            XMEMCPY(t, &p->buf[p->ptr], r);
+            (void)falcon_prng_refill(p);
+            XMEMCPY(t + r, p->buf, 8U - r);
+            p->ptr = 8U - r;
+            v = falcon_load_le64(t);
+            ForceZero(t, sizeof(t));
+            return v;
+        }
         (void)falcon_prng_refill(p);
+    }
     i = p->ptr;
     v = falcon_load_le64(&p->buf[i]);
     p->ptr += 8U;
