@@ -281,6 +281,36 @@ static void wb_privkey(void)
 }
 
 /* ------------------------------------------------------------------ *
+ * falcon_privkey_decode: ||(f,g)||^2 >= 16823 is refused, below passes.
+ * ------------------------------------------------------------------ */
+static void wb_privkey_norm(void)
+{
+    byte   sk[16];
+    sword8 f[2], g[2], F[2];
+    sword8 df[2], dg[2], dF[2];
+    unsigned logn = 1;
+    size_t len;
+
+    XMEMSET(F, 0, sizeof(F));
+    XMEMSET(f, 127, sizeof(f));
+    XMEMSET(g, 127, sizeof(g));
+    len = falcon_privkey_encode(sk, sizeof(sk), f, g, F, logn);
+    if (len == 0 || falcon_privkey_decode(sk, len, df, dg, dF, logn)
+            != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+        WB_FAIL("privkey_decode(norm 64516) expected ASN_PARSE_E");
+    }
+    f[0] = 1;
+    f[1] = 0;
+    g[0] = 0;
+    g[1] = 1;
+    len = falcon_privkey_encode(sk, sizeof(sk), f, g, F, logn);
+    if (len == 0 || falcon_privkey_decode(sk, len, df, dg, dF, logn) != 0) {
+        WB_FAIL("privkey_decode(norm 2) expected 0");
+    }
+    WB_OK("falcon_privkey_decode norm bound exercised");
+}
+
+/* ------------------------------------------------------------------ *
  * falcon_prng_init / falcon_sampler_init:
  *   p==NULL || rng==NULL              (prng_init)
  *   spc==NULL || rng==NULL            (sampler_init)
@@ -467,7 +497,8 @@ static void wb_complete_private(void)
 #else
 /* ------------------------------------------------------------------ *
  * falcon_sm_complete_private: (bad != 0) over the non-invertible f and the
- * two range halves. With f = 1, G = g*F mod q, so g[0]*F[0] sets G[0].
+ * two range halves. With f = 1, G = g*F mod q, so g[0]*F[0] sets G[0], and
+ * the Gram value F*f + G*g is the constant -1 - 127*127 = 8448 mod q.
  * ------------------------------------------------------------------ */
 static void wb_sm_complete_private(void)
 {
@@ -476,6 +507,7 @@ static void wb_sm_complete_private(void)
     sword8* g = basis + 4;
     sword8* F = basis + 8;
     word16 scratch[3 * 4];
+    word16 acc[4];
     falcon_sm_basis b;
 
     XMEMSET(basis, 0, sizeof(basis));
@@ -487,21 +519,27 @@ static void wb_sm_complete_private(void)
     f[0] = 1;
 
     g[0] = 127; F[0] = -1;
-    if (falcon_sm_complete_private(G, &b, scratch) != 0 || G[0] != -127) {
+    if (falcon_sm_complete_private(G, NULL, &b, scratch) != 0 ||
+            G[0] != -127) {
         WB_FAIL("sm_complete_private(in-range) expected 0 and G[0] = -127");
     }
+    if (falcon_sm_complete_private(G, acc, &b, scratch) != 0 ||
+            G[0] != -127 || acc[0] != 8448 || acc[1] != 0 || acc[2] != 0 ||
+            acc[3] != 0) {
+        WB_FAIL("sm_complete_private(accq) expected the Gram value 8448");
+    }
     g[0] = 2; F[0] = 64;
-    if (falcon_sm_complete_private(G, &b, scratch) !=
+    if (falcon_sm_complete_private(G, NULL, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_FAIL("sm_complete_private(G > 127) expected BAD_FUNC_ARG");
     }
     g[0] = -2;
-    if (falcon_sm_complete_private(G, &b, scratch) !=
+    if (falcon_sm_complete_private(G, NULL, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_FAIL("sm_complete_private(G < -127) expected BAD_FUNC_ARG");
     }
     g[0] = 1; F[0] = 1; f[0] = 0;
-    if (falcon_sm_complete_private(G, &b, scratch) !=
+    if (falcon_sm_complete_private(G, NULL, &b, scratch) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_FAIL("sm_complete_private(f not invertible) expected BAD_FUNC_ARG");
     }
@@ -1614,6 +1652,41 @@ static void wb_sm_do_sign_samplererr(void)
     WB_OK("falcon_sm_do_sign samplerErr operand pair exercised");
 }
 
+/* ------------------------------------------------------------------ *
+ * falcon_sm_sign_once: a basis whose a[0] = ||(f,g)||^2 overflows int16
+ * (all f, g coefficients 127: 8 * 127^2) is refused.
+ * ------------------------------------------------------------------ */
+static void wb_sm_gram_bound(void)
+{
+    fpr     tmp[FALCON_SIGN_SMALLEST_TMP(WB_SM_LOGN) / sizeof(fpr)];
+    sword8  basis[4 * WB_SM_N];
+    byte    nonce[FALCON_NONCE_SIZE];
+    byte    msg[4] = { 1, 2, 3, 4 };
+    wc_Shake cst;
+    falcon_sm_basis b;
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(basis, 0, sizeof(basis));
+    XMEMSET(basis, 127, 2 * WB_SM_N);
+    XMEMSET(nonce, 7, sizeof(nonce));
+    if (falcon_hash_to_point_absorb(&cst, nonce, msg, sizeof(msg), NULL)
+            != 0) {
+        WB_FAIL("sm_gram_bound: absorb failed; vector skipped");
+        return;
+    }
+    b.sk = NULL;
+    b.fgFG = basis;
+    b.G = NULL;
+    b.heap = NULL;
+    b.logn = WB_SM_LOGN;
+    if (falcon_sm_do_sign(wb_samp_far, NULL, &b, &cst, (byte*)tmp, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_FAIL("sm_do_sign(a[0] > 32767) expected BAD_FUNC_ARG");
+    }
+    wc_Shake256_Free(&cst);
+    WB_OK("falcon_sm_sign_once Gram bound exercised");
+}
+
 static double wb_sm_d(fpr x)
 {
     double d;
@@ -2176,6 +2249,7 @@ int main(void)
         wb_comp_encode();
         wb_trim_i8();
         wb_privkey();
+        wb_privkey_norm();
         if (haveRng) {
             wb_prng_sampler_init(&rng);
         }
@@ -2231,6 +2305,7 @@ int main(void)
         }
 #else
         wb_sm_do_sign_samplererr();
+        wb_sm_gram_bound();
         if (haveRng) {
             wb_sm_sign_core_err(&rng);
         }
