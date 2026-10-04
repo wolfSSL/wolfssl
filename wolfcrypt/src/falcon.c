@@ -64,6 +64,13 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/memory.h>
 
+/* Hot arithmetic in the NTT and sampler loops; -Os would leave it as calls. */
+#if defined(__GNUC__) && !defined(NO_INLINE)
+    #define FALCON_HOT_INLINE WC_INLINE __attribute__((always_inline))
+#else
+    #define FALCON_HOT_INLINE WC_INLINE
+#endif
+
 /* fpr / FFT / poly seam declarations, folded in from the former internal
  * wc_falcon_{fpr,fft,poly}.h so the native Falcon implementation is a single
  * translation unit (the AVX2/NEON FFT backends at the end of this file
@@ -1276,7 +1283,7 @@ int fpr_lt(fpr x, fpr y)
 #define FALCON_MULHI(z, y) \
     ((word64)(((__uint128_t)(word64)(z) * (__uint128_t)(word64)(y)) >> 64))
 #else
-static WC_INLINE word64 falcon_mulhi(word64 z, word64 y)
+static FALCON_HOT_INLINE word64 falcon_mulhi(word64 z, word64 y)
 {
     word32 z0 = (word32)z, z1 = (word32)(z >> 32);
     word32 y0 = (word32)y, y1 = (word32)(y >> 32);
@@ -7903,14 +7910,14 @@ static void falcon_get_tables(unsigned logn, const word16** zetas,
  * '%'. Both are bit-identical to a mod q and constant-time.
  *   falcon_barrett: a in [0, q^2) -> [0, q)  (349496 = floor(2^32 / q)).
  *   falcon_csub:    a in [0, 2q)  -> [0, q). */
-static WC_INLINE word32 falcon_barrett(word32 a)
+static FALCON_HOT_INLINE word32 falcon_barrett(word32 a)
 {
     word32 t = (word32)(((word64)a * 349496U) >> 32);
     a -= t * FALCON_Q;
     a -= FALCON_Q & (word32)((sword32)(FALCON_Q - 1 - a) >> 31);
     return a;
 }
-static WC_INLINE word32 falcon_csub(word32 a)
+static FALCON_HOT_INLINE word32 falcon_csub(word32 a)
 {
     a -= FALCON_Q & (word32)((sword32)(FALCON_Q - 1 - a) >> 31);
     return a;
@@ -8261,7 +8268,7 @@ static int falcon_hash_to_point(const byte* nonce, const byte* msg,
 }
 
 /* Center x (given in [0,q)) into (-q/2, q/2]. */
-static WC_INLINE sword32 falcon_center(word32 x)
+static FALCON_HOT_INLINE sword32 falcon_center(word32 x)
 {
     sword32 r = (sword32)x;
     if (r > (FALCON_Q >> 1)) {
@@ -9033,34 +9040,34 @@ static const word16 falcon_sm_izetas_p[] = {
 #define FALCON_SM_STAGE_LEFT    2U
 
 /* a in [0, 2p) -> [0, p). */
-static WC_INLINE word32 falcon_sm_csubp(word32 a)
+static FALCON_HOT_INLINE word32 falcon_sm_csubp(word32 a)
 {
     a -= FALCON_SM_P & (word32)((sword32)(FALCON_SM_P - 1 - a) >> 31);
     return a;
 }
 
 /* a in [0, p^2) -> [0, p). */
-static WC_INLINE word32 falcon_sm_redp(word32 a)
+static FALCON_HOT_INLINE word32 falcon_sm_redp(word32 a)
 {
     word32 t = (word32)(((word64)a * FALCON_SM_P_BARRETT) >> 32);
     return falcon_sm_csubp(a - t * FALCON_SM_P);
 }
 
 /* Signed value in (-m, m) -> [0, m). */
-static WC_INLINE word32 falcon_sm_lift(sword32 v, word32 m)
+static FALCON_HOT_INLINE word32 falcon_sm_lift(sword32 v, word32 m)
 {
     return (word32)v + (m & (word32)(v >> 31));
 }
 
 /* x in [0, m) -> (-m/2, m/2]. */
-static WC_INLINE sword32 falcon_sm_center(word32 x, word32 m)
+static FALCON_HOT_INLINE sword32 falcon_sm_center(word32 x, word32 m)
 {
     return (sword32)x -
         (sword32)(m & (word32)((sword32)((m >> 1) - x) >> 31));
 }
 
 /* Integer x from its residues mod q and mod p, centered on zero. */
-static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
+static FALCON_HOT_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
 {
     word32 k = falcon_csub(xq + FALCON_Q - falcon_barrett(xp));
     word32 x;
@@ -9071,7 +9078,7 @@ static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
 }
 
 /* z - r/q mod p for a sample z and its target numerator r. */
-static WC_INLINE word16 falcon_sm_fold(sword32 z, sword16 r)
+static FALCON_HOT_INLINE word16 falcon_sm_fold(sword32 z, sword16 r)
 {
     return (word16)falcon_sm_csubp(falcon_sm_lift(z, FALCON_SM_P) +
         FALCON_SM_P - falcon_sm_redp(falcon_sm_lift(r, FALCON_SM_P) *
