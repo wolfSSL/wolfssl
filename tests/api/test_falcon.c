@@ -1229,17 +1229,24 @@ int test_wc_falcon_level_overwrite(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && \
-    defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(USE_WOLFSSL_MEMORY) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
-    !defined(NO_TLS) && !defined(NO_CERTS) && \
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && !defined(NO_TLS) && \
+    !defined(NO_CERTS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 #define FALCON_OOM_TEST
+#endif
+#ifndef WOLFSSL_NO_MALLOC
+#define FALCON_VERIFY_OOM_TEST
+#endif
+#endif
 
+#if defined(FALCON_OOM_TEST) || defined(FALCON_VERIFY_OOM_TEST)
 static wolfSSL_Malloc_cb  falcon_oom_mf;
 static wolfSSL_Free_cb    falcon_oom_ff;
 static wolfSSL_Realloc_cb falcon_oom_rf;
 static int falcon_oom_failAt = -1;
+static size_t falcon_oom_sz;
 static int falcon_oom_kCount;
 static int falcon_oom_live;
 
@@ -1260,7 +1267,8 @@ static void* falcon_oom_malloc(size_t n)
 {
     void* p;
 
-    if (falcon_oom_is_kbuf(n) && (falcon_oom_kCount++ == falcon_oom_failAt)) {
+    if (((falcon_oom_sz != 0) ? (n == falcon_oom_sz) : falcon_oom_is_kbuf(n)) &&
+            (falcon_oom_kCount++ == falcon_oom_failAt)) {
         return NULL;
     }
     p = (falcon_oom_mf != NULL) ? falcon_oom_mf(n) : malloc(n);
@@ -1299,10 +1307,11 @@ static int falcon_oom_save(void)
         &falcon_oom_rf);
 }
 
-/* failAt -1 only counts the private key buffer allocations. */
-static int falcon_oom_install(int failAt)
+/* failAt -1 only counts; sz 0 counts the private key buffer allocations. */
+static int falcon_oom_install(int failAt, size_t sz)
 {
     falcon_oom_failAt = failAt;
+    falcon_oom_sz = sz;
     falcon_oom_kCount = 0;
     falcon_oom_live = 0;
     return wolfSSL_SetAllocators(falcon_oom_malloc, falcon_oom_free,
@@ -1313,6 +1322,9 @@ static void falcon_oom_restore(void)
 {
     (void)wolfSSL_SetAllocators(falcon_oom_mf, falcon_oom_ff, falcon_oom_rf);
 }
+#endif
+
+#ifdef FALCON_OOM_TEST
 
 /* Runs one caller of wc_falcon_set_level; returns 1 when it accepted the key. */
 static int falcon_oom_run(int which, const byte* der, word32 derSz,
@@ -1392,7 +1404,7 @@ int test_wc_falcon_set_level_oom_callers(void)
         wc_falcon_free(&key);
 
         for (which = 0; EXPECT_SUCCESS() && (which < numCallers); which++) {
-            ExpectIntEQ(falcon_oom_install(-1), 0);
+            ExpectIntEQ(falcon_oom_install(-1, 0), 0);
             ok = falcon_oom_run(which, der, (word32)derSz, pub, pubSz);
             total = falcon_oom_kCount;
             falcon_oom_restore();
@@ -1401,7 +1413,7 @@ int test_wc_falcon_set_level_oom_callers(void)
             ExpectIntEQ(falcon_oom_live, 0);
 
             for (n = 0; EXPECT_SUCCESS() && (n < total); n++) {
-                ExpectIntEQ(falcon_oom_install(n), 0);
+                ExpectIntEQ(falcon_oom_install(n, 0), 0);
                 ok = falcon_oom_run(which, der, (word32)derSz, pub, pubSz);
                 falcon_oom_restore();
                 ExpectIntEQ(ok, 0);
@@ -1416,6 +1428,70 @@ int test_wc_falcon_set_level_oom_callers(void)
         ForceZero(der, derMax);
     }
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A failed verify arena allocation returns MEMORY_E with res left at 0, and
+ * WOLFSSL_FALCON_VERIFY_NO_MALLOC makes no such allocation. */
+int test_wc_falcon_verify_oom(void)
+{
+    EXPECT_DECLS;
+#ifdef FALCON_VERIFY_OOM_TEST
+    falcon_key key;
+    WC_RNG rng;
+    byte* sig = NULL;
+    word32 sigLen;
+    size_t arenaSz;
+    int res;
+    int ret;
+    int li;
+    static const byte msg[] = "wolfSSL Falcon verify OOM test";
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(FALCON_MAX_SIG_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(falcon_oom_save(), 0);
+
+    for (li = 0; EXPECT_SUCCESS() && (li < FALCON_NUM_LEVELS); li++) {
+        arenaSz = sizeof(word16) * 2 * (size_t)((falcon_levels[li] ==
+            FALCON_LEVEL1) ? FALCON_LEVEL1_N : FALCON_LEVEL5_N);
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[li]), 0);
+        ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+        sigLen = FALCON_MAX_SIG_SIZE;
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+            &key, &rng), 0);
+        res = 0;
+        ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+            &res, &key), 0);
+        ExpectIntEQ(res, 1);
+
+        ExpectIntEQ(falcon_oom_install(0, arenaSz), 0);
+        res = 1;
+        ret = wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg), &res,
+            &key);
+        falcon_oom_restore();
+    #ifdef WOLFSSL_FALCON_VERIFY_NO_MALLOC
+        ExpectIntEQ(ret, 0);
+        ExpectIntEQ(res, 1);
+        ExpectIntEQ(falcon_oom_kCount, 0);
+    #else
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(MEMORY_E));
+        ExpectIntEQ(res, 0);
+        ExpectIntEQ(falcon_oom_kCount, 1);
+    #endif
+        ExpectIntEQ(falcon_oom_live, 0);
+
+        wc_falcon_free(&key);
+    }
+
+    falcon_oom_failAt = -1;
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();

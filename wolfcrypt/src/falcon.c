@@ -33,6 +33,10 @@
  *   instead of inline arrays sized for the highest enabled one, which leaves
  *   falcon_key at a few dozen bytes. wc_falcon_set_level can then fail with
  *   MEMORY_E.
+ * WOLFSSL_FALCON_VERIFY_NO_MALLOC                        Default: OFF
+ *   Verify in a 4*n byte buffer held in falcon_key, sized for the highest
+ *   enabled level, instead of allocating it per call (or of the stack under
+ *   WOLFSSL_NO_MALLOC). A key then verifies one signature at a time.
  *
  * WC_FALCON_CACHE_PRIV_BASIS                             Default: OFF
  *   Cache the secret basis (f, g, F, G) in the key on first sign, skipping
@@ -10408,14 +10412,9 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sword16* s2 = NULL;
     word64 normS2 = 0;
     void* heap;
-    /* Only two n-element buffers are live at once, so the arena is 2*n word16:
-     * h dies once the pointwise product is formed, which is where c is built,
-     * and s2 once its squared norm is accumulated, before t is lifted in
-     * place. The set is public, so the stack unless WOLFSSL_SMALL_STACK. */
-#ifdef WOLFSSL_SMALL_STACK
     word16* arena = NULL;
-#else
-    word16 arena[2 * FALCON_MAX_N];
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_FALCON_VERIFY_NO_MALLOC)
+    word16 arenaBuf[2 * FALCON_MAX_N];
 #endif
 
     if (sig == NULL || res == NULL || key == NULL ||
@@ -10446,7 +10445,11 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sigData = sig + 1 + FALCON_NONCE_SIZE;
     sigDataLen = sigLen - 1 - FALCON_NONCE_SIZE;
 
-#ifdef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_FALCON_VERIFY_NO_MALLOC
+    arena = key->verifyArena;
+#elif defined(WOLFSSL_NO_MALLOC)
+    arena = arenaBuf;
+#else
     arena = (word16*)XMALLOC(sizeof(word16) * 2 * (size_t)n, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (arena == NULL) {
@@ -10454,8 +10457,8 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         goto out;
     }
 #endif
-    /* Two buffers, each used for two things in sequence: h then c, and s2
-     * then t (the lift from sword16 to word16 is in place). */
+    /* Two n-element buffers, each used for two things in sequence: h then c,
+     * and s2 then t (the lift from sword16 to word16 is in place). */
     h  = arena;
     c  = arena;
     s2 = (sword16*)(arena + n);
@@ -10568,9 +10571,8 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 out:
-    /* h/c and s2/t pair up in one arena; zetas/izetas are static caches. */
-#ifdef WOLFSSL_SMALL_STACK
-    if (arena != NULL) XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(WOLFSSL_FALCON_VERIFY_NO_MALLOC) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
 }
