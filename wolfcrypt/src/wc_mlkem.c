@@ -2394,6 +2394,12 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
     if ((ret == 0) && (len != privLen)) {
         ret = BUFFER_E;
     }
+    if (ret == 0) {
+        /* Forget the old key before its buffers are replaced, so a failure
+         * from here on leaves the key unusable. */
+        key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET |
+                        MLKEM_FLAG_A_SET);
+    }
 
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
     if (ret == 0) {
@@ -2404,12 +2410,6 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
-        /* Clear the key-set flags first so any failure below (size, reduction
-         * check, or hash) leaves a reused key object consistently unusable
-         * rather than flagged-set with zeroed material. */
-        key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET |
-                        MLKEM_FLAG_A_SET);
-
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
          * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
@@ -2542,6 +2542,12 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     if ((ret == 0) && (len != pubLen)) {
         ret = BUFFER_E;
     }
+    if (ret == 0) {
+        /* Forget the old public key and its cached matrix before they are
+         * replaced, so a failure from here on leaves no public key. */
+        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET |
+                        MLKEM_FLAG_A_SET);
+    }
 
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
     if (ret == 0) {
@@ -2549,10 +2555,6 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
-        /* Forget the old public key and the matrix cached from it, so a
-         * failed decode leaves no public key to encapsulate or decapsulate. */
-        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET |
-                        MLKEM_FLAG_A_SET);
         /* Decode public key and check public key matches parameters. */
         ret = mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
     }

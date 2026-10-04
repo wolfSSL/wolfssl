@@ -5194,3 +5194,139 @@ int test_wc_mlkem_decode_reused_key(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WOLFSSL_MLKEM_DYNAMIC_KEYS) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#define MLKEM_OOM_TEST
+
+static wolfSSL_Malloc_cb  mlkem_oom_mf;
+static wolfSSL_Free_cb    mlkem_oom_ff;
+static wolfSSL_Realloc_cb mlkem_oom_rf;
+static size_t mlkem_oom_size;
+static int mlkem_oom_armed;
+
+/* Fails the next allocation of one key vector, then behaves normally. */
+static void* mlkem_oom_malloc(size_t n)
+{
+    if (mlkem_oom_armed && (n == mlkem_oom_size)) {
+        mlkem_oom_armed = 0;
+        return NULL;
+    }
+    return (mlkem_oom_mf != NULL) ? mlkem_oom_mf(n) : malloc(n);
+}
+
+static void mlkem_oom_free(void* p)
+{
+    if (mlkem_oom_ff != NULL) {
+        mlkem_oom_ff(p);
+    }
+    else {
+        free(p);
+    }
+}
+
+static void* mlkem_oom_realloc(void* p, size_t n)
+{
+    return (mlkem_oom_rf != NULL) ? mlkem_oom_rf(p, n) : realloc(p, n);
+}
+
+/* Decodes into kA with one key vector allocation failing. */
+static int mlkem_oom_decode(MlKemKey* kA, int priv, const byte* in,
+    word32 inLen)
+{
+    int ret;
+
+    if (wolfSSL_SetAllocators(mlkem_oom_malloc, mlkem_oom_free,
+            mlkem_oom_realloc) != 0) {
+        return -1;
+    }
+    mlkem_oom_armed = 1;
+    if (priv) {
+        ret = wc_MlKemKey_DecodePrivateKey(kA, in, inLen);
+    }
+    else {
+        ret = wc_MlKemKey_DecodePublicKey(kA, in, inLen);
+    }
+    mlkem_oom_armed = 0;
+    (void)wolfSSL_SetAllocators(mlkem_oom_mf, mlkem_oom_ff, mlkem_oom_rf);
+    return ret;
+}
+#endif
+
+/* A decode into a full key that fails to allocate leaves the key unusable,
+ * not flagged as set over a freed buffer. */
+int test_wc_mlkem_decode_alloc_fail(void)
+{
+    EXPECT_DECLS;
+#ifdef MLKEM_OOM_TEST
+    MlKemKey* kA = NULL;
+    MlKemKey* kB = NULL;
+    WC_RNG rng;
+    byte pkB[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte skB[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    word32 pubLen = 0;
+    word32 privLen = 0;
+    word32 ctLen = 0;
+    int priv;
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+    const int k = WC_ML_KEM_768_K;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+    const int k = WC_ML_KEM_512_K;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+    const int k = WC_ML_KEM_1024_K;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    mlkem_oom_size = (size_t)k * MLKEM_N * sizeof(sword16);
+    ExpectIntEQ(wolfSSL_GetAllocators(&mlkem_oom_mf, &mlkem_oom_ff,
+        &mlkem_oom_rf), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(kA = (MlKemKey*)XMALLOC(sizeof(*kA), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (kA != NULL) {
+        XMEMSET(kA, 0, sizeof(*kA));
+    }
+    ExpectNotNull(kB = (MlKemKey*)XMALLOC(sizeof(*kB), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (kB != NULL) {
+        XMEMSET(kB, 0, sizeof(*kB));
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(kA, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(kB, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(kB, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(kB, &pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(kB, &privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(kB, &ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(kB, pkB, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(kB, skB, privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(kB, ct, ss, &rng), 0);
+
+    for (priv = 0; priv <= 1; priv++) {
+        ExpectIntEQ(wc_MlKemKey_MakeKey(kA, &rng), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(mlkem_oom_decode(kA, priv, priv ? skB : pkB,
+                priv ? privLen : pubLen), WC_NO_ERR_TRACE(MEMORY_E));
+        }
+        ExpectIntEQ(wc_MlKemKey_Encapsulate(kA, ct, ss, &rng),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_MlKemKey_Decapsulate(kA, ss, ct, ctLen),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+    }
+
+    wc_MlKemKey_Free(kB);
+    wc_MlKemKey_Free(kA);
+    XFREE(kB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(kA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
