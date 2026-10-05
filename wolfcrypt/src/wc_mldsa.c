@@ -10079,6 +10079,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         ret = mldsa_vec_encode_gamma1(z, params->l, params->gamma1_bits, ze);
     }
 
+    if ((ret != 0) && (*sigLen == params->sigSz)) {
+        /* FIPS 204 3.6.3: a failed sign leaves no part of a signature. */
+        ForceZero(sig, params->sigSz);
+    }
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
@@ -10740,6 +10744,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         while ((ret == 0) && (!valid));
     }
 
+    if ((ret != 0) && (*sigLen == params->sigSz)) {
+        /* FIPS 204 3.6.3: a failed sign leaves no part of a signature. */
+        ForceZero(sig, params->sigSz);
+    }
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
