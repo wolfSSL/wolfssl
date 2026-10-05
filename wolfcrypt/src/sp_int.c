@@ -19642,6 +19642,11 @@ int sp_prime_is_prime(const sp_int* a, int trials, int* result)
         err = _sp_prime_trials(a, trials, result);
     }
 
+    /* No primality claim when an error stopped testing early. */
+    if ((err != MP_OKAY) && (result != NULL)) {
+        *result = MP_NO;
+    }
+
     return err;
 }
 
@@ -19745,9 +19750,10 @@ static int _sp_prime_random_trials(const sp_int* a, int trials, int* result,
  * @param [out] result  MP_YES when number is prime.
  *                      MP_NO otherwise.
  * @param [in]  rng     Random number generator for Miller-Rabin testing.
+ *                      Must not be NULL; not read when WC_NO_RNG (fixed bases).
  *
  * @return  MP_OKAY on success.
- * @return  MP_VAL when a, result or rng is NULL.
+ * @return  MP_VAL when a, result or rng is NULL, or trials is out of range.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
@@ -19759,11 +19765,9 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
     if ((a == NULL) || (result == NULL) || (rng == NULL)) {
         err = MP_VAL;
     }
-#ifndef WC_NO_RNG
     if ((err == MP_OKAY) && (a->used * 2 >= SP_INT_DIGITS)) {
         err = MP_VAL;
     }
-#endif
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if ((err == MP_OKAY) && (a->sign == MP_NEG)) {
         err = MP_VAL;
@@ -19799,11 +19803,15 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
         err = _sp_prime_random_trials(a, trials, &ret, rng);
     }
 #else
-    (void)trials;
+    /* No RNG: fixed small-prime bases, as in sp_prime_is_prime(). */
+    if ((err == MP_OKAY) && (!haveRes)) {
+        err = _sp_prime_trials(a, trials, &ret);
+    }
 #endif /* !WC_NO_RNG */
 
     if (result != NULL) {
-        *result = ret;
+        /* ret is still MP_YES when an error stopped testing early. */
+        *result = (err == MP_OKAY) ? ret : MP_NO;
     }
 
     return err;

@@ -1010,6 +1010,13 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
         ExpectIntEQ(sp_set(&a, 4), 0);
         ExpectIntEQ(sp_prime_is_prime(&a, 8, &result), 0);
         ExpectIntEQ(result, MP_NO);
+        /* Too large to test: an error and no primality claim. */
+        ExpectIntEQ(sp_set_bit(&a, (SP_INT_DIGITS / 2) * SP_WORD_SIZE), 0);
+        result = MP_YES;
+        ExpectIntEQ(sp_prime_is_prime(&a, 8, &result),
+            WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(result, MP_NO);
+        ExpectIntEQ(sp_set(&a, 4), 0);
 
 #if !defined(WC_NO_RNG)
         {
@@ -1022,10 +1029,17 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
                 WC_NO_ERR_TRACE(MP_VAL));
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, NULL),
                 WC_NO_ERR_TRACE(MP_VAL));
+            result = MP_YES;
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 0, &result, &rng),
                 WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(result, MP_NO);
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 1000000, &result, &rng),
                 WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(sp_set_bit(&a, (SP_INT_DIGITS / 2) * SP_WORD_SIZE), 0);
+            result = MP_YES;
+            ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, &rng),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(result, MP_NO);
             ExpectIntEQ(sp_set(&a, 1), 0);
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, &rng), 0);
             ExpectIntEQ(result, MP_NO);
