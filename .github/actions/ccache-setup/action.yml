@@ -63,7 +63,7 @@ runs:
             echo "ccache installed offline from the staged .deb bundle"
           else
             # Short limits: this follows install-apt-deps in 10-minute jobs.
-            "$GITHUB_ACTION_PATH/../../scripts/apt-install.sh" --tries 2 \
+            "$GITHUB_ACTION_PATH/../install-apt-deps/apt-install.sh" --tries 2 \
               --update-timeout 60 --install-timeout 90 --drop-vendor-sources \
               --no-install-recommends ccache
           fi

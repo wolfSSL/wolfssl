@@ -29,7 +29,8 @@ default branch and at its latest tagged release.
 The engine (`cross-library.yml`) runs one job in a clean container
 (`ubuntu:24.04` by default; a caller may pass `debian:13`):
 
-1. **Install build tools** with `.github/scripts/apt-install.sh`
+1. **Install build tools** with
+   `.github/actions/install-apt-deps/apt-install.sh`
    (`+ apt_packages` from the caller). The image has no git yet, so a first
    checkout downloads the script through the REST API.
 2. **Checkout wolfSSL** (full history + tags, for the break check below).
