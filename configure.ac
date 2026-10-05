@@ -14052,11 +14052,19 @@ AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
 # preprocessor configuration.
 if test "x$ENABLED_ALTERA_FCS" = "xyes"
 then
-    # libfdt is a transitive dependency of libFCS
-    AC_CHECK_LIB([FCS], [libfcs_init],
-        [LIB_ADD="$LIB_ADD -lFCS -lfdt"],
-        [AC_MSG_ERROR([--enable-alterafcs needs libFCS and libfdt])],
-        [-lfdt])
+    # libfdt is a transitive dependency of libFCS. AC_CHECK_LIB's unprototyped
+    # declaration fails -Werror -Wstrict-prototypes, so link a prototyped call.
+    AC_MSG_CHECKING([for libfcs_init in -lFCS])
+    ALTERA_FCS_SAVED_LIBS="$LIBS"
+    LIBS="-lFCS -lfdt $LIBS"
+    AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([[int libfcs_init(char* loglevel);]],
+                         [[return libfcs_init((char*)0);]])],
+        [AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])
+         AC_MSG_ERROR([--enable-alterafcs needs libFCS and libfdt])])
+    LIBS="$ALTERA_FCS_SAVED_LIBS"
+    LIB_ADD="$LIB_ADD -lFCS -lfdt"
     PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE -lFCS -lfdt"
     if test "x$ENABLED_USERSETTINGS" != "xyes"
     then
