@@ -194,6 +194,7 @@ jobs:
           - { name: 'cache-basis',       runner: ubuntu-latest,    opts: '--enable-falcon=cache-basis', full_suite: true }
           - { name: 'cache-key+small-mem', runner: ubuntu-latest,  opts: '--enable-falcon=cache-key,small-mem', full_suite: true }
           - { name: 'smallest-mem',      runner: ubuntu-latest,    opts: '--enable-falcon=smallest-mem', full_suite: true }
+          - { name: 'smallest-mem (32-bit fpr)', runner: ubuntu-latest, opts: '--enable-falcon=smallest-mem', cflags: '-DWC_32BIT_CPU' }
           - { name: 'asm+smallest-mem',  runner: ubuntu-latest,    opts: '--enable-falcon=asm,smallest-mem' }
           - { name: 'avx2+smallest-mem', runner: ubuntu-latest,    opts: '--enable-falcon=avx2,smallest-mem', avx2: true }
           - { name: 'neon+smallest-mem (ARM64)', runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon,smallest-mem', cflags: '-ffp-contract=off' }
