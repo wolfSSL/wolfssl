@@ -55,6 +55,9 @@ static int KcapiDh_SetParams(DhKey* key)
     }
     if (ret == 0) {
         ret = wc_DhParamsToDer(key, pkcs3, &len);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
     if (ret == 0) {
         ret = kcapi_kpp_dh_setparam_pkcs3(key->handle, pkcs3, len);
