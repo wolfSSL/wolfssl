@@ -6287,8 +6287,10 @@ static int test_tls13_0rtt_remove_id(WOLFSSL_CTX* ctx, const byte* id)
     !defined(NO_SESSION_CACHE) && defined(HAVE_EX_DATA_CRYPTO) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
 static int test_tls13_0rtt_ex_data_marker;
+static int test_tls13_0rtt_ex_data_marker2;
 static int test_tls13_0rtt_ex_data_idx = -1;
 static int test_tls13_0rtt_ex_data_frees;
+static int test_tls13_0rtt_ex_data_frees2;
 
 static void test_tls13_0rtt_ex_data_free_cb(void* parent, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argl, void* argp)
@@ -6297,10 +6299,12 @@ static void test_tls13_0rtt_ex_data_free_cb(void* parent, void* ptr,
     (void)ptr;
     (void)argl;
     (void)argp;
-    if (idx == test_tls13_0rtt_ex_data_idx &&
-            wolfSSL_CRYPTO_get_ex_data(a, idx) ==
-                (void*)&test_tls13_0rtt_ex_data_marker) {
-        test_tls13_0rtt_ex_data_frees++;
+    if (idx == test_tls13_0rtt_ex_data_idx) {
+        void* data = wolfSSL_CRYPTO_get_ex_data(a, idx);
+        if (data == (void*)&test_tls13_0rtt_ex_data_marker)
+            test_tls13_0rtt_ex_data_frees++;
+        else if (data == (void*)&test_tls13_0rtt_ex_data_marker2)
+            test_tls13_0rtt_ex_data_frees2++;
     }
 }
 
@@ -6416,6 +6420,7 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     XMEMSET(idB, 0, sizeof(idB));
     XMEMSET(idC, 0, sizeof(idC));
     test_tls13_0rtt_ex_data_frees = 0;
+    test_tls13_0rtt_ex_data_frees2 = 0;
     if (test_tls13_0rtt_ex_data_idx < 0) {
         test_tls13_0rtt_ex_data_idx = wolfSSL_SESSION_get_ex_new_index(0,
             NULL, NULL, NULL, test_tls13_0rtt_ex_data_free_cb);
@@ -6464,8 +6469,12 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     ExpectIntEQ(wolfSSL_accept(ssl_s2), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s2, -1), WOLFSSL_ERROR_WANT_READ);
 
-    /* Finish both. Each reissued ticket gets its own ID. */
+    /* Finish both. Each reissued ticket gets its own ID. The second sets
+     * its own ex_data after the first took the old entry's. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s2),
+        test_tls13_0rtt_ex_data_idx, &test_tls13_0rtt_ex_data_marker2),
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
     ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 1);
@@ -6485,6 +6494,8 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     /* The first reissue took the ex_data. */
     ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
         test_tls13_0rtt_ex_data_idx), &test_tls13_0rtt_ex_data_marker);
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s2),
+        test_tls13_0rtt_ex_data_idx), &test_tls13_0rtt_ex_data_marker2);
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
     wolfSSL_free(ssl_c2); ssl_c2 = NULL;
@@ -6495,6 +6506,7 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     (void)test_tls13_0rtt_remove_id(ctx_s, idB);
     (void)test_tls13_0rtt_remove_id(ctx_s, idC);
     ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees2, 1);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_CTX_free(ctx_c);

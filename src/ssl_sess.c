@@ -3386,6 +3386,9 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
                 && session->side == cacheSession->side
                 && (IsAtLeastTLSv1_3(session->version) ==
                     IsAtLeastTLSv1_3(cacheSession->version))
+                /* An entry that gave its ex_data to a reissued ticket no
+                 * longer holds this session's ex_data. */
+                && cacheSession->ownExData
             ) {
             if (get) {
                 if (getRet) {
