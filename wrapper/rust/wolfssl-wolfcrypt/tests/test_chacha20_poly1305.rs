@@ -592,3 +592,62 @@ fn test_xchacha20poly1305_reject_tampered() {
     ct[0] ^= 0x01;
     assert!(cipher.decrypt(&nonce, ct.as_slice()).is_err());
 }
+
+/// Verify that the XChaCha20-Poly1305 `aead::AeadInPlace` implementation
+/// matches the one-shot API for a range of payload sizes, including sizes
+/// larger than 4096 bytes and sizes not aligned to the ChaCha20 or Poly1305
+/// block sizes.
+#[test]
+#[cfg(all(feature = "aead", xchacha20_poly1305))]
+fn test_xchacha20poly1305_aead_sizes() {
+    let key = [0x11u8; 32];
+    let nonce_bytes = [0x22u8; 24];
+    let aad = b"xchacha20 sizes aad";
+
+    let cipher = XChaCha20Poly1305Aead::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<XChaCha20Poly1305Aead> = nonce_bytes.into();
+
+    for &size in &[0usize, 1, 15, 16, 17, 63, 64, 65, 4096, 4097, 20000] {
+        let plaintext: Vec<u8> = (0..size).map(|i| i as u8).collect();
+
+        let mut expected = vec![0u8; size + XChaCha20Poly1305::AUTH_TAG_SIZE];
+        XChaCha20Poly1305::encrypt(&key, &nonce_bytes, aad, &plaintext,
+            &mut expected).expect("XChaCha20Poly1305::encrypt failed");
+
+        let mut buffer = plaintext.clone();
+        let tag = cipher
+            .encrypt_in_place_detached(&nonce, aad, &mut buffer)
+            .expect("encrypt_in_place_detached failed");
+        assert_eq!(&buffer[..], &expected[..size]);
+        assert_eq!(&tag[..], &expected[size..]);
+
+        cipher
+            .decrypt_in_place_detached(&nonce, aad, &mut buffer, &tag)
+            .expect("decrypt_in_place_detached failed");
+        assert_eq!(buffer, plaintext);
+    }
+}
+
+/// Verify that a failed XChaCha20-Poly1305 in-place decryption leaves the
+/// caller's cipher text buffer unmodified.
+#[test]
+#[cfg(all(feature = "aead", xchacha20_poly1305))]
+fn test_xchacha20poly1305_reject_tampered_in_place() {
+    let key = [0x33u8; 32];
+    let nonce_bytes = [0x44u8; 24];
+    let plaintext = [0x5au8; 100];
+
+    let cipher = XChaCha20Poly1305Aead::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<XChaCha20Poly1305Aead> = nonce_bytes.into();
+
+    let mut buffer = plaintext;
+    let mut tag = cipher
+        .encrypt_in_place_detached(&nonce, b"", &mut buffer)
+        .expect("encrypt_in_place_detached failed");
+    let ciphertext = buffer;
+    tag[0] ^= 0x01;
+    assert!(cipher
+        .decrypt_in_place_detached(&nonce, b"", &mut buffer, &tag)
+        .is_err());
+    assert_eq!(buffer, ciphertext);
+}

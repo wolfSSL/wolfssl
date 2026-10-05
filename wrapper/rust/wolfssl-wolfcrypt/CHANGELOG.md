@@ -45,6 +45,10 @@ Fixes and improvements:
 - Fix detection of the built-in ML-DSA parameter sets: the mldsa_level2,
   mldsa_level3 and mldsa_level5 cfgs probed the WC_MLDSA_NN_KEY_SIZE macros,
   which wc_mldsa.h defines unconditionally, so all three were always enabled
+- XChaCha20Poly1305Aead's AeadInPlace implementation no longer allocates a
+  4112-byte buffer on the stack for every call and no longer limits messages to
+  4096 bytes. Decryption now verifies the authentication tag before decrypting,
+  so the caller's buffer is left unmodified when verification fails
 
 ## v2.2.0
 
