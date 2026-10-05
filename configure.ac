@@ -5381,11 +5381,6 @@ then
     ENABLED_ALTERA_FCS_RNG=yes
     ENABLED_ALTERA_FCS=yes
 fi
-if test "$ENABLED_ALTERA_FCS" = "yes"
-then
-    # libfdt is a transitive dependency of libFCS
-    LIBS="$LIBS -lFCS -lfdt"
-fi
 
 # Support for Linux dev/crypto calls
 AC_ARG_ENABLE([devcrypto],
@@ -14057,6 +14052,11 @@ AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
 # preprocessor configuration.
 if test "x$ENABLED_ALTERA_FCS" = "xyes"
 then
+    # libfdt is a transitive dependency of libFCS
+    AC_CHECK_LIB([FCS], [libfcs_init],
+        [LIB_ADD="$LIB_ADD -lFCS -lfdt"],
+        [AC_MSG_ERROR([--enable-alterafcs needs libFCS and libfdt])],
+        [-lfdt])
     PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE -lFCS -lfdt"
     if test "x$ENABLED_USERSETTINGS" != "xyes"
     then

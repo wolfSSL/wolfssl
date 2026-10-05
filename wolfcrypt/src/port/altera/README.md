@@ -206,9 +206,16 @@ provisioned with an owner root key hash (`quartus_pgm` virtual or physical
 fuses; see the Altera Security User Guide), and `libFCS.so` from
 https://github.com/altera-fpga/libfcs on the target.
 
-1. Confirm the stack is up: `/sys/kernel/fcs_sysfs` exists and libfcs's
-   `fcs_client` can open a session and read random data. If this fails the
-   problem is below wolfSSL.
+The kernel must come from linux-socfpga `socfpga-6.12.19-lts` or later (the
+port was tested on `socfpga-6.18.2-lts`). libfcs drives the device through
+`/sys/kernel/fcs_sysfs/` attributes such as `get_rng`, `get_digest`,
+`aes_crypt_init` and `mac_verify_init`, and the driver in
+`socfpga-6.12.11-lts` does not create them, so RNG, hashing, AES and HMAC
+verification fail there on an otherwise healthy board.
+
+1. Confirm the stack is up: `/sys/kernel/fcs_sysfs/get_rng` exists and
+   libfcs's `fcs_client` can open a session and read random data. If this
+   fails the problem is below wolfSSL.
 2. Cross compile wolfSSL as shown above, with
    `-DWC_USE_DEVID=0x4143` added to CFLAGS for the test build. When the
    `testwolfcrypt` binary will run on a different machine than it was built
@@ -222,8 +229,9 @@ https://github.com/altera-fpga/libfcs on the target.
    A failure of only ALTERA-FCS with everything else passing points at the
    device: check provisioning (status 0x85) and session exhaustion (0x84,
    cleared only by a power cycle).
-4. Optionally run `./benchmark -aes-cbc -aes-ctr` and confirm the HW rows
-   differ from the SW rows, which proves requests are reaching the device.
+4. Optionally run `./benchmark -aes-cbc` and confirm the HW rows differ from
+   the SW rows, which proves requests are reaching the device. Add `-aes-ctr`
+   only when wolfSSL was configured with `--enable-aesctr`.
 
 ## Continuous integration coverage
 

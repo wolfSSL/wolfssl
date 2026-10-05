@@ -89762,6 +89762,19 @@ static wc_test_ret_t altera_fcs_ecc_test(int curveId)
     if (isValid != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
 
+#ifndef HAVE_ECC_DHE
+    /* keygen skips the callback here, so the stale device key must refuse */
+    ret = wc_ecc_make_key_ex(&rng, wc_ecc_size(&key), &key, curveId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_ecc);
+    sigSz = (word32)sizeof(sig);
+    ret = wc_ecc_sign_hash(hash, (word32)sizeof(hash), sig, &sigSz, &rng,
+                           &key);
+    if (ret != WC_HW_E)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
+    ret = 0;
+#endif
+
 exit_fcs_ecc:
     if (keyInit)
         wc_ecc_free(&key);

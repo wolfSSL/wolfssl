@@ -211,6 +211,12 @@ static int wc_AlteraFcs_Digest(const AlteraHashKeep* keep, byte* out)
 
         ret = fcs_get_digest_streaming((FCS_OSAL_UUID*)session, 0,
                                        WOLFSSL_ALTERA_FCS_CTX_ID, &req);
+        /* The first digest after an SDM reconfiguration fails to finalize
+         * (status 130, mailbox -EIO); the next one succeeds. */
+        if (ret != 0) {
+            ret = fcs_get_digest_streaming((FCS_OSAL_UUID*)session, 0,
+                                           WOLFSSL_ALTERA_FCS_CTX_ID, &req);
+        }
         wc_AlteraFcs_SessionRelease();
         if (ret != 0) {
             ret = wc_AlteraFcs_MapError(ret);

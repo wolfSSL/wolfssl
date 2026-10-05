@@ -78,6 +78,7 @@ typedef struct {
     int    keySz;
     int    devId;
     void*  heap;
+    byte   pub[2 * WC_ALTERA_FCS_ECC_MAX_SZ];
 } AlteraEccKey;
 
 /* The Agilex 5 kernel driver writes a whole response's worth of bytes (2 *
@@ -141,6 +142,26 @@ static int wc_AlteraFcs_EccCurve(int curveId, FCS_OSAL_U32* fcsCurve,
             break;
     }
 
+    return ret;
+}
+
+/* Without HAVE_ECC_DHE a software keygen never reaches the callback, so the key
+ * may no longer hold the point its device key was created with. */
+static int wc_AlteraFcs_EccPubMatches(ecc_key* key, const AlteraEccKey* keyCtx)
+{
+    byte   pub[2 * WC_ALTERA_FCS_ECC_MAX_SZ];
+    word32 xLen = (word32)keyCtx->keySz;
+    word32 yLen = (word32)keyCtx->keySz;
+    int    ret;
+
+    ret = wc_ecc_export_public_raw(key, pub, &xLen, pub + keyCtx->keySz,
+                                   &yLen);
+    if (ret != 0 || xLen != (word32)keyCtx->keySz ||
+        yLen != (word32)keyCtx->keySz ||
+        XMEMCMP(pub, keyCtx->pub, 2 * (word32)keyCtx->keySz) != 0) {
+        WOLFSSL_MSG("Altera FCS ECC key no longer matches its device key");
+        ret = WC_HW_E;
+    }
     return ret;
 }
 
@@ -291,6 +312,7 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, word32 usage)
     keyCtx->curveId = curveId;
     keyCtx->keySz   = keySz;
     keyCtx->heap    = key->heap;
+    XMEMCPY(keyCtx->pub, pub, 2 * (word32)keySz);
     key->devCtx = keyCtx;
 
     return 0;
@@ -377,6 +399,10 @@ static int wc_AlteraFcs_EccSign(wc_CryptoInfo* info)
     }
 
     ret = wc_AlteraFcs_EccCurve(keyCtx->curveId, &fcsCurve, &keySz, &keyType);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_AlteraFcs_EccPubMatches(key, keyCtx);
     if (ret != 0) {
         return ret;
     }
@@ -509,6 +535,10 @@ static int wc_AlteraFcs_Ecdh(wc_CryptoInfo* info)
         priv->dp->id != keyCtx->curveId ||
         pub->dp->id != keyCtx->curveId) {
         return ECC_BAD_ARG_E;
+    }
+    ret = wc_AlteraFcs_EccPubMatches(priv, keyCtx);
+    if (ret != 0) {
+        return ret;
     }
     ret = wc_ecc_check_key(pub);
     if (ret != 0) {
