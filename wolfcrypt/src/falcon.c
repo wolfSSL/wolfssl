@@ -721,6 +721,41 @@ static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
     return x;
 }
 
+/* gcc derives a 64-bit carry or borrow with a branch on Xtensa. */
+#ifdef __XTENSA__
+static WC_MAYBE_UNUSED FALCON_HOT_INLINE word64 falcon_add64_x(word64 a,
+    word64 b)
+{
+    word32 al = (word32)a;
+    word32 bl = (word32)b;
+    word32 lo = al + bl;
+    word32 c = ((al & bl) | ((al | bl) & ~lo)) >> 31;
+
+    return ((word64)((word32)(a >> 32) + (word32)(b >> 32) + c) << 32) | lo;
+}
+
+static WC_MAYBE_UNUSED FALCON_HOT_INLINE word64 falcon_sub64_x(word64 a,
+    word64 b)
+{
+    word32 al = (word32)a;
+    word32 bl = (word32)b;
+    word32 lo = al - bl;
+    word32 c = ((~al & bl) | ((~al | bl) & lo)) >> 31;
+
+    return ((word64)((word32)(a >> 32) - (word32)(b >> 32) - c) << 32) | lo;
+}
+
+#define falcon_add64(a, b)  falcon_add64_x((word64)(a), (word64)(b))
+#define falcon_sub64(a, b)  falcon_sub64_x((word64)(a), (word64)(b))
+#define falcon_mask64(b)    ((word64)(sword64)(sword32)(0U - (word32)(b)))
+#define falcon_nmask64(b)   ((word64)(sword64)(sword32)((word32)(b) - 1U))
+#else
+#define falcon_add64(a, b)  ((word64)(a) + (word64)(b))
+#define falcon_sub64(a, b)  ((word64)(a) - (word64)(b))
+#define falcon_mask64(b)    ((word64)0 - (word64)(b))
+#define falcon_nmask64(b)   ((word64)(b) - 1)
+#endif
+
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
 {
@@ -801,7 +836,7 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
      * which we clamp down to zero. */
     e += 1076;
     t = fpr_ct_opaque32((word32)e >> 31);
-    m &= (word64)t - 1;
+    m &= falcon_nmask64(t);
 
     /* If m == 0 we want a zero: force e to 0 too (the sign is conserved). */
     t = fpr_ct_opaque32((word32)(m >> 54));
@@ -816,7 +851,7 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
      * 011, 110 or 111. A carry spilling into the exponent field is the desired
      * behaviour. */
     f = (unsigned int)m & 7U;
-    x += (0xC8U >> f) & 1U;
+    x = falcon_add64(x, (0xC8U >> f) & 1U);
     return x;
 }
 
@@ -829,31 +864,31 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 32));              \
         nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
-        (m) ^= ((m) ^ ((m) << 32)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) << 32)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 5);                                  \
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 48));              \
         nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
-        (m) ^= ((m) ^ ((m) << 16)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) << 16)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 4);                                  \
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 56));              \
         nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
-        (m) ^= ((m) ^ ((m) <<  8)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) <<  8)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 3);                                  \
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 60));              \
         nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
-        (m) ^= ((m) ^ ((m) <<  4)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) <<  4)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 2);                                  \
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 62));              \
         nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
-        (m) ^= ((m) ^ ((m) <<  2)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) <<  2)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 1);                                  \
                                                                 \
         nt_ = fpr_ct_opaque32((word32)((m) >> 63));              \
-        (m) ^= ((m) ^ ((m) <<  1)) & ((word64)nt_ - 1);         \
+        (m) ^= ((m) ^ ((m) <<  1)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_);                                       \
     } while (0)
 
@@ -874,8 +909,8 @@ fpr fpr_scaled(sword64 i, int sc)
 
     /* Sign and absolute value (-i == 1 + ~i). */
     s = (int)fpr_ct_opaque32((word32)((word64)i >> 63));
-    i ^= -(sword64)s;
-    i += s;
+    i ^= (sword64)falcon_mask64(s);
+    i = (sword64)falcon_add64(i, s);
 
     /* Suppose i != 0 for now: normalize it so the top bit is set. */
     m = (word64)i;
@@ -888,9 +923,8 @@ fpr fpr_scaled(sword64 i, int sc)
     m >>= 9;
 
     /* Corrective action for i == 0: clamp e and m to zero. */
-    t = fpr_ct_opaque32(
-        (word32)((word64)((word64)i | (word64)(0 - (word64)i)) >> 63));
-    m &= (word64)0 - (word64)t;
+    t = fpr_ct_opaque32((word32)(((word64)i | falcon_sub64(0, i)) >> 63));
+    m &= falcon_mask64(t);
     e &= -(int)t;
 
     /* FPR() handles exponents that are too low. */
@@ -921,7 +955,7 @@ sword64 fpr_rint(fpr x)
     e = 1085 - ((int)(x >> 52) & 0x7FF);
 
     /* A shift of more than 63 bits sets m to zero (also covers x == 0). */
-    m &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(e - 64)) >> 31);
+    m &= falcon_mask64(fpr_ct_opaque32((word32)(e - 64)) >> 31);
     e &= 63;
 
     /* Right-shift m by e, rounding to nearest with ties to even. We build a
@@ -930,11 +964,11 @@ sword64 fpr_rint(fpr x)
     d = fpr_ulsh(m, 63 - e);
     dd = (word32)d | ((word32)(d >> 32) & 0x1FFFFFFF);
     f = (word32)(d >> 61) | ((dd | (word32)(0U - dd)) >> 31);
-    m = fpr_ursh(m, e) + (word64)((0xC8U >> f) & 1U);
+    m = falcon_add64(fpr_ursh(m, e), (0xC8U >> f) & 1U);
 
     /* Apply the sign bit. */
     s = (word32)(x >> 63);
-    return ((sword64)m ^ -(sword64)s) + (sword64)s;
+    return (sword64)falcon_add64(m ^ falcon_mask64(s), s);
 }
 
 sword64 fpr_floor(fpr x)
@@ -948,7 +982,7 @@ sword64 fpr_floor(fpr x)
     e = (int)(x >> 52) & 0x7FF;
     t = x >> 63;
     xi = (sword64)(((x << 10) | ((word64)1 << 62)) & (((word64)1 << 63) - 1));
-    xi = (xi ^ -(sword64)t) + (sword64)t;
+    xi = (sword64)falcon_add64(xi ^ (sword64)falcon_mask64(t), t);
     cc = 1085 - e;
 
     /* An arithmetic right-shift implements floor() (round toward -inf) for
@@ -958,8 +992,8 @@ sword64 fpr_floor(fpr x)
     /* If the true shift count was 64 or more, replace xi with 0 (nonnegative)
      * or -1 (negative). This also fixes the bogus implicit-bit assumption for
      * a zero input. */
-    xi ^= (xi ^ -(sword64)t)
-          & -(sword64)fpr_ct_opaque32((word32)(63 - cc) >> 31);
+    xi ^= (xi ^ (sword64)falcon_mask64(t))
+          & (sword64)falcon_mask64(fpr_ct_opaque32((word32)(63 - cc) >> 31));
     return xi;
 }
 
@@ -977,11 +1011,11 @@ sword64 fpr_trunc(fpr x)
 
     /* If the exponent is too low (cc > 63), clamp to zero (also covers
      * x == 0). */
-    xu &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(cc - 64)) >> 31);
+    xu &= falcon_mask64(fpr_ct_opaque32((word32)(cc - 64)) >> 31);
 
     /* Apply the sign. */
     t = x >> 63;
-    xu = (xu ^ ((word64)0 - t)) + t;
+    xu = falcon_add64(xu ^ falcon_mask64(t), t);
     return (sword64)xu;
 }
 
@@ -1000,10 +1034,10 @@ fpr fpr_add(fpr x, fpr y)
      * and the sign of x is 1, which guarantees the result keeps the sign of x
      * (and is +0 in the exact-cancellation case). */
     m = ((word64)1 << 63) - 1;
-    za = (x & m) - (y & m);
-    cs = fpr_ct_opaque32((word32)((za - (x >> 63)) >> 32)) >> 31;
+    za = falcon_sub64(x & m, y & m);
+    cs = fpr_ct_opaque32((word32)(falcon_sub64(za, x >> 63) >> 32)) >> 31;
     cs = fpr_ct_opaque32(cs);
-    m = (x ^ y) & ((word64)0 - (word64)cs);
+    m = (x ^ y) & falcon_mask64(cs);
     x ^= m;
     y ^= m;
 
@@ -1026,17 +1060,17 @@ fpr fpr_add(fpr x, fpr y)
     /* x has the larger exponent; right-shift y to align. A shift of 60 bits or
      * more clamps y to zero. */
     cc = ex - ey;
-    yu &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(cc - 60)) >> 31);
+    yu &= falcon_mask64(fpr_ct_opaque32((word32)(cc - 60)) >> 31);
     cc &= 63;
 
     /* The lowest bit of yu becomes sticky over the shifted-out bits. */
-    m = fpr_ulsh(1, cc) - 1;
-    yu |= (yu & m) + m;
+    m = falcon_sub64(fpr_ulsh(1, cc), 1);
+    yu |= falcon_add64(yu & m, m);
     yu = fpr_ursh(yu, cc);
 
     /* Same sign: add mantissas; differing signs: subtract. */
-    xu += yu - ((yu << 1)
-                & ((word64)0 - (word64)fpr_ct_opaque32((word32)(sx ^ sy))));
+    xu = falcon_add64(xu, falcon_sub64(yu, (yu << 1)
+                & falcon_mask64(fpr_ct_opaque32((word32)(sx ^ sy)))));
 
     /* Renormalize the (possibly cancelled or carried) result. */
     FPR_NORM64(xu, ex);
@@ -1071,7 +1105,7 @@ fpr fpr_half(fpr x)
 
     x -= (word64)1 << 52;
     t = fpr_ct_opaque32((((word32)(x >> 52) & 0x7FF) + 1) >> 11);
-    x &= (word64)t - 1;
+    x &= falcon_nmask64(t);
     return x;
 }
 
@@ -1111,7 +1145,7 @@ fpr fpr_mul(fpr x, fpr y)
     zu = (word64)x1 * (word64)y1;
     z2 += (z1 >> 25);
     z1 &= 0x01FFFFFF;
-    zu += z2;
+    zu = falcon_add64(zu, z2);
 
     /* The product is in 2^104..2^106-1. Keep the top part (zu); fold the low
      * limbs into a sticky bit. */
@@ -1121,7 +1155,7 @@ fpr fpr_mul(fpr x, fpr y)
      * conditional right-shift preserves the sticky bit. */
     zv = (zu >> 1) | (zu & 1);
     w = fpr_ct_opaque32((word32)(zu >> 55));
-    zu ^= (zu ^ zv) & ((word64)0 - w);
+    zu ^= (zu ^ zv) & falcon_mask64(w);
 
     /* Aggregate scaling factor: sum the exponents, remove 2*(1023+52), then
      * add 50 + w (the right-shift amounts applied above). */
@@ -1134,7 +1168,7 @@ fpr fpr_mul(fpr x, fpr y)
 
     /* Corrective action: if either operand is zero, clamp the mantissa. */
     d = (int)fpr_ct_opaque32((word32)(((ex + 0x7FF) & (ey + 0x7FF)) >> 11));
-    zu &= (word64)0 - (word64)d;
+    zu &= falcon_mask64(d);
 
     return FPR(s, e, zu);
 }
@@ -1158,21 +1192,21 @@ fpr fpr_div(fpr x, fpr y)
     for (i = 0; i < 55; i++) {
         word64 b;
 
-        b = ((xu - yu) >> 63) - 1;
-        xu -= b & yu;
+        b = falcon_nmask64(falcon_sub64(xu, yu) >> 63);
+        xu = falcon_sub64(xu, b & yu);
         q |= b & 1;
         xu <<= 1;
         q <<= 1;
     }
 
     /* Make the 56th (extra) bit sticky: set it iff the remainder is nonzero. */
-    q |= (xu | ((word64)0 - xu)) >> 63;
+    q |= (xu | falcon_sub64(0, xu)) >> 63;
 
     /* Normalize q to the 2^54..2^55-1 range (conditional shift, sticky-aware);
      * the top bit may be zero but then the next bit is one. */
     q2 = (q >> 1) | (q & 1);
     w = fpr_ct_opaque32((word32)(q >> 55));
-    q ^= (q ^ q2) & ((word64)0 - w);
+    q ^= (q ^ q2) & falcon_mask64(w);
 
     /* Scaling: exponent biases cancel; remove 55 (division shift) and add w. */
     ex = (int)((x >> 52) & 0x7FF);
@@ -1187,7 +1221,7 @@ fpr fpr_div(fpr x, fpr y)
     d = (int)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11));
     s &= d;
     e &= -d;
-    q &= (word64)0 - (word64)d;
+    q &= falcon_mask64(d);
 
     return FPR(s, e, q);
 }
@@ -1211,7 +1245,7 @@ fpr fpr_sqrt(fpr x)
 
     /* If the exponent is odd, double the mantissa and decrement the exponent,
      * then halve the exponent for the square root. */
-    xu += xu & ((word64)0 - (word64)fpr_ct_opaque32((word32)e & 1));
+    xu = falcon_add64(xu, xu & falcon_mask64(fpr_ct_opaque32((word32)e & 1)));
     e >>= 1;
 
     /* Double the mantissa: now in 2^53..2^55-1, representing a value in
@@ -1225,11 +1259,11 @@ fpr fpr_sqrt(fpr x)
     for (i = 0; i < 54; i++) {
         word64 t, b;
 
-        t = s + r;
-        b = ((xu - t) >> 63) - 1;
-        s += (r << 1) & b;
-        xu -= t & b;
-        q += r & b;
+        t = falcon_add64(s, r);
+        b = falcon_nmask64(falcon_sub64(xu, t) >> 63);
+        s = falcon_add64(s, (r << 1) & b);
+        xu = falcon_sub64(xu, t & b);
+        q = falcon_add64(q, r & b);
         xu <<= 1;
         r >>= 1;
     }
@@ -1237,13 +1271,13 @@ fpr fpr_sqrt(fpr x)
     /* q is a rounded-low 54-bit value (leading 1, 52 fractional digits and a
      * guard bit); add a sticky bit for the remaining operand. */
     q <<= 1;
-    q |= (xu | ((word64)0 - xu)) >> 63;
+    q |= (xu | falcon_sub64(0, xu)) >> 63;
 
     /* q is now an integer in 2^54..2^55-1; bias the exponent by 54. */
     e -= 54;
 
     /* Corrective action for an operand of value zero. */
-    q &= (word64)0 - (word64)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11));
+    q &= falcon_mask64(fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11)));
 
     return FPR(0, e, q);
 }
@@ -1265,11 +1299,11 @@ int fpr_lt(fpr x, fpr y)
     sx = (sword64)x;
     sy = (sword64)y;
     /* sy = 0 if the signs differ */
-    sy &= (sword64)fpr_ct_opaque32((word32)((x ^ y) >> 63)) - 1;
+    sy &= (sword64)falcon_nmask64(fpr_ct_opaque32((word32)((x ^ y) >> 63)));
 
     /* Neither subtraction overflows when the signs are the same. */
-    cc0 = (int)(fpr_ct_opaque32((word32)((word64)(sx - sy) >> 32)) >> 31);
-    cc1 = (int)(fpr_ct_opaque32((word32)((word64)(sy - sx) >> 32)) >> 31);
+    cc0 = (int)(fpr_ct_opaque32((word32)(falcon_sub64(sx, sy) >> 32)) >> 31);
+    cc1 = (int)(fpr_ct_opaque32((word32)(falcon_sub64(sy, sx) >> 32)) >> 31);
 
     return cc0 ^ ((cc0 ^ cc1) & (int)fpr_ct_opaque32((word32)((x & y) >> 63)));
 }
@@ -1293,11 +1327,12 @@ static FALCON_HOT_INLINE word64 falcon_mulhi(word64 z, word64 y)
 {
     word32 z0 = (word32)z, z1 = (word32)(z >> 32);
     word32 y0 = (word32)y, y1 = (word32)(y >> 32);
-    word64 a = ((word64)z0 * (word64)y1) + (((word64)z0 * (word64)y0) >> 32);
+    word64 a = falcon_add64((word64)z0 * (word64)y1,
+                            ((word64)z0 * (word64)y0) >> 32);
     word64 b = ((word64)z1 * (word64)y0);
-    word64 c = (a >> 32) + (b >> 32);
-    c += (((word64)(word32)a + (word64)(word32)b) >> 32);
-    c += (word64)z1 * (word64)y1;
+    word64 c = falcon_add64(a >> 32, b >> 32);
+    c = falcon_add64(c, falcon_add64((word32)a, (word32)b) >> 32);
+    c = falcon_add64(c, (word64)z1 * (word64)y1);
     return c;
 }
 #define FALCON_MULHI(z, y) falcon_mulhi((z), (y))
@@ -1332,18 +1367,18 @@ word64 fpr_expm_p63(fpr x, fpr ccs)
      * 64 bits of z*y. Fully unrolled (the loop bound is a compile-time 13). */
     y = C[0];
     z = (word64)fpr_trunc(fpr_mul(x, fpr_ptwo63)) << 1;
-    y = C[1]  - FALCON_MULHI(z, y);
-    y = C[2]  - FALCON_MULHI(z, y);
-    y = C[3]  - FALCON_MULHI(z, y);
-    y = C[4]  - FALCON_MULHI(z, y);
-    y = C[5]  - FALCON_MULHI(z, y);
-    y = C[6]  - FALCON_MULHI(z, y);
-    y = C[7]  - FALCON_MULHI(z, y);
-    y = C[8]  - FALCON_MULHI(z, y);
-    y = C[9]  - FALCON_MULHI(z, y);
-    y = C[10] - FALCON_MULHI(z, y);
-    y = C[11] - FALCON_MULHI(z, y);
-    y = C[12] - FALCON_MULHI(z, y);
+    y = falcon_sub64(C[1], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[2], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[3], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[4], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[5], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[6], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[7], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[8], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[9], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[10], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[11], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[12], FALCON_MULHI(z, y));
 
     /* Apply the scaling factor ccs (converted to the same fixed-point format)
      * with a final 64x64->high-64 multiplication. */
@@ -2968,7 +3003,7 @@ word32 modp_montymul(word32 a, word32 b, word32 p, word32 p0i)
 
     z = (word64)a * (word64)b;
     w = ((z * p0i) & (word64)0x7FFFFFFF) * p;
-    d = (word32)((z + w) >> 31) - p;
+    d = (word32)(falcon_add64(z, w) >> 31) - p;
     d += p & -(d >> 31);
     return d;
 }
@@ -3249,7 +3284,7 @@ word32 zint_mul_small(word32* m, size_t mlen, word32 x)
     for (u = 0; u < mlen; u ++) {
         word64 z;
 
-        z = (word64)m[u] * (word64)x + cc;
+        z = falcon_add64((word64)m[u] * (word64)x, cc);
         m[u] = (word32)z & 0x7FFFFFFF;
         cc = (word32)(z >> 31);
     }
@@ -3324,7 +3359,7 @@ void zint_add_mul_small(word32* x, const word32* y, size_t len, word32 s)
 
         xw = x[u];
         yw = y[u];
-        z = (word64)yw * (word64)s + (word64)xw + (word64)cc;
+        z = falcon_add64(falcon_add64((word64)yw * (word64)s, xw), cc);
         x[u] = (word32)z & 0x7FFFFFFF;
         cc = (word32)(z >> 31);
     }
@@ -3510,8 +3545,10 @@ word32 zint_co_reduce(word32* a, word32* b, size_t len,
 
         wa = a[u];
         wb = b[u];
-        za = wa * (word64)xa + wb * (word64)xb + (word64)cca;
-        zb = wa * (word64)ya + wb * (word64)yb + (word64)ccb;
+        za = falcon_add64(falcon_add64(wa * (word64)xa, wb * (word64)xb),
+                          cca);
+        zb = falcon_add64(falcon_add64(wa * (word64)ya, wb * (word64)yb),
+                          ccb);
         if (u > 0) {
             a[u - 1] = (word32)za & 0x7FFFFFFF;
             b[u - 1] = (word32)zb & 0x7FFFFFFF;
@@ -3601,10 +3638,10 @@ void zint_co_reduce_mod(word32* a, word32* b, const word32* m, size_t len,
 
         wa = a[u];
         wb = b[u];
-        za = wa * (word64)xa + wb * (word64)xb
-             + m[u] * (word64)fa + (word64)cca;
-        zb = wa * (word64)ya + wb * (word64)yb
-             + m[u] * (word64)fb + (word64)ccb;
+        za = falcon_add64(falcon_add64(wa * (word64)xa, wb * (word64)xb),
+                          falcon_add64(m[u] * (word64)fa, cca));
+        zb = falcon_add64(falcon_add64(wa * (word64)ya, wb * (word64)yb),
+                          falcon_add64(m[u] * (word64)fb, ccb));
         if (u > 0) {
             a[u - 1] = (word32)za & 0x7FFFFFFF;
             b[u - 1] = (word32)zb & 0x7FFFFFFF;
@@ -3774,8 +3811,8 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
         a0 &= ~c1;
         b1 |= b0 & c1;
         b0 &= ~c1;
-        a_hi = ((word64)a0 << 31) + a1;
-        b_hi = ((word64)b0 << 31) + b1;
+        a_hi = falcon_add64((word64)a0 << 31, a1);
+        b_hi = falcon_add64((word64)b0 << 31, b1);
         a_lo = a[0];
         b_lo = b[0];
 
@@ -3811,7 +3848,7 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
             /*
              * rt = 1 if a_hi > b_hi, 0 otherwise.
              */
-            rz = b_hi - a_hi;
+            rz = falcon_sub64(b_hi, a_hi);
             rt = (word32)((rz ^ ((a_hi ^ b_hi)
                                    & (a_hi ^ rz))) >> 63);
 
@@ -3835,25 +3872,25 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
              * Conditional subtractions.
              */
             a_lo -= b_lo & -cAB;
-            a_hi -= b_hi & -(word64)cAB;
-            pa -= qa & -(sword64)cAB;
-            pb -= qb & -(sword64)cAB;
+            a_hi = falcon_sub64(a_hi, b_hi & falcon_mask64(cAB));
+            pa = (sword64)falcon_sub64(pa, (word64)qa & falcon_mask64(cAB));
+            pb = (sword64)falcon_sub64(pb, (word64)qb & falcon_mask64(cAB));
             b_lo -= a_lo & -cBA;
-            b_hi -= a_hi & -(word64)cBA;
-            qa -= pa & -(sword64)cBA;
-            qb -= pb & -(sword64)cBA;
+            b_hi = falcon_sub64(b_hi, a_hi & falcon_mask64(cBA));
+            qa = (sword64)falcon_sub64(qa, (word64)pa & falcon_mask64(cBA));
+            qb = (sword64)falcon_sub64(qb, (word64)pb & falcon_mask64(cBA));
 
             /*
              * Shifting.
              */
             a_lo += a_lo & (cA - 1);
-            pa += pa & ((sword64)cA - 1);
-            pb += pb & ((sword64)cA - 1);
-            a_hi ^= (a_hi ^ (a_hi >> 1)) & -(word64)cA;
+            pa = (sword64)falcon_add64(pa, (word64)pa & falcon_nmask64(cA));
+            pb = (sword64)falcon_add64(pb, (word64)pb & falcon_nmask64(cA));
+            a_hi ^= (a_hi ^ (a_hi >> 1)) & falcon_mask64(cA);
             b_lo += b_lo & -cA;
-            qa += qa & -(sword64)cA;
-            qb += qb & -(sword64)cA;
-            b_hi ^= (b_hi ^ (b_hi >> 1)) & ((word64)cA - 1);
+            qa = (sword64)falcon_add64(qa, (word64)qa & falcon_mask64(cA));
+            qb = (sword64)falcon_add64(qb, (word64)qb & falcon_mask64(cA));
+            b_hi ^= (b_hi ^ (b_hi >> 1)) & falcon_nmask64(cA);
         }
 
         /*
@@ -3863,10 +3900,14 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
          * had to be negated).
          */
         r = zint_co_reduce(a, b, len, pa, pb, qa, qb);
-        pa -= (pa + pa) & -(sword64)(r & 1);
-        pb -= (pb + pb) & -(sword64)(r & 1);
-        qa -= (qa + qa) & -(sword64)(r >> 1);
-        qb -= (qb + qb) & -(sword64)(r >> 1);
+        pa = (sword64)falcon_sub64(pa,
+            falcon_add64(pa, pa) & falcon_mask64(r & 1));
+        pb = (sword64)falcon_sub64(pb,
+            falcon_add64(pb, pb) & falcon_mask64(r & 1));
+        qa = (sword64)falcon_sub64(qa,
+            falcon_add64(qa, qa) & falcon_mask64(r >> 1));
+        qb = (sword64)falcon_sub64(qb,
+            falcon_add64(qb, qb) & falcon_mask64(r >> 1));
         zint_co_reduce_mod(u0, u1, y, len, y0i, pa, pb, qa, qb);
         zint_co_reduce_mod(v0, v1, x, len, x0i, pa, pb, qa, qb);
     }
@@ -3929,7 +3970,7 @@ void zint_add_scaled_mul_small(word32* x, size_t xlen,
         /*
          * The expression below does not overflow.
          */
-        z = (word64)((sword64)wys * (sword64)k + (sword64)x[u] + cc);
+        z = falcon_add64(falcon_add64((sword64)wys * (sword64)k, x[u]), cc);
         x[u] = (word32)z & 0x7FFFFFFF;
 
         /*
@@ -5002,7 +5043,7 @@ static int mkgauss(falcon_rng* rng, unsigned logn)
         r = get_rng_u64(rng);
         neg = (word32)(r >> 63);
         r &= ~((word64)1 << 63);
-        f = (word32)((r - gauss_1024_12289[0]) >> 63);
+        f = (word32)(falcon_sub64(r, gauss_1024_12289[0]) >> 63);
 
         /*
          * Second value: locate the first table element not greater than
@@ -5015,7 +5056,7 @@ static int mkgauss(falcon_rng* rng, unsigned logn)
                 / (sizeof gauss_1024_12289[0])); k++) {
             word32 t;
 
-            t = (word32)((r - gauss_1024_12289[k]) >> 63) ^ 1;
+            t = (word32)(falcon_sub64(r, gauss_1024_12289[k]) >> 63) ^ 1;
             v |= k & -(t & (f ^ 1));
             f |= t;
         }
