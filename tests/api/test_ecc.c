@@ -3023,11 +3023,8 @@ int test_wc_ecc_shared_secret_ssh(void)
     WC_RNG  rng;
     int     ret;
     int     keySz = KEY32;
-#if FIPS_VERSION3_GE(6,0,0)
-    int     key2Sz = KEY28;
-#else
-    int     key2Sz = KEY24;
-#endif
+    /* ECDH needs both keys on one curve, SP 800-56A Rev 3 sec 5.7.1.2. */
+    int     key2Sz = KEY32;
     byte    secret[KEY32];
     word32  secretLen = (word32)keySz;
 
