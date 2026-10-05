@@ -18115,7 +18115,8 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
 }
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) || \
-    (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC))
+    (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Reduce a number in Montgomery form.
  *
  * @param [in, out] a   SP integer to Montgomery reduce.
