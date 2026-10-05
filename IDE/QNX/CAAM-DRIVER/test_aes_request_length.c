@@ -122,6 +122,8 @@ static int caamTestSemDestroy(sem_t* sem);
 static int caamTestReadSz;
 static int caamTestAesCalls;
 static int caamTestFreeCalls;
+static unsigned int caamTestFreedPartition;
+static int caamTestFreeMutexLocked;
 static int caamTestGetPartitionCalls;
 static int caamTestEcdsaCalls;
 static unsigned int caamTestEcdsaPartition;
@@ -276,7 +278,13 @@ static CAAM_ADDRESS caamTestGetPartition(unsigned int part, int partSz,
 
 static int caamTestFreePart(unsigned int part)
 {
-    (void)part;
+    int ret;
+
+    caamTestFreedPartition = part;
+    ret = pthread_mutex_trylock(&sm_mutex);
+    caamTestFreeMutexLocked = ret == EBUSY;
+    if (ret == EOK)
+        pthread_mutex_unlock(&sm_mutex);
     caamTestFreeCalls++;
     return Success;
 }
@@ -636,6 +644,65 @@ static int testPartitionOwnerMapping(void)
     return 0;
 }
 
+static int testPartitionMappingFailureCleanup(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    iofunc_ocb_t owner;
+    iofunc_ocb_t other;
+    unsigned int args[4] = {3U, 1U, 0U, 0U};
+    CAAM_ADDRESS previousOwner;
+    unsigned int pages[2] = {5U, CAAM_QNX_MAX_PARTITIONS};
+    int owned;
+    int page;
+    int i;
+    int ret;
+
+    memset(&ctp, 0, sizeof(ctp));
+    memset(&msg, 0, sizeof(msg));
+    memset(&owner, 0, sizeof(owner));
+    memset(&other, 0, sizeof(other));
+    for (owned = 0; owned < 2; owned++) {
+        for (page = 0; page < 2; page++) {
+            for (i = 0; i < MAX_OWNER_PART; i++) {
+                sm_ownerId[i] = 0;
+                sm_pagePart[i] = NO_OWNER_PART;
+            }
+            previousOwner = owned ? (CAAM_ADDRESS)&owner : 0;
+            sm_ownerId[args[0]] = previousOwner;
+            if (owned)
+                sm_pagePart[6] = args[0];
+            sm_ownerId[2] = (CAAM_ADDRESS)&other;
+            sm_pagePart[5] = 2U;
+            caamTestPartitionAddress = CAAM_PAGE +
+                (pages[page] * CAAM_PAGE_SZ);
+            caamTestGetPartitionCalls = 0;
+            caamTestFreeCalls = 0;
+            caamTestFreedPartition = NO_OWNER_PART;
+            caamTestFreeMutexLocked = 0;
+
+            ret = doGET_PART(&ctp, &msg, args, 0U, &owner);
+            if (ret != ECANCELED || caamTestGetPartitionCalls != 1 ||
+                    caamTestFreeCalls != (owned ? 0 : 1) ||
+                    sm_ownerId[args[0]] != previousOwner ||
+                    sm_ownerId[2] != (CAAM_ADDRESS)&other ||
+                    sm_pagePart[5] != 2U ||
+                    sm_pagePart[6] != (owned ? args[0] : NO_OWNER_PART)) {
+                return 1;
+            }
+            if (!owned && (caamTestFreedPartition != args[0] ||
+                    !caamTestFreeMutexLocked)) {
+                return 1;
+            }
+            if (pthread_mutex_trylock(&sm_mutex) != EOK)
+                return 1;
+            pthread_mutex_unlock(&sm_mutex);
+        }
+    }
+
+    return 0;
+}
+
 static int testRejectInvalidPartitionRange(void)
 {
     CAAM_ADDRESS lastPart;
@@ -698,6 +765,10 @@ int main(void)
         printf("testPartitionOwnerMapping: FAIL\n");
         return 1;
     }
+    if (testPartitionMappingFailureCleanup() != 0) {
+        printf("testPartitionMappingFailureCleanup: FAIL\n");
+        return 1;
+    }
     if (testRejectInvalidPartitionRange() != 0) {
         printf("testRejectInvalidPartitionRange: FAIL\n");
         return 1;
@@ -711,6 +782,7 @@ int main(void)
     printf("testRejectInvalidPartitionIndex: PASS\n");
     printf("testRejectOtherOwnerPartitionAccess: PASS\n");
     printf("testPartitionOwnerMapping: PASS\n");
+    printf("testPartitionMappingFailureCleanup: PASS\n");
     printf("testRejectInvalidPartitionRange: PASS\n");
     return 0;
 }

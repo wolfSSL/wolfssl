@@ -1595,6 +1595,8 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     if (!CAAM_QNX_PARTITION_IS_VALID(pageNumber) ||
             (sm_pagePart[pageNumber] != NO_OWNER_PART &&
                 sm_pagePart[pageNumber] != partNumber)) {
+        if (sm_ownerId[partNumber] == 0)
+            caamFreePart(partNumber);
         pthread_mutex_unlock(&sm_mutex);
         return ECANCELED;
     }
