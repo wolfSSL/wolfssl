@@ -350,6 +350,8 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     is valid only until the next verify on this structure or wc_PKCS7_Free();
     when the message is verified from a single input buffer it may point into
     that buffer, so it is also invalid once the input buffer is freed or reused.
+    A verify that fails with an error other than PKCS7_SIGNEEDS_CHECK leaves
+    pkcs7->content as the caller set it.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -431,6 +433,11 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     revocation list, and then verifies the signature. It stores the extracted
     content in the given PKCS7 structure, in the same form as
     wc_PKCS7_VerifySignedData() reports it.
+    Content that a verify leaves in pkcs7->content can point into the
+    input buffer, so it stays valid only while that buffer does and until
+    the next verify or wc_PKCS7_Free() on the same structure. A verify that
+    fails with an error other than PKCS7_SIGNEEDS_CHECK leaves pkcs7->content
+    as the caller set it.
 
     \return 0 Returned on successfully extracting the information
     from the message
