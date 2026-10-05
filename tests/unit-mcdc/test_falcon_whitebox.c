@@ -1208,7 +1208,7 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
         WB_FAIL("solve_NTRU: allocation failed; lim vectors skipped");
         return;
     }
-    for (tries = 0; tries < 8; tries++) {
+    for (tries = 0; tries < 64; tries++) {
         if (falcon_keygen(rng, f, g, F, G, h, logn) != 0) {
             break;
         }
@@ -1245,7 +1245,7 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
             }
         }
         else {
-            WB_FAIL("solve_NTRU: no key with max|G| > max|F| in 8 draws");
+            WB_FAIL("solve_NTRU: no key with max|G| > max|F| drawn");
         }
     }
     ForceZero(tmpbuf, (word32)(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr)));
