@@ -92414,6 +92414,84 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
         return WC_TEST_RET_ENC_NC;
     }
 
+    /* Even modulus, more varied inputs:
+     *   k == 0: base >= m (m + 7) must give the same result as base 7.
+     *   k == 1: exponent 2^130 + 1 spans several words for any word size.
+     *           Reference: square the base 130 times, then multiply by it.
+     *   k == 2: single word even modulus 10 with base 17 >= m, exponent 6. */
+    for (k = 0; k < 3; k++) {
+        int i;
+        int sqrs = 0;
+
+        if ((ret = mp_set(m, 1)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (k == 2) {
+            ret = mp_set(m, 10);
+        }
+        else {
+            ret = mp_mul_2d(m, 521, m);                   /* m = 2^521 */
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_set(b, 7);
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_set(t, 1);
+        }
+        if (ret != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        if (k == 1) {
+            /* t = b^(2^130 + 1) mod m */
+            sqrs = 130;
+            if ((ret = mp_copy(b, t)) != MP_OKAY) {
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+            for (i = 0; i < sqrs; i++) {
+                if ((ret = mp_sqrmod(t, m, t)) != MP_OKAY) {
+                    return WC_TEST_RET_ENC_EC(ret);
+                }
+            }
+            if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+            if ((ret = mp_set(e, 1)) != MP_OKAY ||
+                    (ret = mp_mul_2d(e, sqrs, e)) != MP_OKAY ||
+                    (ret = mp_add_d(e, 1, e)) != MP_OKAY) {
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+        }
+        else {
+            /* t = b^6 mod m, with the reduced base. */
+            if ((ret = mp_set(e, 6)) != MP_OKAY) {
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+            for (i = 0; i < 6; i++) {
+                if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
+                    return WC_TEST_RET_ENC_EC(ret);
+                }
+            }
+            /* Bring the base to m + b so it needs reducing. */
+            if ((ret = mp_add(b, m, b)) != MP_OKAY) {
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+        }
+
+        if ((ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+        if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
 
 #if defined(SP_INT_BITS) && (SP_INT_BITS >= 2048)
