@@ -207,6 +207,11 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
 
     ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), 0);
 
+    X509_VERIFY_PARAM_set_time(NULL, 33); /* NULL parameter gives no harm */
+    X509_VERIFY_PARAM_set_time(paramTo, 33);
+    ExpectTrue(paramTo->check_time == 33);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), WOLFSSL_USE_CHECK_TIME);
+
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(NULL));
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(""));
     ExpectNotNull(wolfSSL_X509_VERIFY_PARAM_lookup("ssl_client"));

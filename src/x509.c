@@ -10411,6 +10411,36 @@ int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl, unsigned char** out)
 
     return (int)derSz;
 }
+
+#ifndef NO_BIO
+/* Write the DER encoding of a CRL to a BIO.
+ *
+ * @param bio  BIO to write to
+ * @param crl  CRL to encode
+ * @return     WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_i2d_X509_CRL_bio(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int derSz;
+    unsigned char* der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_CRL_bio");
+
+    if ((bio == NULL) || (crl == NULL)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    derSz = wolfSSL_i2d_X509_CRL(crl, &der);
+    if ((derSz > 0) && (der != NULL) &&
+            (wolfSSL_BIO_write(bio, der, derSz) == derSz)) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    return ret;
+}
+#endif /* !NO_BIO */
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 
 #if defined(WOLFSSL_CERT_EXT) && \
@@ -10588,6 +10618,17 @@ int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
     }
 
     return ret;
+}
+
+
+/* Sets the verification time and makes verification use it. */
+void wolfSSL_X509_VERIFY_PARAM_set_time(WOLFSSL_X509_VERIFY_PARAM *param,
+        time_t t)
+{
+    if (param != NULL) {
+        param->check_time = t;
+        param->flags |= WOLFSSL_USE_CHECK_TIME;
+    }
 }
 
 

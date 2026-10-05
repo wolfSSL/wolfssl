@@ -206,6 +206,8 @@ int test_wolfSSL_RAND_bytes(void)
     ExpectIntEQ(RAND_bytes(my_buf, size2), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size3), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size4), 1);
+    ExpectIntEQ(RAND_priv_bytes(my_buf, size1), 1);
+    ExpectIntEQ(RAND_priv_bytes(NULL, 16), 0);
     XFREE(my_buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \

@@ -667,6 +667,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_pop                     wolfSSL_sk_X509_pop
 #define sk_X509_pop_free                wolfSSL_sk_X509_pop_free
 #define sk_X509_dup                     wolfSSL_shallow_sk_dup
+#define sk_X509_delete(sk, i) \
+    ((WOLFSSL_X509*)wolfSSL_sk_delete((sk), (i)))
 #define sk_X509_free                    wolfSSL_sk_X509_free
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
@@ -678,6 +680,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_CRL_value               wolfSSL_sk_X509_CRL_value
 #define sk_X509_CRL_num                 wolfSSL_sk_X509_CRL_num
 #define sk_X509_CRL_dup                 wolfSSL_shallow_sk_dup
+#define sk_X509_CRL_delete(sk, i) \
+    ((WOLFSSL_X509_CRL*)wolfSSL_sk_delete((sk), (i)))
 
 #define sk_X509_OBJECT_new              wolfSSL_sk_X509_OBJECT_new
 #define sk_X509_OBJECT_free             wolfSSL_sk_X509_OBJECT_free
@@ -760,8 +764,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define sk_X509_NAME_ENTRY_value        wolfSSL_sk_X509_NAME_ENTRY_value
 #define sk_X509_NAME_ENTRY_free         wolfSSL_sk_X509_NAME_ENTRY_free
 
-#define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
-#define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
+#define X509_V_FLAG_CRL_CHECK     WOLFSSL_X509_V_FLAG_CRL_CHECK
+#define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL
 
 #define X509_V_FLAG_PARTIAL_CHAIN WOLFSSL_PARTIAL_CHAIN
 #define X509_V_FLAG_TRUSTED_FIRST 0 /* dummy value needed for gRPC port */
@@ -836,6 +840,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_VERIFY_PARAM_new           wolfSSL_X509_VERIFY_PARAM_new
 #define X509_VERIFY_PARAM_free          wolfSSL_X509_VERIFY_PARAM_free
 #define X509_VERIFY_PARAM_set_flags     wolfSSL_X509_VERIFY_PARAM_set_flags
+#define X509_VERIFY_PARAM_set_time      wolfSSL_X509_VERIFY_PARAM_set_time
 #define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
 #define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
@@ -858,7 +863,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL_ex
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp
+#define d2i_X509_CRL_bio                wolfSSL_d2i_X509_CRL_bio
 #define i2d_X509_CRL                    wolfSSL_i2d_X509_CRL
+#define i2d_X509_CRL_bio                wolfSSL_i2d_X509_CRL_bio
 #define PEM_read_X509_CRL               wolfSSL_PEM_read_X509_CRL
 
 #define X509_CRL_new                    wolfSSL_X509_CRL_new
@@ -995,6 +1002,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define RAND_poll                       wolfSSL_RAND_poll
 #define RAND_status                     wolfSSL_RAND_status
 #define RAND_bytes                      wolfSSL_RAND_bytes
+/* wolfSSL has a single DRBG for public and private output */
+#define RAND_priv_bytes                 wolfSSL_RAND_bytes
 #define RAND_pseudo_bytes               wolfSSL_RAND_pseudo_bytes
 
 #define COMP_zlib                       wolfSSL_COMP_zlib
@@ -1413,7 +1422,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_SSL_CIPHER_dup               wolfSSL_shallow_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+#ifdef OPENSSL_EXTRA
 #define sk_SSL_CIPHER_delete            wolfSSL_sk_SSL_CIPHER_delete
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
