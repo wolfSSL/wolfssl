@@ -2516,6 +2516,100 @@ int test_wolfssl_EVP_sm4_ctr(void)
     return res;
 }
 
+/* EVP SM4-CBC/CTR must encrypt under the IV passed at init and keep the
+ * chaining state across calls, matching the wolfCrypt SM4 API. */
+int test_wolfssl_EVP_sm4_iv(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && \
+    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_CTR))
+    EXPECT_DECLS;
+    static const byte key[SM4_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const byte iv[SM4_BLOCK_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    static const byte plainText[SM4_BLOCK_SIZE * 3] = {
+        0xaa, 0xaa, 0xaa, 0xaa, 0xbb, 0xbb, 0xbb, 0xbb,
+        0xcc, 0xcc, 0xcc, 0xcc, 0xdd, 0xdd, 0xdd, 0xdd,
+        0xee, 0xee, 0xee, 0xee, 0xff, 0xff, 0xff, 0xff,
+        0xaa, 0xaa, 0xaa, 0xaa, 0xbb, 0xbb, 0xbb, 0xbb,
+        0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe,
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
+    };
+    byte expected[sizeof(plainText)];
+    byte cipherText[sizeof(plainText)];
+    wc_Sm4 sm4;
+    EVP_CIPHER_CTX* ctx = NULL;
+    int outSz;
+
+    XMEMSET(&sm4, 0, sizeof(sm4));
+
+#ifdef WOLFSSL_SM4_CTR
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, expected, plainText,
+        sizeof(plainText)), 0);
+    wc_Sm4Free(&sm4);
+
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_ctr(), NULL, key, iv),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
+        sizeof(plainText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectBufEQ(cipherText, expected, sizeof(expected));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The counter must carry over between EVP_Cipher calls. */
+    XMEMSET(cipherText, 0, sizeof(cipherText));
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_sm4_ctr(), key, iv, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+        SM4_BLOCK_SIZE), SM4_BLOCK_SIZE);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText + SM4_BLOCK_SIZE,
+        (byte*)plainText + SM4_BLOCK_SIZE,
+        sizeof(plainText) - SM4_BLOCK_SIZE),
+        sizeof(plainText) - SM4_BLOCK_SIZE);
+    ExpectBufEQ(cipherText, expected, sizeof(expected));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+#ifdef WOLFSSL_SM4_CBC
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, expected, plainText,
+        sizeof(plainText)), 0);
+    wc_Sm4Free(&sm4);
+
+    XMEMSET(cipherText, 0, sizeof(cipherText));
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_sm4_cbc(), key, iv, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+        SM4_BLOCK_SIZE), SM4_BLOCK_SIZE);
+    ExpectIntEQ(EVP_Cipher(ctx, cipherText + SM4_BLOCK_SIZE,
+        (byte*)plainText + SM4_BLOCK_SIZE,
+        sizeof(plainText) - SM4_BLOCK_SIZE),
+        sizeof(plainText) - SM4_BLOCK_SIZE);
+    ExpectBufEQ(cipherText, expected, sizeof(expected));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
 int test_wolfssl_EVP_sm4_gcm_zeroLen(void)
 {
     int res = TEST_SKIPPED;
