@@ -71,7 +71,7 @@ abort_trap() {
         # sleep to give sanitizers time to dump backtraces.
         sleep 1
         echo "killing server"
-        kill -9 $server_pid
+        kill $server_pid
     fi
 
     exit_code=2 #different exit code in case of user interrupt

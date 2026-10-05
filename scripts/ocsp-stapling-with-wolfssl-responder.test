@@ -296,7 +296,7 @@ cleanup()
     exit_status=$?
     for i in $(jobs -pr)
     do
-        kill -s KILL "$i"
+        kill "$i"
     done
     remove_ready_file
     rm -f $CERT_DIR/$test_cnf
