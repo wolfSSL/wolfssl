@@ -8085,16 +8085,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     if (ret == 0 && MAX_PKCS7_CERTS > 0) {
                         int sz = 0;
                         int i;
-                        /* Absolute end of the certificate set within pkiMsg2.
-                         * idx is the start of the set, so the set spans
-                         * [idx, idx + length). In non-streaming mode idx is the
-                         * absolute offset into the message; in streaming mode it
-                         * is typically 0 (the set was copied to a standalone
-                         * buffer). Bounding the loop with the relative length
-                         * alone stops short by idx bytes in non-streaming mode
-                         * and can drop the last certificate. Clamp to pkiMsg2Sz
-                         * to guard against overflow/over-long length (reads stay
-                         * bounded by the certIdx + 1 < pkiMsg2Sz check below). */
+                        /* End of the set in pkiMsg2, clamped to pkiMsg2Sz
+                         * against an overlong or wrapping length. */
                         word32 certSetEnd = idx + (word32)length;
                         if (certSetEnd < idx || certSetEnd > pkiMsg2Sz)
                             certSetEnd = pkiMsg2Sz;
@@ -8102,40 +8094,33 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         pkcs7->cert[0]   = cert;
                         pkcs7->certSz[0] = (word32)certSz;
                         certIdx = idx + (word32)certSz;
+                        i = (cert != NULL) ? 1 : 0;
 
-                        for (i = 1; i < MAX_PKCS7_CERTS &&
-                                certIdx + 1 < pkiMsg2Sz &&
-                                certIdx + 1 < certSetEnd; i++) {
+                        while (certIdx < certSetEnd) {
                             localIdx = certIdx;
 
-                            if (ret == 0 && GetASNTag(pkiMsg2, &certIdx, &tag,
-                                        pkiMsg2Sz) < 0) {
+                            if (GetASNTag(pkiMsg2, &certIdx, &tag,
+                                        certSetEnd) < 0 ||
+                                    GetLength(pkiMsg2, &certIdx, &sz,
+                                        certSetEnd) < 0 ||
+                                    (sz == 0 && pkiMsg2[certIdx - 1] ==
+                                        ASN_INDEF_LENGTH)) {
                                 ret = ASN_PARSE_E;
                                 break;
                             }
 
-                            if (ret == 0 &&
-                                    tag == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
-                                if (GetLength(pkiMsg2, &certIdx, &sz,
-                                            pkiMsg2Sz) < 0) {
-                                    ret = ASN_PARSE_E;
+                            /* other CertificateChoices are skipped */
+                            if (tag == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                                if (i == MAX_PKCS7_CERTS) {
+                                    certSetOverflow = 1;
                                     break;
                                 }
-
                                 pkcs7->cert[i]   = &pkiMsg2[localIdx];
                                 pkcs7->certSz[i] = (word32)sz +
                                                    (certIdx - localIdx);
-                                certIdx += (word32)sz;
+                                i++;
                             }
-                        }
-
-                        /* cert[] is full and another certificate follows */
-                        if (ret == 0 && i == MAX_PKCS7_CERTS &&
-                                certIdx + 1 < pkiMsg2Sz &&
-                                certIdx + 1 < certSetEnd &&
-                                pkiMsg2[certIdx] ==
-                                    (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
-                            certSetOverflow = 1;
+                            certIdx += (word32)sz;
                         }
                     #ifndef NO_PKCS7_STREAM
                         pkcs7->stream->certSetOverflow = (certSetOverflow != 0);
