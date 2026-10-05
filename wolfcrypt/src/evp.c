@@ -6859,10 +6859,17 @@ void wolfSSL_EVP_init(void)
                 }
                 else
             #endif
+            #ifndef NO_AES
                 if (ctx->cipher.aes.keylen == 0 || ctx->ivSz == 0) {
                     WOLFSSL_MSG("Key or IV not set");
                     break;
                 }
+            #else
+                {
+                    WOLFSSL_MSG("IV generation not supported for this cipher");
+                    break;
+                }
+            #endif
                 if (ptr == NULL) {
                     WOLFSSL_MSG("Destination buffer for IV bytes NULL.");
                     break;
