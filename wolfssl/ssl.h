@@ -595,7 +595,7 @@ struct WOLFSSL_EVP_PKEY {
     wolfSSL_Ref ref;
 
     union {
-        char* ptr; /* der format of key */
+        char* ptr; /* key data, format given by isRaw and isPriv */
     } pkey;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #ifndef NO_RSA
@@ -647,6 +647,7 @@ struct WOLFSSL_EVP_PKEY {
 
     /* option bits */
     WC_BITFIELD isPriv:1; /* key holds private material, 0 means public only */
+    WC_BITFIELD isRaw:1;  /* pkey.ptr holds raw key bytes, 0 means DER */
     WC_BITFIELD ownDh:1;  /* if struct owns DH  and should free it */
     WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
     WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */

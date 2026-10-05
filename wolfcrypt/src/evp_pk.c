@@ -119,6 +119,7 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         /* Set key type passed in and return object. */
         pkey->type = type;
         pkey->isPriv = (priv != 0);
+        pkey->isRaw = 0;
         *out = pkey;
     }
     if ((ret == 0) && (*out == NULL)) {
@@ -581,6 +582,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
     XMEMCPY(pkey->pkey.ptr, pub, len);
     pkey->pkey_sz = (int)len;
     pkey->isPriv = 0;
+    pkey->isRaw = 1;
 
     return pkey;
 }
@@ -752,6 +754,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     XMEMCPY(pkey->pkey.ptr, priv, len);
     pkey->pkey_sz = (int)len;
     pkey->isPriv = 1;
+    pkey->isRaw = 1;
 
     return pkey;
 }
@@ -1691,6 +1694,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
     local->pkey_sz       = (int)inSz;
     local->pkcs8HeaderSz = pkcs8HeaderSz;
     local->isPriv        = (priv != 0);
+    local->isRaw         = 0;
     local->pkey.ptr      = (char*)XMALLOC((size_t)inSz, NULL,
                                           DYNAMIC_TYPE_PUBLIC_KEY);
     if (local->pkey.ptr == NULL) {
@@ -1856,16 +1860,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     return d2i_evp_pkey(type, out, in, inSz, 1);
 }
 
-/* Deep copy of a key by re-decoding its cached DER.
+/* Deep copy of a key by re-decoding its cached DER or raw key.
  *
  * @param [in] pkey  Key to copy.
  * @return  New WOLFSSL_EVP_PKEY on success.
- * @return  NULL when pkey is NULL, holds no DER or decoding fails.
+ * @return  NULL when pkey is NULL, holds no key data or decoding fails.
  */
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey)
 {
     WOLFSSL_EVP_PKEY* dup = NULL;
-    const unsigned char* der;
+    const unsigned char* data;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_dup");
 
@@ -1878,15 +1882,25 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey)
         return NULL;
     }
 
-    der = (const unsigned char*)pkey->pkey.ptr;
+    data = (const unsigned char*)pkey->pkey.ptr;
     if (pkey->type == WC_EVP_PKEY_HMAC) {
-        dup = wolfSSL_EVP_PKEY_new_mac_key(WC_EVP_PKEY_HMAC, NULL, der,
+        dup = wolfSSL_EVP_PKEY_new_mac_key(WC_EVP_PKEY_HMAC, NULL, data,
             pkey->pkey_sz);
+    }
+    else if (pkey->isRaw) {
+        if (pkey->isPriv) {
+            dup = wolfSSL_EVP_PKEY_new_raw_private_key(pkey->type, NULL, data,
+                (size_t)pkey->pkey_sz);
+        }
+        else {
+            dup = wolfSSL_EVP_PKEY_new_raw_public_key(pkey->type, NULL, data,
+                (size_t)pkey->pkey_sz);
+        }
     }
     else {
         /* Every path that caches DER records whether it is private, so the
          * encoding is decoded the same way it was made. */
-        dup = d2i_evp_pkey(pkey->type, NULL, &der, pkey->pkey_sz,
+        dup = d2i_evp_pkey(pkey->type, NULL, &data, pkey->pkey_sz,
             pkey->isPriv);
         if (dup != NULL) {
         #ifdef HAVE_ECC
@@ -2303,6 +2317,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
         XMEMCPY(pkcs8->pkey.ptr, rawDer.buffer, rawDer.length);
         pkcs8->pkey_sz = (int)rawDer.length;
         pkcs8->isPriv = 1;
+        pkcs8->isRaw = 0;
     }
 
     /* Dispose of PKCS#8 DER data - raw DER reference data in pkcs8Der. */

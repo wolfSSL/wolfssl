@@ -6958,11 +6958,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                      ) {
                 key->type = WC_EVP_PKEY_DILITHIUM;
                 WOLFSSL_ATOMIC_STORE(key->mldsaOID, x509->pubKeyOID);
+                /* Certificate holds the raw key, not an SPKI. */
+                key->isRaw = 1;
             }
         #endif
         #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
             else if (x509->pubKeyOID == ED25519k) {
                 key->type = WC_EVP_PKEY_ED25519;
+                /* Certificate holds the raw key, not an SPKI. */
+                key->isRaw = 1;
             }
         #endif
             else {
