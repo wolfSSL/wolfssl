@@ -9027,3 +9027,315 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && USE_CERT_BUFFERS_2048 */
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/* Encode a SignedData carrying count copies of the client certificate, either
+ * certificates-only or signed with the client key. */
+static int pkcs7_encode_cert_set(byte* out, word32 outSz, int count,
+    int certsOnly, WC_RNG* rng)
+{
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7;
+    int    ret = 0;
+    int    i;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return MEMORY_E;
+
+    if (!certsOnly) {
+        ret = wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048);
+    }
+    for (i = 0; ret == 0 && i < count; i++) {
+        ret = wc_PKCS7_AddCertificate(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048);
+    }
+    if (ret == 0 && certsOnly) {
+        ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID);
+        pkcs7->detached = 1;
+    }
+    if (ret == 0 && !certsOnly) {
+        pkcs7->content      = (byte*)data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        pkcs7->rng          = rng;
+    }
+    if (ret == 0) {
+        pkcs7->contentOID = DATA;
+        ret = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    return ret;
+}
+#endif
+
+/* Verifying again with an object whose last message carried content must not
+ * read that content after it is freed. */
+int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    PKCS7* other = NULL;
+    WC_RNG rng;
+    byte*  signedMsg = NULL;
+    byte*  certsOnly = NULL;
+    byte*  detached = NULL;
+    byte*  badMsg = NULL;
+    byte*  msgCopy = NULL;
+    byte*  head = NULL;
+    byte*  foot = NULL;
+    word32 headSz = 0;
+    word32 footSz = 0;
+    byte   hash[WC_SHA256_DIGEST_SIZE];
+    byte   bigData[64];
+    word32 msgMax = 2 * sizeof_client_cert_der_2048 + FOURK_BUF;
+    int    signedSz = 0;
+    int    certsOnlySz = 0;
+    int    detachedSz = 0;
+    int    noContentRet = 0;
+    int    i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(bigData, 0x5a, sizeof(bigData));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(signedMsg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(certsOnly = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(detached = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(badMsg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT((signedSz = pkcs7_encode_cert_set(signedMsg, msgMax, 0, 0,
+        &rng)), 0);
+    ExpectIntGT((certsOnlySz = pkcs7_encode_cert_set(certsOnly, msgMax, 1, 1,
+        &rng)), 0);
+
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->content      = (byte*)data;
+        other->contentSz    = (word32)sizeof(data);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+        other->detached     = 1;
+    }
+    ExpectIntGT((detachedSz = wc_PKCS7_EncodeSignedData(other, detached,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedMsg,
+        (word32)signedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, certsOnly,
+        (word32)certsOnlySz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedMsg,
+        (word32)signedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, 3);
+    }
+
+    /* Detached content set by the caller is kept for the next call. */
+    if (pkcs7 != NULL) {
+        pkcs7->content   = (byte*)data;
+        pkcs7->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, detached,
+        (word32)detachedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, detached,
+        (word32)detachedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectPtrEq(pkcs7->content, data);
+    }
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Content left by a verify that failed part way is not used either. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(badMsg, signedMsg, (size_t)signedSz);
+        for (i = 0; i + 16 < signedSz; i++) {
+            if (XMEMCMP(badMsg + i, client_cert_der_2048, 16) == 0) {
+                badMsg[i + 2]++;
+                break;
+            }
+        }
+        ExpectIntLT(i + 16, signedSz);
+    }
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (other != NULL) {
+        noContentRet = wc_PKCS7_VerifySignedData(other, detached,
+            (word32)detachedSz);
+    }
+    ExpectIntLT(noContentRet, 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntLT(wc_PKCS7_VerifySignedData(other, badMsg, (word32)signedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A failed verify leaves the caller's content in place. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (other != NULL) {
+        other->content   = (byte*)data;
+        other->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntLT(wc_PKCS7_VerifySignedData(other, badMsg, (word32)signedSz), 0);
+    if (other != NULL) {
+        ExpectPtrEq(other->content, data);
+        ExpectIntEQ(other->contentSz, sizeof(data));
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* Content a verify handed back is not used by the next verify, even when
+     * it points into a message buffer the caller has freed since. */
+    ExpectNotNull(msgCopy = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (msgCopy != NULL) {
+        XMEMCPY(msgCopy, signedMsg, (size_t)signedSz);
+    }
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, msgCopy, (word32)signedSz),
+        0);
+    if (msgCopy != NULL) {
+        XMEMSET(msgCopy, 0, (size_t)signedSz);
+    }
+    XFREE(msgCopy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A message without certificates hands its content back for the caller
+     * to check, and the next verify drops it like any other. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetNoCerts(other, 1), 0);
+    if (other != NULL) {
+        other->content      = (byte*)data;
+        other->contentSz    = (word32)sizeof(data);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+    }
+    ExpectIntGT((signedSz = wc_PKCS7_EncodeSignedData(other, signedMsg,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+    if (other != NULL) {
+        ExpectIntEQ(other->contentSz, sizeof(data));
+        ExpectNotNull(other->content);
+        if (other->content != NULL) {
+            ExpectBufEQ(other->content, data, sizeof(data));
+        }
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A header/footer verify after a full one keeps the contentSz the caller
+     * set even though the old content pointer is still in place. */
+    ExpectNotNull(head = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(foot = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_Sha256Hash(bigData, (word32)sizeof(bigData), hash), 0);
+    headSz = msgMax;
+    footSz = msgMax;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->contentSz    = (word32)sizeof(bigData);
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+    }
+    ExpectIntEQ(wc_PKCS7_EncodeSignedData_ex(other, hash, sizeof(hash), head,
+        &headSz, foot, &footSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectIntGT((signedSz = pkcs7_encode_cert_set(signedMsg, msgMax, 0, 0,
+        &rng)), 0);
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->contentSz = (word32)sizeof(bigData);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(other, hash, sizeof(hash), head,
+        headSz, foot, footSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* Larger detached content than the previous verify left behind. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->content      = bigData;
+        other->contentSz    = (word32)sizeof(bigData);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+        other->detached     = 1;
+    }
+    ExpectIntGT((detachedSz = wc_PKCS7_EncodeSignedData(other, detached,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->content   = bigData;
+        other->contentSz = (word32)sizeof(bigData);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), 0);
+    wc_PKCS7_Free(other);
+
+    XFREE(foot, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(head, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(badMsg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(detached, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certsOnly, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(signedMsg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

@@ -423,6 +423,8 @@ struct wc_PKCS7 {
     byte pssParamsPresent;
 #endif
 
+    byte* verifyContent; /* pkcs7->content set by the last verify */
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 

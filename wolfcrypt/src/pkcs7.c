@@ -155,6 +155,7 @@ struct PKCS7State {
     byte* aad;      /* additional data for AEAD algos */
     byte* tag;      /* tag data for AEAD algos */
     byte* content;
+    byte* callerContent; /* pkcs7->content set by the caller */
     byte* buffer;   /* main internal read buffer */
 
     wc_HashAlg  hashAlg;
@@ -182,6 +183,7 @@ struct PKCS7State {
     word32 fragCarrySz; /* bytes held in fragCarry */
     word32 contentCap;  /* allocated size of reassembled content */
     word32 contentSz;
+    word32 callerContentSz;
     word32 currContIdx;   /* index of current content */
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
@@ -6979,6 +6981,23 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 #endif /* !NO_PKCS7_STREAM */
+
+/* Drop content that a previous verify left in pkcs7->content. keepSz keeps
+ * contentSz, which a header/footer verify takes from the caller. */
+static void wc_PKCS7_DropVerifyContent(wc_PKCS7* pkcs7, int keepSz)
+{
+    if (pkcs7->content != NULL &&
+            (pkcs7->content == pkcs7->verifyContent ||
+             pkcs7->content == pkcs7->contentDynamic)) {
+        pkcs7->content = NULL;
+        if (!keepSz)
+            pkcs7->contentSz = 0;
+    }
+    pkcs7->verifyContent = NULL;
+    XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->contentDynamic = NULL;
+}
+
 /* Finds the certificates in the message and saves it. By default allows
  * degenerate cases which can have no signer.
  *
@@ -7023,7 +7042,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     byte*   src = NULL;
     word32  srcSz;
+#else
+    word32 callerContentSz;
 #endif
+    byte* callerContent = NULL;
+    byte  restoreContent = 1;
     byte* pkiMsg2 = in2;
     word32 pkiMsg2Sz = in2Sz;
     (void)keepContent;
@@ -7044,6 +7067,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         return BAD_FUNC_ARG;
     }
     idx = 0;
+#ifdef NO_PKCS7_STREAM
+    wc_PKCS7_DropVerifyContent(pkcs7, in2 != NULL && in2Sz > 0);
+    callerContent   = pkcs7->content;
+    callerContentSz = pkcs7->contentSz;
+#endif
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->derSz > 0 && pkcs7->der) {
@@ -7062,6 +7090,10 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     switch (pkcs7->state) {
         case WC_PKCS7_START:
         #ifndef NO_PKCS7_STREAM
+            wc_PKCS7_DropVerifyContent(pkcs7, in2 != NULL && in2Sz > 0);
+            pkcs7->stream->callerContent   = pkcs7->content;
+            pkcs7->stream->callerContentSz = pkcs7->contentSz;
+
             /* The expected size calculation originally assumed digest OID
              * with NULL params, -2 to also accept with absent params */
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, (MAX_SEQ_SZ +
@@ -7999,7 +8031,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     #endif
 
                         /* Save dynamic content before freeing PKCS7 struct */
-                        if (pkcs7->contentDynamic != NULL) {
+                        if (pkcs7->contentDynamic != NULL && contentSz > 0) {
                             contentDynamic = (byte*)XMALLOC((word32)contentSz,
                                                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                             if (contentDynamic == NULL) {
@@ -8360,6 +8392,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                 pkcs7->content = content;
                 pkcs7->contentSz = (word32)contentSz;
+            #ifndef NO_PKCS7_STREAM
+                /* keep the caller's detached content, not the stream copy */
+                if (pkcs7->stream->detached &&
+                        pkcs7->stream->callerContent != NULL) {
+                    pkcs7->content   = pkcs7->stream->callerContent;
+                    pkcs7->contentSz = pkcs7->stream->callerContentSz;
+                }
+            #endif
 
                 if (ret == 0) {
                 #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
@@ -8424,13 +8464,31 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         default:
             WOLFSSL_MSG("PKCS7 Unknown verify state");
             ret = BAD_FUNC_ARG;
+            restoreContent = 0;
     }
 
     if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+        /* a failed verify leaves the caller's content as it was */
+        if (restoreContent && ret != WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK)) {
+        #ifndef NO_PKCS7_STREAM
+            pkcs7->content   = pkcs7->stream->callerContent;
+            pkcs7->contentSz = pkcs7->stream->callerContentSz;
+        #else
+            pkcs7->content   = callerContent;
+            pkcs7->contentSz = callerContentSz;
+        #endif
+        }
     #ifndef NO_PKCS7_STREAM
         wc_PKCS7_ResetStream(pkcs7);
     #endif
         wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
+    }
+    if (ret == 0 || ret == WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK)) {
+    #ifndef NO_PKCS7_STREAM
+        callerContent = pkcs7->stream->callerContent;
+    #endif
+        if (pkcs7->content != callerContent)
+            pkcs7->verifyContent = pkcs7->content;
     }
     return ret;
 }
