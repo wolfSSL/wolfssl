@@ -333,7 +333,9 @@ impl<H: Hash, const N: usize> DecryptingKey<H, N> {
     /// `rng` is consumed and bound to the key for blinding during decryption.
     #[cfg(all(random, rsa_keygen))]
     pub fn generate(rng: RNG) -> Result<Self, i32> {
-        let bits: i32 = (N * 8).try_into().map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+        let bits = N.checked_mul(8)
+            .and_then(|b| i32::try_from(b).ok())
+            .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
         let mut rsa = RSA::generate(bits, 65537, &rng)?;
         rsa.set_rng(rng)?;
         Ok(Self { inner: rsa, _hash: PhantomData })
