@@ -32,6 +32,7 @@ int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
 int test_tls13_rpk_unnegotiated_not_overridable(void);
 int test_tls13_pha(void);
+int test_tls13_pha_ssl_creds(void);
 int test_tls13_ctx_dh_rotation(void);
 int test_tls13_accept_state_dh_copy(void);
 int test_tls13_pha_resumption(void);
@@ -177,6 +178,7 @@ int test_tls13_export_client_key_update(void);
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_unnegotiated_not_overridable), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_ssl_creds),         \
     TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_rotation),       \
     TEST_DECL_GROUP("tls13", test_tls13_accept_state_dh_copy),  \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption),        \

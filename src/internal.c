@@ -10611,10 +10611,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
 #if !defined(NO_CERTS) && !defined(OPENSSL_EXTRA) && \
     !defined(WOLFSSL_WPAS_SMALL)
-#ifndef WOLFSSL_POST_HANDSHAKE_AUTH
-    if (ssl->options.side != WOLFSSL_CLIENT_END)
-#endif
-    {
+    /* A client keeps its certificate and key to answer a post-handshake
+     * CertificateRequest. */
+    if (ssl->options.side != WOLFSSL_CLIENT_END) {
         wolfSSL_UnloadCertsKeys(ssl);
     }
 #endif

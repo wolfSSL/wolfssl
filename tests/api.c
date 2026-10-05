@@ -39811,7 +39811,7 @@ static int test_write_dup(void)
                 ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
                         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
                 ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
-                ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+                ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile,
                         NULL), WOLFSSL_SUCCESS);
             }
 #endif
@@ -39964,7 +39964,7 @@ static int test_write_dup_want_write(void)
             ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
             ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
-            ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+            ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile,
                     NULL), WOLFSSL_SUCCESS);
         }
 #endif
@@ -40094,7 +40094,7 @@ static int test_write_dup_want_write_simul(void)
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
-        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile,
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile,
                 NULL), WOLFSSL_SUCCESS);
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 

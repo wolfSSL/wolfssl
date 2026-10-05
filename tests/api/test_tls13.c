@@ -4202,6 +4202,84 @@ int test_tls13_pha(void)
     return EXPECT_RESULT();
 }
 
+/* Post-handshake authentication using credentials loaded only on the
+ * WOLFSSL session (wolfSSL_use_certificate_file / wolfSSL_use_PrivateKey_file)
+ * without any client credentials loaded on WOLFSSL_CTX. Verifies that
+ * FreeHandshakeResources() retains client credentials across the initial
+ * handshake so that subsequent post-handshake CertificateRequests can be
+ * answered with the client's certificate rather than an empty certificate. */
+int test_tls13_pha_ssl_creds(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+#if defined(SESSION_CERTS)
+    WOLFSSL_X509_CHAIN* chain = NULL;
+#endif
+    char msg[] = "hello wolfssl!";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server: trust the client certificate and defer verification to PHA. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+
+    /* Client: load credentials only on the WOLFSSL object (not ctx_c) and
+     * allow post-handshake auth. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+
+    /* Initial handshake completes without a client certificate. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(SESSION_CERTS)
+    ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+    ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+#endif
+
+    /* Server requests post-handshake authentication. */
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Complete PHA: server writes data carrying CertificateRequest, client
+     * processes it and responds with Certificate/CertificateVerify/Finished,
+     * and server validates peer certificate. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+
+    ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+    ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+#if defined(SESSION_CERTS)
+    ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+    ExpectIntEQ(wolfSSL_get_chain_count(chain), 1);
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* DH parameters are not reference counted, so each session takes its own copy
  * of them and the context is free to replace its own at any time. */
