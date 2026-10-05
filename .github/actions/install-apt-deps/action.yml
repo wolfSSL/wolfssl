@@ -213,7 +213,7 @@ runs:
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
-        "$GITHUB_ACTION_PATH/../../scripts/apt-install.sh" \
+        "$GITHUB_ACTION_PATH/apt-install.sh" \
           --tries ${{ inputs.retries }} --delay ${{ inputs.retry-delay }} \
           --update-timeout "$UPD" --install-timeout "$INS" \
           --drop-vendor-sources $NO_REC ${{ inputs.packages }}

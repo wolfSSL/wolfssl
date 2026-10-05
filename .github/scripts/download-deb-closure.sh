@@ -16,7 +16,7 @@ set -uo pipefail
 LIST=${1:?package list}
 DEST=${2:?destination directory}
 
-APT_INSTALL="$(dirname "$0")/apt-install.sh"
+APT_INSTALL="$(dirname "$0")/../actions/install-apt-deps/apt-install.sh"
 
 mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
 echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
