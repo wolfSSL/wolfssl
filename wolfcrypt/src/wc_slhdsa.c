@@ -9240,6 +9240,7 @@ static int slhdsakey_sign_internal_msg(SlhDsaKey* key, const byte* m,
     if (ret == 0) {
         byte md[SLHDSA_MAX_MD];
         byte n = key->params->n;
+        byte* sigOut = sig;
 
 #ifdef WOLFSSL_SLHDSA_SHA2
         if (SLHDSA_IS_SHA2(key->params->param)) {
@@ -9295,6 +9296,10 @@ static int slhdsakey_sign_internal_msg(SlhDsaKey* key, const byte* m,
         }
         if (ret == 0) {
             *sigSz = key->params->sigLen;
+        }
+        if (ret != 0) {
+            /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
+            ForceZero(sigOut, key->params->sigLen);
         }
     }
 
@@ -9356,6 +9361,7 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         byte md[SLHDSA_MAX_MD];
         byte hdr[2];
         byte n = key->params->n;
+        byte* sigOut = sig;
 
         /* Alg 22, Step 8: M' = toByte(0,1) || toByte(|ctx|,1) || ctx || M.
          * We stream the M' components into PRF_msg and H_msg. */
@@ -9429,6 +9435,10 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         if (ret == 0) {
             /* Return the signature size generated. */
             *sigSz = key->params->sigLen;
+        }
+        if (ret != 0) {
+            /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
+            ForceZero(sigOut, key->params->sigLen);
         }
     }
 
@@ -10438,6 +10448,7 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
     if (ret == 0) {
         byte n = key->params->n;
         byte md[SLHDSA_MAX_MD];
+        byte* sigOut = sig;
         byte hdr[2];
 
         /* Alg 23, Step 24: Set first two bytes to pass to hash ... */
@@ -10521,6 +10532,10 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
         if (ret == 0) {
             /* Return the signature size generated. */
             *sigSz = key->params->sigLen;
+        }
+        if (ret != 0) {
+            /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
+            ForceZero(sigOut, key->params->sigLen);
         }
     }
 
