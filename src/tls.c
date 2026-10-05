@@ -15975,9 +15975,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore((word16)extension->type));
 
-        /* if we encountered an error propagate it */
-        if (ret != 0)
-            break;
     }
 
     if ((word32)*pLength + length > WOLFSSL_MAX_16BIT) {
