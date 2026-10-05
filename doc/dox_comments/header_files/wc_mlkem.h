@@ -558,10 +558,10 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     a key initialized with WC_ML_KEM_TYPE_UNSET takes it from the algorithm
     OID in the DER instead.
 
-    A build defining WOLFSSL_MLKEM_NO_MAKE_KEY cannot expand a seed, and so
-    cannot perform the Section 8 comparison either. Such a build rejects every
-    key that carries a seed, the "both" form included, rather than accepting
-    its expanded half unchecked.
+    A build defining WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM
+    cannot expand a seed, and so cannot perform the Section 8 comparison
+    either. Such a build rejects every key that carries a seed, the "both"
+    form included, rather than accepting its expanded half unchecked.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
@@ -570,7 +570,7 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     carries a seed of the wrong length, or pairs a seed with an expanded key
     that does not match it.
     \return NOT_COMPILED_IN if the key carries a seed and the build defines
-    WOLFSSL_MLKEM_NO_MAKE_KEY.
+    WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM.
 
     \param [in,out] key Pointer to an initialized MlKemKey.
     \param [in] input Buffer holding the DER.

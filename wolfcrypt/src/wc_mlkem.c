@@ -224,6 +224,7 @@ sword16 wc_mlkem_opt_blocker(void) {
  * @param  [in]  key  ML-KEM key object.
  * @return  k value for the key type, or 0 if not recognized.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
 static int mlkemkey_get_k(const MlKemKey* key)
 {
     switch (key->type) {
@@ -259,6 +260,7 @@ static int mlkemkey_get_k(const MlKemKey* key)
             return 0;
     }
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif
 
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
@@ -805,6 +807,17 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     int len)
 {
+#ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
+    /* Validate as the software path does, so the reported error stays the
+     * same for a bad call. */
+    if ((key == NULL) || (rand == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (len != WC_ML_KEM_MAKEKEY_RAND_SZ) {
+        return BUFFER_E;
+    }
+    return NO_VALID_DEVID;
+#else
     byte buf[2 * WC_ML_KEM_SYM_SZ + 1];
     byte* rho = buf;
 #ifndef WC_MLKEM_FAULT_HARDEN
@@ -1126,6 +1139,7 @@ key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 #endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 }
 #endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY */
 
@@ -1221,6 +1235,7 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
 /* Encrypt a message to cipher text with the encryption key.
  *
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE, m, r)
@@ -1476,10 +1491,12 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
 static int wc_mlkemkey_check_h(MlKemKey* key)
 {
     int ret = 0;
@@ -1521,6 +1538,7 @@ static int wc_mlkemkey_check_h(MlKemKey* key)
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
@@ -1651,6 +1669,20 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
 int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     unsigned char* ss, const unsigned char* rand, int len)
 {
+#ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
+    /* Validate as the software path does, so the reported error stays the
+     * same for a bad call. */
+    if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (len != WC_ML_KEM_ENC_RAND_SZ) {
+        return BUFFER_E;
+    }
+    if ((key->flags & MLKEM_FLAG_PUB_SET) == 0) {
+        return BAD_STATE_E;
+    }
+    return NO_VALID_DEVID;
+#else
 #ifdef WOLFSSL_MLKEM_KYBER
     byte msg[WC_ML_KEM_SYM_SZ];
 #endif
@@ -1822,12 +1854,14 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #endif
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 }
 #endif /* !WOLFSSL_MLKEM_NO_ENCAPSULATE */
 
 /******************************************************************************/
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
 /* Decapsulate cipher text to the message using key.
  *
  * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE,c)
@@ -1994,6 +2028,7 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
 
 /**
  * Decapsulate the cipher text to calculate the shared secret.
@@ -2042,16 +2077,18 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len)
 {
-    byte msg[WC_ML_KEM_SYM_SZ];
-    byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     int ret = 0;
     unsigned int ctSz = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
+    byte msg[WC_ML_KEM_SYM_SZ];
+    byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     unsigned int i = 0;
     int fail = -1; /* mismatch until mlkem_cmp() says otherwise */
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     byte* cmp = NULL;
 #else
     byte cmp[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+#endif
 #endif
 
     /* Validate parameters. */
@@ -2127,6 +2164,12 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         ret = 0;
     }
 #endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
@@ -2223,6 +2266,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     wc_MemZero_Check(msg, sizeof(msg));
     wc_MemZero_Check(kr, sizeof(kr));
 #endif
+#endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 
     return ret;
 }
@@ -3185,6 +3229,10 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     return ret;
 }
 
+#if defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    #define MLKEM_NO_SEED_EXPAND
+#endif
+
 /* Decode a DER PKCS#8 OneAsymmetricKey into an ML-KEM private key.
  *
  * All three RFC 9935 Section 6 CHOICE shapes are accepted: the 64 byte seed
@@ -3195,9 +3243,9 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
  * Section 8. The parameter set must match the initialized key object, as
  * described for wc_MlKemKey_PublicKeyDecode.
  *
- * A WOLFSSL_MLKEM_NO_MAKE_KEY build cannot expand a seed, so it cannot run
- * the Section 8 check either and rejects any key carrying one, including the
- * "both" shape.
+ * A WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM build cannot
+ * expand a seed, so it cannot run the Section 8 check either and rejects any
+ * key carrying one, including the "both" shape.
  *
  * @param  [in, out]  key       ML-KEM key object.
  * @param  [in]       input     DER buffer.
@@ -3210,7 +3258,7 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
  *          expanded key that disagree.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when a key carrying a seed is decoded in a
- *          WOLFSSL_MLKEM_NO_MAKE_KEY build.
+ *          WOLFSSL_MLKEM_NO_MAKE_KEY or WOLF_CRYPTO_CB_ONLY_MLKEM build.
  */
 int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32* inOutIdx)
@@ -3223,7 +3271,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32 privKeyLen = 0;
     const byte* pubKey = NULL;
     word32 pubKeyLen = 0;
-#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+#ifndef MLKEM_NO_SEED_EXPAND
     int keyExpanded = 0;
 #endif
 
@@ -3244,7 +3292,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) == 0)) {
         ret = mlkem_key_adopt_type(key, keyType);
     }
-#ifdef WOLFSSL_MLKEM_NO_MAKE_KEY
+#ifdef MLKEM_NO_SEED_EXPAND
     /* Expanding a seed needs key generation, which this build lacks. That
      * rules out the "both" shape too: without the RFC 9935 Section 8
      * comparison, trusting the expanded half would accept a tampered file. */
@@ -3310,12 +3358,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
             ForceZero(key->priv, key->privAllocSz);
         }
     #else
-        int scrubK = mlkemkey_get_k(key);
-
-        if (scrubK != 0) {
-            ForceZero(key->priv,
-                (size_t)scrubK * MLKEM_N * sizeof(sword16));
-        }
+        ForceZero(key->priv, sizeof(key->priv));
     #endif
         ForceZero(key->z, WC_ML_KEM_SYM_SZ);
         key->flags &= MLKEM_FLAG_TYPE_SET;
@@ -3323,7 +3366,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     else if ((ret == 0) && (seed == NULL)) {
         ret = wc_MlKemKey_DecodePrivateKey(key, privKey, privKeyLen);
     }
-#endif /* WOLFSSL_MLKEM_NO_MAKE_KEY */
+#endif /* MLKEM_NO_SEED_EXPAND */
 
     return ret;
 }
