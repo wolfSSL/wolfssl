@@ -6810,6 +6810,13 @@ void wolfSSL_EVP_init(void)
             case WOLFSSL_EVP_CTRL_GCM_IV_GEN:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
+            #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+                if (ctx->cipherType == WC_CHACHA20_POLY1305_TYPE) {
+                    WOLFSSL_MSG("IV generation not supported for "
+                                "ChaCha20-Poly1305");
+                    break;
+                }
+            #endif
                 if (!ctx->authIvGenEnable) {
                     WOLFSSL_MSG("Must use EVP_CTRL_AEAD_SET_IV_FIXED before "
                                 "EVP_CTRL_GCM_IV_GEN");

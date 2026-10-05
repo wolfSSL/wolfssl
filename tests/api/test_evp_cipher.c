@@ -2056,6 +2056,7 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
     byte decryptedText[sizeof(plainText)];
     byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     byte badTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    byte genIv[CHACHA20_POLY1305_AEAD_IV_SIZE];
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
@@ -2159,6 +2160,17 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
     ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
             WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* IV generation is only defined for GCM and CCM. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_chacha20_poly1305(), key, iv, 1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1, iv),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, genIv),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
