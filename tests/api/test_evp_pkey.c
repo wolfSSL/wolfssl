@@ -907,10 +907,19 @@ static int test_EVP_PKEY_dup_check(EVP_PKEY** src, int id, int priv)
     #define TEST_EVP_PKEY_DUP_DH
 #endif
 
-#if defined(TEST_EVP_PKEY_DUP_DSA) || defined(TEST_EVP_PKEY_DUP_DH)
-/* Check dup carries the same cached DER and the same private/public state,
- * and that it left the error queue clean. */
-static int test_EVP_PKEY_dup_der_check(EVP_PKEY* src, int id, int priv)
+/* Key types EVP_PKEY_new_raw_*_key() supports in these builds. */
+#if defined(OPENSSL_EXTRA) && ((defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT)) || (defined(HAVE_ED448) && \
+    defined(HAVE_ED448_KEY_IMPORT)) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448))
+    #define TEST_EVP_PKEY_DUP_RAW
+#endif
+
+#if defined(TEST_EVP_PKEY_DUP_DSA) || defined(TEST_EVP_PKEY_DUP_DH) || \
+    defined(TEST_EVP_PKEY_DUP_RAW)
+/* Check dup carries the same cached key data in the same format and the same
+ * private/public state, and that it left the error queue clean. */
+static int test_EVP_PKEY_dup_data_check(EVP_PKEY* src, int id, int priv)
 {
     EXPECT_DECLS;
     EVP_PKEY* dup = NULL;
@@ -922,6 +931,7 @@ static int test_EVP_PKEY_dup_der_check(EVP_PKEY* src, int id, int priv)
     ExpectPtrNE(dup, src);
     ExpectIntEQ(EVP_PKEY_id(dup), id);
     ExpectIntEQ(dup->isPriv, priv);
+    ExpectIntEQ(dup->isRaw, src->isRaw);
     ExpectIntEQ(dup->pkey_sz, src->pkey_sz);
     ExpectIntEQ(XMEMCMP(dup->pkey.ptr, src->pkey.ptr, (size_t)src->pkey_sz),
         0);
@@ -930,7 +940,59 @@ static int test_EVP_PKEY_dup_der_check(EVP_PKEY* src, int id, int priv)
 
     return EXPECT_RESULT();
 }
-#endif /* TEST_EVP_PKEY_DUP_DSA || TEST_EVP_PKEY_DUP_DH */
+#endif /* TEST_EVP_PKEY_DUP_DSA || TEST_EVP_PKEY_DUP_DH ||
+        * TEST_EVP_PKEY_DUP_RAW */
+
+#ifdef TEST_EVP_PKEY_DUP_RAW
+/* Dup a raw key and, when hdr is given, the same key wrapped in DER. Both
+ * are close in length, so dup has to go by the stored format. */
+static int test_EVP_PKEY_dup_raw_check(int id, int priv,
+    const unsigned char* raw, size_t rawSz, const unsigned char* hdr,
+    size_t hdrSz)
+{
+    EXPECT_DECLS;
+    EVP_PKEY* key = NULL;
+    unsigned char der[80];
+    const unsigned char* p = der;
+
+    if (priv) {
+        ExpectNotNull(key = EVP_PKEY_new_raw_private_key(id, NULL, raw,
+            rawSz));
+    }
+    else {
+        ExpectNotNull(key = EVP_PKEY_new_raw_public_key(id, NULL, raw,
+            rawSz));
+    }
+    ExpectIntEQ(key->isRaw, 1);
+    ExpectIntEQ(key->pkey_sz, (int)rawSz);
+    ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, id, priv), TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
+
+    if (hdr != NULL) {
+        ExpectIntLE(hdrSz + rawSz, sizeof(der));
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(der, hdr, hdrSz);
+            XMEMCPY(der + hdrSz, raw, rawSz);
+        }
+        if (priv) {
+            ExpectNotNull(key = d2i_PrivateKey(id, NULL, &p,
+                (long)(hdrSz + rawSz)));
+        }
+        else {
+            ExpectNotNull(key = d2i_PublicKey(id, NULL, &p,
+                (long)(hdrSz + rawSz)));
+        }
+        ExpectIntEQ(key->isRaw, 0);
+        ExpectIntEQ(key->pkey_sz, (int)(hdrSz + rawSz));
+        ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, id, priv),
+            TEST_SUCCESS);
+        EVP_PKEY_free(key);
+    }
+
+    return EXPECT_RESULT();
+}
+#endif /* TEST_EVP_PKEY_DUP_RAW */
 
 int test_wolfSSL_EVP_PKEY_dup(void)
 {
@@ -987,7 +1049,7 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     in = dsa_key_der_2048;
     ExpectNotNull(key = d2i_PrivateKey(EVP_PKEY_DSA, NULL, &in,
         (long)sizeof_dsa_key_der_2048));
-    ExpectIntEQ(test_EVP_PKEY_dup_der_check(key, EVP_PKEY_DSA, 1),
+    ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_DSA, 1),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     key = NULL;
@@ -995,7 +1057,7 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     in = dsa_pub_key_der_2048;
     ExpectNotNull(key = d2i_PublicKey(EVP_PKEY_DSA, NULL, &in,
         (long)sizeof_dsa_pub_key_der_2048));
-    ExpectIntEQ(test_EVP_PKEY_dup_der_check(key, EVP_PKEY_DSA, 0),
+    ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_DSA, 0),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     key = NULL;
@@ -1005,7 +1067,7 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     in = dh_key_der_2048;
     ExpectNotNull(key = d2i_PrivateKey(EVP_PKEY_DH, NULL, &in,
         (long)sizeof_dh_key_der_2048));
-    ExpectIntEQ(test_EVP_PKEY_dup_der_check(key, EVP_PKEY_DH, 1),
+    ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_DH, 1),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     key = NULL;
@@ -1034,6 +1096,156 @@ int test_wolfSSL_EVP_PKEY_dup(void)
     dup = NULL;
     EVP_PKEY_free(key);
     key = NULL;
+
+    /* Raw keys cache the raw bytes, DER keys cache DER. Keys from RFC 8032
+     * and RFC 7748. */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    {
+        static const unsigned char priv[] = {
+            0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60,
+            0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
+            0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
+            0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60
+        };
+        static const unsigned char pub[] = {
+            0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7,
+            0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a,
+            0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25,
+            0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a
+        };
+        /* PKCS#8 and SPKI headers for Ed25519. */
+        static const unsigned char privHdr[] = {
+            0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
+            0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20
+        };
+        static const unsigned char pubHdr[] = {
+            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+            0x70, 0x03, 0x21, 0x00
+        };
+
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_ED25519, 1, priv,
+            sizeof(priv), privHdr, sizeof(privHdr)), TEST_SUCCESS);
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_ED25519, 0, pub,
+            sizeof(pub), pubHdr, sizeof(pubHdr)), TEST_SUCCESS);
+
+        /* dup goes by the stored format, not the length. */
+        ExpectNotNull(key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,
+            NULL, pub, sizeof(pub)));
+        if (key != NULL) {
+            key->isRaw = 0;
+        }
+        ExpectNull(dup = EVP_PKEY_dup(key));
+        EVP_PKEY_free(dup);
+        dup = NULL;
+        EVP_PKEY_free(key);
+        key = NULL;
+    }
+
+    /* X509_get_pubkey() caches the raw key from the certificate. */
+    {
+        X509* x509 = NULL;
+
+        in = server_ed25519_cert;
+        ExpectNotNull(x509 = d2i_X509(NULL, &in,
+            (long)sizeof_server_ed25519_cert));
+        ExpectNotNull(key = X509_get_pubkey(x509));
+        ExpectIntEQ(key->isRaw, 1);
+        ExpectIntEQ(key->pkey_sz, ED25519_PUB_KEY_SIZE);
+        ExpectIntEQ(test_EVP_PKEY_dup_data_check(key, EVP_PKEY_ED25519, 0),
+            TEST_SUCCESS);
+        EVP_PKEY_free(key);
+        key = NULL;
+        X509_free(x509);
+    }
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    {
+        static const unsigned char priv[] = {
+            0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
+            0xd6, 0x32, 0xbe, 0x89, 0xc8, 0x51, 0x3e, 0xbf,
+            0x6c, 0x92, 0x9f, 0x34, 0xdd, 0xfa, 0x8c, 0x9f,
+            0x63, 0xc9, 0x96, 0x0e, 0xf6, 0xe3, 0x48, 0xa3,
+            0x52, 0x8c, 0x8a, 0x3f, 0xcc, 0x2f, 0x04, 0x4e,
+            0x39, 0xa3, 0xfc, 0x5b, 0x94, 0x49, 0x2f, 0x8f,
+            0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98, 0xf9,
+            0x5b
+        };
+        static const unsigned char pub[] = {
+            0x5f, 0xd7, 0x44, 0x9b, 0x59, 0xb4, 0x61, 0xfd,
+            0x2c, 0xe7, 0x87, 0xec, 0x61, 0x6a, 0xd4, 0x6a,
+            0x1d, 0xa1, 0x34, 0x24, 0x85, 0xa7, 0x0e, 0x1f,
+            0x8a, 0x0e, 0xa7, 0x5d, 0x80, 0xe9, 0x67, 0x78,
+            0xed, 0xf1, 0x24, 0x76, 0x9b, 0x46, 0xc7, 0x06,
+            0x1b, 0xd6, 0x78, 0x3d, 0xf1, 0xe5, 0x0f, 0x6c,
+            0xd1, 0xfa, 0x1a, 0xbe, 0xaf, 0xe8, 0x25, 0x61,
+            0x80
+        };
+        /* PKCS#8 and SPKI headers for Ed448. */
+        static const unsigned char privHdr[] = {
+            0x30, 0x47, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
+            0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04, 0x39
+        };
+        static const unsigned char pubHdr[] = {
+            0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+            0x71, 0x03, 0x3a, 0x00
+        };
+
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_ED448, 1, priv,
+            sizeof(priv), privHdr, sizeof(privHdr)), TEST_SUCCESS);
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_ED448, 0, pub,
+            sizeof(pub), pubHdr, sizeof(pubHdr)), TEST_SUCCESS);
+    }
+#endif
+#ifdef HAVE_CURVE25519
+    {
+        static const unsigned char priv[] = {
+            0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d,
+            0x3c, 0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45,
+            0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0, 0x99, 0x2a,
+            0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a
+        };
+        static const unsigned char pub[] = {
+            0x85, 0x20, 0xf0, 0x09, 0x89, 0x30, 0xa7, 0x54,
+            0x74, 0x8b, 0x7d, 0xdc, 0xb4, 0x3e, 0xf7, 0x5a,
+            0x0d, 0xbf, 0x3a, 0x0d, 0x26, 0x38, 0x1a, 0xf4,
+            0xeb, 0xa4, 0xa9, 0x8e, 0xaa, 0x9b, 0x4e, 0x6a
+        };
+
+        /* X25519 has no DER decoder for EVP_PKEY. */
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_X25519, 1, priv,
+            sizeof(priv), NULL, 0), TEST_SUCCESS);
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_X25519, 0, pub,
+            sizeof(pub), NULL, 0), TEST_SUCCESS);
+    }
+#endif
+#ifdef HAVE_CURVE448
+    {
+        static const unsigned char priv[] = {
+            0x9a, 0x8f, 0x49, 0x25, 0xd1, 0x51, 0x9f, 0x57,
+            0x75, 0xcf, 0x46, 0xb0, 0x4b, 0x58, 0x00, 0xd4,
+            0xee, 0x9e, 0xe8, 0xba, 0xe8, 0xbc, 0x55, 0x65,
+            0xd4, 0x98, 0xc2, 0x8d, 0xd9, 0xc9, 0xba, 0xf5,
+            0x74, 0xa9, 0x41, 0x97, 0x44, 0x89, 0x73, 0x91,
+            0x00, 0x63, 0x82, 0xa6, 0xf1, 0x27, 0xab, 0x1d,
+            0x9a, 0xc2, 0xd8, 0xc0, 0xa5, 0x98, 0x72, 0x6b
+        };
+        static const unsigned char pub[] = {
+            0x9b, 0x08, 0xf7, 0xcc, 0x31, 0xb7, 0xe3, 0xe6,
+            0x7d, 0x22, 0xd5, 0xae, 0xa1, 0x21, 0x07, 0x4a,
+            0x27, 0x3b, 0xd2, 0xb8, 0x3d, 0xe0, 0x9c, 0x63,
+            0xfa, 0xa7, 0x3d, 0x2c, 0x22, 0xc5, 0xd9, 0xbb,
+            0xc8, 0x36, 0x64, 0x72, 0x41, 0xd9, 0x53, 0xd4,
+            0x0c, 0x5b, 0x12, 0xda, 0x88, 0x12, 0x0d, 0x53,
+            0x17, 0x7f, 0x80, 0xe5, 0x32, 0xc4, 0x1f, 0xa0
+        };
+
+        /* X448 has no DER decoder for EVP_PKEY. */
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_X448, 1, priv,
+            sizeof(priv), NULL, 0), TEST_SUCCESS);
+        ExpectIntEQ(test_EVP_PKEY_dup_raw_check(EVP_PKEY_X448, 0, pub,
+            sizeof(pub), NULL, 0), TEST_SUCCESS);
+    }
+#endif
 
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
     defined(WOLFSSL_KEY_TO_DER)

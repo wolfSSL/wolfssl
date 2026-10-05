@@ -4033,6 +4033,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                             pkey->pkey_sz = edDerSz;
                             pkey->pkcs8HeaderSz = (word16)hdrIdx;
                             pkey->isPriv = 1;
+                            pkey->isRaw = 0;
                             ret = WOLFSSL_SUCCESS;
                         }
                         else {
@@ -4813,6 +4814,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
             pkey->pkey_sz = keylen;
             pkey->type = pkey->save_type = type;
             pkey->isPriv = 1;
+            pkey->isRaw = 1;
         }
     }
 
@@ -4865,6 +4867,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
             pkey->type = pkey->save_type = WC_EVP_PKEY_CMAC;
             pkey->cmacCtx = ctx;
             pkey->isPriv = 1;
+            pkey->isRaw = 1;
         }
     }
     else {
@@ -9567,6 +9570,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     else {
         pkey->pkey_sz = derSz;
         pkey->isPriv = (rsa->type == RSA_PRIVATE);
+        pkey->isRaw = 0;
         return WOLFSSL_SUCCESS;
     }
 }
@@ -9707,6 +9711,7 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     }
     pkey->pkey_sz = derSz;
     pkey->isPriv = (dsa->type == DSA_PRIVATE);
+    pkey->isRaw = 0;
     XMEMCPY(pkey->pkey.ptr, derBuf, (size_t)derSz);
     XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -9907,6 +9912,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     pkey->pkey.ptr = (char*)derBuf;
     pkey->pkey_sz = (int)derSz;
     pkey->isPriv = (havePrivate != 0);
+    pkey->isRaw = 0;
 
     return WOLFSSL_SUCCESS;
 }
@@ -10044,6 +10050,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         pkey->pkey.ptr = (char*)derBuf;
                         pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
                         pkey->isPriv = 1;
+                        pkey->isRaw = 0;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
@@ -10094,6 +10101,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                          * encoding. */
                         pkey->pkcs8HeaderSz = 0;
                         pkey->isPriv = 1;
+                        pkey->isRaw = 0;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
@@ -10162,6 +10170,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
     if (derBuf != NULL) {
         pkey->pkey_sz = (int)derSz;
         pkey->isPriv = 0;
+        pkey->isRaw = 0;
         return WOLFSSL_SUCCESS;
     }
     else {
@@ -11024,6 +11033,7 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
                     pkey->pkey_sz = ret;
                     pkey->pkey.ptr = (char*)derBuf;
                     pkey->isPriv = 1;
+                    pkey->isRaw = 0;
                 }
                 else { /* failure - okay to ignore */
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
