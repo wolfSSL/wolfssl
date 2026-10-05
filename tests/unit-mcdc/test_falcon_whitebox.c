@@ -67,6 +67,61 @@ static int wb_fail = 0;
 #if defined(HAVE_FALCON)
 
 /* ------------------------------------------------------------------ *
+ * fpr_ursh / fpr_irsh / fpr_ulsh: compared against plain 64-bit shifts
+ * at the 32-bit word boundaries (0, 1, 31, 32, 33, 63) on edge values,
+ * then at every count 0..63 on pseudo-random values. Covers both the
+ * WC_64BIT_CPU and the 32-bit halves implementation.
+ * ------------------------------------------------------------------ */
+static int wb_fpr_shift_check(word64 x, int n)
+{
+    sword64 xs = (sword64)x;
+
+    return (fpr_ursh(x, n) == (x >> n)) && (fpr_ulsh(x, n) == (x << n)) &&
+           (fpr_irsh(xs, n) == (xs >> n));
+}
+
+static void wb_fpr_shifts(void)
+{
+    static const word64 vals[] = {
+        0x0000000000000000ULL, 0x0000000000000001ULL,
+        0xFFFFFFFFFFFFFFFFULL, 0x8000000000000000ULL,
+        0x7FFFFFFFFFFFFFFFULL, 0x0000000080000000ULL,
+        0x00000000FFFFFFFFULL, 0xFFFFFFFF00000000ULL,
+        0x8000000080000000ULL, 0x7FFFFFFF7FFFFFFFULL,
+        0x80000000FFFFFFFFULL, 0xC000000000000001ULL,
+        0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL
+    };
+    static const int counts[] = { 0, 1, 31, 32, 33, 63 };
+    word64 st = 0x9E3779B97F4A7C15ULL;
+    size_t i, j;
+    int n, bad = 0;
+
+    for (i = 0; i < sizeof(vals) / sizeof(vals[0]); i++) {
+        for (j = 0; j < sizeof(counts) / sizeof(counts[0]); j++) {
+            if (!wb_fpr_shift_check(vals[i], counts[j])) {
+                bad = 1;
+            }
+        }
+    }
+    for (i = 0; i < 4096; i++) {
+        st ^= st << 13;
+        st ^= st >> 7;
+        st ^= st << 17;
+        for (n = 0; n < 64; n++) {
+            if (!wb_fpr_shift_check(st, n)) {
+                bad = 1;
+            }
+        }
+    }
+    if (bad) {
+        WB_FAIL("fpr shift helpers differ from 64-bit shifts");
+    }
+    else {
+        WB_OK("fpr_ursh/fpr_irsh/fpr_ulsh match 64-bit shifts for 0..63");
+    }
+}
+
+/* ------------------------------------------------------------------ *
  * falcon_comp_encode: for-loop range guard  x[u] < -2047 || x[u] > 2047
  * both FALSE (in range), left TRUE (x<-2047), right TRUE with left FALSE.
  * ------------------------------------------------------------------ */
@@ -2111,6 +2166,7 @@ int main(void)
             WB_FAIL("wc_InitRng failed; RNG-dependent paths skipped");
         }
 
+        wb_fpr_shifts();
         wb_comp_encode();
         wb_trim_i8();
         wb_privkey();

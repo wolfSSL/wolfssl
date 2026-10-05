@@ -692,25 +692,81 @@ static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 /* operand-dependent timing on platforms whose shift is data dependent.      */
 /* ------------------------------------------------------------------------- */
 
+/* Return x unchanged but opaque to the optimizer, so that masks derived from
+ * it are not turned into conditional branches. */
+static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
+{
+#if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+    __asm__ __volatile__("" : "+r"(x));
+#else
+    volatile word32 v = x;
+    x = v;
+#endif
+    return x;
+}
+
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
 {
-    x ^= (x ^ (x >> 32)) & ((word64)0 - (word64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x >> 32))
+         & ((word64)0 - (word64)fpr_ct_opaque32((word32)n >> 5));
     return x >> (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)(x >> 32);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    lo ^= (lo ^ hi) & m;
+    hi &= ~m;
+    lo = (lo >> s) | ((hi << (31 - s)) << 1);
+    hi >>= s;
+    return ((word64)hi << 32) | lo;
+#endif
 }
 
 /* Right-shift a 64-bit signed value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE sword64 fpr_irsh(sword64 x, int n)
 {
-    x ^= (x ^ (x >> 32)) & ((sword64)0 - (sword64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x >> 32))
+         & ((sword64)0 - (sword64)fpr_ct_opaque32((word32)n >> 5));
     return x >> (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)((word64)x >> 32);
+    word32 sg = (word32)((sword32)hi >> 31);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    lo ^= (lo ^ hi) & m;
+    hi ^= (hi ^ sg) & m;
+    lo = (lo >> s) | ((hi << (31 - s)) << 1);
+    hi = (word32)((sword32)hi >> s);
+    return (sword64)(((word64)hi << 32) | lo);
+#endif
 }
 
 /* Left-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE word64 fpr_ulsh(word64 x, int n)
 {
-    x ^= (x ^ (x << 32)) & ((word64)0 - (word64)(n >> 5));
+#ifdef WC_64BIT_CPU
+    x ^= (x ^ (x << 32))
+         & ((word64)0 - (word64)fpr_ct_opaque32((word32)n >> 5));
     return x << (n & 31);
+#else
+    word32 lo = (word32)x;
+    word32 hi = (word32)(x >> 32);
+    word32 m = 0U - fpr_ct_opaque32((word32)n >> 5);
+    word32 s = (word32)n & 31;
+
+    hi ^= (hi ^ lo) & m;
+    lo &= ~m;
+    hi = (hi << s) | ((lo >> (31 - s)) >> 1);
+    lo <<= s;
+    return ((word64)hi << 32) | lo;
+#endif
 }
 
 /* Pack a sign s (0/1), unbiased exponent e and mantissa m (2^54 <= m < 2^55,
@@ -885,7 +941,8 @@ sword64 fpr_floor(fpr x)
     /* If the true shift count was 64 or more, replace xi with 0 (nonnegative)
      * or -1 (negative). This also fixes the bogus implicit-bit assumption for
      * a zero input. */
-    xi ^= (xi ^ -(sword64)t) & -(sword64)((word32)(63 - cc) >> 31);
+    xi ^= (xi ^ -(sword64)t)
+          & -(sword64)fpr_ct_opaque32((word32)(63 - cc) >> 31);
     return xi;
 }
 
@@ -929,6 +986,7 @@ fpr fpr_add(fpr x, fpr y)
     za = (x & m) - (y & m);
     cs = (word32)(za >> 63)
          | ((1U - (word32)(((word64)0 - za) >> 63)) & (word32)(x >> 63));
+    cs = fpr_ct_opaque32(cs);
     m = (x ^ y) & ((word64)0 - (word64)cs);
     x ^= m;
     y ^= m;
@@ -1045,7 +1103,7 @@ fpr fpr_mul(fpr x, fpr y)
     /* Normalize zu to 2^54..2^55-1; it may be one bit too large. The
      * conditional right-shift preserves the sticky bit. */
     zv = (zu >> 1) | (zu & 1);
-    w = zu >> 55;
+    w = fpr_ct_opaque32((word32)(zu >> 55));
     zu ^= (zu ^ zv) & ((word64)0 - w);
 
     /* Aggregate scaling factor: sum the exponents, remove 2*(1023+52), then
@@ -1058,7 +1116,7 @@ fpr fpr_mul(fpr x, fpr y)
     s = (int)((x ^ y) >> 63);
 
     /* Corrective action: if either operand is zero, clamp the mantissa. */
-    d = ((ex + 0x7FF) & (ey + 0x7FF)) >> 11;
+    d = (int)fpr_ct_opaque32((word32)(((ex + 0x7FF) & (ey + 0x7FF)) >> 11));
     zu &= (word64)0 - (word64)d;
 
     return FPR(s, e, zu);
