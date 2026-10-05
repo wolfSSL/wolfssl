@@ -89732,7 +89732,8 @@ static wc_test_ret_t altera_fcs_ecc_test(int curveId)
 
 #ifdef HAVE_ECC_DHE
     ret = wc_ecc_make_key_ex(&rng, wc_ecc_size(&key), &key, curveId);
-    if (ret != WC_HW_E || wc_AlteraFcsEcc_IsDeviceKey(&key) != 1)
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E) ||
+        wc_AlteraFcsEcc_IsDeviceKey(&key) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
     ret = 0;
 #endif
@@ -89770,7 +89771,7 @@ static wc_test_ret_t altera_fcs_ecc_test(int curveId)
     sigSz = (word32)sizeof(sig);
     ret = wc_ecc_sign_hash(hash, (word32)sizeof(hash), sig, &sigSz, &rng,
                            &key);
-    if (ret != WC_HW_E)
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecc);
     ret = 0;
 #endif
@@ -89827,7 +89828,8 @@ static wc_test_ret_t altera_fcs_ecdh_test(int curveId, int keySz)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_ecdh);
 
     ret = wc_ecc_make_key_ex(&rng, keySz, &devKey, curveId);
-    if (ret != WC_HW_E || wc_AlteraFcsEcc_IsDeviceKey(&devKey) != 1)
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E) ||
+        wc_AlteraFcsEcc_IsDeviceKey(&devKey) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_ecdh);
     ret = 0;
 

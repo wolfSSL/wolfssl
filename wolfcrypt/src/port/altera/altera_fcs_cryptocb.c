@@ -335,7 +335,7 @@ int wc_AlteraFcsCryptoCb_RegisterDeviceMask(int devId, word32 algoMask)
      * deferred unregister keeps the slot, so ALREADY_E there means the
      * callback is still registered and only the state needs reviving. */
     ret = wc_CryptoCb_RegisterDevice(devId, wc_AlteraFcsCryptoDevCb, NULL);
-    if (ret == ALREADY_E) {
+    if (ret == WC_NO_ERR_TRACE(ALREADY_E)) {
         if (wc_LockMutex(&g_stateLock) != 0) {
             return BAD_MUTEX_E;
         }
@@ -351,7 +351,7 @@ int wc_AlteraFcsCryptoCb_RegisterDeviceMask(int devId, word32 algoMask)
     if (ret == 0 && (algoMask & WC_ALTERA_FCS_ALGO_AES) != 0) {
         ret = wc_CryptoCb_RegisterDevice(WOLFSSL_ALTERA_FCS_AES_KEY_DEVID,
                                          wc_AlteraFcsCryptoDevCb, NULL);
-        if (ret == ALREADY_E) {
+        if (ret == WC_NO_ERR_TRACE(ALREADY_E)) {
             ret = 0;
         }
         if (ret != 0) {
