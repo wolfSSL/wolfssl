@@ -6683,7 +6683,10 @@ void wolfSSL_EVP_init(void)
                                     int arg, void *ptr)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-#if defined(HAVE_AESGCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+        int authTagSz;
 #ifndef WC_NO_RNG
         WC_RNG rng;
 #endif
@@ -6742,11 +6745,15 @@ void wolfSSL_EVP_init(void)
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
 
-#if defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
             case WOLFSSL_EVP_CTRL_AEAD_SET_IV_FIXED:
-                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                if (((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0) ||
+                        (ptr == NULL))
                     break;
+                /* Re-initializing the cipher IV resets the tag length. */
+                authTagSz = ctx->authTagSz;
                 if (arg == -1) {
                     /* arg == -1 copies ctx->ivSz from ptr */
                     ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, (byte*)ptr, ctx->ivSz);
@@ -6786,7 +6793,13 @@ void wolfSSL_EVP_init(void)
                                                      -1);
                     }
                 }
-            #if defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)
+#endif /* !WC_NO_RNG */
+                if (ret == WOLFSSL_SUCCESS) {
+                    ctx->authTagSz = authTagSz;
+                }
+#ifndef WC_NO_RNG
+            #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+                defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
                 if (ret == WOLFSSL_SUCCESS) {
                     /*
                      * OpenSSL requires that a EVP_CTRL_AEAD_SET_IV_FIXED
@@ -6798,9 +6811,12 @@ void wolfSSL_EVP_init(void)
             #endif
 #endif /* !WC_NO_RNG */
                 break;
-#endif /* HAVE_AESGCM || WOLFSSL_SM4_GCM || (HAVE_CHACHA && HAVE_POLY1305) */
-#if (defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)) && !defined(_WIN32) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(2,0))
+#endif /* HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM ||
+        * (HAVE_CHACHA && HAVE_POLY1305) */
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(2,0))
             /*
              * Using EVP_CTRL_GCM_IV_GEN is a way to do AES-GCM encrypt/decrypt
              * multiple times with EVP_Cipher without having to call
@@ -6826,6 +6842,17 @@ void wolfSSL_EVP_init(void)
                 if ((ctx->cipherType == WC_SM4_GCM_TYPE) ||
                         (ctx->cipherType == WC_SM4_CCM_TYPE)) {
                     if (!ctx->cipher.sm4.keySet || ctx->ivSz == 0) {
+                        WOLFSSL_MSG("Key or IV not set");
+                        break;
+                    }
+                }
+                else
+            #endif
+            #ifdef HAVE_ARIA
+                if ((ctx->cipherType == WC_ARIA_128_GCM_TYPE) ||
+                        (ctx->cipherType == WC_ARIA_192_GCM_TYPE) ||
+                        (ctx->cipherType == WC_ARIA_256_GCM_TYPE)) {
+                    if (ctx->cipher.aria.hKey == NULL || ctx->ivSz == 0) {
                         WOLFSSL_MSG("Key or IV not set");
                         break;
                     }
@@ -6858,8 +6885,8 @@ void wolfSSL_EVP_init(void)
                 ctx->authIncIv = 1;
                 ret = WOLFSSL_SUCCESS;
                 break;
-#endif /* (HAVE_AESGCM || WOLFSSL_SM4_GCM) && !_WIN32 && !HAVE_SELFTEST &&
-        * !HAVE_FIPS || FIPS_VERSION >= 2)*/
+#endif /* (HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM) &&
+        * !_WIN32 && !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION >= 2) */
             case WOLFSSL_EVP_CTRL_AEAD_SET_TAG:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
@@ -7584,24 +7611,32 @@ void wolfSSL_EVP_init(void)
             ctx->enc = enc ? 1 : 0;
         }
 
-        switch(ctx->cipherType) {
-            case WC_ARIA_128_GCM_TYPE:
-                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_128BITKEY);
-                break;
-            case WC_ARIA_192_GCM_TYPE:
-                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_192BITKEY);
-                break;
-            case WC_ARIA_256_GCM_TYPE:
-                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_256BITKEY);
-                break;
-            default:
-                WOLFSSL_MSG("Unimplemented cipherType");
-                return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
-        }
-        if (ret != 0) {
-            WOLFSSL_MSG(MC_GetErrorString(ret));
-            WOLFSSL_MSG(MC_GetError(ctx->cipher.aria.hSession));
-            return WOLFSSL_FAILURE;
+        /* Re-opening the session destroys the key and nonce, so only a new
+         * cipher selection opens one; wc_AriaSetKey replaces the key. */
+        if ((type != NULL) || (ctx->cipher.aria.hSession == NULL)) {
+            switch(ctx->cipherType) {
+                case WC_ARIA_128_GCM_TYPE:
+                    ret = wc_AriaInitCrypt(&ctx->cipher.aria,
+                                           MC_ALGID_ARIA_128BITKEY);
+                    break;
+                case WC_ARIA_192_GCM_TYPE:
+                    ret = wc_AriaInitCrypt(&ctx->cipher.aria,
+                                           MC_ALGID_ARIA_192BITKEY);
+                    break;
+                case WC_ARIA_256_GCM_TYPE:
+                    ret = wc_AriaInitCrypt(&ctx->cipher.aria,
+                                           MC_ALGID_ARIA_256BITKEY);
+                    break;
+                default:
+                    /* This should never happen */
+                    WOLFSSL_MSG("Unimplemented cipherType");
+                    return WOLFSSL_NOT_IMPLEMENTED;
+            }
+            if (ret != 0) {
+                WOLFSSL_MSG(MC_GetErrorString(ret));
+                WOLFSSL_MSG(MC_GetError(ctx->cipher.aria.hSession));
+                return WOLFSSL_FAILURE;
+            }
         }
 
         if (key && wc_AriaSetKey(&ctx->cipher.aria, (byte *)key)) {
@@ -8934,6 +8969,7 @@ void wolfSSL_EVP_init(void)
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,

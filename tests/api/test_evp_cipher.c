@@ -1381,6 +1381,8 @@ int test_evp_cipher_aes_gcm_iv_fixed(void)
         ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aes_256_gcm(), key, NULL, 1),
                     SSL_SUCCESS);
         ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
+                    FIXED_SZ, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
                     FIXED_SZ, (void*)fixed), SSL_SUCCESS);
 
         for (j = 0; j < NUM_RECORDS; ++j) {
@@ -1429,6 +1431,101 @@ int test_evp_cipher_aes_gcm_iv_fixed(void)
         EVP_CIPHER_CTX_free(encCtx);
         encCtx = NULL;
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A tag length set before EVP_CTRL_AEAD_SET_IV_FIXED must survive it. */
+int test_evp_cipher_aead_iv_fixed_tag_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && !defined(WC_NO_RNG) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    enum {
+        CCM_SHORT_TAG_SZ = 8,
+        GCM_SHORT_TAG_SZ = 12
+    };
+    static const byte key[] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+        0x1c, 0x1d, 0x1e, 0x1f
+    };
+    static const byte fixed[4] = { 0xA1, 0xB2, 0xC3, 0xD4 };
+    static const byte plainText[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+    };
+    byte iv[GCM_NONCE_MID_SZ];
+    byte tag[AES_BLOCK_SIZE];
+    byte cipherText[sizeof(plainText)];
+    byte calcPlainText[sizeof(plainText)];
+    EVP_CIPHER_CTX* encCtx = NULL;
+    EVP_CIPHER_CTX* decCtx = NULL;
+    int outl;
+
+    XMEMSET(tag, 0, sizeof(tag));
+
+#ifdef HAVE_AESCCM
+    /* CCM binds the tag length into the tag, so a lost short length shows. */
+    ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aes_128_ccm(), key, NULL, 1),
+                SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_AEAD_SET_TAG,
+                CCM_SHORT_TAG_SZ, tag), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
+                sizeof(fixed), (void*)fixed), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1, iv),
+                SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(encCtx, cipherText, &outl, plainText,
+                sizeof(plainText)), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherFinal(encCtx, cipherText, &outl), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_AEAD_GET_TAG,
+                CCM_SHORT_TAG_SZ, tag), SSL_SUCCESS);
+    EVP_CIPHER_CTX_free(encCtx);
+    encCtx = NULL;
+
+    ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aes_128_ccm(), key, iv, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_AEAD_SET_TAG,
+                CCM_SHORT_TAG_SZ, tag), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl, cipherText,
+                sizeof(cipherText)), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl), SSL_SUCCESS);
+    ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(decCtx);
+    decCtx = NULL;
+#endif
+
+#ifdef HAVE_AESGCM
+    XMEMSET(iv, 0x5A, sizeof(iv));
+    ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aes_128_gcm(), key, iv, 1),
+                SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(encCtx, cipherText, &outl, plainText,
+                sizeof(plainText)), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherFinal(encCtx, cipherText, &outl), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_AEAD_GET_TAG,
+                sizeof(tag), tag), SSL_SUCCESS);
+    EVP_CIPHER_CTX_free(encCtx);
+    encCtx = NULL;
+
+    /* Verify a truncated tag that was set before the IV. */
+    ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aes_128_gcm(), key, NULL, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_AEAD_SET_TAG,
+                GCM_SHORT_TAG_SZ, tag), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+                iv), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl, cipherText,
+                sizeof(cipherText)), SSL_SUCCESS);
+    ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl), SSL_SUCCESS);
+    ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(decCtx);
+    decCtx = NULL;
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -2334,6 +2431,95 @@ int test_wolfssl_EVP_aria_gcm(void)
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
     return res;
 }
+/* ARIA-GCM records sealed after EVP_CTRL_AEAD_SET_IV_FIXED must keep the key
+ * and use the nonce that EVP_CTRL_GCM_IV_GEN reported. */
+int test_wolfssl_EVP_aria_gcm_iv_gen(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && !defined(WC_NO_RNG) && \
+    !defined(_WIN32) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    EXPECT_DECLS;
+    enum {
+        NUM_RECORDS = 3
+    };
+    static const byte key[ARIA_128_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const byte iv[GCM_NONCE_MID_SZ] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07
+    };
+    static const byte plainText[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+    };
+    static const int fixedLens[2] = { -1, 4 };
+    byte ivs[NUM_RECORDS][GCM_NONCE_MID_SZ];
+    byte expIv[GCM_NONCE_MID_SZ];
+    byte cipherText[sizeof(plainText) + ARIA_BLOCK_SIZE];
+    byte calcPlainText[sizeof(plainText) + ARIA_BLOCK_SIZE];
+    byte tag[ARIA_BLOCK_SIZE];
+    EVP_CIPHER_CTX* encCtx = NULL;
+    EVP_CIPHER_CTX* decCtx = NULL;
+    int t, f, j, k, outl;
+
+    /* Bit 0 of t picks the fixed-field form, bit 1 installs the key after
+     * EVP_CTRL_AEAD_SET_IV_FIXED instead of before it. */
+    for (t = 0; t < 4; ++t) {
+        f = t % 2;
+        ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aria_128_gcm(),
+            (t < 2) ? key : NULL, NULL, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
+            fixedLens[f], (void*)iv), WOLFSSL_SUCCESS);
+        if (t >= 2) {
+            ExpectIntEQ(EVP_CipherInit(encCtx, NULL, key, NULL, 1),
+                WOLFSSL_SUCCESS);
+        }
+
+        for (j = 0; j < NUM_RECORDS; ++j) {
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
+                ivs[j]), WOLFSSL_SUCCESS);
+            ExpectIntEQ(XMEMCMP(ivs[j], iv, 4), 0);
+            if (j > 0) {
+                XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
+                for (k = GCM_NONCE_MID_SZ - 1; k >= 0; k--) {
+                    if (++expIv[k] != 0)
+                        break;
+                }
+                ExpectBufEQ(ivs[j], expIv, sizeof(expIv));
+            }
+
+            ExpectIntEQ(EVP_CipherUpdate(encCtx, cipherText, &outl, plainText,
+                sizeof(plainText)), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherFinal(encCtx, cipherText, &outl),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_GET_TAG,
+                sizeof(tag), tag), WOLFSSL_SUCCESS);
+
+            ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aria_128_gcm(), key, ivs[j],
+                0), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+                sizeof(tag), tag), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl,
+                cipherText, sizeof(plainText)), WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl),
+                WOLFSSL_SUCCESS);
+            ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+            EVP_CIPHER_CTX_free(decCtx);
+            decCtx = NULL;
+        }
+
+        EVP_CIPHER_CTX_free(encCtx);
+        encCtx = NULL;
+    }
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
 
 int test_wolfssl_EVP_sm4_ecb(void)
 {
@@ -2627,19 +2813,21 @@ int test_wolfssl_EVP_sm4_iv(void)
 int test_wolfssl_EVP_sm4_aead_iv_gen(void)
 {
     int res = TEST_SKIPPED;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_GCM) && \
+#if defined(OPENSSL_EXTRA) && \
+    (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
     !defined(WC_NO_RNG) && !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
     (HAVE_FIPS_VERSION >= 2)))
     EXPECT_DECLS;
     enum {
-        NUM_RECORDS = 3
+        NUM_RECORDS = 3,
+        NONCE_SZ = 12
     };
     static const byte key[SM4_KEY_SIZE] = {
         0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
         0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
     };
-    static const byte iv[GCM_NONCE_MID_SZ] = {
+    static const byte iv[NONCE_SZ] = {
         0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x01, 0x02, 0x03,
         0x04, 0x05, 0x06, 0x07
     };
@@ -2650,8 +2838,8 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
     static const int fixedLens[2] = { -1, 4 };
     const EVP_CIPHER* ciphers[2];
     int numCiphers = 0;
-    byte ivs[NUM_RECORDS][GCM_NONCE_MID_SZ];
-    byte expIv[GCM_NONCE_MID_SZ];
+    byte ivs[NUM_RECORDS][NONCE_SZ];
+    byte expIv[NONCE_SZ];
     byte cipherText[sizeof(plainText)];
     byte calcPlainText[sizeof(plainText)];
     byte tag[SM4_BLOCK_SIZE];
@@ -2659,7 +2847,9 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
     EVP_CIPHER_CTX* decCtx = NULL;
     int t, c, f, m, j, k, outl;
 
+#ifdef WOLFSSL_SM4_GCM
     ciphers[numCiphers++] = EVP_sm4_gcm();
+#endif
 #ifdef WOLFSSL_SM4_CCM
     ciphers[numCiphers++] = EVP_sm4_ccm();
 #endif
@@ -2687,7 +2877,7 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
             ExpectIntEQ(XMEMCMP(ivs[j], iv, 4), 0);
             if (j > 0) {
                 XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
-                for (k = GCM_NONCE_MID_SZ - 1; k >= 0; k--) {
+                for (k = NONCE_SZ - 1; k >= 0; k--) {
                     if (++expIv[k] != 0)
                         break;
                 }
