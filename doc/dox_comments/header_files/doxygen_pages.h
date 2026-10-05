@@ -81,16 +81,24 @@
     When enabled via WOLF_CRYPTO_CB_AES_SETKEY, wolfSSL invokes a CryptoCB
     callback during AES key setup. The callback behavior determines the mode:
 
-    **If callback returns 0 (success):**
+    **If callback returns 0 (success) and leaves aes->rounds at 0:**
     - Key is imported to Secure Element/HSM
     - Key is NOT copied to wolfSSL RAM (true key isolation)
     - GCM tables are NOT generated (full hardware offload)
-    - All subsequent AES operations route through CryptoCB
+    - All subsequent AES operations route through CryptoCB; in default
+      builds a mode the callback declines returns MISSING_KEY, as does
+      streaming AES-GCM
+
+    A callback that sets aes->rounds must also write a valid key schedule
+    into aes->key, since wolfSSL then treats the key as a software key as
+    well.
 
     **If callback returns CRYPTOCB_UNAVAILABLE:**
     - SE doesn't support key import
     - Normal software AES path is used
     - Key is copied to devKey for CryptoCB encrypt/decrypt acceleration
+    - The callback must first release any key it holds for this object and
+      set aes->devCtx to NULL, since wolfSSL does not clear it
 
     This mode is compatible with Secure Elements and hardware-backed
     key storage and is intended for protecting TLS traffic keys.

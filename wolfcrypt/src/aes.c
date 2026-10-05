@@ -151,10 +151,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 /* aarch64 claim for the NEON GHASH and the XTS block routine.  Other builds
  * expand these to nothing. */
-/* gcmKeySet gates streaming GCM.  A failed claim leaves H underived, so the
- * flag must go back off or streaming would run with a stale H. */
+/* gcmKeySet and nonceSet gate streaming GCM; both go off with the key, or
+ * streaming would run with a stale H or the old key's counter state. */
 #ifdef WOLFSSL_AESGCM_STREAM
-    #define WC_AES_GCM_UNKEY(aes) do { (aes)->gcmKeySet = 0; } while (0)
+    #define WC_AES_GCM_UNKEY(aes) \
+        do { (aes)->gcmKeySet = 0; (aes)->nonceSet = 0; } while (0)
 #else
     #define WC_AES_GCM_UNKEY(aes) WC_DO_NOTHING
 #endif
@@ -5311,11 +5312,23 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
-            int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+            int ret;
+        #endif
+
+        #if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
+            aes->keyInstalled = 0;
+            aes->rounds = 0;
+            aes->keylen = 0;
+            WC_AES_GCM_UNKEY(aes);
+            ForceZero(aes->key, sizeof(aes->key));
+            ForceZero(aes->devKey, sizeof(aes->devKey));
+        #endif
+        #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+            ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
-                aes->keyInstalled = 1;
+                aes->keyInstalled = (aes->rounds != 0) ? 1 : 0;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -5335,10 +5348,13 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
             if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 if (cbRet == 0) {
-                    /* Callback succeeded - the device owns the key, so mark it
-                     * installed like the AES_SETKEY path above. */
+                    /* Callback succeeded - the device owns the key. */
                     aes->keylen = (int)keylen;
-                    aes->keyInstalled = 1;
+                    aes->keyInstalled = (aes->rounds != 0) ? 1 : 0;
+                    if (iv != NULL)
+                        XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                    else
+                        XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
                 }
                 return cbRet;
             }
@@ -5428,11 +5444,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
-            int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+            int ret;
+
+            aes->keyInstalled = 0;
+            aes->rounds = 0;
+            aes->keylen = 0;
+            WC_AES_GCM_UNKEY(aes);
+            ForceZero(aes->key, sizeof(aes->key));
+            ForceZero(aes->devKey, sizeof(aes->devKey));
+            ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
-                aes->keyInstalled = 1;
+                aes->keyInstalled = (aes->rounds != 0) ? 1 : 0;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -5853,7 +5877,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
-        int checkKeyLen);
+        int checkKeyLen, int* devOwned);
 
     /* AES - SetKey (block schedule via generated asm on RISC-V)
      *
@@ -5867,20 +5891,29 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         int checkKeyLen)
     {
         int ret;
+        int devOwned = 0;
 
         if (aes == NULL)
             return BAD_FUNC_ARG;
 
         aes->keyInstalled = 0;
-        ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen);
+        ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen,
+            &devOwned);
         aes->keyInstalled = (ret == 0) ? 1 : 0;
+    #ifndef WOLF_CRYPTO_CB_ONLY_AES
+        /* A claimed key runs in software only if the callback built a
+         * schedule for it. */
+        if (devOwned && (aes->rounds == 0)) {
+            aes->keyInstalled = 0;
+        }
+    #endif
 
         return ret;
     }
 
     static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
-        int checkKeyLen)
+        int checkKeyLen, int* devOwned)
     {
         int ret;
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
@@ -5891,6 +5924,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         word32 localSz = 32;
     #endif
 
+        (void)devOwned;
         if (aes == NULL)
             return BAD_FUNC_ARG;
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -5922,11 +5956,27 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         if (aes->devId != INVALID_DEVID)
         #endif
         {
+        #if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
+            /* Drop the old key's schedule before a device can claim the new
+             * key. */
+            aes->rounds = 0;
+            aes->keylen = 0;
+            WC_AES_GCM_UNKEY(aes);
+            ForceZero(aes->key, sizeof(aes->key));
+            ForceZero(aes->devKey, sizeof(aes->devKey));
+        #ifdef WC_C_DYNAMIC_FALLBACK
+            ForceZero(aes->key_C_fallback, sizeof(aes->key_C_fallback));
+        #endif
+        #ifdef WC_AES_BITSLICED
+            ForceZero(aes->bs_key, sizeof(aes->bs_key));
+        #endif
+        #endif
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
+                *devOwned = 1;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -5950,6 +6000,11 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                      * left at 0: there is no software key schedule, and the
                      * XTS entry points use that to reject the context. */
                     aes->keylen = (int)keylen;
+                    *devOwned = 1;
+                    if (iv != NULL)
+                        XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                    else
+                        XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
                 }
                 return cbRet;
             }
@@ -9112,6 +9167,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->gcm.aadLen = 0;
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
+    WC_AES_GCM_UNKEY(aes);
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
         XMEMCPY(nonce, aes->reg, sizeof(nonce));
@@ -9135,8 +9191,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (aes->devId != INVALID_DEVID)
     #endif
     {
-        /* rounds is 0 when a device claimed the key; there is no schedule. */
-        if ((ret == 0) && (aes->rounds == 0)) {
+        /* No schedule: a device claimed the key or the set-key failed. */
+        if ((ret != 0) || (aes->rounds == 0)) {
             ForceZero(aes->gcm.H, sizeof(aes->gcm.H));
         #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
             ForceZero(aes->gcm.M0, sizeof(aes->gcm.M0));
@@ -9149,7 +9205,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif
 #ifdef WOLFSSL_AESGCM_STREAM
-    aes->gcmKeySet = 1;
+    if (ret == 0) {
+        aes->gcmKeySet = 1;
+    }
 #endif
     #if defined(WOLFSSL_SECO_CAAM)
         if (aes->devId == WOLFSSL_SECO_DEVID) {
@@ -9247,14 +9305,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
 
-#ifdef WOLF_CRYPTO_CB_AES_SETKEY
-    if ((ret == 0) && (aes->devId != INVALID_DEVID && aes->devCtx != NULL)) {
-        /* SE owns key - skip H and M table generation */
-    }
-    else
-#endif
     if (ret == 0) {
-        VECTOR_REGISTERS_PUSH;
+        VECTOR_REGISTERS_PUSH2(WC_AES_GCM_UNKEY(aes););
 
 #if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM) && \
     !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
@@ -9305,6 +9357,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif /* !FREESCALE_LTC_AES_GCM && !WOLFSSL_PSOC6_CRYPTO */
 #endif
+#ifdef WOLFSSL_AESGCM_STREAM
+    if (ret != 0) {
+        WC_AES_GCM_UNKEY(aes);
+    }
+#endif
 
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
     wc_AesGcmSetKey_ex(aes, key, len, WOLFSSL_XILINX_AES_KEY_SRC);
@@ -9312,15 +9369,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
-        if (aes->devCtx != NULL) {
-            /* SE owns key - don't copy to devKey */
-        }
-        else
-    #endif
-        {
-            XMEMCPY(aes->devKey, key, len);
-        }
+        XMEMCPY(aes->devKey, key, len);
     }
 #endif
 
@@ -16831,6 +16880,13 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
     *keySize = aes->ctx.key.keySize;
     return ret;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    /* A key a crypto callback device owns has a length but no rounds. */
+    if ((aes->rounds == 0) && (aes->keylen != 0)) {
+        *keySize = (word32)aes->keylen;
+        return 0;
+    }
 #endif
     switch (aes->rounds) {
 #ifdef WOLFSSL_AES_128

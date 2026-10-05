@@ -523,7 +523,8 @@ struct Aes {
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
-     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * GcmSetKey). A key a crypto callback claims counts only if the callback
+     * also wrote a software key schedule.
      * Checked by the mode APIs so they fail instead of running with the
      * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
      * keySet field. Appended at the end of the struct so existing member
