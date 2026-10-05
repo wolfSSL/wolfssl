@@ -706,11 +706,13 @@ static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 /* operand-dependent timing on platforms whose shift is data dependent.      */
 /* ------------------------------------------------------------------------- */
 
-/* Return x unchanged but opaque to the optimizer, so that masks derived from
- * it are not turned into conditional branches. */
+/* Return x unchanged but opaque to the optimizer except on AArch64, so that
+ * masks derived from it are not turned into conditional branches. */
 static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
 {
-#if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+#if defined(__GNUC__) && defined(__aarch64__)
+    /* gcc and clang lower these selects to csel here, inlined or not. */
+#elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
     __asm__ __volatile__("" : "+r"(x));
 #else
     volatile word32 v = x;
@@ -798,11 +800,11 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
     /* If e >= -1076 the value is "normal"; otherwise it would be subnormal,
      * which we clamp down to zero. */
     e += 1076;
-    t = (word32)e >> 31;
+    t = fpr_ct_opaque32((word32)e >> 31);
     m &= (word64)t - 1;
 
     /* If m == 0 we want a zero: force e to 0 too (the sign is conserved). */
-    t = (word32)(m >> 54);
+    t = fpr_ct_opaque32((word32)(m >> 54));
     e &= -(int)t;
 
     /* The 52 stored mantissa bits come from m. Its top set bit (bit 54)
@@ -825,32 +827,32 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
                                                                 \
         (e) -= 63;                                              \
                                                                 \
-        nt_ = (word32)((m) >> 32);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 32));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
         (m) ^= ((m) ^ ((m) << 32)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_ << 5);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 48);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 48));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
         (m) ^= ((m) ^ ((m) << 16)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_ << 4);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 56);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 56));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
         (m) ^= ((m) ^ ((m) <<  8)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_ << 3);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 60);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 60));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
         (m) ^= ((m) ^ ((m) <<  4)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_ << 2);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 62);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 62));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
         (m) ^= ((m) ^ ((m) <<  2)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_ << 1);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 63);                               \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 63));              \
         (m) ^= ((m) ^ ((m) <<  1)) & ((word64)nt_ - 1);         \
         (e) += (int)(nt_);                                       \
     } while (0)
@@ -871,7 +873,7 @@ fpr fpr_scaled(sword64 i, int sc)
     word64 m;
 
     /* Sign and absolute value (-i == 1 + ~i). */
-    s = (int)((word64)i >> 63);
+    s = (int)fpr_ct_opaque32((word32)((word64)i >> 63));
     i ^= -(sword64)s;
     i += s;
 
@@ -886,7 +888,8 @@ fpr fpr_scaled(sword64 i, int sc)
     m >>= 9;
 
     /* Corrective action for i == 0: clamp e and m to zero. */
-    t = (word32)((word64)((word64)i | (word64)(0 - (word64)i)) >> 63);
+    t = fpr_ct_opaque32(
+        (word32)((word64)((word64)i | (word64)(0 - (word64)i)) >> 63));
     m &= (word64)0 - (word64)t;
     e &= -(int)t;
 
@@ -918,7 +921,7 @@ sword64 fpr_rint(fpr x)
     e = 1085 - ((int)(x >> 52) & 0x7FF);
 
     /* A shift of more than 63 bits sets m to zero (also covers x == 0). */
-    m &= (word64)0 - (word64)((word32)(e - 64) >> 31);
+    m &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(e - 64)) >> 31);
     e &= 63;
 
     /* Right-shift m by e, rounding to nearest with ties to even. We build a
@@ -974,7 +977,7 @@ sword64 fpr_trunc(fpr x)
 
     /* If the exponent is too low (cc > 63), clamp to zero (also covers
      * x == 0). */
-    xu &= (word64)0 - (word64)((word32)(cc - 64) >> 31);
+    xu &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(cc - 64)) >> 31);
 
     /* Apply the sign. */
     t = x >> 63;
@@ -998,8 +1001,7 @@ fpr fpr_add(fpr x, fpr y)
      * (and is +0 in the exact-cancellation case). */
     m = ((word64)1 << 63) - 1;
     za = (x & m) - (y & m);
-    cs = (word32)(za >> 63)
-         | ((1U - (word32)(((word64)0 - za) >> 63)) & (word32)(x >> 63));
+    cs = fpr_ct_opaque32((word32)((za - (x >> 63)) >> 32)) >> 31;
     cs = fpr_ct_opaque32(cs);
     m = (x ^ y) & ((word64)0 - (word64)cs);
     x ^= m;
@@ -1011,20 +1013,20 @@ fpr fpr_add(fpr x, fpr y)
     ex = (int)(x >> 52);
     sx = ex >> 11;
     ex &= 0x7FF;
-    m = (word64)(word32)((ex + 0x7FF) >> 11) << 52;
+    m = (word64)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11)) << 52;
     xu = ((x & (((word64)1 << 52) - 1)) | m) << 3;
     ex -= 1078;
     ey = (int)(y >> 52);
     sy = ey >> 11;
     ey &= 0x7FF;
-    m = (word64)(word32)((ey + 0x7FF) >> 11) << 52;
+    m = (word64)fpr_ct_opaque32((word32)((ey + 0x7FF) >> 11)) << 52;
     yu = ((y & (((word64)1 << 52) - 1)) | m) << 3;
     ey -= 1078;
 
     /* x has the larger exponent; right-shift y to align. A shift of 60 bits or
      * more clamps y to zero. */
     cc = ex - ey;
-    yu &= (word64)0 - (word64)((word32)(cc - 60) >> 31);
+    yu &= (word64)0 - (word64)(fpr_ct_opaque32((word32)(cc - 60)) >> 31);
     cc &= 63;
 
     /* The lowest bit of yu becomes sticky over the shifted-out bits. */
@@ -1033,7 +1035,8 @@ fpr fpr_add(fpr x, fpr y)
     yu = fpr_ursh(yu, cc);
 
     /* Same sign: add mantissas; differing signs: subtract. */
-    xu += yu - ((yu << 1) & ((word64)0 - (word64)(sx ^ sy)));
+    xu += yu - ((yu << 1)
+                & ((word64)0 - (word64)fpr_ct_opaque32((word32)(sx ^ sy))));
 
     /* Renormalize the (possibly cancelled or carried) result. */
     FPR_NORM64(xu, ex);
@@ -1067,7 +1070,7 @@ fpr fpr_half(fpr x)
     word32 t;
 
     x -= (word64)1 << 52;
-    t = (((word32)(x >> 52) & 0x7FF) + 1) >> 11;
+    t = fpr_ct_opaque32((((word32)(x >> 52) & 0x7FF) + 1) >> 11);
     x &= (word64)t - 1;
     return x;
 }
@@ -1168,7 +1171,7 @@ fpr fpr_div(fpr x, fpr y)
     /* Normalize q to the 2^54..2^55-1 range (conditional shift, sticky-aware);
      * the top bit may be zero but then the next bit is one. */
     q2 = (q >> 1) | (q & 1);
-    w = q >> 55;
+    w = fpr_ct_opaque32((word32)(q >> 55));
     q ^= (q ^ q2) & ((word64)0 - w);
 
     /* Scaling: exponent biases cancel; remove 55 (division shift) and add w. */
@@ -1181,7 +1184,7 @@ fpr fpr_div(fpr x, fpr y)
 
     /* Corrective action for x == 0 (division by zero is excluded by the
      * caller's contract). */
-    d = (ex + 0x7FF) >> 11;
+    d = (int)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11));
     s &= d;
     e &= -d;
     q &= (word64)0 - (word64)d;
@@ -1208,7 +1211,7 @@ fpr fpr_sqrt(fpr x)
 
     /* If the exponent is odd, double the mantissa and decrement the exponent,
      * then halve the exponent for the square root. */
-    xu += xu & ((word64)0 - (word64)(e & 1));
+    xu += xu & ((word64)0 - (word64)fpr_ct_opaque32((word32)e & 1));
     e >>= 1;
 
     /* Double the mantissa: now in 2^53..2^55-1, representing a value in
@@ -1240,7 +1243,7 @@ fpr fpr_sqrt(fpr x)
     e -= 54;
 
     /* Corrective action for an operand of value zero. */
-    q &= (word64)0 - (word64)((ex + 0x7FF) >> 11);
+    q &= (word64)0 - (word64)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11));
 
     return FPR(0, e, q);
 }
@@ -1261,12 +1264,14 @@ int fpr_lt(fpr x, fpr y)
 
     sx = (sword64)x;
     sy = (sword64)y;
-    sy &= ~((sx ^ sy) >> 63); /* sy = 0 if the signs differ */
+    /* sy = 0 if the signs differ */
+    sy &= (sword64)fpr_ct_opaque32((word32)((x ^ y) >> 63)) - 1;
 
-    cc0 = (int)((sx - sy) >> 63) & 1; /* neither subtraction overflows when */
-    cc1 = (int)((sy - sx) >> 63) & 1; /* the signs are the same             */
+    /* Neither subtraction overflows when the signs are the same. */
+    cc0 = (int)(fpr_ct_opaque32((word32)((word64)(sx - sy) >> 32)) >> 31);
+    cc1 = (int)(fpr_ct_opaque32((word32)((word64)(sy - sx) >> 32)) >> 31);
 
-    return cc0 ^ ((cc0 ^ cc1) & (int)((x & y) >> 63));
+    return cc0 ^ ((cc0 ^ cc1) & (int)fpr_ct_opaque32((word32)((x & y) >> 63)));
 }
 #endif /* !WOLFSSL_FALCON_FPR_ASM */
 
