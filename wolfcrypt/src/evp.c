@@ -1413,6 +1413,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
+            /* A generated IV is spent even when the operation failed. */
+            ctx->authIncIv = 0;
             break;
 #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
@@ -1613,6 +1615,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
+            ctx->authIncIv = 0;
             break;
 #endif
 #ifdef WOLFSSL_SM4_CCM
@@ -1664,6 +1667,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
+            ctx->authIncIv = 0;
             break;
 #endif
         default:
@@ -1729,7 +1733,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 
     if (ret == WOLFSSL_SUCCESS) {
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
+     defined(HAVE_ARIA)) && \
         ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
             || FIPS_VERSION_GE(2,0))
         byte tmp = 0;
@@ -1757,6 +1762,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         #ifdef WOLFSSL_SM4_CCM
             || ctx->cipherType == WC_SM4_CCM_TYPE
         #endif
+        #ifdef HAVE_ARIA
+            || ctx->cipherType == WC_ARIA_128_GCM_TYPE ||
+            ctx->cipherType == WC_ARIA_192_GCM_TYPE ||
+            ctx->cipherType == WC_ARIA_256_GCM_TYPE
+        #endif
             ) {
             tmp = ctx->authIvGenEnable;
         }
@@ -1766,7 +1776,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         ret = wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
 
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
+     defined(HAVE_ARIA)) && \
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || FIPS_VERSION_GE(2,0))
         if (FALSE
         #ifdef HAVE_AESGCM
@@ -1784,6 +1795,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         #endif
         #ifdef WOLFSSL_SM4_CCM
             || ctx->cipherType == WC_SM4_CCM_TYPE
+        #endif
+        #ifdef HAVE_ARIA
+            || ctx->cipherType == WC_ARIA_128_GCM_TYPE ||
+            ctx->cipherType == WC_ARIA_192_GCM_TYPE ||
+            ctx->cipherType == WC_ARIA_256_GCM_TYPE
         #endif
             ) {
             ctx->authIvGenEnable = (tmp == 1);
@@ -6877,6 +6893,12 @@ void wolfSSL_EVP_init(void)
                     WOLFSSL_MSG("Destination buffer for IV bytes NULL.");
                     break;
                 }
+                if (ctx->authIncIv) {
+                    /* The IV handed out last time has not been used yet. */
+                    WOLFSSL_MSG("EVP_CTRL_GCM_IV_GEN called twice without a "
+                                "cipher operation");
+                    break;
+                }
                 if (arg <= 0 || arg > ctx->ivSz) {
                     XMEMCPY(ptr, ctx->iv, (size_t)ctx->ivSz);
                 }
@@ -7418,6 +7440,7 @@ void wolfSSL_EVP_init(void)
                            ctx->cipher.aes.nonceSz);
                 }
             }
+            ctx->authIncIv = 0;
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
             if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
                               (byte*)ctx->cipher.aes.reg,
@@ -7425,7 +7448,6 @@ void wolfSSL_EVP_init(void)
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 return WOLFSSL_FAILURE;
             }
-            ctx->authIncIv = 0;
         }
     #endif /* WOLFSSL_AESGCM_STREAM */
         if (src == NULL) {
@@ -9221,7 +9243,7 @@ void wolfSSL_EVP_init(void)
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
                 }
-                if ((ret == 0) && ctx->authIncIv) {
+                if (ctx->authIncIv) {
                     IncCtr((byte*)ctx->cipher.aria.nonce,
                            ctx->cipher.aria.nonceSz);
                     ctx->authIncIv = 0;

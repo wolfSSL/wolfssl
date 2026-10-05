@@ -1388,6 +1388,11 @@ int test_evp_cipher_aes_gcm_iv_fixed(void)
         for (j = 0; j < NUM_RECORDS; ++j) {
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
                         ivs[j]), SSL_SUCCESS);
+            if (j == 0) {
+                /* A second IV is refused until the first one is used. */
+                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN,
+                    -1, expIv), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            }
             ExpectIntEQ(XMEMCMP(ivs[j], fixed, FIXED_SZ), 0);
             if (j > 0) {
                 XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
@@ -1489,6 +1494,11 @@ int test_evp_cipher_aes_ccm_iv_gen(void)
         for (j = 0; j < NUM_RECORDS; ++j) {
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
                 ivs[j]), WOLFSSL_SUCCESS);
+            if (j == 0) {
+                /* A second IV is refused until the first one is used. */
+                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN,
+                    -1, expIv), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            }
             ExpectIntEQ(XMEMCMP(ivs[j], iv, 4), 0);
             if (j > 0) {
                 XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
@@ -2565,13 +2575,16 @@ int test_wolfssl_EVP_aria_gcm_iv_gen(void)
     byte tag[ARIA_BLOCK_SIZE];
     EVP_CIPHER_CTX* encCtx = NULL;
     EVP_CIPHER_CTX* decCtx = NULL;
-    int t, f, j, k, outl;
+    int t, f, j, k, outl, tagSz;
 
     /* Bit 0 of t picks the fixed-field form, bit 1 installs the key after
      * EVP_CTRL_AEAD_SET_IV_FIXED instead of before it, bit 2 seals with
-     * EVP_Cipher instead of EVP_CipherUpdate/Final. */
-    for (t = 0; t < 8; ++t) {
+     * EVP_Cipher instead of EVP_CipherUpdate/Final, bit 3 uses a short tag
+     * that must hold for every record. */
+    XMEMSET(tag, 0, sizeof(tag));
+    for (t = 0; t < 16; ++t) {
         f = t % 2;
+        tagSz = ((t & 8) != 0) ? 12 : (int)sizeof(tag);
         ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
         ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aria_128_gcm(),
             ((t & 2) == 0) ? key : NULL, NULL, 1), WOLFSSL_SUCCESS);
@@ -2581,10 +2594,17 @@ int test_wolfssl_EVP_aria_gcm_iv_gen(void)
             ExpectIntEQ(EVP_CipherInit(encCtx, NULL, key, NULL, 1),
                 WOLFSSL_SUCCESS);
         }
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_TAG, tagSz,
+            tag), WOLFSSL_SUCCESS);
 
         for (j = 0; j < NUM_RECORDS; ++j) {
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
                 ivs[j]), WOLFSSL_SUCCESS);
+            if (j == 0) {
+                /* A second IV is refused until the first one is used. */
+                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN,
+                    -1, expIv), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            }
             ExpectIntEQ(XMEMCMP(ivs[j], iv, 4), 0);
             if (j > 0) {
                 XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
@@ -2606,13 +2626,13 @@ int test_wolfssl_EVP_aria_gcm_iv_gen(void)
                     sizeof(plainText)), 0);
             }
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_GET_TAG,
-                sizeof(tag), tag), WOLFSSL_SUCCESS);
+                tagSz, tag), WOLFSSL_SUCCESS);
 
             ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
             ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aria_128_gcm(), key, ivs[j],
                 0), WOLFSSL_SUCCESS);
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
-                sizeof(tag), tag), WOLFSSL_SUCCESS);
+                tagSz, tag), WOLFSSL_SUCCESS);
             ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl,
                 cipherText, sizeof(plainText)), WOLFSSL_SUCCESS);
             ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl),
@@ -2988,6 +3008,11 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
         for (j = 0; j < NUM_RECORDS; ++j) {
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN,
                 -1, ivs[j]), WOLFSSL_SUCCESS);
+            if (j == 0) {
+                /* A second IV is refused until the first one is used. */
+                ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN,
+                    -1, expIv), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            }
             ExpectIntEQ(XMEMCMP(ivs[j], iv, 4), 0);
             if (j > 0) {
                 XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
