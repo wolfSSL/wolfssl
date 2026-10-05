@@ -9339,3 +9339,179 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
+/* Feed a message to wc_PKCS7_VerifySignedData() one byte per call. */
+static int pkcs7_verify_bytewise(PKCS7* pkcs7, byte* in, int inSz)
+{
+    int ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    int z;
+
+    for (z = 0; z < inSz && ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+            z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, in + z, 1);
+    }
+    return ret;
+}
+#endif
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/* Write a DER tag and definite length, or only size them when out is NULL. */
+static word32 pkcs7_der_hdr(byte* out, byte tag, word32 len)
+{
+    word32 lenBytes = 0;
+    word32 n;
+    word32 i;
+
+    if (len >= 0x80) {
+        for (n = len; n > 0; n >>= 8)
+            lenBytes++;
+    }
+    if (out != NULL) {
+        out[0] = tag;
+        if (lenBytes == 0) {
+            out[1] = (byte)len;
+        }
+        else {
+            out[1] = (byte)(ASN_LONG_LENGTH | lenBytes);
+            for (i = 0; i < lenBytes; i++)
+                out[2 + i] = (byte)(len >> (8 * (lenBytes - 1 - i)));
+        }
+    }
+    return 2 + lenBytes;
+}
+
+/* Encode a certificates-only SignedData holding count copies of the client
+ * certificate, listing SHA-256 in digestAlgorithms when digestAlg is set. */
+static int pkcs7_encode_raw_cert_set(byte* out, word32 outSz, int count,
+    int digestAlg)
+{
+    static const byte signedDataOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02
+    };
+    static const byte version[] = { 0x02, 0x01, 0x01 };
+    static const byte noDigestAlgs[] = { 0x31, 0x00 };
+    static const byte sha256DigestAlgs[] = {
+        0x31, 0x0F, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+        0x03, 0x04, 0x02, 0x01, 0x05, 0x00
+    };
+    static const byte dataContentInfo[] = {
+        0x30, 0x0B, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01
+    };
+    static const byte noSigners[] = { 0x31, 0x00 };
+    const byte* digestAlgs = digestAlg ? sha256DigestAlgs : noDigestAlgs;
+    word32 digestAlgsSz = digestAlg ? (word32)sizeof(sha256DigestAlgs) :
+                                      (word32)sizeof(noDigestAlgs);
+    word32 setSz;
+    word32 sdSz;
+    word32 expSz;
+    word32 ciSz;
+    word32 idx = 0;
+    int    i;
+
+    setSz = (word32)count * (word32)sizeof_client_cert_der_2048;
+    sdSz  = (word32)sizeof(version) + digestAlgsSz +
+            (word32)sizeof(dataContentInfo) + pkcs7_der_hdr(NULL, 0, setSz) +
+            setSz + (word32)sizeof(noSigners);
+    expSz = pkcs7_der_hdr(NULL, 0, sdSz) + sdSz;
+    ciSz  = (word32)sizeof(signedDataOid) + pkcs7_der_hdr(NULL, 0, expSz) +
+            expSz;
+    if (pkcs7_der_hdr(NULL, 0, ciSz) + ciSz > outSz)
+        return BUFFER_E;
+
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_SEQUENCE, ciSz);
+    XMEMCPY(out + idx, signedDataOid, sizeof(signedDataOid));
+    idx += (word32)sizeof(signedDataOid);
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC,
+        expSz);
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_SEQUENCE, sdSz);
+    XMEMCPY(out + idx, version, sizeof(version));
+    idx += (word32)sizeof(version);
+    XMEMCPY(out + idx, digestAlgs, digestAlgsSz);
+    idx += digestAlgsSz;
+    XMEMCPY(out + idx, dataContentInfo, sizeof(dataContentInfo));
+    idx += (word32)sizeof(dataContentInfo);
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC,
+        setSz);
+    for (i = 0; i < count; i++) {
+        XMEMCPY(out + idx, client_cert_der_2048, sizeof_client_cert_der_2048);
+        idx += (word32)sizeof_client_cert_der_2048;
+    }
+    XMEMCPY(out + idx, noSigners, sizeof(noSigners));
+    idx += (word32)sizeof(noSigners);
+
+    return (int)idx;
+}
+#endif
+
+/* A certificates-only bundle with more certificates than cert[] holds is
+ * refused instead of being truncated; a signed message still verifies. */
+int test_wc_PKCS7_VerifySignedData_CertSetOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  bundle = NULL;
+    byte*  fit = NULL;
+    word32 bundleMax = (MAX_PKCS7_CERTS + 2) * sizeof_client_cert_der_2048 +
+                       FOURK_BUF;
+    int    bundleSz = 0;
+    int    fitSz = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(bundle = (byte*)XMALLOC(bundleMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(fit = (byte*)XMALLOC(bundleMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntGT((fitSz = pkcs7_encode_cert_set(fit, bundleMax,
+        MAX_PKCS7_CERTS, 1, &rng)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->cert[MAX_PKCS7_CERTS - 1]);
+    }
+
+    /* The same object accepts a bundle that fits after each refusal. */
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, &rng)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+
+    /* With degenerate bundles disallowed, the policy error is reported. */
+    ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_AllowDegenerate(pkcs7, 1);
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, &rng)), 0);
+
+#ifndef NO_PKCS7_STREAM
+    ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, bundle, bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, fit, fitSz), 0);
+#endif
+
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 0, &rng)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    XFREE(fit, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bundle, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

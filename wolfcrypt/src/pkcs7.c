@@ -204,6 +204,7 @@ struct PKCS7State {
     WC_BITFIELD indefLen:1; /* flag to indicate indef-length encoding used */
     WC_BITFIELD indefEci:1;     /* EncryptedContentInfo is indefinite */
     WC_BITFIELD indefContent:1; /* encryptedContent is fragmented */
+    WC_BITFIELD certSetOverflow:1; /* certs set exceeds MAX_PKCS7_CERTS */
 };
 
 
@@ -292,6 +293,7 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->varThree = 0;
         pkcs7->stream->noContent    = 0;
         pkcs7->stream->indefLen     = 0;
+        pkcs7->stream->certSetOverflow = 0;
         pkcs7->stream->cntIdfCnt    = 0;
         pkcs7->stream->currContIdx  = 0;
         pkcs7->stream->currContSz   = 0;
@@ -7023,6 +7025,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 localIdx, start;
     word32 certIdx, certIdx2;
     byte degenerate = 0;
+    byte certSetOverflow = 0;
     byte detached = 0;
     byte noContent = 0;
     byte tag = 0;
@@ -8125,6 +8128,18 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                                 certIdx += (word32)sz;
                             }
                         }
+
+                        /* cert[] is full and another certificate follows */
+                        if (ret == 0 && i == MAX_PKCS7_CERTS &&
+                                certIdx + 1 < pkiMsg2Sz &&
+                                certIdx + 1 < certSetEnd &&
+                                pkiMsg2[certIdx] ==
+                                    (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                            certSetOverflow = 1;
+                        }
+                    #ifndef NO_PKCS7_STREAM
+                        pkcs7->stream->certSetOverflow = (certSetOverflow != 0);
+                    #endif
                     }
                 }
                 idx += (word32)length;
@@ -8294,7 +8309,18 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 degenerate = (length == 0) ? 1 : 0;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->degenerate = (degenerate != 0);
+                certSetOverflow = pkcs7->stream->certSetOverflow;
             #endif
+            }
+
+            if (ret == 0 && degenerate && certSetOverflow &&
+                    !pkcs7->noDegenerate) {
+                WOLFSSL_MSG("Certificates-only bundle holds more than "
+                            "MAX_PKCS7_CERTS certificates");
+                ret = BUFFER_E;
+            }
+            else if (ret == 0 && certSetOverflow) {
+                WOLFSSL_MSG("Certificates past MAX_PKCS7_CERTS are not stored");
             }
 
             if (ret != 0)

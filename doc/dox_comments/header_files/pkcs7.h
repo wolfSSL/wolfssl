@@ -345,7 +345,8 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -427,7 +428,8 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
