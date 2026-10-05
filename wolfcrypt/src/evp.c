@@ -1733,6 +1733,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
             || FIPS_VERSION_GE(2,0))
         byte tmp = 0;
+        int tagSz = ctx->authTagSz;
 
         /*
          * This flag needs to retain its value between wolfSSL_EVP_CipherFinal
@@ -1786,6 +1787,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         #endif
             ) {
             ctx->authIvGenEnable = (tmp == 1);
+            /* The re-init above also resets a caller-selected tag length. */
+            ctx->authTagSz = tagSz;
         }
 #endif
     }
@@ -9217,6 +9220,11 @@ void wolfSSL_EVP_init(void)
                     ret = wc_AriaDecrypt(&ctx->cipher.aria, dst, src, len,
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
+                }
+                if ((ret == 0) && ctx->authIncIv) {
+                    IncCtr((byte*)ctx->cipher.aria.nonce,
+                           ctx->cipher.aria.nonceSz);
+                    ctx->authIncIv = 0;
                 }
                 break;
 #endif /* HAVE_ARIA&& ((!HAVE_FIPS && !HAVE_SELFTEST) ||
