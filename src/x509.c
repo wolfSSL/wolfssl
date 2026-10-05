@@ -6940,16 +6940,10 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
 }
 
 /* Returns the public key cached in x509, decoding it on first use.
- *
- * The key is owned by x509 and freed with it. Concurrent first calls each
- * decode; the first to publish wins and the others free their copy.
- */
+ * The key is owned by x509 and freed with it. */
 static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key;
-#ifdef WOLFSSL_ATOMIC_OPS
-    WOLFSSL_EVP_PKEY* current = NULL;
-#endif
 
     if (x509 == NULL)
         return NULL;
@@ -6957,18 +6951,8 @@ static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
     if (key == NULL) {
         key = X509DecodePubKey(x509);
         if (key != NULL) {
-            /* Set before publishing the pointer, so a reader that sees the
-             * key never sees an OID of 0 next to it. */
             x509->key.pubKeyOID = x509->pubKeyOID;
-        #ifdef WOLFSSL_ATOMIC_OPS
-            if (!wolfSSL_Atomic_Ptr_CompareExchange(
-                    (void* volatile*)&x509->key.pkey, (void**)&current, key)) {
-                wolfSSL_EVP_PKEY_free(key);
-                key = current;
-            }
-        #else
             x509->key.pkey = key;
-        #endif
         }
     }
     return key;
