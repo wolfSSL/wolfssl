@@ -46,7 +46,7 @@ on:
     branches: [ master ]
     paths:
       - '.github/ci-deps/**'
-      - '.github/scripts/apt-install.sh'
+      - '.github/actions/install-apt-deps/apt-install.sh'
       - '.github/scripts/download-deb-closure.sh'
       - '.github/workflows/ci-deps-image.yml'
   workflow_dispatch:
@@ -227,7 +227,7 @@ jobs:
       - uses: actions/checkout@v5
         if: steps.check.outputs.rebuild == 'true'
         with:
-          sparse-checkout: .github/scripts
+          sparse-checkout: .github/actions/install-apt-deps
 
       - name: Resolve and download the .deb closure
         if: steps.check.outputs.rebuild == 'true'
@@ -249,8 +249,9 @@ jobs:
           # on success, so a transient mirror error keeps the last good bundle
           # rather than publishing a partial one - which the kernel-label skip
           # would then pin in place until the kernel next changes (~monthly).
-          .github/scripts/apt-install.sh --tries 2 --update-timeout 60 \
-            --drop-vendor-sources --download-only "${PKGS[@]}"
+          .github/actions/install-apt-deps/apt-install.sh --tries 2 \
+            --update-timeout 60 --drop-vendor-sources --download-only \
+            "${PKGS[@]}"
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
           echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files"
           test -n "$(ls debs/*.deb 2>/dev/null)"  # headers are never preinstalled
