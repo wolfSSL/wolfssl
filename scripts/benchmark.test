@@ -111,11 +111,11 @@ then
     server_pid=$!
 fi
 
-# NOTE: We sleep for 2 seconds below. If timing the execution of this script
-#       with "time", bear in mind that those 2 seconds will be reflected in
+# NOTE: We wait up to 10 seconds below. If timing the execution of this script
+#       with "time", bear in mind that this wait will be reflected in
 #       the "real" time.
 echo "Waiting for server_ready file..."
-while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
+while [ ! -s "$ready_file" -a "$counter" -lt 100 ]; do
     sleep 0.1
     counter=$((counter+ 1))
 done
