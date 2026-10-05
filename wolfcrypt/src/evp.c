@@ -1588,9 +1588,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
+                /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.sm4.iv, ctx->cipher.sm4.nonceSz);
-                    ctx->authIncIv = 0;
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
             }
             else {
@@ -1639,9 +1639,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBuffer = NULL;
                 ctx->authBufferLen = 0;
 
+                /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
                 if (ctx->authIncIv) {
-                    IncCtr((byte*)ctx->cipher.sm4.iv, ctx->cipher.sm4.nonceSz);
-                    ctx->authIncIv = 0;
+                    IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
             }
             else {
@@ -6818,6 +6818,16 @@ void wolfSSL_EVP_init(void)
                                 "EVP_CTRL_GCM_IV_GEN");
                     break;
                 }
+            #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+                if ((ctx->cipherType == WC_SM4_GCM_TYPE) ||
+                        (ctx->cipherType == WC_SM4_CCM_TYPE)) {
+                    if (!ctx->cipher.sm4.keySet || ctx->ivSz == 0) {
+                        WOLFSSL_MSG("Key or IV not set");
+                        break;
+                    }
+                }
+                else
+            #endif
                 if (ctx->cipher.aes.keylen == 0 || ctx->ivSz == 0) {
                     WOLFSSL_MSG("Key or IV not set");
                     break;
@@ -8600,7 +8610,7 @@ void wolfSSL_EVP_init(void)
                     return WOLFSSL_FAILURE;
                 }
             }
-            if (iv != NULL) {
+            if ((iv != NULL) && (iv != ctx->iv)) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
         }
@@ -8630,7 +8640,7 @@ void wolfSSL_EVP_init(void)
                     return WOLFSSL_FAILURE;
                 }
             }
-            if (iv != NULL) {
+            if ((iv != NULL) && (iv != ctx->iv)) {
                 XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
             }
         }
@@ -9268,10 +9278,12 @@ void wolfSSL_EVP_init(void)
                                 ctx->authInSz);
                     }
                     if (ctx->authIncIv) {
-                        IncCtr((byte*)ctx->cipher.sm4.iv,
-                               ctx->cipher.sm4.nonceSz);
+                        IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
+                }
+                if ((ret == 0) && (src != NULL)) {
+                    ret = (int)len;
                 }
                 break;
 #endif
@@ -9296,8 +9308,7 @@ void wolfSSL_EVP_init(void)
                                 ctx->authInSz);
                     }
                     if (ctx->authIncIv) {
-                        IncCtr((byte*)ctx->cipher.sm4.iv,
-                               ctx->cipher.sm4.nonceSz);
+                        IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
                 }
@@ -9311,7 +9322,7 @@ void wolfSSL_EVP_init(void)
                     }
                     ctx->authInSz = 0;
                 }
-                if (ret == 0) {
+                if ((ret == 0) && (src != NULL)) {
                     ret = (int)len;
                 }
                 break;
