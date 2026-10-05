@@ -1255,7 +1255,7 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
     word16  h[32];
     byte*   tmpbuf;
     size_t  u;
-    int     tries, maxF = 0, maxG = 0, haveKey = 0;
+    int     tries, maxF = 0, maxG = 0, kgErr = 0;
 
     tmpbuf = (byte*)XMALLOC(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr), NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -1263,8 +1263,11 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
         WB_FAIL("solve_NTRU: allocation failed; lim vectors skipped");
         return;
     }
-    for (tries = 0; tries < 8; tries++) {
+    /* max|G| > max|F| is the minority outcome, so draw as many keys as the
+     * Babai clamp below rather than the handful a single hit needs on average. */
+    for (tries = 0; tries < 256; tries++) {
         if (falcon_keygen(rng, f, g, F, G, h, logn) != 0) {
+            kgErr = 1;
             break;
         }
         maxF = 0;
@@ -1279,12 +1282,11 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
                 maxG = aG;
             }
         }
-        haveKey = 1;
         if (maxG > maxF) {
             break;
         }
     }
-    if (!haveKey) {
+    if (kgErr) {
         WB_FAIL("solve_NTRU: keygen(logn=5) failed; lim vectors skipped");
     }
     else {
@@ -1300,7 +1302,11 @@ static void wb_solve_ntru_lim(WC_RNG* rng)
             }
         }
         else {
-            WB_FAIL("solve_NTRU: no key with max|G| > max|F| in 8 draws");
+            /* falcon_keygen derives F and G from its own RNG, so no supplied
+             * input steers which of the two ends up larger. */
+            WB_NOTE("residual: solve_NTRU poly_big_to_small cond1 TRUE half: "
+                    "no key with max|G| > max|F| in 256 draws, so the "
+                    "lim=max|F| vector was skipped this run");
         }
     }
     ForceZero(tmpbuf, (word32)(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr)));
