@@ -1661,6 +1661,7 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #endif
     byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     int ret = 0;
+    word32 ctSz = 0;
 #ifdef WOLFSSL_MLKEM_KYBER
     unsigned int cSz = 0;
 #endif
@@ -1812,6 +1813,12 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
         }
     }
 #endif
+
+    if ((ret != 0) && (ct != NULL) &&
+            (wc_MlKemKey_CipherTextSize(key, &ctSz) == 0)) {
+        /* FIPS 203 3.3: a failed encapsulation leaves no ciphertext. */
+        ForceZero(ct, ctSz);
+    }
 
 #ifdef WOLFSSL_MLKEM_KYBER
     /* msg holds the secret message H(rand) used for Kyber encapsulation;
