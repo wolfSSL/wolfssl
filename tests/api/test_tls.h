@@ -33,6 +33,7 @@ int test_tls_get_peer_tmp_key(void);
 int test_tls_get_negotiated_group(void);
 int test_tls_alert_info_cb(void);
 int test_tls_shutdown_in_init(void);
+int test_tls_unknown_record_type_alert(void);
 int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
 int test_tls12_ske_sig_param_binding(void);
@@ -56,6 +57,9 @@ int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
 int test_tls12_resume_ticket_decline_fallback(void);
+int test_tls12_ticket_dropped_on_bad_finished(void);
+int test_tls12_ticket_cached_after_finished(void);
+int test_tls12_empty_ticket_keeps_cached(void);
 int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
 int test_tls13_session_resumption_sni_mismatch(void);
@@ -74,6 +78,7 @@ int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
 int test_tls12_aesgcm_record_nonce_unique(void);
+int test_tls_param_flags_crl_check(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -87,6 +92,7 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls_get_negotiated_group),                 \
         TEST_DECL_GROUP("tls", test_tls_alert_info_cb),                        \
         TEST_DECL_GROUP("tls", test_tls_shutdown_in_init),                     \
+        TEST_DECL_GROUP("tls", test_tls_unknown_record_type_alert),            \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \
         TEST_DECL_GROUP("tls", test_tls12_dhe_rsa_pss_sigalg),                 \
         TEST_DECL_GROUP("tls", test_tls12_ske_sig_param_binding),              \
@@ -111,6 +117,9 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \
+        TEST_DECL_GROUP("tls", test_tls12_ticket_dropped_on_bad_finished),     \
+        TEST_DECL_GROUP("tls", test_tls12_ticket_cached_after_finished),       \
+        TEST_DECL_GROUP("tls", test_tls12_empty_ticket_keeps_cached),          \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
@@ -130,6 +139,7 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
         TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),               \
-        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique)
+        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique),         \
+        TEST_DECL_GROUP("tls", test_tls_param_flags_crl_check)
 
 #endif /* TESTS_API_TEST_TLS_H */

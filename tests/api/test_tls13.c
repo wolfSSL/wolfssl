@@ -292,14 +292,39 @@ int test_tls13_apis(void)
         WC_NO_ERR_TRACE(SIDE_ERROR));
 #endif
 #ifndef NO_WOLFSSL_SERVER
+    ExpectIntEQ(wolfSSL_enable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_disable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectIntEQ(wolfSSL_enable_cookie(clientSsl), WC_NO_ERR_TRACE(SIDE_ERROR));
+    ExpectIntEQ(wolfSSL_disable_cookie(clientSsl), WC_NO_ERR_TRACE(SIDE_ERROR));
+#endif
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverTls12Ssl, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_enable_cookie(serverTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_disable_cookie(serverTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 1);
+    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, NULL, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, fixedKey, sizeof(fixedKey)),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->buffers.tls13CookieSecret.length, sizeof(fixedKey));
+    ExpectBufEQ(serverSsl->buffers.tls13CookieSecret.buffer, fixedKey,
+        sizeof(fixedKey));
+    ExpectIntEQ(wolfSSL_disable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 0);
+    ExpectNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(serverSsl->buffers.tls13CookieSecret.length, 0);
+    ExpectIntEQ(wolfSSL_disable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 1);
+    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
 #endif
 #endif
 
@@ -10440,9 +10465,6 @@ int test_tls13_post_handshake_auth_no_ext(void)
      * one anyway by toggling the flag directly. */
     if (ssl_s != NULL)
         ssl_s->options.postHandshakeAuth = 1;
-    /* OPENSSL_COMPATIBLE_DEFAULTS may leave groupMessages set on ssl_s; that
-     * suppresses SendBuffered() for the post-handshake CertificateRequest. */
-    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntGT(test_ctx.c_len, 0);
 
@@ -10495,9 +10517,6 @@ int test_tls13_post_handshake_auth_late_allow(void)
 
     if (ssl_s != NULL)
         ssl_s->options.postHandshakeAuth = 1;
-    /* OPENSSL_COMPATIBLE_DEFAULTS may leave groupMessages set on ssl_s; that
-     * suppresses SendBuffered() for the post-handshake CertificateRequest. */
-    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntGT(test_ctx.c_len, 0);
 
@@ -10508,6 +10527,68 @@ int test_tls13_post_handshake_auth_late_allow(void)
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
     ExpectIntEQ(h.last_tx.code, unexpected_message);
     ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A post-handshake CertificateRequest must reach the wire from
+ * wolfSSL_request_certificate() even when the server groups messages. */
+int test_tls13_pha_group_messages(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char readBuf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        NULL, NULL), 0);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_set_group_messages(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
+
+    /* The client answers with Certificate, CertificateVerify and Finished
+     * without the server writing any application data first. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.s_len, 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -11775,6 +11856,86 @@ int test_tls12_fatal_alert_closes_and_evicts(void)
         wolfSSL_CTX_free(ctx_c);
         wolfSSL_CTX_free(ctx_s);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 6.2: "Whenever an implementation encounters a fatal
+ * error condition, it SHOULD send an appropriate fatal alert and MUST
+ * close the connection without sending or receiving any additional data."
+ *
+ * This drives the client into sending a fatal unexpected_message alert the
+ * same way test_tls13_post_handshake_auth_no_ext() does, then checks that a
+ * subsequent wolfSSL_write() is refused rather than queuing a new
+ * application data record on the connection it just tore down. */
+int test_tls13_no_app_data_after_fatal_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    char readBuf[8];
+    char msg[] = "should never be sent";
+    int c_len_after_alert;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+
+    /* Intentionally do NOT call wolfSSL_allow_post_handshake_auth() on the
+     * client so the post_handshake_auth extension is omitted from the
+     * ClientHello. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Force the server to send an unsolicited post-handshake
+     * CertificateRequest, as in test_tls13_post_handshake_auth_no_ext(). */
+    if (ssl_s != NULL)
+        ssl_s->options.postHandshakeAuth = 1;
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
+
+    /* The client rejects it and transmits a fatal unexpected_message
+     * alert - the connection is now closed. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, unexpected_message);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+
+    c_len_after_alert = test_ctx.c_len;
+
+    /* Clear the error the failed read left behind so the write's own
+     * SOCKET_PEER_CLOSED_E can be told apart from it. */
+    if (ssl_c != NULL)
+        ssl_c->error = WOLFSSL_ERROR_NONE;
+
+    /* A write attempted after the fatal alert must be refused instead of
+     * building and queuing a new application data record. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E));
+    ExpectIntNE(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), 0);
+    /* No new record was appended to what the alert itself already sent. */
+    ExpectIntEQ(test_ctx.c_len, c_len_after_alert);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
@@ -13255,6 +13416,59 @@ int test_tls13_send_session_ticket_psk_modes(void)
     return EXPECT_RESULT();
 }
 
+/* A psk_ke handshake, where preMasterSz is 0, must leave no handshake secret
+ * behind in preMasterSecret. */
+int test_tls13_hs_secret_zeroized_psk_ke(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    byte zeros[ENCRYPT_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_fnp_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_fnp_server_cb);
+
+    /* No key_share, so preMasterSz is zero when DeriveHandshakeSecret runs. */
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.noPskDheKe, 1);
+    ExpectIntEQ(ssl_c->arrays->preMasterSz, 0);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
@@ -13474,6 +13688,99 @@ int test_tls13_new_session_ticket_keeps_ems(void)
     return EXPECT_RESULT();
 }
 
+/* An X25519 handshake under TLS_AES_256_GCM_SHA384, where preMasterSz is 32
+ * and the handshake secret 48 bytes, must leave none of it in preMasterSecret.
+ */
+int test_tls13_hs_secret_zeroized_sha384(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_CURVE25519) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    byte zeros[ENCRYPT_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "TLS13-AES256-GCM-SHA384"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_X25519),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->specs.hash_size, WC_SHA384_DIGEST_SIZE);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A TLS 1.3 handshake must leave no early secret behind in arrays->secret. */
+int test_tls13_early_secret_zeroized(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte zeros[SECRET_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->secret, zeros, SECRET_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->secret, zeros, SECRET_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 9846 Section 4.3.11: when the modes the client advertised leave no PSK
  * the server may use, the PSK is ignored and a certificate handshake runs.
  * Aborting instead would kill a connection that can still be completed. */
@@ -13625,6 +13932,379 @@ int test_tls13_ticket_psk_modes_uses_policy(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 5.1: a TLS 1.3 receiver MUST ignore legacy_record_version
+ * "for all purposes".  Garble those two bytes in the server's first flight
+ * (the unencrypted ServerHello record, which is not covered by the transcript
+ * hash) and the handshake must still complete.  For TLS 1.2 the record layer
+ * version is still meaningful, so the same tampering must be rejected. */
+int test_tls13_ignore_legacy_record_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Run the ClientHello, then the server's first flight. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Bytes 1 and 2 of the record header are legacy_record_version. */
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_buff[1] = 0xEE;
+        test_ctx.c_buff[2] = 0xEE;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Same tampering under TLS 1.2 must still be caught. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Bytes 1 and 2 of the record header are legacy_record_version. */
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_buff[1] = 0xEE;
+        test_ctx.c_buff[2] = 0xEE;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_TLS13 && HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}
+
+/* An external PSK handshake must leave no PSK behind in arrays->psk_key. */
+int test_tls13_psk_key_zeroized(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Covers both psk_key and secret, as MAX_PSK_KEY_LEN is user-defined. */
+    byte zeros[MAX_PSK_KEY_LEN > SECRET_LEN ? MAX_PSK_KEY_LEN : SECRET_LEN];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(zeros, 0, sizeof(zeros));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_fnp_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_fnp_server_cb);
+
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->options.isPSK, 1);
+
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->psk_key, zeros, MAX_PSK_KEY_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->secret, zeros, SECRET_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->secret, zeros, SECRET_LEN), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*----------------------------------------------------------------------------*
+ | Session export and import
+ *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_SESSION_EXPORT)
+#define TEST_TLS13_EXPORT
+#endif
+
+#ifdef TEST_TLS13_EXPORT
+/* process buffered post-handshake messages, success being WANT_READ */
+static int test_tls13_export_pump(WOLFSSL* ssl)
+{
+    unsigned char buf[8];
+    int ret;
+
+    ret = wolfSSL_read(ssl, buf, (int)sizeof(buf));
+    if (ret > 0)
+        return -1;
+    if (wolfSSL_get_error(ssl, ret) != WOLFSSL_ERROR_WANT_READ)
+        return -1;
+    return 0;
+}
+
+static int test_tls13_export_connect(struct test_memio_ctx* test_ctx,
+        WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c,
+        WOLFSSL** ssl_s)
+{
+    EXPECT_DECLS;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+    /* the tickets sent with the server's Finished */
+    ExpectIntEQ(test_tls13_export_pump(*ssl_c), 0);
+
+    return EXPECT_RESULT();
+}
+
+static int test_tls13_export_alloc(WOLFSSL* ssl, unsigned char** out,
+        unsigned int* outSz)
+{
+    EXPECT_DECLS;
+
+    *outSz = 0;
+    ExpectIntEQ(wolfSSL_tls_export(ssl, NULL, outSz),
+                WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectNotNull(*out = (unsigned char*)XMALLOC(*outSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_tls_export(ssl, *out, outSz), 0);
+
+    return EXPECT_RESULT();
+}
+
+/* import 'session' into a fresh WOLFSSL wired to the same memio buffers */
+static int test_tls13_export_import(WOLFSSL_CTX* ctx,
+        struct test_memio_ctx* test_ctx, WOLFSSL** ssl,
+        const unsigned char* session, unsigned int sessionSz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(*ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_tls_import(*ssl, session, sessionSz), (int)sessionSz);
+    if (*ssl != NULL) {
+        wolfSSL_SetIOWriteCtx(*ssl, test_ctx);
+        wolfSSL_SetIOReadCtx(*ssl, test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+/* replace *ssl by an import of its own export */
+static int test_tls13_export_reload(WOLFSSL_CTX* ctx,
+        struct test_memio_ctx* test_ctx, WOLFSSL** ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL* imp = NULL;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+
+    ExpectIntEQ(test_tls13_export_alloc(*ssl, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(*ssl);
+    *ssl = NULL;
+    ExpectIntEQ(test_tls13_export_import(ctx, test_ctx, &imp, session,
+                sessionSz), TEST_SUCCESS);
+    *ssl = imp;
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+
+static int test_tls13_export_xfer(WOLFSSL* w, WOLFSSL* r, const char* msg)
+{
+    EXPECT_DECLS;
+    unsigned char buf[64];
+    int msgSz = (int)XSTRLEN(msg);
+
+    ExpectIntEQ(wolfSSL_write(w, msg, msgSz), msgSz);
+    ExpectIntEQ(wolfSSL_read(r, buf, (int)sizeof(buf)), msgSz);
+    ExpectBufEQ(buf, msg, msgSz);
+
+    return EXPECT_RESULT();
+}
+
+static void test_tls13_export_free(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+}
+
+#ifdef HAVE_SESSION_TICKET
+/* A ticket issued after the import is numbered after the ones issued before
+ * it and derives from the resumption secret of the connection, so that it
+ * resumes, whichever side was imported. */
+static int test_tls13_export_ticket_after_import(int exportClient)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    /* the ticket sent with the server's Finished, the first of the
+     * connection */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_c->session->ticketNonce.data[0], 0);
+    }
+
+    if (exportClient) {
+        ExpectIntEQ(test_tls13_export_reload(ctx_c, &test_ctx, &ssl_c),
+                    TEST_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(test_tls13_export_reload(ctx_s, &test_ctx, &ssl_s),
+                    TEST_SUCCESS);
+    }
+
+    /* the second ticket of the connection, issued after the import */
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_export_pump(ssl_c), 0);
+    /* numbered after the first one, not like it (RFC 8446 Section 4.6.1) */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_c->session->ticketNonce.data[0], 1);
+    }
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* and it resumes */
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    ssl_c = NULL;
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+
+    wolfSSL_SESSION_free(sess);
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SESSION_TICKET */
+
+/* A KeyUpdate after the import, from either side, derives the next keys from
+ * the traffic secrets of the connection. */
+static int test_tls13_export_key_update(int clientInitiates)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *initiator = NULL, *peer = NULL;
+    struct test_memio_ctx test_ctx;
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_reload(ctx_s, &test_ctx, &ssl_s),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(ssl_s, ssl_c, "hello client"),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(ssl_c, ssl_s, "hello server"),
+                TEST_SUCCESS);
+
+    initiator = clientInitiates ? ssl_c : ssl_s;
+    peer = clientInitiates ? ssl_s : ssl_c;
+    ExpectIntEQ(wolfSSL_update_keys(initiator), WOLFSSL_SUCCESS);
+    /* the peer takes the KeyUpdate in ahead of the record that follows it and
+     * answers with its own ahead of its reply */
+    ExpectIntEQ(test_tls13_export_xfer(initiator, peer, "after the update"),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(peer, initiator, "and back"),
+                TEST_SUCCESS);
+
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS13_EXPORT */
+
+int test_tls13_export_server_ticket_after_import(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
+    ExpectIntEQ(test_tls13_export_ticket_after_import(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_client_ticket_after_import(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
+    ExpectIntEQ(test_tls13_export_ticket_after_import(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_server_key_update(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    ExpectIntEQ(test_tls13_export_key_update(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_client_key_update(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    ExpectIntEQ(test_tls13_export_key_update(1), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }

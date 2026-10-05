@@ -335,3 +335,20 @@ wolfSSL_CTX_use_certificate_buffer あるいはwolfSSL_CTX_use_certificate_chain
 
 ## 11. サポート
 ご質問・ご要望は、info@wolfssl.jp まで日本語でお知らせください。
+
+## 付録: コマンドラインでのビルド・書き込み (build.bat / debug_run.bat)
+
+e2studioのIDEを対話的に操作する代わりに、コマンドラインからビルド・書き込みを行うための
+ヘルパーバッチファイルも本フォルダに含まれています。どちらもIDEと同じRenesasツールチェーンを
+呼び出すもので、`wolfssl`/`test`プロジェクトと`smc_gen`のソース(上記3〜6節)が既に生成済みで
+あることを前提としています。
+
+- `build.bat [clean|crypt|bench|TLSClient|wolfssl]` は`wolfssl`・`test`両プロジェクトを
+  ビルドします。`wolfssl`引数は、`user_settings.h`編集後にwolfSSL関連のソースだけをフル
+  クリーンより高速に再ビルドします。
+- `debug_run.bat [restart]` はRenesas Flash Programmer(rfp-cli)経由で`test.x`をボードに
+  書き込んで実行します。`restart`引数は、既に書き込み済みのイメージを再書き込みせずに
+  リセット・再実行します。
+
+各スクリプトの既定パスは特定のe2studio/CCRXインストールに紐づいています。環境ごとに上書き
+すべき環境変数は各ファイル冒頭のコメントを参照してください。

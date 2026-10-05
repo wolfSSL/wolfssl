@@ -1,3 +1,18 @@
+# wolfSSL Release (unreleased)
+
+## Post-Quantum Cryptography (PQC)
+
+* Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
+* Added `--enable-falcon=level1`/`level5` to build a single Falcon level and `--enable-falcon=dynamic-keys` for per-level heap key buffers; `wc_falcon_set_level()` now returns `BAD_FUNC_ARG` for a level not built and can return `MEMORY_E` with dynamic keys. by @Frauschi
+* Reduced Falcon's peak signing heap by about 21%, halved the verify working set, and moved the SHAKE states and ASN public-key buffers off the stack. by @Frauschi
+* Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
+* Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
+* Added ML-KEM (FIPS 203) key OIDs, SubjectPublicKeyInfo and PKCS#8 encoding, and X.509 certificate support, including issuing an ML-KEM certificate with `wc_MakeCert_ex`. A key initialised with the new `WC_ML_KEM_TYPE_UNSET` takes its parameter set from the DER being decoded. by @Frauschi
+
+## Bug Fixes
+
+* Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
@@ -57,6 +72,29 @@ Fixed in PR 11500
 * [Low] CVE-2026-94419
 Without NO_SESSION_CACHE_REF, wolfSSL_get_session() does not return a session object but a ClientSession reference of the form {row, index, hash(sessionID)} into the process-global SessionCache, and ClientSessionToSession() validates it against that hash alone. Because the TLS 1.2 session ID is chosen by the server and sent in clear, AddSessionToCache() matches any other server's session on the same ID and overwrites the client-side entry with that server's master secret, cipher suite and version, while the handle continues to resolve; nothing on the write path compares the peer, the application's server ID or the WOLFSSL_CTX. Resuming through the handle then produces an abbreviated handshake in which no Certificate message is sent, so neither chain verification nor wolfSSL_check_domain_name() runs, and the attacker is accepted as the original server for the whole of that connection. Affected builds are those leaving NO_SESSION_CACHE_REF, NO_SESSION_CACHE, NO_CLIENT_CACHE and TITAN_SESSION_CACHE all undefined, which includes a plain ./configure, --enable-opensslextra and --enable-opensslall; fifteen integration options define NO_SESSION_CACHE_REF and are therefore not affected, among them --enable-all, --enable-distro, --enable-curl, --enable-nginx, --enable-haproxy, --enable-stunnel, --enable-wpas and the rest of the OPENSSL_COMPATIBLE_DEFAULTS family, and --enable-leanpsk, --enable-leantls, --enable-lowresource and --enable-tinytls13 disable the cache outright. The application must use the legacy reference flow, wolfSSL_get_session() or SSL_get_session() followed by wolfSSL_set_session(); wolfSSL_get1_session() returns the session object itself and is not affected, nor are wolfSSL_SetServerID() lookups. Only TLS 1.2 and below and DTLS 1.2 and below are reachable, since TLS 1.3 and ticket resumption with an empty ServerHello session ID both use a client-chosen cache key. The poisoned entry lives in the process-global cache, so it crosses WOLFSSL_CTX boundaries and persists until the entry is evicted or the session times out, 500 seconds by default. Releases v5.3.0 through v5.9.2 are affected; the fix adds a per-write generation counter to the cache and raises WOLFSSL_CACHE_VERSION from 2 to 3, so a cache persisted by an older build is rejected by a fixed one. Found via the Anthropic OSS program.
 Fixed in PR 11500
+
+* **Behavioral change (DTLS cookie mode is one policy, set by the
+  application)**: `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` are
+  new and switch server cookies on and off for DTLS 1.2, DTLS 1.3 and TLS 1.3
+  alike, which changes existing entry points that now share that one
+  switch.  `wolfSSL_disable_hrr_cookie()` delegates to
+  `wolfSSL_disable_cookie()`, so on a DTLS object it now also frees the
+  DTLS 1.2 cookie secrets;
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_disable_hrr_cookie()`,
+  `wolfSSL_enable_cookie()` and `wolfSSL_disable_cookie()` now return
+  `BAD_STATE_E` once the handshake has decided how to process the
+  ClientHello. `wolfDTLS_accept_stateless()` reports `BAD_STATE_E` when called
+  on an object whose cookies are disabled, which `wolfSSL_accept()` handles
+  instead. Finally, every cookie secret change is now all or nothing: the
+  replacement is built before the secret it replaces is freed, so when
+  `wolfSSL_send_hrr_cookie()`, `wolfSSL_enable_cookie()`,
+  `wolfSSL_DTLS_SetCookieSecret()` or either secondary-secret setter fails,
+  the secrets and the cookie policy are left exactly as they were found
+  instead of the rotation half happening.  A DTLS 1.3 server with cookies
+  disabled can process a fragmented first ClientHello only when built with
+  `WOLFSSL_DTLS_CH_FRAG` (`--enable-dtls-frag-ch`, automatic with ML-KEM)
+  and with `wolfSSL_dtls13_allow_ch_frag()` on, which is the default only in
+  ML-KEM builds; otherwise the fragments are still dropped.
 
 ## New Features
 
@@ -434,6 +472,49 @@ Fixed in PR 11500
 * Added cross-library compile checks for wolfSSH, wolfCLU, wolfTPM, wolfMQTT, wolfPKCS11 and wolfProvider. by @night1rider (PR 10853) and @dgarske (PR 11124)
 * Added a software CryptoCb API test, SM2 identical-point verify test, and Wycheproof-driven negative tests. by @AlexLanzano (PR 10604), @padelsbach (PR 10992) and @Frauschi (PR 10958)
 * Benchmark: HMAC-SHA3, AES IV/CCM nonce and key wrap sweeps, RSA padding sweep, AArch64 cycle counter under MSVC, numBlocks clamp, guards, a leak fix and zeroing the ML-KEM key objects before the first free; tls_bench now uses `CLOCK_MONOTONIC` and reports MiB/s. by @night1rider (PR 10946, PR 10947, PR 10887, PR 11249), @rizlik (PR 11090) and @dgarske (PR 11176, PR 11505)
+
+* **Fix (EnvelopedData version 3 or 4 rejected by an RSA or ECC reader)**:
+  RFC 5652, Section 6.1 derives the EnvelopedData version from every
+  RecipientInfo in the set, so a message that also carries a password or
+  `OtherRecipientInfo` recipient is version 3.  `wc_PKCS7_DecodeEnvelopedData()`
+  checked the version against the reader's own key type, allowing only 0 and 2
+  for RSA and 0, 2 and 3 for ECC, so a KTRI recipient could not open a message
+  addressed to a PWRI or ML-KEM recipient as well and got `ASN_VERSION_E`.
+  Any CMSVersion valid for EnvelopedData (0, 2, 3 or 4) is now accepted.
+
+* **Fix (indefinite-length EnvelopedData decrypted to the wrong plaintext)**:
+  when the encryptedContent of an EnvelopedData is split into several OCTET
+  STRINGs, as `openssl cms -encrypt -stream` writes it,
+  `wc_PKCS7_DecodeEnvelopedData()` handed every fragment but the last only to
+  the stream output callback.  Without one set, the fragments were dropped
+  and just the last one was copied to the start of `output`, while the return
+  value still counted the whole content, so the caller got a success code and
+  a buffer holding one block of plaintext followed by whatever it contained
+  before.  Every fragment is now decrypted into the output.  Fragments no
+  longer have to be a whole number of cipher blocks, a chunked stream no
+  longer loses its place after a small fragment, and a build with
+  `NO_PKCS7_STREAM` now sets up the cipher for fragmented content at all.
+
+* **Fix (indefinite-length AuthEnvelopedData rejected)**:
+  `wc_PKCS7_DecodeAuthEnvelopedData()` failed with `ASN_PARSE_E` on the
+  output of `openssl cms -encrypt -aes-256-gcm -stream`.  It read at most one
+  OCTET STRING of a constructed encryptedContent, could not take an
+  indefinite length there, and expected the authenticated attributes or the
+  tag straight after the content, where BER puts the end-of-contents of the
+  content and of the EncryptedContentInfo.  Fed in chunks it also stalled:
+  the EncryptedContentInfo was not buffered far enough to parse, and the
+  bytes still expected after the tag were computed as a negative number.
+  The fragments are now joined before the AEAD runs, and both
+  end-of-contents are consumed.
+
+* **Fix (chunked (Auth)EnvelopedData failed inside the EncryptedContentInfo)**:
+  `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()`
+  returned `ASN_PARSE_E` when a call ended inside the EncryptedContentInfo
+  header.  The check for whether enough input was left compared against the
+  size of the whole input rather than what follows the current position, and
+  after moving to the stream buffer the decoder lost the SEQUENCE header it
+  had already read.  AuthEnvelopedData fed in fixed-size chunks failed at
+  most sizes from 60 bytes up.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

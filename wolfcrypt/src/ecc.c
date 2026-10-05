@@ -1998,6 +1998,14 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLFSSL_SILABS_SE_TYPES
+    /* Every import and keygen path resolves the curve here, so this is where
+     * a key stops representing whatever wc_SilabsSe_EccUse*Key() bound to it.
+     * Leaving the binding set would keep the SE on the old resident key. */
+    ForceZero(key->key_raw, sizeof(key->key_raw));
+    key->silabsKeySet = 0;
+#endif
+
     /* handle custom case */
     if (key->idx != ECC_CUSTOM_IDX) {
         int x;
@@ -6505,7 +6513,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     alt_fp_init(key->k);
 #ifdef WOLFSSL_ECC_BLIND_K
     key->kb = (mp_int*)key->kba;
-    key->ku = (mp_int*)key->kia;
+    key->ku = (mp_int*)key->kua;
     alt_fp_init(key->kb);
     alt_fp_init(key->ku);
 #endif
@@ -8639,6 +8647,13 @@ int wc_ecc_free(ecc_key* key)
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     wc_MAXQ10XX_EccFree(key);
+#endif
+
+#ifdef WOLFSSL_SILABS_SE_TYPES
+    /* key_raw holds the private scalar alongside the public point whenever the
+     * SE has been handed a plaintext key. Scrub it. */
+    ForceZero(key->key_raw, sizeof(key->key_raw));
+    key->silabsKeySet = 0;
 #endif
 
 #ifdef WOLFSSL_DHUK

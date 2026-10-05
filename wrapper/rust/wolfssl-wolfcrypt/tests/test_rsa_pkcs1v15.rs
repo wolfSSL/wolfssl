@@ -1,11 +1,12 @@
-#![cfg(all(feature = "signature", rsa))]
+#![cfg(all(feature = "signature", rsa, rsa_sign))]
 
 mod common;
 
 use signature::Verifier;
-#[cfg(random)]
+/* Signing needs a generated key pair, which is only available with keygen. */
+#[cfg(all(random, rsa_keygen, any(sha256, sha384)))]
 use signature::{Keypair, SignerMut};
-#[cfg(random)]
+#[cfg(all(random, rsa_keygen, any(sha256, sha384)))]
 use wolfssl_wolfcrypt::random::RNG;
 
 #[test]
@@ -105,4 +106,22 @@ fn test_verifying_key_without_rng() {
     // A garbage signature must not verify.
     let bogus = Signature::<256>::from_bytes([0xA5u8; 256]);
     assert!(vk.verify(b"message", &bogus).is_err());
+}
+
+#[test]
+#[cfg(all(sha256, rsa_keygen, random))]
+fn test_generate_rejects_overflowing_modulus_size() {
+    use wolfssl_wolfcrypt::rsa_pkcs1v15::{Sha256, SigningKey};
+    use wolfssl_wolfcrypt::sys;
+
+    common::setup();
+
+    // N * 8 wraps to 2048 in usize arithmetic; generate() must reject it
+    // rather than panic or produce a 2048-bit key.
+    const N: usize = usize::MAX / 8 + 1 + 256;
+    let rng = RNG::new().expect("RNG");
+    match SigningKey::<Sha256, N>::generate(rng) {
+        Ok(_) => panic!("generate() must fail for overflowing N"),
+        Err(rc) => assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+    }
 }

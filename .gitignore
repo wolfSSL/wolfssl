@@ -340,6 +340,8 @@ mqx/wolfcrypt_benchmark/SaAnalysispointsManager.apconfig
 
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
+wrapper/CSharp/wolfCrypt-FIPS*/bin/
+wrapper/CSharp/wolfCrypt-FIPS*/obj/
 
 # Visual Studio Code Workspace Files
 *.vscode
@@ -418,6 +420,9 @@ IDE/**/DerivedData
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/smc/trash
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/test/src/smc_gen
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/test/generate
+
+/IDE/Renesas/e2studio/RA6M4/wolfssl/script/fsp.ld
+/IDE/Renesas/e2studio/RA6M4/test/script/fsp.ld
 
 # QNX CAAM
 /IDE/QNX/example-server/server-tls

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <AssemblyName>wolfCrypt.FIPS</AssemblyName>
+    <RootNamespace>wolfSSL.CSharp.Fips</RootNamespace>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Test builds only (set by wolfCrypt-FIPS-Test): known-answer and failure-injection
+       hooks outside the approved services, and internals access. Kept in separate
+       output directories so the shipped build never contains them. -->
+  <PropertyGroup Condition="'$(FipsTestHooks)' == 'true'">
+    <DefineConstants>$(DefineConstants);FIPS_TEST_HOOKS</DefineConstants>
+    <OutputPath>bin/$(Configuration)/testhooks/</OutputPath>
+    <IntermediateOutputPath>obj/$(Configuration)/testhooks/</IntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(FipsTestHooks)' == 'true'">
+    <InternalsVisibleTo Include="wolfCrypt-FIPS-Test" />
+  </ItemGroup>
+
+</Project>

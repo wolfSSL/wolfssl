@@ -154,7 +154,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
+#ifdef WOLFSSL_SILABS_SE_TYPES
     #include <wolfssl/wolfcrypt/port/silabs/silabs_aes.h>
 #endif
 
@@ -478,7 +478,7 @@ struct Aes {
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     silabs_aes_t ctx;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
@@ -1221,6 +1221,14 @@ WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+/* Streaming twins of the pair above: "tweak" is read and written back, "tmp"
+ * is one block of caller scratch, and sz must be at least one block. */
+WOLFSSL_LOCAL void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif /* WOLFSSL_AES_XTS */
 #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 

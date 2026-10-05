@@ -570,7 +570,7 @@ impl Ed25519 {
     /// # Parameters
     ///
     /// * `private`: Input buffer containing private key.
-    /// * `public`: Optional input buffer containing private key.
+    /// * `public`: Optional input buffer containing public key.
     /// * `trusted`: Whether the public key buffer is trusted.
     ///
     /// # Returns

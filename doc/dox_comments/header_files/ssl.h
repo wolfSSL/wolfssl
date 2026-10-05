@@ -686,7 +686,8 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
 /*!
     \brief The wolfSSL_dtls_import() function is used to parse in a serialized
     session state. This allows for picking up the connection after the
-    handshake has been completed.
+    handshake has been completed. Post-handshake authentication is not
+    available on an imported connection.
 
     \return Success If successful, the amount of the buffer read will be
     returned.
@@ -727,7 +728,10 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf,
 
 /*!
     \brief Used to import a serialized TLS session. This function is for
-    importing the state of the connection.
+    importing the state of the connection. A TLS 1.3 session serialized with
+    export version 7 or later carries its traffic and resumption secrets, so
+    a KeyUpdate and the issuing of a NewSessionTicket work on the imported
+    connection; an older serialization restores the record layer alone.
     WARNING: buf contains sensitive information about the state and is best to
     be encrypted before storing if stored.
     Additional debug info can be displayed with the macro
@@ -750,7 +754,8 @@ int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf,
     the callback function for exporting a session. It is allowed to
     pass in NULL as the parameter func to clear the export function
     previously stored. Used on the server side and is called immediately
-    after handshake is completed.
+    after handshake is completed, for DTLS 1.2 only; a DTLS 1.3 session
+    is exported with wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -788,7 +793,9 @@ int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
     \brief The wolfSSL_dtls_set_export() function is used to set the callback
     function for exporting a session. It is allowed to pass in NULL as the
     parameter func to clear the export function previously stored. Used on
-    the server side and is called immediately after handshake is completed.
+    the server side and is called immediately after handshake is completed,
+    for DTLS 1.2 only; a DTLS 1.3 session is exported with
+    wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -825,7 +832,17 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     overhead than using a function callback for sending a session and
     choice over when the session is serialized. If buffer is NULL when
     passed to function then sz will be set to the size of buffer needed
-    for serializing the WOLFSSL session.
+    for serializing the WOLFSSL session. The export is refused with a
+    negative return before a DTLS 1.3 handshake is done, while a KeyUpdate is
+    in progress, a fragmented message is half sent, a handshake message other
+    than NewSessionTicket is waiting for the peer's ACK, a post-handshake
+    CertificateRequest is unanswered, or a write dup of the object exists. A
+    NewSessionTicket still waiting for its ACK is not exported and is lost.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. For a DTLS 1.3 session the
+    blob carries the resumption secret and the ticket nonce, so an imported
+    server can still issue a NewSessionTicket that resumes; use
+    wolfSSL_get1_session before exporting to keep a received ticket.
 
     \return Success If successful, the amount of the buffer used will
     be returned.
@@ -861,7 +878,14 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
     \brief Used to export a serialized TLS session. This function is for
     exporting a serialized state of the connection.
     In most cases wolfSSL_get1_session should be used instead of
-    wolfSSL_tls_export.
+    wolfSSL_tls_export. The export of a TLS 1.3 session is refused with a
+    negative return before the handshake is done or while a KeyUpdate
+    response is pending.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. A TLS 1.3 blob carries the
+    resumption secret and the ticket nonce, so an imported server can still
+    issue a NewSessionTicket that resumes; use wolfSSL_get1_session before
+    exporting to keep a received ticket.
     Additional debug info can be displayed with the macro
     WOLFSSL_SESSION_EXPORT_DEBUG defined.
     WARNING: buf contains sensitive information about the state and is best to
@@ -1882,7 +1906,25 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
            the listener for new connections and being able to isolate the
            WOLFSSL object once the ClientHello is verified (either through a
            cookie exchange or just checking if the ClientHello had the correct
-           format).
+           format). With DTLS cookies disabled, the callback is
+           invoked once per ClientHello, only after complete successful
+           ClientHello processing, not on its first fragment. Retries,
+           retransmitted fragments and a second ClientHello after a key-share
+           HelloRetryRequest do not repeat the notification. The object is
+           already stateful before input is read, but the peer's
+           return-routability has not been verified.
+           Returning 0 accepts the ClientHello and the handshake continues.
+           Any negative return stops the accept call with that error and leaves
+           the accept state machine at the ClientHello, so nothing is sent to
+           the peer and the next accept call asks the callback again instead of
+           continuing the handshake. All negative returns behave this way; the
+           value only decides what wolfSSL_get_error() reports, so what it
+           means is the application's choice. A callback that is not ready to
+           decide can return WANT_READ or WANT_WRITE and be asked again as
+           many times as it needs, and one that refuses the peer returns its
+           own error and keeps the server silent by refusing again on every
+           later accept call. The cookie mode cannot be changed from the
+           callback; see wolfSSL_disable_cookie().
            DTLS 1.2:
            https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1
            DTLS 1.3:
@@ -2414,8 +2456,11 @@ int  wolfSSL_accept(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
-    \brief This function is called on the server side and statelessly listens
-    for an SSL client to initiate the DTLS handshake.
+    \brief This function statelessly listens for an SSL client to initiate the
+    DTLS handshake. Cookies must be enabled. A cookie-disabled DTLS object is
+    rejected before I/O or callback changes: WOLFSSL_FATAL_ERROR is returned
+    and wolfSSL_get_error() reports BAD_STATE_E. Use wolfSSL_accept() for
+    cookie-disabled connections instead.
 
     \return WOLFSSL_SUCCESS ClientHello containing a valid cookie was received.
     The connection can be continued with wolfSSL_accept().
@@ -2425,7 +2470,9 @@ int  wolfSSL_accept(WOLFSSL* ssl);
     call wolfDTLS_accept_stateless again after data becomes available in
     the I/O layer.
     \return WOLFSSL_FATAL_ERROR A fatal error occurred. The ssl object should be
-    free'd and allocated again to continue.
+    free'd and allocated again to continue. wolfSSL_get_error() reports
+    SIDE_ERROR when called on a client object, and BAD_STATE_E when cookies
+    are disabled on this object.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -2452,6 +2499,74 @@ int  wolfSSL_accept(WOLFSSL* ssl);
     \sa wolfSSL_connect
 */
 int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Disable server cookies for DTLS 1.2, DTLS 1.3 and TLS 1.3, including
+    DTLS 1.2 fallback from DTLS 1.3. Cookies are enabled by default for DTLS.
+    For DTLS, ordinary
+    wolfSSL_accept() or wolfSSL_accept_TLSv13() commits it to stateful processing
+    before the first read, even if a nonblocking accept has no input available.
+    The application must isolate/demultiplex the peer before accepting; disabling
+    cookies removes return-routability verification and exposes the server to
+    DoS/amplification attacks. wolfDTLS_accept_stateless() cannot be used.
+
+    Primary and secondary cookie secrets for the applicable protocols are
+    securely erased and freed.
+
+    Without cookies a DTLS 1.3 server can process a first ClientHello that
+    arrives fragmented, but only when ClientHello fragment reassembly is
+    available: wolfSSL must be built with WOLFSSL_DTLS_CH_FRAG
+    (--enable-dtls-frag-ch, turned on automatically with ML-KEM and DTLS 1.3)
+    and it must be enabled on the object with wolfSSL_dtls13_allow_ch_frag(),
+    which is done by default only in builds with ML-KEM. Otherwise the
+    fragments are dropped and the handshake does not progress.
+
+    The DTLS cookie mode is fixed once the handshake commits to stateful
+    processing, which the accept functions do before the first read and
+    stateless processing does when a cookie verifies. After that this call
+    fails instead of reporting a change that cannot take effect, so it cannot
+    be used from a ClientHello good callback.
+
+    \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    A general-purpose session that has not chosen a side yet is accepted: the
+    policy set here is what the promotion to the server side finds.
+    \return WOLFSSL_SUCCESS on success (including an unchanged mode).
+    \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
+    \return SIDE_ERROR if ssl is a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing.
+    \sa wolfSSL_enable_cookie
+    \sa wolfDTLS_SetChGoodCb
+*/
+int wolfSSL_disable_cookie(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+    \brief Enable server cookies for DTLS 1.2, DTLS 1.3 and TLS 1.3.
+    Like wolfSSL_disable_cookie(), this does not change stateful processing.
+    It can undo a disable before accept begins, including
+    wolfSSL_disable_hrr_cookie(). Missing primary cookie secrets are randomly
+    generated immediately; existing primary and secondary secrets are preserved.
+
+    \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    A general-purpose session that has not chosen a side yet is accepted: the
+    policy set here is what the promotion to the server side finds.
+    \return WOLFSSL_SUCCESS on success (including an unchanged mode).
+    \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
+    \return SIDE_ERROR if ssl is a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing, as for wolfSSL_disable_cookie(), or if a missing secret must
+    be generated and the session's RNG has been released (as happens when
+    its handshake resources are freed).
+    \return MEMORY_ERROR if secret allocation fails, or another negative error
+    if random secret generation fails. A failure is all or nothing: no secret
+    is installed and the cookie policy is left as it was found, even when the
+    session needs both a DTLS 1.2 and a DTLS 1.3 secret.
+    \sa wolfSSL_disable_cookie
+*/
+int wolfSSL_enable_cookie(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -5566,7 +5681,9 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 
     \brief This function takes in a flag to change the behavior of the
     WOLFSSL_X509_STORE structure passed in. An example of a flag used
-    is WOLFSSL_CRL_CHECK.
+    is WOLFSSL_CRL_CHECK. X509_V_FLAG_CRL_CHECK and
+    X509_V_FLAG_CRL_CHECK_ALL enable CRL checking like WOLFSSL_CRL_CHECK and
+    WOLFSSL_CRL_CHECKALL.
 
     \return SSL_SUCCESS If no errors were encountered when setting the flag.
     \return <0 a negative value will be returned upon failure.
@@ -9441,13 +9558,20 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
     \return 0 returned if the function executed without an error.
     \return BAD_FUNC_ARG returned if there was an argument passed
     to the function with an unacceptable value.
-    \return COOKIE_SECRET_SZ returned if the secret size is 0.
     \return MEMORY_ERROR returned if there was a problem allocating
     memory for a new cookie secret.
+    \return BAD_STATE_E returned if secret is NULL and the session's RNG has
+    been released, so no secret can be generated.
+    \return Another -ve value when a new secret could not be generated. The
+    rotation does not happen and the secret already in use is kept, so the
+    server carries on issuing and verifying cookies under it.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
-    \param secretSz the size of the buffer.
+    Passing NULL indicates to generate a new random secret.
+    \param secretSz the size of the buffer. Passing 0 with a NULL secret
+    generates a secret of the default size (COOKIE_SECRET_SZ); passing 0 with
+    a non-NULL secret returns BAD_FUNC_ARG.
 
     _Example_
     \code
@@ -9483,7 +9607,8 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     \return 0 returned if the function executed without an error.
     \return BAD_FUNC_ARG returned if ssl is NULL.
     \return MEMORY_ERROR returned if there was a problem allocating
-    memory for the secondary cookie secret.
+    memory for the secondary cookie secret. The secondary secret already in
+    use, if any, is kept.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
@@ -14563,19 +14688,33 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     exchange is enabled by default. The Cookie holds a hash of the current
     transcript so that another server process can handle the ClientHello in
     reply.  The secret is used when generating the integrity check on the Cookie
-    data.
+    data. This replaces or regenerates the HRR secret, then delegates to
+    wolfSSL_enable_cookie(). Changing
+    cookie mode after handshake processing starts is unsupported; rotating a
+    secret while cookies are already enabled remains supported. DTLS 1.2-only callers
+    should use wolfSSL_enable_cookie() and wolfSSL_DTLS_SetCookieSecret().
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [in] secret a pointer to a buffer holding the secret.
     Passing NULL indicates to generate a new random secret.
     \param [in] secretSz Size of the secret in bytes.
-    Passing 0 indicates to use the default size: WC_SHA256_DIGEST_SIZE (or WC_SHA_DIGEST_SIZE when SHA-256 not available).
+    Passing 0 indicates to use the default size: the digest size of the hash
+    the cookie MAC uses, WC_SHA256_DIGEST_SIZE, or when SHA-256 is not
+    available WC_SHA384_DIGEST_SIZE, WC_SHA512_DIGEST_SIZE or
+    WC_SM3_DIGEST_SIZE, in that order.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing, as for wolfSSL_enable_cookie(), or if a secret must be
+    generated (secret is NULL, or a DTLS 1.3 server is missing its DTLS 1.2
+    secret) and the session's RNG has been released. The installed secret is
+    left unchanged.
     \return WOLFSSL_SUCCESS if successful.
     \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
-    \return Another -ve value on internal error.
+    \return Another -ve value on internal error. Every failure is all or
+    nothing: the secret in use and the cookie policy are left exactly as they
+    were found, so the object stays usable.
 
     _Example_
     \code
@@ -14618,7 +14757,8 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or not using DTLS.
     \return SIDE_ERROR if called with a client.
     \return WOLFSSL_SUCCESS if successful.
-    \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
+    \return MEMORY_ERROR if allocating dynamic memory for storing secret
+    failed. The secondary secret already in use, if any, is kept.
 
     _Example_
     \code
@@ -14651,13 +14791,19 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     protocol DTLS v1.3, a cookie exchange will not be included in the
     handshake. Please note that not doing a cookie exchange when using protocol
     DTLS v1.3 can make the server susceptible to DoS/Amplification attacks.
+    This delegates to wolfSSL_disable_cookie(): on a DTLS object it also
+    disables the DTLS 1.2 HelloVerifyRequest exchange, and it fails with
+    BAD_STATE_E once the handshake has committed to stateful processing.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     \return WOLFSSL_SUCCESS if successful
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3
-    \return SIDE_ERROR if invoked on client
+    \return SIDE_ERROR if invoked on a client
+    \return BAD_STATE_E if the DTLS handshake already committed to stateful
+    processing
 
+    \sa wolfSSL_disable_cookie
     \sa wolfSSL_send_hrr_cookie
 */
 int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
@@ -17695,3 +17841,223 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \sa wolfSSL_DisableExtendedMasterSecret
 */
 int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+
+    \brief Adds a CA distinguished name to the list of certificate authorities
+    announced via the TLS 1.3 certificate_authorities extension (RFC 8446
+    section 4.2.4) on the given SSL session. The DN must be the inner content
+    of a DER-encoded X.509 Name (the bytes after the SEQUENCE tag and length),
+    as returned by wc_GetDecodedCertSubjectRaw(). The library copies the
+    bytes and prepends the SEQUENCE header on the wire automatically.
+
+    Multiple DNs may be added; each call appends to the list. Use
+    wolfSSL_ClearCertificateAuthorities() to reset the list.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if ssl or dn is NULL, dnSz is 0, or dnSz exceeds
+    the maximum content size.
+    \return MEMORY_ERROR if memory allocation fails.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+    \param dn pointer to the DER-encoded subject Name content.
+    \param dnSz size in bytes of the DN content.
+
+    _Example_
+    \code
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, certDer, certDerSz, NULL);
+    wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL);
+    wc_GetDecodedCertSubjectRaw(&decoded, &subject, &subjectSz);
+
+    ret = wolfSSL_UseCertificateAuthority(ssl, subject,
+            (unsigned int)subjectSz);
+    if (ret != 0) {
+        // error adding CA DN
+    }
+    wc_FreeDecodedCert(&decoded);
+    \endcode
+
+    \sa wolfSSL_CTX_UseCertificateAuthority
+    \sa wolfSSL_ClearCertificateAuthorities
+    \sa wolfSSL_GetPeerCertificateAuthorityCount
+    \sa wolfSSL_GetPeerCertificateAuthority
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz);
+
+/*!
+    \ingroup TLS
+
+    \brief Adds a CA distinguished name to the list of certificate authorities
+    announced via the TLS 1.3 certificate_authorities extension (RFC 8446
+    section 4.2.4) on all SSL sessions created from this context. The DN
+    format and requirements are identical to wolfSSL_UseCertificateAuthority().
+
+    Per-session lists set via wolfSSL_UseCertificateAuthority() take
+    precedence; if the SSL object has its own list, the CTX list is not sent.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if ctx or dn is NULL, dnSz is 0, or dnSz exceeds
+    the maximum content size.
+    \return MEMORY_ERROR if memory allocation fails.
+
+    \param ctx pointer to a WOLFSSL_CTX object, created with
+    wolfSSL_CTX_new().
+    \param dn pointer to the DER-encoded subject Name content.
+    \param dnSz size in bytes of the DN content.
+
+    _Example_
+    \code
+    ret = wolfSSL_CTX_UseCertificateAuthority(ctx, subject,
+            (unsigned int)subjectSz);
+    if (ret != 0) {
+        // error adding CA DN
+    }
+    \endcode
+
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wolfSSL_CTX_ClearCertificateAuthorities
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz);
+
+/*!
+    \ingroup TLS
+
+    \brief Frees and removes all CA distinguished names previously added to
+    the SSL session via wolfSSL_UseCertificateAuthority(). After this call
+    the session-level native CA list is empty; the CTX-level list (if any) is
+    not affected.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return none No return value.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    wolfSSL_UseCertificateAuthority(ssl, dn1, dn1Sz);
+    wolfSSL_UseCertificateAuthority(ssl, dn2, dn2Sz);
+    // Clear all session-level CA DNs:
+    wolfSSL_ClearCertificateAuthorities(ssl);
+    \endcode
+
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wolfSSL_CTX_ClearCertificateAuthorities
+*/
+void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+
+    \brief Frees and removes all CA distinguished names previously added to
+    the context via wolfSSL_CTX_UseCertificateAuthority(). After this call
+    the CTX-level native CA list is empty.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return none No return value.
+
+    \param ctx pointer to a WOLFSSL_CTX object, created with
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    wolfSSL_CTX_UseCertificateAuthority(ctx, dn, dnSz);
+    // Clear all CTX-level CA DNs:
+    wolfSSL_CTX_ClearCertificateAuthorities(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_UseCertificateAuthority
+    \sa wolfSSL_ClearCertificateAuthorities
+*/
+void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup TLS
+
+    \brief Returns the number of CA distinguished names received from the peer
+    in the TLS 1.3 certificate_authorities extension. This is typically called
+    inside a cert_cb (WOLFSSL_CERT_SETUP_CB) on the server side to inspect
+    which CAs the client trusts.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return >= 0 The number of peer CA DNs. Returns 0 if ssl is NULL or no
+    certificate_authorities extension was received.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    int count = wolfSSL_GetPeerCertificateAuthorityCount(ssl);
+    for (int i = 0; i < count; i++) {
+        int sz = wolfSSL_GetPeerCertificateAuthority(ssl, i, NULL, 0);
+        // sz is the DN size in bytes
+    }
+    \endcode
+
+    \sa wolfSSL_GetPeerCertificateAuthority
+    \sa wolfSSL_UseCertificateAuthority
+*/
+int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+
+    \brief Copies the idx-th CA distinguished name received from the peer in
+    the TLS 1.3 certificate_authorities extension into the caller's buffer.
+    The DN is the inner content of the DER-encoded Name (without the SEQUENCE
+    header), matching the format accepted by wolfSSL_UseCertificateAuthority().
+
+    If outDn is NULL, returns the size of the DN in bytes (allowing the caller
+    to allocate the right amount of memory). If outDn is non-NULL and outDnSz
+    is large enough, copies the DN bytes and returns the number of bytes
+    written. If outDnSz is too small, returns BUFFER_E.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return > 0 The number of bytes written to outDn, or the DN size if
+    outDn is NULL.
+    \return BAD_FUNC_ARG if ssl is NULL or idx is out of range.
+    \return BUFFER_E if outDnSz is smaller than the DN.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+    \param idx zero-based index of the peer CA DN to retrieve. Must be less
+    than the count returned by wolfSSL_GetPeerCertificateAuthorityCount().
+    \param outDn output buffer to receive the DN bytes, or NULL to query size.
+    \param outDnSz size of the output buffer in bytes.
+
+    _Example_
+    \code
+    int count = wolfSSL_GetPeerCertificateAuthorityCount(ssl);
+    for (int i = 0; i < count; i++) {
+        int sz = wolfSSL_GetPeerCertificateAuthority(ssl, i, NULL, 0);
+        if (sz > 0) {
+            unsigned char* dn = malloc(sz);
+            wolfSSL_GetPeerCertificateAuthority(ssl, i, dn,
+                    (unsigned int)sz);
+            // use dn[0..sz-1]
+            free(dn);
+        }
+    }
+    \endcode
+
+    \sa wolfSSL_GetPeerCertificateAuthorityCount
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz);

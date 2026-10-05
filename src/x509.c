@@ -3119,7 +3119,6 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
         word32 nameSz, int type)
 {
     DNS_entry* newAltName = NULL;
-    char* nameCopy = NULL;
 
     if (x509 == NULL)
         return WOLFSSL_FAILURE;
@@ -3127,25 +3126,17 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
     if ((name == NULL) || (nameSz == 0))
         return WOLFSSL_SUCCESS;
 
-    newAltName = AltNameNew(x509->heap);
+    /* AltNameNewEx() takes a signed length. */
+    if (nameSz > (word32)INT_MAX)
+        return WOLFSSL_FAILURE;
+
+    /* One block, so nothing to unwind on failure. */
+    newAltName = AltNameNewEx(name, (int)nameSz, x509->heap);
     if (newAltName == NULL)
         return WOLFSSL_FAILURE;
 
-    nameCopy = (char*)XMALLOC(nameSz + 1, x509->heap, DYNAMIC_TYPE_ALTNAME);
-    if (nameCopy == NULL) {
-        XFREE(newAltName, x509->heap, DYNAMIC_TYPE_ALTNAME);
-        return WOLFSSL_FAILURE;
-    }
-
-    XMEMCPY(nameCopy, name, nameSz);
-
-    nameCopy[nameSz] = '\0';
-
     newAltName->next = x509->altNames;
     newAltName->type = type;
-    newAltName->len = (int)nameSz;
-    newAltName->name = nameCopy;
-    newAltName->nameStored = 1;
     x509->altNames = newAltName;
 
     return WOLFSSL_SUCCESS;
@@ -3786,7 +3777,6 @@ int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
     return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
-#if !defined(NO_PWDBASED)
 int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
         unsigned char* buf, unsigned int* len)
 {
@@ -3832,7 +3822,6 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
     WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
     return ret;
 }
-#endif
 
 #endif /* OPENSSL_EXTRA */
 
@@ -9529,6 +9518,51 @@ int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
 #endif /* !NO_FILESYSTEM */
 
 
+/* Decode a DER encoded CRL, following the OpenSSL d2i contract.
+ *
+ * The OpenSSL form takes a pointer to the buffer pointer and advances it
+ * past the object that was decoded, which is how a caller walks a buffer
+ * holding more than one object. wolfSSL_d2i_X509_CRL() takes the buffer
+ * directly and cannot report what it consumed, so an OpenSSL caller
+ * passing &p would hand it the address of its own pointer variable.
+ *
+ * @param [in, out] crl  CRL object to return, may be NULL.
+ * @param [in, out] in   Pointer to the buffer pointer; advanced on success.
+ * @param [in]      len  Length of data in the buffer.
+ * @return  CRL object on success, NULL on error.
+ */
+WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL_ex(WOLFSSL_X509_CRL** crl,
+        const unsigned char** in, long len)
+{
+    WOLFSSL_X509_CRL* ret;
+    const unsigned char* p;
+    long objLen = 0;
+    int tag = 0;
+    int cls = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_ex");
+
+    if ((in == NULL) || (*in == NULL) || (len <= 0)) {
+        WOLFSSL_MSG("Bad argument value");
+        return NULL;
+    }
+
+    ret = wolfSSL_d2i_X509_CRL(crl, *in, (int)len);
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    /* Advance past the object just decoded. The header parsed once already
+     * to get here, so a failure now leaves the caller's pointer alone
+     * rather than moving it somewhere unknown. */
+    p = *in;
+    if ((wolfSSL_ASN1_get_object(&p, &objLen, &tag, &cls, len) & 0x80) == 0) {
+        *in = p + objLen;
+    }
+
+    return ret;
+}
+
 WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
         const unsigned char* in, int len)
 {
@@ -10368,6 +10402,36 @@ int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl, unsigned char** out)
 
     return (int)derSz;
 }
+
+#ifndef NO_BIO
+/* Write the DER encoding of a CRL to a BIO.
+ *
+ * @param bio  BIO to write to
+ * @param crl  CRL to encode
+ * @return     WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_i2d_X509_CRL_bio(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int derSz;
+    unsigned char* der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_CRL_bio");
+
+    if ((bio == NULL) || (crl == NULL)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    derSz = wolfSSL_i2d_X509_CRL(crl, &der);
+    if ((derSz > 0) && (der != NULL) &&
+            (wolfSSL_BIO_write(bio, der, derSz) == derSz)) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    return ret;
+}
+#endif /* !NO_BIO */
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 
 #if defined(WOLFSSL_CERT_EXT) && \
@@ -10545,6 +10609,17 @@ int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
     }
 
     return ret;
+}
+
+
+/* Sets the verification time and makes verification use it. */
+void wolfSSL_X509_VERIFY_PARAM_set_time(WOLFSSL_X509_VERIFY_PARAM *param,
+        time_t t)
+{
+    if (param != NULL) {
+        param->check_time = t;
+        param->flags |= WOLFSSL_USE_CHECK_TIME;
+    }
 }
 
 
@@ -11675,8 +11750,7 @@ error:
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_APACHE_HTTPD ||
         * WOLFSSL_HAPROXY || WOLFSSL_WPAS */
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
-    !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN)
 
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     unsigned char** der)
@@ -11686,7 +11760,7 @@ int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
     return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
 }
 
-#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -12292,7 +12366,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
             WOLFSSL_EVP_PKEY* pkey)
     {
-    #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
     #endif
@@ -12442,9 +12516,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 #else
         (void)md;
         (void)pkey;
-        WOLFSSL_MSG("Cannot get hashinfo when NO_PWDBASED is defined");
+        WOLFSSL_MSG("Cannot get signature type without OPENSSL_EXTRA");
         return WOLFSSL_FAILURE;
-#endif /* !NO_PWDBASED && OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
     }
 
 
@@ -12651,15 +12725,17 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 
             if (x509->pubKeyOID == FALCON_LEVEL1k) {
                 type = FALCON_LEVEL1_TYPE;
-                wc_falcon_set_level(falcon, 1);
+                ret = wc_falcon_set_level(falcon, 1);
             }
             else if (x509->pubKeyOID == FALCON_LEVEL5k) {
                 type = FALCON_LEVEL5_TYPE;
-                wc_falcon_set_level(falcon, 5);
+                ret = wc_falcon_set_level(falcon, 5);
             }
 
-            ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx, falcon,
-                                            x509->pubKey.length);
+            if (ret == 0) {
+                ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx,
+                                                falcon, x509->pubKey.length);
+            }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
                 wc_falcon_free(falcon);
@@ -16256,7 +16332,8 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
     if (name == NULL || type == NULL)
         return WOLFSSL_FAILURE;
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
+/* wolfSSL_EVP_Digest() is only compiled with these defines. */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     return wolfSSL_EVP_Digest((unsigned char*)name->name,
                               name->sz, md, len, type, NULL);
 #else

@@ -131,8 +131,9 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
 /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
 /// * `key`: Key to use for KDF (typically output of `hkdf_extract()`).
 /// * `info`: Optional buffer containing additional info.
-/// * `out`: Output buffer to store HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store HKDF-Expand result. The buffer size must
+///   not exceed 255 times the digest size of the hash type selected by `typ`
+///   (RFC 5869); larger buffers result in an error.
 ///
 /// # Returns
 ///
@@ -167,8 +168,9 @@ pub fn hkdf_expand(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8]) ->
 /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
 /// * `key`: Key to use for KDF (typically output of `hkdf_extract()`).
 /// * `info`: Optional buffer containing additional info.
-/// * `out`: Output buffer to store HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store HKDF-Expand result. The buffer size must
+///   not exceed 255 times the digest size of the hash type selected by `typ`
+///   (RFC 5869); larger buffers result in an error.
 /// * `heap`: Optional heap hint.
 /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
 ///
@@ -231,7 +233,9 @@ pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8],
 /// * `key`: Initial Key Material (IKM).
 /// * `salt`: Salt value (optional).
 /// * `info`: Optional buffer containing additional info.
-/// * `out`: Output buffer to store HKDF result. The buffer can be any size.
+/// * `out`: Output buffer to store HKDF result. The buffer size must not
+///   exceed 255 times the digest size of the hash type selected by `typ`
+///   (RFC 5869); larger buffers result in an error.
 ///
 /// # Returns
 ///

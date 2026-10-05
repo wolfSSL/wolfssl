@@ -1022,7 +1022,7 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
     defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
-    defined(WOLFSSL_RTL8735B_HUK)
+    defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_SEC_QORIQ)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -2121,6 +2121,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #ifdef WC_BARRIER
     /* use user-supplied WC_BARRIER() definition. */
+#elif defined(__CC_ARM)
+    /* __CC_ARM is defined by AC5-era armcc, which doesn't recognize gcc-style
+     * __asm__ constructs.  armclang (AC6) does not define it, and does handle
+     * the gcc-style extended __asm__ constructs. */
+    #define WC_BARRIER() __memory_changed()
 #elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
     #define WC_BARRIER() __asm__ __volatile__("" ::: "memory")
 #else
@@ -2137,6 +2142,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
  * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
+#elif defined(__CC_ARM)
+    /* see above, re AC5-era armcc. */
+    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); __memory_changed(); } \
+            while (0)
 #elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")

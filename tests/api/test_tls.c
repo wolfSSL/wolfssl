@@ -514,6 +514,61 @@ int test_tls_peer_name_mismatch_verify_cb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+/* Handshake with verify param flags set on the client. No CRL is loaded, so
+ * the handshake fails when the flags turn on CRL checks. */
+static int test_param_flags_crl(unsigned long flags, int expectCrl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl_c),
+        flags), WOLFSSL_SUCCESS);
+
+    if (expectCrl) {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    if (ssl_c != NULL) {
+        ExpectIntEQ(SSL_CM(ssl_c)->crlEnabled, expectCrl);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* X509_V_FLAG_USE_CHECK_TIME in a verify param must not turn on CRL checks.
+ * It used to have the value of X509_V_FLAG_CRL_CHECK. */
+int test_tls_param_flags_crl_check(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+    ExpectIntEQ(test_param_flags_crl(WOLFSSL_USE_CHECK_TIME, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_param_flags_crl(WOLFSSL_X509_V_FLAG_CRL_CHECK, 1),
+        TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* One macro per group test_tls_get_peer_tmp_key() can exercise, so that the
  * helper below is never compiled without a caller. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
@@ -1079,6 +1134,153 @@ int test_tls_shutdown_in_init(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* With OLD_HELLO_ALLOWED a server awaiting its first ClientHello reads a record
+ * whose first byte is neither handshake nor change_cipher_spec as an SSLv2
+ * ClientHello, so these records never reach the ContentType check. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(OLD_HELLO_ALLOWED) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+/* Require a server built from `method` to reject `rec` with
+ * UNKNOWN_RECORD_TYPE only after putting a fatal unexpected_message alert on
+ * the wire. */
+static int test_tls_unknown_record_type_case(method_provider method,
+    const byte* rec, int recSz)
+{
+    EXPECT_DECLS;
+    /* Cleartext alert the server is expected to emit. */
+    const byte unexpectedAlert[] = {
+        0x15, 0x03, 0x03, 0x00, 0x02,
+        0x02, /* level: fatal */
+        0x0a  /* description: unexpected_message (10) */
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
+            recSz), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, method), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE));
+    ExpectIntEQ(test_ctx.c_len, sizeof(unexpectedAlert));
+    ExpectBufEQ(test_ctx.c_buff, unexpectedAlert, sizeof(unexpectedAlert));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !OLD_HELLO_ALLOWED &&
+        * (!NO_TLS12 || TLS13) */
+
+/* An undefined outer record ContentType must be answered with a fatal
+ * unexpected_message alert before the connection is torn down (RFC 8446/9846
+ * section 5, RFC 5246 section 6).  Covers both rejection sites: the ContentType
+ * whitelist in GetRecordHeader(), and the dispatch switch in DoProcessReplyEx()
+ * for types the whitelist admits but no TLS connection handles.  The dispatch
+ * switch is also reached from removeMsgInnerPadding(), which is not covered
+ * here. */
+int test_tls_unknown_record_type_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(OLD_HELLO_ALLOWED) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    /* Undefined ContentType 32.  The length must be non-zero, or the zero
+     * length check in GetRecordHeader() returns LENGTH_ERROR first. */
+    const byte unknownType[] = {
+        0x20, 0x03, 0x03, 0x00, 0x01, 0x00
+    };
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    /* dtls12_cid (25) passes the ContentType whitelist whenever the CID
+     * feature is built, but has no handler on a TLS connection. */
+    const byte cidType[] = {
+        0x19, 0x03, 0x03, 0x00, 0x01, 0x00
+    };
+#endif
+#ifdef WOLFSSL_DTLS13
+    /* ack (26) likewise passes the whitelist but is only handled for
+     * DTLS 1.3. */
+    const byte ackType[] = {
+        0x1a, 0x03, 0x03, 0x00, 0x01, 0x00
+    };
+#endif
+#ifdef WOLFSSL_TLS13
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[64];
+#endif
+
+/* Both sites are version independent, so each record runs against every
+ * version the build has.  This also keeps the DTLS-only types used wherever
+ * they are declared. */
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_2_server_method,
+            unknownType, (int)sizeof(unknownType)), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_2_server_method,
+            cidType, (int)sizeof(cidType)), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_2_server_method,
+            ackType, (int)sizeof(ackType)), TEST_SUCCESS);
+#endif
+#endif /* !WOLFSSL_NO_TLS12 */
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_3_server_method,
+            unknownType, (int)sizeof(unknownType)), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_3_server_method,
+            cidType, (int)sizeof(cidType)), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_tls_unknown_record_type_case(wolfTLSv1_3_server_method,
+            ackType, (int)sizeof(ackType)), TEST_SUCCESS);
+#endif
+
+    /* After a completed TLS 1.3 handshake the alert is encrypted, so it is
+     * decoded by letting the peer read it and inspecting its received alert
+     * history. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drop any queued post-handshake traffic (session tickets) so only the
+     * crafted record and the resulting alert remain in the buffers. */
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)unknownType, (int)sizeof(unknownType)), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE));
+
+    /* Server consumes the encrypted alert and records it. */
+    ExpectIntLE(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 0);
+    XMEMSET(&history, 0, sizeof(history));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_rx.code, unexpected_message);
+    ExpectIntEQ(history.last_rx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* WOLFSSL_TLS13 */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !OLD_HELLO_ALLOWED &&
+        * (!NO_TLS12 || TLS13) */
     return EXPECT_RESULT();
 }
 
@@ -3015,6 +3217,196 @@ int test_tls12_resume_ticket_decline_fallback(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A TLS 1.2 client that rejects the server Finished keeps no ticket, and
+ * leaves none in the cache for a later connection. */
+int test_tls12_ticket_dropped_on_bad_finished(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CLIENT_CACHE) && !defined(NO_SESSION_CACHE_REF) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    const byte serverID[] = "tls12-ticket-cache-test";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_c2 = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    /* Register the session under a server ID so a later connection can look it
+     * up in the client cache. */
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c, serverID, (int)sizeof(serverID), 1),
+        WOLFSSL_SUCCESS);
+
+    /* ClientHello */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* ServerHello .. ServerHelloDone */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* ClientKeyExchange, ChangeCipherSpec, Finished */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* NewSessionTicket, ChangeCipherSpec, Finished */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Flip the last byte of the plaintext NewSessionTicket record. */
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, 0), 0);
+    ExpectIntGT(msgSz, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        int off = (int)(msg - (const char*)test_ctx.c_buff);
+        word16 recSz = 0;
+
+        ExpectIntEQ((byte)msg[0], handshake);
+        ExpectIntEQ((byte)msg[RECORD_HEADER_SZ], session_ticket);
+        ato16((const byte*)msg + 3, &recSz);
+        ExpectIntGT(recSz, 0);
+        ExpectIntGE(msgSz, RECORD_HEADER_SZ + (int)recSz);
+        if (EXPECT_SUCCESS())
+            test_ctx.c_buff[off + RECORD_HEADER_SZ + recSz - 1] ^= 0xFF;
+    }
+
+    /* Client takes the ticket, then rejects the Finished and sends a fatal
+     * alert. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERIFY_FINISHED_ERROR));
+    /* Not a vacuous pass: the ticket really was processed. */
+    ExpectIntEQ(ssl_c->msgsReceived.got_session_ticket, 1);
+    /* The unverified ticket is dropped from the session too. */
+    ExpectIntEQ(ssl_c->session->ticketLen, 0);
+
+    /* The failed handshake must leave no ticket for the next connection. */
+    ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c2, serverID, (int)sizeof(serverID), 0),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_c2->session);
+    ExpectIntEQ(ssl_c2->session->ticketLen, 0);
+
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A TLS 1.2 client that completes the handshake leaves its ticket session in
+ * the cache for a later connection. */
+int test_tls12_ticket_cached_after_finished(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CLIENT_CACHE) && !defined(NO_SESSION_CACHE_REF) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    const byte serverID[] = "tls12-ticket-cache-ok";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_c2 = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c, serverID, (int)sizeof(serverID), 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntGT(ssl_c->session->ticketLen, 0);
+    /* Cached under a generated ID, not under the ticket bytes. */
+    ExpectIntEQ(ssl_c->session->haveAltSessionID, 1);
+
+    ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c2, serverID, (int)sizeof(serverID), 0),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_c2->session);
+    ExpectIntGT(ssl_c2->session->ticketLen, 0);
+
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A resumed TLS 1.2 handshake in which the server sends an empty
+ * NewSessionTicket leaves the client's cached ticket in place. */
+int test_tls12_empty_ticket_keeps_cached(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_CLIENT_CACHE) && !defined(NO_SESSION_CACHE_REF) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE)
+    const byte serverID[] = "tls12-empty-ticket-test";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL, *ssl_c3 = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+
+    /* Full handshake, so the client caches a session holding a ticket. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c, serverID, (int)sizeof(serverID), 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntGT(ssl_c->session->ticketLen, 0);
+
+    /* A hint of half the ticket key lifetime or more makes the server send an
+     * empty ticket instead of renewing. */
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx_s, WOLFSSL_TICKET_KEY_LIFETIME),
+        WOLFSSL_SUCCESS);
+
+    /* Resume against the same server CTX, so the ticket is accepted. */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c2, serverID, (int)sizeof(serverID), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 1);
+    /* The empty ticket cleared this connection's copy. */
+    ExpectIntEQ(ssl_c2->msgsReceived.got_session_ticket, 1);
+    ExpectIntEQ(ssl_c2->session->ticketLen, 0);
+
+    /* The cached ticket must not have been overwritten. */
+    ExpectNotNull(ssl_c3 = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl_c3, serverID, (int)sizeof(serverID), 0),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_c3->session);
+    ExpectIntGT(ssl_c3->session->ticketLen, 0);
+
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

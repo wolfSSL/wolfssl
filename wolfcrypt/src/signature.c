@@ -32,14 +32,7 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
-/* If ECC and RSA are disabled then disable signature wrapper */
-#if (!defined(HAVE_ECC) || (defined(HAVE_ECC) && !defined(HAVE_ECC_SIGN) \
-    && !defined(HAVE_ECC_VERIFY))) && defined(NO_RSA)
-    #undef NO_SIG_WRAPPER
-    #define NO_SIG_WRAPPER
-#endif
-
-/* Signature wrapper disabled check */
+/* Signature wrapper disabled check (NO_SIG_WRAPPER set by signature.h) */
 #ifndef NO_SIG_WRAPPER
 
 #if !defined(NO_RSA) && defined(NO_ASN)

@@ -293,8 +293,7 @@ static int der_write_to_bio_as_pem(const unsigned char* der, int derSz,
 #endif
 
 #if !defined(NO_FILESYSTEM) && \
-    ((defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
-      !defined(NO_PWDBASED)) || \
+    ((defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN)) || \
      defined(WOLFSSL_DH_EXTRA))
 /* Write the DER data as PEM into file pointer.
  *
@@ -326,8 +325,7 @@ static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
     return ret;
 }
 #endif /* !NO_FILESYSTEM &&
-        * ((OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED) ||
-        *  WOLFSSL_DH_EXTRA) */
+        * ((OPENSSL_EXTRA && !NO_CERTS && !NO_ASN) || WOLFSSL_DH_EXTRA) */
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
     defined(WOLFSSL_PEM_TO_DER)
@@ -4695,11 +4693,17 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
         }
     }
     if (ret == 1) {
+    #ifndef WOLFSSL_NO_DH_GEN_PARAMS
         /* Generate parameters into internal DH key. */
         if (wc_DhGenerateParams(rng, prime_len, key) != 0) {
             WOLFSSL_ERROR_MSG("wc_DhGenerateParams error");
             ret = 0;
         }
+    #else
+        WOLFSSL_ERROR_MSG("DH parameter generation disabled in this build");
+        (void)prime_len;
+        ret = 0;
+    #endif
     }
 
     /* Free local random number generator if created. */
@@ -6166,6 +6170,12 @@ int wolfSSL_PEM_def_callback(char* buf, int num, int rwFlag, void* userData)
 int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 {
     int ret = 0;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    !defined(NO_ASN)
+    unsigned char* derBuf = NULL;
+    int derSz = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_bio_PUBKEY");
 
@@ -6194,6 +6204,20 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
                 WOLFSSL_MSG("Writing DH PUBKEY not supported!");
                 break;
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    !defined(NO_ASN)
+            case WC_EVP_PKEY_DILITHIUM:
+                /* Encode as SPKI and write as PUBLIC KEY PEM. */
+                derSz = wolfSSL_i2d_PUBKEY(key, &derBuf);
+                if (derSz > 0) {
+                    ret = der_write_to_bio_as_pem(derBuf, derSz, bio,
+                        PUBLICKEY_TYPE);
+                }
+                XFREE(derBuf, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                break;
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
+        * !WOLFSSL_MLDSA_NO_ASN1 && WC_ENABLE_ASYM_KEY_EXPORT && !NO_ASN */
             default:
                 /* Key type not supported. */
                 WOLFSSL_MSG("Unknown Key type!");
@@ -6318,7 +6342,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 #endif /* !NO_BIO */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_ASN)
 /* Writes a public key to a file pointer encoded in PEM format.
  *
  * @param [in] fp   File pointer to write to.
@@ -6474,8 +6498,7 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
     WOLFSSL_LEAVE("wolfSSL_PEM_write_PrivateKey", err);
     return !err;
 }
-#endif /* !NO_FILESYSTEM && !NO_CERTS && OPENSSL_EXTRA && !NO_ASN &&
-        * !NO_PWDBASED */
+#endif /* !NO_FILESYSTEM && !NO_CERTS && OPENSSL_EXTRA && !NO_ASN */
 
 #ifndef NO_BIO
 /* Create a private key object from the data in the BIO.
@@ -7328,7 +7351,7 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
 #ifdef OPENSSL_ALL
 #if !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
 
-/* Encrypt the key into a buffer using PKCS$8 and a password.
+/* Encrypt the key into a buffer using PKCS#8 and a password.
  *
  * @param [in]      pkey      Private key to encrypt.
  * @param [in]      enc       EVP cipher.
@@ -7418,6 +7441,32 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
             }
             else
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+#ifdef WOLFSSL_HAVE_MLDSA
+            if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+                word32 idx = 0;
+                word32 keyOid = 0;
+
+                /* TraditionalEnc() would wrap the key again, so encrypt
+                 * the stored encoding directly. */
+                if ((pkey->pkey.ptr == NULL) || (pkey->pkey_sz <= 0)) {
+                    ret = BAD_FUNC_ARG;
+                }
+                else if (ToTraditionalInline_ex((const byte*)pkey->pkey.ptr,
+                        &idx, (word32)pkey->pkey_sz, &keyOid) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    ret = wc_EncryptPKCS8Key((byte*)pkey->pkey.ptr,
+                        (word32)pkey->pkey_sz, key, keySz, passwd, passwdSz,
+                        PKCS5, PBES2, encAlgId, NULL, 0, WC_PKCS12_ITT_DEFAULT,
+                        &rng, NULL);
+                    if (ret > 0) {
+                        *keySz = (word32)ret;
+                    }
+                }
+            }
+            else
+#endif /* WOLFSSL_HAVE_MLDSA */
             {
                 /* Encrypt private into buffer. */
                 ret = TraditionalEnc(
@@ -7436,7 +7485,9 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
 
     return ret;
 }
+#endif /* !NO_PWDBASED && HAVE_PKCS8 */
 
+#ifdef HAVE_PKCS8
 /* Encode private key in PKCS#8 format.
  *
  * @param [in]      pkey   Private key.
@@ -7484,11 +7535,15 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
             if (keySz == NULL)
                 return BAD_FUNC_ARG;
 
-            *keySz = (word32)pkey->pkey_sz;
-            if (key == NULL)
+            if (key == NULL) {
+                *keySz = (word32)pkey->pkey_sz;
                 return LENGTH_ONLY_E;
+            }
+            if (*keySz < (word32)pkey->pkey_sz)
+                return BUFFER_E;
 
             XMEMCPY(key, pkey->pkey.ptr, pkey->pkey_sz);
+            *keySz = (word32)pkey->pkey_sz;
             return pkey->pkey_sz;
         }
 
@@ -7527,7 +7582,34 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         return NOT_COMPILED_IN;
     #endif /* HAVE_ED25519_KEY_EXPORT */
     }
-#endif
+#endif /* HAVE_ED25519 */
+#ifdef WOLFSSL_HAVE_MLDSA
+    else if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+        word32 idx = 0;
+        word32 keyOid = 0;
+
+        /* ML-DSA buffer is expected to be in PKCS8 format */
+        if ((keySz == NULL) || (pkey->pkey.ptr == NULL) ||
+                (pkey->pkey_sz <= 0)) {
+            return BAD_FUNC_ARG;
+        }
+        if (ToTraditionalInline_ex((const byte*)pkey->pkey.ptr, &idx,
+                (word32)pkey->pkey_sz, &keyOid) < 0) {
+            return ASN_PARSE_E;
+        }
+
+        if (key == NULL) {
+            *keySz = (word32)pkey->pkey_sz;
+            return LENGTH_ONLY_E;
+        }
+        if (*keySz < (word32)pkey->pkey_sz)
+            return BUFFER_E;
+
+        XMEMCPY(key, pkey->pkey.ptr, pkey->pkey_sz);
+        *keySz = (word32)pkey->pkey_sz;
+        return pkey->pkey_sz;
+    }
+#endif /* WOLFSSL_HAVE_MLDSA */
     else {
         ret = NOT_COMPILED_IN;
     }
@@ -7541,7 +7623,9 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 
     return ret;
 }
+#endif /* HAVE_PKCS8 */
 
+#if !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
 #if !defined(NO_BIO) || (!defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM))
 /* Write PEM encoded, PKCS#8 formatted private key to BIO.

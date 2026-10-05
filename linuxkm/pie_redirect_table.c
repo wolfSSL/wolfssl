@@ -53,13 +53,19 @@ const struct wolfssl_linuxkm_pie_redirect_table
     return &wolfssl_linuxkm_pie_redirect_table;
 }
 
-/* placeholder implementations for missing functions. */
-#if defined(CONFIG_MIPS)
+/* The container may hold no undefined symbol (linuxkm/Kbuild:301), so define
+ * these here.  arm64 forwards to the kernel's __memcpy()/__memset()
+ * (arch/arm64/lib/memcpy.S:243, memset.S:206); the loops run before that. */
+#if defined(CONFIG_MIPS) || defined(CONFIG_ARM64)
     #undef memcpy
     void *memcpy(void *dest, const void *src, size_t n) {
         char *dest_i = (char *)dest;
         char *dest_end = dest_i + n;
         char *src_i = (char *)src;
+#if defined(CONFIG_ARM64) && !defined(__ARCH_MEMCPY_NO_REDIRECT)
+        if (wolfssl_linuxkm_pie_redirect_table.memcpy != NULL)
+            return wolfssl_linuxkm_pie_redirect_table.memcpy(dest, src, n);
+#endif
         while (dest_i < dest_end)
             *dest_i++ = *src_i++;
         return dest;
@@ -69,6 +75,10 @@ const struct wolfssl_linuxkm_pie_redirect_table
     void *memset(void *dest, int c, size_t n) {
         char *dest_i = (char *)dest;
         char *dest_end = dest_i + n;
+#if defined(CONFIG_ARM64) && !defined(__ARCH_MEMSET_NO_REDIRECT)
+        if (wolfssl_linuxkm_pie_redirect_table.memset != NULL)
+            return wolfssl_linuxkm_pie_redirect_table.memset(dest, c, n);
+#endif
         while (dest_i < dest_end)
             *dest_i++ = c;
         return dest;

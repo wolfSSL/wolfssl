@@ -609,6 +609,117 @@ static void tskAes128_Gcm_Test(void *pvParam)
 
 #endif
 
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256)
+
+#define SCE_AESGCM_MISALIGNED_SZ    32
+
+/* AES-GCM over misaligned AAD/data buffers, using a real SCE wrapped key
+ * (unlike the portable aesgcm_misaligned_test(), a plaintext key never
+ * reaches the SCE hardware path). Regression test for the AAD-alignment
+ * fix in wc_fspsm_AesGcmEncrypt()/wc_fspsm_AesGcmDecrypt(). */
+static int sce_aesgcm_misaligned_test(int prnt, FSPSM_AES_PWKEY aes_key,
+                                                    word32 keySz, int devId)
+{
+    Aes aes[1];
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+        0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b
+    };
+    byte input[SCE_AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte aad[SCE_AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte cipher[SCE_AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte plain[SCE_AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte tag[WC_AES_BLOCK_SIZE];
+    byte refCipher[SCE_AESGCM_MISALIGNED_SZ];
+    byte refTag[WC_AES_BLOCK_SIZE];
+    int off;
+    int i;
+    int ret;
+
+    if (prnt) {
+        printf(keySz == WC_AES_BLOCK_SIZE ?
+            " sce_aesgcm128_misaligned_test() " :
+            " sce_aesgcm256_misaligned_test() ");
+    }
+
+    if (wc_AesInit(aes, NULL, devId) != 0) {
+        ret = -1;
+        goto out;
+    }
+
+    for (off = 0; off < (int)WC_AES_BLOCK_SIZE; off++) {
+        byte* p = input + off;
+        byte* a = aad + off;
+        byte* c = cipher + off;
+        byte* d = plain + off;
+
+        XMEMSET(input, 0, sizeof(input));
+        XMEMSET(aad, 0, sizeof(aad));
+        XMEMSET(cipher, 0, sizeof(cipher));
+        XMEMSET(plain, 0, sizeof(plain));
+        XMEMSET(tag, 0, sizeof(tag));
+
+        for (i = 0; i < SCE_AESGCM_MISALIGNED_SZ; i++) {
+            p[i] = (byte)i;
+            a[i] = (byte)(0x80 + i);
+        }
+
+        if (wc_AesGcmSetKey(aes, (byte*)aes_key, keySz) != 0) {
+            ret = -2;
+            goto out;
+        }
+        if (wc_AesGcmEncrypt(aes, c, p, SCE_AESGCM_MISALIGNED_SZ, iv,
+                (word32)sizeof(iv), tag, WC_AES_BLOCK_SIZE, a,
+                SCE_AESGCM_MISALIGNED_SZ) != 0) {
+            ret = -3;
+            goto out;
+        }
+
+        /* The aligned pass sets the expected result for every other
+         * offset. */
+        if (off == 0) {
+            XMEMCPY(refCipher, c, SCE_AESGCM_MISALIGNED_SZ);
+            XMEMCPY(refTag, tag, WC_AES_BLOCK_SIZE);
+        }
+        else if ((XMEMCMP(refCipher, c, SCE_AESGCM_MISALIGNED_SZ) != 0) ||
+                 (XMEMCMP(refTag, tag, WC_AES_BLOCK_SIZE) != 0)) {
+            ret = -4;
+            goto out;
+        }
+
+        if (wc_AesGcmSetKey(aes, (byte*)aes_key, keySz) != 0) {
+            ret = -5;
+            goto out;
+        }
+        if (wc_AesGcmDecrypt(aes, d, c, SCE_AESGCM_MISALIGNED_SZ, iv,
+                (word32)sizeof(iv), tag, WC_AES_BLOCK_SIZE, a,
+                SCE_AESGCM_MISALIGNED_SZ) != 0) {
+            ret = -6;
+            goto out;
+        }
+        if (XMEMCMP(p, d, SCE_AESGCM_MISALIGNED_SZ) != 0) {
+            ret = -7;
+            goto out;
+        }
+    }
+
+    ret = 0;
+
+  out:
+    wc_AesFree(aes);
+
+    if (prnt) {
+        RESULT_STR(ret)
+    }
+
+    return ret;
+}
+
+#undef SCE_AESGCM_MISALIGNED_SZ
+
+#endif /* WOLFSSL_AES_128 || WOLFSSL_AES_256 */
+
 #if !defined(NO_RSA)
 
 /* testing rsa sign/verify w/ rsa 2048 bit key */
@@ -875,6 +986,20 @@ int sce_crypt_test()
     if (ret == 0) {
         ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1, devId);
     }
+
+#if defined(WOLFSSL_AES_128)
+    if (ret == 0) {
+        ret = sce_aesgcm_misaligned_test(1, &g_user_aes128_key_index1,
+                WC_AES_BLOCK_SIZE, devId);
+    }
+#endif
+
+#if defined(WOLFSSL_AES_256)
+    if (ret == 0) {
+        ret = sce_aesgcm_misaligned_test(1, &g_user_aes256_key_index1,
+                WC_AES_BLOCK_SIZE*2, devId);
+    }
+#endif
     printf(" \n");
     if (ret == 0) {
         printf(" multi sha thread test\n");

@@ -1760,8 +1760,14 @@ then
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 7
     then
         test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-        test "$enable_cshake" = "" && enable_cshake=yes
-        test "$enable_kmac" = "" && enable_kmac=yes
+        # KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary,
+        # so only non-FIPS and the dev/ready prep builds turn them on here.
+        if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS_DEV" = "yes" \
+            || test "$ENABLED_FIPS_READY" = "yes"
+        then
+            test "$enable_cshake" = "" && enable_cshake=yes
+            test "$enable_kmac" = "" && enable_kmac=yes
+        fi
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
@@ -2062,12 +2068,35 @@ AC_ARG_WITH([liboqs],
 #            double. Advanced SIMD is part of the ARMv8-A baseline, so no special
 #            -march is required.
 #   small-mem - low-memory dynamic signing: rebuilds the ffLDL tree inside the
-#            sampler instead of precomputing the expanded key, roughly halving
-#            the sign working set (~168KB -> ~78KB at Falcon-1024) for ~10%
-#            slower signing. Orthogonal to the fpr/FFT backends above; verify
-#            and keygen are unchanged.
+#            sampler instead of precomputing the expanded key, halving the peak
+#            heap of a signature (176KB -> 88KB at Falcon-1024, 84KB -> 44KB at
+#            Falcon-512) for ~15% slower signing. Orthogonal to the fpr/FFT
+#            backends above; verify and keygen are unchanged.
+#   smallest-mem - signing in a 20*n byte working area; implies small-mem.
+#   cache-key - keep the expanded key (FFT basis plus normalized ffLDL tree) in
+#            the key structure, so only the first signature made with a key
+#            pays for the expansion. Over half of a signature with the default
+#            emulated fpr backend is that expansion. Costs ~57KB (Falcon-512)
+#            or ~120KB (Falcon-1024) of heap per key. In small-mem builds,
+#            which have no expanded key, this reduces to cache-basis.
+#   level1 / level5 - build only the levels listed. Naming neither builds both.
+#            Every FALCON_MAX_* bound follows the highest level built, so
+#            'level1' alone takes falcon_key from 4120 to 2200 bytes and the
+#            verify stack arena from 4KB to 2KB.
+#   dynamic-keys - hold the encoded public and private key in heap buffers
+#            sized for the key's own level rather than inline arrays sized for
+#            the highest level built, which leaves falcon_key at a few dozen
+#            bytes. --enable-falcon=cache-* is the analogue for the signing
+#            working set. wc_falcon_set_level allocates, so it can return
+#            MEMORY_E.
+#   cache-basis - keep the decoded and completed secret basis (f, g, F, G) in
+#            the key structure, saving the private-key decode and the G
+#            recomputation on every signature after the first. Costs 4*n bytes
+#            per key. An alternative to cache-key, not implied by it.
+#   Neither cache is synchronized: a key signed with from several threads at
+#            once must either not use them or be signed with before sharing.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem for low-memory signing (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem, smallest-mem, cache-key/cache-basis, level1/level5 and dynamic-keys (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
@@ -2076,6 +2105,12 @@ ENABLED_FALCON_DOUBLE=no
 ENABLED_FALCON_AVX2=no
 ENABLED_FALCON_NEON=no
 ENABLED_FALCON_SMALL_MEM=no
+ENABLED_FALCON_SMALLEST_MEM=no
+ENABLED_FALCON_CACHE_KEY=no
+ENABLED_FALCON_CACHE_BASIS=no
+ENABLED_FALCON_LEVEL1=no
+ENABLED_FALCON_LEVEL5=no
+ENABLED_FALCON_DYNAMIC_KEYS=no
 
 # Parse the comma-separated backend sub-options. AC_ARG_ENABLE yields the plain
 # "yes"/"no" for a bare --enable-falcon/--disable-falcon; anything else is a
@@ -2092,7 +2127,14 @@ if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
             avx2)   ENABLED_FALCON_AVX2=yes ;;
             neon)   ENABLED_FALCON_NEON=yes ;;
             small-mem) ENABLED_FALCON_SMALL_MEM=yes ;;
-            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem]) ;;
+            smallest-mem) ENABLED_FALCON_SMALL_MEM=yes
+                          ENABLED_FALCON_SMALLEST_MEM=yes ;;
+            cache-key) ENABLED_FALCON_CACHE_KEY=yes ;;
+            cache-basis) ENABLED_FALCON_CACHE_BASIS=yes ;;
+            level1) ENABLED_FALCON_LEVEL1=yes ;;
+            level5) ENABLED_FALCON_LEVEL5=yes ;;
+            dynamic-keys) ENABLED_FALCON_DYNAMIC_KEYS=yes ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, smallest-mem, cache-key, cache-basis, level1, level5, dynamic-keys]) ;;
         esac
     done
     IFS="$OIFS"
@@ -3957,6 +3999,61 @@ then
 fi
 
 
+# Silicon Labs EFR32 Secure Element crypto-callback port.
+#
+# Two profiles, because the port is built two different ways:
+#
+#   host-test (the default for a bare --enable-silabs-cryptocb)
+#       Swaps the SE Manager headers for a shim (WOLFSSL_SILABS_HOST_TEST) so
+#       the cryptocb dispatch and wiring build with no vendor SDK present.
+#       Every shim operation declines, so this compiles the port and exercises
+#       the fall-back paths; it does no crypto and is not a target build.
+#
+#   target
+#       The port itself, with no shim. The Simplicity SDK include path comes
+#       from the application, so pass it in CFLAGS:
+#           ./configure --enable-silabs-cryptocb=target \
+#                       CFLAGS="-I<simplicity-sdk>/platform/security/sl_component/se_manager/inc ..."
+#       This is what a cross build for an EFR32 uses. Building it for the host
+#       will not link, which is the point of the host-test profile.
+#
+# Either way it forces crypto callbacks on (see the cryptocb block).
+# Example: "./configure --enable-silabs-cryptocb"
+ENABLED_SILABS_CRYPTOCB="no"
+AC_ARG_ENABLE([silabs-cryptocb],
+    [AS_HELP_STRING([--enable-silabs-cryptocb@<:@=host-test|target@:>@],
+        [Enable Silicon Labs EFR32 Secure Element crypto-callback port. Default host-test, which builds the port against a shim and needs no vendor SDK.])],
+    [ ENABLED_SILABS_CRYPTOCB=$enableval ],
+    [ ENABLED_SILABS_CRYPTOCB=no ])
+
+if test "x$ENABLED_SILABS_CRYPTOCB" = "xyes"
+then
+    ENABLED_SILABS_CRYPTOCB="host-test"
+fi
+
+if test "x$ENABLED_SILABS_CRYPTOCB" != "xno"
+then
+    # The shim models an EFR32xG25 (Series 2 Config 5) with Secure Vault High.
+    # The port's AES-ECB dispatch is gated on HAVE_AES_ECB and compiles out
+    # without it, so this option does not turn AES-ECB on. To compile-test that
+    # path too, add --enable-aesecb, which enables the (public,
+    # unauthenticated) AES-ECB API through the normal option.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SILABS_CRYPTOCB"
+
+    case "$ENABLED_SILABS_CRYPTOCB" in
+        host-test)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SILABS_HOST_TEST"
+            ;;
+        target)
+            AC_MSG_NOTICE([silabs-cryptocb=target: the Simplicity SDK include path must be supplied in CFLAGS])
+            ;;
+        *)
+            AC_MSG_ERROR([unknown --enable-silabs-cryptocb value '$ENABLED_SILABS_CRYPTOCB'; use host-test or target])
+            ;;
+    esac
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -4886,6 +4983,40 @@ then
     done
 fi
 
+# NXP QorIQ SEC (the PowerPC T-series security engine, a CAAM derivative).
+# Takes a comma separated list selecting the environment backend, e.g.
+#   --enable-sec-qoriq=baremetal
+# "sim" selects the host-runnable simulated backend used by the in-tree
+# tests; it needs no hardware and runs on any architecture.
+AC_ARG_ENABLE([sec-qoriq],
+    [AS_HELP_STRING([--enable-sec-qoriq],[Enable wolfSSL support for the NXP QorIQ SEC engine, T1040/T2080 (default: disabled)])],
+    [ ENABLED_SEC_QORIQ=$enableval ],
+    [ ENABLED_SEC_QORIQ=no ]
+    )
+
+if test "$ENABLED_SEC_QORIQ" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ"
+
+    for v in `echo $ENABLED_SEC_QORIQ | tr "," " "`
+    do
+      case $v in
+        yes | baremetal)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_BAREMETAL"
+            ;;
+        linux)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_LINUX"
+            ;;
+        sim)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_SIM"
+            ;;
+        *)
+            AC_MSG_ERROR([Invalid choice for --enable-sec-qoriq: $v (want baremetal, linux or sim)])
+            ;;
+      esac
+    done
+fi
+
 AC_ARG_ENABLE([caam],
     [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
     [ ENABLED_CAAM=$enableval ],
@@ -4910,6 +5041,14 @@ then
 
         imx6ul)
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6UL_CAAM"
+            ;;
+
+        linux)
+            # Drive a job ring from Linux user space. Needs a reserved
+            # physical DMA pool (boot with mem=) and the in-tree caam driver
+            # unbound; see wolfcrypt/src/port/caam/README.md.
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_LINUX -DWOLFSSL_CAAM_NO_SM"
+            ENABLED_CAAM_LINUX="yes"
             ;;
 
         seco)
@@ -5735,10 +5874,35 @@ fi
 
 # KEY GENERATION
 AC_ARG_ENABLE([keygen],
-    [AS_HELP_STRING([--enable-keygen],[Enable key generation (only applies to RSA key generation) (default: disabled)])],
+    [AS_HELP_STRING([--enable-keygen],[Enable key generation. Takes yes, no, or a comma separated list of: all, no-dh-params (drop DH domain parameter generation, keeping DH key generation; protocols use the fixed FFDHE groups) (default: disabled)])],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
+
+# Expand the list form of --enable-keygen into the individual sub-features.
+ENABLED_DH_GEN_PARAMS=yes
+if test "$ENABLED_KEYGEN" != "no" && test "$ENABLED_KEYGEN" != "yes"
+then
+    for kg in `echo $ENABLED_KEYGEN | tr ',' ' '`
+    do
+        case $kg in
+        all)
+            ;;
+        no-dh-params | nodhparams | nodhparamgen)
+            ENABLED_DH_GEN_PARAMS=no
+            ;;
+        *)
+            AC_MSG_ERROR([Invalid choice for --enable-keygen: $kg. Use yes, no, all or no-dh-params.])
+            ;;
+        esac
+    done
+    ENABLED_KEYGEN=yes
+fi
+
+if test "$ENABLED_DH_GEN_PARAMS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_DH_GEN_PARAMS"
+fi
 
 if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
    test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || \
@@ -8472,6 +8636,19 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
 fi
 
+# An explicit --enable-kmac/--enable-cshake against a validated module version
+# fails here, with the clear configure error this file's convention calls for,
+# rather than building a module that silently excludes them (SP 800-185).
+if test "$ENABLED_FIPS" != "no" && test -n "$HAVE_FIPS_VERSION" \
+    && test "$HAVE_FIPS_VERSION" -ge 7 && test "$ENABLED_FIPS_DEV" != "yes" \
+    && test "$ENABLED_FIPS_READY" != "yes"
+then
+    if test "$ENABLED_CSHAKE" != "no" || test "$ENABLED_KMAC" != "no"
+    then
+        AC_MSG_ERROR([cshake and kmac are not part of the FIPS module boundary for this version])
+    fi
+fi
+
 # Set cSHAKE / KMAC flags. Both are built on SHAKE, so re-check here (after any
 # later logic - e.g. FIPS < 6 - may have force-disabled SHAKE) and fail with a
 # clear configure error rather than a confusing compile-time #error. KMAC
@@ -8675,6 +8852,31 @@ fi
 if test "$ENABLED_FALCON_SMALL_MEM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALL_MEM"
+fi
+if test "$ENABLED_FALCON_SMALLEST_MEM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALLEST_MEM"
+fi
+if test "$ENABLED_FALCON_CACHE_KEY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_FALCON_CACHE_EXPANDED_KEY"
+fi
+if test "$ENABLED_FALCON_CACHE_BASIS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_FALCON_CACHE_PRIV_BASIS"
+fi
+# Naming neither level builds both; naming one drops the other.
+if test "$ENABLED_FALCON_LEVEL1" = "yes" && test "$ENABLED_FALCON_LEVEL5" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_FALCON_LEVEL5"
+fi
+if test "$ENABLED_FALCON_LEVEL5" = "yes" && test "$ENABLED_FALCON_LEVEL1" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_FALCON_LEVEL1"
+fi
+if test "$ENABLED_FALCON_DYNAMIC_KEYS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_DYNAMIC_KEYS"
 fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)
@@ -11901,7 +12103,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -12382,6 +12584,39 @@ then
     done
 fi
 AC_SUBST([ENABLED_LINUXKM_LKCAPI_REGISTER])
+
+# The aarch64 ChaCha20 and Poly1305 assembly takes no vector register claim,
+# so a kernel module must not carry it.  Outside FIPS these algorithms are on
+# by default, so back them off with a warning when the user did not ask for
+# them, and only fail the build when they did.
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_ARMASM" = "yes"
+then
+    case $host_cpu in
+    *aarch64*|*arm64*)
+        if test "$ENABLED_CHACHA" != "no" && test "$ENABLED_CHACHA" != "noasm" \
+           && test "$ENABLED_ASM" != "no"
+        then
+            if test "x$enable_chacha" = "x"
+            then
+                AC_MSG_WARN([ChaCha20 assembly holds no vector register claim on aarch64; building ChaCha20 without assembly for the kernel module.])
+                ENABLED_CHACHA=noasm
+            else
+                AC_MSG_ERROR([ChaCha20 assembly is unusable in a kernel module on aarch64: it holds no vector register claim.  Use --enable-chacha=noasm or --disable-chacha.])
+            fi
+        fi
+        if test "$ENABLED_POLY1305" != "no" && test "$ENABLED_ASM" != "no"
+        then
+            if test "x$enable_poly1305" = "x"
+            then
+                AC_MSG_WARN([Poly1305 assembly holds no vector register claim on aarch64 and has no assembly-free build; disabling Poly1305 for the kernel module.])
+                ENABLED_POLY1305=no
+            else
+                AC_MSG_ERROR([Poly1305 assembly is unusable in a kernel module on aarch64: it holds no vector register claim.  Use --disable-poly1305.])
+            fi
+        fi
+        ;;
+    esac
+fi
 
 # Library Suffix
 LIBSUFFIX=""
@@ -14029,13 +14264,16 @@ AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_CUDA],[test "x$ENABLED_CUDA" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
+AM_CONDITIONAL([BUILD_SEC_QORIQ],[test "x$ENABLED_SEC_QORIQ" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
+AM_CONDITIONAL([BUILD_CAAM_LINUX],[test "x$ENABLED_CAAM_LINUX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
+AM_CONDITIONAL([BUILD_SILABS_CRYPTOCB],[test "x$ENABLED_SILABS_CRYPTOCB" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
@@ -14453,6 +14691,7 @@ echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
+echo "   * DH parameter generation:    $ENABLED_DH_GEN_PARAMS"
 echo "   * acert:                      $ENABLED_ACERT"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"

@@ -10,6 +10,10 @@ on:
   schedule:
     - cron: '20 5 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NETXDUO_REF: v6.4.3_rel
 

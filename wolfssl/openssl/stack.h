@@ -47,6 +47,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_cipher(void);
 #define OPENSSL_sk_pop_free   wolfSSL_sk_pop_free
 #define OPENSSL_sk_new_null   wolfSSL_sk_new_null
 #define OPENSSL_sk_push       wolfSSL_sk_push
+#define OPENSSL_sk_delete     wolfSSL_sk_delete
 
 /* provides older OpenSSL API compatibility  */
 #define sk_free         OPENSSL_sk_free

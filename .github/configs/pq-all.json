@@ -228,5 +228,17 @@
 {"name": "pkcs7-mldsa-only", "minutes": 0.5,
  "comment": "PKCS#7 SignedData with ML-DSA as the only signature algorithm (no RSA, no ECC); guards the ML-DSA-only PKCS7 build path",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
-  "--enable-pkcs7", "--disable-rsa", "--disable-ecc"]}
+  "--enable-pkcs7", "--disable-rsa", "--disable-ecc"]},
+{"name": "mldsa-verify-only-cryptocb",
+ "comment": "ML-DSA cryptocb with keygen and sign compiled out: VERIFY_ONLY derives NO_MAKE_KEY and NO_SIGN, so those callback branches must compile away and only the verify hit counter is enforced.",
+ "configure": ["--disable-intelasm", "--enable-cryptocb",
+  "--enable-mldsa=verify-only"]},
+{"name": "mldsa-draft-cryptocb",
+ "comment": "ML-DSA cryptocb with WOLFSSL_MLDSA_NO_CTX derived from FIPS204_DRAFT, where the no-context verify is indistinguishable from VerifyCtx with an empty context, so the sign and verify branches decline. Needs yes,draft: =draft alone enables none of make/sign/verify.",
+ "configure": ["--disable-intelasm", "--enable-cryptocb",
+  "--enable-mldsa=yes,draft"]},
+{"name": "mldsa-sign-verify-cryptocb",
+ "comment": "NO_MAKE_KEY without NO_SIGN, so the sign callback branch compiles but mldsa_param_test is compiled out and no signature is ever produced. Guards the sign hit counter against a build that cannot sign.",
+ "configure": ["--disable-intelasm", "--enable-cryptocb",
+  "--enable-mldsa=sign,verify"]}
 ]

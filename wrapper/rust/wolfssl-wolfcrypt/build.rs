@@ -322,6 +322,48 @@ fn generate_bindings() -> Result<()> {
         })
 }
 
+/// Mappings between the standard wolfCrypt name and the FIPS name, for the
+/// functions whose FIPS name is not simply `<name>_fips`.
+///
+/// This is the single source of truth for those renames: it is used both when
+/// generating the FIPS aliases and when probing the bindings in `check_cfg()`,
+/// so that a cfg whose probe function is renamed by the FIPS module is still
+/// detected.
+const FIPS_RENAMES: &[(&str, &str)] = &[
+    /* _ex suffix changed to Ex before _fips */
+    ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
+    ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
+    ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
+    ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
+    ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
+    ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
+    ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
+    ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
+    ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
+    ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
+    ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
+
+    /* Name change */
+    ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
+];
+
+/// Returns the name the FIPS module exports `base_name` under, for the
+/// functions listed in `FIPS_RENAMES`, or `None` for every other function
+/// (whose FIPS name is `<base_name>_fips`).
+fn fips_rename(base_name: &str) -> Option<&'static str> {
+    FIPS_RENAMES.iter()
+                .find(|(std_name, _)| *std_name == base_name)
+                .map(|(_, fips_name)| *fips_name)
+}
+
+/// Returns the standard wolfCrypt name of the renamed FIPS symbol
+/// `fips_name`, or `None` if the FIPS module does not rename it.
+fn fips_rename_base(fips_name: &str) -> Option<&'static str> {
+    FIPS_RENAMES.iter()
+                .find(|(_, fips)| *fips == fips_name)
+                .map(|(std_name, _)| *std_name)
+}
+
 /// Generate FIPS symbol aliases.
 ///
 /// Since Rust can't use fips.h's #defines which map the "regular" wc function
@@ -346,32 +388,10 @@ fn generate_fips_aliases() -> Result<()> {
         let mut base_name = &cap[1];
         let fips_name = format!("{}_fips", base_name);
 
-        // Exception mappings: (standard_name, fips_name)
-        // For cases where FIPS name doesn't follow the simple <name>_fips pattern
-        let exceptions: &[(&str, &str)] = &[
-            // _ex suffix changed to Ex before _fips
-            ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
-            ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
-            ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
-            ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
-            ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
-            ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
-            ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
-            ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
-            ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
-            ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
-            ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
-
-            // Name change
-            ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
-        ];
-
-        // Handle exceptions
-        for (exc_base_name, exc_fips_name) in exceptions {
-            if fips_name == *exc_fips_name {
-                base_name = exc_base_name;
-                break;
-            }
+        // Handle the functions the FIPS module renames rather than simply
+        // suffixing with _fips.
+        if let Some(renamed_base_name) = fips_rename_base(&fips_name) {
+            base_name = renamed_base_name;
         }
 
         // Check if the non-_fips version exists in bindings
@@ -440,7 +460,14 @@ fn read_file(path: String) -> Result<String> {
 /// Returns true if `function_name` (or its `_fips` variant) is present in the
 /// generated bindings.
 fn has_symbol(binding: &str, function_name: &str) -> bool {
-    let pattern = format!(r"\b{}(_fips)?\b", function_name);
+    // A FIPS build of wolfSSL exports most functions as <name>_fips, but
+    // renames a few of them (see FIPS_RENAMES).  Accept the renamed symbol
+    // too: the generated aliases make it callable under its standard name, so
+    // missing it here would compile out wrapper code the library supports.
+    let mut pattern = format!(r"\b{}(_fips)?\b", regex::escape(function_name));
+    if let Some(fips_name) = fips_rename(function_name) {
+        pattern.push_str(&format!(r"|\b{}\b", regex::escape(fips_name)));
+    }
     let re = match Regex::new(&pattern) {
         Ok(r) => r,
         Err(e) => {
@@ -479,7 +506,6 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesCcmSetKey", "aes_ccm");
     check_cfg(&binding, "wc_AesCfbEncrypt", "aes_cfb");
     check_cfg(&binding, "wc_AesCtrEncrypt", "aes_ctr");
-    check_cfg(&binding, "wc_AesCtsEncrypt", "aes_cts");
     check_cfg(&binding, "wc_AesCfbDecrypt", "aes_cfb_decrypt");
     check_cfg(&binding, "wc_AesOfbDecrypt", "aes_ofb_decrypt");
     check_cfg(&binding, "wc_AesEaxInit", "aes_eax");
@@ -507,6 +533,9 @@ fn scan_cfg() -> Result<()> {
     /* curve25519 */
     check_cfg(&binding, "wc_curve25519_make_pub", "curve25519");
     check_cfg(&binding, "wc_curve25519_make_pub_blind", "curve25519_blinding");
+    check_cfg(&binding, "wc_curve25519_shared_secret", "curve25519_shared_secret");
+    check_cfg(&binding, "wc_curve25519_import_public", "curve25519_import");
+    check_cfg(&binding, "wc_curve25519_export_public", "curve25519_export");
 
     /* dh */
     check_cfg(&binding, "wc_InitDhKey", "dh");
@@ -605,9 +634,20 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
-    check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
+    /* wc_RsaPSS_Verify, not wc_RsaPSS_Sign: signing is additionally guarded
+     * out by the public-only and verify-only build options, so only the
+     * verify side tracks WC_RSA_PSS itself. */
+    check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
     check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
+    /* The RSA "only" build options subtract API, so each cfg names what is
+     * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
+     * rsa_sign is !WOLFSSL_RSA_VERIFY_ONLY and rsa_ssl_verify is
+     * !WOLFSSL_RSA_VERIFY_INLINE.  Each sentinel is a function guarded by
+     * exactly one of those macros. */
+    check_cfg(&binding, "wc_RsaPrivateDecrypt", "rsa_private");
+    check_cfg(&binding, "wc_RsaPublicEncrypt", "rsa_sign");
+    check_cfg(&binding, "wc_RsaSSL_Verify", "rsa_ssl_verify");
     // WC_MGF1SHA512_224 and WC_MGF1SHA512_256 are unconditional #defines in
     // rsa.h, so their presence says nothing about whether SHA-512/224 and
     // SHA-512/256 are actually built in. Require the hash as well.
@@ -629,15 +669,27 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_MlDsaKey_SignCtx", "mldsa_sign");
     check_cfg(&binding, "wc_MlDsaKey_SignCtxWithSeed", "mldsa_sign_with_seed");
     check_cfg(&binding, "wc_MlDsaKey_VerifyCtx", "mldsa_verify");
-    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import");
-    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export");
+    check_cfg(&binding, "wc_MlDsaKey_Size", "mldsa_size");
+    check_cfg(&binding, "wc_MlDsaKey_PrivSize", "mldsa_priv_size");
+    check_cfg(&binding, "wc_MlDsaKey_PubSize", "mldsa_pub_size");
+    check_cfg(&binding, "wc_MlDsaKey_SigSize", "mldsa_sig_size");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import_public");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPrivRaw", "mldsa_import_private");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export_public");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPrivRaw", "mldsa_export_private");
     check_cfg(&binding, "wc_MlDsaKey_CheckKey", "mldsa_check_key");
     check_cfg(&binding, "WC_MLDSA_44_KEY_SIZE", "mldsa_level2");
     check_cfg(&binding, "WC_MLDSA_65_KEY_SIZE", "mldsa_level3");
     check_cfg(&binding, "WC_MLDSA_87_KEY_SIZE", "mldsa_level5");
 
     /* mlkem / ML-KEM */
-    check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_New", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_MakeKey", "mlkem_make_key");
+    check_cfg(&binding, "wc_MlKemKey_Encapsulate", "mlkem_encapsulate");
+    check_cfg(&binding, "wc_MlKemKey_Decapsulate", "mlkem_decapsulate");
+    check_cfg(&binding, "WC_ML_KEM_512_K", "mlkem_512");
+    check_cfg(&binding, "WC_ML_KEM_768_K", "mlkem_768");
+    check_cfg(&binding, "WC_ML_KEM_1024_K", "mlkem_1024");
 
     /* lms / HSS */
     check_cfg(&binding, "wc_LmsKey_Init", "lms");

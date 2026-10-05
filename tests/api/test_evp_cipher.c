@@ -53,6 +53,11 @@ int test_wolfSSL_EVP_CIPHER_CTX(void)
     test = EVP_CIPHER_CTX_cipher(ctx);
     ExpectTrue(init == test);
     ExpectIntEQ(EVP_CIPHER_nid(test), NID_aes_128_cbc);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(ctx), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_encrypting(ctx), 1);
+    ExpectIntEQ(EVP_CipherInit(ctx, NULL, key, iv, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(ctx), 0);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(NULL), 0);
 
     ExpectIntEQ(EVP_CIPHER_CTX_reset(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_CIPHER_CTX_reset(NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -677,7 +682,8 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
 int test_wolfSSL_EVP_BytesToKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     byte                key[AES_BLOCK_SIZE] = {0};
     byte                iv[AES_BLOCK_SIZE] = {0};
     int                 count = 0;

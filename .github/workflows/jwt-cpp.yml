@@ -56,6 +56,7 @@ jobs:
             runner: ubuntu-24.04
     name: ${{ matrix.config.ref }}
     runs-on: ${{ matrix.config.runner }}
+    timeout-minutes: 20
     needs: build_wolfssl
     steps:
       - name: Checkout wolfSSL CI actions

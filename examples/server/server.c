@@ -1046,8 +1046,9 @@ static const char* server_usage_msg[][71] = {
         "-Q          Request certificate from client post-handshake\n", /* 49 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J [n]      Server sends Cookie Extension containing state (n to "
-        "disable)\n", /* 50 */
+        "-J [n]      Server sends Cookie Extension containing state\n"
+        "            ('n' disables all server cookies, including the\n"
+        "            DTLS 1.2 HelloVerifyRequest exchange)\n",          /* 50 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA

@@ -413,6 +413,94 @@ int test_wc_RNG_DRBG_Reseed(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_HASHDRBG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WC_RNG_SEED_APT_CUTOFF) && \
+    !defined(WC_RNG_SEED_APT_WINDOW) && !defined(WC_RNG_SEED_RCT_CUTOFF)
+/* Build one APT window whose reference value occurs m+1 times, keeping runs
+ * under the RCT cutoff so only the APT can fire.  Returns -1 if m does not
+ * fit in the window. */
+static int test_random_apt_window(byte* s, word32 start, word32 win, byte ref,
+    word32 m)
+{
+    word32 i, placed = 0, run = 1;
+    byte filler = 0;
+
+    for (i = 0; i < win; i++) {
+        if (++filler == ref)
+            filler++;
+        s[start + i] = filler;
+    }
+    s[start] = ref;
+    for (i = 1; (i < win) && (placed < m); i++) {
+        if (run >= 29) {
+            run = 0;
+            continue;
+        }
+        s[start + i] = ref;
+        placed++;
+        run++;
+    }
+    return (placed == m) ? 0 : -1;
+}
+
+/* Build one window whose majority value is NOT its reference sample, so the
+ * 4.4.2 test stays quiet and only the all-values test can fire. */
+static int test_random_allvals_window(byte* s, word32 win, byte ref, byte val,
+    word32 m)
+{
+    word32 i, placed = 0, run = 0;
+    byte filler = 0;
+
+    for (i = 0; i < win; i++) {
+        if (++filler == val)
+            filler++;
+        s[i] = filler;
+    }
+    s[0] = ref;
+    for (i = 1; (i < win) && (placed < m); i++) {
+        if (run >= 29) {
+            run = 0;
+            continue;
+        }
+        s[i] = val;
+        placed++;
+        run++;
+    }
+    return (placed == m) ? 0 : -1;
+}
+
+/* Smallest match count that trips the APT at this window, discovered through
+ * the public API; 0 when the window cannot reach its cutoff. */
+static word32 test_random_apt_cutoff(byte* buf, word32 win, int allValues)
+{
+    word32 lo = 2, hi = win, best = 0;
+
+    while (lo <= hi) {
+        word32 mid = lo + ((hi - lo) / 2);
+        int built;
+
+        if (allValues)
+            built = test_random_allvals_window(buf, win, 0x01, 0x99, mid);
+        else
+            built = test_random_apt_window(buf, 0, win, 0x11, mid - 1);
+
+        if ((built != 0) ||
+            (wc_RNG_TestSeed(buf, win) != WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+            if (built != 0)
+                hi = mid - 1;
+            else
+                lo = mid + 1;
+        }
+        else {
+            best = mid;
+            hi = mid - 1;
+        }
+    }
+    return best;
+}
+#endif
+
 int test_wc_RNG_TestSeed(void)
 {
     EXPECT_DECLS;
@@ -448,6 +536,149 @@ int test_wc_RNG_TestSeed(void)
     for (i = 0; i < (byte)sizeof(seed); i++)
         seed[i] = i;
     ExpectIntEQ(wc_RNG_TestSeed(seed, sizeof(seed)), 0);
+#endif
+
+#if defined(HAVE_HASHDRBG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WC_RNG_SEED_APT_CUTOFF) && \
+    !defined(WC_RNG_SEED_APT_WINDOW) && !defined(WC_RNG_SEED_RCT_CUTOFF)
+    /* SP 800-90B 4.4.2 cutoffs are per window size, 1 + CRITBINOM(W, 2^-H,
+     * 1-alpha) with H = 1 and alpha = 2^-30: 101 at W = 132 (the FIPS reseed
+     * seed), 140 at W = 196 (instantiate) and 325 at W = 512. */
+    {
+        byte* buf = (byte*)XMALLOC(1024, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        ExpectNotNull(buf);
+        if (buf != NULL) {
+            /* one below the cutoff passes, the cutoff itself fails */
+            ExpectIntEQ(test_random_apt_window(buf, 0, 132, 0x11, 101 - 2), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 132), 0);
+            ExpectIntEQ(test_random_apt_window(buf, 0, 132, 0x11, 101 - 1), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 132),
+                WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+            ExpectIntEQ(test_random_apt_window(buf, 0, 196, 0x22, 140 - 2), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 196), 0);
+            ExpectIntEQ(test_random_apt_window(buf, 0, 196, 0x22, 140 - 1), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 196),
+                WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+            ExpectIntEQ(test_random_apt_window(buf, 0, 512, 0x33, 325 - 2), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 512), 0);
+            ExpectIntEQ(test_random_apt_window(buf, 0, 512, 0x33, 325 - 1), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 512),
+                WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+            /* windows do not overlap: bias in the second window is caught */
+            ExpectIntEQ(test_random_apt_window(buf, 0, 512, 0x44, 0), 0);
+            ExpectIntEQ(test_random_apt_window(buf, 512, 512, 0x55, 325 - 1),
+                0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 1024),
+                WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+            /* the all-values test (SP 800-90B 4.3 Req 1c) catches bias toward
+             * a value that is not the window's first byte; its cutoff is
+             * 1 + CRITBINOM(W, 2^-H, 1-alpha/256), which is 105 at W = 132 */
+            {
+                word32 j, placed = 0, run = 0;
+                byte filler = 0;
+
+                for (j = 0; j < 132; j++) {
+                    if ((placed < 105) && (run < 28) && (j > 0)) {
+                        buf[j] = 0x99;
+                        placed++;
+                        run++;
+                    }
+                    else {
+                        if (++filler == 0x99)
+                            filler++;
+                        buf[j] = filler;
+                        run = 0;
+                    }
+                }
+                buf[0] = 0x01;
+                ExpectIntEQ(placed, 105);
+                ExpectIntEQ(wc_RNG_TestSeed(buf, 132),
+                    WC_NO_ERR_TRACE(ENTROPY_APT_E));
+                buf[1] = 0x02;    /* one below the cutoff */
+                ExpectIntEQ(wc_RNG_TestSeed(buf, 132), 0);
+            }
+
+            /* a seed that does not divide into whole windows slides its last
+             * window back to full length, so the trailing bytes are covered by
+             * a window whose cutoff is reachable (IG D.K Res 16) */
+            ExpectIntEQ(test_random_apt_window(buf, 0, 512, 0x44, 0), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 513), 0);
+            ExpectIntEQ(test_random_apt_window(buf, 88, 512, 0x66, 325 - 1), 0);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 600),
+                WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+            /* under 30 bytes no cutoff is reachable, so the APT is not applied
+             * and a short all-same seed is left to the RCT */
+            XMEMSET(buf, 0x5a, 20);
+            ExpectIntEQ(wc_RNG_TestSeed(buf, 20), 0);
+
+            /* Sweep the windows a seed can actually present.  seedSz is at
+             * least SEED_BLOCK_SZ, and no cutoff is reachable below W = 30
+             * (38 for the all-values table), so smaller windows are visited
+             * but only the reachable ones are asserted.  That still covers far
+             * more of the 1024 constants than the few sizes one build uses. */
+            {
+                word32 w;
+                word32 prev = 0, prevAll = 0;
+                word32 firstFire = 0, firstFireAll = 0;
+                int bad = 0, badAll = 0;
+
+                for (w = 4; w <= 512; w++) {
+                    word32 c = test_random_apt_cutoff(buf, w, 0);
+                    word32 a2 = test_random_apt_cutoff(buf, w, 1);
+
+                    if (c != 0) {
+                        if (firstFire == 0)
+                            firstFire = w;
+                        /* reachable, and a strict majority of the window */
+                        if ((c > w) || (c <= (w / 2)))
+                            bad = (bad != 0) ? bad : (int)w;
+                        /* C(W) rises by 0 or 1 as the window grows */
+                        if ((prev != 0) && ((c < prev) || ((c - prev) > 1)))
+                            bad = (bad != 0) ? bad : (int)w;
+                        prev = c;
+                    }
+                    if (a2 != 0) {
+                        if (firstFireAll == 0)
+                            firstFireAll = w;
+                        if ((a2 > w) || (a2 <= (w / 2)))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        if ((prevAll != 0) &&
+                            ((a2 < prevAll) || ((a2 - prevAll) > 1)))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        /* alpha/256 is stricter, so it never sits lower */
+                        if ((c != 0) && (a2 < c))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        prevAll = a2;
+                    }
+                }
+                /* the failing window, not just "something broke" */
+                ExpectIntEQ(bad, 0);
+                ExpectIntEQ(badAll, 0);
+                /* Nothing fires below the window where alpha 2^-30 first
+                 * makes a cutoff reachable.  This is one-sided on purpose:
+                 * the densest window these helpers can build still keeps
+                 * runs under the RCT cutoff, so the smallest window they can
+                 * actually trip sits above the table's own floor. */
+                ExpectIntGE((int)firstFire, 30);
+                ExpectIntGE((int)firstFireAll, 38);
+                /* and the anchors the derivation is quoted against */
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 132, 0), 101);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 196, 0), 140);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 512, 0), 325);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 132, 1), 105);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 196, 1), 146);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 512, 1), 334);
+            }
+        }
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -1087,6 +1318,110 @@ int test_wc_RNG_SeedCb(void)
     ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_ok), 0);
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \
+    !defined(WC_RNG_SEED_RCT_CUTOFF)
+/* Stuck noise source: every seed byte is zero. */
+static int test_random_seedCb_stuck(OS_Seed* os, byte* seed, word32 sz)
+{
+    (void)os;
+    XMEMSET(seed, 0, sz);
+    return 0;
+}
+
+/* Source stuck on one value, with a different byte every 28 so no run can
+ * reach the RCT cutoff: only the APT can object, at any seed size. */
+static int test_random_seedCb_biased(OS_Seed* os, byte* seed, word32 sz)
+{
+    word32 i;
+    byte filler = 0;
+
+    (void)os;
+    for (i = 0; i < sz; i++) {
+        if ((i > 0) && ((i % 28) == 0)) {
+            if (++filler == 0x99)
+                filler++;
+            seed[i] = filler;
+        }
+        else {
+            seed[i] = 0x99;
+        }
+    }
+    return 0;
+}
+
+/* Source that fails with something that is not a 90B verdict. */
+static int test_random_seedCb_broken(OS_Seed* os, byte* seed, word32 sz)
+{
+    (void)os;
+    (void)seed;
+    (void)sz;
+    return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+}
+#endif
+
+/* A stuck seed source at reseed reports the SP 800-90B RCT code.
+ * rng.pid = 0 never matches the process, so the next generate reseeds. */
+int test_wc_RNG_ReseedVerdict(void)
+{
+    EXPECT_DECLS;
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \
+    !defined(WC_RNG_SEED_RCT_CUTOFF)
+    WC_RNG rng;
+    byte   out[32];
+
+    /* Do not inherit whatever source the previous test left installed: under
+     * HAVE_FIPS seedCb starts NULL and wc_InitRng() would fail. */
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Control: a forced reseed from a working source succeeds. */
+    rng.pid = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_stuck), 0);
+    rng.pid = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(ENTROPY_RT_E));
+    /* The failed instance stays failed. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+
+    /* A biased source reports the APT verdict out of the generate path. */
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_biased), 0);
+    rng.pid = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(ENTROPY_APT_E));
+
+    /* A source error that is not a 90B verdict still reports RNG_FAILURE_E. */
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_broken), 0);
+    rng.pid = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+
+    /* Do-form: restore even after a failed check, or later tests inherit it. */
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();

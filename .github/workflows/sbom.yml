@@ -826,6 +826,11 @@ jobs:
           # drop a stalled connection, `timeout` hard-kills apt-get if it
           # wedges anyway, and the loop then retries against a fresh mirror.
           # Two attempts at 60s+300s stay inside this job's timeout-minutes.
+
+          # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
+          # and a bad index on either fails apt-get update for everyone. Drop them.
+          grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
+            /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                     -o Acquire::https::Timeout=30)
           apt_retry() {

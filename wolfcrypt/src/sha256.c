@@ -827,6 +827,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         sha256->heap = heap;
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
@@ -973,6 +974,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         (void)devId;
         (void)heap;
 
@@ -1036,6 +1038,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
         }
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         (void)devId;
 
         return se050_hash_init(&sha256->se050Ctx, heap);
@@ -1117,6 +1120,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         sha256->heap = heap;
 
         ret = InitSha256(sha256);
@@ -1175,6 +1179,7 @@ int wc_Sha256Reset(wc_Sha256* sha256) {
             return BAD_FUNC_ARG;
         }
 
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
        !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
         /* We know this is a fresh, uninitialized item, so set to INIT */
@@ -1276,6 +1281,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    WC_SILABS_CLEAR_HASH_CTX(sha256);
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1338,12 +1344,26 @@ static WC_INLINE int Transform_Sha256_Len_aarch64(wc_Sha256* sha256,
     return (*Transform_Sha256_Len_p)(sha256, data, len);
 }
 
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha256-asm.S), so a kernel module must bracket them. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA256_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA256_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA256_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_crypto(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1351,7 +1371,9 @@ static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
 static int Transform_Sha256_Len_neon_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_neon(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1413,6 +1435,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    WC_SILABS_CLEAR_HASH_CTX(sha256);
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1520,6 +1543,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    WC_SILABS_CLEAR_HASH_CTX(sha256);
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1586,6 +1610,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    WC_SILABS_CLEAR_HASH_CTX(sha256);
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1639,6 +1664,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         ret = InitSha256(sha256);
         if (ret != 0)
             return ret;
@@ -1655,6 +1681,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret = 0;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+        WC_SILABS_CLEAR_HASH_CTX(sha256);
         ret = InitSha256(sha256);
         if (ret != 0)
             return ret;
@@ -2596,6 +2623,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     {
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+        WC_SILABS_CLEAR_HASH_CTX(sha224);
         (void)devId;
         (void)heap;
 
@@ -2647,6 +2675,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha224 == NULL) {
             return BAD_FUNC_ARG;
         }
+        WC_SILABS_CLEAR_HASH_CTX(sha224);
         (void)devId;
 
         return se050_hash_init(&sha224->se050Ctx, heap);
@@ -2705,6 +2734,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+        WC_SILABS_CLEAR_HASH_CTX(sha224);
         ret = InitSha256((wc_Sha256*)sha224);
         if (ret != 0)
             return ret;
@@ -2827,6 +2857,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
 
+        WC_SILABS_CLEAR_HASH_CTX(sha224);
         sha224->heap = heap;
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha224->W = NULL;
@@ -3385,7 +3416,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         }
     #endif
 
-    #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+    #if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
         dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
         dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
     #endif
@@ -3539,7 +3570,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
 #endif
@@ -3549,7 +3580,8 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 #endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache, (byte*)src->buffer,
+        (byte*)dst->buffer, dst->heap);
 #endif
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
@@ -3568,7 +3600,25 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP)
+    /* The XMEMCPY(dst, src, sizeof(wc_Sha256)) above copies src->msg as a
+     * raw pointer value, aliasing dst->msg to the same heap block. For any
+     * backend that buffers the whole message in sha256->msg (see the
+     * matching condition in wc_Sha256Free() above), that block later gets
+     * freed once via src's own Final()/Free() call and a second time via
+     * dst's -- a double free that silently corrupts the heap a little more
+     * on every wc_Sha256Copy()+wc_Sha256Free(dst) pair, instead of crashing
+     * outright. Give dst its own independent copy so the two objects don't
+     * share ownership of the same allocation. */
+#if defined(WOLFSSL_HASH_KEEP) || \
+    (defined(WOLFSSL_AFALG_HASH) && defined(WOLFSSL_AFALG_HASH_KEEP)) || \
+    (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP)) || \
+    ((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
+    ((defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))) && \
+    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) || \
+    defined(WOLFSSL_RENESAS_RX64_HASH)
     if (src->msg != NULL) {
         dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (dst->msg == NULL)

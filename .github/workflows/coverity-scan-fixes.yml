@@ -11,6 +11,7 @@ jobs:
   coverity:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v5
       with:

@@ -116,7 +116,6 @@ typedef struct hashUpdCache {
     unsigned char*  buf;
     unsigned int    bufLen;
     unsigned int    updLen;
-    int             isCopy;
 #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
     unsigned int    finalLen;
 #endif
@@ -198,7 +197,8 @@ int wc_Pic32DesCrypt(word32 *key, int keyLen, word32 *iv, int ivLen,
 #define WOLFSSL_NO_HASH_RAW
 
 int wc_Pic32Hash(const byte* in, int inLen, word32* out, int outLen, int algo);
-int wc_Pic32HashCopy(hashUpdCache* src, hashUpdCache* dst);
+int wc_Pic32HashCopy(hashUpdCache* src, hashUpdCache* dst,
+    const byte* srcStdBuf, byte* dstStdBuf, void* heap);
 
 #ifndef NO_MD5
 struct wc_Md5;

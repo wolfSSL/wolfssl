@@ -708,7 +708,8 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
-    int depth;                   /* used in X509_STORE_CTX_*_depth */
+    int depth;                   /* used in X509_STORE_CTX_*_depth: defaults
+                                    to WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH */
 #endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
@@ -2012,7 +2013,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
 #endif
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -2026,6 +2027,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 WOLFSSL_API int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx);
 WOLFSSL_API void* wolfSSL_sk_pop(WOLFSSL_STACK* sk);
+WOLFSSL_API void* wolfSSL_sk_delete(WOLFSSL_STACK* sk, int idx);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_ALL)
@@ -2572,6 +2574,8 @@ WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
+WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_time(
+        WOLFSSL_X509_VERIFY_PARAM *param, time_t t);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
@@ -3035,6 +3039,11 @@ enum {
     WOLFSSL_CRL_CHECKALL = 1,
     WOLFSSL_CRL_CHECK    = 2
 };
+
+/* OpenSSL values of X509_V_FLAG_CRL_CHECK(_ALL). WOLFSSL_CRL_CHECK is 0x2, the
+ * value of X509_V_FLAG_USE_CHECK_TIME. */
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK     0x4
+#define WOLFSSL_X509_V_FLAG_CRL_CHECK_ALL 0x8
 
 /* Separated out from other enums because of size */
 enum {
@@ -3688,6 +3697,8 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,
         const unsigned char** in, int len);
 #endif
 WOLFSSL_API int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out);
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_ex(WOLFSSL_X509_CRL **crl,
+        const unsigned char **in, long len);
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL **crl,
                                                    const unsigned char *in, int len);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -3737,6 +3748,10 @@ WOLFSSL_API int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl,
 #endif /* WOLFSSL_CERT_GEN */
 WOLFSSL_API int wolfSSL_i2d_X509_CRL(WOLFSSL_X509_CRL* crl,
                                      unsigned char** out);
+#ifndef NO_BIO
+WOLFSSL_API int wolfSSL_i2d_X509_CRL_bio(WOLFSSL_BIO* bio,
+                                         WOLFSSL_X509_CRL* crl);
+#endif
 #endif /* HAVE_CRL && OPENSSL_EXTRA */
 #if defined(WOLFSSL_CERT_EXT) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -4779,6 +4794,45 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
 #endif /* HAVE_SNI */
 
+/* Certificate Authorities - RFC 8446 (TLS 1.3 extension type 47).
+ *
+ * Native API, independent of the OpenSSL compatibility layer. CA DNs passed
+ * to the Use functions are the inner content of a DER-encoded Name, i.e. the
+ * bytes after the SEQUENCE tag and length; the library prepends the SEQUENCE
+ * header on the wire and strips it on parse. The bytes are copied; the caller
+ * retains ownership of the input buffer. When both the native API and the
+ * compat layer (set0_CA_list et al.) provide CAs, the two lists are
+ * concatenated on the wire. */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+
+WOLFSSL_API int  wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz);
+WOLFSSL_API int  wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz);
+
+WOLFSSL_API void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx);
+
+/* Number of CA DNs received from the peer. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl);
+
+/* Copy out the idx-th CA DN received from the peer (0-based). Iteration
+ * order is unspecified; visit every entry by pairing this with
+ * wolfSSL_GetPeerCertificateAuthorityCount.
+ *
+ * If outDn is NULL, returns the size in bytes of the DN (allowing the caller
+ * to size an allocation) or a negative error code.
+ *
+ * If outDn is non-NULL, copies up to outDnSz bytes into outDn. On success
+ * returns the number of bytes written. If outDnSz is smaller than the DN,
+ * returns BUFFER_E and does not modify outDn. Returns BAD_FUNC_ARG for
+ * invalid inputs or when idx is out of range. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz);
+
+#endif /* !NO_CERTS && !WOLFSSL_NO_CA_NAMES && WOLFSSL_TLS13 */
+
 /* Trusted CA Key Indication - RFC 6066 (Section 6) */
 #ifdef HAVE_TRUSTED_CA
 
@@ -5228,10 +5282,16 @@ WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_API int wolfSSL_disable_cookie(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_enable_cookie(WOLFSSL* ssl);
+#endif
+
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_API int wolfDTLS_accept_stateless(WOLFSSL* ssl);
-/* notify user we parsed a verified ClientHello is done. This only has an effect
- * on the server end. */
+/* Notify after cookie verification, or complete successful ClientHello
+ * processing when cookies are disabled. Server only. */
 typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
 WOLFSSL_API int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
 #endif
@@ -6183,7 +6243,7 @@ WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
     OPENSSL_EXTRA || HAVE_LIGHTY */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 WOLFSSL_API long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      unsigned char *keys, int keylen);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
@@ -6289,7 +6349,7 @@ WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_find(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, const WOLFSSL_CIPHER* toFind);
 WOLFSSL_API void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
         WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx);
 #endif

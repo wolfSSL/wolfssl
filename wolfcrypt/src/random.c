@@ -245,7 +245,7 @@ This library contains implementation for the random number generator.
     #endif
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 #include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
 #endif
 
@@ -2593,18 +2593,11 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
     return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
 }
 
-/* FIPS 140-3 IG 10.3.A / SP800-90B Health Tests for Seed Data
- *
- * These tests replace the older FIPS 140-2 Continuous Random Number Generator
- * Test (CRNGT) with more mathematically robust statistical tests per
- * ISO 19790 / SP800-90B requirements.
- *
- * When HAVE_ENTROPY_MEMUSE is defined, the wolfentropy.c jitter-based TRNG
- * performs another set of these health tests, but those are on the noise not
- * the conditioned output so we still need to retest here even in that case
- * to evaluate the conditioned output for the same behavior. These tests ensure
- * the seed data meets basic entropy requirements regardless of the source.
- */
+/* SP800-90B 4.4 health tests run over conditioned seed material, which makes
+ * them the developer-defined additional tests 4.3 Req 1c allows: 4.2 puts the
+ * noise source's own tests in that source, not here.  A seed shorter than the
+ * 512 byte window is one window of its own length, with the cutoff for that
+ * length. */
 
 /* SP800-90B 4.4.1 - Repetition Count Test
  * Detects if the noise source becomes "stuck" producing repeated output.
@@ -2612,9 +2605,16 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
  * C = 1 + ceil(-log2(alpha) / H)
  * For alpha = 2^-30 (false positive probability) and H = 1 (min entropy):
  * C = 1 + ceil(30 / 1) = 31
- */
+ *
+ * H = 1 bit per byte is a deliberate floor, recorded in the Security Policy:
+ * the seed source is a build choice and the module is not told the assessed
+ * rate of the one in use, so it assumes the weakest. */
 #ifndef WC_RNG_SEED_RCT_CUTOFF
     #define WC_RNG_SEED_RCT_CUTOFF 31
+#endif
+/* The run starts at 1, so a cutoff below 2 fails every seed. */
+#if WC_RNG_SEED_RCT_CUTOFF < 2
+    #error WC_RNG_SEED_RCT_CUTOFF must be at least 2
 #endif
 
 /* SP800-90B 4.4.2 - Adaptive Proportion Test
@@ -2629,8 +2629,120 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #ifndef WC_RNG_SEED_APT_WINDOW
     #define WC_RNG_SEED_APT_WINDOW 512
 #endif
+#if WC_RNG_SEED_APT_WINDOW < 1
+    #error WC_RNG_SEED_APT_WINDOW must be at least 1
+#endif
 #ifndef WC_RNG_SEED_APT_CUTOFF
+    /* No caller-supplied cutoff: take one per window size from the table. */
+    #define WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    /* The published W = 512 value, kept for readers and for tests. */
     #define WC_RNG_SEED_APT_CUTOFF 325
+#endif
+/* Only the tables cap the window; a caller-supplied cutoff has no such
+ * limit, so this bound belongs to the table build alone. */
+#if defined(WC_RNG_SEED_APT_CUTOFF_PER_WINDOW) && (WC_RNG_SEED_APT_WINDOW > 512)
+    #error WC_RNG_SEED_APT_WINDOW must be 1 to 512 unless WC_RNG_SEED_APT_CUTOFF is set
+#endif
+/* A caller-supplied cutoff above the window can never be reached at any seed
+ * size, so it is refused here.  A cutoff the window allows but a given seed
+ * does not is not a build-time property: the window is min(seedSz, WINDOW) and
+ * seedSz is the caller's, so that case is left to the runtime skip below. */
+#ifndef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    #if WC_RNG_SEED_APT_CUTOFF < 2
+        #error WC_RNG_SEED_APT_CUTOFF must be at least 2
+    #endif
+    #if WC_RNG_SEED_APT_CUTOFF > WC_RNG_SEED_APT_WINDOW
+        #error WC_RNG_SEED_APT_CUTOFF exceeds the window and can never fire
+    #endif
+#endif
+
+#ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+/* C for every window size, not only 512: a seed shorter than the window is one
+ * window of its own length, and 325 can never be reached in 132 or 196 bytes.
+ * 1 + CRITBINOM(W, 2^-H, 1 - alpha), H = 1, alpha = 2^-30, W = 1..512, held as
+ * the exact distance above W / 2 so a byte covers every window. */
+static const byte aptCutoffDelta[512] = {
+      2,   2,   3,   3,   4,   4,   5,   5,   6,   6,   7,   7,   8,   8,   9,   9,
+     10,  10,  11,  11,  12,  12,  13,  13,  14,  14,  15,  15,  16,  15,  16,  16,
+     17,  17,  18,  17,  18,  18,  19,  18,  19,  19,  20,  19,  20,  20,  21,  20,
+     21,  21,  22,  21,  22,  22,  22,  22,  23,  23,  23,  23,  24,  23,  24,  24,
+     25,  24,  25,  25,  25,  25,  26,  25,  26,  26,  26,  26,  27,  26,  27,  27,
+     28,  27,  28,  28,  28,  28,  29,  28,  29,  29,  29,  29,  30,  29,  30,  29,
+     30,  30,  30,  30,  31,  30,  31,  31,  31,  31,  32,  31,  32,  32,  32,  32,
+     33,  32,  33,  33,  33,  33,  33,  33,  34,  33,  34,  34,  34,  34,  35,  34,
+     35,  34,  35,  35,  35,  35,  36,  35,  36,  36,  36,  36,  36,  36,  37,  36,
+     37,  37,  37,  37,  37,  37,  38,  37,  38,  38,  38,  38,  38,  38,  39,  38,
+     39,  39,  39,  39,  39,  39,  40,  39,  40,  39,  40,  40,  40,  40,  41,  40,
+     41,  40,  41,  41,  41,  41,  41,  41,  42,  41,  42,  42,  42,  42,  42,  42,
+     43,  42,  43,  42,  43,  43,  43,  43,  43,  43,  44,  43,  44,  43,  44,  44,
+     44,  44,  45,  44,  45,  44,  45,  45,  45,  45,  45,  45,  46,  45,  46,  45,
+     46,  46,  46,  46,  46,  46,  47,  46,  47,  46,  47,  47,  47,  47,  47,  47,
+     48,  47,  48,  47,  48,  48,  48,  48,  48,  48,  49,  48,  49,  48,  49,  49,
+     49,  49,  49,  49,  49,  49,  50,  49,  50,  49,  50,  50,  50,  50,  50,  50,
+     51,  50,  51,  50,  51,  51,  51,  51,  51,  51,  52,  51,  52,  51,  52,  51,
+     52,  52,  52,  52,  52,  52,  53,  52,  53,  52,  53,  53,  53,  53,  53,  53,
+     53,  53,  54,  53,  54,  53,  54,  54,  54,  54,  54,  54,  54,  54,  55,  54,
+     55,  54,  55,  55,  55,  55,  55,  55,  56,  55,  56,  55,  56,  55,  56,  56,
+     56,  56,  56,  56,  57,  56,  57,  56,  57,  56,  57,  57,  57,  57,  57,  57,
+     57,  57,  58,  57,  58,  57,  58,  58,  58,  58,  58,  58,  58,  58,  59,  58,
+     59,  58,  59,  58,  59,  59,  59,  59,  59,  59,  60,  59,  60,  59,  60,  59,
+     60,  60,  60,  60,  60,  60,  60,  60,  61,  60,  61,  60,  61,  60,  61,  61,
+     61,  61,  61,  61,  62,  61,  62,  61,  62,  61,  62,  62,  62,  62,  62,  62,
+     62,  62,  63,  62,  63,  62,  63,  62,  63,  63,  63,  63,  63,  63,  63,  63,
+     64,  63,  64,  63,  64,  63,  64,  64,  64,  64,  64,  64,  64,  64,  65,  64,
+     65,  64,  65,  64,  65,  65,  65,  65,  65,  65,  65,  65,  66,  65,  66,  65,
+     66,  65,  66,  66,  66,  66,  66,  66,  66,  66,  67,  66,  67,  66,  67,  66,
+     67,  67,  67,  67,  67,  67,  67,  67,  68,  67,  68,  67,  68,  67,  68,  68,
+     68,  68,  68,  68,  68,  68,  68,  68,  69,  68,  69,  68,  69,  68,  69,  69
+};
+    #define WC_RNG_SEED_APT_CUTOFF_FOR(w) \
+        (((word32)(w) / 2) + (word32)aptCutoffDelta[(w) - 1])
+
+/* Cutoff for the all-values test below, at alpha/256 so that scanning the
+ * whole alphabet keeps the same 2^-30 budget per window.  Same W / 2 delta
+ * form as the table above.
+ * 1 + CRITBINOM(W, 2^-H, 1 - alpha/256), H = 1, alpha = 2^-30, W = 1..512. */
+static const byte aptAllCutoffDelta[512] = {
+      2,   2,   3,   3,   4,   4,   5,   5,   6,   6,   7,   7,   8,   8,   9,   9,
+     10,  10,  11,  11,  12,  12,  13,  13,  14,  14,  15,  15,  16,  16,  17,  17,
+     18,  18,  19,  19,  20,  19,  20,  20,  21,  21,  22,  21,  22,  22,  23,  23,
+     23,  23,  24,  24,  24,  24,  25,  25,  25,  25,  26,  26,  26,  26,  27,  27,
+     27,  27,  28,  28,  28,  28,  29,  28,  29,  29,  30,  29,  30,  30,  30,  30,
+     31,  30,  31,  31,  32,  31,  32,  32,  32,  32,  33,  32,  33,  33,  33,  33,
+     34,  34,  34,  34,  35,  34,  35,  35,  35,  35,  36,  35,  36,  36,  36,  36,
+     37,  36,  37,  37,  37,  37,  38,  37,  38,  38,  38,  38,  39,  38,  39,  39,
+     39,  39,  40,  39,  40,  39,  40,  40,  40,  40,  41,  40,  41,  41,  41,  41,
+     42,  41,  42,  42,  42,  42,  42,  42,  43,  42,  43,  43,  43,  43,  44,  43,
+     44,  44,  44,  44,  44,  44,  45,  44,  45,  45,  45,  45,  46,  45,  46,  45,
+     46,  46,  46,  46,  47,  46,  47,  46,  47,  47,  47,  47,  48,  47,  48,  47,
+     48,  48,  48,  48,  49,  48,  49,  48,  49,  49,  49,  49,  50,  49,  50,  49,
+     50,  50,  50,  50,  51,  50,  51,  50,  51,  51,  51,  51,  52,  51,  52,  51,
+     52,  52,  52,  52,  52,  52,  53,  52,  53,  53,  53,  53,  53,  53,  54,  53,
+     54,  53,  54,  54,  54,  54,  54,  54,  55,  54,  55,  55,  55,  55,  55,  55,
+     56,  55,  56,  55,  56,  56,  56,  56,  56,  56,  57,  56,  57,  56,  57,  57,
+     57,  57,  58,  57,  58,  57,  58,  58,  58,  58,  58,  58,  59,  58,  59,  58,
+     59,  59,  59,  59,  59,  59,  60,  59,  60,  59,  60,  60,  60,  60,  60,  60,
+     61,  60,  61,  60,  61,  61,  61,  61,  61,  61,  62,  61,  62,  61,  62,  62,
+     62,  62,  62,  62,  63,  62,  63,  62,  63,  63,  63,  63,  63,  63,  63,  63,
+     64,  63,  64,  63,  64,  64,  64,  64,  64,  64,  65,  64,  65,  64,  65,  65,
+     65,  65,  65,  65,  66,  65,  66,  65,  66,  65,  66,  66,  66,  66,  66,  66,
+     67,  66,  67,  66,  67,  67,  67,  67,  67,  67,  68,  67,  68,  67,  68,  67,
+     68,  68,  68,  68,  68,  68,  69,  68,  69,  68,  69,  69,  69,  69,  69,  69,
+     69,  69,  70,  69,  70,  69,  70,  70,  70,  70,  70,  70,  70,  70,  71,  70,
+     71,  70,  71,  71,  71,  71,  71,  71,  71,  71,  72,  71,  72,  71,  72,  72,
+     72,  72,  72,  72,  72,  72,  73,  72,  73,  72,  73,  73,  73,  73,  73,  73,
+     73,  73,  74,  73,  74,  73,  74,  74,  74,  74,  74,  74,  74,  74,  75,  74,
+     75,  74,  75,  75,  75,  75,  75,  75,  75,  75,  76,  75,  76,  75,  76,  75,
+     76,  76,  76,  76,  76,  76,  77,  76,  77,  76,  77,  76,  77,  77,  77,  77,
+     77,  77,  77,  77,  78,  77,  78,  77,  78,  77,  78,  78,  78,  78,  78,  78
+};
+    #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) \
+        (((word32)(w) / 2) + (word32)aptAllCutoffDelta[(w) - 1])
+#else
+    /* A caller-supplied cutoff is a threshold, so it serves both tests; the
+     * all-values scan still runs only where its majority precondition holds. */
+    #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
+    #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
 #endif
 
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
@@ -2669,64 +2781,80 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         }
     }
 
-    /* SP800-90B 4.4.2 - Adaptive Proportion Test (APT)
-     * Check that no single byte value appears too frequently within
-     * a sliding window. This detects bias in the entropy source.
-     *
-     * For seeds smaller than the window size, we test the entire seed.
-     * For larger seeds, we use a sliding window approach.
-     *
-     * Constant-time implementation: always process full seed and check
-     * all counts to prevent timing side-channels.
-     */
+    /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each window
+     * is the reference value, and a window fails when matches reach the cutoff
+     * for that window size.  Windows do not overlap except the last, which
+     * slides back to full length and so re-judges the bytes it covers; that
+     * only adds windows, so it can raise the false alarm rate but never mask a
+     * failure.  A frequent value that is not the reference is left to the
+     * all-values test below. */
     {
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        word16* byteCounts = NULL;
-    #else
-        word16 byteCounts[MAX_ENTROPY_BITS];
-    #endif
-        word32 windowSize = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
-        word32 windowStart = 0;
-        word32 newIdx;
+        word32 start;
+        word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
+        word32 cutoff = WC_RNG_SEED_APT_CUTOFF_FOR(window);
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        byteCounts = (word16*)XMALLOC(MAX_ENTROPY_BITS * sizeof(word16), NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
-        if (byteCounts == NULL)
-            return MEMORY_E;
-    #endif
-        XMEMSET(byteCounts, 0, MAX_ENTROPY_BITS * sizeof(word16));
+        /* A cutoff above the window can never be reached (IG D.K Res 16); that
+         * is every window under 30 bytes at alpha 2^-30, and such a seed gets
+         * no APT and rests on the RCT above. */
+        if (cutoff <= window) {
+            /* Constant time: every window is scanned in full, no early exit. */
+            for (start = 0; start < seedSz; start += window) {
+                word32 matches = 1;
+                byte refByte;
 
-        /* Indices are WC_OCTET-masked: byteCounts has 256 entries, but a
-         * byte cell can exceed 255 where CHAR_BIT != 8, so an unmasked seed
-         * value would index out of bounds. */
-        for (i = 0; i < windowSize; i++) {
-            byteCounts[WC_OCTET(seed[i])]++;
+                /* A trailing piece shorter than the window slides back to a
+                 * full window instead of forming a short one. */
+                if ((seedSz - start) < window)
+                    start = seedSz - window;
+
+                refByte = seed[start];
+                for (i = 1; i < window; i++) {
+                    matches += (word32)(seed[start + i] == refByte);
+                }
+
+                aptFailed |= (matches >= cutoff);
+            }
         }
+    }
 
-        /* Check first window - scan all 256 counts */
-        for (i = 0; i < MAX_ENTROPY_BITS; i++) {
-            aptFailed |= (byteCounts[i] >= WC_RNG_SEED_APT_CUTOFF);
+    /* Additional developer-defined test (SP800-90B 4.3 Req 1c): 4.4.2 watches
+     * only the window's first byte, this watches whichever value is the
+     * window's majority, wherever it falls.  Its cutoff uses alpha/256 for the
+     * alphabet, so it catches a near-majority (334 of 512) and not bias in
+     * general, and it needs a 38 byte window before it can fire at all. */
+    {
+        word32 start;
+        word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
+        word32 cutoff = WC_RNG_SEED_APT_ALL_CUTOFF_FOR(window);
+
+        if ((cutoff <= window) && (cutoff > (window / 2))) {
+            for (start = 0; start < seedSz; start += window) {
+                byte cand = 0;
+                word32 votes = 0;
+                word32 count = 0;
+
+                if ((seedSz - start) < window)
+                    start = seedSz - window;
+
+                /* A count above half the window makes that value the window's
+                 * majority, which this vote finds without a histogram. */
+                for (i = 0; i < window; i++) {
+                    word32 take = (word32)(votes == 0);
+                    word32 same;
+
+                    cand = (byte)((take * seed[start + i]) +
+                                  ((1 - take) * cand));
+                    same = (word32)(seed[start + i] == cand);
+                    votes = (same * (votes + 1)) + ((1 - same) * (votes - 1));
+                }
+
+                for (i = 0; i < window; i++) {
+                    count += (word32)(seed[start + i] == cand);
+                }
+
+                aptFailed |= (count >= cutoff);
+            }
         }
-
-        /* Slide window through remaining seed data */
-        while ((windowStart + windowSize) < seedSz) {
-            /* Remove byte leaving the window */
-            byteCounts[WC_OCTET(seed[windowStart])]--;
-            windowStart++;
-
-            /* Add byte entering the window */
-            newIdx = windowStart + windowSize - 1;
-            byteCounts[WC_OCTET(seed[newIdx])]++;
-
-            /* Accumulate failure flag for new byte's count */
-            aptFailed |= (byteCounts[WC_OCTET(seed[newIdx])] >=
-                          WC_RNG_SEED_APT_CUTOFF);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        XFREE(byteCounts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
     }
 
     /* Set return code based on accumulated failure flags */
@@ -2835,6 +2963,19 @@ int wc_Sha512Drbg_IsDisabled(void)
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
+/* Same condition as both callers: DRBG_FAILURE is a Hash_DRBG internal and
+ * does not exist without it. */
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+static int ReseedSourceFailure(int ret)
+{
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+    return DRBG_FAILURE;
+}
+#endif
+
 /* Semantics of "flags":
  *
  * Security attributes are fixed at instantiation and caller-declared -- the
@@ -2856,6 +2997,7 @@ int wc_Sha512Drbg_IsDisabled(void)
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
+                    const byte* fixedSeed, word32 fixedSeedSz,
                     void* heap, int devId, WC_RNG* seedRng, word32 flags)
 {
     int ret = 0;
@@ -2879,6 +3021,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     /* seedRng is consumed only in the seed-acquisition arm; cast for
      * configurations that compile that arm out. */
     (void)seedRng;
+    (void)fixedSeed;
+    (void)fixedSeedSz;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
@@ -3221,6 +3365,14 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #endif
     }
     else {
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Fixed seed from wc_InitRngFixedSeed(), which checks its size. */
+        if (fixedSeed != NULL) {
+            XMEMCPY(seed, fixedSeed, fixedSeedSz);
+            seedSz = fixedSeedSz;
+        }
+        else
+#endif
         if (seedRng != NULL) {
             /* RBGC spawn: draw the seed material from the parent DRBG's
              * generate function in place of the module's seed source -- the SP
@@ -3243,7 +3395,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                         "ERROR: seedCb in _InitRng() failed with err = %d",
                         ret);
 #endif
-                    ret = DRBG_FAILURE;
+                    /* mapped once, by the shared arm every seed path falls
+                     * into below */
                 }
             }
 #else
@@ -3264,7 +3417,9 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                 "ERROR: seed acquisition in _InitRng() failed with err %d",
                 ret);
     #endif
-            ret = DRBG_FAILURE;
+            /* A verdict from the source survives here as it does on the
+             * reseed path, so instantiate and reseed classify it alike. */
+            ret = ReseedSourceFailure(ret);
             rng->status = DRBG_FAILED;
         }
 
@@ -3487,7 +3642,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, NULL, 0, heap, devId, NULL,
                    WC_RNG_INIT_FLAG_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
@@ -3511,47 +3666,101 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG)
+/* Start a WC_RNG from a fixed seed so a known answer test gets the same answer
+ * every time.  Library internal; the FIPS self tests are the only caller. */
+int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    int ret;
+
+    /* The first SEED_BLOCK_SZ bytes are the seed test block, not DRBG input. */
+    if ((rng == NULL) || (seed == NULL) || (seedSz <= SEED_BLOCK_SZ) ||
+        (seedSz > MAX_SEED_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = _InitRng(rng, NULL, 0, NULL, 0, seed, seedSz, NULL, INVALID_DEVID,
+                   NULL, WC_RNG_INIT_FLAG_NONE);
+    /* Some builds, RDRAND for one, return 0 with no DRBG and would then
+     * generate without the seed. */
+    if ((ret == 0) && !wc_RNG_DRBG_Present(rng)) {
+        (void)wc_FreeRng(rng);
+        ret = BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_RBGC
+    /* Not seeded by the entropy source, so label it the way the caller seed
+     * reseed path does. */
+    if (ret == 0)
+        rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
+#endif
+
+    return ret;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) && HAVE_HASHDRBG */
+
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
-                    WC_RNG_INIT_FLAG_NONE);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, 0, NULL, INVALID_DEVID,
+                    NULL, WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAG_NONE);
 }
 
 int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL, flags);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, 0, heap, devId, NULL, flags);
 }
 
 int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                         const byte *perso, word32 persoSz,
                         void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, nonce, nonceSz, perso, persoSz,
+    return _InitRng(rng, nonce, nonceSz, perso, persoSz, NULL, 0,
                     heap, devId, NULL, flags);
 }
+
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Map a failed generate or reseed to the return code and rng->status.
+ * A failed SP 800-90A health test returns DRBG_CONT_FIPS_E. */
+static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
+        rng->status = DRBG_CONT_FAILED;
+        return DRBG_CONT_FIPS_E;
+    }
+
+    rng->status = DRBG_FAILED;
+
+    /* SP 800-90B RCT and APT failures keep their own code. */
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+
+    return RNG_FAILURE_E;
+}
+#endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
 
@@ -3577,8 +3786,7 @@ static WARN_UNUSED_RESULT WC_MAYBE_UNUSED int rng_pid_change_check(WC_RNG* rng) 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
     ret = PollAndReSeed(rng, NULL, 0);
     if (ret != DRBG_SUCCESS) {
-        rng->status = DRBG_FAILED;
-        ret = RNG_FAILURE_E;
+        ret = RngGenerateFailure(rng, ret);
     }
 #endif
 
@@ -4599,7 +4807,7 @@ static WARN_UNUSED_RESULT int SpawnRngRBGC(
         child = *new_child_heap;
     }
 
-    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, parent->heap,
+    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, NULL, 0, parent->heap,
     #if defined(WOLF_CRYPTO_CB)
                    parent->devId,
     #else
@@ -4757,6 +4965,8 @@ int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
+/* A failed seed source reports DRBG_FAILURE, except an SP 800-90B RCT or APT
+ * verdict, which keeps its own code so the caller can tell the two apart. */
 static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                          word32 additionalSz)
 {
@@ -4912,9 +5122,11 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     else {
         wc_drbg_reseed_ctr_t ctr = WC_RESEED_INTERVAL;
         (void)wc_RNG_DRBG_GetReseedCtr(rng, &ctr);
+        /* A rejected seed never entered the state, so the instantiation is
+         * still valid and only loses the reseed (SP 800-90A 9.2 returns the
+         * status; 11.4.1 treats unavailable entropy as a normal-operation
+         * error).  Out of runway is different: that one condemns. */
         if (ctr >= WC_RESEED_INTERVAL) {
-            /* The instance is out of generate runway -- condemn now, matching
-             * wc_RNG_GenerateBlock()'s behavior for mandatory reseeds. */
             rng->status = DRBG_FAILED;
         }
         if (ret > 0) {
@@ -4936,9 +5148,9 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     /* Banked-next-seed services.  _NextSeedGenerate() banks up to n more
      * bytes from the module's seed source (clamped to the space remaining;
      * ALREADY_E when the bank is ready or being consumed), health-testing
-     * and publishing the bank when it completes (NOT_READY_E when the health
-     * test could not run and the call should simply be retried); a
-     * scheduling daemon may call it without owning the instance.
+     * and publishing the bank when it completes, burning it on a failed
+     * health test (ENTROPY_RT_E / ENTROPY_APT_E); a scheduling daemon may
+     * call it without owning the instance.
      * _NextSeedCurrent() reports the raw aperture value (racy snapshot).
      * _NextSeedNow() claims a ready bank and performs a source-free
      * credited reseed with it -- safe in atomic context -- or returns
@@ -5267,17 +5479,6 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             ++rng->_stats_nextseedsbanked;
             #endif
             return 0;
-        }
-        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
-            /* wc_RNG_TestSeed() did nothing with the data -- not
-             * dispositive.  Release complete-but-unpublished for a
-             * later retry; a purge-discard's BUSY_E percolates (the
-             * retry cause is then the purge, not the test). */
-            ret = NextSeedProducerRelease(lenp, seed, nextSeedSz,
-                                          (WC_ATOMIC_INT_ARG)nextSeedSz);
-            if (ret != 0)
-                return ret;
-            return NOT_READY_E;
         }
         else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                  (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
@@ -5861,11 +6062,13 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ((rng->RBGCStratum > 0) && (banked_stratum == 0)))
             {
                 ret = wc_RNG_DRBG_NextSeedNow_local(rng);
-                if ((ret == WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E)) ||
-                    (ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)))
-                {
+                /* Key the bail on the instance state, not on a list of codes:
+                 * this leg can now also see ENTROPY_RT_E / ENTROPY_APT_E, and
+                 * falling through would let a later generate overwrite ret and
+                 * report success for a call that already condemned the DRBG. */
+                if (rng->status != DRBG_OK) {
                     RngAutoLockExit(rng);
-                    return ret;
+                    return (ret != 0) ? ret : RNG_FAILURE_E;
                 }
             }
         }
@@ -5890,10 +6093,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
 #ifdef WC_RNG_HAVE_LOCK
     if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-        if (PollAndReSeed(rng, NULL, 0) != DRBG_SUCCESS) {
-            rng->status = DRBG_FAILED;
+        int reseed_ret = PollAndReSeed(rng, NULL, 0);
+        if (reseed_ret != DRBG_SUCCESS) {
+            reseed_ret = RngGenerateFailure(rng, reseed_ret);
             RngAutoLockExit(rng);
-            return RNG_FAILURE_E;
+            return reseed_ret;
         }
     }
 #endif
@@ -5960,12 +6164,15 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         rng->status = DRBG_CONT_FAILED;
     }
     else {
-        ret = RNG_FAILURE_E;
-        /* Note, Hash_DRBG_Generate() always leaves the DRBG in a
-         * self-consistent state, success or failure, and can fail for retryable
-         * causes (e.g. failed memory allocation), so we only update rng->status
-         * above.
-         */
+        /* A mandatory reseed above can leave a seed health verdict in ret, and
+         * that arm has already set rng->status, so keep the SP 800-90B code
+         * rather than flattening it.  Everything else is unchanged:
+         * Hash_DRBG_Generate() stays self-consistent and can fail for
+         * retryable causes such as an allocation, so it is not condemned. */
+        if ((ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+            (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+            ret = RNG_FAILURE_E;
+        }
     }
     RngAutoLockExit(rng);
 #else
@@ -8337,7 +8544,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      */
     #define USE_TEST_GENSEED
 
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+#elif defined(WOLFSSL_SILABS_SE_TYPES) && !defined(WOLFSSL_SILABS_HOST_TEST)
+    /* Both Silicon Labs ports seed from the SE TRNG. Gated on SE_TYPES, not
+     * SE_ACCEL, so the crypto callback port seeds too: the SE is the only
+     * entropy source on the part, so otherwise an RNG built with INVALID_DEVID
+     * fails with RNG_FAILURE_E and the software fallback path is unusable.
+     *
+     * The host compile test is excluded - its shim declines every command, so
+     * that build must fall through to the host's own entropy source. */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
@@ -9518,6 +9732,43 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return RNG_FAILURE_E;
 
         return 0;
+    }
+
+#elif defined(WOLFSSL_NUVOTON_TRNG)
+    /* Nuvoton NuMicro M2354 TRNG, reached through the port's hardware layer so
+     * that a TrustZone build gets it through the same veneer as everything
+     * else. See wolfcrypt/src/port/nuvoton/nuvoton_hw.c.
+     *
+     * This arm is needed even though the port is a crypto callback device: a
+     * WC_RNG created with INVALID_DEVID never reaches the callback, and this
+     * part has no /dev/random to fall back on. */
+    #include "wolfcrypt/src/port/nuvoton/nuvoton_hw.h"
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret;
+
+        (void)os;
+
+        if (output == NULL || sz == 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* This is the path a WC_RNG built with INVALID_DEVID takes, so the
+         * crypto callback device may never have been registered and the CRPT
+         * clocks and the TRNG may still be down. Bring them up for the call
+         * and drop the reference afterwards; the init is reference counted, so
+         * an application that did register keeps its own. */
+        ret = wc_nuvoton_hw_init();
+        if (ret != 0) {
+            return ret;
+        }
+
+        ret = wc_nuvoton_hw_trng(output, sz);
+
+        wc_nuvoton_hw_cleanup();
+
+        return ret;
     }
 
 #elif defined(WOLFSSL_VA416X0_TRNG)

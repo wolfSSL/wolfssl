@@ -2,7 +2,7 @@
 
 mod common;
 
-#[cfg(all(hmac, any(kdf_pbkdf2, kdf_tls13)))]
+#[cfg(all(hmac, any(kdf_pbkdf2, kdf_ssh, kdf_tls13)))]
 use wolfssl_wolfcrypt::hmac::HMAC;
 use wolfssl_wolfcrypt::kdf::*;
 #[cfg(all(hmac, kdf_tls13))]
@@ -149,6 +149,27 @@ fn test_ssh_kdf() {
         &ssh_kdf_set3_sid, &mut out).expect("Error with ssh_kdf()");
 
     assert_eq!(out, ssh_kdf_set3_a);
+}
+
+#[test]
+#[cfg(all(hmac, kdf_ssh))]
+fn test_ssh_kdf_invalid_type() {
+    common::setup();
+
+    let k = [0x42u8; 256];
+    let h = [0x43u8; 32];
+    let sid = [0x44u8; 32];
+    let mut out = [0u8; 16];
+
+    /* Hash types outside the u8 range must be rejected instead of being
+     * truncated into a different, valid-looking hash type. */
+    let wrapped_to_sha256 = HMAC::TYPE_SHA256 + 256;
+    assert_eq!(ssh_kdf(wrapped_to_sha256, b'A', &k, &h, &sid, &mut out),
+        Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    let negative_wrapped_to_sha256 = HMAC::TYPE_SHA256 - 256;
+    assert_eq!(ssh_kdf(negative_wrapped_to_sha256, b'A', &k, &h, &sid, &mut out),
+        Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
 }
 
 #[test]

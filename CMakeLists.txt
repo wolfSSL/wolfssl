@@ -1660,6 +1660,10 @@ add_option("WOLFSSL_KEYGEN"
     "Enable key generation (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_DH_GEN_PARAMS"
+    "Enable DH domain parameter generation with key generation -- protocols use the fixed FFDHE groups (default: enabled)"
+    "yes" "yes;no")
+
 add_option("WOLFSSL_CERTGEN"
     "Enable cert generation (default: disabled)"
     "no" "yes;no")
@@ -2843,11 +2847,39 @@ endif()
 # TODO: - Fast huge math
 
 # Set processor-specific build macros
-if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
+# On Apple platforms CMAKE_SYSTEM_PROCESSOR can report the host CPU while the
+# compiler targets CMAKE_OSX_ARCHITECTURES (e.g. an arm64 iOS build on an Intel
+# Mac), so use the requested architecture. Variants of one family (e.g.
+# arm64;arm64e or x86_64;x86_64h) are treated as that family. When families are
+# mixed (universal binary) the target is not known and no processor-specific
+# code is built.
+set(WOLFSSL_TARGET_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    set(WOLFSSL_TARGET_PROCESSOR "")
+    set(WOLFSSL_OSX_ARCH_MIXED FALSE)
+    foreach(WOLFSSL_OSX_ARCH IN LISTS CMAKE_OSX_ARCHITECTURES)
+        if("${WOLFSSL_OSX_ARCH}" MATCHES "^arm64")
+            set(WOLFSSL_OSX_ARCH "arm64")
+        elseif("${WOLFSSL_OSX_ARCH}" MATCHES "^x86_64")
+            set(WOLFSSL_OSX_ARCH "x86_64")
+        endif()
+        if("${WOLFSSL_TARGET_PROCESSOR}" STREQUAL "")
+            set(WOLFSSL_TARGET_PROCESSOR "${WOLFSSL_OSX_ARCH}")
+        elseif(NOT "${WOLFSSL_TARGET_PROCESSOR}" STREQUAL "${WOLFSSL_OSX_ARCH}")
+            set(WOLFSSL_OSX_ARCH_MIXED TRUE)
+        endif()
+    endforeach()
+    if(WOLFSSL_OSX_ARCH_MIXED)
+        set(WOLFSSL_TARGET_PROCESSOR "")
+    endif()
+endif()
+message(STATUS "Target processor: ${WOLFSSL_TARGET_PROCESSOR}")
+
+if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "x86_64|AMD64")
     set(WOLFSSL_X86_64_BUILD ON)
     add_option("WOLFSSL_X86_64_BUILD_ASM" "Build ASM files" "yes" "yes;no")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
-elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64|arm64")
+elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "aarch64|arm64")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AARCH64_BUILD")
 endif()
 
@@ -3217,6 +3249,9 @@ endif()
 
 if(WOLFSSL_KEYGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_KEY_GEN")
+    if(NOT WOLFSSL_DH_GEN_PARAMS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_DH_GEN_PARAMS")
+    endif()
 endif()
 if(WOLFSSL_CERTGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN")
@@ -3295,6 +3330,28 @@ add_option("WOLFSSL_CAAM"
     "no" "yes;no")
 if (WOLFSSL_CAAM)
    list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
+endif()
+
+# NXP QorIQ SEC (the PowerPC T-series security engine). The value selects
+# the environment backend, mirroring --enable-sec-qoriq: "yes"/"baremetal"
+# for a flat physically addressed target, "linux" for user space on a
+# running kernel, "sim" for the host-runnable simulated backend the in-tree
+# tests use.
+add_option("WOLFSSL_SEC_QORIQ"
+    "Enable NXP QorIQ SEC engine, T1040/T2080 (default: disabled)"
+    "no" "yes;no;baremetal;linux;sim")
+if (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ")
+    if (WOLFSSL_SEC_QORIQ STREQUAL "linux")
+        set(WOLFSSL_SEC_QORIQ_LINUX "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_LINUX")
+    elseif (WOLFSSL_SEC_QORIQ STREQUAL "sim")
+        set(WOLFSSL_SEC_QORIQ_SIM "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_SIM")
+    else()
+        set(WOLFSSL_SEC_QORIQ_BAREMETAL "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_BAREMETAL")
+    endif()
 endif()
 
 if (WOLFSSL_ARIA)
@@ -4806,6 +4863,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_falcon.c
         tests/api/test_signature.c
         tests/api/test_lms_xmss.c
+        tests/api/test_pkcs11.c
         tests/api/test_dtls.c
         tests/api/test_dtls13.c
         tests/api/test_ssl_cert.c
@@ -5182,7 +5240,7 @@ if(WOLFSSL_INSTALL)
 
     write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake"
-    VERSION "${wolfssl_VERSION_MAJOR}.${wolfssl_VERSION_MINOR}"
+    VERSION "${wolfssl_VERSION}"
     COMPATIBILITY AnyNewerVersion
     )
 

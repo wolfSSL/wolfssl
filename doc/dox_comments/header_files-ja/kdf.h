@@ -69,11 +69,11 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \param [in] saltSz ランダム値のサイズ(バイト単位)。
     \param [in] kdrIdx 鍵導出率。-1の場合kdr = 0、それ以外の場合kdr = 2^kdrIdx。
     \param [in] idx XORするインデックス値。
-    \param [out] key1 最初の鍵。ラベル値は0x00。
+    \param [out] key1 最初の鍵。ラベル値は0x03 (WC_SRTCP_LABEL_ENCRYPTION)。
     \param [in] key1Sz 最初の鍵のサイズ(バイト単位)。
-    \param [out] key2 2番目の鍵。ラベル値は0x01。
+    \param [out] key2 2番目の鍵。ラベル値は0x04 (WC_SRTCP_LABEL_MSG_AUTH)。
     \param [in] key2Sz 2番目の鍵のサイズ(バイト単位)。
-    \param [out] key3 3番目の鍵。ラベル値は0x02。
+    \param [out] key3 3番目の鍵。ラベル値は0x05 (WC_SRTCP_LABEL_SALT)。
     \param [in] key3Sz 3番目の鍵のサイズ(バイト単位)。
 
 

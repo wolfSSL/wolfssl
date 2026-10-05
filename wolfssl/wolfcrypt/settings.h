@@ -443,6 +443,27 @@
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_settings.h>
 #endif
 
+/* SE Manager context members are embedded in the public Aes, ecc_key and
+ * wc_Sha* structs. Both SiLabs ports need them, so gate those members on this
+ * umbrella rather than on either port's own macro. */
+#if defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SILABS_SE_TYPES)
+    #define WOLFSSL_SILABS_SE_TYPES
+#endif
+
+/* Silicon Labs crypto callback port: enable the callback and map WC_USE_DEVID
+ * before the rest of settings.h and before the test and benchmark read it.
+ * Macro only, no SDK dependencies. */
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_settings.h>
+#endif
+
+/* Nuvoton NuMicro M2354 port: enable the crypto callback and map WC_USE_DEVID
+ * before the rest of settings.h and before the unmodified test and benchmark
+ * read it. This header is macro only and pulls in no BSP dependencies. */
+#if defined(WOLFSSL_NUVOTON_M2354)
+    #include <wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h>
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
@@ -3180,7 +3201,13 @@
     #define USE_FLAT_BENCHMARK_H
     #define USE_FLAT_TEST_H
     #define EXIT_FAILURE 1
-    #define MAIN_NO_ARGS
+    /* A Zephyr application normally has no argv to hand the test or benchmark
+     * entry points. One that does - it may build its own argument list to pick
+     * an algorithm subset - can define WOLFSSL_ZEPHYR_MAIN_ARGS to keep the
+     * option parsing compiled in. */
+    #ifndef WOLFSSL_ZEPHYR_MAIN_ARGS
+        #define MAIN_NO_ARGS
+    #endif
 
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
@@ -3225,10 +3252,82 @@
 #endif
 
 /* OS specific support so far */
+#ifdef WOLFSSL_CAAM_LINUX
+    #undef  WOLFSSL_CAAM
+    #define WOLFSSL_CAAM
+    /* The driver core carries no hash descriptors, so hashing stays in
+     * software, the same as QNX. */
+    #undef  WOLFSSL_NO_CAAM_HASH
+    #define WOLFSSL_NO_CAAM_HASH
+    /* No i.MX style secure memory block, so no blobs or black keys. This one
+     * is load bearing rather than cosmetic: it is what separates the
+     * incompatible caamGetPartition()/caamFreePart() declarations in
+     * caam_driver.h from those in wolfcaam.h. Deriving it here, not only in
+     * configure, is what lets a user_settings.h build that
+     * defines WOLFSSL_CAAM_LINUX compile at all. */
+    #undef  WOLFSSL_CAAM_NO_SM
+    #define WOLFSSL_CAAM_NO_SM
+    #undef  WOLFSSL_NO_CAAM_BLOB
+    #define WOLFSSL_NO_CAAM_BLOB
+    /* Public key is not dispatched by this port yet, so leave ECC in
+     * software rather than half offloading it. */
+    #undef  WOLFSSL_NO_CAAM_ECC
+    #define WOLFSSL_NO_CAAM_ECC
+    /* Only AES-CBC/CTR/ECB and the TRNG are dispatched, so do not advertise
+     * the AEAD and CMAC modes to the crypto callback layer. Routing them here
+     * only to answer CRYPTOCB_UNAVAILABLE is not free: wc_CAAM_AesCcmDecrypt()
+     * zeroes the caller's output on any non-zero return, which destroys the
+     * ciphertext of an in place decrypt before the software fallback reads
+     * it. */
+    #undef  WOLFSSL_LP_ONLY_CAAM_AES
+    #define WOLFSSL_LP_ONLY_CAAM_AES
+    #undef  WOLFSSL_NO_CAAM_AESCCM
+    #define WOLFSSL_NO_CAAM_AESCCM
+    #undef  WOLFSSL_NO_CAAM_CMAC
+    #define WOLFSSL_NO_CAAM_CMAC
+#endif
+
 #ifdef WOLFSSL_QNX_CAAM
     /* shim layer for QNX hashing not yet implemented */
     #define WOLFSSL_NO_CAAM_HASH
 #endif
+
+/* NXP QorIQ SEC, the T-series PowerPC security engine. Shares the CAAM
+ * descriptor architecture but is a separate, self-contained port. */
+#ifdef WOLFSSL_SEC_QORIQ
+    /* The engine is normally reached through the crypto callback layer.
+     * A minimal build (bring-up harness, boot loader) can call the driver
+     * API directly and skip that layer entirely. */
+    #ifndef WOLFSSL_SEC_QORIQ_NO_CRYPTOCB
+        #undef  WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+
+    /* devId must be visible to every translation unit, not just the ones
+     * that include the port header: wolfcrypt/test/test.c and the benchmark
+     * select their device from WC_USE_DEVID and never include sec_qoriq.h.
+     * Defining it only there left the port registered but never called. */
+    #ifndef WOLFSSL_SEC_QORIQ_DEVID
+        #define WOLFSSL_SEC_QORIQ_DEVID 0x53454351 /* "SECQ" */
+    #endif
+    #if !defined(WC_USE_DEVID) && !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB)
+        #define WC_USE_DEVID WOLFSSL_SEC_QORIQ_DEVID
+    #endif
+
+    /* pick a backend if the build did not name one */
+    #if !defined(WOLFSSL_SEC_QORIQ_BAREMETAL) && \
+        !defined(WOLFSSL_SEC_QORIQ_LINUX) && \
+        !defined(WOLFSSL_SEC_QORIQ_SIM)
+        #define WOLFSSL_SEC_QORIQ_BAREMETAL
+    #endif
+    #if (defined(WOLFSSL_SEC_QORIQ_BAREMETAL) && \
+            defined(WOLFSSL_SEC_QORIQ_LINUX)) || \
+        (defined(WOLFSSL_SEC_QORIQ_BAREMETAL) && \
+            defined(WOLFSSL_SEC_QORIQ_SIM)) || \
+        (defined(WOLFSSL_SEC_QORIQ_LINUX) && defined(WOLFSSL_SEC_QORIQ_SIM))
+        #error "Select only one WOLFSSL_SEC_QORIQ backend"
+    #endif
+#endif /* WOLFSSL_SEC_QORIQ */
 
 #ifdef WOLFSSL_CAAM
     /* switch for all AES type algos */
@@ -3240,10 +3339,14 @@
             #define WOLFSSL_CAAM_AESGCM
             #define WOLFSSL_CAAM_AESXTS
         #endif
-        #define WOLFSSL_CAAM_AESCCM
+        #ifndef WOLFSSL_NO_CAAM_AESCCM
+            #define WOLFSSL_CAAM_AESCCM
+        #endif
         #define WOLFSSL_CAAM_AESCTR
         #define WOLFSSL_CAAM_AESCBC
-        #define WOLFSSL_CAAM_CMAC
+        #ifndef WOLFSSL_NO_CAAM_CMAC
+            #define WOLFSSL_CAAM_CMAC
+        #endif
     #endif /* WOLFSSL_CAAM_CIPHER */
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS) || \
             defined(WOLFSSL_CMAC)
@@ -3773,6 +3876,16 @@
 #endif /* HAVE_ED448 */
 
 
+/* Derived here rather than in wc_mlkem.h, which is included from inside the
+ * guard that tests this. Names the ASN.1 backend inputs rather than
+ * WOLFSSL_ASN_TEMPLATE, which has no default until several hundred lines down
+ * and so is undefined in CMake builds. Keep in step with that block. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    (defined(NO_ASN) || \
+     (!defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_ASN_ORIGINAL)))
+    #define WOLFSSL_MLKEM_NO_ASN1
+#endif
+
 /* RFC 5958 (Asymmetric Key Packages) */
 #if !defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_EXPORT)) || \
@@ -3781,6 +3894,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
+     (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
@@ -3794,6 +3908,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
+     (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
@@ -6063,6 +6178,22 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 
 #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_HAVE_VECTOR_SPEEDUPS)
     #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
+#endif
+
+/* Keccak-256 uses the legacy 0x01 pad and is not one of the functions FIPS 202
+ * specifies, so a certifiable build refuses it.  dev and dev-no-post are not
+ * certifiable and keep it, as they keep the run-time C block switch. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV)
+    #define WOLFSSL_NO_KECCAK256
+#endif
+
+/* KMAC and cSHAKE (SP 800-185) are outside the FIPS v7 module boundary, so a
+ * validated build drops them however they were requested; the dev and ready
+ * prep builds keep them. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV) && \
+    !defined(WOLFSSL_FIPS_READY)
+    #undef WOLFSSL_KMAC
+    #undef WOLFSSL_CSHAKE
 #endif
 
 /* setup for opt-in DH in FIPS v7+ */

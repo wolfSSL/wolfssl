@@ -927,6 +927,8 @@ int wolfSSL_accept(WOLFSSL* ssl)
         ssl->options.dtls   = 1;
         ssl->options.tls    = 1;
         ssl->options.tls1_1 = 1;
+        if (!ssl->options.sendCookie)
+            ssl->options.dtlsStateful = 1;
         if ((!IsDtlsNotSctpMode(ssl)) || (IsSCR(ssl))) {
             ssl->options.dtlsStateful = 1;
         }
@@ -951,6 +953,15 @@ int wolfSSL_accept(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
+        #ifdef WOLFSSL_DTLS
+        /* Notify before the existing first CH transition. */
+        if (ssl->options.acceptState == ACCEPT_BEGIN) {
+            if ((ssl->error = DtlsNoCookieChGood(ssl)) < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+        #endif
         #ifdef WOLFSSL_TLS13
         ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
         WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
