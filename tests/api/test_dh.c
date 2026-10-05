@@ -546,7 +546,8 @@ int test_wc_DhGenerateKeyPair_bad_args(void)
 int test_wc_DhGenerateKeyPair_and_Agree(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(NO_DH) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_KCAPI_DH)
     DhKey aliceKey, bobKey;
     WC_RNG rng;
     byte alicePriv[TEST_DH_BUF_SIZE], alicePub[TEST_DH_BUF_SIZE];
