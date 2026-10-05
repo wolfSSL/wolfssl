@@ -6781,6 +6781,10 @@ void wolfSSL_EVP_init(void)
                         ret = WOLFSSL_FAILURE;
                         break;
                     }
+                    if (ret == WOLFSSL_SUCCESS) {
+                        ret = wolfSSL_EVP_CipherInit(ctx, NULL, NULL, ctx->iv,
+                                                     -1);
+                    }
                 }
             #if defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)
                 if (ret == WOLFSSL_SUCCESS) {

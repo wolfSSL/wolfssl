@@ -1343,6 +1343,96 @@ int test_evp_cipher_aes_gcm(void)
     return EXPECT_RESULT();
 }
 
+/* Records sealed after a fixed-field EVP_CTRL_GCM_SET_IV_FIXED must use the
+ * nonce reported by EVP_CTRL_GCM_IV_GEN, and that nonce must advance. */
+int test_evp_cipher_aes_gcm_iv_fixed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && defined(OPENSSL_ALL) && ((!defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION >= 2))) && defined(WOLFSSL_AES_256) && \
+    !defined(WC_NO_RNG) && !defined(_WIN32)
+    enum {
+        NUM_RECORDS = 3,
+        FIXED_SZ = 4
+    };
+    static const byte fixed[FIXED_SZ] = { 0xA1, 0xB2, 0xC3, 0xD4 };
+    static const byte key[] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+        0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f
+    };
+    static const byte plainText[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+    };
+    byte ivs[NUM_RECORDS][GCM_NONCE_MID_SZ];
+    byte expIv[GCM_NONCE_MID_SZ];
+    byte cipherText[sizeof(plainText)];
+    byte calcPlainText[sizeof(plainText)];
+    byte tag[AES_BLOCK_SIZE];
+    EVP_CIPHER_CTX* encCtx = NULL;
+    EVP_CIPHER_CTX* decCtx = NULL;
+    int i, j, k, outl;
+
+    /* i == 0 seals with EVP_Cipher, i == 1 with EVP_CipherUpdate/Final. */
+    for (i = 0; i < 2; ++i) {
+        ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(encCtx, EVP_aes_256_gcm(), key, NULL, 1),
+                    SSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
+                    FIXED_SZ, (void*)fixed), SSL_SUCCESS);
+
+        for (j = 0; j < NUM_RECORDS; ++j) {
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
+                        ivs[j]), SSL_SUCCESS);
+            ExpectIntEQ(XMEMCMP(ivs[j], fixed, FIXED_SZ), 0);
+            if (j > 0) {
+                XMEMCPY(expIv, ivs[j - 1], sizeof(expIv));
+                for (k = GCM_NONCE_MID_SZ - 1; k >= 0; k--) {
+                    if (++expIv[k] != 0)
+                        break;
+                }
+                ExpectIntEQ(XMEMCMP(ivs[j], expIv, sizeof(expIv)), 0);
+            }
+
+            if (i == 0) {
+                ExpectIntEQ(EVP_Cipher(encCtx, cipherText, (byte*)plainText,
+                            sizeof(plainText)), sizeof(plainText));
+                ExpectIntGE(EVP_Cipher(encCtx, NULL, NULL, 0), 0);
+            }
+            else {
+                ExpectIntEQ(EVP_CipherUpdate(encCtx, cipherText, &outl,
+                            plainText, sizeof(plainText)), SSL_SUCCESS);
+                ExpectIntEQ(EVP_CipherFinal(encCtx, cipherText, &outl),
+                            SSL_SUCCESS);
+            }
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_GET_TAG,
+                        sizeof(tag), tag), SSL_SUCCESS);
+
+            /* The record must open under the nonce IV_GEN reported. */
+            ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_CipherInit(decCtx, EVP_aes_256_gcm(), key, ivs[j],
+                        0), SSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+                        sizeof(tag), tag), SSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl,
+                        cipherText, sizeof(cipherText)), SSL_SUCCESS);
+            ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl),
+                        SSL_SUCCESS);
+            ExpectIntEQ(XMEMCMP(calcPlainText, plainText, sizeof(plainText)),
+                        0);
+            EVP_CIPHER_CTX_free(decCtx);
+            decCtx = NULL;
+        }
+
+        EVP_CIPHER_CTX_free(encCtx);
+        encCtx = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfssl_EVP_aes_gcm(void)
 {
     EXPECT_DECLS;
