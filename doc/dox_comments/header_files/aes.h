@@ -2373,10 +2373,13 @@ int wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup);
     \ingroup AES
     \brief This function initializes an AES GCM cipher with key and IV.
     It can be called with NULL key to only set the IV, or with NULL IV
-    to only set the key.
+    to only set the key. An IV given before the key is kept, and the first
+    wc_AesGcmInit() call after the key is set uses it.
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
     \return MEMORY_E If dynamic memory allocation fails.
 
     \param aes pointer to the AES structure to initialize
@@ -2413,6 +2416,8 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting
@@ -2578,6 +2583,8 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz);
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting

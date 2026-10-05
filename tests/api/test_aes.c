@@ -4750,6 +4750,32 @@ int test_wc_AesGcmStream(void)
     /* Check streaming encryption can be decrypted with one shot. */
     wc_AesFree(aesDec);
     ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* An IV set before the key is kept for it; a long one cannot be. */
+    ExpectIntEQ(wc_AesGcmInit(aesDec, NULL, 0, iv, AES_IV_SIZE), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, sizeof(in), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGcmInit(aesDec, NULL, 0, aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, sizeof(in), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, WC_AES_BLOCK_SIZE), 0);
+    ExpectBufEQ(plain, in, sizeof(in));
+
+    /* With wc_AesGcmSetKey() the IV waits for the next init. */
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aesDec, NULL, 0, iv, AES_IV_SIZE), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(aesDec, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, sizeof(in), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_IV));
+    ExpectIntEQ(wc_AesGcmInit(aesDec, NULL, 0, NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, sizeof(in), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, WC_AES_BLOCK_SIZE), 0);
+    ExpectBufEQ(plain, in, sizeof(in));
+#endif
     ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmSetKey(aesDec, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmDecrypt(aesDec, plain, out, sizeof(in), iv,
@@ -12210,6 +12236,14 @@ int test_wc_CryptoCb_AesSetKey(void)
         /* Key should NOT be copied to devKey - SE owns it */
         ExpectIntEQ(XMEMCMP(aes->devKey, zeroKey, sizeof(key)), 0);
     }
+
+#if defined(WOLFSSL_AESGCM_STREAM) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    /* Streaming GCM has no callback, so it must refuse a device-owned key. */
+    ExpectIntEQ(wc_AesGcmInit(aes, NULL, 0, iv, GCM_NONCE_MID_SZ), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(aes, cipher, plain, 16, NULL, 0),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
 
     /* Missing device context should fail in the callback instead of falling
      * through as a successful offload path. */

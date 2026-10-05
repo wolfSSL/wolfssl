@@ -9129,6 +9129,25 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
     return ret;
 #endif
+#if defined(WOLF_CRYPTO_CB) && \
+    (defined(WOLF_CRYPTO_CB_SETKEY) || defined(WOLF_CRYPTO_CB_AES_SETKEY))
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        /* rounds is 0 when a device claimed the key; there is no schedule. */
+        if ((ret == 0) && (aes->rounds == 0)) {
+            ForceZero(aes->gcm.H, sizeof(aes->gcm.H));
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+            ForceZero(aes->gcm.M0, sizeof(aes->gcm.M0));
+        #endif
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
+            ForceZero(local, sizeof(local));
+        #endif
+            return ret;
+        }
+    }
+#endif
 #ifdef WOLFSSL_AESGCM_STREAM
     aes->gcmKeySet = 1;
 #endif
@@ -14962,6 +14981,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_RISCV64(
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
  *          is NULL, or the IV is NULL and no previous IV has been set.
+ * @return  MISSING_KEY when an IV longer than a block is given and no software
+ *          GCM key is set, such as a key a crypto callback device owns.
  * @return  MEMORY_E when dynamic memory allocation fails. (WOLFSSL_SMALL_STACK)
  */
 int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
@@ -14991,6 +15012,11 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     /* Set the key if passed in. */
     if ((ret == 0) && (key != NULL)) {
         ret = wc_AesGcmSetKey(aes, key, len);
+    }
+    /* A long IV is hashed with H, so it cannot be cached for a later key. */
+    if ((ret == 0) && (iv != NULL) && (ivSz > WC_AES_BLOCK_SIZE) &&
+            (!aes->gcmKeySet)) {
+        ret = MISSING_KEY;
     }
 
 #if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
@@ -15040,7 +15066,11 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             }
         }
 
-        if (iv != NULL) {
+        if ((iv != NULL) && (!aes->gcmKeySet)) {
+            /* No GCM key yet: keep the IV cached for a later call. */
+            aes->nonceSet = 0;
+        }
+        else if (iv != NULL) {
             /* Initialize with the IV. */
 
         #ifdef WC_AESNI_GCM
@@ -15098,6 +15128,8 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
  *          is NULL, or the IV is NULL and no previous IV has been set.
+ * @return  MISSING_KEY when an IV longer than a block is given and no software
+ *          GCM key is set, such as a key a crypto callback device owns.
  */
 int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
@@ -15328,6 +15360,8 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
  *          is NULL, or the IV is NULL and no previous IV has been set.
+ * @return  MISSING_KEY when an IV longer than a block is given and no software
+ *          GCM key is set, such as a key a crypto callback device owns.
  */
 int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
