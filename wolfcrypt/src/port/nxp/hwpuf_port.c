@@ -30,7 +30,6 @@
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/hwpuf.h>
 #include <wolfssl/wolfcrypt/port/nxp/hwpuf_port.h>
 #include "fsl_iap_ffr.h"
 #include "fsl_puf.h"
@@ -43,13 +42,16 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* The public HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE() must agree with the SDK's key
- * code size, since buffer sizes are validated against the SDK macro. */
-wc_static_assert2(
-    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(16) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(16) &&
-    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(24) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(24) &&
-    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(32) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(32),
-    "HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE does not match NXP SDK key code size");
+#define HWPUF_KEY_SIZE_IS_VALID(keysz) \
+    ((keysz) == 16 || (keysz) == 24 || (keysz) == 32)
+
+typedef enum nxp_hwpuf_flag {
+    NXP_HWPUF_FLAG_NONE     =    0,  /* Deinit() clears all flags */
+    NXP_HWPUF_FLAG_INITED   = 0x01,  /* Init() called successfully */
+    NXP_HWPUF_FLAG_ENROLLED = 0x02,  /* Enroll() called successfully */
+    NXP_HWPUF_FLAG_READY    = 0x04,  /* Start() called successfully */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(NXP_HWPUF_FLAG)
+} nxp_hwpuf_flag;
 
 typedef enum nxp_hwpuf_keytype {
     nxp_hwpuf_keytype_user = 0,
@@ -59,14 +61,12 @@ typedef enum nxp_hwpuf_keytype {
 
 typedef struct nxp_hwpuf_ctx {
     word32 keyMask; /* unique per reset */
+    word32 flags;
 } nxp_hwpuf_ctx;
 
 static nxp_hwpuf_ctx ctx;
 static puf_config_t conf;
-
-
-#define NXP_HWPUF_USER_KEY 0
-#define NXP_HWPUF_INTRINSIC_KEY 0
+static int hwpuf_registered = 0;
 
 static int keyCodeCheck(byte* keyCode, word32* keytype,
                         word32* keyidx, word32* keysize)
@@ -87,12 +87,14 @@ static int keyCodeCheck(byte* keyCode, word32* keytype,
 
 static int nxp_rng_initialized = 0;
 
-static int nxp_hwpuf_Init(wc_HWPUF* hwpuf)
+static int nxp_hwpuf_Init(void)
 {
     WOLFSSL_ENTER("nxp_hwpuf_Init");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if (!hwpuf_registered)
+        return HWPUF_REGISTER_E;
+    if ((ctx.flags & NXP_HWPUF_FLAG_INITED) != 0)
+        return 0;
 
     PUF_GetDefaultConfig(&conf);
     if (PUF_Init(PUF, &conf) != kStatus_Success) {
@@ -104,29 +106,38 @@ static int nxp_hwpuf_Init(wc_HWPUF* hwpuf)
         nxp_rng_initialized = 1;
     }
     ctx.keyMask = RNG->RANDOM_NUMBER;
+    ctx.flags |= NXP_HWPUF_FLAG_INITED;
     return 0;
 }
 
-static int nxp_hwpuf_Deinit(wc_HWPUF* hwpuf)
+static int nxp_hwpuf_Deinit(void)
 {
     WOLFSSL_ENTER("nxp_hwpuf_Deinit");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if (!hwpuf_registered)
+        return HWPUF_REGISTER_E;
 
     PUF_Deinit(PUF, &conf);
+
+    ctx.flags = 0;
 
     return 0;
 }
 
-static int nxp_hwpuf_Enroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+static int nxp_hwpuf_Enroll(byte* actCode, word32 actCodeSz)
 {
     int ret;
 
     WOLFSSL_ENTER("nxp_hwpuf_Enroll");
 
-    if (hwpuf == NULL)
+    if (actCode == NULL || actCodeSz != PUF_ACTIVATION_CODE_SIZE)
         return BAD_FUNC_ARG;
+    if ((ctx.flags & NXP_HWPUF_FLAG_INITED) == 0)
+        return HWPUF_INIT_E;
+    if ((ctx.flags & NXP_HWPUF_FLAG_ENROLLED) != 0)
+        return HWPUF_ENROLL_E;
+    if ((ctx.flags & NXP_HWPUF_FLAG_READY) != 0)
+        return HWPUF_ENROLL_E;
 
     ret = PUF_Enroll(PUF, actCode, actCodeSz);
     if (ret == kStatus_EnrollNotAllowed) {
@@ -138,20 +149,25 @@ static int nxp_hwpuf_Enroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
         return HWPUF_ENROLL_E;
     }
 
-    /* wipe ctx if enroll succeeded (re-enroll will render ctx moot) */
-    ForceZero(&ctx, sizeof(ctx));
+    ctx.flags |= NXP_HWPUF_FLAG_ENROLLED;
 
     return 0;
 }
 
-static int nxp_hwpuf_Start(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+static int nxp_hwpuf_Start(byte* actCode, word32 actCodeSz)
 {
     int ret;
 
     WOLFSSL_ENTER("nxp_hwpuf_Start");
 
-    if (hwpuf == NULL)
+    if (actCode == NULL || actCodeSz != PUF_ACTIVATION_CODE_SIZE)
         return BAD_FUNC_ARG;
+    if ((ctx.flags & NXP_HWPUF_FLAG_INITED) == 0)
+        return HWPUF_INIT_E;
+    if ((ctx.flags & NXP_HWPUF_FLAG_ENROLLED) != 0)
+        return HWPUF_START_E;
+    if ((ctx.flags & NXP_HWPUF_FLAG_READY) != 0)
+        return HWPUF_START_E;
 
     ret = PUF_Start(PUF, actCode, actCodeSz);
     if (ret == kStatus_StartNotAllowed) {
@@ -163,10 +179,12 @@ static int nxp_hwpuf_Start(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
         return HWPUF_START_E;
     }
 
+    ctx.flags |= NXP_HWPUF_FLAG_READY;
+
     return 0;
 }
 
-static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
+static int nxp_hwpuf_GenerateKey(byte keyIdx, word32 keySz,
                                  byte* keyCode, word32 keyCodeSz)
 {
     int ret;
@@ -174,8 +192,8 @@ static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
 
     WOLFSSL_ENTER("nxp_hwpuf_GenerateKey");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if ((ctx.flags & NXP_HWPUF_FLAG_READY) == 0)
+        return HWPUF_START_E;
     if (keyIdx > kPUF_KeyIndexMax)
         return BAD_FUNC_ARG;
     if ( !HWPUF_KEY_SIZE_IS_VALID(keySz) )
@@ -192,7 +210,7 @@ static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
     return 0;
 }
 
-static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
+static int nxp_hwpuf_GetKey(byte* keyCode, word32 keyCodeSz,
                             byte* key, word32 keySz)
 {
     int ret;
@@ -201,8 +219,8 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
 
     WOLFSSL_ENTER("nxp_hwpuf_GetKey");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if ((ctx.flags & NXP_HWPUF_FLAG_READY) == 0)
+        return HWPUF_START_E;
     if (keyCode == NULL || keyCodeSz < PUF_MIN_KEY_CODE_SIZE)
         return BAD_FUNC_ARG;
 
@@ -236,14 +254,11 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
     return 0;
 }
 
-static int nxp_hwpuf_Zeroize(wc_HWPUF* hwpuf)
+static int nxp_hwpuf_Zeroize(void)
 {
     int ret;
 
     WOLFSSL_ENTER("nxp_hwpuf_Zeroize");
-
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
 
     ForceZero(&ctx, sizeof(ctx));
 
@@ -275,69 +290,67 @@ static int nxp_hwpuf_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 #endif
 
     if (info->hwpuf.type == WC_HWPUF_TYPE_INIT) {
-        ret = nxp_hwpuf_Init(info->hwpuf.hwpuf);
+        ret = nxp_hwpuf_Init();
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_DEINIT) {
-        ret = nxp_hwpuf_Deinit(info->hwpuf.hwpuf);
+        ret = nxp_hwpuf_Deinit();
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_ENROLL) {
-        ret = nxp_hwpuf_Enroll(info->hwpuf.hwpuf,
-                               info->hwpuf.op.enroll.actCode,
+        ret = nxp_hwpuf_Enroll(info->hwpuf.op.enroll.actCode,
                                info->hwpuf.op.enroll.actCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_START) {
-        ret = nxp_hwpuf_Start(info->hwpuf.hwpuf,
-                              info->hwpuf.op.start.actCode,
+        ret = nxp_hwpuf_Start(info->hwpuf.op.start.actCode,
                               info->hwpuf.op.start.actCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_GENERATE_KEY) {
-        ret = nxp_hwpuf_GenerateKey(info->hwpuf.hwpuf,
-                                info->hwpuf.op.generateKey.keyIdx,
-                                info->hwpuf.op.generateKey.keySz,
-                                info->hwpuf.op.generateKey.keyCode,
-                                info->hwpuf.op.generateKey.keyCodeSz);
+        ret = nxp_hwpuf_GenerateKey(info->hwpuf.op.generateKey.keyIdx,
+                                    info->hwpuf.op.generateKey.keySz,
+                                    info->hwpuf.op.generateKey.keyCode,
+                                    info->hwpuf.op.generateKey.keyCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_GET_KEY) {
-        ret = nxp_hwpuf_GetKey(info->hwpuf.hwpuf,
-                               info->hwpuf.op.getKey.keyCode,
+        ret = nxp_hwpuf_GetKey(info->hwpuf.op.getKey.keyCode,
                                info->hwpuf.op.getKey.keyCodeSz,
                                info->hwpuf.op.getKey.key,
                                info->hwpuf.op.getKey.keySz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_ZEROIZE) {
-        ret = nxp_hwpuf_Zeroize(info->hwpuf.hwpuf);
+        ret = nxp_hwpuf_Zeroize();
     }
     return ret;
 }
 
-WOLFSSL_API int nxp_hwpuf_RegisterDevice(wc_HWPUF* hwpuf)
+WOLFSSL_API int nxp_hwpuf_RegisterDevice(void)
 {
     int ret;
 
     WOLFSSL_ENTER("nxp_hwpuf_RegisterDevice");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if (hwpuf_registered)
+        return HWPUF_REGISTER_E;
 
-    if (hwpuf->devId == INVALID_DEVID)
-        hwpuf->devId = WOLFSSL_NXP_HWPUF_DEVID;
-
-    ret = wc_CryptoCb_RegisterDevice(hwpuf->devId, nxp_hwpuf_CryptoDevCb, NULL);
-    if (ret != 0) {
+    ret = wc_CryptoCb_RegisterDevice(WOLFSSL_NXP_HWPUF_DEVID,
+                                     nxp_hwpuf_CryptoDevCb, NULL);
+    if (ret == 0)
+        hwpuf_registered = 1;
+    else {
         WOLFSSL_ERROR_MSG("NXP_HWPUF: nxp_hwpuf_CryptoDevCb, "
                           "wc_CryptoCb_RegisterDevice() failed");
     }
     return ret;
 }
 
-WOLFSSL_API int nxp_hwpuf_UnregisterDevice(wc_HWPUF* hwpuf)
+WOLFSSL_API int nxp_hwpuf_UnregisterDevice(void)
 {
     WOLFSSL_ENTER("nxp_hwpuf_UnregisterDevice");
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
+    if (!hwpuf_registered)
+        return 0;
 
-    wc_CryptoCb_UnRegisterDevice(hwpuf->devId);
+    wc_CryptoCb_UnRegisterDevice(WOLFSSL_NXP_HWPUF_DEVID);
+
+    hwpuf_registered = 0;
 
     return 0;
 }

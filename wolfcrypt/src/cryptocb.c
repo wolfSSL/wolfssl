@@ -3609,21 +3609,17 @@ int wc_CryptoCb_SheExportKey(wc_SHE* she,
 #endif /* WOLFSSL_SHE */
 
 #ifdef WOLFSSL_HWPUF
-int wc_CryptoCb_HwpufInit(wc_HWPUF* hwpuf)
+int wc_CryptoCb_HwpufInit(int devId)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_INIT;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_INIT;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3631,21 +3627,17 @@ int wc_CryptoCb_HwpufInit(wc_HWPUF* hwpuf)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf)
+int wc_CryptoCb_HwpufDeinit(int devId)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_DEINIT;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_DEINIT;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3653,21 +3645,17 @@ int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+int wc_CryptoCb_HwpufEnroll(int devId, byte* actCode, word32 actCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_ENROLL;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_ENROLL;
         cryptoInfo.hwpuf.op.enroll.actCode   = actCode;
         cryptoInfo.hwpuf.op.enroll.actCodeSz = actCodeSz;
 
@@ -3677,21 +3665,17 @@ int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+int wc_CryptoCb_HwpufStart(int devId, byte* actCode, word32 actCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_START;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_START;
         cryptoInfo.hwpuf.op.start.actCode   = actCode;
         cryptoInfo.hwpuf.op.start.actCodeSz = actCodeSz;
 
@@ -3701,22 +3685,18 @@ int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
+int wc_CryptoCb_HwpufGenerateKey(int devId, byte keyIdx, word32 keySz,
                                  byte* keyCode, word32 keyCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GENERATE_KEY;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_GENERATE_KEY;
         cryptoInfo.hwpuf.op.generateKey.keyIdx    = keyIdx;
         cryptoInfo.hwpuf.op.generateKey.keySz     = keySz;
         cryptoInfo.hwpuf.op.generateKey.keyCode   = keyCode;
@@ -3728,23 +3708,19 @@ int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
+int wc_CryptoCb_HwpufGetKey(int devId,
                             byte* keyCode, word32 keyCodeSz,
                             byte* key, word32 keySz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GET_KEY;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_GET_KEY;
         cryptoInfo.hwpuf.op.getKey.keyCode   = keyCode;
         cryptoInfo.hwpuf.op.getKey.keyCodeSz = keyCodeSz;
         cryptoInfo.hwpuf.op.getKey.key       = key;
@@ -3756,21 +3732,17 @@ int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufZeroize(wc_HWPUF* hwpuf)
+int wc_CryptoCb_HwpufZeroize(int devId)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_HWPUF);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_ZEROIZE;
+        cryptoInfo.algo_type  = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.type = WC_HWPUF_TYPE_ZEROIZE;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

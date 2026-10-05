@@ -1568,6 +1568,19 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HWPUF
 };
 
+/* HWPUF operation types */
+enum wc_HwpufType {
+    WC_HWPUF_TYPE_NONE = 0,
+    WC_HWPUF_TYPE_INIT = 1,
+    WC_HWPUF_TYPE_DEINIT = 2,
+    WC_HWPUF_TYPE_ENROLL = 3,
+    WC_HWPUF_TYPE_START = 4,
+    WC_HWPUF_TYPE_GENERATE_KEY = 5,
+    WC_HWPUF_TYPE_GET_KEY = 6,
+    WC_HWPUF_TYPE_ZEROIZE = 7,
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HWPUF_TYPE)
+};
+
 /* KDF types */
 enum wc_KdfType {
     WC_KDF_TYPE_NONE = 0,

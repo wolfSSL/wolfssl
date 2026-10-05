@@ -91,8 +91,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_slhdsa.h \
                          wolfssl/wolfcrypt/puf.h \
                          wolfssl/wolfcrypt/oid_sum.h \
-                         wolfssl/wolfcrypt/wc_compat.h \
-                         wolfssl/wolfcrypt/hwpuf.h
+                         wolfssl/wolfcrypt/wc_compat.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/aria/aria-crypt.h \
