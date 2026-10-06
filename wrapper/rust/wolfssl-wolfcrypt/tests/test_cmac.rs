@@ -35,12 +35,31 @@ fn test_cmac() {
     let valid = CMAC::verify(&key, &message, &incorrect_cmac).expect("Error with verify()");
     assert!(!valid);
 
-    let mut cmac = CMAC::new(&key).expect("Error with new()");
+    let cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
     let mut generate_out = [0u8; 16];
-    cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
-    assert_eq!(generate_out, finalize_out);
-    let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
+    cmac.update_and_finalize(&message, &mut generate_out).expect("Error with update_and_finalize()");
+    assert_eq!(generate_out, expected_cmac);
+
+    let cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
+    let valid = cmac.update_and_verify(&message, &expected_cmac).expect("Error with update_and_verify()");
     assert!(valid);
-    let valid = cmac.verify_ex(&key, &message, &incorrect_cmac, None, None).expect("Error with verify_ex()");
+    let cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
+    let valid = cmac.update_and_verify(&message, &incorrect_cmac).expect("Error with update_and_verify()");
     assert!(!valid);
+
+    /* Streamed input followed by a verify with no additional data. */
+    let mut cmac = CMAC::new(&key).expect("Error with new()");
+    cmac.update(&message[..5]).expect("Error with update()");
+    cmac.update(&message[5..]).expect("Error with update()");
+    let valid = cmac.update_and_verify(&[], &expected_cmac).expect("Error with update_and_verify()");
+    assert!(valid);
+
+    /* Truncated tag. */
+    let cmac = CMAC::new(&key).expect("Error with new()");
+    let valid = cmac.update_and_verify(&message, &expected_cmac[..8]).expect("Error with update_and_verify()");
+    assert!(valid);
+
+    /* Tag longer than the maximum CMAC size. */
+    let cmac = CMAC::new(&key).expect("Error with new()");
+    assert!(cmac.update_and_verify(&message, &[0u8; 17]).is_err());
 }

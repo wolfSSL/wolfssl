@@ -8,9 +8,9 @@ Breaking changes:
   it; the key holds the RNG for its lifetime
 - The rand_core::TryRng implementation for RNG is now truly fallible: its
   associated Error type is the new random::RngError, which carries the wolfSSL
-  library error code, instead of core::convert::Infallible.  Entropy, reseed
+  library error code, instead of core::convert::Infallible. Entropy, reseed
   and hardware failures are returned to the caller instead of panicking inside
-  the library.  As a consequence RNG no longer implements the infallible
+  the library. As a consequence RNG no longer implements the infallible
   rand_core::Rng and rand_core::CryptoRng traits; wrap it in
   rand_core::UnwrapErr to keep the previous panic-on-failure behavior
 - Ed25519 and Ed448 no longer implement the signature crate's Keypair trait;
@@ -22,6 +22,11 @@ Breaking changes:
 - Replace Lms::export_pub_from() with Lms::export_pub(), which returns a new
   verify only key instead of re-initializing an existing one; this fixes a leak
   of the destination's private key data
+- CMAC::generate_ex() and CMAC::verify_ex() have been removed. They
+  re-initialized an already-initialized CMAC object without freeing its
+  existing resources, and left the object unusable afterward. Use
+  CMAC::new_ex() followed by the new CMAC::update_and_finalize() or
+  CMAC::update_and_verify() methods instead
 
 New features:
 
