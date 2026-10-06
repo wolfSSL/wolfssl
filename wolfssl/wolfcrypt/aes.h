@@ -228,6 +228,18 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     #define WC_AES_KEY_IS_SET(aes)  (1)
 #endif
 
+/* Set when wc_AesEncryptDirect/DecryptDirect try the crypto callback first. */
+#if defined(WOLFSSL_AES_DIRECT) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB)) && \
+    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+      !defined(WOLFSSL_QNX_CAAM)) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    #define WC_AES_DIRECT_CRYPTO_CB
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif

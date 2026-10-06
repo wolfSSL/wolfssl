@@ -6332,10 +6332,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
-        #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
-            !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
-            /* Let a device run it first, as a one-block ECB request.
-             * CB-only and MAX3266X builds already do this in wc_AesEncrypt. */
+        #ifdef WC_AES_DIRECT_CRYPTO_CB
+            /* Let a device run it first, as a one-block ECB request. */
             #ifndef WOLF_CRYPTO_CB_FIND
             if (aes->devId != INVALID_DEVID)
             #endif
@@ -6372,10 +6370,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
-        #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
-            !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
-            /* Let a device run it first, as a one-block ECB request.
-             * CB-only and MAX3266X builds already do this in wc_AesDecrypt. */
+        #ifdef WC_AES_DIRECT_CRYPTO_CB
+            /* Let a device run it first, as a one-block ECB request. */
             #ifndef WOLF_CRYPTO_CB_FIND
             if (aes->devId != INVALID_DEVID)
             #endif

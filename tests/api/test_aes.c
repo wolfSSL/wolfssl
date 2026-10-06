@@ -11527,18 +11527,8 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void)
  | CryptoCB AES Direct Test
  *----------------------------------------------------------------------------*/
 
-/* Port builds (CAAM, AF_ALG, devcrypto) have their own Direct API that does
- * not use the crypto callback. CB-only builds, and MAX3266X builds with
- * HAVE_AES_ECB, ask the device from inside wc_AesEncrypt instead. */
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
-    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
-    defined(HAVE_AES_DECRYPT) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
-    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST) && \
-    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
-      !defined(WOLFSSL_QNX_CAAM)) && !defined(WOLFSSL_AFALG) && \
-    !defined(WOLFSSL_DEVCRYPTO_AES) && \
-    !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
+#if defined(WC_AES_DIRECT_CRYPTO_CB) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
@@ -11864,7 +11854,7 @@ int test_wc_CryptoCb_AesDirect(void)
     return EXPECT_RESULT();
 }
 
-#endif /* WOLF_CRYPTO_CB && WOLFSSL_AES_DIRECT && WOLFSSL_AES_128 */
+#endif /* WC_AES_DIRECT_CRYPTO_CB && WOLFSSL_AES_128 && HAVE_AES_DECRYPT */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test

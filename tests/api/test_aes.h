@@ -23,6 +23,7 @@
 #define WOLFCRYPT_TEST_AES_H
 
 #include <tests/api/api_decl.h>
+#include <wolfssl/wolfcrypt/aes.h>
 
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
@@ -186,15 +187,8 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
 #define TEST_CRYPTOCB_AES_KEYWRAP_DECL
 #endif
 
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
-    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
-    defined(HAVE_AES_DECRYPT) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
-    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST) && \
-    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
-      !defined(WOLFSSL_QNX_CAAM)) && !defined(WOLFSSL_AFALG) && \
-    !defined(WOLFSSL_DEVCRYPTO_AES) && \
-    !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB))
+#if defined(WC_AES_DIRECT_CRYPTO_CB) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT)
 int test_wc_CryptoCb_AesDirect(void);
 #define TEST_CRYPTOCB_AES_DIRECT_DECL \
     , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesDirect)
