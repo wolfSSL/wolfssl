@@ -875,6 +875,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
             ret = NOT_COMPILED_IN;
         }
         else {
+            /* Left 0 on the k == 0 branch above, which errors out before
+             * anything writes e. */
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
             eSz = (size_t)(k * MLKEM_N) * sizeof(sword16);
 #else
@@ -1280,7 +1282,7 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
  * @param  [in]      r     Seed to feed to PRF when generating y, e1 and e2.
  * @param  [out]     c     Calculated cipher text. NULL when comparing.
  * @param  [in]      cmp   Cipher text to compare against. May be NULL.
- * @param  [in, out] fail  Set to -1 when cipher text does not match cmp.
+ * @param  [out]     fail  Set to -1 when cipher text does not match cmp.
  *                         Only used when cmp is not NULL.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when key type is not supported.
@@ -1546,7 +1548,13 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
 #ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     /* block holds the cipher text re-encapsulated from the secret decrypted
      * message. With malloc it sits in the y allocation and is covered above. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem encrypt block", block, sizeof(block));
+#endif
     ForceZero(block, sizeof(block));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(block, sizeof(block));
+#endif
 #endif
 #endif
 
@@ -2167,15 +2175,13 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     byte msg[WC_ML_KEM_SYM_SZ];
     byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     unsigned int i = 0;
-#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     int fail = -1; /* mismatch until mlkem_cmp() says otherwise */
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     byte* cmp = NULL;
 #else
     byte cmp[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
 #endif
-#else
-    int fail = 0;
 #endif
 #endif
 
