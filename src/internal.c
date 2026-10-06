@@ -30780,7 +30780,8 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
 
-wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+/* long, not int: an int cast of an enum still trips MSVC C5287. */
+wc_static_assert((long)WC_LAST_E <= (long)WOLFSSL_LAST_E);
 
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 {

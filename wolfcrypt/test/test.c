@@ -65814,7 +65814,7 @@ static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
     }
 
     if (lenExported <= 0 || lenExported != pubKeyLen) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(lenExported), out);
+        ERROR_OUT(WC_TEST_RET_ENC_I(lenExported), out);
     }
 
     n_diff = XMEMCMP(pubExported, pubKey, pubKeyLen);
@@ -71546,7 +71546,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     if (pkSz != XMSS_SHA256_PUBLEN) {
-        return WC_TEST_RET_ENC_EC(pkSz);
+        return WC_TEST_RET_ENC_I(pkSz);
     }
 
     ret = wc_XmssKey_GetSigLen(&verifyKey, &sigSz);
@@ -71559,7 +71559,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 #endif
 
     if (sigSz != sizeof(xmss_sig)) {
-        return WC_TEST_RET_ENC_EC(sigSz);
+        return WC_TEST_RET_ENC_I(sigSz);
     }
 
     ret = wc_XmssKey_ImportPubRaw(&verifyKey, xmss_pub, XMSS_SHA256_PUBLEN);
@@ -71582,7 +71582,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     if (pub_len != XMSS_SHA256_PUBLEN) {
         printf("error: xmss pub len %u, expected %d\n", pub_len,
                XMSS_SHA256_PUBLEN);
-        return WC_TEST_RET_ENC_EC(pub_len);
+        return WC_TEST_RET_ENC_I(pub_len);
     }
 
     n_diff = XMEMCMP(pub_raw, xmss_pub, sizeof(xmss_pub));
@@ -72178,7 +72178,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
 
     if (pubSz != HSS_MAX_PUBLIC_KEY_LEN) {
         printf("error: got %u, expected %d\n", pubSz, HSS_MAX_PUBLIC_KEY_LEN);
-        return WC_TEST_RET_ENC_EC(pubSz);
+        return WC_TEST_RET_ENC_I(pubSz);
     }
 
     ret = wc_LmsKey_GetSigLen(&verifyKey, &sigSz);
@@ -72186,7 +72186,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
 
     if (sigSz != LMS_L1H10W8_SIGLEN) {
         printf("error: got %u, expected %d\n", sigSz, LMS_L1H10W8_SIGLEN);
-        return WC_TEST_RET_ENC_EC(sigSz);
+        return WC_TEST_RET_ENC_I(sigSz);
     }
 
     ret = wc_LmsKey_Verify(&verifyKey, lms_L1H10W8_sig, LMS_L1H10W8_SIGLEN,
@@ -72206,7 +72206,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     if (pub_len != HSS_MAX_PUBLIC_KEY_LEN) {
         printf("error: LMS pub len %u, expected %d\n", pub_len,
                HSS_MAX_PUBLIC_KEY_LEN);
-        return WC_TEST_RET_ENC_EC(pub_len);
+        return WC_TEST_RET_ENC_I(pub_len);
     }
 
     n_diff = XMEMCMP(pub_raw, lms_L1H10W8_pub, sizeof(lms_L1H10W8_pub));
