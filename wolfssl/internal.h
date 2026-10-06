@@ -5312,6 +5312,10 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_LOCAL int SessionNewAltId(WOLFSSL* ssl);
+#endif
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define AddSessionToCache wolfSSL_AddSessionToCache
 #endif
@@ -5718,6 +5722,9 @@ struct Options {
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
 #ifdef WOLFSSL_EARLY_DATA
     word16            ticketPredatesCtx:1; /* PSK ticket minted before ctx */
+#ifndef NO_SESSION_CACHE
+    word16            ticketCacheHit:1;   /* Ticket's session was cached */
+#endif
 #endif
 #if !defined(NO_WOLFSSL_SERVER) && \
     defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
