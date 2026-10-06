@@ -15727,32 +15727,12 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
 
     return ret;
 }
-#endif /* WOLFSSL_ASN_TEMPLATE */
 
-/* Get a certificate name into the certificate object.
- *
- * @param [in, out] cert      Decoded certificate object.
- * @param [out]     full      Buffer to hold full name as a string.
- * @param [out]     hash      Buffer to hold hash of name.
- * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
- * @param [in]      input     Buffer holding certificate name.
- * @param [in, out] inOutIdx  On in, start of certificate name.
- *                            On out, start of ASN.1 item after cert name.
- * @param [in]      maxIdx    Index of next item after certificate name.
- * @return  0 on success.
- * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
- *          is invalid.
- * @return  BUFFER_E when data in buffer is too small.
- * @return  ASN_OBJECT_ID_E when the expected OBJECT_ID tag is not found.
- * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
- * @return  MEMORY_E when dynamic memory allocation fails.
- */
-#ifdef WOLFSSL_ASN_TEMPLATE
 /* Add the attribute value last parsed into an X509_NAME.
  *
- * @param [in, out] dName  X509_NAME to add to. May be NULL when no NID
- *                         was found for the attribute type.
- * @param [in]      nid    OpenSSL NID of the attribute type. 0 when unknown.
+ * @param [in, out] dName  X509_NAME to add to. NULL is ignored.
+ * @param [in]      nid    OpenSSL NID of the attribute type. 0 when unknown,
+ *                         in which case nothing is added.
  * @param [in]      val    Parsed attribute value (rdnChoice data).
  * @return  0 on success.
  * @return  ASN_PARSE_E when the string is empty or the entry could not be
@@ -15814,7 +15794,27 @@ static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
     return ret;
 }
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
+#endif /* WOLFSSL_ASN_TEMPLATE */
 
+/* Get a certificate name into the certificate object.
+ *
+ * @param [in, out] cert      Decoded certificate object.
+ * @param [out]     full      Buffer to hold full name as a string.
+ * @param [out]     hash      Buffer to hold hash of name.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
+ * @param [in]      input     Buffer holding certificate name.
+ * @param [in, out] inOutIdx  On in, start of certificate name.
+ *                            On out, start of ASN.1 item after cert name.
+ * @param [in]      maxIdx    Index of next item after certificate name.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_OBJECT_ID_E when the expected OBJECT_ID tag is not found.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+#ifdef WOLFSSL_ASN_TEMPLATE
 static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                        const byte* input, word32* inOutIdx, word32 maxIdx)
 {

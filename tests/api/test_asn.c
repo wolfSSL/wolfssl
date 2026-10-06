@@ -5516,7 +5516,10 @@ int test_ParseCert_nc_before_basic_constraints(void)
     ExpectIntEQ(cert.extNameConstraintSet, 1);
     wc_FreeDecodedCert(&cert);
 
-    /* It also loads as a CA. */
+    /* It also loads as a CA. The load needs a TLS method for its
+     * temporary context. */
+#if !defined(NO_TLS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     {
         WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
         ExpectNotNull(cm);
@@ -5528,6 +5531,7 @@ int test_ParseCert_nc_before_basic_constraints(void)
             wolfSSL_CertManagerFree(cm);
         }
     }
+#endif
 
     /* Same ordering but CA:FALSE is still rejected. */
 #ifndef WOLFSSL_NO_ASN_STRICT
