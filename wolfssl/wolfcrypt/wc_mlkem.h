@@ -600,35 +600,35 @@ WOLFSSL_LOCAL
 void mlkem_prf_free(MLKEM_PRF_T* prf);
 
 WOLFSSL_LOCAL
-int mlkem_cmp(const byte* a, const byte* b, int sz);
+int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail);
 
 WOLFSSL_LOCAL
-void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
+int mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_compress_11(byte* r, sword16* v);
+int mlkem_vec_compress_11(byte* r, sword16* v);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
+int mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
+int mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_compress_4(byte* b, sword16* p);
+int mlkem_compress_4(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_compress_5(byte* b, sword16* p);
+int mlkem_compress_5(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_decompress_4(sword16* p, const unsigned char* b);
+int mlkem_decompress_4(sword16* p, const unsigned char* b);
 WOLFSSL_LOCAL
-void mlkem_decompress_5(sword16* p, const unsigned char* b);
+int mlkem_decompress_5(sword16* p, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_from_msg(sword16* p, const byte* msg);
+int mlkem_from_msg(sword16* p, const byte* msg);
 WOLFSSL_LOCAL
-void mlkem_to_msg(byte* msg, sword16* p);
+int mlkem_to_msg(byte* msg, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_from_bytes(sword16* p, const byte* b, int k);
+int mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
-void mlkem_to_bytes(byte* b, sword16* p, int k);
+int mlkem_to_bytes(byte* b, sword16* p, int k);
 WOLFSSL_LOCAL
 int mlkem_check_reduced(const sword16* p, int k);
 

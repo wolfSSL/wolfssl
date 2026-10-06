@@ -2269,22 +2269,26 @@ static int wc_lmots_compute_y_from_seed(LmsState* state, const byte* seed,
     if (ret == 0) {
         int lanes = LMS_N_WAY_LANES(params);
 
-        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            /* Chain i runs from x[i] for a[i] steps, into y[i]. */
+        if (lanes > 0) {
+            /* CPUID picks the lane; a refused save is an error. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                /* Chain i runs from x[i] for a[i] steps, into y[i]. */
 #ifdef WC_LMS_N_WAY_FUSED
-            if (LMS_N_WAY_FUSED(params, lanes)) {
-                ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_TO_A, seed,
-                    NULL, a, 0, y, lanes);
-            }
-            else
+                if (LMS_N_WAY_FUSED(params, lanes)) {
+                    ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_TO_A,
+                        seed, NULL, a, 0, y, lanes);
+                }
+                else
 #endif
-            {
-                ret = wc_lmots_n_way_chains(state, LMS_N_WAY_TO_A, seed,
-                    NULL, a,
-                    0, y, lanes);
+                {
+                    ret = wc_lmots_n_way_chains(state, LMS_N_WAY_TO_A, seed,
+                        NULL, a,
+                        0, y, lanes);
+                }
+                RESTORE_VECTOR_REGISTERS();
+                i = params->p;
             }
-            RESTORE_VECTOR_REGISTERS();
-            i = params->p;
         }
     }
 #endif
@@ -2472,22 +2476,27 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
         if (ret == 0) {
             int lanes = LMS_N_WAY_LANES(params);
 
-            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-                /* Chain i resumes at a[i] and runs to 2^w - 1; each result
-                 * is hashed into Kc in chain order. */
+            if (lanes > 0) {
+                /* CPUID picks the lane; a refused save is an error. */
+                ret = SAVE_VECTOR_REGISTERS2();
+                if (ret == 0) {
+                    /* Chain i resumes at a[i] and runs to 2^w - 1; each result
+                     * is hashed into Kc in chain order. */
 #ifdef WC_LMS_N_WAY_FUSED
-                if (LMS_N_WAY_FUSED(params, lanes)) {
-                    ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_FROM_A,
-                        NULL, sig_y, a, (word16)max, NULL, lanes);
-                }
-                else
+                    if (LMS_N_WAY_FUSED(params, lanes)) {
+                        ret = wc_lmots_n_way_chains_fused(state,
+                            LMS_N_WAY_FROM_A, NULL, sig_y, a, (word16)max,
+                            NULL, lanes);
+                    }
+                    else
 #endif
-                {
-                    ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A, NULL,
-                        sig_y, a, (word16)max, NULL, lanes);
+                    {
+                        ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A,
+                            NULL, sig_y, a, (word16)max, NULL, lanes);
+                    }
+                    RESTORE_VECTOR_REGISTERS();
+                    i = params->p;
                 }
-                RESTORE_VECTOR_REGISTERS();
-                i = params->p;
             }
         }
 #endif
@@ -2565,22 +2574,27 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
         if (ret == 0) {
             int lanes = LMS_N_WAY_LANES(params);
 
-            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-                /* Chain i resumes at a[i] and runs to 2^w - 1; each result
-                 * is hashed into Kc in chain order. */
+            if (lanes > 0) {
+                /* CPUID picks the lane; a refused save is an error. */
+                ret = SAVE_VECTOR_REGISTERS2();
+                if (ret == 0) {
+                    /* Chain i resumes at a[i] and runs to 2^w - 1; each result
+                     * is hashed into Kc in chain order. */
 #ifdef WC_LMS_N_WAY_FUSED
-                if (LMS_N_WAY_FUSED(params, lanes)) {
-                    ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_FROM_A,
-                        NULL, sig_y, a, (word16)max, NULL, lanes);
-                }
-                else
+                    if (LMS_N_WAY_FUSED(params, lanes)) {
+                        ret = wc_lmots_n_way_chains_fused(state,
+                            LMS_N_WAY_FROM_A, NULL, sig_y, a, (word16)max,
+                            NULL, lanes);
+                    }
+                    else
 #endif
-                {
-                    ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A, NULL,
-                        sig_y, a, (word16)max, NULL, lanes);
+                    {
+                        ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A,
+                            NULL, sig_y, a, (word16)max, NULL, lanes);
+                    }
+                    RESTORE_VECTOR_REGISTERS();
+                    i = params->p;
                 }
-                RESTORE_VECTOR_REGISTERS();
-                i = params->p;
             }
         }
 #endif
@@ -2715,25 +2729,29 @@ static int wc_lmots_make_public_hash(LmsState* state, const byte* seed, byte* k)
         if (ret == 0) {
             int lanes = LMS_N_WAY_LANES(params);
 
-            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-                /* Every chain runs the full 2^w - 1 iterations, so the
-                 * lanes stay in step and the batch needs no scheduling. */
+            if (lanes > 0) {
+                /* CPUID picks the lane; a refused save is an error. */
+                ret = SAVE_VECTOR_REGISTERS2();
+                if (ret == 0) {
+                    /* Every chain runs the full 2^w - 1 iterations, so the
+                     * lanes stay in step and the batch needs no scheduling. */
 #ifdef WC_LMS_N_WAY_FUSED
-                /* The kernels lay out a 32-byte tmp: eight state words in
-                 * and the 0x80 in W13.  The 24-byte parameter sets put the
-                 * padding elsewhere, so they keep the general path. */
-                if (LMS_N_WAY_FUSED(params, lanes)) {
-                    ret = wc_lmots_n_way_pub_chains_fused(state, seed,
-                        (word16)max, lanes);
-                }
-                else
+                    /* The kernels lay out a 32-byte tmp: eight state words in
+                     * and the 0x80 in W13.  The 24-byte parameter sets put the
+                     * padding elsewhere, so they keep the general path. */
+                    if (LMS_N_WAY_FUSED(params, lanes)) {
+                        ret = wc_lmots_n_way_pub_chains_fused(state, seed,
+                            (word16)max, lanes);
+                    }
+                    else
 #endif
-                {
-                    ret = wc_lmots_n_way_pub_chains(state, seed, (word16)max,
-                        lanes);
+                    {
+                        ret = wc_lmots_n_way_pub_chains(state, seed,
+                            (word16)max, lanes);
+                    }
+                    RESTORE_VECTOR_REGISTERS();
+                    i = params->p;
                 }
-                RESTORE_VECTOR_REGISTERS();
-                i = params->p;
             }
         }
 #endif
@@ -2798,25 +2816,29 @@ static int wc_lmots_make_public_hash(LmsState* state, const byte* seed, byte* k)
         if (ret == 0) {
             int lanes = LMS_N_WAY_LANES(params);
 
-            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-                /* Every chain runs the full 2^w - 1 iterations, so the
-                 * lanes stay in step and the batch needs no scheduling. */
+            if (lanes > 0) {
+                /* CPUID picks the lane; a refused save is an error. */
+                ret = SAVE_VECTOR_REGISTERS2();
+                if (ret == 0) {
+                    /* Every chain runs the full 2^w - 1 iterations, so the
+                     * lanes stay in step and the batch needs no scheduling. */
 #ifdef WC_LMS_N_WAY_FUSED
-                /* The kernels lay out a 32-byte tmp: eight state words in
-                 * and the 0x80 in W13.  The 24-byte parameter sets put the
-                 * padding elsewhere, so they keep the general path. */
-                if (LMS_N_WAY_FUSED(params, lanes)) {
-                    ret = wc_lmots_n_way_pub_chains_fused(state, seed,
-                        (word16)max, lanes);
-                }
-                else
+                    /* The kernels lay out a 32-byte tmp: eight state words in
+                     * and the 0x80 in W13.  The 24-byte parameter sets put the
+                     * padding elsewhere, so they keep the general path. */
+                    if (LMS_N_WAY_FUSED(params, lanes)) {
+                        ret = wc_lmots_n_way_pub_chains_fused(state, seed,
+                            (word16)max, lanes);
+                    }
+                    else
 #endif
-                {
-                    ret = wc_lmots_n_way_pub_chains(state, seed, (word16)max,
-                        lanes);
+                    {
+                        ret = wc_lmots_n_way_pub_chains(state, seed,
+                            (word16)max, lanes);
+                    }
+                    RESTORE_VECTOR_REGISTERS();
+                    i = params->p;
                 }
-                RESTORE_VECTOR_REGISTERS();
-                i = params->p;
             }
         }
 #endif

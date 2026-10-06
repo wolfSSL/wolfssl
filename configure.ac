@@ -5111,7 +5111,13 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
         if test "$KERNEL_MODE_DEFAULTS" = "yes"
         then
-                AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"
+            # FIPS v7 and later pin one lane at build time; dev builds may
+            # still switch.  Older validated modules keep what they were
+            # validated with.  Tested numerically, and on the same condition
+            # settings.h uses, so a new v7.x or lean-* string cannot slip past.
+            AS_IF([test "${HAVE_FIPS_VERSION_MAJOR:-0}" -ge 7 && \
+                   test "x$ENABLED_FIPS_DEV" != "xyes"],[],
+                [AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"])
         fi
         if test "$CC" != "icc"
         then
@@ -14253,6 +14259,14 @@ AM_CPPFLAGS="$AM_CPPFLAGS $EXTRA_CPPFLAGS"
 AM_CFLAGS="$AM_CFLAGS $EXTRA_CFLAGS"
 AM_CCASFLAGS="$AM_CCASFLAGS $EXTRA_CCASFLAGS"
 AM_LDFLAGS="$AM_LDFLAGS $EXTRA_LDFLAGS"
+
+# FIPS v7 and later never switch lanes at run time, however the define
+# arrives.  Same condition as the auto-add above and as settings.h.
+AS_IF([test "${HAVE_FIPS_VERSION_MAJOR:-0}" -ge 7 && \
+       test "x$ENABLED_FIPS_DEV" != "xyes"],
+    [AS_CASE([" $AM_CPPFLAGS $AM_CFLAGS $CPPFLAGS $CFLAGS "],
+        [*-DWC_C_DYNAMIC_FALLBACK*],
+        [AC_MSG_ERROR([WC_C_DYNAMIC_FALLBACK is not allowed with --enable-fips=$FIPS_VERSION; use --enable-fips=dev or --enable-fips=dev-no-post])])])
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])

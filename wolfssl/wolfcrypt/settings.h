@@ -4842,6 +4842,19 @@
     #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
 #endif
 
+/* CPUID pins the lane in these files, so a refused save is an error and
+ * never a switch to the C code kept for CPUs without the feature. */
+#if (defined(_WC_BUILDING_SP_X86_64_C) || \
+     defined(_WC_BUILDING_WC_MLKEM_POLY_C) || \
+     defined(_WC_BUILDING_WC_MLDSA_C) || \
+     defined(_WC_BUILDING_WC_SLHDSA_C) || \
+     defined(_WC_BUILDING_WC_LMS_IMPL_C) || \
+     defined(_WC_BUILDING_WC_XMSS_IMPL_C)) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_FORCE_VECTOR_REGISTER_ACCESS_FUZZING)
+    #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+#endif
+
 /* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
 #if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
     #define OPENSSL_EXTRA
@@ -6192,6 +6205,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     !defined(WOLFSSL_FIPS_READY)
     #undef WOLFSSL_KMAC
     #undef WOLFSSL_CSHAKE
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #error WC_C_DYNAMIC_FALLBACK needs --enable-fips=dev or dev-no-post
 #endif
 
 /* setup for opt-in DH in FIPS v7+ */

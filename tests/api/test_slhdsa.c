@@ -775,6 +775,69 @@ int test_wc_slhdsa_sign(void)
     return EXPECT_RESULT();
 }
 
+/* A sign that fails on a refused vector-register save leaves the whole
+ * signature buffer zeroed, through each signing entry point. */
+int test_wc_slhdsa_sign_refused_save_clears_sig(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(TEST_SLHDSA_DEFAULT_PARAM)
+    SlhDsaKey key;
+    WC_RNG rng;
+    byte msg[32];
+    byte* sig = NULL;
+    word32 sigLen;
+    word32 i;
+    int which;
+    int ret;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+    ExpectNotNull(sig = (byte*)XMALLOC(TEST_SLHDSA_DEFAULT_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
+
+    for (which = 0; (which < 3) && EXPECT_SUCCESS(); which++) {
+        XMEMSET(sig, 0xa5, TEST_SLHDSA_DEFAULT_SIG_LEN);
+        sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(
+            WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E));
+        if (which == 0) {
+            ret = wc_SlhDsaKey_Sign(&key, NULL, 0, msg, sizeof(msg), sig,
+                &sigLen, &rng);
+        }
+#ifndef NO_SHA256
+        else if (which == 1) {
+            ret = wc_SlhDsaKey_SignHash(&key, NULL, 0, msg, sizeof(msg),
+                WC_HASH_TYPE_SHA256, sig, &sigLen, &rng);
+        }
+#endif
+        else {
+            ret = wc_SlhDsaKey_SignMsgDeterministic(&key, msg, sizeof(msg),
+                sig, &sigLen);
+        }
+        WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+        /* Only a build whose sign takes a save is refused here. */
+        if (ret != 0) {
+            for (i = 0; i < TEST_SLHDSA_DEFAULT_SIG_LEN; i++) {
+                if (sig[i] != 0) {
+                    break;
+                }
+            }
+            ExpectIntEQ(i, TEST_SLHDSA_DEFAULT_SIG_LEN);
+        }
+    }
+
+    wc_SlhDsaKey_Free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Test verification for SLH-DSA.
  */
