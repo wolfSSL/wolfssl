@@ -45241,6 +45241,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_must_staple_acked_no_status),
     TEST_DECL_GROUP("ocsp", test_tls13_nonblock_ocsp_low_mfl),
     TEST_DECL_GROUP("ocsp", test_dtls13_nonblock_ocsp_unfragmented_cert),
+    TEST_DECL_GROUP("ocsp", test_ocsp_status_verify_cb_would_block),
     TEST_DECL_GROUP("ocsp", test_ocsp_ctx_request_cache),
     TEST_DECL_GROUP("ocsp", test_ocsp_responder),
     TEST_DECL_GROUP("ocsp", test_wolfIO_DecodeUrl_crlf_reject),

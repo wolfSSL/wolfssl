@@ -52,6 +52,7 @@ int test_ocsp_checkall_staple_missing_chain(void);
 int test_ocsp_must_staple_acked_no_status(void);
 int test_tls13_nonblock_ocsp_low_mfl(void);
 int test_dtls13_nonblock_ocsp_unfragmented_cert(void);
+int test_ocsp_status_verify_cb_would_block(void);
 int test_ocsp_ctx_request_cache(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);

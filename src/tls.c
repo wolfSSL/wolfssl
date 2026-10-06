@@ -3511,6 +3511,45 @@ static int TLSX_CSR_LeafCrlCheck(WOLFSSL* ssl, int ocspRet, int ocspAnswered)
 }
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+/* Look up the status of a leaf the server did not staple, then its CRL. */
+static int TLSX_CSR_LeafFallback(WOLFSSL* ssl, OcspRequest* request)
+{
+    int ret;
+#ifdef HAVE_CRL
+    int ocspAnswered = 0;
+#endif
+
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+    /* Passed before a later lookup would block. */
+    if (ssl->csrLookupDone[0])
+        return 0;
+#endif
+    if (SSL_CM(ssl)->ocspEnabled && request != NULL) {
+        ret = CheckOcspRequest(SSL_CM(ssl)->ocsp, request, NULL, ssl);
+    #ifdef HAVE_CRL
+        ocspAnswered = (ret == 0);
+    #endif
+        /* Same no-responder policy as the unstapled leaf lookup. */
+        if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+            ret = OcspNoUrlPolicy(SSL_CM(ssl));
+    }
+    else {
+        WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
+        ret = OCSP_LOOKUP_FAIL;
+    }
+#ifdef HAVE_CRL
+    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
+#endif
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+    if (ret == 0)
+        ssl->csrLookupDone[0] = 1;
+#endif
+    return ret;
+}
+#endif
+
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
 static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
@@ -4090,47 +4129,11 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     CertificateStatusRequest* csr = extension ?
                               (CertificateStatusRequest*)extension->data : NULL;
     int ret = 0;
-#ifdef HAVE_CRL
-    int ocspAnswered = 0;
-#endif
 
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                /* Passed before the status_request_v2 lookups would block. */
-                if (ssl->csrLookupDone[0]) {
-                    ret = 0;
-                }
-                else
-            #endif
-                if (SSL_CM(ssl)->ocspEnabled) {
-                    ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                           &csr->request.ocsp[0], NULL, ssl);
-                #ifdef HAVE_CRL
-                    ocspAnswered = (ret == 0);
-                #endif
-                    /* This is the client's fallback leaf lookup on the
-                     * verification instance, so honor the no-responder policy
-                     * just like the non-stapling leaf path. Default stays
-                     * best-effort; FAIL_IF_NOT_SUPPORTED makes it fail closed. */
-                    if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
-                        ret = OcspNoUrlPolicy(SSL_CM(ssl));
-                }
-                else {
-                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
-                    ret = OCSP_LOOKUP_FAIL;
-                }
-            #ifdef HAVE_CRL
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                if (!ssl->csrLookupDone[0])
-            #endif
-                    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
-            #endif
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                if (ret == 0)
-                    ssl->csrLookupDone[0] = 1;
-            #endif
+                ret = TLSX_CSR_LeafFallback(ssl, &csr->request.ocsp[0]);
                 break;
         }
     }
@@ -4665,9 +4668,6 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
     CertificateStatusRequestItemV2* multi = TLSX_CSR2_GetMulti(ssl->extensions);
     int ret = 0;
-#ifdef HAVE_CRL
-    int ocspAnswered = 0;
-#endif
 
     if (csr2) {
         switch (csr2->status_type) {
@@ -4675,42 +4675,8 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                /* Passed before a chain lookup below would have blocked. */
-                if (ssl->csrLookupDone[0]) {
-                    ret = 0;
-                }
-                else
-            #endif
-                if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
-                    ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[csr2->requests-1],
-                                          NULL, ssl);
-                #ifdef HAVE_CRL
-                    ocspAnswered = (ret == 0);
-                #endif
-                    /* This is the client's fallback leaf lookup on the
-                     * verification instance, so honor the no-responder policy
-                     * just like the non-stapling leaf path. Default stays
-                     * best-effort; FAIL_IF_NOT_SUPPORTED makes it fail closed. */
-                    if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
-                        ret = OcspNoUrlPolicy(SSL_CM(ssl));
-                }
-                else {
-                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
-                    ret = OCSP_LOOKUP_FAIL;
-                }
-            #ifdef HAVE_CRL
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                /* A leaf that passed keeps its verdict on the retry. */
-                if (!ssl->csrLookupDone[0])
-            #endif
-                    ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
-            #endif
-            #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
-                if (ret == 0)
-                    ssl->csrLookupDone[0] = 1;
-            #endif
+                ret = TLSX_CSR_LeafFallback(ssl, csr2->requests >= 1 ?
+                    &csr2->request.ocsp[csr2->requests - 1] : NULL);
                 if (ret == 0 && multi != NULL) {
                     int i;
                     /* The chain certificates' own lookups were skipped in

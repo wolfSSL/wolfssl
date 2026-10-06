@@ -17983,27 +17983,23 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
             WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
             crlRet = 0;
         }
-    #ifdef WOLFSSL_TLS13
-        /* No ServerHelloDone to hold it for, and the staple answered, so only
-         * a revocation may still override that. */
-        if (ssl->options.tls1_3) {
-            if (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) {
-                ret = crlRet;
-                args->fatal = 0;
-                WOLFSSL_ERROR_VERBOSE(ret);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                if (ssl->peerVerifyRet == 0)
-                    ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REVOKED;
-            #endif
-            }
+        /* No staple can overturn a revocation, so it fails the leaf now. */
+        if (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) {
+            ret = crlRet;
+            args->fatal = 0;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            if (ssl->peerVerifyRet == 0)
+                ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REVOKED;
+        #endif
         }
-        else
-    #endif
-    #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
-        /* Skipped here, so the verdict is a success no CRL gave. */
-        if (args->dCert->extCrlInfo != NULL)
-    #endif
-        {
+        /* TLS 1.3 has no ServerHelloDone to hold the rest for. */
+        else if (!ssl->options.tls1_3
+        #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+                /* Skipped here, so the verdict is a success no CRL gave. */
+                && args->dCert->extCrlInfo != NULL
+        #endif
+                ) {
             ssl->deferredCrlRet = crlRet;
             ssl->deferredCrlDone = 1;
         }
@@ -20152,8 +20148,10 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int    fallbackErr = 0;
     byte   statusReqV2 = ssl->status_request_v2;
 #endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
-    defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_OCSP)
+#if defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_OCSP)
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    byte   statusReq = ssl->status_request;
+#endif
     word32 entryIdx = *inOutIdx;
 #endif
 
@@ -20367,14 +20365,16 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = BUFFER_ERROR;
     }
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
-    defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_OCSP)
+#if defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_OCSP)
     /* A lookup that would block is retried, not a failure. DoHandShakeMsgType()
      * rewinds a fixed header, so the index must be back at the message start. */
-    if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ) &&
-            (status_type == WOLFSSL_CSR2_OCSP_MULTI ||
-             (status_type == WOLFSSL_CSR2_OCSP && statusReqV2))) {
+    if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        ssl->status_request = statusReq;
+    #endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         ssl->status_request_v2 = statusReqV2;
+    #endif
         ssl->msgsReceived.got_certificate_status = 0;
         *inOutIdx = entryIdx;
         WOLFSSL_LEAVE("DoCertificateStatus", ret);
@@ -21009,24 +21009,15 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                             csrRet != WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL))
                 #endif
                         ) {
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        if (ssl->peerVerifyRet == 0)
+                            ssl->peerVerifyRet = RevocationVerifyErr(csrRet);
+                    #endif
                         return csrRet;
                     }
                 }
             }
-#ifdef HAVE_CRL
-            /* A staple answers OCSP for the leaf, so only a revocation the CRL
-             * recorded still overrides it. */
-            else if (SSL_CM(ssl)->crlEnabled && ssl->deferredCrlDone &&
-                    ssl->deferredCrlRet ==
-                        WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) {
-                WOLFSSL_ERROR_VERBOSE(ssl->deferredCrlRet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                if (ssl->peerVerifyRet == 0)
-                    ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REVOKED;
-            #endif
-                return ssl->deferredCrlRet;
-            }
-#endif
 #endif
             if (ssl->msgsReceived.got_change_cipher ||
                     ssl->msgsReceived.got_finished) {
