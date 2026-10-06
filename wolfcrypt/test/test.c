@@ -3530,7 +3530,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("Falcon   test passed!\n");
 #endif
 
-#if defined(WOLFSSL_HAVE_XMSS)
+#if defined(WOLFSSL_HAVE_XMSS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_XMSS) || defined(WOLFSSL_SWDEV))
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10 && \
         defined(WC_XMSS_SHA256) && \
         WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
@@ -3549,7 +3550,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) */
 
-#if defined(WOLFSSL_HAVE_LMS)
+#if defined(WOLFSSL_HAVE_LMS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_LMS) || defined(WOLFSSL_SWDEV))
     #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
         !defined(WOLFSSL_NO_LMS_SHA256_256)
     if ( (ret = lms_test_verify_only()) != 0)
@@ -96294,7 +96296,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         myCtx.exampleVar = baseline;
     }
 #endif
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_XMSS) || defined(WOLFSSL_SWDEV))
 #ifdef WOLF_CRYPTO_CB_FREE
     myCtx.statefulFreeType = WC_PQC_STATEFUL_SIG_TYPE_NONE;
 #endif
@@ -96306,7 +96309,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = WC_TEST_RET_ENC_NC;
 #endif
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_LMS) || defined(WOLFSSL_SWDEV))
 #ifdef WOLF_CRYPTO_CB_FREE
     myCtx.statefulFreeType = WC_PQC_STATEFUL_SIG_TYPE_NONE;
 #endif
