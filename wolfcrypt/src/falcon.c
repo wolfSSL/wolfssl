@@ -11499,6 +11499,17 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             ret = wc_falcon_import_private_key(privKey, privKeyLen,
                                                pubKey, pubKeyLen, key);
         }
+        /* A public key from [1] or the concat tail is untrusted; it must
+         * match h = g/f. */
+        if ((ret == 0) && ((pubKeyLen != 0) ||
+                (privKeyLen == (word32)wc_falcon_priv_size(key)))) {
+            ret = wc_falcon_check_key(key);
+            if (ret != 0) {
+                /* A rejected pair must not stay usable for sign or export. */
+                key->pubKeySet = 0;
+                key->prvKeySet = 0;
+            }
+        }
     }
 
     /* privKey holds the decoded secret polynomials. */

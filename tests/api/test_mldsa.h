@@ -46,6 +46,7 @@ int test_mldsa_sign_mu_kats(void);
 int test_mldsa_verify_mu_kats(void);
 int test_mldsa_PrivateKeyDecode_OpenSSL_form(void);
 int test_mldsa_pkcs8_import_OpenSSL_form(void);
+int test_mldsa_pkcs8_both_pub_mismatch(void);
 int test_mldsa_pkcs8_export_import_wolfSSL_form(void);
 int test_mldsa_encode_w1_large_values(void);
 int test_mldsa_pkcs12(void);
@@ -92,6 +93,7 @@ int test_wc_MlDsaKey_SetPrecompA(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_mu_kats),                       \
     TEST_DECL_GROUP("mldsa", test_mldsa_PrivateKeyDecode_OpenSSL_form),        \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_import_OpenSSL_form),            \
+    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_both_pub_mismatch),              \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_export_import_wolfSSL_form),     \
     TEST_DECL_GROUP("mldsa", test_mldsa_encode_w1_large_values),               \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12),                               \

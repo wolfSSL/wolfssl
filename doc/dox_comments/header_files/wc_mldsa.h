@@ -876,13 +876,21 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     buffer (PKCS#8 OneAsymmetricKey). The parameter set is inferred
     from the algorithm identifier in the encoding, so it does NOT
     need to be set beforehand. On success *inOutIdx is advanced past
-    the consumed bytes.
+    the consumed bytes. When the private key is in expanded form only,
+    a public key carried in the encoding, in the publicKey field or
+    appended to the expanded private key, is checked against the
+    tr = H(pk) value in the private key. In WOLFSSL_ASN_TEMPLATE builds
+    with key generation, a private key holding a seed is re-derived from
+    the seed and any encoded public key is ignored. The check is not made when WOLF_CRYPTO_CB_ONLY_MLDSA
+    is defined.
 
     Only available when WOLFSSL_MLDSA_NO_ASN1 is not defined.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E on malformed encoding.
+    \return PUBLIC_KEY_E if the encoded public key does not match the
+    private key. The rejected keys are not loaded.
 
     \param [in,out] key Pointer to an initialized wc_MlDsaKey.
     \param [in] input DER-encoded private key bytes.

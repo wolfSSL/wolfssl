@@ -29941,6 +29941,184 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+/* Read a file that must be exactly expSz bytes; buf holds expSz + 1. */
+static int mldsa_read_exact(const char* name, byte* buf, word32 expSz)
+{
+    int ret = -1;
+    size_t sz;
+    XFILE fp;
+
+    fp = XFOPEN(name, "rb");
+    if (fp != XBADFILE) {
+        /* One extra byte catches a longer file. */
+        sz = XFREAD(buf, 1, expSz + 1, fp);
+        XFCLOSE(fp);
+        if (sz == expSz) {
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+#endif
+
+/* A private key carrying a public key that is not its own must not decode,
+ * whether the public key is in [1] publicKey or appended as sk || pk, and the
+ * rejected key object must not sign. Key material is OpenSSL output:
+ * mldsa<N>_pub-spki.der was derived from mldsa<N>_priv-only.der, while
+ * mldsa<N>-key.der and mldsa<N>_oqskeypair.der hold unrelated keys. */
+int test_mldsa_pkcs8_both_pub_mismatch(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+    static const struct {
+        word32 skSz;
+        word32 pkSz;
+        const char* privOnly;
+        const char* other;
+        const char* spki;
+        const char* oqs;
+    } lv[] = {
+#ifndef WOLFSSL_NO_ML_DSA_44
+        { WC_MLDSA_44_KEY_SIZE, WC_MLDSA_44_PUB_KEY_SIZE,
+          "certs/mldsa/mldsa44_priv-only.der", "certs/mldsa/mldsa44-key.der",
+          "certs/mldsa/mldsa44_pub-spki.der",
+          "certs/mldsa/mldsa44_oqskeypair.der" },
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+        { WC_MLDSA_65_KEY_SIZE, WC_MLDSA_65_PUB_KEY_SIZE,
+          "certs/mldsa/mldsa65_priv-only.der", "certs/mldsa/mldsa65-key.der",
+          "certs/mldsa/mldsa65_pub-spki.der",
+          "certs/mldsa/mldsa65_oqskeypair.der" },
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+        { WC_MLDSA_87_KEY_SIZE, WC_MLDSA_87_PUB_KEY_SIZE,
+          "certs/mldsa/mldsa87_priv-only.der", "certs/mldsa/mldsa87-key.der",
+          "certs/mldsa/mldsa87_pub-spki.der",
+          "certs/mldsa/mldsa87_oqskeypair.der" },
+#endif
+        { 0, 0, NULL, NULL, NULL, NULL }
+    };
+    /* Header sizes of the OpenSSL files: PKCS#8 with a nested OCTET STRING,
+     * SubjectPublicKeyInfo, and the [1] IMPLICIT BIT STRING header. */
+    const word32 hdrSz = 28;
+    const word32 spkiHdrSz = 22;
+    const word32 bitHdrSz = 5;
+    const word32 bufSz = 8192;
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    static const byte msg[] = { 0x61, 0x62, 0x63 };
+    byte seed[MLDSA_RND_SZ];
+    byte* sig = NULL;
+    word32 sigLen;
+#endif
+    byte* der = NULL;
+    byte* file = NULL;
+    word32 derSz;
+    word32 seqLen;
+    word32 idx;
+    word32 outLen;
+    wc_MlDsaKey key;
+    int l;
+    int form;
+    int mis;
+
+    ExpectNotNull(der = (byte*)XMALLOC(bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(file = (byte*)XMALLOC(bufSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    ExpectNotNull(sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    XMEMSET(seed, 0, sizeof(seed));
+#endif
+
+    for (l = 0; EXPECT_SUCCESS() && (lv[l].skSz != 0); l++) {
+        /* form 0: [1] publicKey, form 1: sk || pk in the private key. */
+        for (form = 0; EXPECT_SUCCESS() && (form < 2); form++) {
+            /* mis 0: own public key, mis 1: another key's private key. */
+            for (mis = 0; EXPECT_SUCCESS() && (mis < 2); mis++) {
+                if (form == 0) {
+                    /* v2 OneAsymmetricKey: outer length grows by the
+                     * BIT STRING and version becomes 1 (RFC 5958). */
+                    ExpectIntEQ(mldsa_read_exact(lv[l].privOnly, file,
+                        hdrSz + lv[l].skSz), 0);
+                    derSz = hdrSz + lv[l].skSz + bitHdrSz + lv[l].pkSz;
+                    seqLen = derSz - 4;
+                    if (EXPECT_SUCCESS()) {
+                        XMEMCPY(der, file, hdrSz);
+                        der[2] = (byte)(seqLen >> 8);
+                        der[3] = (byte)seqLen;
+                        der[6] = 0x01;
+                        der[hdrSz + lv[l].skSz] = 0x81;
+                        der[hdrSz + lv[l].skSz + 1] = 0x82;
+                        der[hdrSz + lv[l].skSz + 2] =
+                            (byte)((lv[l].pkSz + 1) >> 8);
+                        der[hdrSz + lv[l].skSz + 3] = (byte)(lv[l].pkSz + 1);
+                        der[hdrSz + lv[l].skSz + 4] = 0x00;
+                    }
+                }
+                else {
+                    /* Reuse the OpenSSL header for the sk || pk layout. */
+                    derSz = hdrSz + lv[l].skSz + lv[l].pkSz;
+                    ExpectIntEQ(mldsa_read_exact(lv[l].oqs, file, derSz), 0);
+                    if (EXPECT_SUCCESS()) {
+                        XMEMCPY(der, file, hdrSz);
+                    }
+                }
+
+                ExpectIntEQ(mldsa_read_exact(mis ? lv[l].other :
+                    lv[l].privOnly, file, hdrSz + lv[l].skSz), 0);
+                if (EXPECT_SUCCESS()) {
+                    XMEMCPY(der + hdrSz, file + hdrSz, lv[l].skSz);
+                }
+                ExpectIntEQ(mldsa_read_exact(lv[l].spki, file,
+                    spkiHdrSz + lv[l].pkSz), 0);
+                if (EXPECT_SUCCESS()) {
+                    XMEMCPY(der + derSz - lv[l].pkSz, file + spkiHdrSz,
+                        lv[l].pkSz);
+                }
+
+                XMEMSET(&key, 0, sizeof(key));
+                ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+                idx = 0;
+                ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der, derSz,
+                    &idx), mis ? WC_NO_ERR_TRACE(PUBLIC_KEY_E) : 0);
+                if (!mis) {
+                    outLen = bufSz;
+                    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, file,
+                        &outLen), 0);
+                    ExpectIntEQ(outLen, lv[l].pkSz);
+                    ExpectBufEQ(file, der + derSz - lv[l].pkSz, lv[l].pkSz);
+                }
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+                else {
+                    /* The rejected pair must not be left loaded. */
+                    sigLen = MLDSA_MAX_SIG_SIZE;
+                    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0,
+                        sig, &sigLen, msg, (word32)sizeof(msg), seed),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                }
+#endif
+                wc_MlDsaKey_Free(&key);
+            }
+        }
+    }
+
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    XFREE(file, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 {
     EXPECT_DECLS;

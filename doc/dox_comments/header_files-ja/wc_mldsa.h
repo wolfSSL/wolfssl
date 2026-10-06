@@ -694,13 +694,14 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 /*!
     \ingroup ML_DSA
 
-    \brief DER/ASN.1でエンコードされたバッファ(PKCS#8 OneAsymmetricKey)からML-DSA秘密鍵を解析します。パラメータセットはエンコード内のアルゴリズム識別子から推定されるため、事前に設定する必要はありません。成功時、*inOutIdxは消費したバイト数分進められます。
+    \brief DER/ASN.1でエンコードされたバッファ(PKCS#8 OneAsymmetricKey)からML-DSA秘密鍵を解析します。パラメータセットはエンコード内のアルゴリズム識別子から推定されるため、事前に設定する必要はありません。成功時、*inOutIdxは消費したバイト数分進められます。秘密鍵が展開形式のみの場合、エンコードに含まれる公開鍵(publicKeyフィールド、または展開形式の秘密鍵の後に連結された形式)は秘密鍵内のtr = H(pk)の値と照合されます。WOLFSSL_ASN_TEMPLATEかつ鍵生成が有効なビルドでは、シードを含む秘密鍵はシードから鍵ペアが再導出され、エンコードされた公開鍵は無視されます。WOLF_CRYPTO_CB_ONLY_MLDSAが定義されている場合、この照合は行われません。
 
     WOLFSSL_MLDSA_NO_ASN1が定義されていない場合にのみ利用できます。
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合に返されます。
     \return ASN_PARSE_E エンコードの形式が不正な場合に返されます。
+    \return PUBLIC_KEY_E エンコードされた公開鍵が秘密鍵と一致しない場合に返されます。拒否された鍵ペアは鍵オブジェクトに読み込まれません。
 
     \param [in,out] key 初期化済みのwc_MlDsaKeyへのポインタ。
     \param [in] input DERエンコードされた秘密鍵バイト列。

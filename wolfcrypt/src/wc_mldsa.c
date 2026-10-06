@@ -14302,6 +14302,42 @@ static int mapOidToSecLevel(int oid)
 
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
 
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+/* Check the public key matches the private key, before either is imported.
+ *
+ * FIPS 204 private keys embed tr = H(pk), so a mismatched public key is found
+ * without regenerating the key pair. Checking the raw buffers means a rejected
+ * pair is never loaded into the key object.
+ *
+ * @param [in] key     ML-DSA key with parameters set.
+ * @param [in] priv    Encoded private key.
+ * @param [in] privSz  Size of encoded private key in bytes.
+ * @param [in] pub     Encoded public key.
+ * @param [in] pubSz   Size of encoded public key in bytes.
+ * @return  0 when the public key matches or the sizes are left for the import
+ *          to reject.
+ * @return  PUBLIC_KEY_E when the public key does not match.
+ * @return  Other negative when hashing fails.
+ */
+static int mldsa_check_pub_tr(wc_MlDsaKey* key, const byte* priv,
+    word32 privSz, const byte* pub, word32 pubSz)
+{
+    int ret = 0;
+    byte tr[MLDSA_TR_SZ];
+
+    if ((key->params != NULL) && (pubSz == (word32)key->params->pkSz) &&
+            (privSz >= MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ)) {
+        ret = mldsa_shake256(&key->shake, pub, pubSz, tr, MLDSA_TR_SZ);
+        if ((ret == 0) && (XMEMCMP(tr, priv + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ,
+                MLDSA_TR_SZ) != 0)) {
+            ret = PUBLIC_KEY_E;
+        }
+    }
+
+    return ret;
+}
+#endif
+
 /* Decode the DER encoded ML-DSA key.
  *
  * @param [in]      input     Array holding DER encoded data.
@@ -14320,6 +14356,8 @@ static int mapOidToSecLevel(int oid)
  * @param [in]      inSz      Total size of the input DER buffer array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
+ * @return  PUBLIC_KEY_E when an encoded public key does not match the tr value
+ *          in the private key. Not checked with WOLF_CRYPTO_CB_ONLY_MLDSA.
  * @return  Other negative on parse error.
  */
 int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
@@ -14482,8 +14520,15 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
 #if defined(WOLFSSL_MLDSA_PUBLIC_KEY)
         /* Check whether public key data was found. */
         else if (pubKeyLen != 0 && privKeyLen != 0) {
-            /* Import private and public key data. */
-            ret = wc_MlDsaKey_ImportKey(key, privKey, privKeyLen, pubKey, pubKeyLen);
+        #ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
+            ret = mldsa_check_pub_tr(key, privKey, privKeyLen, pubKey,
+                pubKeyLen);
+        #endif
+            if (ret == 0) {
+                /* Import private and public key data. */
+                ret = wc_MlDsaKey_ImportKey(key, privKey, privKeyLen, pubKey,
+                    pubKeyLen);
+            }
         }
 #endif
         else if (pubKeyLen == 0 && privKeyLen != 0)
