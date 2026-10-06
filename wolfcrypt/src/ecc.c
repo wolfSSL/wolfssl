@@ -5273,6 +5273,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 /* Full public key validation of a peer point through wc_ecc_check_key,
  * SP 800-56Ar3 5.6.2.3.3. */
 static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
@@ -5301,6 +5302,28 @@ static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
     WC_FREE_VAR_EX(peer, key->heap, DYNAMIC_TYPE_ECC);
     return err;
 }
+#else
+/* wc_ecc_check_key checks nothing in this build: still reject the identity,
+ * out of range and off-curve points, SP 800-56Ar3 5.6.2.3.4. */
+static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
+{
+    int err;
+    DECLARE_CURVE_SPECS(3);
+
+    if (wc_ecc_point_is_at_infinity(point))
+        return ECC_INF_E;
+    ALLOC_CURVE_SPECS(3, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(key->dp, &curve, (ECC_CURVE_FIELD_PRIME |
+            ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_BF));
+    }
+    if (err == MP_OKAY)
+        err = wc_ecc_is_point(point, curve->Af, curve->Bf, curve->prime);
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    return err;
+}
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
 
 /* checkPoint is 0 only for a public key that went through key import. */
 static int ecc_shared_secret_point(ecc_key* private_key, ecc_point* point,

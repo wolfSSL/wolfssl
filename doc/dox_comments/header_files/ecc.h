@@ -360,7 +360,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
     \brief Create an ECC shared secret between private key and public point.
     The point is first given full public key validation on the private key's
-    curve with wc_ecc_check_key() (SP 800-56Ar3 5.6.2.3.3).
+    curve with wc_ecc_check_key() (SP 800-56Ar3 5.6.2.3.3). A build without
+    the order check (NO_ECC_CHECK_PUBKEY_ORDER) still checks range and curve.
 
     \return MP_OKAY Indicates success.
     \return BAD_FUNC_ARG Error returned when any arguments are null.

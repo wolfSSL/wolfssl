@@ -881,10 +881,9 @@ int test_wc_ecc_shared_secret_ex_peer_point(void)
 #endif
     ExpectNotNull(peer = wc_ecc_new_point());
 
-    /* wc_ecc_check_key checks nothing in these builds (ecc.c,
-     * HAVE_ECC_CHECK_PUBKEY_ORDER). */
-#if !defined(NO_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* SE050, STM32 PKA and SILABS hardware are not covered here. */
+#if !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL)
     /* G with one bit of y flipped is off the curve. */
     XMEMCPY(bad, g, sizeof(g));
     bad[sizeof(bad) - 1] ^= 0x01;
