@@ -5419,6 +5419,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+        int cbRet;
+#endif
         if ((aes == NULL) || (userKey == NULL)) {
             return BAD_FUNC_ARG;
         }
@@ -5445,13 +5448,17 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             int ret;
+        #endif
 
+        #if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
             aes->keyInstalled = 0;
             aes->rounds = 0;
             aes->keylen = 0;
             WC_AES_GCM_UNKEY(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
+        #endif
+        #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
@@ -5469,6 +5476,25 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             }
             /* CRYPTOCB_UNAVAILABLE: continue to software setup */
         #endif
+        #ifdef WOLF_CRYPTO_CB_SETKEY
+            cbRet = wc_CryptoCb_SetKey(aes->devId,
+                WC_SETKEY_AES, aes, (void*)userKey, keylen,
+                (void*)iv,
+                (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key. */
+                    aes->keylen = (int)keylen;
+                    aes->keyInstalled = (aes->rounds != 0) ? 1 : 0;
+                    if (iv != NULL)
+                        XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                    else
+                        XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
+                }
+                return cbRet;
+            }
+            /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
+        #endif /* WOLF_CRYPTO_CB_SETKEY */
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
