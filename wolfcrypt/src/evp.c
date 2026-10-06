@@ -1589,7 +1589,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
-                if (ctx->authIncIv) {
+                if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
             }
@@ -1640,7 +1640,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ctx->authBufferLen = 0;
 
                 /* SM4 AEAD nonce is ctx->iv; StoreExternalIV mirrors it. */
-                if (ctx->authIncIv) {
+                if ((ret == WOLFSSL_SUCCESS) && ctx->authIncIv) {
                     IncCtr(ctx->iv, (word32)ctx->ivSz);
                 }
             }
