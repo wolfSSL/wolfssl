@@ -408,10 +408,10 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
         WC_RNG* rng, const byte* seed, word32 seedSz);
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root);
     #ifdef WORD64_AVAILABLE
-    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+    WOLFSSL_LOCAL int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
                                              word64* reseedCtr);
     #else
-    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+    WOLFSSL_LOCAL int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
                                              word32* reseedCtr);
     #endif
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
