@@ -1413,8 +1413,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
-            /* A generated IV is spent even when the operation failed. */
-            ctx->authIncIv = 0;
             break;
 #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
@@ -1615,7 +1613,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
-            ctx->authIncIv = 0;
             break;
 #endif
 #ifdef WOLFSSL_SM4_CCM
@@ -1667,7 +1664,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ret = WOLFSSL_FAILURE;
                 }
             }
-            ctx->authIncIv = 0;
             break;
 #endif
         default:
@@ -7442,7 +7438,6 @@ void wolfSSL_EVP_init(void)
                            ctx->cipher.aes.nonceSz);
                 }
             }
-            ctx->authIncIv = 0;
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
             if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
                               (byte*)ctx->cipher.aes.reg,
@@ -7450,6 +7445,7 @@ void wolfSSL_EVP_init(void)
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 return WOLFSSL_FAILURE;
             }
+            ctx->authIncIv = 0;
         }
     #endif /* WOLFSSL_AESGCM_STREAM */
         if (src == NULL) {
@@ -9245,7 +9241,7 @@ void wolfSSL_EVP_init(void)
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
                 }
-                if (ctx->authIncIv) {
+                if ((ret == 0) && ctx->authIncIv) {
                     IncCtr((byte*)ctx->cipher.aria.nonce,
                            ctx->cipher.aria.nonceSz);
                     ctx->authIncIv = 0;
