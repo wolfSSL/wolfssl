@@ -9352,7 +9352,7 @@ void wolfSSL_EVP_init(void)
                                 ctx->authTagSz, ctx->authIn,
                                 ctx->authInSz);
                     }
-                    if (ctx->authIncIv) {
+                    if ((ret == 0) && ctx->authIncIv) {
                         IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }
@@ -9382,7 +9382,7 @@ void wolfSSL_EVP_init(void)
                                 ctx->authTagSz, ctx->authIn,
                                 ctx->authInSz);
                     }
-                    if (ctx->authIncIv) {
+                    if ((ret == 0) && ctx->authIncIv) {
                         IncCtr(ctx->iv, (word32)ctx->ivSz);
                         ctx->authIncIv = 0;
                     }

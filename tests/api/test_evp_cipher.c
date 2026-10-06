@@ -3110,6 +3110,31 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
         ExpectBufEQ(ivs[1], expIv, sizeof(expIv));
         EVP_CIPHER_CTX_free(decCtx);
         decCtx = NULL;
+
+        /* Same through the one-shot EVP_Cipher API. */
+        ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(decCtx, ciphers[c], key, NULL, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+            (void*)iv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_IV_GEN, -1,
+            ivs[0]), WOLFSSL_SUCCESS);
+        tag[0] ^= 0x01;
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+        ExpectIntLT(EVP_Cipher(decCtx, calcPlainText, cipherText,
+            sizeof(cipherText)), 0);
+        tag[0] ^= 0x01;
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_Cipher(decCtx, calcPlainText, cipherText,
+            sizeof(cipherText)), sizeof(cipherText));
+        ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_IV_GEN, -1,
+            ivs[1]), WOLFSSL_SUCCESS);
+        ExpectBufEQ(ivs[1], expIv, sizeof(expIv));
+        EVP_CIPHER_CTX_free(decCtx);
+        decCtx = NULL;
     }
 
     res = EXPECT_RESULT();
