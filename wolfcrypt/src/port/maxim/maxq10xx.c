@@ -172,7 +172,6 @@ static int is_hs_key = 0;
 static int aes_key_id_arr[AES_KEY_ID_MAX_NUM];
 static int ecc_key_id_arr[ECC_KEY_ID_MAX_NUM];
 
-static int init_pk_callbacks = 0;
 static int device_key_len = 32;
 
 #if defined(WOLFSSL_MAXQ108X)
@@ -3843,9 +3842,6 @@ void maxq10xx_SetupPkCallbacks(struct WOLFSSL_CTX* ctx, ProtocolVersion *pv)
     }
 
     WOLFSSL_ENTER("maxq10xx_SetupPkCallbacks");
-    if (init_pk_callbacks) {
-        return;
-    }
 
 #ifdef WOLFSSL_MAXQ108X
     #ifdef HAVE_HKDF
@@ -3881,8 +3877,6 @@ void maxq10xx_SetupPkCallbacks(struct WOLFSSL_CTX* ctx, ProtocolVersion *pv)
     wolfSSL_CTX_SetTlsFinishedCb(ctx, maxq10xx_perform_client_finished);
 
     wolfSSL_CTX_SetEccSignCb(ctx, maxq10xx_ecc_sign);
-
-    init_pk_callbacks = 1;
 }
 
 #endif /* WOLFSSL_MAXQ1065 || WOLFSSL_MAXQ108X */
