@@ -3045,17 +3045,17 @@ int test_mldsa_der(void)
     pubLen = WC_MLDSA_44_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_44_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_44_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_44_PUB_KEY_SIZE + WC_MLDSA_44_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_44_PUB_KEY_SIZE + WC_MLDSA_44_KEY_SIZE + 33;
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
     pubLen = WC_MLDSA_65_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_65_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_65_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE + 33;
 #else
     pubLen = WC_MLDSA_87_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_87_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_87_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE + 33;
 #endif
 
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3248,7 +3248,23 @@ static int mldsa_oneasymkey_version_check(int level)
     byte* rt = NULL;
     int  refSz = 0;
     int  rtSz = 0;
+    int  pubSz;
+    int  bothDerSz;
+    byte pubHdr[5] = { 0x81, 0x82, 0x00, 0x00, 0x00 };
     word32 idx;
+
+    if (level == WC_ML_DSA_44) {
+        pubSz = WC_MLDSA_44_PUB_KEY_SIZE;
+        bothDerSz = WC_MLDSA_44_BOTH_KEY_DER_SIZE;
+    }
+    else if (level == WC_ML_DSA_65) {
+        pubSz = WC_MLDSA_65_PUB_KEY_SIZE;
+        bothDerSz = WC_MLDSA_65_BOTH_KEY_DER_SIZE;
+    }
+    else {
+        pubSz = WC_MLDSA_87_PUB_KEY_SIZE;
+        bothDerSz = WC_MLDSA_87_BOTH_KEY_DER_SIZE;
+    }
 
     XMEMSET(&key,  0, sizeof(key));
     XMEMSET(&key2, 0, sizeof(key2));
@@ -3272,6 +3288,26 @@ static int mldsa_oneasymkey_version_check(int level)
         MLDSA_MAX_DER_SIZE), 0);
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
+
+    /* publicKey is [1] IMPLICIT BIT STRING (RFC 5958): 0x81, long-form
+     * length pubSz + 1, unused-bits byte 0x00, then the raw key. It is the
+     * last field, so it ends the encoding. Before #10019 the 0x00 was
+     * missing and the encoding was one byte shorter, so a buffer of the old
+     * size must be rejected. */
+    ExpectIntEQ(refSz, bothDerSz);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(&key, rt, (word32)bothDerSz - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    pubHdr[2] = (byte)((pubSz + 1) >> 8);
+    pubHdr[3] = (byte)(pubSz + 1);
+    if (refSz > pubSz + (int)sizeof(pubHdr)) {
+        ExpectIntEQ(XMEMCMP(ref + refSz - pubSz - (int)sizeof(pubHdr), pubHdr,
+            sizeof(pubHdr)), 0);
+    }
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(&key, rt, MLDSA_MAX_DER_SIZE, 0),
+        pubSz);
+    ExpectIntEQ(XMEMCMP(ref + refSz - pubSz, rt, (size_t)pubSz), 0);
 
     idx = 0;
     PRIVATE_KEY_UNLOCK();

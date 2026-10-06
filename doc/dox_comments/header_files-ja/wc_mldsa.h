@@ -757,12 +757,11 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
 /*!
     \ingroup ML_DSA
 
-    \brief ML-DSA鍵ペア(公開鍵+秘密鍵)をPKCS#8 OneAsymmetricKey構造としてDERにエンコードします。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。
+    \brief ML-DSA鍵ペア(公開鍵+秘密鍵)をPKCS#8 OneAsymmetricKey構造としてDERにエンコードします。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。WC_MLDSA_*_BOTH_KEY_DER_SIZEをハードコードするより、この方法を推奨します。この変更で1バイト増えたように、エンコード長が変わっても正しいサイズが得られます。[1] publicKeyはRFC 5958に従いBIT STRINGとして書き込まれるため、この変更より前のwolfSSLリリースでは読み込めません。wc_MlDsaKey_PrivateKeyToDer()はこのフィールドを出力しません。
 
     \return 成功した場合、エンコードされたDERのサイズ(バイト単位)を返します。
-    \return BAD_FUNC_ARG keyがNULLの場合、またはパラメータセットが選択されていない場合に返されます。
-    \return MISSING_KEY 秘密鍵が設定されていない場合に返されます。
-    \return BUFFER_E outputがNULLでなく、inLenが小さすぎる場合に返されます。
+    \return BAD_FUNC_ARG keyがNULLの場合、秘密鍵または公開鍵が設定されていない場合、パラメータセットが選択されていない場合、またはoutputがNULLでなくinLenがエンコードサイズより小さい場合に返されます。
+    \return BUFFER_E outputがNULLでなく、inLenが0の場合に返されます。
 
     \param [in] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
     \param [out] output DERエンコードを受け取るバッファ。サイズを問い合わせる場合はNULL。
@@ -777,10 +776,12 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 /*!
     \ingroup ML_DSA
 
-    \brief ML-DSA秘密鍵をDERにエンコードします。FIPS 204では秘密鍵のエンコードに公開鍵の要素が含まれるため、この関数は現在wc_MlDsaKey_KeyToDer()のエイリアスであり、他のアルゴリズムとのAPIの一貫性のために維持されています。
+    \brief ML-DSA秘密鍵を、[1] publicKeyフィールドを含まないPKCS#8 OneAsymmetricKey v1構造としてDERにエンコードします。この出力は以前のwolfSSLリリースでも読み込めます。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。
 
     \return 成功した場合、エンコードされたDERのサイズ(バイト単位)を返します。
-    \return wc_MlDsaKey_KeyToDer()から引き継がれたエラーコードが返されます。
+    \return BAD_FUNC_ARG keyがNULLの場合、秘密鍵が設定されていない場合、パラメータセットが選択されていない場合、またはoutputがNULLでなくinLenが小さすぎる場合に返されます。
+    \return BUFFER_E outputがNULLでなく、inLenが0の場合に返されます。
+    \return MEMORY_E 動的メモリの割り当てに失敗した場合に返されます。
 
     \param [in] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
     \param [out] output DERエンコードを受け取るバッファ。サイズを問い合わせる場合はNULL。
