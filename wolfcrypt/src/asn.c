@@ -35131,8 +35131,8 @@ static const ASNItem privateKeyASN[] = {
 /* PKEY_BOTH_SEQ  */            { 2, ASN_SEQUENCE, 1, 1, 2 },
 /* PKEY_BOTH_SEED */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
 /* PKEY_BOTH_KEY  */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
-                                         /* attributes */
-/* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
+                                         /* attributes: skipped, not used */
+/* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 0, 1 },
                                          /* publicKey */
 /* PUBKEY         */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, 0, 0, 1 },
 };
@@ -35309,6 +35309,17 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         priv = input + *inOutIdx;
         *inOutIdx += (word32)privSz;
         endKeyIdx = (int)*inOutIdx;
+    }
+
+    /* RFC 5958 attributes are optional and not used: skip them. */
+    if ((int)*inOutIdx < endKeyIdx && input[*inOutIdx] ==
+            (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_ASYMKEY_ATTRS)) {
+        if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                         ASN_ASYMKEY_ATTRS, inOutIdx, &length,
+                         (word32)endKeyIdx) < 0) {
+            return ASN_PARSE_E;
+        }
+        *inOutIdx += (word32)length;
     }
 
     if (endKeyIdx == (int)*inOutIdx) {

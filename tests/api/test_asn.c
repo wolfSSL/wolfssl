@@ -987,6 +987,128 @@ int test_DecodeAsymKey_bitstring_pubkey(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    defined(HAVE_ED25519_KEY_EXPORT)
+/* Decode and, on success, check that all of der was consumed. */
+static int test_DecodeAsymKey_idx_once(const byte* der, word32 derSz,
+    int expRet)
+{
+    EXPECT_DECLS;
+    ed25519_key key;
+    word32 idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(der, &idx, &key, derSz), expRet);
+    if (expRet == 0) {
+        ExpectIntEQ(idx, derSz);
+    }
+    wc_ed25519_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 5958 attributes [0] are optional and must be skipped on decode. */
+int test_DecodeAsymKey_attributes(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
+    /* RFC 8410 section 10.3 example key: attributes and publicKey. */
+    static const byte rfc8410Der[] = {
+        0x30, 0x72, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0xd4, 0xee, 0x72, 0xdb, 0xf9, 0x13, 0x58, 0x4a,
+        0xd5, 0xb6, 0xd8, 0xf1, 0xf7, 0x69, 0xf8, 0xad,
+        0x3a, 0xfe, 0x7c, 0x28, 0xcb, 0xf1, 0xd4, 0xfb,
+        0xe0, 0x97, 0xa8, 0x8f, 0x44, 0x75, 0x58, 0x42,
+        0xa0, 0x1f, 0x30, 0x1d, 0x06, 0x0a, 0x2a, 0x86,
+        0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x09, 0x14,
+        0x31, 0x0f, 0x0c, 0x0d, 0x43, 0x75, 0x72, 0x64,
+        0x6c, 0x65, 0x20, 0x43, 0x68, 0x61, 0x69, 0x72,
+        0x73, 0x81, 0x21, 0x00, 0x19, 0xbf, 0x44, 0x09,
+        0x69, 0x84, 0xcd, 0xfe, 0x85, 0x41, 0xba, 0xc1,
+        0x67, 0xdc, 0x3b, 0x96, 0xc8, 0x50, 0x86, 0xaa,
+        0x30, 0xb6, 0xb6, 0xcb, 0x0c, 0x5c, 0x38, 0xad,
+        0x70, 0x31, 0x66, 0xe1
+    };
+    static const byte rfc8410Pub[] = {
+        0x19, 0xbf, 0x44, 0x09, 0x69, 0x84, 0xcd, 0xfe,
+        0x85, 0x41, 0xba, 0xc1, 0x67, 0xdc, 0x3b, 0x96,
+        0xc8, 0x50, 0x86, 0xaa, 0x30, 0xb6, 0xb6, 0xcb,
+        0x0c, 0x5c, 0x38, 0xad, 0x70, 0x31, 0x66, 0xe1
+    };
+    /* rfc8410Der offsets: [1] SEQUENCE length, [4] version, [48] attributes,
+     * [81] publicKey. */
+    byte v1Der[81];
+    byte der[sizeof(rfc8410Der) + 1];
+    ed25519_key key;
+    word32 idx = 0;
+#ifdef HAVE_ED25519_MAKE_KEY
+    byte pub[ED25519_PUB_KEY_SIZE];
+#endif
+
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(rfc8410Der,
+        (word32)sizeof(rfc8410Der), 0, rfc8410Pub));
+
+    /* v1 with attributes and no publicKey: drop [1], shrink SEQUENCE. */
+    XMEMCPY(v1Der, rfc8410Der, sizeof(v1Der));
+    v1Der[1] = (byte)(sizeof(v1Der) - 2);
+    v1Der[4] = 0x00;
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(v1Der, &idx, &key,
+        (word32)sizeof(v1Der)), 0);
+    ExpectIntEQ(idx, (word32)sizeof(v1Der));
+#ifdef HAVE_ED25519_MAKE_KEY
+    ExpectIntEQ(wc_ed25519_make_public(&key, pub, (word32)sizeof(pub)), 0);
+    ExpectBufEQ(pub, rfc8410Pub, ED25519_PUB_KEY_SIZE);
+#endif
+    wc_ed25519_free(&key);
+
+    /* Attributes is a SET OF with no SIZE limit, so an empty [0] is valid. */
+    XMEMCPY(der, rfc8410Der, 48);
+    der[48] = 0xa0;
+    der[49] = 0x00;
+    der[1] = 48;
+    der[4] = 0x00;
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, 50, 0));
+    XMEMCPY(der + 50, rfc8410Der + 81, 35);
+    der[1] = 83;
+    der[4] = 0x01;
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, 85, 0));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(der, 85, 0, rfc8410Pub));
+
+    /* [0] length runs one byte past the SEQUENCE: with and without a
+     * trailing byte after the SEQUENCE in the buffer. */
+    XMEMCPY(der, rfc8410Der, sizeof(rfc8410Der));
+    der[sizeof(rfc8410Der)] = 0x00;
+    der[49] = 0x43;
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, (word32)sizeof(der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E)));
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, (word32)sizeof(rfc8410Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E)));
+    v1Der[49] = 0x20;
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(v1Der, (word32)sizeof(v1Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E)));
+
+    /* [0] IMPLICIT SET OF is constructed: primitive 0x80 is invalid. */
+    XMEMCPY(der, rfc8410Der, sizeof(rfc8410Der));
+    der[48] = 0x80;
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, (word32)sizeof(rfc8410Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E)));
+
+    /* SEQUENCE order is fixed: [0] after [1] is invalid. */
+    XMEMCPY(der + 48, rfc8410Der + 81, 35);
+    XMEMCPY(der + 83, rfc8410Der + 48, 33);
+    EXPECT_TEST(test_DecodeAsymKey_idx_once(der, (word32)sizeof(rfc8410Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E)));
+#endif
+
+    return EXPECT_RESULT();
+}
+
 #ifndef NO_ASN
 static int test_GetSetShortInt_once(word32 val, byte* valDer, word32 valDerSz)
 {
