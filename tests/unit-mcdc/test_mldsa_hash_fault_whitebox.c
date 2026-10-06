@@ -35,7 +35,8 @@
  *
  * mcdc_fault_hash.h macro-interposes those for THIS translation unit only and
  * mcdc_fh_arm(n) makes the n-th call -- and every later one -- return
- * BAD_FUNC_ARG. Sweeping n across sign / verify / keygen therefore drives
+ * BAD_FUNC_ARG. Sweeping n across sign / verify / keygen / MakePublicKey
+ * therefore drives
  *
  *     for (r = 0; (ret == 0) && (r < l); r++)              expand-mask
  *     for (i = N - tau; (ret == 0) && (i < N); i++)        sample-in-ball
@@ -44,6 +45,7 @@
  *     if ((ret == 0) && valid)                             small-mem sign
  *     for (r = 0; (ret == 0) && (r < params->k); r++)      small-mem verify
  *     for (s = 0; (ret == 0) && (s < params->l); s++)      small-mem verify
+ *     if ((ret == 0) && (ConstantCompare(...) != 0))       check-pub-tr
  *
  * false, against the ordinary (T,T) rows the same binary produces disarmed.
  *
@@ -52,7 +54,9 @@
  * same FALSE outcome. Every site above is a loop header or is followed by work
  * that runs in the ordinary case, so the disarmed run supplies a genuine (T,T).
  * Where that is NOT true the operand is a documented residual instead; see the
- * list at the bottom of this comment.
+ * list at the bottom of this comment. check-pub-tr needs a third vector: its
+ * ordinary row has a matching tr (X false), so the MakePublicKey sweep also
+ * runs one disarmed mismatch to supply (T,T).
  *
  * ARGUMENT ROWS (no injector needed)
  * ----------------------------------
@@ -118,6 +122,7 @@ int main(void)
 #define WB_POINTS_SIGN    64
 #define WB_POINTS_VERIFY  64
 #define WB_POINTS_KEYGEN  32
+#define WB_POINTS_MAKEPUB 32
 
 static byte s_keySeed[MLDSA_SEED_SZ];
 static byte s_sigSeed[MLDSA_RND_SZ];
@@ -270,6 +275,107 @@ static void wb_sweep_makekey(void)
 static void wb_sweep_makekey(void)
 {
     WB_NOTE("keygen not compiled in this variant; keygen sweep skipped");
+}
+
+#endif
+
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+
+/* Set up a private-only key, optionally over an earlier public key. */
+static int wb_makepub_key(wc_MlDsaKey* key, const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz)
+{
+    int ret;
+
+    XMEMSET(key, 0, sizeof(*key));
+    ret = wc_MlDsaKey_Init(key, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(key, WB_LEVEL);
+    }
+    if ((ret == 0) && (pub != NULL)) {
+        ret = wc_MlDsaKey_ImportPubRaw(key, pub, pubSz);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_ImportPrivRaw(key, priv, privSz);
+    }
+    return ret;
+}
+
+/* Sweep MakePublicKey on the derive path and on the already-set path. */
+static void wb_sweep_makepub(void)
+{
+    static byte priv[WC_MLDSA_87_PRV_KEY_SIZE];
+    static byte pub[WC_MLDSA_87_PUB_KEY_SIZE];
+    word32 privSz = (word32)sizeof(priv);
+    word32 pubSz = (word32)sizeof(pub);
+    wc_MlDsaKey key;
+    long k, n, points = 0;
+    int pass;
+    int ret;
+
+    mcdc_fh_disarm();
+    XMEMSET(&key, 0, sizeof(key));
+    if ((wb_build_key(&key) != 0) ||
+            (wc_MlDsaKey_ExportPrivRaw(&key, priv, &privSz) != 0) ||
+            (wc_MlDsaKey_ExportPubRaw(&key, pub, &pubSz) != 0)) {
+        wc_MlDsaKey_Free(&key);
+        WB_NOTE("baseline key unavailable; MakePublicKey sweep skipped");
+        return;
+    }
+    wc_MlDsaKey_Free(&key);
+
+    /* tr mismatch, disarmed: the (T,T) row of check-pub-tr. */
+    pub[pubSz - 1] ^= 0x01;
+    if ((wb_makepub_key(&key, priv, privSz, pub, pubSz) != 0) ||
+            (wc_MlDsaKey_MakePublicKey(&key) !=
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E))) {
+        WB_NOTE("FAIL: mismatched public key not rejected");
+        wb_fail = 1;
+    }
+    wc_MlDsaKey_Free(&key);
+    pub[pubSz - 1] ^= 0x01;
+
+    /* Pass 0 derives the public key; pass 1 checks an already-set one. */
+    for (pass = 0; pass < 2; pass++) {
+        const byte* setPub = (pass == 0) ? NULL : pub;
+
+        /* Count only MakePublicKey's calls, not the imports'. */
+        ret = wb_makepub_key(&key, priv, privSz, setPub, pubSz);
+        if (ret == 0) {
+            mcdc_fh_disarm();
+            ret = wc_MlDsaKey_MakePublicKey(&key);
+        }
+        if (ret != 0) {
+            wc_MlDsaKey_Free(&key);
+            WB_NOTE("FAIL: baseline MakePublicKey failed");
+            wb_fail = 1;
+            return;
+        }
+        k = mcdc_fh_seen();
+        wc_MlDsaKey_Free(&key);
+        printf("  [wb] makepub pass %d K=%ld\n", pass, k);
+
+        for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_MAKEPUB)) {
+            if (wb_makepub_key(&key, priv, privSz, setPub, pubSz) == 0) {
+                mcdc_fh_arm(n);
+                if (wc_MlDsaKey_MakePublicKey(&key) == 0) {
+                    WB_NOTE("FAIL: MakePublicKey ignored a SHAKE failure");
+                    wb_fail = 1;
+                }
+                mcdc_fh_disarm();
+                points++;
+            }
+            wc_MlDsaKey_Free(&key);
+        }
+    }
+    printf("  [wb] makepub sweep: %ld points\n", points);
+}
+
+#else
+
+static void wb_sweep_makepub(void)
+{
+    WB_NOTE("MakePublicKey not compiled in this variant; sweep skipped");
 }
 
 #endif
@@ -659,6 +765,7 @@ int main(void)
     wc_MlDsaKey_Free(&key);
 
     wb_sweep_makekey();
+    wb_sweep_makepub();
     wb_sign_no_private();
     wb_init_id_rows();
     wb_verify_ctx_hash_null();

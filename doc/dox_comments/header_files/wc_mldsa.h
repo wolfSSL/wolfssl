@@ -261,6 +261,40 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 /*!
     \ingroup ML_DSA
 
+    \brief Derives public key for a wc_MlDsaKey with private key set.
+    If the public key is already set, it is only checked against the
+    private key's tr (H(pk)); use wc_MlDsaKey_CheckKey() for a full key pair
+    check. The private key is still required: a public-only key returns
+    BAD_FUNC_ARG.
+    Available when WC_MLDSA_HAVE_MAKE_PUBLIC_KEY is defined: that is, when
+    WOLFSSL_MLDSA_ASSIGN_KEY, WOLFSSL_MLDSA_NO_MAKE_KEY and
+    WOLFSSL_MLDSA_VERIFY_ONLY are not defined.
+
+    Software only; fails if devId is set and public key is unset. A
+    devId-bound key whose public key is already set returns 0 without the
+    check against the private key.
+    On PUBLIC_KEY_E an already set public key is left in place; set the
+    matching public key, or re-initialize the key, before deriving.
+
+    \return 0 on success or already set.
+    \return BAD_FUNC_ARG if invalid args, the private key is not set, or
+    the public key is not yet set and key has a devId set.
+    \return MEMORY_E on allocation failure.
+    \return PUBLIC_KEY_E if the public key does not match the private key's
+    tr or, when derived, its t0.
+    \return Other negative on error.
+
+    \param [in,out] key Pointer to wc_MlDsaKey.
+
+    \sa wc_MlDsaKey_ImportPrivRaw
+    \sa wc_MlDsaKey_MakeKey
+    \sa wc_MlDsaKey_CheckKey
+*/
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+
+/*!
+    \ingroup ML_DSA
+
     \brief Signs a message with ML-DSA using the FIPS 204
     randomized-with-context signing API. Pass ctx=NULL and ctxLen=0
     for an empty context.
