@@ -1551,6 +1551,13 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
     !defined(WOLFSSL_KCAPI_ECC)
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
+#if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+static int ecc_shared_secret_point(ecc_key* private_key, ecc_point* point,
+    byte* out, word32* outlen, int checkPoint);
+#endif
 
 
 #ifdef HAVE_COMP_KEY
@@ -4883,10 +4890,13 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    if (private_key->keyIdSet)
        err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
    else
-       err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out,
-                                     outlen);
+       err = ecc_shared_secret_point(private_key, &public_key->pubkey, out,
+                                     outlen, 0);
 #else
-   err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
+   /* No point check: the key got whatever its import ran, in full under
+    * WOLFSSL_VALIDATE_ECC_IMPORT. */
+   err = ecc_shared_secret_point(private_key, &public_key->pubkey, out, outlen,
+                                 0);
 #endif /* WOLFSSL_ATECC508A */
 #endif /* !WOLF_CRYPTO_CB_ONLY_ECC */
 
@@ -5263,17 +5273,38 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
-/**
- Create an ECC shared secret between private key and public point
- private_key      The private ECC key (heap hint based on private key)
- point            The point to use (public key)
- out              [out] Destination of the shared secret
-                        Conforms to EC-DH from ANSI X9.63
- outlen           [in/out] The max size and resulting size of the shared secret
- return           MP_OKAY if successful
-*/
-int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
-                            byte* out, word32 *outlen)
+/* Full public key validation of a peer point through wc_ecc_check_key,
+ * SP 800-56Ar3 5.6.2.3.3. */
+static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
+{
+    int err;
+    WC_DECLARE_VAR(peer, ecc_key, 1, key->heap);
+
+    WC_ALLOC_VAR_EX(peer, ecc_key, 1, key->heap, DYNAMIC_TYPE_ECC,
+                    return MEMORY_E);
+    err = wc_ecc_init_ex(peer, key->heap, INVALID_DEVID);
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (key->idx == ECC_CUSTOM_IDX)
+            err = wc_ecc_set_custom_curve(peer, key->dp);
+        else
+    #endif
+            err = wc_ecc_set_curve(peer, key->dp->size, key->dp->id);
+        if (err == MP_OKAY)
+            err = wc_ecc_copy_point(point, &peer->pubkey);
+        if (err == MP_OKAY) {
+            peer->type = ECC_PUBLICKEY;
+            err = wc_ecc_check_key(peer);
+        }
+        wc_ecc_free(peer);
+    }
+    WC_FREE_VAR_EX(peer, key->heap, DYNAMIC_TYPE_ECC);
+    return err;
+}
+
+/* checkPoint is 0 only for a public key that went through key import. */
+static int ecc_shared_secret_point(ecc_key* private_key, ecc_point* point,
+                                   byte* out, word32* outlen, int checkPoint)
 {
     int err;
 
@@ -5293,6 +5324,12 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     if (wc_ecc_is_valid_idx(private_key->idx) == 0 || private_key->dp == NULL) {
         WOLFSSL_MSG("wc_ecc_is_valid_idx failed");
         return ECC_BAD_ARG_E;
+    }
+
+    if (checkPoint && private_key->state == ECC_STATE_NONE) {
+        err = ecc_check_peer_point(private_key, point);
+        if (err != MP_OKAY)
+            return err;
     }
 
     switch (private_key->state) {
@@ -5337,8 +5374,13 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
             err = BAD_STATE_E;
     } /* switch */
 
-    /* if async pending then return and skip done cleanup below */
-    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+    /* if async pending or non-blocking then return and skip done cleanup below
+     * so the peer point is checked once per operation, not once per call */
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)
+    #ifdef WC_ECC_NONBLOCK
+            || err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)
+    #endif
+            ) {
         return err;
     }
 
@@ -5349,6 +5391,21 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     private_key->state = ECC_STATE_NONE;
 
     return err;
+}
+
+/**
+ Create an ECC shared secret between private key and public point
+ private_key      The private ECC key (heap hint based on private key)
+ point            The point to use (public key), fully validated here
+ out              [out] Destination of the shared secret
+                        Conforms to EC-DH from ANSI X9.63
+ outlen           [in/out] The max size and resulting size of the shared secret
+ return           MP_OKAY if successful
+*/
+int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
+                            byte* out, word32 *outlen)
+{
+    return ecc_shared_secret_point(private_key, point, out, outlen, 1);
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 #elif defined(WOLFSSL_KCAPI_ECC)
