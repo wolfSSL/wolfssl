@@ -1401,9 +1401,11 @@ static int mldsa_prehash_strength_level(byte level, int lambda, WC_RNG* rng)
     ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
     ExpectIntEQ(wc_MlDsaKey_MakeKey(key, rng), 0);
-    /* SHA3-512 is allowed at every level: a well-formed signature to verify. */
+    /* SHAKE256 is in every ML-DSA build and allowed at every level: a
+     * well-formed signature to verify. */
     ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, NULL, 0, goodSig, &goodSigLen,
-        digest, WC_SHA3_512_DIGEST_SIZE, WC_HASH_TYPE_SHA3_512, rng), 0);
+        digest, (word32)wc_HashGetDigestSize(WC_HASH_TYPE_SHAKE256),
+        WC_HASH_TYPE_SHAKE256, rng), 0);
 
     for (i = 0; i < (int)(sizeof(mldsa_prehash_strengths) /
                           sizeof(mldsa_prehash_strengths[0])); i++) {
