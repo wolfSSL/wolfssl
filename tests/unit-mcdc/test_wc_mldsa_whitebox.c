@@ -637,6 +637,7 @@ static void wb_make_hint_dispatch(void)
     byte    h[512];
     unsigned int j;
     int ret;
+    int valid;
 
     for (j = 0; j < PARAMS_ML_DSA_44_K * MLDSA_N; j++) {
         s[j] = 0;
@@ -647,16 +648,16 @@ static void wb_make_hint_dispatch(void)
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* gamma2 == MLDSA_Q_LOW_88 arm. */
     ret = mldsa_make_hint(s, w1, PARAMS_ML_DSA_44_K, MLDSA_Q_LOW_88,
-        PARAMS_ML_DSA_44_OMEGA, h);
-    if (ret < 0) {
+        PARAMS_ML_DSA_44_OMEGA, h, &valid);
+    if ((ret != 0) || (valid != 1)) {
         WB_NOTE("mldsa_make_hint(88 arm) unexpected");
     }
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     /* gamma2 == MLDSA_Q_LOW_32 arm. */
     XMEMSET(h, 0, sizeof(h));
-    ret = mldsa_make_hint(s, w1, 4, MLDSA_Q_LOW_32, 55, h);
-    if (ret < 0) {
+    ret = mldsa_make_hint(s, w1, 4, MLDSA_Q_LOW_32, 55, h, &valid);
+    if ((ret != 0) || (valid != 1)) {
         WB_NOTE("mldsa_make_hint(32 arm) unexpected");
     }
 #endif
@@ -664,8 +665,8 @@ static void wb_make_hint_dispatch(void)
      * small omega so the trailing XMEMSET(h+idx, 0, omega-idx) stays in
      * bounds (idx==0 here). */
     XMEMSET(h, 0, sizeof(h));
-    ret = mldsa_make_hint(s, w1, 1, 12345, 1, h);
-    if (ret != 0) {
+    ret = mldsa_make_hint(s, w1, 1, 12345, 1, h, &valid);
+    if ((ret != 0) || (valid != 1)) {
         WB_NOTE("mldsa_make_hint(neither arm) expected 0");
     }
     WB_OK("mldsa_make_hint gamma2 dispatch arms exercised");
