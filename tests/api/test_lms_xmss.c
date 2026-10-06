@@ -46,6 +46,16 @@
 #include <unistd.h>
 #endif
 
+/* A key bound to no device needs the software core, or swdev to route it. */
+#if defined(WOLFSSL_HAVE_LMS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_LMS) || defined(WOLFSSL_SWDEV))
+    #define TEST_LMS_SW_AVAILABLE
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_XMSS) || defined(WOLFSSL_SWDEV))
+    #define TEST_XMSS_SW_AVAILABLE
+#endif
+
 /*----------------------------------------------------------------------------*/
 /* LMS tests                                                                  */
 /*----------------------------------------------------------------------------*/
@@ -54,6 +64,17 @@
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
+/* Helper: set the L1-H10-W8 params the tests share, H5 on small builds */
+static int test_lms_set_params(LmsKey* key)
+{
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
+    return wc_LmsKey_SetParameters(key, 1, 10, 8);
+#else
+    return wc_LmsKey_SetParameters(key, 1, 5, 8);
+#endif
+}
+
+#ifdef TEST_LMS_SW_AVAILABLE
 /* Per-process temp file: parallel unit.test runs (e.g. CI shards sharing a
  * working directory) must not clobber each other's stateful LMS private key. */
 static const char* lms_test_priv_key_file(void)
@@ -105,16 +126,6 @@ static int test_lms_read_key(byte* priv, word32 privSz, void* context)
     return WC_LMS_RC_READ_TO_MEMORY;
 }
 
-/* Helper: set the L1-H10-W8 params the tests share, H5 on small builds */
-static int test_lms_set_params(LmsKey* key)
-{
-#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
-    return wc_LmsKey_SetParameters(key, 1, 10, 8);
-#else
-    return wc_LmsKey_SetParameters(key, 1, 5, 8);
-#endif
-}
-
 /* Helper: init an LMS key on devId with callbacks and L1-H10-W8 params */
 static int test_lms_init_key_ex(LmsKey* key, int devId)
 {
@@ -144,6 +155,7 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
     (void)rng;
     return test_lms_init_key_ex(key, INVALID_DEVID);
 }
+#endif /* TEST_LMS_SW_AVAILABLE */
 
 #endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
 
@@ -154,7 +166,7 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
 int test_wc_LmsKey_sign_verify(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(TEST_LMS_SW_AVAILABLE) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     LmsKey  key;
     WC_RNG  rng;
     byte    msg[] = "test message for LMS signing";
@@ -199,7 +211,7 @@ int test_wc_LmsKey_sign_verify(void)
 int test_wc_LmsKey_write_fail(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(TEST_LMS_SW_AVAILABLE) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     LmsKey  key;
     WC_RNG  rng;
     byte    msg[] = "test message for LMS signing";
@@ -599,10 +611,13 @@ int test_wc_LmsKey_reload_devid_verify(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB)
-/* An accelerator that generates LMS keys but cannot report signatures left. */
-static int test_lms_keygen_cryptocb(int devIdArg, wc_CryptoInfo* info,
+/* Must be the exact union of the guards of the tests that register it. */
+#if defined(WOLF_CRYPTO_CB) && \
+    ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLFSSL_SWDEV) && \
+      !defined(WOLFSSL_XMSS_VERIFY_ONLY) && defined(TEST_XMSS_H10_AVAILABLE)))
+/* An accelerator that generates keys and declines everything else. */
+static int test_lms_xmss_keygen_cryptocb(int devIdArg, wc_CryptoInfo* info,
     void* ctx)
 {
     (void)devIdArg;
@@ -632,7 +647,7 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
     XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
-        test_lms_keygen_cryptocb, NULL), 0);
+        test_lms_xmss_keygen_cryptocb, NULL), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
@@ -640,6 +655,65 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ(key.state, WC_LMS_STATE_OK);
 
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Callback-only LMS returns NO_VALID_DEVID when no device does the work. */
+int test_wc_LmsKey_cb_only_no_device(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLFSSL_SWDEV) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    LmsKey key;
+    LmsKey vkey;
+    WC_RNG rng;
+    byte   msg[] = "test message for LMS signing";
+    byte*  sig = NULL;
+    word32 sigSz = 0;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&vkey, 0, sizeof(vkey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_keygen_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* No device: nothing can make or reload the key. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    ExpectIntEQ(wc_LmsKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_LmsKey_Free(&key);
+
+    /* The device makes the key, then declines sign, verify and sigs left. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 0);
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigSz), 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+
+        /* The exported public key is bound to no device. */
+        ExpectIntEQ(wc_LmsKey_ExportPub(&vkey, &key), 0);
+        ExpectIntEQ(wc_LmsKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_LmsKey_Free(&vkey);
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
@@ -883,6 +957,65 @@ int test_wc_XmssKey_reload_devid_verify(void)
     return EXPECT_RESULT();
 }
 
+/* Same as test_wc_LmsKey_cb_only_no_device, for XMSS. */
+int test_wc_XmssKey_cb_only_no_device(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLFSSL_SWDEV) && \
+    !defined(WOLFSSL_XMSS_VERIFY_ONLY) && defined(TEST_XMSS_H10_AVAILABLE)
+    XmssKey key;
+    XmssKey vkey;
+    WC_RNG  rng;
+    byte    msg[] = "test message for XMSS signing";
+    byte*   sig = NULL;
+    word32  sigSz = 0;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&vkey, 0, sizeof(vkey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_keygen_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* No device: nothing can make or reload the key. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    ExpectIntEQ(wc_XmssKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_XmssKey_Free(&key);
+
+    /* The device makes the key, then declines sign, verify and sigs left. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_XmssKey_SigsLeft(&key), 0);
+    ExpectIntEQ(wc_XmssKey_GetSigLen(&key, &sigSz), 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_XmssKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+
+        /* The exported public key is bound to no device. */
+        ExpectIntEQ(wc_XmssKey_ExportPub(&vkey, &key), 0);
+        ExpectIntEQ(wc_XmssKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_XmssKey_Free(&vkey);
+    wc_XmssKey_Free(&key);
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*/
 /* RFC 9802 (HSS/LMS and XMSS/XMSS^MT in X.509) tests                         */
 /*----------------------------------------------------------------------------*/
@@ -906,7 +1039,7 @@ int test_wc_XmssKey_reload_devid_verify(void)
  * (bc_lms_native_bc_root.der); everything else is generated in-process. Gate
  * these file helpers on exactly that call site to avoid an unused-function
  * warning in XMSS-only or truncated-hash builds. */
-#if defined(WOLFSSL_HAVE_LMS) && !defined(NO_FILESYSTEM) && \
+#if defined(TEST_LMS_SW_AVAILABLE) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_LMS_SHA256_256)
 /* Sanity bound on a test fixture cert. 1 MiB is well above any realistic
  * RFC 9802 cert and catches a wild XFTELL. Typed as
@@ -1325,7 +1458,7 @@ static int rfc9802_xmss_import_negative(void)
  * the TBS signatureAlgorithm and the outer signatureAlgorithm, so a conformant
  * XMSS/XMSS^MT cert contains exactly three, in TBS-signature / SPKI-key /
  * outer-signature order. Returns the number of occurrences found. */
-#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_XMSS) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(TEST_XMSS_SW_AVAILABLE) && \
     !defined(WOLFSSL_XMSS_VERIFY_ONLY) && defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 static int rfc9802_collect_hbs_oid_offsets(const byte* der, word32 derSz,
@@ -1352,8 +1485,8 @@ int test_rfc9802_lms_x509_verify(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_LMS)
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(WOLFSSL_NO_LMS_SHA256_256)
+#if defined(TEST_LMS_SW_AVAILABLE) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(WOLFSSL_NO_LMS_SHA256_256)
     /* Cross-implementation interop gate. bc_lms_native_bc_root.der is
      * generated through Bouncy Castle's stock JcaContentSignerBuilder("LMS")
      * + JcaX509v3CertificateBuilder with no overrides; BC's native LMS X.509
@@ -1400,8 +1533,8 @@ int test_rfc9802_xmss_x509_verify(void)
  * so all of these tests require WOLFSSL_ASN_TEMPLATE. */
 #if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    ((defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
-     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
+    ((defined(TEST_LMS_SW_AVAILABLE)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(TEST_XMSS_SW_AVAILABLE) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
 /* Populate a minimal self-consistent subject/issuer name. */
 static void rfc9802_gen_set_names(Cert* cert)
 {
@@ -1607,7 +1740,7 @@ static int rfc9802_gen_chain(void* caKey, int caKeyType, int caSigType,
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 #endif /* gen test support */
 
-#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_LMS) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(TEST_LMS_SW_AVAILABLE) && \
     !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_LMS_SHA256_256)
@@ -1630,7 +1763,7 @@ static int rfc9802_gen_lms_init(LmsKey* key, int levels, int height, int win)
 int test_rfc9802_lms_x509_gen(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_LMS) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(TEST_LMS_SW_AVAILABLE) && \
     !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_LMS_SHA256_256)
@@ -1713,7 +1846,7 @@ int test_rfc9802_lms_x509_gen(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_XMSS) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(TEST_XMSS_SW_AVAILABLE) && \
     !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Per-process temp file: parallel unit.test runs (e.g. CI shards sharing a
@@ -1856,7 +1989,7 @@ static int rfc9802_gen_xmss_oid_tamper(void* key, int keyType, int sigType,
 int test_rfc9802_xmss_x509_gen(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_XMSS) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(TEST_XMSS_SW_AVAILABLE) && \
     !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     XmssKey key;
@@ -1975,6 +2108,7 @@ static int lms_mc_write_key(const byte* priv, word32 privSz, void* context)
     return WC_LMS_RC_SAVED_TO_NV_MEMORY;
 }
 
+#ifdef TEST_LMS_SW_AVAILABLE
 static int lms_mc_read_key(byte* priv, word32 privSz, void* context)
 {
     (void)context;
@@ -2032,6 +2166,7 @@ static int lms_mc_family_roundtrip(WC_RNG* rng, int hash)
     wc_LmsKey_Free(&key);
     return EXPECT_RESULT();
 }
+#endif /* TEST_LMS_SW_AVAILABLE */
 #endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
 
 int test_wc_LmsDecisionCoverage(void)
@@ -2162,7 +2297,7 @@ int test_wc_LmsDecisionCoverage(void)
 int test_wc_LmsFeatureCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(TEST_LMS_SW_AVAILABLE) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     WC_RNG rng;
 
     XMEMSET(&rng, 0, sizeof(rng));
@@ -2255,6 +2390,7 @@ static enum wc_XmssRc xmss_mc_write_key(const byte* priv, word32 privSz,
     return WC_XMSS_RC_SAVED_TO_NV_MEMORY;
 }
 
+#ifdef TEST_XMSS_SW_AVAILABLE
 static enum wc_XmssRc xmss_mc_read_key(byte* priv, word32 privSz, void* context)
 {
     (void)context;
@@ -2329,6 +2465,7 @@ static int xmss_mc_param_roundtrip(WC_RNG* rng, const char* paramStr)
     wc_XmssKey_Free(&key);
     return EXPECT_RESULT();
 }
+#endif /* TEST_XMSS_SW_AVAILABLE */
 #endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
 
 int test_wc_XmssDecisionCoverage(void)
@@ -2442,7 +2579,7 @@ int test_wc_XmssDecisionCoverage(void)
 int test_wc_XmssFeatureCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if defined(TEST_XMSS_SW_AVAILABLE) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
     WC_RNG rng;
 
     XMEMSET(&rng, 0, sizeof(rng));
