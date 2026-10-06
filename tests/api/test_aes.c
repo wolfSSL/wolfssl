@@ -4222,6 +4222,19 @@ int test_wc_AesGcmEncrypt_ex_NonceUnique(void)
     ExpectIntEQ(XMEMCMP(carryIv[1], expected, GCM_NONCE_MID_SZ), 0);
     ExpectIntNE(XMEMCMP(carryIv[1], carryIv[0], GCM_NONCE_MID_SZ), 0);
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* A nonce cached before the key must survive the set-key. */
+    ExpectIntEQ(wc_AesGcmSetExtIV(aes, extIv, sizeof(extIv)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, sizeof(key)), 0);
+    ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,
+        carryIv[0], GCM_NONCE_MID_SZ, tag, sizeof(tag), NULL, 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(XMEMCMP(carryIv[0], extIv, GCM_NONCE_MID_SZ), 0);
+#endif
+
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
 #endif
@@ -4742,6 +4755,22 @@ int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecrypt(aesDec, plain, out, sizeof(in), iv,
         AES_IV_SIZE, tag, WC_AES_BLOCK_SIZE, aad, sizeof(aad)), 0);
     ExpectIntEQ(XMEMCMP(plain, in, sizeof(in)), 0);
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* The nonce from wc_AesGcmSetIV() survives the key given to _ex. */
+    wc_AesFree(aesEnc);
+    ExpectIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aesEnc, GCM_NONCE_MID_SZ, iv, AES_IV_FIXED_SZ,
+        rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptInit_ex(aesEnc, key, sizeof(key), ivOut,
+        GCM_NONCE_MID_SZ), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, sizeof(in), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, WC_AES_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(aesDec, plain, out, sizeof(in), ivOut,
+        GCM_NONCE_MID_SZ, tag, WC_AES_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectBufEQ(plain, in, sizeof(in));
+#endif
 
     wc_AesFree(aesEnc);
     wc_AesFree(aesDec);
@@ -5755,6 +5784,16 @@ int test_wc_AesCcmEncrypt_ex_NonceUnique(void)
         ExpectIntEQ(XMEMCMP(plainOut, plain, sizeof(plain)), 0);
     #endif
     }
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* A nonce cached before the key must survive the set-key. */
+    ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce, sizeof(nonce)), 0);
+    ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, plain,
+        (word32)sizeof(plain), ivOut[0], sizeof(nonce), tag, sizeof(tag),
+        NULL, 0), 0);
+    ExpectIntEQ(XMEMCMP(ivOut[0], nonce, sizeof(nonce)), 0);
+#endif
 
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(&dec);

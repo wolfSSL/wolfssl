@@ -341,7 +341,11 @@ static int AesAuthSetKey(Aes* aes, const byte* key, word32 keySz)
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return BAD_FUNC_ARG;
 
-    XMEMSET(nonce, 0, sizeof(nonce));
+    /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesCcmSetNonce(). */
+    if (aes->nonceSz != 0)
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+    else
+        XMEMSET(nonce, 0, sizeof(nonce));
     return wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 

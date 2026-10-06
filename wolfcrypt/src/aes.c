@@ -9073,6 +9073,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
     int  ret;
     byte iv[WC_AES_BLOCK_SIZE];
+    byte nonce[WC_AES_BLOCK_SIZE];
 
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         byte   local[32];
@@ -9111,7 +9112,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->gcm.aadLen = 0;
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
-    ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+    /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
+    if (aes->nonceSz != 0) {
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+    }
+    ret = wc_AesSetKey(aes, key, len, (aes->nonceSz != 0) ? nonce : iv,
+        AES_ENCRYPTION);
 #ifdef WOLF_CRYPTO_CB_ONLY_AES
     /* do key scheduling so that ECB-only devices can still do GCM */
     if (ret == 0) {
@@ -15723,9 +15729,16 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
+    byte nonce[WC_AES_BLOCK_SIZE];
+
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return BAD_FUNC_ARG;
 
+    /* Keep a nonce cached by wc_AesCcmSetNonce(). */
+    if ((aes != NULL) && (aes->nonceSz != 0)) {
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+        return wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
+    }
     return wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
 }
 
