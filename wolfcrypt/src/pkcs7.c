@@ -1688,6 +1688,10 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
         pkcs7->customSKIDSz = 0;
     }
 
+    /* AddRecipient_* owns this list until encode copies it out and frees it.
+     * A later allocation failure skips that encode, so free the list here. */
+    wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+
     if (pkcs7->isDynamic) {
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
