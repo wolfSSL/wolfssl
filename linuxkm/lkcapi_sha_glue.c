@@ -4275,7 +4275,7 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
         pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in "
-                             "wc_get_random_bytes_user() returned %ld.\n", ret);
+                             "wc_get_random_bytes_user() returned %zd.\n", ret);
         return -EIO; /* no fallthrough to native randomness */
     }
 
@@ -4322,7 +4322,7 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             if (unlikely(ret != 0)) {
                 if (ret != -WC_NO_ERR_TRACE(EINTR)) {
                     pr_emerg_ratelimited(
-                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %ld.\n",
+                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %zd.\n",
                         __func__, ret);
                 }
                 break;
@@ -4378,7 +4378,7 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
         pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in "
-                             "wc_extract_crng_user() returned %ld.\n", ret);
+                             "wc_extract_crng_user() returned %zd.\n", ret);
         return -EIO; /* no fallthrough to native randomness */
     }
 
@@ -4424,7 +4424,7 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             if (unlikely(ret != 0)) {
                 if (ret != -WC_NO_ERR_TRACE(EINTR)) {
                     pr_emerg_ratelimited(
-                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %ld.\n",
+                        "ERROR: %s: wc_linuxkm_drbg_generate() returned %zd.\n",
                         __func__, ret);
                 }
                 break;

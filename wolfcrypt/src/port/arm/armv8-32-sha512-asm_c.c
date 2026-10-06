@@ -53,7 +53,7 @@
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #include <wolfssl/wolfcrypt/sha512.h>
 
-#ifdef WOLFSSL_ARMASM_NO_NEON
+#ifdef WOLFSSL_ARMASM_SHA512_NO_NEON
 XALIGNED(16) static const word64 L_SHA512_transform_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
@@ -7546,10 +7546,10 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
     );
 }
 
-#endif /* WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_ARMASM_SHA512_NO_NEON */
 #include <wolfssl/wolfcrypt/sha512.h>
 
-#ifndef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_ARMASM_SHA512_NO_NEON
 XALIGNED(16) static const word64 L_SHA512_transform_neon_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
@@ -9119,7 +9119,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512,
     );
 }
 
-#endif /* !WOLFSSL_ARMASM_NO_NEON */
+#endif /* !WOLFSSL_ARMASM_SHA512_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 
 #endif /* WOLFSSL_ARMASM_INLINE */

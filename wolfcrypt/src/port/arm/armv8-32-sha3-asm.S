@@ -40,7 +40,7 @@
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA3
-#ifndef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_ARMASM_SHA3_NO_NEON
 #ifndef __APPLE__
 	.text
 	.type	L_sha3_arm32_neon_rt, %object
@@ -334,8 +334,8 @@ L_sha3_arm32_neon_begin:
 	vpop	{d8-d15}
 	bx	lr
 	.size	BlockSha3,.-BlockSha3
-#endif /* WOLFSSL_ARMASM_NO_NEON */
-#ifdef WOLFSSL_ARMASM_NO_NEON
+#endif /* WOLFSSL_ARMASM_SHA3_NO_NEON */
+#ifdef WOLFSSL_ARMASM_SHA3_NO_NEON
 #ifndef __APPLE__
 	.text
 	.type	L_sha3_arm32_rt, %object
@@ -2334,7 +2334,7 @@ L_sha3_arm32_begin:
 	add	sp, sp, #0xcc
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	BlockSha3,.-BlockSha3
-#endif /* WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_ARMASM_SHA3_NO_NEON */
 #endif /* WOLFSSL_SHA3 */
 
 #if defined(__linux__) && defined(__ELF__)

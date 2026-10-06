@@ -10287,10 +10287,12 @@ void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
 
 /* if HAVE_ED25519 but not HAVE_CURVE25519, and an asm implementation is built,
  * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
- * it here.
+ * it here.  The 32-bit Arm asm only emits curve25519() under HAVE_CURVE25519,
+ * so there the call would be an undefined symbol.
  */
 #if defined(CURVED25519_ASM) && defined(WOLFSSL_API_PREFIX_MAP) && \
-    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC)
+    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC) && \
+    (!defined(WOLFSSL_ARMASM) || defined(__aarch64__))
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
     (void)curve25519((byte *)0, (byte *)0, (const byte *)0);

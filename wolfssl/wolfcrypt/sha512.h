@@ -230,7 +230,7 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(WOLFSSL_ARMASM_NO_NEON)
+#if !defined(WOLFSSL_ARMASM_SHA512_NO_NEON)
 WOLFSSL_LOCAL void Transform_Sha512_Len_neon(wc_Sha512* sha512,
     const byte* data, word32 len);
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512

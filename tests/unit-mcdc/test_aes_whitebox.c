@@ -281,13 +281,13 @@ static void wb_aesnew_common(void)
  *
  *   AES_set_encrypt_key_AESNI / AES_set_decrypt_key_AESNI
  *       line 1068 / 1099:  if (!userKey || !aes)  -> idx0 !userKey, idx1 !aes
- *   AesGcmAadUpdate_aesni
+ *   AesGcmAadUpdate_asm
  *       line 12136:        if (aSz != 0 && a != NULL)   -> idx1 (a != NULL)
- *   AesGcmEncryptUpdate_aesni
- *       line 12305:        AesGcmAadUpdate_aesni(..., (cSz > 0) && (c != NULL))
+ *   AesGcmEncryptUpdate_asm
+ *       line 12305:        AesGcmAadUpdate_asm(..., (cSz > 0) && (c != NULL))
  *                                                       -> idx1 (c != NULL)
  *       line 12310:        if (cSz != 0 && c != NULL)   -> idx1 (c != NULL)
- *   AesGcmDecryptUpdate_aesni
+ *   AesGcmDecryptUpdate_asm
  *       line 12635:        if (cSz != 0 && p != NULL)   -> idx1 (p != NULL)
  *
  * The key setters return BAD_FUNC_ARG before any AES-NI work. For the GCM
@@ -331,7 +331,8 @@ static void wb_aesni(void)
         }
     }
 
-#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+/* The key-expansion pairs above are plain AES-NI; only this group is GCM. */
+#if defined(WC_AESNI_GCM) && defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
     {   /* AES-NI GCM streaming ptr guards; both halves within this binary */
         Aes  aes;
         byte key[16], iv[12], in[16], out[16];
@@ -342,19 +343,19 @@ static void wb_aesni(void)
             wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)) == 0) {
             /* 12136: if (aSz != 0 && a != NULL) -- hold aSz!=0, flip a!=NULL */
             aes.aOver = 0;
-            (void)AesGcmAadUpdate_aesni(&aes, in,   16, 0);       /* a!=NULL T */
+            (void)AesGcmAadUpdate_asm(&aes, in,   16, 0);       /* a!=NULL T */
             aes.aOver = 0;
-            (void)AesGcmAadUpdate_aesni(&aes, NULL, 16, 0);       /* a!=NULL F */
+            (void)AesGcmAadUpdate_asm(&aes, NULL, 16, 0);       /* a!=NULL F */
             /* 12305 + 12310: c!=NULL -- hold cSz!=0, flip c (out) */
             aes.aOver = 0; aes.cOver = 0;
-            (void)AesGcmEncryptUpdate_aesni(&aes, out,  in, 16, in, 16); /* c T */
+            (void)AesGcmEncryptUpdate_asm(&aes, out,  in, 16, in, 16); /* c T */
             aes.aOver = 0; aes.cOver = 0;
-            (void)AesGcmEncryptUpdate_aesni(&aes, NULL, in, 16, in, 16); /* c F */
+            (void)AesGcmEncryptUpdate_asm(&aes, NULL, in, 16, in, 16); /* c F */
             /* 12635: p!=NULL -- hold cSz!=0, flip p (out) */
             aes.aOver = 0; aes.cOver = 0;
-            (void)AesGcmDecryptUpdate_aesni(&aes, out,  in, 16, in, 16); /* p T */
+            (void)AesGcmDecryptUpdate_asm(&aes, out,  in, 16, in, 16); /* p T */
             aes.aOver = 0; aes.cOver = 0;
-            (void)AesGcmDecryptUpdate_aesni(&aes, NULL, in, 16, in, 16); /* p F */
+            (void)AesGcmDecryptUpdate_asm(&aes, NULL, in, 16, in, 16); /* p F */
             wc_AesFree(&aes);
         }
         else {
