@@ -321,7 +321,8 @@ out:
  * leave a poisoned cache behind for the vector after it.
  * ========================================================================= */
 #if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLFSSL_NO_MALLOC)
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 
 typedef struct wb_fp_ctx {
     mp_int      a;
@@ -535,6 +536,7 @@ static void wb_fp_build_lut_and_mul(wb_fp_ctx* c)
     wc_ecc_fp_free();
     if (add_entry(0, c->G) == MP_OKAY &&
         build_lut(0, &c->a, &c->prime, mp, &c->mu) == MP_OKAY) {
+    #ifndef ECC_TIMING_RESISTANT
         /* accepting row first, then the fault sweep over the LUT-copy chain */
         (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, 1);
         for (n = 1; n <= 8; n++) {
@@ -542,6 +544,7 @@ static void wb_fp_build_lut_and_mul(wb_fp_ctx* c)
             (void)accel_fp_mul(0, &c->k, c->R, &c->a, &c->prime, mp, 1);
             mcdc_fm_disarm();
         }
+    #endif
     }
     else {
         wb_fail = 1;
@@ -569,6 +572,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
      * (guard TRUE, builds it) and lru 3 with the LUT set (guard FALSE on
      * LUT_set). */
 
+#ifndef ECC_TIMING_RESISTANT
     /* --- wc_ecc_mulmod_ex --- */
     wc_ecc_fp_free();
     for (i = 0; i < 3; i++)
@@ -596,6 +600,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     else {
         wb_fail = 1;
     }
+#endif
 
 #ifdef ECC_SHAMIR
     /* --- ecc_mul2add: warmed through itself, so both LUT-build guards see
@@ -652,6 +657,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     (void)n;
 #endif
 
+#ifndef ECC_TIMING_RESISTANT
     /* --- err == MP_OKAY FALSE halves (armed add_entry) --- */
     wc_ecc_fp_free();
     mcdc_fm_arm(1);
@@ -663,6 +669,7 @@ static void wb_fp_lru_and_lutset(wb_fp_ctx* c)
     (void)wc_ecc_mulmod_ex2(&c->k, c->G, c->R, &c->a, &c->prime, &c->order,
                             NULL, 1, NULL);
     mcdc_fm_disarm();
+#endif
 
 #ifdef ECC_SHAMIR
     wc_ecc_fp_free();
@@ -722,9 +729,11 @@ static void wb_fp_cache_suite(void)
 #else
 static void wb_fp_cache_suite(void)
 {
-    WB_NOTE("FP_ECC off (or no-malloc build); fixed-point cache suite skipped");
+    WB_NOTE("FP_ECC off (or no-malloc, or timing-resistant without Shamir); "
+            "fixed-point cache suite skipped");
 }
-#endif /* FP_ECC && !WOLFSSL_SP_MATH && !WOLFSSL_NO_MALLOC */
+#endif /* FP_ECC && !WOLFSSL_SP_MATH && !WOLFSSL_NO_MALLOC &&
+        * (!ECC_TIMING_RESISTANT || ECC_SHAMIR) */
 
 /* =========================================================================
  * Degenerate point operands.

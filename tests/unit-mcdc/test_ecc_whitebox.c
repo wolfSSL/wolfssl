@@ -1113,8 +1113,11 @@ out:
 }
 
 /* find_hole()/find_base()/add_entry() and fp_cache[] itself only exist
- * inside ecc.c's own #ifdef FP_ECC (+ !WOLFSSL_SP_MATH) block. */
-#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH)
+ * inside ecc.c's own #ifdef FP_ECC (+ !WOLFSSL_SP_MATH) block, and the
+ * helpers only when something consumes the cache (!ECC_TIMING_RESISTANT or
+ * ECC_SHAMIR). */
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 /* ------------------------------------------------------------------------- *
  * Class 17: FP_ECC fixed-point cache internals: find_base() (line ~13585),
  * find_hole() (line ~13548). Both are file-static and process-global
@@ -1196,9 +1199,11 @@ out:
 #else
 static void wb_fp_cache_internals(void)
 {
-    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH); fp_cache internals skipped");
+    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH, or timing-resistant without "
+            "Shamir); fp_cache internals skipped");
 }
-#endif /* FP_ECC && !WOLFSSL_SP_MATH */
+#endif /* FP_ECC && !WOLFSSL_SP_MATH &&
+        * (!ECC_TIMING_RESISTANT || ECC_SHAMIR) */
 
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ------------------------------------------------------------------------- *

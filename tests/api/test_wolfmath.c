@@ -134,6 +134,140 @@ int test_mp_cond_copy(void)
 } /* End test_mp_cond_copy */
 
 /*
+ * Testing heap-math mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct against
+ * the variable-time versions, with short operands and the ecc.c aliasing.
+ */
+int test_mp_addsubmod_ct_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    mp_int m, a, b, r, t;
+    mp_int v[6];
+    mp_int z[3];
+    int    k, i, j;
+    int    nv = (int)(sizeof(v) / sizeof(v[0]));
+
+    XMEMSET(&m, 0, sizeof(mp_int));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&b, 0, sizeof(mp_int));
+    XMEMSET(&r, 0, sizeof(mp_int));
+    XMEMSET(&t, 0, sizeof(mp_int));
+    XMEMSET(z, 0, sizeof(z));
+    XMEMSET(v, 0, sizeof(v));
+
+    ExpectIntEQ(mp_init_multi(&m, &a, &b, &r, &t, NULL), MP_OKAY);
+    ExpectIntEQ(mp_init_multi(&z[0], &z[1], &z[2], NULL, NULL, NULL),
+        MP_OKAY);
+    ExpectIntEQ(mp_init_multi(&v[0], &v[1], &v[2], &v[3], &v[4], &v[5]),
+        MP_OKAY);
+
+    /* k == 0: P-256 prime. k == 1: 2^(4*DIGIT_BIT) - 1, whose full top limb
+     * makes a + b carry into limb c->used. */
+    for (k = 0; (k < 2) && EXPECT_SUCCESS(); k++) {
+        if (k == 0) {
+            ExpectIntEQ(mp_read_radix(&m,
+                "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFF"
+                "FFFFFFFF", MP_RADIX_HEX), MP_OKAY);
+        }
+        else {
+            ExpectIntEQ(mp_2expt(&m, 4 * DIGIT_BIT), MP_OKAY);
+            ExpectIntEQ(mp_sub_d(&m, 1, &m), MP_OKAY);
+        }
+        /* 0, 1, 5 (short operands), m-1, m-2, (m-1)/2 */
+        ExpectIntEQ(mp_set(&v[0], 0), MP_OKAY);
+        ExpectIntEQ(mp_set(&v[1], 1), MP_OKAY);
+        ExpectIntEQ(mp_set(&v[2], 5), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(&m, 1, &v[3]), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(&m, 2, &v[4]), MP_OKAY);
+        ExpectIntEQ(mp_div_2(&m, &v[5]), MP_OKAY);
+
+        for (i = 0; (i < nv) && EXPECT_SUCCESS(); i++) {
+            for (j = 0; (j < nv) && EXPECT_SUCCESS(); j++) {
+                ExpectIntEQ(mp_copy(&v[i], &a), MP_OKAY);
+                ExpectIntEQ(mp_copy(&v[j], &b), MP_OKAY);
+
+                ExpectIntEQ(mp_addmod_ct(&a, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+                /* (a - b) + b == a */
+                ExpectIntEQ(mp_submod_ct(&a, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&r, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+
+                /* d == a */
+                ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod_ct(&r, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+                ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+                ExpectIntEQ(mp_submod_ct(&r, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&r, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+            }
+
+            ExpectIntEQ(mp_copy(&v[i], &a), MP_OKAY);
+
+            /* a == b == d */
+            ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod_ct(&r, &r, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod(&a, &a, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+            /* a == c: m - a */
+            ExpectIntEQ(mp_submod_ct(&m, &a, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_sub(&m, &a, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+            /* div_2: doubling the result gives a back; also with c == a. */
+            ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod(&r, &r, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+            ExpectIntEQ(mp_copy(&a, &t), MP_OKAY);
+            ExpectIntEQ(mp_div_2_mod_ct(&t, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&t, &r), MP_EQ);
+        }
+    }
+
+    /* Zero operands that were never grown (dp == NULL). */
+    ExpectIntEQ(mp_addmod_ct(&z[0], &v[1], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 1), MP_EQ);
+    ExpectIntEQ(mp_submod_ct(&v[1], &z[1], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 1), MP_EQ);
+    ExpectIntEQ(mp_div_2_mod_ct(&z[2], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_iszero(&r), MP_YES);
+
+    /* Operand wider than the modulus is rejected. */
+    ExpectIntEQ(mp_2expt(&a, 5 * DIGIT_BIT), MP_OKAY);
+    ExpectIntEQ(mp_addmod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_addmod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+
+    /* Zero modulus is rejected before any operand is grown. */
+    mp_zero(&m);
+    ExpectIntEQ(mp_addmod_ct(&z[0], &z[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&z[0], &z[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_div_2_mod_ct(&z[2], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+
+    for (i = 0; i < nv; i++) {
+        mp_clear(&v[i]);
+    }
+    for (i = 0; i < 3; i++) {
+        mp_clear(&z[i]);
+    }
+    mp_clear(&m);
+    mp_clear(&a);
+    mp_clear(&b);
+    mp_clear(&r);
+    mp_clear(&t);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_addsubmod_ct_heap */
+
+/*
  * Testing mp_rand
  */
 int test_mp_rand(void)

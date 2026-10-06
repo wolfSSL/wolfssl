@@ -542,5 +542,17 @@
   "--disable-oldtls", "--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_TLS12"]},
 {"name": "tls13-sha512-runtime", "minutes": 1.6,
  "comment": "--enable-tls13-sha512 with TLS 1.2 left in, so the examples and unit tests build and run with WOLFSSL_HS_HASH_SHA512 set. No cipher suite sets mac_algorithm to sha512_mac, so the sha512_mac arms in src/tls13.c stay unreached; what this entry proves is that the option does not break an otherwise ordinary build, which the two compile-only entries above cannot show.",
- "configure": ["--enable-tls13", "--enable-tls13-sha512", "--enable-sha512"]}
+ "configure": ["--enable-tls13", "--enable-tls13-sha512", "--enable-sha512"]},
+{"name": "sp-math-eccsi-sakke",
+ "comment": "ECCSI and SAKKE on WOLFSSL_SP_MATH without RSA or DH: their Fermat inverses need sp_exptmod, which nothing else builds in this shape.",
+ "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
+  "--disable-rsa", "--disable-dh", "--enable-eccsi", "--enable-sakke"]},
+{"name": "rsapub-eccsi-sakke",
+ "comment": "RSA public-only without DH sends sp_exptmod_ex to the non-constant-time path; ECCSI and SAKKE must still get the ladder for their secret-base Fermat inverses. Compile-only: the wolfcrypt mp test already fails in this shape on master (mp_exptmod_nct with an even modulus).",
+ "configure": ["--enable-cryptonly", "--enable-rsapub", "--disable-dh",
+  "--enable-eccsi", "--enable-sakke"], "check": false},
+{"name": "sp-math-rsapub-eccsi-sakke",
+ "comment": "As rsapub-eccsi-sakke on WOLFSSL_SP_MATH, where sp_exptmod_nct is not built.",
+ "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
+  "--enable-rsapub", "--disable-dh", "--enable-eccsi", "--enable-sakke"]}
 ]
