@@ -3045,17 +3045,17 @@ int test_mldsa_der(void)
     pubLen = WC_MLDSA_44_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_44_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_44_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_44_PUB_KEY_SIZE + WC_MLDSA_44_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_44_PUB_KEY_SIZE + WC_MLDSA_44_KEY_SIZE + 33;
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
     pubLen = WC_MLDSA_65_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_65_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_65_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE + 33;
 #else
     pubLen = WC_MLDSA_87_PUB_KEY_SIZE;
     pubDerLen = WC_MLDSA_87_PUB_KEY_SIZE + 22;
     privDerLen = WC_MLDSA_87_KEY_SIZE + 28;
-    keyDerLen = WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE + 32;
+    keyDerLen = WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE + 33;
 #endif
 
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
