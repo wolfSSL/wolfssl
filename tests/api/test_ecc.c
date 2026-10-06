@@ -845,8 +845,9 @@ int test_wc_ecc_shared_secret_ex_peer_point(void)
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(PLUTON_CRYPTO_ECC) && !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
-    /* P-256 base point G, uncompressed X9.63 encoding. */
-    static const byte g[] = {
+    /* P-256 base point G, uncompressed X9.63 encoding. Not const: older
+     * wc_ecc_import_point_der() takes byte*. */
+    byte g[] = {
         0x04,
         0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,0xF8,0xBC,0xE6,0xE5,
         0x63,0xA4,0x40,0xF2,0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,
@@ -881,9 +882,11 @@ int test_wc_ecc_shared_secret_ex_peer_point(void)
 #endif
     ExpectNotNull(peer = wc_ecc_new_point());
 
-    /* SE050, STM32 PKA and SILABS hardware are not covered here. */
-#if !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
-    !defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* Older FIPS and selftest modules keep an ecc.c without this check, and
+     * SE050, STM32 PKA and SILABS hardware are not covered here. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
     /* G with one bit of y flipped is off the curve. */
     XMEMCPY(bad, g, sizeof(g));
     bad[sizeof(bad) - 1] ^= 0x01;
