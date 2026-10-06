@@ -3062,6 +3062,56 @@ int test_wolfssl_EVP_sm4_aead_iv_gen(void)
         encCtx = NULL;
     }
 
+    /* A record that fails to open leaves its generated IV pending, so a retry
+     * under the reported IV succeeds and the next IV follows it. */
+    for (c = 0; c < numCiphers; ++c) {
+        ExpectNotNull(encCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(encCtx, ciphers[c], key, iv, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherUpdate(encCtx, cipherText, &outl, plainText,
+            sizeof(plainText)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherFinal(encCtx, cipherText, &outl),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_GET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(encCtx);
+        encCtx = NULL;
+
+        ExpectNotNull(decCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(decCtx, ciphers[c], key, NULL, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+            (void*)iv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_IV_GEN, -1,
+            ivs[0]), WOLFSSL_SUCCESS);
+        ExpectBufEQ(ivs[0], iv, sizeof(iv));
+        tag[0] ^= 0x01;
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl, cipherText,
+            sizeof(cipherText)), WOLFSSL_SUCCESS);
+        ExpectIntNE(EVP_CipherFinal(decCtx, calcPlainText, &outl),
+            WOLFSSL_SUCCESS);
+        tag[0] ^= 0x01;
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_SET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherUpdate(decCtx, calcPlainText, &outl, cipherText,
+            sizeof(cipherText)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherFinal(decCtx, calcPlainText, &outl),
+            WOLFSSL_SUCCESS);
+        ExpectBufEQ(calcPlainText, plainText, sizeof(plainText));
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(decCtx, EVP_CTRL_GCM_IV_GEN, -1,
+            ivs[1]), WOLFSSL_SUCCESS);
+        XMEMCPY(expIv, iv, sizeof(expIv));
+        for (k = NONCE_SZ - 1; k >= 0; k--) {
+            if (++expIv[k] != 0)
+                break;
+        }
+        ExpectBufEQ(ivs[1], expIv, sizeof(expIv));
+        EVP_CIPHER_CTX_free(decCtx);
+        decCtx = NULL;
+    }
+
     res = EXPECT_RESULT();
 #endif
     return res;
