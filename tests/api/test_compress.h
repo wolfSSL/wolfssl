@@ -32,6 +32,7 @@ int test_wolfSSL_tls13_compression_off(void);
 int test_wolfSSL_tls_decompression_no_writeback(void);
 int test_wolfSSL_tls_decompression_limit(void);
 int test_wolfSSL_tls_decompression_lowered_limit(void);
+int test_wolfSSL_tls_decompression_send_cap(void);
 int test_wolfSSL_tls_compression_output_size(void);
 int test_wolfSSL_dtls_compression_off(void);
 
@@ -45,6 +46,7 @@ int test_wolfSSL_dtls_compression_off(void);
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_limit),         \
     TEST_DECL_GROUP("compress",                                                \
         test_wolfSSL_tls_decompression_lowered_limit),                         \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_send_cap),      \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_output_size),     \
     TEST_DECL_GROUP("compress", test_wolfSSL_dtls_compression_off)
 

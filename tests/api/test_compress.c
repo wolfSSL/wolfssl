@@ -623,6 +623,58 @@ int test_wolfSSL_tls_decompression_lowered_limit(void)
 }
 
 /*
+ * wolfSSL_set_max_send_fragment() only caps what this side sends.  The
+ * decompression buffer is sized for what the peer may send, so a receiver
+ * with a small send cap must still take a full size record from its peer.
+ */
+int test_wolfSSL_tls_decompression_send_cap(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS_COMPRESSION) && defined(OPENSSL_EXTRA)
+    test_ssl_memio_ctx testCtx;
+    byte*  payload = NULL;
+    byte*  readBuf = NULL;
+    word32 payloadSz = 2048;
+    int    sendCap = 512;
+
+    test_tls_compression_setup(&testCtx);
+
+    ExpectNotNull(payload = (byte*)XMALLOC(payloadSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(readBuf = (byte*)XMALLOC(payloadSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (payload != NULL)
+        XMEMSET(payload, 'A', payloadSz);
+    if (readBuf != NULL)
+        XMEMSET(readBuf, 0, payloadSz);
+
+    ExpectIntEQ(test_ssl_memio_setup(&testCtx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(testCtx.s_ssl, sendCap),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&testCtx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(testCtx.s_ssl->options.usingCompression, 1);
+
+    /* one record, well over the receiver's send cap */
+    ExpectIntEQ(wolfSSL_write(testCtx.c_ssl, payload, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntEQ(wolfSSL_read(testCtx.s_ssl, readBuf, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntEQ(XMEMCMP(readBuf, payload, payloadSz), 0);
+
+    /* while what the receiver sends stays within its cap */
+    ExpectIntEQ(wolfSSL_write(testCtx.s_ssl, payload, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntEQ(wolfSSL_read(testCtx.c_ssl, readBuf, (int)payloadSz),
+        sendCap);
+
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(payload, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_ssl_memio_cleanup(&testCtx);
+#endif /* TEST_TLS_COMPRESSION && OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
+/*
  * wolfSSL_GetOutputSize() tells an application how many transport bytes its
  * write will produce, so it has to carry the same allowance for deflate
  * expanding an incompressible fragment that SendData() sizes the record with.
