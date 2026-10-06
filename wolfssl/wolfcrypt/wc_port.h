@@ -2156,6 +2156,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
+    /* No real data barrier here: ForceZero falls back to volatile stores. */
+    #define WC_BARRIER_DATA_WEAK
     #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
 #endif
 
