@@ -1920,6 +1920,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define XASM_LINK(f) /* null expansion */
 #elif defined(__APPLE__)
     #define XASM_LINK(f) asm("_" f)
+#elif defined(__GNUC__) && defined(__i386__)
+    /* The 32-bit asm reads its arguments from the stack, but i386 kernels
+     * compile C with -mregparm=3 (linux arch/x86/Makefile). */
+    #define XASM_LINK(f) __asm__(f) __attribute__((regparm(0)))
 #elif defined(__GNUC__)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_LINK(f) __asm__(f)
