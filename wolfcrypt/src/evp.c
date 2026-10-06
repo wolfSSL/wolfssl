@@ -6826,6 +6826,8 @@ void wolfSSL_EVP_init(void)
                      * This flag is used to enforce that.
                      */
                     ctx->authIvGenEnable = 1;
+                    /* A new IV supersedes any generated one not yet used. */
+                    ctx->authIncIv = 0;
                 }
             #endif
 #endif /* !WC_NO_RNG */

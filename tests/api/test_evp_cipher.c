@@ -1384,6 +1384,11 @@ int test_evp_cipher_aes_gcm_iv_fixed(void)
                     FIXED_SZ, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
         ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
                     FIXED_SZ, (void*)fixed), SSL_SUCCESS);
+        /* Installing a new IV abandons an unused generated one. */
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
+                    expIv), SSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED,
+                    FIXED_SZ, (void*)fixed), SSL_SUCCESS);
 
         for (j = 0; j < NUM_RECORDS; ++j) {
             ExpectIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
