@@ -235,8 +235,9 @@ impl Ed25519 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
@@ -253,7 +254,7 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -264,7 +265,7 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export public key to buffer.
@@ -294,7 +295,7 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_public(&self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed25519_export_public(&self.ws_key, public.as_mut_ptr(),
@@ -303,7 +304,7 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(public_size as usize)
     }
 
     /// Export public/private key pair to buffer.
@@ -333,7 +334,7 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private(&self, keyout: &mut [u8]) -> Result<usize, i32> {
         let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
         let rc = unsafe {
             sys::wc_ed25519_export_private(&self.ws_key, keyout.as_mut_ptr(),
@@ -342,7 +343,7 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(keyout_size as usize)
     }
 
     /// Export private key only to buffer.
@@ -372,7 +373,7 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private_only(&self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_ed25519_export_private_only(&self.ws_key,
@@ -381,7 +382,7 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(private_size as usize)
     }
 
     /// Import a public Ed25519 key from buffer.

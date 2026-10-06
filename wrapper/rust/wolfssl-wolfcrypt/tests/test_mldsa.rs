@@ -268,7 +268,21 @@ fn test_import_export_level44() {
 
     let mut priv_buf = vec![0u8; priv_size];
     let mut pub_buf = vec![0u8; pub_size];
-    key.export_key(&mut priv_buf, &mut pub_buf).expect("Error with export_key()");
+    let (priv_written, pub_written) = key.export_key(&mut priv_buf, &mut pub_buf)
+        .expect("Error with export_key()");
+    assert_eq!(priv_written, priv_size);
+    assert_eq!(pub_written, pub_size);
+
+    // Oversized output buffers: the returned sizes must reflect the number
+    // of bytes actually written, not the buffer lengths.
+    let mut big_priv = vec![0xAAu8; priv_size + 16];
+    let mut big_pub = vec![0xAAu8; pub_size + 16];
+    let (priv_written, pub_written) = key.export_key(&mut big_priv, &mut big_pub)
+        .expect("Error with export_key()");
+    assert_eq!(priv_written, priv_size);
+    assert_eq!(pub_written, pub_size);
+    assert_eq!(&big_priv[..priv_written], &priv_buf[..]);
+    assert_eq!(&big_pub[..pub_written], &pub_buf[..]);
 
     // Verify export_public and export_private return the same bytes.
     let mut pub_buf2 = vec![0u8; pub_size];

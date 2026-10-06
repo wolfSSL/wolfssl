@@ -338,18 +338,43 @@ fn test_import_export() {
 
     let mut private = [0u8; Ed25519::PRV_KEY_SIZE];
     let mut public = [0u8; Ed25519::PUB_KEY_SIZE];
-    ed.export_key(&mut private, &mut public).expect("Error with export_key()");
+    let (private_size, public_size) = ed.export_key(&mut private, &mut public).expect("Error with export_key()");
+    assert_eq!(private_size, Ed25519::PRV_KEY_SIZE);
+    assert_eq!(public_size, Ed25519::PUB_KEY_SIZE);
 
     let mut public2 = [0u8; Ed25519::PUB_KEY_SIZE];
-    ed.export_public(&mut public2).expect("Error with export_public()");
+    let public2_size = ed.export_public(&mut public2).expect("Error with export_public()");
+    assert_eq!(public2_size, Ed25519::PUB_KEY_SIZE);
     assert_eq!(public2, public);
 
     let mut private2 = [0u8; Ed25519::PRV_KEY_SIZE];
-    ed.export_private(&mut private2).expect("Error with export_private()");
+    let private2_size = ed.export_private(&mut private2).expect("Error with export_private()");
+    assert_eq!(private2_size, Ed25519::PRV_KEY_SIZE);
     assert_eq!(private2, private);
 
     let mut private_only = [0u8; Ed25519::KEY_SIZE];
-    ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
+    let private_only_size = ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
+    assert_eq!(private_only_size, Ed25519::KEY_SIZE);
+
+    // Oversized output buffers: the returned sizes must reflect the number
+    // of bytes actually written, not the buffer lengths.
+    let mut big_private = [0xAAu8; Ed25519::PRV_KEY_SIZE + 16];
+    let mut big_public = [0xAAu8; Ed25519::PUB_KEY_SIZE + 16];
+    let (private_size, public_size) = ed.export_key(&mut big_private, &mut big_public).expect("Error with export_key()");
+    assert_eq!(private_size, Ed25519::PRV_KEY_SIZE);
+    assert_eq!(public_size, Ed25519::PUB_KEY_SIZE);
+    assert_eq!(&big_private[..private_size], &private[..]);
+    assert_eq!(&big_public[..public_size], &public[..]);
+    let mut big_public = [0xAAu8; Ed25519::PUB_KEY_SIZE + 16];
+    let size = ed.export_public(&mut big_public).expect("Error with export_public()");
+    assert_eq!(size, Ed25519::PUB_KEY_SIZE);
+    let mut big_private = [0xAAu8; Ed25519::PRV_KEY_SIZE + 16];
+    let size = ed.export_private(&mut big_private).expect("Error with export_private()");
+    assert_eq!(size, Ed25519::PRV_KEY_SIZE);
+    let mut big_private_only = [0xAAu8; Ed25519::KEY_SIZE + 16];
+    let size = ed.export_private_only(&mut big_private_only).expect("Error with export_private_only()");
+    assert_eq!(size, Ed25519::KEY_SIZE);
+    assert_eq!(&big_private_only[..size], &private_only[..]);
 
     let mut ed = Ed25519::new().expect("Error with new()");
     ed.import_private_key_ex(&private, Some(&public), false).expect("Error with import_private_key_ex()");

@@ -27,6 +27,14 @@ Breaking changes:
   existing resources, and left the object unusable afterward. Use
   CMAC::new_ex() followed by the new CMAC::update_and_finalize() or
   CMAC::update_and_verify() methods instead
+- Key export methods now return the number of bytes written instead of ():
+  Ed25519 and Ed448 export_public(), export_private() and
+  export_private_only() return Result<usize, i32>, and Ed25519/Ed448
+  export_key(), Curve25519Key::export_key_raw(),
+  Curve25519Key::export_key_raw_ex() and MlDsa::export_key() return
+  Result<(usize, usize), i32> holding the private and public key sizes.
+  Previously, callers passing an oversized output buffer had no way to know
+  where the exported key ended
 
 New features:
 

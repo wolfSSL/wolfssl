@@ -95,7 +95,16 @@ fn test_import_export_raw() {
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
     let mut private_buffer = [0u8; Curve25519Key::KEYSIZE];
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
-    curve25519key.export_key_raw(&mut private_buffer, &mut public_buffer).expect("Error with export_key_raw()");
+    let (private_size, public_size) = curve25519key.export_key_raw(&mut private_buffer, &mut public_buffer).expect("Error with export_key_raw()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    let mut big_private = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let mut big_public = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let (private_size, public_size) = curve25519key.export_key_raw(&mut big_private, &mut big_public).expect("Error with export_key_raw()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    assert_eq!(&big_private[..private_size], &private_buffer[..]);
+    assert_eq!(&big_public[..public_size], &public_buffer[..]);
     Curve25519Key::import_private_raw(&private_buffer, &public_buffer).expect("Error with import_private_raw()");
 }
 
@@ -106,7 +115,16 @@ fn test_import_export_raw_ex() {
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
     let mut private_buffer = [0u8; Curve25519Key::KEYSIZE];
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
-    curve25519key.export_key_raw_ex(&mut private_buffer, &mut public_buffer, false).expect("Error with export_key_raw_ex()");
+    let (private_size, public_size) = curve25519key.export_key_raw_ex(&mut private_buffer, &mut public_buffer, false).expect("Error with export_key_raw_ex()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    let mut big_private = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let mut big_public = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let (private_size, public_size) = curve25519key.export_key_raw_ex(&mut big_private, &mut big_public, false).expect("Error with export_key_raw_ex()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    assert_eq!(&big_private[..private_size], &private_buffer[..]);
+    assert_eq!(&big_public[..public_size], &public_buffer[..]);
     Curve25519Key::import_private_raw_ex(&private_buffer, &public_buffer, false).expect("Error with import_private_raw_ex()");
 }
 
