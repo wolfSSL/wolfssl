@@ -258,9 +258,9 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
     \return BAD_FUNC_ARG if a required pointer is NULL or the public key is not
     set.
     \return MEMORY_E if the working buffer could not be allocated. Verify
-    allocates 4*n bytes per call unless WOLFSSL_NO_MALLOC is defined (stack)
-    or WOLFSSL_FALCON_VERIFY_NO_MALLOC is (buffer in the key, so one key must
-    not verify two signatures at the same time).
+    allocates 4*n bytes per call, unless WOLFSSL_NO_MALLOC is defined to use
+    the stack or WOLFSSL_FALCON_VERIFY_NO_MALLOC is defined to use a buffer in
+    the key (so one key must not verify two signatures at the same time).
 
     \param [in] sig Signature to verify.
     \param [in] sigLen Length of the signature in bytes.
