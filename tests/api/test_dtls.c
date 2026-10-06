@@ -6179,6 +6179,39 @@ int test_dtls_ipv6_check(void)
 }
 #endif
 
+/* Default get/set peer callbacks fail on an IPv6 peer without IPv6 support. */
+int test_dtls_export_peer_ipv6_not_compiled(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+    defined(USE_WOLFSSL_IO) && !defined(WOLFSSL_IPV6) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    SOCKADDR_IN fake_addr6;
+    char ip[MAX_EXPORT_IP];
+    int ipSz = (int)sizeof(ip);
+    unsigned short port = 0;
+    int fam = 0;
+    char ip6[] = "::1";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&fake_addr6, 0, sizeof(fake_addr6));
+    fake_addr6.sin_family = WOLFSSL_IP6;
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, &fake_addr6, sizeof(fake_addr6)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntNE(EmbedGetPeer(ssl, ip, &ipSz, &port, &fam), WOLFSSL_SUCCESS);
+    ExpectIntNE(EmbedSetPeer(ssl, ip6, (int)XSTRLEN(ip6), 4433, WOLFSSL_IP6),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- no_extensions (api.c lines 30824,30913) ---*/
 int test_dtls_no_extensions(void)
 {

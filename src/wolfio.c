@@ -1086,6 +1086,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                     return SOCKET_ERROR_E;
                 }
                 *port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+            #else
+                return NOT_COMPILED_IN;
             #endif /* WOLFSSL_IPV6 */
                 break;
 
@@ -1143,6 +1145,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                     WOLFSSL_MSG("Import DTLS peer info error");
                     return ret;
                 }
+            #else
+                return NOT_COMPILED_IN;
             #endif /* WOLFSSL_IPV6 */
                 break;
 

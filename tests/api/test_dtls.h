@@ -130,6 +130,7 @@ int test_wolfSSL_set_secret(void);
 /* DTLS tests moved out of tests/api.c. */
 int test_dtls_msg_from_other_peer(void);
 int test_dtls_ipv6_check(void);
+int test_dtls_export_peer_ipv6_not_compiled(void);
 int test_dtls_no_extensions(void);
 int test_dtls_1_0_hvr_downgrade(void);
 int test_dtls_downgrade_scr_server(void);
@@ -269,6 +270,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_WOLFSSL_dtls_version_alert),              \
         TEST_DECL_GROUP("dtls", test_dtls_msg_from_other_peer),                \
         TEST_DECL_GROUP("dtls", test_dtls_ipv6_check),                         \
+        TEST_DECL_GROUP("dtls", test_dtls_export_peer_ipv6_not_compiled),      \
         TEST_DECL_GROUP("dtls", test_dtls_no_extensions),                      \
         TEST_DECL_GROUP("dtls", test_dtls_1_0_hvr_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_downgrade_scr_server),               \
