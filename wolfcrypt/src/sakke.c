@@ -45,6 +45,12 @@
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
+#ifndef ecc_get_k_raw
+    /* FIPS replacement of ecc.h predates ecc_get_k_raw but is new enough to
+     * define WOLFSSL_HAVE_ECC_KEY_GET_PRIV, so the block above was skipped. */
+    #define ecc_get_k_raw(key)        (key)->k
+#endif
+
 /* SAKKE Build Options:
  * WOLFSSL_SAKKE_SMALL:          Small code size version of SAKKE.
  * WOLFSSL_SAKKE_SMALL_MODEXP:   Small code size for just SAKKE modexp.
