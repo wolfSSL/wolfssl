@@ -116,9 +116,7 @@ int wolfSSL_dtls_free_peer(void* addr)
 /* Store a socket address into a socket address holder, resizing as needed.
  *
  * A NULL or zero-length peer frees the holder's buffer. An address that fits
- * the buffer already there is copied over it rather than reallocated:
- * EmbedSendTo reads peer.sa without taking peerLock, so freeing it on every
- * update would widen that race rather than leave it as it is.
+ * the buffer already there is copied over it rather than reallocated.
  *
  * The record layer promotes a pending peer through this while already holding
  * peerLock, so it takes no lock of its own.

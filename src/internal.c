@@ -25332,7 +25332,8 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
      * is in the way, so carry on regardless: this bookkeeping is the caller's
      * own and leaving it stale is worse than the race. Only the promotion into
      * dtlsCtx.peer below is skipped, since EmbedSendTo reads that buffer
-     * without the lock. DtlsResetState() and ProcessReplyEx() do the same. */
+     * from another thread. DtlsResetState() and ProcessReplyEx() do the
+     * same. */
     locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
 #endif
     if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
@@ -25356,7 +25357,7 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
             if (isNewest
         #ifdef WOLFSSL_RW_THREADED
                     /* Only this touches the buffer the send path reads
-                     * without the lock, so it is the one thing a failed
+                     * from another thread, so it is the one thing a failed
                      * acquisition has to skip. */
                     && locked
         #endif
@@ -26845,7 +26846,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
              * DtlsResetState() and dtlsProcessPendingPeer() do. A failure here
              * means the lock is broken rather than held, and nothing below
              * touches dtlsCtx.peer, which is the buffer the send path reads
-             * without this lock. */
+             * from another thread. */
             locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
         #endif
             dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);

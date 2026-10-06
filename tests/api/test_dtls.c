@@ -12571,6 +12571,92 @@ int test_wolfSSL_dtls_get0_peer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_RW_THREADED) && \
+    defined(USE_WOLFSSL_IO) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+static WOLFSSL* sendToMigrateSsl = NULL;
+static void* sendToMigrateNewPeer = NULL;
+static int sendToMigrateChanged = 0;
+
+static THREAD_RETURN WOLFSSL_THREAD test_dtls_send_to_migrate_thread(
+    void* arg)
+{
+    (void)arg;
+    (void)wolfSSL_dtls_set_peer(sendToMigrateSsl, sendToMigrateNewPeer,
+        (unsigned int)sizeof(SOCKADDR_IN));
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+static ssize_t test_dtls_send_to_migrate_cb(int sd, const void* buf,
+    size_t len, int flags, const void* addr, word32 addrSz)
+{
+    byte before[sizeof(SOCKADDR_S)];
+    THREAD_TYPE thread;
+
+    (void)sd;
+    (void)buf;
+    (void)flags;
+    XMEMCPY(before, addr, addrSz);
+    /* Another thread migrates the peer while this send is in progress. */
+    if (wolfSSL_NewThread(&thread, test_dtls_send_to_migrate_thread,
+            NULL) == 0) {
+        (void)wolfSSL_JoinThread(thread);
+    }
+    sendToMigrateChanged = (XMEMCMP(before, addr, addrSz) != 0);
+    return (ssize_t)len;
+}
+#endif
+
+/* The destination address handed to a send must not change while that send is
+ * in progress, even when another thread sets a new peer address meanwhile.
+ * The new address is stored once the send returns. */
+int test_dtls_send_to_peer_migration(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_RW_THREADED) && \
+    defined(USE_WOLFSSL_IO) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    void* oldPeer = NULL;
+    char msg[] = "hello";
+    byte stored[sizeof(SOCKADDR_IN)];
+    unsigned int storedSz = (unsigned int)sizeof(stored);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(oldPeer = wolfSSL_dtls_create_peer(11111,
+        (char*)"127.0.0.1"));
+    ExpectNotNull(sendToMigrateNewPeer = wolfSSL_dtls_create_peer(22222,
+        (char*)"127.0.0.2"));
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, oldPeer,
+        (unsigned int)sizeof(SOCKADDR_IN)), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        sendToMigrateSsl = ssl;
+        sendToMigrateChanged = 0;
+        ssl->buffers.dtlsCtx.wfdIsDGram = 1;
+        wolfSSL_SetSendTo(ssl, test_dtls_send_to_migrate_cb);
+        ExpectIntEQ(EmbedSendTo(ssl, msg, (int)sizeof(msg),
+            &ssl->buffers.dtlsCtx), (int)sizeof(msg));
+        ExpectIntEQ(sendToMigrateChanged, 0);
+        /* The migration itself did happen. */
+        ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, stored, &storedSz),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)storedSz, (int)sizeof(SOCKADDR_IN));
+        ExpectBufEQ(stored, sendToMigrateNewPeer, sizeof(SOCKADDR_IN));
+    }
+
+    wolfSSL_dtls_free_peer(oldPeer);
+    wolfSSL_dtls_free_peer(sendToMigrateNewPeer);
+    sendToMigrateNewPeer = NULL;
+    sendToMigrateSsl = NULL;
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_set_timeout_init(void)
 {
     EXPECT_DECLS;
