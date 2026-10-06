@@ -12933,6 +12933,55 @@ int test_wolfSSL_dtls_set_peer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+static void* dtls_set_peer_oom_malloc(size_t n)
+{
+    (void)n;
+    return NULL;
+}
+#endif
+
+/* A peer update that fails to allocate keeps the previous peer, still marked
+ * as set by the application. */
+int test_wolfSSL_dtls_set_peer_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Malloc_cb mf = NULL;
+    wolfSSL_Free_cb ff = NULL;
+    wolfSSL_Realloc_cb rf = NULL;
+    unsigned char peer[16];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"1234", 5), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&mf, &ff, &rf), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(dtls_set_peer_oom_malloc, ff, rf), 0);
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"123456789012", 12),
+        WOLFSSL_FAILURE);
+    (void)wolfSSL_SetAllocators(mf, ff, rf);
+
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 5);
+    ExpectBufEQ(peer, "1234", 5);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.dtlsCtx.userSet, 1);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_GetDtlsMacSecret(void)
 {
     EXPECT_DECLS;

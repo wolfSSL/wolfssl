@@ -115,6 +115,7 @@ int test_wolfSSL_mcast_peers(void);
 int test_wolfSSL_set_dtls_fd_connected(void);
 int test_wolfSSL_dtls_get_peer(void);
 int test_wolfSSL_dtls_set_peer(void);
+int test_wolfSSL_dtls_set_peer_oom(void);
 int test_wolfSSL_GetDtlsMacSecret(void);
 int test_wolfSSL_dtls_get_using_nonblock(void);
 int test_wolfSSL_dtls_set_using_nonblock(void);
@@ -338,6 +339,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_set_dtls_fd_connected),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_peer),                   \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer),                   \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer_oom),               \
         TEST_DECL_GROUP("dtls", test_wolfSSL_GetDtlsMacSecret),                \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_using_nonblock),         \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_using_nonblock),         \

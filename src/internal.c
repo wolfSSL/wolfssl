@@ -25363,16 +25363,10 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
                 ) {
                 WOLFSSL_SOCKADDR* from = &ssl->buffers.dtlsCtx.pendingPeer;
 
+                /* A failed update keeps the previous peer and its flag. */
                 if (wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.peer,
                         from->sa, from->sz, ssl->heap) == WOLFSSL_SUCCESS) {
                     ssl->buffers.dtlsCtx.userSet = 1;
-                }
-                else {
-                    /* wolfSSL_dtls_set_peer clears this when it fails to store
-                     * a peer, and the receive path only checks the sender
-                     * while peer.sz is non zero, so leaving it set would drop
-                     * the check rather than fail safe. */
-                    ssl->buffers.dtlsCtx.userSet = 0;
                 }
             }
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
