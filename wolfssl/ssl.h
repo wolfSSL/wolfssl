@@ -1582,6 +1582,11 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_get_error(WOLFSSL* ssl, int ret);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_API long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t);
 WOLFSSL_API long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t);
+#if !defined(NO_SESSION_CACHE) && !defined(NO_SESSION_CACHE_REF) && \
+    !defined(WOLFSSL_SESSION_CACHE_REF_WARNED)
+WC_DEPRECATED("returns a session cache reference under "
+    "WOLFSSL_SESSION_CACHE_REF, use wolfSSL_get1_session() instead")
+#endif
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm);
 WOLFSSL_API void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm);
