@@ -18771,8 +18771,12 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
              * rather than run unaccounted. */
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
             if (stream.bytes_crypted_with_this_tweak != before)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+            (void)before;
+#endif
             {
                 word32 b;
                 for (b = 0; b < (word32)WC_AES_BLOCK_SIZE * 2; b++) {
@@ -18781,7 +18785,8 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
                 }
             }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
             /* Decrypt is held to the same rule: refuse rather than run
              * unaccounted once the count can no longer advance. */
             ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_DECRYPTION);
