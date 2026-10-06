@@ -1612,8 +1612,16 @@ static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
 /* releases any memory allocated by a PKCS7 initializer */
 void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 {
+    /* isDynamic is a bit field. Read it before any store through pkcs7.
+     * The recipient-list free below stores recipList, and clang-tidy then
+     * treats this field as unknown, frees the object, and reports a use
+     * of it by the caller that kept the structure. */
+    int dynamic;
+
     if (pkcs7 == NULL)
         return;
+
+    dynamic = (int)pkcs7->isDynamic;
 
 #ifndef NO_PKCS7_STREAM
     /* A streaming EnvelopedData decode that was abandoned mid-message (e.g. it
@@ -1692,7 +1700,7 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
      * A later allocation failure skips that encode, so free the list here. */
     wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
 
-    if (pkcs7->isDynamic) {
+    if (dynamic) {
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
