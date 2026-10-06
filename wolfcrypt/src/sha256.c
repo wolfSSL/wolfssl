@@ -1827,6 +1827,8 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                              sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
+    #elif defined(WC_SHA256_W_IN_CTX)
+        word32* WC_RESTRICT W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
     #endif
@@ -1902,7 +1904,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #ifdef USE_SLOW_SHA256
         int j;
     #endif
+    #ifdef WC_SHA256_W_IN_CTX
+        word32* WC_RESTRICT W = sha256->Wbuf;
+    #else
         word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
+    #endif
 
         /* Copy digest to working vars */
         S[0] = sha256->digest[0];

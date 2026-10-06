@@ -491,7 +491,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 
     static int Transform(wc_Sha* sha, const byte* data)
     {
-        word32 W[WC_SHA_BLOCK_SIZE / sizeof(word32)];
+        word32* WC_RESTRICT W = sha->W;
 
         /* Copy context->state[] to working vars */
         word32 a = sha->digest[0];
