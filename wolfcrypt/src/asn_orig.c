@@ -201,6 +201,10 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
+    /* Only two-prime (version 0) keys are supported. */
+    if (version != PKCS1v0)
+        return ASN_PARSE_E;
+
     if (key == NULL) {
         /* Modulus */
         if (GetASNInt(input, inOutIdx, keySz, inSz) < 0) {
