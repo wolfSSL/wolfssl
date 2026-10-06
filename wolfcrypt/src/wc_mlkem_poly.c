@@ -125,7 +125,8 @@
 #if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
      !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
     (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
-     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
+     (!defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+      !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)))
 static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
     unsigned int aStride, const sword16* v, int k, byte* seed, int i,
     int transposed);
@@ -4576,7 +4577,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
      !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
     (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
-     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
+     (!defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+      !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)))
 
 /* Deterministically generate a vector of a matrix (or transpose) of uniform
  * integers mod q and multiply it into a vector of polynomials.
@@ -6182,7 +6184,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
      !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
     (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
-     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
+     (!defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+      !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)))
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
