@@ -6854,7 +6854,7 @@ int test_wc_AesXtsDataUnitLimit(void)
                 &xs), 0);
             wc_AesXtsFree(&aes);
 
-/* v6.0.0 limits the one-shot decrypt but not the streaming one. */
+/* v6.0.0 limits only encryption; decryption over the limit succeeds. */
 #if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_AES_DECRYPT)
             done = 0;
             XMEMSET(&xs, 0, sizeof(xs));
