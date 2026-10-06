@@ -161,6 +161,8 @@ struct wc_Sha {
     #else
     word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
+    /* Message schedule of the C transform; wiped with the context at Free. */
+    word32  W[WC_SHA_BLOCK_SIZE / sizeof(word32)];
 #endif /* end of the hardware-vs-software member chain */
 
 /* The callback port keeps the software implementation compiled in for
