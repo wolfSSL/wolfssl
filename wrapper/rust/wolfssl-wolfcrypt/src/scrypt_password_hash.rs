@@ -226,7 +226,7 @@ impl CustomizedPasswordHasher<PasswordHash> for Scrypt {
 
         let salt = Salt::new(salt)?;
 
-        let mut out_buf = [0u8; Output::MAX_LENGTH];
+        let mut out_buf = zeroize::Zeroizing::new([0u8; Output::MAX_LENGTH]);
         let out_slice = &mut out_buf[..params.output_len];
         kdf::scrypt(password, salt.as_ref(), i32::from(params.log_n),
                 block_size, parallel, out_slice)
