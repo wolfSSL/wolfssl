@@ -566,9 +566,10 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
     #endif
     {
     #ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
-        /* this path returns without reaching wc_CmacFinal(), so check the
-         * length the same way that function does before associating it */
-        if (key == NULL && outSz != NULL) {
+        /* this path runs before the argument checks below, so associate
+         * only when the call would pass them */
+        if (key == NULL && keySz == 0 && out != NULL && outSz != NULL &&
+                (in != NULL || inSz == 0)) {
             if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
                 return BUFFER_E;
             }

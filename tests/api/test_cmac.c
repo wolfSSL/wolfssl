@@ -925,6 +925,14 @@ int test_wc_CryptoCb_CmacTagLen(void)
     ExpectIntEQ(wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
         HEAP_HINT, devId), 0);
     if (EXPECT_SUCCESS()) {
+        /* a call refused for a NULL out must not fix the length, so the
+         * full length still works after it */
+        tagSz = WC_CMAC_TAG_MIN_SZ;
+        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, NULL, &tagSz, msg,
+            sizeof(msg), NULL, 0, HEAP_HINT, devId),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
         /* start from the smallest length so the device call has to
          * change it */
         ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MIN_SZ), 0);
