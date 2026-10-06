@@ -5216,6 +5216,11 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     {
         return BAD_FUNC_ARG;
     }
+    /* A software key is imported as a key pair, so it needs its public half,
+     * the same rule as the host sign path. */
+    if ((key->keyIdSet == 0) && !key->pubKeySet) {
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef SE050_DEBUG
     printf("se050_ed25519_sign_msg: key %p, in %p (%d), out %p (%d), "

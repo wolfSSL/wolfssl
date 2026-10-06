@@ -1414,7 +1414,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 /*!
     \ingroup ASN
 
-    \brief この関数は、Curve25519キーをDER形式にエンコードします。秘密鍵、公開鍵、または両方をエンコードできます。
+    \brief この関数は、Curve25519キーをDER形式にエンコードします。秘密鍵、公開鍵、または両方をエンコードできます。両方が設定されている場合、[1] publicKeyはRFC 5958に従いBIT STRINGとして書き込まれるため、この変更より前のwolfSSLリリースでは読み込めません。wc_Curve25519PrivateKeyToDer()はこのフィールドを出力しません。
 
     \return >0 成功、DERエンコーディングの長さ
     \return BAD_FUNC_ARG keyまたはoutputがnullの場合に返されます
