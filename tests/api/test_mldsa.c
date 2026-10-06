@@ -1351,7 +1351,7 @@ int test_mldsa_sign_vfy(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* Collision strength in bits of each pre-hash, FIPS 202 Table 4. */
@@ -1444,7 +1444,7 @@ static int mldsa_prehash_strength_level(byte level, int lambda, WC_RNG* rng)
 int test_mldsa_prehash_strength(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
     WC_RNG rng;
