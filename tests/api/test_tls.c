@@ -4933,10 +4933,7 @@ int test_dhe_psk_max_premaster(void)
      * have to fit. */
     ExpectTrue(MAX_PREMASTER_SZ >=
         OPAQUE16_LEN + MAX_DHKEY_SZ + OPAQUE16_LEN + MAX_PSK_KEY_LEN);
-    /* The exchange this test actually drives has to fit too. Stated against
-     * the group the test picks rather than the build's maximum, so a sizing
-     * that forgets the DHE-PSK layout fails here rather than only showing up
-     * as an overrun under a sanitizer. */
+    /* The exchange this test drives has to fit as well. */
     ExpectTrue(MAX_PREMASTER_SZ >= OPAQUE16_LEN +
         (TEST_DHE_PSK_MAX_DH_BITS / 8) + OPAQUE16_LEN + MAX_PSK_KEY_LEN);
 
@@ -4956,9 +4953,7 @@ int test_dhe_psk_max_premaster(void)
     ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    /* The peer picked the parameters that make the secret its largest. Note
-     * the overrun the sizing prevents only shows up under ASAN or valgrind;
-     * the handshake itself completes either way. */
+    /* The peer picked the parameters that make the secret its largest. */
     ExpectIntEQ(wolfSSL_GetDhKey_Sz(ssl_c), TEST_DHE_PSK_MAX_DH_BITS);
 
     wolfSSL_free(ssl_c);
