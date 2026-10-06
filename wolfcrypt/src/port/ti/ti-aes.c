@@ -732,7 +732,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag, WC_AES_BLOCK_SIZE);
         wolfSSL_TI_unlockCCM();
 
-        if (ConstantCompare(authTag, tmpTag, authTagSz) != 0) {
+        if (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0) {
             ret = AES_GCM_AUTH_E;
         }
         return ret;
@@ -783,7 +783,8 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         (unsigned int*)tmpTag);
     wolfSSL_TI_unlockCCM();
 
-    if ((ret == false) || (ConstantCompare(authTag, tmpTag, authTagSz) != 0)) {
+    if ((ret == false) ||
+            (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0)) {
         /* out is NULL for the GMAC case, where inSz is zero. */
         if (out != NULL)
             ForceZero(out, inSz);

@@ -239,6 +239,65 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 #endif
 
+#ifdef HAVE_AESGCM
+#if !defined(NO_INLINE) && defined(__GNUC__) && !defined(__cplusplus)
+/* Inline for callers here in aes.c, but a callable local function for outside
+ * callers.  Don't use WC_INLINE unconditionally, because we can't count on
+ * correct behavior beyond gcc/clang, and we don't want the WC_MAYBE_UNUSED
+ * attribute in NO_INLINE builds.
+ */
+WC_INLINE
+#endif
+int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
+#ifdef WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH
+    #ifdef HAVE_FIPS
+        #error WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH not allowed with FIPS 140.
+    #endif
+    wc_static_assert(WOLFSSL_MIN_AUTH_TAG_SZ >= 4);
+    if ((authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
+        (authTagSz > WC_AES_BLOCK_SIZE))
+    {
+        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
+        return BAD_FUNC_ARG;
+    }
+    else
+        return 0;
+#else
+    /* A switch is actually better for the optimizer than most hand-rolled
+     * equivalents, because it hands the compiler the exact value set and lets
+     * it pick the best lowering per WOLFSSL_MIN_AUTH_TAG_SZ configuration.
+     */
+    switch (authTagSz) {
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 4
+    case 4:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 8
+    case 8:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 12
+    case 12:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    case 13:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 14
+    case 14:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 15
+    case 15:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 16
+    case 16:
+#endif
+        return 0;
+    default:
+        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
+        return BAD_FUNC_ARG;
+    }
+#endif
+}
+#endif /* HAVE_AESGCM */
+
 #if defined(WOLFSSL_TI_CRYPT)
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 
@@ -8830,63 +8889,6 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
     #error "Coldfire SEC doesn't currently support AES-GCM mode"
 
 #endif
-
-#if !defined(NO_INLINE) && defined(__GNUC__) && !defined(__cplusplus)
-/* Inline for callers here in aes.c, but a callable local function for outside
- * callers.  Don't use WC_INLINE unconditionally, because we can't count on
- * correct behavior beyond gcc/clang, and we don't want the the WC_MAYBE_UNUSED
- * attribute in NO_INLINE builds.
- */
-WC_INLINE
-#endif
-int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
-#ifdef WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH
-    #ifdef HAVE_FIPS
-        #error WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH not allowed with FIPS 140.
-    #endif
-    wc_static_assert(WOLFSSL_MIN_AUTH_TAG_SZ >= 4);
-    if ((authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
-        (authTagSz > WC_AES_BLOCK_SIZE))
-    {
-        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
-        return BAD_FUNC_ARG;
-    }
-    else
-        return 0;
-#else
-    /* A switch is actually better for the optimizer than most hand-rolled
-     * equivalents, because it hands the compiler the exact value set and lets
-     * it pick the best lowering per WOLFSSL_MIN_AUTH_TAG_SZ configuration.
-     */
-    switch (authTagSz) {
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 4
-    case 4:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 8
-    case 8:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 12
-    case 12:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
-    case 13:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 14
-    case 14:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 15
-    case 15:
-#endif
-#if WOLFSSL_MIN_AUTH_TAG_SZ <= 16
-    case 16:
-#endif
-        return 0;
-    default:
-        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
-        return BAD_FUNC_ARG;
-    }
-#endif
-}
 
 #if defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
