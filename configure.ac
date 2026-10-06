@@ -8820,17 +8820,17 @@ do
 done
 
 # Default the parameter sets and operations when only a mode is named.
-if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_MLKEM512" = "" && \
-   test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""
+if test "x$ENABLED_MLKEM" != "xno" && test "x$ENABLED_MLKEM512" = "x" && \
+   test "x$ENABLED_MLKEM768" = "x" && test "x$ENABLED_MLKEM1024" = "x"
 then
     ENABLED_MLKEM512=yes
     ENABLED_MLKEM768=yes
     ENABLED_MLKEM1024=yes
 fi
-if test "$ENABLED_MLKEM" != "no" && \
-   test "$ENABLED_MLKEM_MAKE_KEY" = "no" && \
-   test "$ENABLED_MLKEM_ENCAPSULATE" = "no" && \
-   test "$ENABLED_MLKEM_DECAPSULATE" = "no"
+if test "x$ENABLED_MLKEM" != "xno" && \
+   test "x$ENABLED_MLKEM_MAKE_KEY" = "xno" && \
+   test "x$ENABLED_MLKEM_ENCAPSULATE" = "xno" && \
+   test "x$ENABLED_MLKEM_DECAPSULATE" = "xno"
 then
     ENABLED_MLKEM_MAKE_KEY=yes
     ENABLED_MLKEM_ENCAPSULATE=yes
