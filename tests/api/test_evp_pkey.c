@@ -3182,8 +3182,8 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     return EXPECT_RESULT();
 }
 
-/* Raw ML-DSA public key bytes have no length prefix: the decoded EVP_PKEY
- * must hold the whole input. */
+/* Raw ML-DSA public key bytes must decode into an EVP_PKEY holding the
+ * whole key. */
 int test_wolfSSL_d2i_PUBKEY_mldsa_raw(void)
 {
     EXPECT_DECLS;
@@ -3215,14 +3215,16 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_raw(void)
     ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p,
         (long)WC_MLDSA_44_PUB_KEY_SIZE));
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(WOLFSSL_MLDSA_NO_ASN1)
+    /* Raw input is cached as SPKI DER. */
     if (pkey != NULL) {
-        ExpectIntEQ(pkey->pkey_sz, WC_MLDSA_44_PUB_KEY_SIZE);
+        ExpectIntEQ(pkey->pkey_sz, derSz);
         ExpectNotNull(pkey->pkey.ptr);
         if (pkey->pkey.ptr != NULL) {
-            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, raw,
-                WC_MLDSA_44_PUB_KEY_SIZE), 0);
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der, (size_t)derSz), 0);
         }
     }
+#endif
 
     wolfSSL_EVP_PKEY_free(pkey);
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
