@@ -94564,7 +94564,8 @@ static wc_test_ret_t cryptocb_sha3_variant_test(void)
       !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)) || \
      (defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
       !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-      !defined(WOLFSSL_MLDSA_NO_VERIFY))) && \
+      !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WC_MLDSA_HAVE_NATIVE))) && \
     defined(WOLFSSL_SHAKE256) && !defined(WC_NO_RNG) && \
     !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 #define PQC_SHAKE_CB_TEST
@@ -94866,7 +94867,8 @@ static wc_test_ret_t cryptocb_pqc_mlkem_test(PqcHashDev* dev)
 #endif
 
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
 static wc_test_ret_t cryptocb_pqc_mldsa_test(PqcHashDev* dev)
 {
     wc_test_ret_t ret = 0;
@@ -95004,7 +95006,8 @@ static wc_test_ret_t cryptocb_pqc_shake_test(void)
         ret = cryptocb_pqc_mlkem_test(dev);
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
     if (ret == 0)
         ret = cryptocb_pqc_mldsa_test(dev);
 #endif
