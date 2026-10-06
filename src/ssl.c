@@ -986,6 +986,10 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     dup->CBIOSend = ssl->CBIOSend;
 #ifdef OPENSSL_EXTRA
     dup->cbioFlag = ssl->cbioFlag;
+    dup->maxSendFragment = ssl->maxSendFragment;
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+    dup->max_fragment = ssl->max_fragment;
 #endif
     dup->wfd    = ssl->wfd;
     dup->wflags = ssl->wflags;
@@ -10295,6 +10299,43 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
         return WOLFSSL_FAILURE;
 
     ssl->protoMsgCtx = arg;
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* OpenSSL SSL_CTX_set_max_send_fragment(): cap the plaintext of each record
+ * sent. Local only: the peer is not told and receiving is not limited.
+ * Accepts 512 to 16384. Unset means no cap. wolfSSL_new() copies the value,
+ * so later changes do not reach existing objects, as in OpenSSL.
+ * With a negotiated max_fragment_length the smaller limit applies, where
+ * OpenSSL uses the negotiated one. A DTLS write over the cap fails with
+ * DTLS_SIZE_ERROR, like one over the MTU.
+ *
+ * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on bad argument
+ */
+int wolfSSL_CTX_set_max_send_fragment(WOLFSSL_CTX* ctx, long max_fragment)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_max_send_fragment");
+    if (ctx == NULL || max_fragment < 512 || max_fragment > MAX_RECORD_SIZE)
+        return WOLFSSL_FAILURE;
+
+    ctx->maxSendFragment = (word16)max_fragment;
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* OpenSSL SSL_set_max_send_fragment(): as above for one object. Replaces the
+ * value copied from the WOLFSSL_CTX.
+ *
+ * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on bad argument
+ */
+int wolfSSL_set_max_send_fragment(WOLFSSL* ssl, long max_fragment)
+{
+    WOLFSSL_ENTER("wolfSSL_set_max_send_fragment");
+    if (ssl == NULL || max_fragment < 512 || max_fragment > MAX_RECORD_SIZE)
+        return WOLFSSL_FAILURE;
+
+    ssl->maxSendFragment = (word16)max_fragment;
     return WOLFSSL_SUCCESS;
 }
 

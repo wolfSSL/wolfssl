@@ -6010,6 +6010,75 @@ long wolfSSL_CTX_get_default_read_buffer_len(WOLFSSL_CTX* ctx);
 long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
 
 /*!
+    \ingroup Setup
+
+    \brief This function caps the plaintext carried in each record sent by
+    WOLFSSL objects created from the context afterwards. It is the wolfSSL
+    equivalent of OpenSSL's SSL_CTX_set_max_send_fragment(). The cap is local
+    and send only: the peer is not told and records received are not limited.
+    Unset, there is no cap. wolfSSL_new() copies the value, so a later call
+    does not change existing objects, as in OpenSSL. With a negotiated
+    max_fragment_length the smaller of the two limits applies, where OpenSSL
+    uses the negotiated length instead. A DTLS write larger than the cap fails
+    with DTLS_SIZE_ERROR, like one larger than the MTU, unless
+    WOLFSSL_NO_DTLS_SIZE_CHECK is defined. TLS 1.3 handshake messages that are
+    not split for max_fragment_length either, such as ClientHello and
+    ServerHello, are still sent in one record.
+
+    \return WOLFSSL_SUCCESS (1) If the cap was set.
+    \return WOLFSSL_FAILURE (0) If ctx is NULL or max_fragment is not in the
+    range 512 to 16384.
+
+    \param ctx WOLFSSL_CTX structure to set the cap on.
+    \param max_fragment most plaintext bytes in a record sent.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    // setup ctx
+    if (wolfSSL_CTX_set_max_send_fragment(ctx, 1024) != WOLFSSL_SUCCESS) {
+        // value out of range
+    }
+    \endcode
+
+    \sa wolfSSL_set_max_send_fragment
+    \sa wolfSSL_CTX_UseMaxFragment
+    \sa wolfSSL_GetMaxOutputSize
+*/
+int wolfSSL_CTX_set_max_send_fragment(WOLFSSL_CTX* ctx, long max_fragment);
+
+/*!
+    \ingroup Setup
+
+    \brief This function caps the plaintext carried in each record sent by a
+    single WOLFSSL object, replacing the value copied from its WOLFSSL_CTX. It
+    is the wolfSSL equivalent of OpenSSL's SSL_set_max_send_fragment() and
+    takes effect from the next record sent. See
+    wolfSSL_CTX_set_max_send_fragment() for the full description.
+
+    \return WOLFSSL_SUCCESS (1) If the cap was set.
+    \return WOLFSSL_FAILURE (0) If ssl is NULL or max_fragment is not in the
+    range 512 to 16384.
+
+    \param ssl WOLFSSL structure to set the cap on.
+    \param max_fragment most plaintext bytes in a record sent.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    // setup ssl
+    if (wolfSSL_set_max_send_fragment(ssl, 512) != WOLFSSL_SUCCESS) {
+        // value out of range
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_max_send_fragment
+    \sa wolfSSL_UseMaxFragment
+    \sa wolfSSL_GetMaxOutputSize
+*/
+int wolfSSL_set_max_send_fragment(WOLFSSL* ssl, long max_fragment);
+
+/*!
     \ingroup OCSP
 
     \brief This function sets the argument to be passed to the OCSP status

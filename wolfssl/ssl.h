@@ -2803,6 +2803,11 @@ WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length
                                                 (WOLFSSL *s, unsigned char mode);
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length
                                         (WOLFSSL_CTX *c, unsigned char mode);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_CTX_set_max_send_fragment(WOLFSSL_CTX* ctx,
+                                                  long max_fragment);
+WOLFSSL_API int wolfSSL_set_max_send_fragment(WOLFSSL* ssl, long max_fragment);
+#endif
 WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
 WOLFSSL_API char* wolfSSL_CONF_get1_default_config_file(void);
 WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg);
