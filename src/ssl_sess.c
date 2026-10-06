@@ -2447,7 +2447,7 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
         int count;
 
         count = wolfSSL_get_chain_count(&session->chain);
-        if (count < 1 || count >= MAX_CHAIN_DEPTH) {
+        if (count < 1 || count > MAX_CHAIN_DEPTH) {
             WOLFSSL_MSG("bad count found");
             return NULL;
         }

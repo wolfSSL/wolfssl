@@ -4207,6 +4207,42 @@ int test_wolfSSL_session_chain_resume_declined(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a session chain holding MAX_CHAIN_DEPTH certificates still names
+ * its peer.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SESSION_get0_peer_full_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(SESSION_CERTS) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_X509* peer = NULL;
+    const byte* der = NULL;
+    int derSz = 0;
+    int i;
+
+    ExpectIntLT(sizeof_server_cert_der_2048, MAX_X509_SIZE);
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
+            XMEMCPY(sess->chain.certs[i].buffer, server_cert_der_2048,
+                (size_t)sizeof_server_cert_der_2048);
+            sess->chain.certs[i].length = sizeof_server_cert_der_2048;
+        }
+        sess->chain.count = MAX_CHAIN_DEPTH;
+    }
+    ExpectNotNull(peer = wolfSSL_SESSION_get0_peer(sess));
+    ExpectNotNull(der = wolfSSL_X509_get_der(peer, &derSz));
+    ExpectIntEQ(derSz, sizeof_server_cert_der_2048);
+    ExpectBufEQ(der, server_cert_der_2048, sizeof_server_cert_der_2048);
+
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
  * mock has no other caller, so a wider condition here leaves it defined and
  * unused, which -Werror=unused-function rejects. Keep the two in step.
