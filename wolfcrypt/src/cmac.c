@@ -433,7 +433,7 @@ static int CmacAssociateTagSz(Cmac* cmac, word32 tagSz)
 }
 
 /* One tag length per key, per SP 800-38B 5.4, which gives a range not a
- * list. Pass WC_NO_TAG_ASSOCIATION to clear it.
+ * list. Once set, only a new key changes it.
  */
 int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen)
 {

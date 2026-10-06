@@ -242,11 +242,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
      defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
 
 /* One tag length per key, per SP 800-38D 5.2.1.2, SP 800-38C 5.3 and
- * SP 800-38B 5.4. Pass WC_NO_TAG_ASSOCIATION to clear it.
+ * SP 800-38B 5.4. Once set, only a new key changes it.
  */
 int wc_AesSetTagLen(Aes* aes, word32 tagLen)
 {
     if (aes == NULL || tagLen > WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    /* an associated length can be repeated, never changed or cleared */
+    if (aes->tagLen != WC_NO_TAG_ASSOCIATION && tagLen != aes->tagLen) {
         return BAD_FUNC_ARG;
     }
 
@@ -15872,10 +15876,6 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
-
     return wc_AesCcmEncrypt_silabs(
         aes, out, in, inSz,
         nonce, nonceSz,
@@ -15890,10 +15890,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authIn, word32 authInSz)
 {
     if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 

@@ -640,8 +640,8 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
 
 #if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
      defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
-/* no tag length is associated with the key yet, also pass to
- * wc_AesSetTagLen() or wc_CmacSetTagLen() to clear one */
+/* no tag length is associated with the key yet; only a new key returns
+ * it to this state */
 enum {
     WC_NO_TAG_ASSOCIATION = 0
 };

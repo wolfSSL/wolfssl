@@ -71,11 +71,12 @@
     #define WC_TEST_AES_ROUNDS_OFFLOADED
 #endif
 
-/* These hardware ports bring their own GCM or CCM, so the tag length check in
- * aes.c never runs there and the tag tests are skipped. */
+/* These hardware ports do their own GCM or CCM, so the tag length check in
+ * aes.c does not apply there and the tag tests are skipped. */
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_KCAPI_AES) || \
     defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_XILINX_CRYPT) || \
     defined(WOLFSSL_AFALG_XILINX_AES) || defined(WOLFSSL_TI_CRYPT) || \
+    defined(WOLFSSL_SILABS_SE_ACCEL) || \
     (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
      !defined(WOLFSSL_QNX_CAAM))
     #define WC_TEST_AES_TAG_OFFLOADED
@@ -3628,8 +3629,16 @@ static int test_aes_tag_bind(int type, word32 otherSz, word32 ivSz)
     ExpectIntEQ(wc_AesSetTagLen(&aes, WC_AES_BLOCK_SIZE + 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* associate the full length with this key, then otherSz must fail both
-     * ways */
+    /* an associated length can be repeated, never changed or cleared */
+    ExpectIntEQ(wc_AesSetTagLen(&aes, otherSz), 0);
+    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetTagLen(&aes, WC_NO_TAG_ASSOCIATION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* a new key starts over, and the full length set before first use means
+     * otherSz must fail both ways */
+    ExpectIntEQ(test_aes_tag_setkey(type, &aes, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
     ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
         ivSz, tag, sizeof(tag)), 0);
@@ -3640,11 +3649,7 @@ static int test_aes_tag_bind(int type, word32 otherSz, word32 ivSz)
         ivSz, tag, otherSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-    /* resetting the association drops it, and so does a new key */
-    ExpectIntEQ(wc_AesSetTagLen(&aes, WC_NO_TAG_ASSOCIATION), 0);
-    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
-        ivSz, tag, otherSz), 0);
-    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
+    /* a new key drops the association again */
     ExpectIntEQ(test_aes_tag_setkey(type, &aes, key, sizeof(key)), 0);
     ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
         ivSz, tag, otherSz), 0);

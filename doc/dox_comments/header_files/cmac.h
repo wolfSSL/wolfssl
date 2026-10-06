@@ -297,17 +297,17 @@ int wc_AesCmacVerify_ex(Cmac* cmac, const byte* check, word32 checkSz,
     \ingroup CMAC
     \brief This function associates one tag length with the key held by a
     Cmac object, as SP 800-38B section 5.4 requires. Once set, the final and
-    verify calls for that key accept only that tag length. Starting a new
-    Cmac clears the association. The length is kept on the AES object the
-    Cmac already holds.
+    verify calls for that key accept only that tag length, and this call
+    cannot change or clear it. Starting a new Cmac clears the association.
+    The length is kept on the AES object the Cmac already holds.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG Returned if cmac is NULL, or the length is outside
-    WC_CMAC_TAG_MIN_SZ to WC_CMAC_TAG_MAX_SZ.
+    \return BAD_FUNC_ARG Returned if cmac is NULL, the length is outside
+    WC_CMAC_TAG_MIN_SZ to WC_CMAC_TAG_MAX_SZ, or a different length is
+    already associated.
 
     \param cmac pointer to the Cmac object holding the key
-    \param tagLen tag length to associate with the key, or
-    WC_NO_TAG_ASSOCIATION to clear it
+    \param tagLen tag length to associate with the key
 
     _Example_
     \code

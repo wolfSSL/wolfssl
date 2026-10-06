@@ -376,12 +376,13 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     object shared read only between threads for one-shot AES-GCM or AES-CCM
     needs its length set here before it is handed out.
 
-    The first use of a key fixes its tag length even without this call. Set
-    the key again through one of those two, or pass WC_NO_TAG_ASSOCIATION, to
-    clear it. wc_AesSetKey() clears it as well on builds that use the software
-    key schedule, but a backend with its own key setter does not. Ports that
-    replace the AES-GCM or AES-CCM entry points enforce their own tag rules,
-    and such a build would be validated as a hybrid module.
+    The first use of a key fixes its tag length even without this call. Once
+    a length is associated this call can repeat it but not change or clear
+    it; set the key again through one of those two to start over.
+    wc_AesSetKey() clears it as well on builds that use the software key
+    schedule, but a backend with its own key setter does not. Hardware
+    offload ports do not apply this association, and such a build would be
+    validated as a hybrid module.
 
     A crypto callback is checked here before the work is handed over, because
     the key it forwards is the one this object holds. A callback that builds a
@@ -397,12 +398,11 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     reaches this check.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG Returned if aes is NULL, or the length is larger
-    than the AES block size.
+    \return BAD_FUNC_ARG Returned if aes is NULL, the length is larger
+    than the AES block size, or a different length is already associated.
 
     \param aes pointer to the AES object holding the key
-    \param tagLen tag length to associate with the key, or
-    WC_NO_TAG_ASSOCIATION to clear it
+    \param tagLen tag length to associate with the key
 
     _Example_
     \code
