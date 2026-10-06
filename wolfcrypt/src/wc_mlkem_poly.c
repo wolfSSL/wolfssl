@@ -6140,6 +6140,20 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+#if defined(WOLFSSL_ARMASM_THUMB2) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+/* Compress the vector of polynomials into a byte array with 10 bits each.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * Coefficients must be in range 0..2q-1 and are not modified.
+ *
+ * @param  [out]      r  Array of bytes.
+ * @param  [in, out]  v  Vector of polynomials.
+ * @param  [in]       k  Number of polynomials in vector.
+ */
+#define mlkem_vec_compress_10_c     mlkem_thumb2_vec_compress_10
+#else
 /* Compress the vector of polynomials into a byte array with 10 bits each.
  *
  * FIPS 203, Section 4.2.1, Compression and decompression
@@ -6241,6 +6255,8 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
 #endif
     }
 }
+#endif /* WOLFSSL_ARMASM_THUMB2 && WOLFSSL_ARMASM &&
+        * !WOLF_CRYPTO_CB_ONLY_MLKEM */
 
 /* Compress the vector of polynomials into a byte array with 10 bits each.
  *
@@ -6282,6 +6298,19 @@ void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if defined(WOLFSSL_ARMASM_THUMB2) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+/* Compress the vector of polynomials into a byte array with 11 bits each.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * Coefficients must be in range 0..2q-1 and are not modified.
+ *
+ * @param  [out]      r  Array of bytes.
+ * @param  [in, out]  v  Vector of polynomials.
+ */
+#define mlkem_vec_compress_11_c     mlkem_thumb2_vec_compress_11
+#else
 /* Compress the vector of polynomials into a byte array with 11 bits each.
  *
  * FIPS 203, Section 4.2.1, Compression and decompression
@@ -6356,6 +6385,8 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
         }
     }
 }
+#endif /* WOLFSSL_ARMASM_THUMB2 && WOLFSSL_ARMASM &&
+        * !WOLF_CRYPTO_CB_ONLY_MLKEM */
 
 /* Compress the vector of polynomials into a byte array with 11 bits each.
  *
