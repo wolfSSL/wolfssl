@@ -2288,6 +2288,9 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     byte* cb = c;
     /* Number of bytes a polynomial of u is compressed into. */
     unsigned int blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_10BITS);
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    int cmpFail = 0;
+#endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
     if (k == WC_ML_KEM_1024_K) {
@@ -2295,8 +2298,12 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     }
 #endif
 
+    /* Comparing against a cipher text requires somewhere to accumulate the
+     * result. */
+    if ((cmp != NULL) && (fail == NULL)) {
+        return BAD_FUNC_ARG;
+    }
 #ifdef WOLFSSL_MLKEM_NO_DECAPSULATE
-    (void)fail;
     if (cmp != NULL) {
         return BAD_FUNC_ARG;
     }
@@ -2396,7 +2403,7 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
             int blockFail;
 
             ret = mlkem_cmp(cb, cmp, (int)blockSz, &blockFail);
-            *fail |= blockFail;
+            cmpFail |= blockFail;
             if (ret != 0) {
                 break;
             }
@@ -2472,7 +2479,10 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
         int blockFail;
 
         ret = mlkem_cmp(cb, cmp, (int)blockSz, &blockFail);
-        *fail |= blockFail;
+        if (ret == 0) {
+            /* Only a comparison of every block may clear the caller's fail. */
+            *fail = cmpFail | blockFail;
+        }
     }
 #endif
     /* Step 24: return c <- (c_1||c_2) */
