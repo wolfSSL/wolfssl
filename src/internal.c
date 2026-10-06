@@ -26773,16 +26773,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 SERVER_FINISHED_COMPLETE &&
                             ssl->options.handShakeState != HANDSHAKE_DONE)))
 #endif
-#ifdef WOLFSSL_TLS_READ_AHEAD
-                    /* With read-ahead, more than one record may be buffered. If
-                     * application data was just decrypted, return it now so it
-                     * is delivered to the caller before any following buffered
-                     * record (e.g. a close_notify alert) is processed, which
-                     * would otherwise discard the pending app data. The
-                     * remaining records stay buffered for the next call. */
+                    /* Deliver application data before processing another
+                     * record. The plaintext may point into the input buffer,
+                     * which could move when the next record is read. */
                     || (ssl->curRL.type == application_data &&
                         ssl->buffers.clearOutputBuffer.length > 0)
-#endif
                     ) {
                     /* Shrink input buffer when we successfully finish record
                      * processing */
