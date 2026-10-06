@@ -91,6 +91,29 @@ pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
     u32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
 }
 
+/// Feed `data` to a streaming update function in chunks that fit wolfCrypt's
+/// 32-bit length type.
+///
+/// The infallible RustCrypto `Update` trait accepts a slice of any length,
+/// which on a 64-bit target can exceed `u32::MAX`. Hash and MAC updates are
+/// streaming operations, so splitting the input across several calls produces
+/// the same result as a single call would.
+#[cfg(any(feature = "digest", feature = "mac"))]
+pub(crate) fn update_in_chunks<F>(data: &[u8], mut update: F) -> Result<(), i32>
+where
+    F: FnMut(&[u8]) -> Result<(), i32>,
+{
+    const MAX_CHUNK: usize = u32::MAX as usize;
+
+    if data.len() <= MAX_CHUNK {
+        return update(data);
+    }
+    for chunk in data.chunks(MAX_CHUNK) {
+        update(chunk)?;
+    }
+    Ok(())
+}
+
 /// Convert a buffer length to `i32`, returning `BUFFER_E` if it overflows.
 pub(crate) fn buffer_len_to_i32(len: usize) -> Result<i32, i32> {
     i32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
