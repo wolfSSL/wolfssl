@@ -89216,6 +89216,10 @@ typedef struct {
     int mldsaSignHashCount;   /* ML-DSA pre-hash sign invocations */
     int mldsaVerifyHashCount; /* ML-DSA pre-hash verify invocations */
 #endif
+#ifdef HAVE_FALCON
+    int falconCheckRet;      /* key check callback return */
+    word32 falconCheckPubSz; /* public key length passed to callback */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -91498,6 +91502,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->exampleVar++;
         }
     #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+    #ifdef HAVE_FALCON
+        /* Software check runs in the caller when this is unavailable. */
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY &&
+                info->pk.pqc_sig_check.type == WC_PQC_SIG_TYPE_FALCON) {
+            myCtx->falconCheckPubSz = info->pk.pqc_sig_check.pubKeySz;
+            ret = myCtx->falconCheckRet;
+            myCtx->exampleVar++;
+        }
+    #endif /* HAVE_FALCON */
     #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE)
     #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
         if ((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
@@ -95344,6 +95357,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.mldsaSignHashCount = 0;
     myCtx.mldsaVerifyHashCount = 0;
 #endif
+#ifdef HAVE_FALCON
+    myCtx.falconCheckRet   = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    myCtx.falconCheckPubSz = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -96271,7 +96288,125 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             ret = WC_TEST_RET_ENC_NC;
         myCtx.exampleVar = baseline;
     }
-#endif
+#endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
+#ifdef HAVE_FALCON
+    /* wc_falcon_check_key() dispatches to callback and returns its result */
+    if (ret == 0) {
+        WC_DECLARE_VAR(key, falcon_key, 1, HEAP_HINT);
+        int key_inited = 0;
+        int baseline = myCtx.exampleVar;
+        int prev = 0;
+        int r;
+
+        WC_ALLOC_VAR(key, falcon_key, 1, HEAP_HINT);
+        if (!WC_VAR_OK(key))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        if (ret == 0) {
+            r = wc_falcon_init_ex(key, HEAP_HINT, devId);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else
+                key_inited = 1;
+        }
+        if (ret == 0) {
+        #ifndef WOLFSSL_NO_FALCON_LEVEL1
+            r = wc_falcon_set_level(key, FALCON_LEVEL1);
+        #else
+            r = wc_falcon_set_level(key, FALCON_LEVEL5);
+        #endif
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        /* Key only in the device, so no public key is passed */
+        if (ret == 0) {
+            myCtx.falconCheckRet   = 0;
+            myCtx.falconCheckPubSz = 1;
+            prev = myCtx.exampleVar;
+            r = wc_falcon_check_key(key);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else if (myCtx.exampleVar == prev)
+                ret = WC_TEST_RET_ENC_NC; /* never reached the callback */
+            else if (myCtx.falconCheckPubSz != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        /* Bad arguments rejected before dispatch */
+        if (ret == 0) {
+            byte savedLevel = key->level;
+
+            if (wc_falcon_check_key(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            key->level = 3; /* not a Falcon parameter set */
+            if ((ret == 0) &&
+                (wc_falcon_check_key(key) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)))
+                ret = WC_TEST_RET_ENC_NC;
+            key->level = savedLevel;
+        }
+        /* Device error is returned as-is; software never returns WC_HW_E */
+        if (ret == 0) {
+            myCtx.falconCheckRet = WC_NO_ERR_TRACE(WC_HW_E);
+            prev = myCtx.exampleVar;
+            r = wc_falcon_check_key(key);
+            if (r != WC_NO_ERR_TRACE(WC_HW_E))
+                ret = WC_TEST_RET_ENC_NC;
+            else if (myCtx.exampleVar == prev)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        /* Unavailable falls back to software, which has no local key */
+        if (ret == 0) {
+            myCtx.falconCheckRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            prev = myCtx.exampleVar;
+            r = wc_falcon_check_key(key);
+            if (r != WC_NO_ERR_TRACE(PUBLIC_KEY_E))
+                ret = WC_TEST_RET_ENC_NC;
+            else if (myCtx.exampleVar == prev)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+    #if !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+        !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
+        /* Local key: public key is passed, then software check on fallback */
+        if (ret == 0) {
+            WC_DECLARE_VAR(falconRng, WC_RNG, 1, HEAP_HINT);
+            int rng_inited = 0;
+
+            WC_ALLOC_VAR(falconRng, WC_RNG, 1, HEAP_HINT);
+            if (!WC_VAR_OK(falconRng))
+                ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+            if (ret == 0) {
+                r = wc_InitRng_ex(falconRng, HEAP_HINT, INVALID_DEVID);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+                else
+                    rng_inited = 1;
+            }
+            if (ret == 0) {
+                r = wc_falcon_make_key(key, falconRng);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+            }
+            if (ret == 0) {
+                prev = myCtx.exampleVar;
+                r = wc_falcon_check_key(key);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+                else if (myCtx.exampleVar == prev)
+                    ret = WC_TEST_RET_ENC_NC;
+                else if (myCtx.falconCheckPubSz !=
+                         (word32)wc_falcon_pub_size(key))
+                    ret = WC_TEST_RET_ENC_NC; /* public key was not passed */
+            }
+            if (rng_inited)
+                wc_FreeRng(falconRng);
+            WC_FREE_VAR(falconRng, HEAP_HINT);
+        }
+    #endif /* !WOLFSSL_FALCON_VERIFY_ONLY && !WOLF_CRYPTO_CB_ONLY_FALCON */
+        myCtx.falconCheckRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        if (key_inited)
+            wc_falcon_free(key);
+        WC_FREE_VAR(key, HEAP_HINT);
+        myCtx.exampleVar = baseline;
+    }
+#endif /* HAVE_FALCON */
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
     if (ret == 0)
         ret = xmss_test();
