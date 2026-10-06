@@ -52,7 +52,7 @@
 #ifdef OPENSSL_ALL
     #define MAX_PKCS7_CERTS 15
 #else
-    #define MAX_PKCS7_CERTS 4
+    #define MAX_PKCS7_CERTS 8
 #endif
 #endif
 
