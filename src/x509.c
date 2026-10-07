@@ -11182,6 +11182,10 @@ int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
             if (!(ret = wolfSSL_X509_VERIFY_PARAM_set1_host(to, from->hostName,
                 (unsigned int)XSTRLEN(from->hostName))))
                 return ret;
+    }
+    /* host flags */
+    if (isOverWrite ||
+        (from->hostFlags != 0 && (to->hostFlags == 0 || isDefault))) {
         to->hostFlags = from->hostFlags;
     }
     /* ip ascii */
