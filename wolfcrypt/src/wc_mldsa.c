@@ -9181,6 +9181,57 @@ static int mldsa_vec_make_pos(sword32* a, byte l)
 
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
 
+#ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+/* Wipe the cached private vectors s1, s2 and t0. */
+static void mldsa_wipe_priv_vecs(wc_MlDsaKey* key)
+{
+#ifndef WC_MLDSA_FIXED_ARRAY
+    if ((key->s1 != NULL) && (key->params != NULL)) {
+        ForceZero(key->s1, (word32)key->params->s1Sz +
+            2U * (word32)key->params->s2Sz);
+    }
+#else
+    ForceZero(key->s1, sizeof(key->s1));
+    ForceZero(key->s2, sizeof(key->s2));
+    ForceZero(key->t0, sizeof(key->t0));
+#endif
+    key->privVecsSet = 0;
+}
+#endif
+
+/* Wipe the private key and anything cached from it. */
+static void mldsa_wipe_priv(wc_MlDsaKey* key)
+{
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
+    if (key->k != NULL) {
+        ForceZero(key->k, key->kSz);
+    }
+#elif !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+    ForceZero(key->k, sizeof(key->k));
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    mldsa_wipe_priv_vecs(key);
+#endif
+    key->prvKeySet = 0;
+}
+
+/* Wipe a SHAKE object that a failed step left mid-operation. */
+static void mldsa_shake_wipe(wc_Shake* shake)
+{
+#ifndef PSOC6_HASH_SHA3
+    ForceZero(shake->s, sizeof(shake->s));
+    ForceZero(shake->t, sizeof(shake->t));
+#ifdef WC_SHA3_SCRATCH_W
+    ForceZero(shake->scratch, sizeof(shake->scratch));
+#endif
+    shake->i = 0;
+#else
+    (void)wc_Shake256_Reset(shake);
+#endif
+}
+#endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
+
 /******************************************************************************/
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
@@ -9249,6 +9300,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     if (ret == 0) {
         pub_seed = key->k;
+        if (key->prvKeySet) {
+            /* Do not write the new key over the old one. */
+            mldsa_wipe_priv(key);
+        }
     }
 
     /* Allocate memory for large intermediates. */
@@ -9352,9 +9407,13 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         byte* s2p = s1p + params->s1EncSz;
         byte* t0 = s2p + params->s2EncSz;
         byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
+        byte kBuf[MLDSA_K_SZ];
 
-        /* Step 9: Move k down to after public seed. */
-        XMEMCPY(k, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
+        /* Step 9: Move k down to after public seed; rho' is done with. */
+        XMEMCPY(kBuf, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
+        ForceZero(k, MLDSA_PRIV_SEED_SZ + MLDSA_K_SZ);
+        XMEMCPY(k, kBuf, MLDSA_K_SZ);
+        ForceZero(kBuf, sizeof(kBuf));
         /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
         if (ret == 0) {
             ret = mldsa_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
@@ -9426,6 +9485,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     }
     XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
 #endif
+    if (ret != 0) {
+        mldsa_wipe_priv(key);
+        mldsa_shake_wipe(&key->shake);
+    }
     return ret;
 #else
     int ret = 0;
@@ -9453,6 +9516,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     if (ret == 0) {
         pub_seed = key->k;
+        if (key->prvKeySet) {
+            /* Do not write the new key over the old one. */
+            mldsa_wipe_priv(key);
+        }
     }
 
     /* Allocate memory for large intermediates. */
@@ -9520,6 +9587,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         byte* s2p = s1p + params->s1EncSz;
         byte* t0 = s2p + params->s2EncSz;
         byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
+        byte kBuf[MLDSA_K_SZ];
         byte aseed[MLDSA_GEN_A_SEED_SZ];
         /* One decoded s2 polynomial, held after t in the dead s2 vector. */
         sword32* s2t = t + MLDSA_N;
@@ -9527,8 +9595,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         const byte* s2pt = s2p;
         word32 s2Stride = (word32)params->s2EncSz / params->k;
 
-        /* Step 9: Move k down to after public seed. */
-        XMEMCPY(k, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
+        /* Step 9: Move k down to after public seed; rho' is done with. */
+        XMEMCPY(kBuf, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
+        ForceZero(k, MLDSA_PRIV_SEED_SZ + MLDSA_K_SZ);
+        XMEMCPY(k, kBuf, MLDSA_K_SZ);
+        ForceZero(kBuf, sizeof(kBuf));
         /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
         if (ret == 0) {
             ret = mldsa_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
@@ -9702,6 +9773,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         ForceZero(s1, allocSz);
     }
     XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
+    if (ret != 0) {
+        mldsa_wipe_priv(key);
+        mldsa_shake_wipe(&key->shake);
+    }
     return ret;
 #endif
 }
@@ -9957,6 +10032,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     byte priv_rand_seed[MLDSA_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
     unsigned int allocSz = 0;
+    unsigned int rejSz = 0;
 #ifdef WC_MLDSA_FAULT_HARDEN
    sword32* y_check;
 #endif
@@ -10025,6 +10101,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         /* y-l, w0-k, w1-k, c-1, z-l, ct0-k */
         allocSz = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
             (unsigned int)MLDSA_POLY_SIZE + params->s1Sz + params->s2Sz;
+        rejSz = allocSz;
 #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
         /* s1-l, s2-k, t0-k */
         allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
@@ -10250,10 +10327,16 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     }
                 }
 
+                if (WC_VAR_OK(w1e)) {
+                    ForceZero(w1e, MLDSA_MAX_W1_ENC_SZ);
+                }
                 WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_MLDSA);
             }
 
             if (!valid) {
+                /* Wipe the rejected candidate rather than overwrite it. */
+                ForceZero(y, rejSz);
+                ForceZero(sig, params->sigSz);
                 /* Too many attempts - something wrong with implementation. */
                 if ((kappa > (word16)(kappa + params->l))) {
                     ret = BAD_COND_E;
@@ -10297,6 +10380,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         ForceZero(y, zeroSz);
     }
     XFREE(y, key->heap, DYNAMIC_TYPE_MLDSA);
+    if (ret != 0) {
+        mldsa_shake_wipe(&key->shake);
+    }
     return ret;
 #elif !defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM)
     int ret = 0;
@@ -10917,6 +11003,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             }
 
             if (!valid) {
+                /* Wipe the rejected candidate; A and cached keys stay. */
+                ForceZero(y, (size_t)((byte*)a - (byte*)y));
+                ForceZero(w1e, (size_t)params->w1EncSz +
+                    MLDSA_REJ_NTT_POLY_H_SIZE);
+                ForceZero(sig, params->sigSz);
                 /* Too many attempts - something wrong with implementation. */
                 if ((kappa > (word16)(kappa + params->l))) {
                     ret = BAD_COND_E;
@@ -10947,6 +11038,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         ForceZero(y, allocSz);
     }
     XFREE(y, key->heap, DYNAMIC_TYPE_MLDSA);
+    if (ret != 0) {
+        mldsa_shake_wipe(&key->shake);
+    }
     return ret;
 #else
     int ret = 0;
@@ -13734,9 +13828,7 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
 
 #if !defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) && \
     !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
-        if (key->prvKeySet) {
-            ForceZero(key->k, sizeof(key->k));
-        }
+        ForceZero(key->k, sizeof(key->k));
 #endif
         /* Store level and indicate public and private key are not set. */
         key->level = level % WC_ML_DSA_DRAFT;
@@ -14290,9 +14382,9 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
     }
 
     if (key != NULL) {
-        /* Zeroize secret s1/s2/t0 at the front (trailing t/t1/A are public). */
+        /* s1, s2, t0 and t, which held t0; t1 and A are public. */
         if ((s1 != NULL) && (params != NULL)) {
-            ForceZero(s1, (word32)params->s1Sz + 2U * (word32)params->s2Sz);
+            ForceZero(s1, (word32)params->s1Sz + 3U * (word32)params->s2Sz);
         }
         /* Dispose of allocated memory. */
         XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
@@ -14611,6 +14703,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
 {
     int ret = 0;
     int expPrivSz;
+    int copied = 0;
 #if (defined(WC_MLDSA_CACHE_MATRIX_A) || \
      defined(WC_MLDSA_CACHE_PRIV_VECTORS)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
@@ -14657,8 +14750,11 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     #ifdef WOLFSSL_MLDSA_ASSIGN_KEY
         key->k = priv;
     #else
+        /* Do not write the new key over the old one. */
+        ForceZero(key->k, privSz);
         XMEMCPY(key->k, priv, privSz);
     #endif
+        copied = 1;
     }
 
         /* Allocate and create cached values. The caches only feed the
@@ -14709,6 +14805,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     }
 #endif
     if (ret == 0) {
+        mldsa_wipe_priv_vecs(key);
         /* Compute vectors from private key. */
         ret = mldsa_make_priv_vecs(key, key->s1, key->s2, key->t0);
     }
@@ -14716,6 +14813,9 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     if (ret == 0) {
         /* Private key is set. */
         key->prvKeySet = 1;
+    }
+    else if (copied) {
+        mldsa_wipe_priv(key);
     }
 
     return ret;
