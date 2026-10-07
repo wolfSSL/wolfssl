@@ -6275,6 +6275,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
 {
     unsigned int i;
     unsigned int j;
+#if defined(WOLFSSL_MLKEM_SMALL) && (defined(WOLFSSL_SMALL_STACK) || \
+    defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || defined(BIG_ENDIAN_ORDER) || \
+    defined(WOLFSSL_WIDE_BYTE))
+    sword16 t[4];
+#endif
 
     for (i = 0; i < k; i++) {
         /* Reduce each coefficient to mod q. */
@@ -6290,7 +6295,6 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
         for (j = 0; j < MLKEM_N; j += 4) {
         #ifdef WOLFSSL_MLKEM_SMALL
             unsigned int l;
-            sword16 t[4];
             /* Compress four polynomial values to 10 bits each. */
             for (l = 0; l < 4; l++) {
                 t[l] = TO_COMP_WORD_10(v, i, j, l);
@@ -6363,6 +6367,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
         }
 #endif
     }
+#if defined(WOLFSSL_MLKEM_SMALL) && (defined(WOLFSSL_SMALL_STACK) || \
+    defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || defined(BIG_ENDIAN_ORDER) || \
+    defined(WOLFSSL_WIDE_BYTE))
+    ForceZero(t, sizeof(t));
+#endif
 }
 
 /* Compress the vector of polynomials into a byte array with 10 bits each.
@@ -6427,6 +6436,7 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
     unsigned int j;
 #ifdef WOLFSSL_MLKEM_SMALL
     unsigned int k;
+    sword16 t[8];
 #endif
 
     for (i = 0; i < 4; i++) {
@@ -6440,7 +6450,6 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
         /* Each 8 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 8) {
         #ifdef WOLFSSL_MLKEM_SMALL
-            sword16 t[8];
             /* Compress eight polynomial values to 11 bits each. */
             for (k = 0; k < 8; k++) {
                 t[k] = TO_COMP_WORD_11(v, i, j, k);
@@ -6487,6 +6496,9 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
             r += 11;
         }
     }
+#ifdef WOLFSSL_MLKEM_SMALL
+    ForceZero(t, sizeof(t));
+#endif
 }
 
 /* Compress the vector of polynomials into a byte array with 11 bits each.
@@ -6914,6 +6926,9 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
         /* Move over set bytes. */
         b += 4;
     }
+#ifdef WOLFSSL_MLKEM_SMALL
+    ForceZero(t, sizeof(t));
+#endif
 }
 
 /* Compress a polynomial into byte array with coefficients of 4 bits.
@@ -7017,6 +7032,9 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         /* Move over set bytes. */
         b += 5;
     }
+#ifdef WOLFSSL_MLKEM_SMALL
+    ForceZero(t, sizeof(t));
+#endif
 }
 
 /* Compress a polynomial into byte array with coefficients of 5 bits.
