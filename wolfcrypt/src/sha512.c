@@ -304,7 +304,11 @@
     }
     void wc_Sha512Free(wc_Sha512* sha512)
     {
+        if (sha512 == NULL) {
+            return;
+        }
         se050_hash_free(&sha512->se050Ctx);
+        ForceZero(sha512, sizeof(*sha512));
     }
 #elif defined(STM32_HASH_SHA512)
 
