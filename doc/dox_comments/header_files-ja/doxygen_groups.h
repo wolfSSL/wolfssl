@@ -170,7 +170,7 @@
         -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() または
         -# wc_ImportSakkeKey()
       -# リクエストを待機:
-        -# クライアントのIDに基づいてRSKを作成: wc_MakeSakkeRsk()
+        -# クライアントのIDに基づいてRSKを作成: wc_MakeSakkeRsk_ex()
         -# クライアントへの転送のためにRSKをエンコード: wc_EncodeSakkeRsk()
       -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
@@ -231,7 +231,7 @@
     これらの操作は、受信者秘密鍵(RSK)を作成、検証、エンコード、デコードします。
 
     RSKは、SSVを導出するために必要です(wc_DeriveSakkeSSV()を参照)。\n
-    KMSで、クライアントのIDからRSKを作成(wc_MakeSakkeRsk())。\n
+    KMSで、クライアントのIDからRSKを作成(wc_MakeSakkeRsk_ex())。\n
     クライアントで、IDでRSKを検証(wc_ValidateSakkeRsk())。\n
     クライアントへの転送またはストレージのためにRSKをエンコード(wc_EncodeSakkeRsk())。\n
     必要に応じてクライアントでRSKをデコード(wc_DecodeSakkeRsk())。\n
