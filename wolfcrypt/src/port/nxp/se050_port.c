@@ -1296,6 +1296,10 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
 
 void se050_hash_free(SE050_HASH_Context* se050Ctx)
 {
+    if (se050Ctx->msg != NULL) {
+        /* The buffered message may be keyed (ISO/IEC 19790 7.9.7). */
+        ForceZero(se050Ctx->msg, se050Ctx->len);
+    }
     XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
     se050Ctx->msg = NULL;
     se050Ctx->len  = 0;
