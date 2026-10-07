@@ -241,6 +241,135 @@ int test_tls13_unexpected_ccs(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+/* Set up a client and server and run the first flight of each, leaving the
+ * server's reply unread in the client's input. */
+static int test_record_version_first_flight(struct test_memio_ctx *test_ctx,
+    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
+    method_provider method_c, method_provider method_s)
+{
+    EXPECT_DECLS;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+            method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(*ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    /* The ServerHello record header leads the client's input. */
+    ExpectIntGT(test_ctx->c_len, RECORD_HEADER_SZ);
+    ExpectIntEQ(test_ctx->c_buff[0], handshake);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 8446 5.1: a TLS 1.3 peer must ignore the minor version in
+ * TLSPlaintext.legacy_record_version. Rewrite it on the ServerHello and on a
+ * change_cipher_spec record and check that the handshake still completes. */
+int test_tls13_plaintext_record_version_ignored(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+    const byte minors[] = { SSLv3_MINOR, TLSv1_MINOR, TLSv1_1_MINOR,
+                            TLSv1_3_MINOR };
+    const byte ccs[] = {
+        change_cipher_spec, SSLv3_MAJOR, TLSv1_1_MINOR,
+        0x00, 0x01, /* length */
+        0x01        /* ccs value */
+    };
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    size_t i;
+
+    for (i = 0; i < sizeof(minors); i++) {
+        ExpectIntEQ(test_record_version_first_flight(&test_ctx, &ctx_c,
+                &ctx_s, &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), TEST_SUCCESS);
+        test_ctx.c_buff[2] = minors[i];
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        ssl_c = NULL;
+        ssl_s = NULL;
+        ctx_c = NULL;
+        ctx_s = NULL;
+    }
+
+    /* Client's change_cipher_spec: rewrite the middlebox compatibility one
+     * when the build sends it, otherwise inject one ahead of the Finished. */
+    ExpectIntEQ(test_record_version_first_flight(&test_ctx, &ctx_c, &ctx_s,
+            &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.s_len, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        if (test_ctx.s_buff[0] == change_cipher_spec) {
+            test_ctx.s_buff[2] = TLSv1_1_MINOR;
+        }
+        else {
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                    (const char*)ccs, sizeof(ccs)), 0);
+            ExpectIntEQ(test_memio_move_message(&test_ctx, 0,
+                    test_ctx.s_msg_count - 1, 0), 0);
+        }
+    }
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The record version check that stays in place alongside the TLS 1.3
+ * relaxation: once a downgrade-capable client has negotiated TLS 1.2, every
+ * record must match the negotiated version. */
+int test_tls_record_version_still_checked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+    char buf[8];
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* The client starts at TLS 1.3 and drops to TLS 1.2, after which a
+     * non-application_data record must match the negotiated version. */
+    ExpectIntEQ(test_record_version_first_flight(&test_ctx, &ctx_c, &ctx_s,
+            &ssl_c, &ssl_s, wolfTLS_client_method, wolfTLSv1_2_server_method),
+            TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    ExpectIntEQ(test_ctx.c_buff[0], alert);
+    test_ctx.c_buff[2] = TLSv1_1_MINOR;
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A record whose length field exceeds the protocol limit must be answered
  * with a record_overflow alert (RFC 8446 section 5.1, RFC 5246 section 6.2.1).
  * Before the fix the alert was only sent when HAVE_MAX_FRAGMENT was defined,
