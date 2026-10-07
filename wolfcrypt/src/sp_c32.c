@@ -27087,7 +27087,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
     }
 
     SP_ZEROFREE_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -28848,7 +28848,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_256_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -29008,7 +29008,7 @@ int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_256_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -29786,11 +29786,7 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 9U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 9U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 9U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 9U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 9U);
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -34508,7 +34504,7 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
     }
 
     SP_ZEROFREE_VAR(sp_digit, k, 15, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -36781,7 +36777,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_384_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -36941,7 +36937,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_384_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -37728,11 +37724,7 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 15U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 15U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 15U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 15U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 15U);
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -41994,7 +41986,7 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
     }
 
     SP_ZEROFREE_VAR(sp_digit, k, 21, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -44778,7 +44770,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_521_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -44938,7 +44930,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_521_ctx));
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
@@ -45770,11 +45762,7 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 21U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 21U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 21U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 21U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 21U);
+        ForceZero(ctx, sizeof(*ctx));
     }
 
     return err;
