@@ -669,6 +669,14 @@ int wc_FreeRsaKey(RsaKey* key)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_RSA_NONBLOCK
+    /* An abandoned operation leaves a copy of d in the context. */
+    if (key->nb != NULL) {
+        ForceZero(key->nb, sizeof(RsaNb));
+        key->nb = NULL;
+    }
+#endif
+
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -1744,9 +1752,16 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         xorbuf(m, salt + o, (word32)saltLen);
     }
 
+#if !defined(WOLFSSL_PSS_LONG_SALT) && !defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
+    ForceZero(salt, sizeof(salt));
+#endif
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-    /* msg is always not NULL as we bail on allocation failure */
-    XFREE(msg, heap, DYNAMIC_TYPE_RSA_BUFFER);
+    if (msg != NULL) {
+        ForceZero(msg, RSA_PSS_PAD_SZ + inputLen + (word32)saltLen);
+        XFREE(msg, heap, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+#else
+    ForceZero(msg, RSA_PSS_PAD_SZ + inputLen + (word32)saltLen);
 #endif
     return ret;
 }
@@ -1929,6 +1944,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
                  pkcsBlockLen - hLen - 1, tmp, hLen, heap);
     if (ret != 0) {
+        ForceZero(tmp, hLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+        wc_MemZero_Check(tmp, hLen);
+#endif
         WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -6095,6 +6115,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     /* Take off blinding from d and reset e */
     if (err == MP_OKAY)
         err = mp_mulmod(&key->d, &key->p, tmp3, &key->d);
+    /* The blind, its gcd and the blinded e were staged in p, q and e. */
+    mp_forcezero(&key->p);
+    mp_forcezero(&key->q);
+    mp_forcezero(&key->e);
     if (err == MP_OKAY)
         err = mp_set_int(&key->e, (unsigned long)e);
 #endif
@@ -6243,8 +6267,11 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    if (nb) {
-        XMEMSET(nb, 0, sizeof(RsaNb));
+    if (nb != NULL) {
+        ForceZero(nb, sizeof(RsaNb));
+    }
+    if ((key->nb != NULL) && (key->nb != nb)) {
+        ForceZero(key->nb, sizeof(RsaNb));
     }
 
     /* Allow nb == NULL to clear non-block mode */
