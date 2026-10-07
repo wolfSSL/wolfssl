@@ -1040,8 +1040,8 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
  * NextSeedProducerRelease()) -- the sentinel alone suppresses the pre-event
  * material; abandoned seed-aperture buffers are zeroized as explained below.
  * All other states purge directly to EMPTY.  (The uncredited stir aperture
- * keeps its plain-store purge: stirs carry no claims, so resurrection there is
- * benign by the three-no-ops doctrine.)
+ * is purged by NextStirPurge(): stirs carry no claims, so resurrection there
+ * is benign by the three-no-ops doctrine.)
  *
  * Zeroization doctrine for purges: abandonment here is event-driven (fork,
  * VM clone/resume, credited reseed), and the event that abandons bytes in
@@ -1057,9 +1057,7 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
  * wc_RNG_DRBG_NextSeedNow_Nonce_local()'s failed-release arm.  Reopening
  * EMPTY from under a live holder would let a producer claim and begin a
  * fill that the holder's own trailing wipe then tears.
- * Contrast the health-test burn arm, which stays sentinel-only: RCT/APT
- * are deterministic on the bytes, so every sibling rejects the same
- * material identically and no lineage can have consumed it.
+ * The health-test burn arm wipes under its own PRODUCING claim.
  */
 static WARN_UNUSED_RESULT int NextSeedPurge(WC_RNG *rng)
 {
@@ -1142,6 +1140,27 @@ static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
     (void)wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
                                        WC_DRBG_NEXT_SEED_EMPTY);
     return BUSY_E;
+}
+
+/* Purge the uncredited stir accumulator.  Claimed CONSUMING first so the wipe
+ * runs under ownership; a holder's burn-before-release covers the CONSUMING
+ * case.  Blind depositors can tear the wipe, which is harmless. */
+static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
+{
+    WC_ATOMIC_INT_ARG cur;
+    int ret;
+
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->nextStirLen, cur, ret) {
+        if (cur == WC_DRBG_NEXT_SEED_CONSUMING)
+            return;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                      &rng->nextStirLen, cur,
+                                      WC_DRBG_NEXT_SEED_CONSUMING, ret);
+    } WC_CAS_WITH_RETRY_END;
+    if (ret != 0)
+        return;
+    ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
+    WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
 }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -1270,11 +1289,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                 /* the uncredited stir aperture is purged too, for provenance
                  * uniformity; best-effort (an in-flight depositor may
                  * resurrect a partial fill -- benign, stirs carry no
-                 * divergence burden), and never zeroized (racy, and
-                 * interleaved entropy of compatible provenance is harmless).
-                 */
-                WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
-                                     WC_DRBG_NEXT_SEED_EMPTY);
+                 * divergence burden). */
+                NextStirPurge(rng);
             }
         }
 #else
@@ -5120,8 +5136,7 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #endif
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    WOLFSSL_ATOMIC_STORE(rng->nextStirLen,
-                         WC_DRBG_NEXT_SEED_EMPTY);
+    NextStirPurge(rng);
 
     {
         int ret2 = NextSeedPurge(rng);
@@ -5829,6 +5844,8 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
         WOLFSSL_ATOMIC_STORE(rng->poolTail,
                              WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w2),
                                               WC_RNG_POOL_EPOCH(w2)));
+        /* The copied bytes predate the event too. */
+        ForceZero(out, done);
 #ifdef WC_RNG_DEBUG_STATS
         rng->_stats_pool_bytes_missed += *n;
 #endif
@@ -6825,16 +6842,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_seed_failures;
             #endif
-            /* Use-once on a failed test is enforced by the sentinel
-             * alone: an EMPTY aperture is never consumed, and the next
-             * fill overwrites from offset zero.  The buffer is never
-             * zeroized (house rule for the seed apertures).  Burn and
-             * purge-discard converge on EMPTY; the release handles
-             * both, and the health-test failure is the more
+            /* Wiped under the PRODUCING claim: a purge only repaints the
+             * sentinel, so the buffer is still ours.  Burn and purge-discard
+             * converge on EMPTY, and the health-test failure is the more
              * informative code and wins over the release's BUSY_E. */
-            /* Sentinel-only by doctrine: rejection here is deterministic
-             * on the bytes (RCT/APT), so every sibling lineage rejects the
-             * identical material -- no copy is ever consumed anywhere. */
+            ForceZero(rng->nextSeed, nextSeedSz);
             (void)NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
                                           nextSeedSz, WC_DRBG_NEXT_SEED_EMPTY);
 
@@ -9118,28 +9130,25 @@ static WC_MAYBE_UNUSED int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output,
         word64 sanity_word1 = 0, sanity_word2 = 0;
 
         ret = IntelRDseed64_r(&sanity_word1);
-        if (ret != 0)
-            return ret;
-
-        ret = IntelRDseed64_r(&sanity_word2);
-        if (ret != 0)
-            return ret;
-
-        if (sanity_word1 == sanity_word2) {
+        if (ret == 0)
+            ret = IntelRDseed64_r(&sanity_word2);
+        if ((ret == 0) && (sanity_word1 == sanity_word2)) {
             ret = IntelRDseed64_r(&sanity_word1);
-            if (ret != 0)
-                return ret;
-
-            if (sanity_word1 == sanity_word2) {
+            if ((ret == 0) && (sanity_word1 == sanity_word2)) {
 #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
                     "WARNING: disabling RDSEED due to repeating word 0x%lx -- "
                     "check CPU microcode version.", sanity_word2);
 #endif
                 rdseed_sanity_status = -1;
-                return WC_HW_E;
+                ret = WC_HW_E;
             }
         }
+        /* Raw source output, used only for the self-check. */
+        ForceZero(&sanity_word1, sizeof(sanity_word1));
+        ForceZero(&sanity_word2, sizeof(sanity_word2));
+        if (ret != 0)
+            return ret;
 
         rdseed_sanity_status = 1;
     }
@@ -10019,6 +10028,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     if(size==0)break;
                 }
             } while(size);
+            ForceZero(rnd, sizeof(rnd));
             return 0;
         }
     #else  /* WOLFSSL_PIC32MZ_RNG */
