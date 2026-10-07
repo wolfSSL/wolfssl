@@ -973,11 +973,9 @@ static word64 Load64BitLittleEndian(const byte* a)
 
 static int InitSha3(wc_Sha3* sha3)
 {
-    int i;
-
-    for (i = 0; i < 25; i++)
-        sha3->s[i] = 0;
-    XMEMSET(sha3->t, 0, sizeof(sha3->t));
+    /* The sponge held the prior message. */
+    ForceZero(sha3->s, sizeof(sha3->s));
+    ForceZero(sha3->t, sizeof(sha3->t));
     sha3->i = 0;
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
@@ -1704,6 +1702,9 @@ static void wc_Sha3Wipe(wc_Sha3* sha3)
     ForceZero(sha3->t, sizeof(sha3->t));
 #ifdef WC_SHA3_SCRATCH_W
     ForceZero(sha3->scratch, sizeof(sha3->scratch));
+#endif
+#ifdef STM32_HASH_SHA3
+    ForceZero(&sha3->stmCtx, sizeof(sha3->stmCtx));
 #endif
     sha3->i = 0;
 #endif
@@ -3199,6 +3200,8 @@ static int KmacInit(wc_Kmac* kmac, word32 count, const byte* key, word32 keyLen,
             if (ret == 0) {
                 ret = CshakeBytePad(&kmac->shake, count, rate);
             }
+            /* The block buffer staged the key (ISO/IEC 19790 7.9.7). */
+            ForceZero(kmac->shake.t, sizeof(kmac->shake.t));
         }
     }
 
@@ -3283,6 +3286,10 @@ static int KmacFinal(wc_Kmac* kmac, byte* out, word32 outLen, int xof)
         if (ret == 0) {
             /* cSHAKE domain separation pad (0x04), then squeeze outLen. */
             ret = Sha3Final(&kmac->shake, 0x04, out, kmac->count, outLen);
+        }
+        if (ret == 0) {
+            /* Keyed sponge is no longer needed (ISO/IEC 19790 7.9.7). */
+            wc_Sha3Wipe(&kmac->shake);
         }
     }
     return ret;
