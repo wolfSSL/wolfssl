@@ -17,9 +17,8 @@ endfunction()
 # explicit rather than relying on cross-file cache-precedence side effects.
 function(force_option NAME VALUE)
     set_property(GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" "${VALUE}")
-    # Track pending forces so an unconsumed one (no matching add_option) can be
-    # reported by wolfssl_warn_unconsumed_forces() -- a force on an option that
-    # is not declared via add_option() would otherwise be silently ignored.
+    # Track pending forces so wolfssl_warn_unconsumed_forces() can report one
+    # with no matching add_option(), which would otherwise be ignored.
     set_property(GLOBAL APPEND PROPERTY WOLFSSL_FORCE_PENDING "${NAME}")
 endfunction()
 
@@ -39,6 +38,9 @@ function(wolfssl_warn_unconsumed_forces)
 endfunction()
 
 function(add_option NAME HELP_STRING DEFAULT VALUES)
+    # Record the name for the options.h.in guard in CMakeLists.txt.
+    set_property(GLOBAL APPEND PROPERTY WOLFSSL_DECLARED_OPTIONS "${NAME}")
+
     if(VALUES STREQUAL "yes;no")
         # Set the default value for the option.
         set(${NAME} ${DEFAULT} CACHE BOOL ${HELP_STRING})
@@ -49,10 +51,8 @@ function(add_option NAME HELP_STRING DEFAULT VALUES)
         set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
     endif()
 
-    # Apply any dependency force recorded via force_option(). Done after the
-    # cache entry is created (so its BOOL/STRING type and help are preserved)
-    # and before the reduction below, so the forced value drives this option's
-    # own define/source emission just as an explicit setting would.
+    # Apply any force_option(), after the cache entry exists so its type and
+    # help survive, and before the reduction below.
     get_property(_wolfssl_forced GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" SET)
     if(_wolfssl_forced)
         get_property(_wolfssl_force_val GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}")

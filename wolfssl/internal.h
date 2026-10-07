@@ -2663,13 +2663,8 @@ struct WOLFSSL_OCSP {
 
 typedef struct CRL_Entry CRL_Entry;
 
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    #define CRL_DIGEST_SIZE WC_SM3_DIGEST_SIZE
-#elif defined(NO_SHA)
-    #define CRL_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-    #define CRL_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
+/* DecodeCRL() fills issuerHash with CalcHashId_ex(), the same as a Signer. */
+#define CRL_DIGEST_SIZE KEYID_SIZE
 
 #ifdef NO_ASN
     typedef struct RevokedCert RevokedCert;

@@ -1305,7 +1305,6 @@ binding for XSNPRINTF
             #define XSTRTOK(s1,d,ptr) strtok_r((s1),(d),(ptr))
         #endif
     #endif
-
     #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_OCSP) || \
         defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
         !defined(NO_CRYPT_BENCHMARK) || defined(OPENSSL_EXTRA)
@@ -1316,6 +1315,19 @@ binding for XSNPRINTF
         #endif
     #endif
 #endif /* STRING_USER */
+
+/* The STRING_USER platform templates override the string and memory macros
+ * but not XATOI, which the certificate policy OID parser and the benchmark
+ * need. Same features as the case above, so a platform that set STRING_USER
+ * to keep the standard library out only reaches <stdlib.h> through one that
+ * cannot work without XATOI, and one that supplies its own still wins. */
+#if defined(STRING_USER) && !defined(XATOI) && \
+    (defined(WOLFSSL_CERT_EXT) || defined(HAVE_OCSP) || \
+     defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
+     !defined(NO_CRYPT_BENCHMARK) || defined(OPENSSL_EXTRA))
+    #include <stdlib.h>
+    #define XATOI(s)          atoi((s))
+#endif
 
 #ifdef WOLFSSL_WIDE_BYTE
 /* Packed octet stream -> one octet per byte cell.  All sizes are in byte cells;

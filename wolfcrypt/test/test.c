@@ -1250,6 +1250,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cts_test(void);
 
 #endif /* !WC_TEST_EXPORT_SUBTESTS */
 
+/* Declared here too: WC_TEST_EXPORT_SUBTESTS drops the block above. */
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CERT_EXT) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
+static wc_test_ret_t certreq_no_malloc_test(void);
+#endif
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+static wc_test_ret_t keyid_test(void);
+#endif
+
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
@@ -3428,6 +3440,24 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("CERT NOMALLOC test failed!\n", ret);
     else
         TEST_PASS("CERT NOMALLOC test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CERT_EXT) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
+    if ( (ret = certreq_no_malloc_test()) != 0)
+        TEST_FAIL("CERTREQ NOMALLOC test failed!\n", ret);
+    else
+        TEST_PASS("CERTREQ NOMALLOC test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+    if ( (ret = keyid_test()) != 0)
+        TEST_FAIL("CERT KEYID test failed!\n", ret);
+    else
+        TEST_PASS("CERT KEYID test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
@@ -39101,6 +39131,148 @@ exit_rsa:
 
 #endif /* !NO_RSA */
 
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CERT_EXT) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
+/* Certificate request generation with the Cert on the stack. */
+static wc_test_ret_t certreq_no_malloc_test(void)
+{
+    /* Too large for one stack frame (linuxkm caps them at 4kB), and only
+     * ever one in flight. */
+    static Cert    req;
+    static ecc_key key;
+    static byte    der[1024];
+    word32        idx = 0;
+    int           derSz;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("certreq_no_malloc_test");
+
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+                                 (word32)sizeof_ecc_key_der_256);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0) {
+        ret = wc_InitCert_ex(&req, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        XSTRNCPY(req.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+        req.version = 0;
+        req.sigType = CTC_SHA256wECDSA;
+        /* Covers the EKU string parser and encoder. */
+        ret = wc_SetExtKeyUsage(&req, "clientAuth,codeSigning");
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        derSz = wc_MakeCertReq_ex(&req, der, (word32)sizeof(der), ECC_TYPE,
+                                  &key);
+        if (derSz <= 0)
+            ret = WC_TEST_RET_ENC_EC(derSz);
+    }
+
+#if !defined(NO_ASN_TIME) && !defined(WC_NO_RNG)
+    /* Policies encode only for a certificate, so EncodePolicyOID() needs
+     * wc_MakeCert(). */
+    if (ret == 0) {
+        static WC_RNG rng;
+
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        else {
+            XMEMCPY(&req.issuer, &req.subject, sizeof(CertName));
+            req.selfSigned = 1;
+            XSTRNCPY(req.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+                     CTC_MAX_CERTPOL_SZ);
+            req.certPoliciesNb = 1;
+
+            derSz = wc_MakeCert(&req, der, (word32)sizeof(der), NULL, &key,
+                                &rng);
+            if (derSz <= 0)
+                ret = WC_TEST_RET_ENC_EC(derSz);
+            wc_FreeRng(&rng);
+        }
+    }
+#endif
+
+    wc_ecc_free(&key);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ && WOLFSSL_CERT_EXT &&
+        * HAVE_ECC && USE_CERT_BUFFERS_256 && !NO_SHA256 */
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
+    defined(WC_ASN_KEYID_HASH)
+/* Cert SKID and AKID buffers are sized for the selected key identifier
+ * hash. */
+static wc_test_ret_t keyid_test(void)
+{
+    static Cert    cert;
+    static ecc_key key;
+    word32        idx = 0;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("keyid_test");
+
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+                                 (word32)sizeof_ecc_key_der_256);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0) {
+        ret = wc_InitCert_ex(&cert, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (ret == 0) {
+        ret = wc_SetSubjectKeyIdFromPublicKey(&cert, NULL, &key);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if ((ret == 0) && ((cert.skidSz <= 0) ||
+                       (cert.skidSz > (int)CTC_MAX_SKID_SIZE))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#if !defined(WOLFSSL_SM2) || !defined(WOLFSSL_SM3)
+    /* SM builds size KEYID_SIZE for SM3 but may use another hash, so only
+     * check equality in the plain case. */
+    if ((ret == 0) && (cert.skidSz != (int)KEYID_SIZE))
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+
+    if (ret == 0) {
+        ret = wc_SetAuthKeyIdFromPublicKey(&cert, NULL, &key);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if ((ret == 0) && ((cert.akidSz <= 0) ||
+                       (cert.akidSz > (int)CTC_MAX_AKID_SIZE))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    if ((ret == 0) && (cert.akidSz != cert.skidSz))
+        ret = WC_TEST_RET_ENC_NC;
+
+    wc_ecc_free(&key);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_EXT && HAVE_ECC &&
+        * USE_CERT_BUFFERS_256 && WC_ASN_KEYID_HASH */
+
 #if defined(WOLFSSL_TEST_CERT) && defined(HAVE_ECC) && \
     !defined(NO_ECC256) && !defined(NO_ECC_SECP)
 /* Self-signed P-256 cert with a critical extension of unrecognized OID
@@ -44551,9 +44723,8 @@ static wc_test_ret_t hkdf_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif
 {
-    wc_test_ret_t ret = 0;
-
 #if !defined(NO_SHA) || !defined(NO_SHA256)
+    wc_test_ret_t ret = 0;
     int L;
     byte prk[WC_MAX_DIGEST_SIZE];
     byte okm1[42];

@@ -500,14 +500,6 @@ if(WOLFSSL_SCEP)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AES_KEYWRAP" "-DHAVE_X963_KDF" "-DWOLFSSL_AES_DIRECT" "-DWOLFSSL_CERT_EXT" "-DWOLFSSL_CERT_GEN" "-DWOLFSSL_CERT_REQ" "-DWOLFSSL_HAVE_WOLFSCEP" "-DWOLFSSL_KEY_GEN")
 endif()
 
-add_option("WOLFSSL_MCAST" "Enable DTLS multicast support (default: disabled)" "no" "yes;no")
-if(WOLFSSL_MCAST)
-    foreach(_o WOLFSSL_DTLS)
-        force_option(${_o} "yes")
-    endforeach()
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_NULL_CIPHER" "-DWOLFSSL_MULTICAST")
-endif()
-
 add_option("WOLFSSL_WPAS_DPP" "Enable wpa_supplicant DPP support (default: disabled)" "no" "yes;no")
 if(WOLFSSL_WPAS_DPP)
     foreach(_o WOLFSSL_AES WOLFSSL_ARC4 WOLFSSL_CRL WOLFSSL_DES3 WOLFSSL_DSA WOLFSSL_MD4 WOLFSSL_MD5 WOLFSSL_OCSP WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2 WOLFSSL_PKCS7)
@@ -631,6 +623,39 @@ if(WOLFSSL_DEBUG)
         "-DDEBUG")
 endif()
 
+
+# wolfCrypt only (no TLS). Declared ahead of the TLS-layer options so the
+# forces below land before their add_option() calls.
+add_option("WOLFSSL_CRYPT_ONLY"
+    "Enable wolfCrypt Only build (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_CRYPT_ONLY)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_ONLY")
+    # Mirror --enable-cryptonly so options.h describes the library built.
+    # Forced, not defaulted: a reconfigure cannot tell a cache entry from an
+    # explicit setting. WOLFSSL_TLS carries -DNO_TLS and the TLS-version
+    # checks read it. TLS 1.2 and 1.3 stay on for their wolfCrypt-layer KDFs.
+    foreach(_o WOLFSSL_TLS
+               WOLFSSL_ALPN WOLFSSL_CRL_MONITOR WOLFSSL_DTLS WOLFSSL_DTLS13
+               WOLFSSL_DTLS_CH_FRAG WOLFSSL_DTLS_CID WOLFSSL_DTLS_MTU
+               WOLFSSL_EARLYDATA WOLFSSL_ECH WOLFSSL_MCAST WOLFSSL_OCSP
+               WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2
+               WOLFSSL_PKCALLBACKS WOLFSSL_QUIC
+               WOLFSSL_RENEGOTIATION_INDICATION WOLFSSL_SECURE_RENEGOTIATION
+               WOLFSSL_SNI WOLFSSL_SRTP WOLFSSL_TLSX)
+        force_option(${_o} "no")
+    endforeach()
+    message(STATUS "WOLFSSL_CRYPT_ONLY: TLS layer off, including its options")
+endif()
+
+add_option("WOLFSSL_MCAST" "Enable DTLS multicast support (default: disabled)" "no" "yes;no")
+if(WOLFSSL_MCAST)
+    foreach(_o WOLFSSL_DTLS)
+        force_option(${_o} "yes")
+    endforeach()
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_NULL_CIPHER" "-DWOLFSSL_MULTICAST")
+endif()
 
 # Single threaded
 add_option("WOLFSSL_SINGLE_THREADED"
@@ -4627,6 +4652,58 @@ endforeach()
 # Drop exact-duplicate -D flags (e.g. a bundle and the source option it forces
 # both emitting the same feature define).
 list(REMOVE_DUPLICATES WOLFSSL_DEFINITIONS)
+
+# Matches configure.ac: cryptonly and opensslall are mutually incompatible.
+# The application bundles (nginx, haproxy, ...) each append -DOPENSSL_ALL
+# directly, which forcing their leaf options off does not retract, so test the
+# definition list as well as the option.
+if(WOLFSSL_CRYPT_ONLY)
+    if(WOLFSSL_OPENSSLALL OR "-DOPENSSL_ALL" IN_LIST WOLFSSL_DEFINITIONS)
+        message(FATAL_ERROR
+            "cryptonly and opensslall are mutually incompatible.")
+    endif()
+endif()
+
+# A -D that is not a build option still satisfies the matching #cmakedefine
+# below, so options.h would claim features the library lacks (for example
+# WOLFSSL_STATIC_MEMORY for the WOLFSSL_STATICMEMORY option). Drop those.
+get_property(WOLFSSL_DECLARED_OPTIONS GLOBAL PROPERTY WOLFSSL_DECLARED_OPTIONS)
+get_cmake_property(WOLFSSL_CACHE_VARS CACHE_VARIABLES)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/options.h.in" OPTIONS_H_LINES
+    REGEX "^#cmakedefine[ \t]+[A-Za-z_]")
+foreach(LINE IN LISTS OPTIONS_H_LINES)
+    string(REGEX REPLACE "^#cmakedefine[ \t]+([A-Za-z_][A-Za-z0-9_]*).*$" "\\1"
+        MACRO_NAME "${LINE}")
+    # wolfSSL's namespace only; the rest are system probes we set ourselves.
+    if(NOT MACRO_NAME MATCHES "^WOLF")
+        continue()
+    endif()
+    if(MACRO_NAME IN_LIST WOLFSSL_DECLARED_OPTIONS)
+        continue()
+    endif()
+    if(NOT MACRO_NAME IN_LIST WOLFSSL_CACHE_VARS)
+        continue()
+    endif()
+    # Already compiled in, so a real option however its cache entry was made
+    # (WOLFSSL_HARDEN_TLS uses a raw CACHE STRING to keep a bad value).
+    set(MACRO_IN_DEFS FALSE)
+    foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
+        if(DEF MATCHES "^-D${MACRO_NAME}(=.*)?$")
+            set(MACRO_IN_DEFS TRUE)
+            break()
+        endif()
+    endforeach()
+    if(MACRO_IN_DEFS)
+        continue()
+    endif()
+    if(${MACRO_NAME})
+        message(WARNING "${MACRO_NAME} is not a wolfSSL build option; ignoring "
+            "it so that wolfssl/options.h matches the library. Run "
+            "`cmake -LH` for the option list.")
+        unset(${MACRO_NAME})
+        unset(${MACRO_NAME} CACHE)
+    endif()
+endforeach()
 
 foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
     string(REGEX MATCH "^(-D)?([^=]+)(=(.*))?$" DEF_MATCH ${DEF})
