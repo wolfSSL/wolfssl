@@ -1141,6 +1141,20 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     }
 #endif
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    if (ret != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        int devId = hmac->devId;
+    #endif
+        /* The key entered the object; clear it (ISO/IEC 19790 7.9.7). */
+        wc_HmacFree(hmac);
+        hmac->heap = heap;
+    #ifdef WOLF_CRYPTO_CB
+        hmac->devId = devId;
+    #endif
+    }
+#endif
+
     return ret;
 #endif /* WOLFSSL_MAXQ108X */
 }
@@ -1636,6 +1650,8 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             break;
     }
 
+    /* The inner digest is keyed output (ISO/IEC 19790 7.9.7). */
+    ForceZero(hmac->innerHash, sizeof(hmac->innerHash));
     if (ret == 0) {
         hmac->innerHashKeyed = 0;
     }
@@ -1981,6 +1997,10 @@ int wolfSSL_GetHmacMaxSize(void)
 
             outIdx += left;
             n++;
+        }
+        if (ret != 0) {
+            /* Partial OKM is not released (ISO/IEC 19790 7.9.7). */
+            ForceZero(out, outSz);
         }
 
         ForceZero(tmp, WC_MAX_DIGEST_SIZE);
