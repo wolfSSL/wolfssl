@@ -14907,6 +14907,12 @@ int test_tls13_exporter_suite_decision_coverage(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+    /* NULL the pointers: the DTLS 1.3 block below reuses this driver,
+     * and test_memio_setup only creates a ctx when the slot is NULL. */
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
 #endif /* WOLFSSL_TLS13 */
 
 #ifdef WOLFSSL_DTLS13
