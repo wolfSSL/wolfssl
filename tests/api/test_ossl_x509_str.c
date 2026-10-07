@@ -162,6 +162,11 @@ int test_wolfSSL_X509_STORE_check_time(void)
         ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
                             SSL_FILETYPE_PEM));
         ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+#ifdef HAVE_CRL
+        /* The CRL flag is applied, so a CRL is needed to verify */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(store->cm,
+            "./certs/crl/crl.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#endif
         ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(srvCertFile,
                         SSL_FILETYPE_PEM));
         ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
@@ -3407,12 +3412,11 @@ int test_wolfSSL_X509_STORE_set_flags_crl(void)
     };
     size_t i;
 
-    ExpectIntEQ(test_X509_STORE_revoked_setup(&store, &ca, &cert),
-        TEST_SUCCESS);
-
-    /* Each CRL flag must turn it on */
+    /* Each CRL flag must turn it on. A new store per flag, as the flags are
+     * kept in the store. */
     for (i = 0; i < XELEM_CNT(crlFlags); i++) {
-        ExpectIntEQ(wolfSSL_CertManagerDisableCRL(store->cm), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_X509_STORE_revoked_setup(&store, &ca, &cert),
+            TEST_SUCCESS);
         ExpectIntEQ(X509_STORE_set_flags(store, crlFlags[i]), WOLFSSL_SUCCESS);
         ExpectNotNull(ctx = X509_STORE_CTX_new());
         ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL),
@@ -3422,11 +3426,29 @@ int test_wolfSSL_X509_STORE_set_flags_crl(void)
             WOLFSSL_X509_V_ERR_CERT_REVOKED);
         X509_STORE_CTX_free(ctx);
         ctx = NULL;
+        X509_STORE_free(store);
+        store = NULL;
+        X509_free(cert);
+        cert = NULL;
+        X509_free(ca);
+        ca = NULL;
     }
 
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    /* Clearing the flags turns CRL checking off, also for a new ctx */
+    ExpectIntEQ(test_X509_STORE_revoked_setup(&store, &ca, &cert),
+        TEST_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
     X509_free(cert);
     X509_free(ca);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -3465,6 +3487,19 @@ int test_wolfSSL_X509_STORE_CTX_set_flags(void)
     X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_USE_CHECK_TIME);
     ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
     X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_CRL_CHECK);
+    ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The ctx flag must not turn on CRL checking for the store */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, cert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    /* Also applied when set through the ctx verify parameters */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(X509_STORE_CTX_get0_param(ctx),
+        X509_V_FLAG_CRL_CHECK), WOLFSSL_SUCCESS);
     ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
         WOLFSSL_X509_V_ERR_CERT_REVOKED);
@@ -4124,6 +4159,32 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls(void)
     ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
     ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
         WOLFSSL_X509_V_ERR_CERT_REVOKED);
+
+    /* CRL checking requested on the ctx only, with a store that has none */
+    X509_STORE_free(store);
+    store = NULL;
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+    X509_STORE_CTX_set_flags(storeCtx, X509_V_FLAG_CRL_CHECK);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL);
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    X509_STORE_CTX_set_flags(storeCtx, X509_V_FLAG_CRL_CHECK);
+    X509_STORE_CTX_set0_crls(storeCtx, crls);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+    /* crl.revoked also revokes cert, so only keep crl.pem */
+    sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    ExpectNotNull(crls = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(crls, crlPem), TEST_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+    X509_STORE_CTX_set_flags(storeCtx, X509_V_FLAG_CRL_CHECK);
+    X509_STORE_CTX_set0_crls(storeCtx, crls);
+    ExpectIntEQ(X509_verify_cert(storeCtx), SSL_SUCCESS);
 
     /* The ctx does not own the CRL stack. Freeing it here must not lead to a
      * double free when the ctx is freed. */
