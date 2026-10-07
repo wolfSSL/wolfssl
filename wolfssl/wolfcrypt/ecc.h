@@ -708,6 +708,7 @@ struct ecc_key {
 #define ecc_blind_k(key, b)         (void)b
 #define ecc_blind_k_rng(key, rng)   0
 #define ecc_forcezero_k(key)        mp_forcezero((key)->k)
+#define ecc_put_k(key)              WC_DO_NOTHING
 
 #define wc_ecc_key_get_priv(key)    (key)->k
 #else
@@ -715,6 +716,7 @@ mp_int* ecc_get_k(ecc_key* key);
 void ecc_blind_k(ecc_key* key, mp_int* b);
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng);
 WOLFSSL_LOCAL void ecc_forcezero_k(ecc_key* key);
+WOLFSSL_LOCAL void ecc_put_k(ecc_key* key);
 
 WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
 #endif

@@ -440,6 +440,12 @@ void ecc_forcezero_k(ecc_key* key)
     mp_forcezero(key->ku);
 }
 
+/* Drop the unblinded copy once the caller is done with it. */
+void ecc_put_k(ecc_key* key)
+{
+    mp_forcezero(key->ku);
+}
+
 mp_int* wc_ecc_key_get_priv(ecc_key* key)
 {
     return ecc_get_k(key);
@@ -3456,6 +3462,8 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     if (err == MP_OKAY)
         err = mp_copy(R[0]->z, Q->z);
 
+    /* kt holds a copy of the scalar (ISO/IEC 19790:2012 7.9.7). */
+    mp_forcezero(kt);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_CACHE_RESISTANT)
     XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
@@ -3643,6 +3651,9 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
         err = mp_copy(R[set + 0]->y, Q->y);
     if (err == MP_OKAY)
         err = mp_copy(R[set + 0]->z, Q->z);
+
+    /* kt holds a copy of the scalar (ISO/IEC 19790:2012 7.9.7). */
+    mp_forcezero(kt);
 
     return err;
 }
@@ -4121,9 +4132,11 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point* G, ecc_point* R, mp_int* a,
 
 exit:
 
-   /* done */
+   /* Ladder points are scalar dependent; mp_clear only wipes under FIPS. */
+   wc_ecc_forcezero_point(tG);
    wc_ecc_del_point_ex(tG, heap);
    for (i = 0; i < M_POINTS; i++) {
+      wc_ecc_forcezero_point(M[i]);
       wc_ecc_del_point_ex(M[i], heap);
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -5167,6 +5180,13 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         mp_forcezero(k);
     WC_FREE_VAR_EX(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
+#ifdef WC_ECC_NONBLOCK
+    /* An incomplete operation still needs k. */
+    if (err != FP_WOULDBLOCK)
+#endif
+    {
+        ecc_put_k(private_key);
+    }
 
     return err;
 }
@@ -5678,6 +5698,7 @@ static int ecc_make_pub_sw(ecc_key* key, ecc_curve_spec* curve,
         wc_ecc_del_point_ex(base, key->heap);
     }
 #endif /* WOLFSSL_SP_MATH */
+        ecc_put_k(key);
     } /* END: Software Crypto */
 
     return err;
@@ -7226,6 +7247,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
             key->sign_k_set = 1;
         }
     #endif
+        ecc_put_k(key);
     }
 
     wc_ecc_curve_free(curve);
@@ -7459,6 +7481,7 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
              break;
          WC_RELAX_LONG_LOOP();
     }
+    ecc_put_k(key);
     mp_forcezero(b);
     FREE_MP_INT_SIZE(b, key->heap, DYNAMIC_TYPE_ECC);
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -7722,17 +7745,18 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    /* WC_KEY_SIZE_E only means SP left this curve to the software path below,
     * which needs k and clears it itself. Every other result consumed k. */
    if (err != WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) {
-   #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
-       defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
-       defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
        #ifdef WC_ECC_NONBLOCK
        /* An incomplete operation still needs k. */
        if (err != FP_WOULDBLOCK)
        #endif
        {
+           ecc_put_k(key);
+   #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+       defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+       defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
            ecc_sign_k_forcezero(key);
-       }
    #endif
+       }
        return err;
    }
 #else
@@ -8671,6 +8695,14 @@ int wc_ecc_free(ecc_key* key)
     key->dhuk_seed_sz = 0;
     key->dhuk_wrapped_priv_len = 0;
     key->dhuk_plain_priv_len = 0;
+#endif
+
+#ifdef WC_ECC_NONBLOCK
+    /* An abandoned operation leaves a copy of k in the context. */
+    if (key->nb_ctx != NULL) {
+        ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
+        key->nb_ctx = NULL;
+    }
 #endif
 
     mp_clear(key->pubkey.x);
@@ -11183,6 +11215,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
         }
     }
 
+    ecc_put_k(key);
     wc_ecc_curve_free(curve);
     wc_ecc_del_point_ex(res, key->heap);
     wc_ecc_del_point_ex(base, key->heap);
@@ -11466,32 +11499,42 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
-        return sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y,
+        err = sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+        ecc_put_k(key);
+        return err;
     }
 #endif
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SM2P256V1) {
-        return sp_ecc_check_key_sm2_256(key->pubkey.x, key->pubkey.y,
+        err = sp_ecc_check_key_sm2_256(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+        ecc_put_k(key);
+        return err;
     }
 #endif
 #ifdef WOLFSSL_SP_384
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP384R1) {
-        return sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y,
+        err = sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+        ecc_put_k(key);
+        return err;
     }
 #endif
 #ifdef WOLFSSL_SP_521
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP521R1) {
-        return sp_ecc_check_key_521(key->pubkey.x, key->pubkey.y,
+        err = sp_ecc_check_key_521(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+        ecc_put_k(key);
+        return err;
     }
 #endif
 #if defined(WOLFSSL_SP_1024) && defined(WOLFCRYPT_HAVE_SAKKE)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SAKKE_1) {
-        return sp_ecc_check_key_1024(key->pubkey.x, key->pubkey.y,
+        err = sp_ecc_check_key_1024(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+        ecc_put_k(key);
+        return err;
     }
 #endif
 #endif
@@ -11578,6 +11621,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
             err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
     #endif
+        ecc_put_k(key);
     }
 
     wc_ecc_curve_free(curve);
@@ -12145,6 +12189,7 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
             err = wc_export_int(ecc_get_k(key), d, dLen, keySz + WC_CAAM_MAC_SZ,
                 encType);
+            ecc_put_k(key);
             *dLen = keySz + WC_CAAM_MAC_SZ;
         }
         else if (encType == WC_TYPE_BLACK_KEY &&
@@ -12166,6 +12211,7 @@ static int _ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     #endif
         {
             err = wc_export_int(ecc_get_k(key), d, dLen, keySz, encType);
+            ecc_put_k(key);
             if (err != MP_OKAY)
                 return err;
         }
@@ -12327,12 +12373,14 @@ static int ecc_check_privkey_range(ecc_key* key)
      * DER it round-trips through carries a zero private value. Range
      * checking still applies to a scalar that is actually present. */
     if (mp_iszero(k)) {
+        ecc_put_k(key);
         return 0;
     }
 #endif
 
     /* SP 800-56Ar3, section 5.6.2.1.2 - private keys are in [1, n-1]. */
     if (mp_iszero(k) || mp_isneg(k)) {
+        ecc_put_k(key);
         return ECC_PRIV_KEY_E;
     }
 
@@ -12357,6 +12405,7 @@ static int ecc_check_privkey_range(ecc_key* key)
         mp_clear(order);
     }
     WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+    ecc_put_k(key);
 
     return ret;
 }
@@ -13040,7 +13089,7 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
         mp_clear(key->pubkey.x);
         mp_clear(key->pubkey.y);
         mp_clear(key->pubkey.z);
-        mp_forcezero(key->k);
+        ecc_forcezero_k(key);
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
         ForceZero(key->keyRaw, sizeof(key->keyRaw));
 #endif
@@ -17578,7 +17627,7 @@ int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx)
         ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
     }
     if (ctx != NULL) {
-        XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));
+        ForceZero(ctx, sizeof(ecc_nb_ctx_t));
     }
     key->nb_ctx = ctx;
     return 0;
