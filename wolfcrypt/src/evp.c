@@ -8594,7 +8594,7 @@ void wolfSSL_EVP_init(void)
                 }
             }
             if (iv != NULL) {
-                XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
+                XMEMCPY(ctx->cipher.sm4.iv, iv, (size_t)ctx->ivSz);
             }
         }
 #endif
@@ -8624,7 +8624,7 @@ void wolfSSL_EVP_init(void)
                 }
             }
             if (iv != NULL) {
-                XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
+                XMEMCPY(ctx->cipher.sm4.iv, iv, (size_t)ctx->ivSz);
             }
         }
 #endif

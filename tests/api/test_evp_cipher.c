@@ -2293,19 +2293,31 @@ int test_wolfssl_EVP_sm4_cbc(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CBC)
     EXPECT_DECLS;
-    byte key[SM4_KEY_SIZE];
-    byte iv[SM4_BLOCK_SIZE];
-    byte plainText[SM4_BLOCK_SIZE] = {
-        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
-        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
+    /* draft-ribose-cfrg-sm4-10 A.2.2.1 */
+    const byte key[SM4_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    const byte iv[SM4_BLOCK_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    const byte plainText[] = {
+        0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB,
+        0xCC, 0xCC, 0xCC, 0xCC, 0xDD, 0xDD, 0xDD, 0xDD,
+        0xEE, 0xEE, 0xEE, 0xEE, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB
+    };
+    const byte expCipherText[sizeof(plainText)] = {
+        0x78, 0xEB, 0xB1, 0x1C, 0xC4, 0x0B, 0x0A, 0x48,
+        0x31, 0x2A, 0xAE, 0xB2, 0x04, 0x02, 0x44, 0xCB,
+        0x4C, 0xB7, 0x01, 0x69, 0x51, 0x90, 0x92, 0x26,
+        0x97, 0x9B, 0x0D, 0x15, 0xDC, 0x6A, 0x8F, 0x6D
     };
     byte cipherText[sizeof(plainText) + SM4_BLOCK_SIZE];
     byte decryptedText[sizeof(plainText) + SM4_BLOCK_SIZE];
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
-
-    XMEMSET(key, 0, sizeof(key));
-    XMEMSET(iv, 0, sizeof(iv));
 
     /* Encrypt. */
     ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
@@ -2321,7 +2333,7 @@ int test_wolfssl_EVP_sm4_cbc(void)
     ExpectIntEQ(EVP_EncryptFinal_ex(ctx, cipherText + outSz, &outSz),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, SM4_BLOCK_SIZE);
-    ExpectBufNE(cipherText, plainText, sizeof(plainText));
+    ExpectBufEQ(cipherText, expCipherText, sizeof(expCipherText));
     EVP_CIPHER_CTX_free(ctx);
 
     /* Decrypt. */
@@ -2364,16 +2376,39 @@ int test_wolfssl_EVP_sm4_ctr(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CTR)
     EXPECT_DECLS;
-    byte key[SM4_KEY_SIZE];
-    byte iv[SM4_BLOCK_SIZE];
-    byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    /* draft-ribose-cfrg-sm4-10 A.2.5.1 */
+    const byte key[SM4_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    const byte iv[SM4_BLOCK_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    const byte plainText[] = {
+        0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+        0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB,
+        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+        0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD,
+        0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+        0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB
+    };
+    const byte expCipherText[sizeof(plainText)] = {
+        0xAC, 0x32, 0x36, 0xCB, 0x97, 0x0C, 0xC2, 0x07,
+        0x91, 0x36, 0x4C, 0x39, 0x5A, 0x13, 0x42, 0xD1,
+        0xA3, 0xCB, 0xC1, 0x87, 0x8C, 0x6F, 0x30, 0xCD,
+        0x07, 0x4C, 0xCE, 0x38, 0x5C, 0xDD, 0x70, 0xC7,
+        0xF2, 0x34, 0xBC, 0x0E, 0x24, 0xC1, 0x19, 0x80,
+        0xFD, 0x12, 0x86, 0x31, 0x0C, 0xE3, 0x7B, 0x92,
+        0x6E, 0x02, 0xFC, 0xD0, 0xFA, 0xA0, 0xBA, 0xF3,
+        0x8B, 0x29, 0x33, 0x85, 0x1D, 0x82, 0x45, 0x14
+    };
     byte cipherText[sizeof(plainText)];
     byte decryptedText[sizeof(plainText)];
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
-
-    XMEMSET(key, 0, sizeof(key));
-    XMEMSET(iv, 0, sizeof(iv));
 
     /* Encrypt. */
     ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
@@ -2388,7 +2423,7 @@ int test_wolfssl_EVP_sm4_ctr(void)
     ExpectIntEQ(outSz, sizeof(plainText));
     ExpectIntEQ(EVP_EncryptFinal_ex(ctx, cipherText, &outSz), WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, 0);
-    ExpectBufNE(cipherText, plainText, sizeof(plainText));
+    ExpectBufEQ(cipherText, expCipherText, sizeof(expCipherText));
     EVP_CIPHER_CTX_free(ctx);
 
     /* Decrypt. */
@@ -2582,6 +2617,73 @@ int test_wolfssl_EVP_sm4_gcm(void)
 
     res = EXPECT_RESULT();
 #endif /* OPENSSL_EXTRA && WOLFSSL_SM4_GCM */
+    return res;
+}
+
+int test_wolfssl_EVP_sm4_gcm_iv_gen(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_GCM) && !defined(_WIN32)
+    EXPECT_DECLS;
+    const byte key[SM4_KEY_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    const byte iv[GCM_NONCE_MID_SZ] = {
+        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
+    };
+    const byte plainText[SM4_BLOCK_SIZE] = {
+        0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB,
+        0xCC, 0xCC, 0xCC, 0xCC, 0xDD, 0xDD, 0xDD, 0xDD
+    };
+    byte expIv[GCM_NONCE_MID_SZ];
+    byte genIv[GCM_NONCE_MID_SZ];
+    byte cipherText[sizeof(plainText)];
+    byte expCipherText[sizeof(plainText)];
+    byte tag[SM4_BLOCK_SIZE];
+    byte expTag[SM4_BLOCK_SIZE];
+    EVP_CIPHER_CTX* ctx = NULL;
+    EVP_CIPHER_CTX* refCtx = NULL;
+    int i;
+
+    XMEMCPY(expIv, iv, sizeof(iv));
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_sm4_gcm(), key, NULL, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+        (void*)iv), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_IV_GEN, -1, genIv),
+            WOLFSSL_SUCCESS);
+        ExpectBufEQ(genIv, expIv, sizeof(expIv));
+        ExpectIntGE(EVP_Cipher(ctx, cipherText, (byte*)plainText,
+            sizeof(plainText)), 0);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+            sizeof(tag), tag), WOLFSSL_SUCCESS);
+
+        /* Must match a one-shot encrypt with the IV set directly. */
+        ExpectNotNull(refCtx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_CipherInit(refCtx, EVP_sm4_gcm(), key, expIv, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE(EVP_Cipher(refCtx, expCipherText, (byte*)plainText,
+            sizeof(plainText)), 0);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(refCtx, EVP_CTRL_GCM_GET_TAG,
+            sizeof(expTag), expTag), WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(refCtx);
+        refCtx = NULL;
+
+        ExpectBufEQ(cipherText, expCipherText, sizeof(expCipherText));
+        ExpectBufEQ(tag, expTag, sizeof(expTag));
+
+        expIv[sizeof(expIv) - 1]++;
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+
+    res = EXPECT_RESULT();
+#endif
     return res;
 }
 
