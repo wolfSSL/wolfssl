@@ -1172,6 +1172,13 @@ int test_wolfSSL_accept_early_data_pending(void)
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), (int)sizeof(msg));
     ExpectBufEQ(buf, msg, sizeof(msg));
 
+    /* 0-RTT is accepted once per ticket. Use the reissued ticket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
     wolfSSL_free(ssl_s);
