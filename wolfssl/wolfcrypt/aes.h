@@ -762,6 +762,7 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
                                byte* authTag, word32 authTagSz);
+ WOLFSSL_API int wc_GmacFree(Gmac* gmac);
 #ifndef WC_NO_RNG
  WOLFSSL_API int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
