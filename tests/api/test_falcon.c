@@ -1588,16 +1588,16 @@ int test_wc_FalconDecisionCoverage(void)
      * The (!prvKeySet) F + valid-rng fall-through into the native signer is
      * owned by test_wc_falcon_sign_vfy (real key). */
     {
-        WC_RNG rng;
+        WC_RNG rng2;
         byte msg[4];
-        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(&rng2, 0, sizeof(rng2));
         XMEMSET(msg, 0, sizeof(msg));
         XMEMSET(&key, 0, sizeof(key));
         ExpectIntEQ(wc_falcon_init(&key), 0);
         ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
-            &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
+            &key, &rng2), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
         key.prvKeySet = 1;                                 /* !prvKeySet F */
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
@@ -1753,7 +1753,7 @@ int test_wc_FalconDecisionCoverage(void)
 #ifdef TEST_FALCON_CB_FREE
 /* What the free callback saw, so the test can check the contract rather than
  * just that something fired. */
-typedef struct {
+typedef struct FalconCbFreeCtx {
     int frees;        /* matching free callbacks seen */
     int badObj;       /* callback was handed the wrong object */
     int wiped;        /* callback saw a key already cleaned up */
