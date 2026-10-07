@@ -2034,14 +2034,38 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         err = eccsi_gen_sig(key, rng, hashType, msg, msgSz, r, s);
     }
 
-    /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j */
+    /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
+     * Invert with multiplicative blinding for constant-time operation. */
+    if (err == 0) {
+        int loop_check = 0;
+        do {
+            if (++loop_check > ECCSI_MAX_GEN_COUNT) {
+                err = RNG_FAILURE_E;
+                break;
+            }
+            err = wc_ecc_gen_k(rng, (int)sz, &key->tmp, &key->params.order);
+        }
+        while (err == WC_NO_ERR_TRACE(MP_ZERO_E));
+    }
+    /* Blind: s = (s * b) mod order */
+    if (err == 0) {
+        err = mp_mulmod(s, &key->tmp, &key->params.order, s);
+    }
+    /* Invert: s = (s * b)^-1 mod order */
     if (err == 0) {
         err = mp_invmod(s, &key->params.order, s);
+    }
+    /* Unblind: s = (s * b)^-1 * b mod order = s^-1 mod order */
+    if (err == 0) {
+        err = mp_mulmod(s, &key->tmp, &key->params.order, s);
     }
     if (err == 0) {
         j = wc_ecc_key_get_priv(&key->pubkey);
         err = mp_mulmod(s, j, &key->params.order, s);
-        /* Erase j on the failure path too. */
+    }
+    /* Erase blinding factor and j on every path past argument checks. */
+    if (s != NULL) {
+        mp_forcezero(&key->tmp);
         ecc_forcezero_k(&key->pubkey);
     }
     if (err == 0) {
