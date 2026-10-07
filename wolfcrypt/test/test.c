@@ -86928,6 +86928,13 @@ static wc_test_ret_t mp_test_prime(mp_int* a, WC_RNG* rng)
     ret = mp_prime_is_prime(a, 257, &res);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
+    /* An error return must not leave a primality claim behind. */
+    res = MP_YES;
+    ret = mp_prime_is_prime_ex(a, 0, &res, rng);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_EC(ret);
+    if (res != MP_NO)
+        return WC_TEST_RET_ENC_I(res);
 
     mp_set(a, 1);
     ret = mp_prime_is_prime(a, 1, &res);

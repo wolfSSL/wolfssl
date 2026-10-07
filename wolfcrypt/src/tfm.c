@@ -5219,6 +5219,9 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
    int      r, res;
    int      err;
 
+   /* default to no, so an error never leaves a primality claim */
+   *result = FP_NO;
+
    if (t <= 0 || t > FP_PRIME_SIZE) {
      *result = FP_NO;
      return FP_VAL;
@@ -5253,7 +5256,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        fp_set(b, primes[r]);
        err = fp_prime_miller_rabin(a, b, &res);
        if ((err != FP_OKAY) || (res == FP_NO)) {
-          *result = res;
+          *result = FP_NO;
           WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
           return err;
        }
@@ -5274,6 +5277,9 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     fp_digit d;
     int i;
 
+    /* default to no, so an error never leaves a primality claim */
+    if (result != NULL)
+        *result = FP_NO;
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
     if (a->sign == FP_NEG)
@@ -5396,7 +5402,12 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
-    (void)t;
+    /* No RNG: fixed small-prime bases, as in mp_prime_is_prime(). */
+    {
+        int err = fp_isprime_ex(a, t, &ret);
+        if (err != FP_OKAY)
+            return err;
+    }
 #endif /* !WC_NO_RNG */
 
     *result = ret;
@@ -5434,19 +5445,8 @@ int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 
 int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 {
-    int err;
-
-    err = fp_randprime(a, len, rng, heap);
-    switch(err) {
-        case WC_NO_ERR_TRACE(MP_VAL):
-            return MP_VAL;
-        case WC_NO_ERR_TRACE(MP_MEM):
-            return MP_MEM;
-        default:
-            break;
-    }
-
-    return MP_OKAY;
+    /* FP_* codes are the MP_* codes, so any error passes straight through. */
+    return fp_randprime(a, len, rng, heap);
 }
 
 int mp_exch (mp_int * a, mp_int * b)
@@ -5479,6 +5479,12 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
     if (len < 2 || len > 512) {
         return FP_VAL;
     }
+#ifndef WOLFSSL_SMALL_STACK
+    /* The prime test's base buffer holds FP_MAX_PRIME_SIZE bytes. */
+    if (len > FP_MAX_PRIME_SIZE) {
+        return FP_VAL;
+    }
+#endif
 
     /* allocate buffer to work with */
     buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5515,7 +5521,12 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
          * of a 1024-bit candidate being a false positive, when it is our
          * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
          * Using 8 because we've always used 8 */
-        mp_prime_is_prime_ex(a, 8, &isPrime, rng);
+        err = mp_prime_is_prime_ex(a, 8, &isPrime, rng);
+        if (err != FP_OKAY) {
+            XMEMSET(buf, 0, len);
+            XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return err;
+        }
     } while (isPrime == FP_NO);
 
     XMEMSET(buf, 0, len);
