@@ -58,7 +58,8 @@
 /* ------------------------------------------------------------------ */
 /* WOLF_CRYPTO_CB support for wc_KDA_KDF_twostep_cmac's dispatch guard */
 /* ------------------------------------------------------------------ */
-#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB)
+#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_USER_SETTINGS)
 #define TEST_KDF_CRYPTOCB_DEVID 0x4b444630 /* "KDF0" */
 
 /* Toggled by the test below: when set, the callback fails outright instead
@@ -86,7 +87,7 @@ static int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB */
+#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
 
 /*
  * MC/DC decision coverage: negative / argument-check / bad-selector /
@@ -634,7 +635,7 @@ int test_wc_KdfDecisionCoverage(void)
             sizeof(z), fixedInfo, sizeof(fixedInfo), output, sizeof(output),
             HEAP_HINT, INVALID_DEVID), 0);
 
-#if defined(WOLF_CRYPTO_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
         /* devId != INVALID_DEVID: dispatch taken. Independence pair for
          * the CRYPTOCB_UNAVAILABLE fall-through guard: succeeds, then fails
          * outright, both via the SAME registered devId. */
@@ -654,7 +655,7 @@ int test_wc_KdfDecisionCoverage(void)
         test_kdf_cryptocb_force_fail = 0;
 
         wc_CryptoCb_UnRegisterDevice(TEST_KDF_CRYPTOCB_DEVID);
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
     }
 #endif /* HAVE_CMAC_KDF && WOLFSSL_AES_128 */
 
@@ -946,7 +947,7 @@ int test_wc_KdfFeatureCoverage(void)
  *   - a registered device with a NULL callback: operand 1 false
  * Every call returns CRYPTOCB_UNAVAILABLE in all three rows.
  */
-#if defined(WOLF_CRYPTO_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
 #define TEST_CRYPTOCB_DISPATCH_DEVID 0x44495350 /* "DISP" */
 
 static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
@@ -957,12 +958,12 @@ static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
     (void)ctx;
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
 
 int test_wc_CryptoCbDispatchDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLF_CRYPTO_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
     byte   in[8] = {0};
     byte   out[16] = {0};
     byte   tag[16] = {0};
@@ -1045,6 +1046,6 @@ int test_wc_CryptoCbDispatchDecisionCoverage(void)
 
     (void)out;
     (void)tag;
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCbDispatchDecisionCoverage */
