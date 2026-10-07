@@ -2815,9 +2815,8 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 /* return Trusted Peer if found, otherwise NULL
     type is what to match on
  */
-TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
+TrustedPeerCert* GetTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     TrustedPeerCert* ret = NULL;
     TrustedPeerCert* tp  = NULL;
     byte    certHash[KEYID_SIZE];
@@ -2852,9 +2851,8 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 /* return CA if found, otherwise NULL */
-Signer* GetCA(void* vp, byte* hash)
+Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     word32  row = 0;
@@ -2887,9 +2885,8 @@ Signer* GetCA(void* vp, byte* hash)
 }
 
 #if defined(HAVE_OCSP)
-Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
+Signer* GetCAByKeyHash(WOLFSSL_CERT_MANAGER* cm, const byte* keyHash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     int row;
@@ -2898,7 +2895,7 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
         return NULL;
 
     /* try lookup using keyHash as subjKeyID first */
-    ret = GetCA(vp, (byte*)keyHash);
+    ret = GetCA(cm, (byte*)keyHash);
     if (ret != NULL && XMEMCMP(ret->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
         return ret;
     }
@@ -2923,10 +2920,9 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
 }
 #endif
 #ifdef WOLFSSL_AKID_NAME
-Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
-        const byte* serial, word32 serialSz)
+Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm, const byte* issuer,
+        word32 issuerSz, const byte* serial, word32 serialSz)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     byte nameHash[SIGNER_DIGEST_SIZE];
@@ -2965,9 +2961,8 @@ Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
 
 #ifndef NO_SKID
 /* return CA if found, otherwise NULL. Walk through hash table. */
-Signer* GetCAByName(void* vp, byte* hash)
+Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     word32  row;

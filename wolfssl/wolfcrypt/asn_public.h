@@ -1029,11 +1029,19 @@ WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalS
 /* Forward declaration needed, as DecodedCert is defined in asn.h.*/
 struct DecodedCert;
 
+/* The certificate manager is defined by the TLS layer. Only the name is
+ * needed here, so declare it rather than including ssl.h. */
+#ifndef WOLFSSL_CERT_MANAGER_TYPE_DEFINED
+#define WOLFSSL_CERT_MANAGER_TYPE_DEFINED
+typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
+#endif
+
 WOLFSSL_API void wc_InitDecodedCert(
     struct DecodedCert* cert, const byte* source, word32 inSz, void* heap);
 WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert* cert);
 WOLFSSL_API int  wc_ParseCert(
-    struct DecodedCert* cert, int type, int verify, void* cm);
+    struct DecodedCert* cert, int type, int verify,
+    WOLFSSL_CERT_MANAGER* cm);
 
 WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
                                         byte* derKey, word32* derKeySz);

@@ -7725,26 +7725,30 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         #define WC_MATCH_SKID 0
         #define WC_MATCH_NAME 1
 
-        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert);
+        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(WOLFSSL_CERT_MANAGER* cm,
+                DecodedCert* cert);
     #endif
 
 
     #ifndef GetCA
-        WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
+        WOLFSSL_LOCAL Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash);
     #endif
     #if defined(WOLFSSL_AKID_NAME) && !defined(WC_SYM_RELOC_TABLES)
         /* note WOLFSSL_API_PREFIX_MAPping is in asn.h, and if
          * WC_SYM_RELOC_TABLES, the prototype is in the port layer
          * (e.g. linuxkm_wc_port.h), to allow shimming.
          */
-        WOLFSSL_TEST_VIS Signer* GetCAByAKID(void* vp, const byte* issuer,
-                word32 issuerSz, const byte* serial, word32 serialSz);
+        WOLFSSL_TEST_VIS Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm,
+                const byte* issuer, word32 issuerSz, const byte* serial,
+                word32 serialSz);
     #endif
     #if defined(HAVE_OCSP) && !defined(GetCAByKeyHash)
-        WOLFSSL_LOCAL Signer* GetCAByKeyHash(void* vp, const byte* keyHash);
+        WOLFSSL_LOCAL Signer* GetCAByKeyHash(WOLFSSL_CERT_MANAGER* cm,
+                const byte* keyHash);
     #endif
     #if !defined(NO_SKID) && !defined(GetCAByName)
-        WOLFSSL_LOCAL Signer* GetCAByName(void* vp, byte* hash);
+        WOLFSSL_LOCAL Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm,
+                byte* hash);
     #endif
 #endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
