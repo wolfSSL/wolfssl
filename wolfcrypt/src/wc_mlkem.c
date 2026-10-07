@@ -2339,6 +2339,8 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 
     ForceZero(msg, sizeof(msg));
     ForceZero(kr, sizeof(kr));
+    /* The implicit-rejection flag is destroyed too (FIPS 203 6.3). */
+    ForceZero(&fail, sizeof(fail));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(msg, sizeof(msg));
     wc_MemZero_Check(kr, sizeof(kr));
