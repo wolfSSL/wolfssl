@@ -11856,8 +11856,9 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
 fi
 
 if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
-  if test "$ENABLED_SP_NONBLOCK" = "yes"; then
-    AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
+  if test "$ENABLED_SP_NONBLOCK" = "yes" && \
+     { test "$enable_rsa" = "nonblock" || test "$enable_dh" = "nonblock"; }; then
+    AC_MSG_ERROR([SP non-blocking RSA/DH not supported with sp-asm])
   fi
   if test "$ENABLED_ASM" = "no"; then
     AC_MSG_ERROR([Assembly code turned off])
