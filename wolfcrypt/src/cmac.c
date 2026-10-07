@@ -235,7 +235,7 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
         }
 
         if (ret == 0) {
-            byte l[WC_AES_BLOCK_SIZE];
+            ALIGN16 byte l[WC_AES_BLOCK_SIZE];
 
             XMEMSET(l, 0, WC_AES_BLOCK_SIZE);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
