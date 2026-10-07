@@ -1344,6 +1344,7 @@ static int slhdsakey_prf_msg_sha2(SlhDsaKey* key, const byte* sk_prf,
     if (ret == 0) {
         XMEMCPY(hash, digest, n);
     }
+    ForceZero(digest, sizeof(digest));
 
     return ret;
 }
@@ -5200,8 +5201,10 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     if (!SLHDSA_IS_SHA2(key->params->param) &&
             IS_INTEL_AVX2(cpuid_flags)) {
         int svr_ret = SAVE_VECTOR_REGISTERS2();
-        if (svr_ret != 0)
+        if (svr_ret != 0) {
+            ForceZero(msg, sizeof(msg));
             return svr_ret;
+        }
         ret = slhdsakey_wots_sign_chain_x4(key, msg, sk_seed, pk_seed, adrs,
             sk_adrs, sig);
         RESTORE_VECTOR_REGISTERS();
@@ -5262,6 +5265,7 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
         wc_MemZero_Check(sk, n);
 #endif
     }
+    ForceZero(msg, sizeof(msg));
 
     return ret;
 }
@@ -7696,6 +7700,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
         /* Private key values reached the caller's buffer; do not leave them. */
         ForceZero(sig_start, (size_t)(sig_fors - sig_start));
     }
+    ForceZero(indices, sizeof(indices));
 
     return ret;
 }
@@ -8978,6 +8983,31 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
 }
 
 #ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
+/* Wipe the hash object that absorbed SK.seed or SK.prf, once per operation
+ * (ISO/IEC 19790:2012 7.9.7). */
+static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
+{
+#ifdef WOLFSSL_SLHDSA_SHA2
+    if (SLHDSA_IS_SHA2(key->params->param)) {
+        if (key->hash.sha2.sha256_inited) {
+            wc_Sha256Free(&key->hash.sha2.sha256);
+            key->hash.sha2.sha256_inited = 0;
+        }
+    }
+    else
+#endif
+    {
+        wc_Shake* shake = &key->hash.shk.shake;
+
+        ForceZero(shake->s, sizeof(shake->s));
+        ForceZero(shake->t, sizeof(shake->t));
+#ifdef WC_SHA3_SCRATCH_W
+        ForceZero(shake->scratch, sizeof(shake->scratch));
+#endif
+        shake->i = 0;
+    }
+}
+
 /* Compute the public key root from the seeds already staged in the key.
  *
  * FIPS 205, Section 9.1, Algorithm 18, steps 1 to 3.
@@ -9018,6 +9048,7 @@ static int slhdsakey_compute_root(SlhDsaKey* key)
     if (ret == 0) {
         key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
     }
+    slhdsakey_wipe_secret_hash(key);
 
     return ret;
 }
@@ -9118,6 +9149,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         /* The seeds are staged in the key above, so the shared helper works
          * from key->sk for both this caller and the CheckKey fallback. */
         ret = slhdsakey_compute_root(key);
+        if (ret != 0) {
+            ForceZero(key->sk, 2U * key->params->n);
+        }
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -9157,6 +9191,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             }
             ForceZero(pct_root, sizeof(pct_root));
         }
+        slhdsakey_wipe_secret_hash(key);
 
         /* Free a key that failed the test, so a caller ignoring the return
          * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
@@ -9234,6 +9269,7 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
          * (ISO/IEC 19790:2012 7.9.7). */
         ForceZero(sigFors, key->params->k * (1 + key->params->a) * n);
     }
+    slhdsakey_wipe_secret_hash(key);
 
     return ret;
 }
@@ -9340,6 +9376,8 @@ static int slhdsakey_sign_internal_msg(SlhDsaKey* key, const byte* m,
             /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
             ForceZero(sigOut, key->params->sigLen);
         }
+        ForceZero(md, sizeof(md));
+        slhdsakey_wipe_secret_hash(key);
     }
 
     return ret;
@@ -9479,6 +9517,8 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
             ForceZero(sigOut, key->params->sigLen);
         }
+        ForceZero(md, sizeof(md));
+        slhdsakey_wipe_secret_hash(key);
     }
 
     return ret;
@@ -10576,6 +10616,8 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
             /* FIPS 205 3.1: a failed sign leaves no part of a signature. */
             ForceZero(sigOut, key->params->sigLen);
         }
+        ForceZero(md, sizeof(md));
+        slhdsakey_wipe_secret_hash(key);
     }
 
     return ret;
@@ -11071,7 +11113,6 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
     else {
         /* Copy private and public key data into SLH-DSA key object. */
         XMEMCPY(key->sk, priv, 4U * key->params->n);
-        key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
 /* Under crypto callback only the device performs every hash, so it derives
  * the SHA2 midstates for the imported PK.seed itself. */
 #if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
@@ -11079,6 +11120,14 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
             ret = slhdsakey_precompute_sha2_midstates(key);
         }
 #endif
+        if (ret == 0) {
+            key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
+        }
+        else {
+            /* The seeds are unusable without the midstates. */
+            key->flags = 0;
+            ForceZero(key->sk, 4U * key->params->n);
+        }
     }
 
     return ret;
