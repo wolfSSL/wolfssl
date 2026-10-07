@@ -33127,6 +33127,7 @@ static word32 mldsa_test_der_put_len(byte* p, word32 len)
     return 3;
 }
 
+#if defined(WOLFSSL_MLDSA_NO_ASN1)
 /* SEQUENCE { SEQUENCE { OID } BIT STRING }. BIT STRING content is the
  * unused-bits byte followed by the raw public key. */
 static word32 mldsa_test_build_pub_der(byte* buf, const byte* oid,
@@ -33155,7 +33156,9 @@ static word32 mldsa_test_build_pub_der(byte* buf, const byte* oid,
 
     return (word32)(p - buf);
 }
+#endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
+#if !defined(WOLFSSL_MLDSA_NO_ASN1)
 /* SEQUENCE of INTEGER 0, a SEQUENCE of OID, and nested OCTET STRINGs
  * wrapping the private key. Private key only: no [1] public key
  * component. */
@@ -33190,6 +33193,7 @@ static word32 mldsa_test_build_priv_der(byte* buf, const byte* oid,
 
     return (word32)(p - buf);
 }
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 
 /* One keygen + sign + verify round trip, plus a verify of the signature
  * with its z region corrupted (16 bytes of 0xFF past the commit push the
