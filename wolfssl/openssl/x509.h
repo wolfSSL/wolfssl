@@ -77,7 +77,10 @@
                                    WOLFSSL_XN_FLAG_SPC_EQ | \
                                    WOLFSSL_XN_FLAG_FN_LN | \
                                    WOLFSSL_XN_FLAG_FN_ALIGN)
-#define WOLFSSL_XN_FLAG_ONELINE (WOLFSSL_XN_FLAG_SEP_CPLUS_SPC | WOLFSSL_XN_FLAG_SPC_EQ | WOLFSSL_XN_FLAG_FN_SN)
+#define WOLFSSL_XN_FLAG_ONELINE (WOLFSSL_ASN1_STRFLGS_ESC_CTRL | \
+                                 WOLFSSL_XN_FLAG_SEP_CPLUS_SPC | \
+                                 WOLFSSL_XN_FLAG_SPC_EQ | \
+                                 WOLFSSL_XN_FLAG_FN_SN)
 
 #ifndef OPENSSL_COEXIST
 

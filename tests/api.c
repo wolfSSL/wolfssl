@@ -24032,6 +24032,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ExpectNotNull(dirName = X509_NAME_new());
     ExpectIntEQ(X509_NAME_add_entry_by_NID(dirName, NID_commonName,
         MBSTRING_UTF8, (unsigned char*)"wolfSSLDirNameTest", -1, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(dirName, NID_organizationalUnitName,
+        MBSTRING_UTF8, (unsigned char*)"a\r\nb", -1, -1, 0), 1);
     if (gn != NULL) {
         /* Replace the default IA5 string allocated by GENERAL_NAME_new with
          * the directoryName and take ownership of it. */
@@ -24047,6 +24049,9 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ExpectIntEQ(XSTRNCMP((const char*)outbuf, dirNameStr, XSTRLEN(dirNameStr)),
         0);
     ExpectNotNull(XSTRSTR((const char*)outbuf, "wolfSSLDirNameTest"));
+    /* Control characters are escaped, not written raw. */
+    ExpectNotNull(XSTRSTR((const char*)outbuf, "a\\0D\\0Ab"));
+    ExpectNull(XSTRSTR((const char*)outbuf, "\n"));
     /* Duplicating GEN_DIRNAME not supported. */
     ExpectNull(dup_gn = GENERAL_NAME_dup(gn));
     GENERAL_NAME_free(gn);
