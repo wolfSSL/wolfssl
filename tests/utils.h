@@ -134,6 +134,10 @@ int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int of
 THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args);
 void run_wolfssl_client(void* args);
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+int test_bio_mem_to_str(WOLFSSL_BIO* bio, char* buf, int bufSz);
+#endif
+
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
 void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName);
