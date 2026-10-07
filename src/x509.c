@@ -7288,6 +7288,7 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
     int          total_len = 0;
     int          bytes_left = max_len;
     int          fld_len = 0;
+    int          esc_len = 0;
     int          match_found = 0;
 
     XMEMSET(dst, 0, max_len);
@@ -7346,28 +7347,17 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
                     break;
                 }
 
-                /* Make sure we have space to fit it. */
-                if ((int) XSTRLEN(pfx) > bytes_left) {
-                    /* Not enough space left. */
-                    break;
-                }
-
                 /* Copy it in, decrement available space. */
-                XSTRNCPY(dst, pfx, bytes_left);
-                dst += XSTRLEN(pfx);
-                total_len += (int)XSTRLEN(pfx);
-                bytes_left -= (int)XSTRLEN(pfx);
-
-                if (fld_len > bytes_left) {
+                esc_len = X509PrintEscStr(dst, bytes_left, pfx, &src[i],
+                                          fld_len);
+                if (esc_len >= bytes_left) {
                     /* Not enough space left. */
                     break;
                 }
-
-                XMEMCPY(dst, &src[i], fld_len);
                 i += fld_len;
-                dst += fld_len;
-                total_len += fld_len;
-                bytes_left -= fld_len;
+                dst += esc_len;
+                total_len += esc_len;
+                bytes_left -= esc_len;
 
                 match_found = 1;
             }

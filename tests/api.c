@@ -32548,7 +32548,9 @@ static int test_wolfSSL_X509_print_dir_altname(void)
          * byte early in the encoding. */
         0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x00,
         /* commonName "Test", which sits after that zero byte. */
-        0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x04, 'T', 'e', 's', 't'
+        0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x04, 'T', 'e', 's', 't',
+        /* organizationalUnitName with control characters. */
+        0x06, 0x03, 0x55, 0x04, 0x0b, 0x0c, 0x04, 'a', '\r', '\n', 'b'
     };
     /* Shorter than the five bytes the tag scan needs. */
     static const char shortDirName[] = { 0x30, 0x00 };
@@ -32572,6 +32574,8 @@ static int test_wolfSSL_X509_print_dir_altname(void)
         XMEMCPY(buf, data, (size_t)len);
         buf[len] = '\0';
         ExpectNotNull(XSTRSTR(buf, "CN=Test"));
+        ExpectNotNull(XSTRSTR(buf, "OU=a\\0D\\0Ab"));
+        ExpectNull(XSTRSTR(buf, "a\r\nb"));
     }
     BIO_free(bio);
     bio = NULL;
