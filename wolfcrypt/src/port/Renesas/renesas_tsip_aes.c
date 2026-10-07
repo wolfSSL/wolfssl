@@ -993,6 +993,7 @@ int wc_tsip_AesGcmEncrypt(
  *  - authInSz: AAD size
  * return 0 on success, otherwise on error.
  * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size
+ * Note: sz == 0 and/or authInSz == 0 are legal (GMAC / AAD-only input)
  *
  */
 int wc_tsip_AesGcmDecrypt(
@@ -1026,8 +1027,8 @@ int wc_tsip_AesGcmDecrypt(
 
     WOLFSSL_ENTER("wc_tsip_AesGcmDecrypt");
 
-    if (aes == NULL || in == NULL || out == NULL || sz == 0 || ctx == NULL ||
-        iv == 0 ||
+    if (aes == NULL || ctx == NULL || iv == 0 ||
+        (sz != 0       && (in == NULL  || out == NULL)) ||
         (authInSz != 0 && authIn == NULL) ||
         (authInSz == 0 && authIn != NULL) ||
         (authTagSz != 0 && authTag == NULL) ||
@@ -1059,30 +1060,27 @@ int wc_tsip_AesGcmDecrypt(
 
     if ((ret = tsip_hw_lock()) == 0) {
 
-        /* allocate buffers for plaintext, cipher-text, authTag and AAD.
-         * TSIP requests those buffers 32bit aligned.
-         * authInSz may legally be 0 (no AAD); XMALLOC(0, ...) is
-         * implementation-defined and may return NULL, so skip allocating
-         * (and later copying into) aadBuf when there is no AAD, rather than
-         * treating that NULL as an allocation failure. (sz == 0 is already
-         * rejected by the argument validation above, so cipherBuf/plainBuf
-         * are never zero-size here.)
+        /* Allocate 32-bit aligned buffers required by TSIP.
+         * Skip zero-size buffers since XMALLOC(0, ...) may return NULL.
+         * plainBufSz is always at least one AES block.
          */
-        cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
+        if (sz != 0)
+            cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         plainBuf  = XMALLOC(plainBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
         if (authInSz != 0)
             aadBuf = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
-        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
-                (authInSz != 0 && aadBuf == NULL)) {
+        if (plainBuf == NULL || (sz != 0 && cipherBuf == NULL) ||
+                aTagBuf == NULL || (authInSz != 0 && aadBuf == NULL)) {
             ret = -1;
         }
 
         if (ret == 0) {
             ForceZero(plainBuf, plainBufSz);
-            XMEMCPY(cipherBuf, in, sz);
+            if (sz != 0)
+                XMEMCPY(cipherBuf, in, sz);
             ForceZero(aTagBuf, TSIP_AES_GCM_AUTH_TAG_SIZE);
             XMEMCPY(aTagBuf,authTag,min(authTagSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
             if (authInSz != 0)
@@ -1164,8 +1162,9 @@ int wc_tsip_AesGcmDecrypt(
                     min(16, authTagSz)); /* TSIP accepts upto 16 byte */
 
             if (err == TSIP_SUCCESS) {
-                /* copy plain data to out */
-                XMEMCPY(out, plainBuf, sz);
+                /* Copy plain data to out (sz may be 0). */
+                if (sz != 0)
+                    XMEMCPY(out, plainBuf, sz);
             }
             else {
                 WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptFinal: failed");

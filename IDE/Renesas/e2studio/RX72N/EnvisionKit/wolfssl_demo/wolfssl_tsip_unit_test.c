@@ -989,7 +989,7 @@ static void tskAes128_Gcm_Test(void *pvParam)
  * used to XMALLOC(0, ...) a same-sized scratch buffer for it and treat a
  * NULL result as an allocation failure -- whether that happened depended on
  * the platform allocator's handling of a zero-byte request, not on the
- * actual GCM inputs.
+ * actual GCM inputs. Decrypt also rejected sz == 0; now it is accepted.
  */
 static int tsip_aesgcm_zerolen_test(int prnt, int devId)
 {
@@ -1041,9 +1041,7 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
     wc_AesGcmSetKey(dec, key, sizeof(key));
 
     /* (a) empty payload, non-empty AAD -- used to fail because plainBuf was
-     * XMALLOC(0, ...)'d in wc_tsip_AesGcmEncrypt(). TSIP rejects a
-     * zero-length decrypt by design (unrelated to this fix), so this case
-     * is encrypt-only. */
+     * XMALLOC(0, ...)'d in wc_tsip_AesGcmEncrypt(). */
     XMEMSET(resultT, 0, sizeof(resultT));
     ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
                             resultT, sizeof(resultT), aad, sizeof(aad));
@@ -1083,6 +1081,45 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
                             resultT, sizeof(resultT), NULL, 0);
     if (ret != 0) {
         ret = -7;
+        goto out;
+    }
+
+    /* (d) empty payload, non-empty AAD, round trip */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret != 0) {
+        ret = -8;
+        goto out;
+    }
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret != 0) {
+        ret = -9;
+        goto out;
+    }
+
+    /* (e) corrupted tag must fail */
+    resultT[0] ^= 0x01;
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret == 0) {
+        ret = -10;
+        goto out;
+    }
+
+    /* (f) empty payload and empty AAD, round trip */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -11;
+        goto out;
+    }
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -12;
         goto out;
     }
 
