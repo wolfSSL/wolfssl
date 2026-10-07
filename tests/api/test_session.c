@@ -880,7 +880,9 @@ static WC_MAYBE_UNUSED int test_wolfSSL_CTX_add_session_ext(
                  * takes part in anti-replay, so it is consulted. */
                 ExpectIntEQ(twcase_get_session_called, 1);
                 ExpectIntEQ(twcase_new_session_called, 1);
-                ExpectIntEQ(twcase_remove_session_called, 1);
+                /* A 0-RTT capable ticket is cached under a new ID, so the
+                 * flush removes the first and the reissued session. */
+                ExpectIntEQ(twcase_remove_session_called, 2);
                 break;
 #endif
         }

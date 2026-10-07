@@ -14805,20 +14805,24 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
     #endif
     }
 
+#ifdef WOLFSSL_EARLY_DATA
+    /* The client only sends EndOfEarlyData when early data was accepted, and
+     * never with DTLS or QUIC. It comes before, and is covered by, the
+     * client's Finished message. */
+    if (ssl->earlyData == process_early_data && !ssl->options.dtls &&
+            !WOLFSSL_IS_QUIC(ssl)) {
+        static const byte endOfEarlyData[] = { 0x05, 0x00, 0x00, 0x00 };
+        ret = HashRaw(ssl, endOfEarlyData, sizeof(endOfEarlyData));
+        if (ret != 0)
+            goto restore;
+    }
+#endif
     /* Generate the Client's Finished message and hash it. */
     ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret, mac,
                                   &finishedSz);
     if (ret != 0)
         goto restore;
     header[FINISHED_MSG_SIZE_OFFSET] = finishedSz;
-#ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData != no_early_data) {
-        static byte endOfEarlyData[] = { 0x05, 0x00, 0x00, 0x00 };
-        ret = HashRaw(ssl, endOfEarlyData, sizeof(endOfEarlyData));
-        if (ret != 0)
-            goto restore;
-    }
-#endif
     if ((ret = HashRaw(ssl, header, sizeof(header))) != 0)
         goto restore;
     if ((ret = HashRaw(ssl, mac, finishedSz)) != 0)
