@@ -336,6 +336,7 @@ void fe448_invert(word8* r, const word8* a)
     fe448_sqr(t, t);
     fe448_sqr(t, t);
     fe448_mul(r, t, a);
+    ForceZero(t, sizeof(t));
 }
 
 /* Scalar multiply the point by a number. r = n.a
@@ -394,6 +395,14 @@ int curve448(byte* r, const byte* n, const byte* a)
     fe448_invert(z2, z2);
     fe448_mul(r, x2, z2);
     fe448_norm(r);
+
+    ForceZero(x1, sizeof(x1));
+    ForceZero(x2, sizeof(x2));
+    ForceZero(z2, sizeof(z2));
+    ForceZero(x3, sizeof(x3));
+    ForceZero(z3, sizeof(z3));
+    ForceZero(t0, sizeof(t0));
+    ForceZero(t1, sizeof(t1));
 
     return 0;
 }
@@ -1072,6 +1081,10 @@ void fe448_invert(sword64* r, const sword64* a)
     /* t1 = fffffffffffffffffffffffffffffffffffffffffffffffffffffffe00000000000000000000000000000000000000000000000000000000 */
     fe448_mul(r, t3, t1);
     /* r = fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffffffffffffffffffffffffffffffffffffffffffffffffffffd */
+    ForceZero(t1, sizeof(t1));
+    ForceZero(t2, sizeof(t2));
+    ForceZero(t3, sizeof(t3));
+    ForceZero(t4, sizeof(t4));
 }
 
 /* Scalar multiply the point by a number. r = n.a
@@ -1136,6 +1149,14 @@ int curve448(byte* r, const byte* n, const byte* a)
     fe448_invert(z2, z2);
     fe448_mul(x2, x2, z2);
     fe448_to_bytes(r, x2);
+
+    ForceZero(x1, sizeof(x1));
+    ForceZero(x2, sizeof(x2));
+    ForceZero(z2, sizeof(z2));
+    ForceZero(x3, sizeof(x3));
+    ForceZero(z3, sizeof(z3));
+    ForceZero(t0, sizeof(t0));
+    ForceZero(t1, sizeof(t1));
 
     return 0;
 }
@@ -2249,6 +2270,10 @@ void fe448_invert(sword32* r, const sword32* a)
     /* t1 = fffffffffffffffffffffffffffffffffffffffffffffffffffffffe00000000000000000000000000000000000000000000000000000000 */
     fe448_mul(r, t3, t1);
     /* r = fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffffffffffffffffffffffffffffffffffffffffffffffffffffd */
+    ForceZero(t1, sizeof(t1));
+    ForceZero(t2, sizeof(t2));
+    ForceZero(t3, sizeof(t3));
+    ForceZero(t4, sizeof(t4));
 }
 
 /* Scalar multiply the point by a number. r = n.a
@@ -2313,6 +2338,14 @@ int curve448(byte* r, const byte* n, const byte* a)
     fe448_invert(z2, z2);
     fe448_mul(x2, x2, z2);
     fe448_to_bytes(r, x2);
+
+    ForceZero(x1, sizeof(x1));
+    ForceZero(x2, sizeof(x2));
+    ForceZero(z2, sizeof(z2));
+    ForceZero(x3, sizeof(x3));
+    ForceZero(z3, sizeof(z3));
+    ForceZero(t0, sizeof(t0));
+    ForceZero(t1, sizeof(t1));
 
     return 0;
 }
