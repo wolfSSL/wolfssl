@@ -3435,6 +3435,18 @@ int test_wolfSSL_CRL_unverified_no_evict(void)
     ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, crl_test_leaf_a,
         (int)sizeof(crl_test_leaf_a)), WOLFSSL_SUCCESS);
 
+    /* A newer CRL whose signer is loaded is verified as it is read, so the
+     * same path still replaces a verified entry. crl_reason.pem is CRL
+     * number 1 and revokes serial 01, crl.pem is number 2 and does not. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+        sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+        "./certs/crl/crl_reason.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_load_locations(store,
+        "./certs/crl/crl.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WOLFSSL_SUCCESS);
+
     if (bogusFile[0] != '\0')
         (void)rem_file(bogusFile);
     if (tmpDir[0] != '\0')
