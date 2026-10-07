@@ -1090,6 +1090,34 @@ void wc_LmsKey_Free(LmsKey* key)
 }
 
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* Length of the expanded private key data. */
+static word32 wc_lmskey_priv_data_len(const LmsParams* params)
+{
+    word32 len = LMS_PRIV_DATA_LEN(params->levels, params->height, params->p,
+        params->rootLevels, params->cacheBits, params->hash_len);
+
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+    len += HSS_PRIVATE_KEY_LEN(params->hash_len);
+#endif
+    return len;
+}
+
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
+/* A failed generation, reload or sign leaves no private key resident
+ * (ISO/IEC 19790:2012 7.9.7). */
+static void wc_lmskey_wipe_priv(LmsKey* key)
+{
+    if (key->priv_data != NULL) {
+        ForceZero(key->priv_data, wc_lmskey_priv_data_len(key->params));
+    }
+    ForceZero(key->priv_raw, HSS_MAX_PRIVATE_KEY_LEN);
+    ForceZero(&key->priv, sizeof(HssPrivKey));
+    if (key->state != WC_LMS_STATE_NOSIGS) {
+        key->state = WC_LMS_STATE_BAD;
+    }
+}
+#endif /* !WOLF_CRYPTO_CB_ONLY_LMS */
+
 /* Set the write private key callback to the LMS key structure.
  *
  * The callback must be able to write/update the private key to
@@ -1213,6 +1241,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 #endif
 #ifndef WOLF_CRYPTO_CB_ONLY_LMS
     word32 priv_data_len = 0;
+    int started = 0;
 #endif
 
     /* Validate parameters. */
@@ -1314,6 +1343,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
             if (ret == 0) {
+                started = 1;
                 /* Make the HSS key. */
                 ret = wc_hss_make_key(state, rng, key->priv_raw, &key->priv,
                     key->priv_data, key->pub);
@@ -1360,6 +1390,9 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         key->state = WC_LMS_STATE_OK;
         key->pubSet = 1;
     }
+    else if (started) {
+        wc_lmskey_wipe_priv(key);
+    }
 #endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
@@ -1391,6 +1424,7 @@ int wc_LmsKey_Reload(LmsKey* key)
     int ret = 0;
 #ifndef WOLF_CRYPTO_CB_ONLY_LMS
     word32 priv_data_len = 0;
+    int started = 0;
 #endif
 
     /* Validate parameter. */
@@ -1456,7 +1490,10 @@ int wc_LmsKey_Reload(LmsKey* key)
         /* Load private key. */
     #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
         const LmsParams* params = key->params;
+    #endif
 
+        started = 1;
+    #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
         rv = key->read_private_key(key->priv_data, priv_data_len, key->context);
     #else
         rv = key->read_private_key(key->priv_raw,
@@ -1513,6 +1550,9 @@ int wc_LmsKey_Reload(LmsKey* key)
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
     }
+    else if (started) {
+        wc_lmskey_wipe_priv(key);
+    }
 #endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
@@ -1568,6 +1608,9 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     int msgSz)
 {
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
+    int started = 0;
+#endif
 
     /* Validate parameters.  A NULL msg is valid for the empty message
      * (msgSz == 0), per RFC 8554 which permits empty messages. */
@@ -1661,6 +1704,7 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
                 /* Set the key state to bad by default. State is presumed bad
                  * unless a correct sign and write operation happen together. */
                 key->state = WC_LMS_STATE_BAD;
+                started = 1;
                 /* Sign message. */
                 ret = wc_hss_sign(state, key->priv_raw, &key->priv,
                     key->priv_data, msg, (word32)msgSz, sig);
@@ -1709,6 +1753,11 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         /* The advanced private key was committed to storage. The key is safe
          * to sign with again. */
         key->state = WC_LMS_STATE_OK;
+    }
+    else if (started) {
+        /* A one-time key may be in sig; the NV copy is the key now. */
+        ForceZero(sig, key->params->sig_len);
+        wc_lmskey_wipe_priv(key);
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
