@@ -26,6 +26,7 @@
 
 int test_wc_ed25519_make_key(void);
 int test_wc_ed25519_init(void);
+int test_wc_ed25519_init_id(void);
 int test_wc_ed25519_sign_msg(void);
 int test_wc_ed25519_sign_msg_pubonly_fails(void);
 int test_wc_ed25519_import_public(void);
@@ -44,10 +45,12 @@ int test_wc_ed25519_verify_streaming(void);
 int test_wc_ed25519_check_key_edgecases(void);
 int test_wc_ed25519_import_variants(void);
 int test_wc_ed25519_make_public_argchecks(void);
+int test_wc_ed25519_make_public_dev_key(void);
 
 #define TEST_ED25519_DECLS                                          \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),           \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_init),               \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_init_id),            \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg),           \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg_pubonly_fails), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_public),      \
@@ -65,6 +68,7 @@ int test_wc_ed25519_make_public_argchecks(void);
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_check_key_edgecases), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_variants),     \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_argchecks), \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_dev_key), \
     TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyDecode_ex)
 
 #endif /* WOLFCRYPT_TEST_ED25519_H */
