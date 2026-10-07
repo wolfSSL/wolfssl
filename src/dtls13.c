@@ -3621,6 +3621,14 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
 #endif
     int i;
 
+    /* an epoch 0 ACK once encrypted only triggers retransmission */
+    if (w64IsZero(ssl->keys.curEpoch64) && !w64IsZero(ssl->dtls13Epoch)) {
+        *processedSize = inputSize;
+        if (ssl->dtls13Rtx.rtxRecords != NULL)
+            ssl->dtls13Rtx.retransmit = 1;
+        return 0;
+    }
+
     if (inputSize < OPAQUE16_LEN)
         return BUFFER_ERROR;
 
