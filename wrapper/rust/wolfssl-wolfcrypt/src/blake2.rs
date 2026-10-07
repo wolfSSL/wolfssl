@@ -139,7 +139,12 @@ impl BLAKE2b {
     /// # Parameters
     ///
     /// * `hash`: Output buffer in which to store the computed BLAKE2b hash
-    ///   value. It can be any length.
+    ///   value. Its length must be 1 through 64 bytes and sets the number of
+    ///   hash bytes written. It may differ from the `digest_size` given at
+    ///   initialization, but the hash computed is always determined by
+    ///   `digest_size`; a shorter buffer receives a truncation of that hash,
+    ///   which is not the same as a BLAKE2b hash computed with a smaller
+    ///   `digest_size`.
     ///
     /// # Returns
     ///
@@ -450,7 +455,12 @@ impl BLAKE2s {
     /// # Parameters
     ///
     /// * `hash`: Output buffer in which to store the computed BLAKE2s hash
-    ///   value. It can be any length.
+    ///   value. Its length must be 1 through 32 bytes and sets the number of
+    ///   hash bytes written. It may differ from the `digest_size` given at
+    ///   initialization, but the hash computed is always determined by
+    ///   `digest_size`; a shorter buffer receives a truncation of that hash,
+    ///   which is not the same as a BLAKE2s hash computed with a smaller
+    ///   `digest_size`.
     ///
     /// # Returns
     ///
