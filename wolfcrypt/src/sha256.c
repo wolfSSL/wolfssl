@@ -1954,6 +1954,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha256->digest[6] += S[6];
         sha256->digest[7] += S[7];
 
+    #ifndef WC_SHA256_W_IN_CTX
+        ForceZero(W, sizeof(W));
+    #endif
         return 0;
     }
 #endif /* SHA256_MANY_REGISTERS */
