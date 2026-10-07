@@ -1096,6 +1096,38 @@ int test_wolfSSL_rehandshake_app_data_partial_record(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+/* Do a full TLS 1.3 handshake to get a ticket that allows early data. */
+static int test_ssl_rw_early_data_ticket(WOLFSSL_CTX** ctx_c,
+    WOLFSSL_CTX** ctx_s, WOLFSSL_SESSION** sess)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    char buf[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, ctx_c, ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(*sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return EXPECT_RESULT();
+}
+#endif
+
 /* Test that a TLS 1.3 server asked to finish the handshake while early data
  * is still unread reports APP_DATA_READY, lets the data be read and then
  * finishes.
@@ -1126,21 +1158,8 @@ int test_wolfSSL_accept_early_data_pending(void)
     int written = 0;
     int rd = 0;
 
-    /* Full handshake to get a ticket that allows early data. */
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
-        WOLFSSL_ERROR_WANT_READ);
-    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
-    wolfSSL_free(ssl_c);
-    ssl_c = NULL;
-    wolfSSL_free(ssl_s);
-    ssl_s = NULL;
+    ExpectIntEQ(test_ssl_rw_early_data_ticket(&ctx_c, &ctx_s, &sess),
+        TEST_SUCCESS);
 
     /* Resume with early data and read only part of it. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -1179,6 +1198,10 @@ int test_wolfSSL_accept_early_data_pending(void)
 
     /* Same again, but drain the rest with wolfSSL_read_early_data(). The
      * APP_DATA_READY left by wolfSSL_accept() must not hide the byte count. */
+    wolfSSL_SESSION_free(sess);
+    sess = NULL;
+    ExpectIntEQ(test_ssl_rw_early_data_ticket(&ctx_c, &ctx_s, &sess),
+        TEST_SUCCESS);
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
