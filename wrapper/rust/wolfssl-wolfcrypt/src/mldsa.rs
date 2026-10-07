@@ -29,16 +29,20 @@ deallocation.
 Three security parameter sets are supported, selected via
 [`MlDsa::set_level()`]:
 
-| Constant        | Level | NIST PQC Level |
-|-----------------|-------|----------------|
-| [`MlDsa::LEVEL_44`] | 2 | 2 (ML-DSA-44) |
-| [`MlDsa::LEVEL_65`] | 3 | 3 (ML-DSA-65) |
-| [`MlDsa::LEVEL_87`] | 5 | 5 (ML-DSA-87) |
+| Constant        | Level | NIST PQC Level | Build cfg |
+|-----------------|-------|----------------|-----------|
+| [`MlDsa::LEVEL_44`] | 2 | 2 (ML-DSA-44) | `mldsa_level2` |
+| [`MlDsa::LEVEL_65`] | 3 | 3 (ML-DSA-65) | `mldsa_level3` |
+| [`MlDsa::LEVEL_87`] | 5 | 5 (ML-DSA-87) | `mldsa_level5` |
+
+A parameter set that the library was not built with has no level constant,
+so selecting it is a compile-time error rather than a runtime
+`NOT_COMPILED_IN`.
 
 # Examples
 
 ```rust
-#[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+#[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -76,10 +80,22 @@ pub struct MlDsa {
 
 impl MlDsa {
     /// ML-DSA-44 security parameter set (NIST Level 2).
+    ///
+    /// Only present when the library was built with ML-DSA-44 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_44`).
+    #[cfg(mldsa_level2)]
     pub const LEVEL_44: u8 = sys::WC_ML_DSA_44 as u8;
     /// ML-DSA-65 security parameter set (NIST Level 3).
+    ///
+    /// Only present when the library was built with ML-DSA-65 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_65`).
+    #[cfg(mldsa_level3)]
     pub const LEVEL_65: u8 = sys::WC_ML_DSA_65 as u8;
     /// ML-DSA-87 security parameter set (NIST Level 5).
+    ///
+    /// Only present when the library was built with ML-DSA-87 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_87`).
+    #[cfg(mldsa_level5)]
     pub const LEVEL_87: u8 = sys::WC_ML_DSA_87 as u8;
 
     /// Required size in bytes of the seed passed to
@@ -149,7 +165,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -181,7 +197,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -228,7 +244,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let seed = [0x42u8; 32];
@@ -260,7 +276,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let seed = [0x42u8; 32];
@@ -376,7 +392,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mldsa)]
+    /// #[cfg(all(mldsa, mldsa_level3))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let mut key = MlDsa::new().expect("Error with new()");
@@ -401,7 +417,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mldsa)]
+    /// #[cfg(all(mldsa, mldsa_level5))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let mut key = MlDsa::new().expect("Error with new()");
@@ -429,7 +445,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -460,7 +476,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_priv_size, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_priv_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -490,7 +506,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -520,7 +536,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sig_size, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sig_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -550,7 +566,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_check_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_check_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -583,7 +599,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, mldsa_export_public,
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size, mldsa_export_public,
     ///           mldsa_import_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -627,7 +643,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_export_private,
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_export_private,
     ///           mldsa_import_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -669,7 +685,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
     ///           mldsa_export_private, mldsa_import_private,
     ///           mldsa_import_public, random))]
     /// {
@@ -718,7 +734,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_pub_size, mldsa_export_public, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size,
+    ///           mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -757,7 +774,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_export_private, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size,
+    ///           mldsa_export_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -801,7 +819,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
     ///           mldsa_export_private, mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -849,7 +867,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -906,7 +924,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -1018,7 +1036,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed, mldsa_sign_with_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed, mldsa_sign_with_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let key_seed = [0x42u8; 32];
@@ -1167,7 +1185,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -1219,7 +1237,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
