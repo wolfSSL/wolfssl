@@ -47,6 +47,8 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 * Added ML-KEM (FIPS 203) key OIDs, SubjectPublicKeyInfo and PKCS#8 encoding, and X.509 certificate support, including issuing an ML-KEM certificate with `wc_MakeCert_ex`. A key initialised with the new `WC_ML_KEM_TYPE_UNSET` takes its parameter set from the DER being decoded. by @Frauschi
+* Reduced the ML-KEM small memory heap footprint: key generation and encapsulation now generate matrix A a polynomial at a time and multiply each one in as it is generated, and decapsulation compares the re-encapsulated cipher text a block at a time. by @Frauschi
+* Allowed `WOLFSSL_MLKEM_CACHE_A` to be used with the ML-KEM small memory options, which previously refused to build together. by @Frauschi
 
 ## Bug Fixes
 
