@@ -410,3 +410,50 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     \sa wc_ed25519_check_key
 */
 int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload deriving an Ed448 public key from its private key to a
+    CryptoCB device.
+
+    Used by wc_ed448_make_public (and so by key generation and private-key
+    import). The device writes the compressed public key into
+    wc_CryptoInfo.pk.ed448makepub (\c pubOut / \c pubOutSz, always
+    ED448_PUB_KEY_SIZE).
+
+    \param key      Ed448 key providing the device id, heap hint and the
+                    private key
+    \param pubKey   [out] resulting compressed public key
+    \param pubKeySz size of pubKey buffer, must be ED448_PUB_KEY_SIZE
+
+    \return 0 on success
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation, or key or
+            pubKey is NULL or pubKeySz is wrong (wolfCrypt falls back to
+            software, which reports the argument error)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed448_make_public
+*/
+int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey, word32 pubKeySz);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload validating an Ed448 key to a CryptoCB device.
+
+    Used by wc_ed448_check_key and the key import validation paths. The compressed public key is passed in
+    wc_CryptoInfo.pk.ed448checkkey (\c pubKey / \c pubKeySz). \c checkPriv is
+    1 when a private key is also set, and the device should also check that it
+    matches the public key.
+
+    \param key Ed448 key to validate
+
+    \return 0 if the key is valid
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation (wolfCrypt
+            falls back to software)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed448_check_key
+*/
+int wc_CryptoCb_Ed448CheckKey(ed448_key* key);

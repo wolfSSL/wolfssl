@@ -399,6 +399,26 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         storePub = !key->pubKeySet;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed448MakePub(key, pubKey, pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0) {
+                if (storePub)
+                    ed448_store_public(key, pubKey);
+                key->pubKeySet = 1;
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
+
     if (ret == 0)
         ret = ed448_hash(key, key->k, ED448_KEY_SIZE, az, sizeof(az));
 
@@ -1625,6 +1645,20 @@ int wc_ed448_check_key(ed448_key* key)
     if (ret == 0 && !key->pubKeySet) {
         ret = PUBLIC_KEY_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed448CheckKey(key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0;
+    }
+#endif
 
     /* Reject small-order pub key before the priv-vs-pub compare so the
      * diagnostic isn't masked by a "mismatch" error. */
