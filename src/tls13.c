@@ -18666,7 +18666,10 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         ssl->options.clientInEarlyData = 0;
         if (ret > 0)
             *outSz = ret;
-        if (ssl->error == WC_NO_ERR_TRACE(APP_DATA_READY)) {
+        /* Only a failed read means the handshake finished during the early
+         * data read. ssl->error may still hold APP_DATA_READY from an earlier
+         * wolfSSL_accept() while data was actually read. */
+        if ((ret < 0) && (ssl->error == WC_NO_ERR_TRACE(APP_DATA_READY))) {
             ret = 0;
             ssl->error = WOLFSSL_ERROR_NONE;
 #ifdef WOLFSSL_DTLS13

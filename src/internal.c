@@ -25862,9 +25862,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     if (ssl->error != 0 &&
         ssl->error != WC_NO_ERR_TRACE(WANT_READ) &&
         ssl->error != WC_NO_ERR_TRACE(WANT_WRITE)
-    #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
         && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
-    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
@@ -25876,6 +25874,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     ) {
         WOLFSSL_MSG("ProcessReply retry in error state, not allowed");
         return ssl->error;
+    }
+
+    if (ssl->buffers.clearOutputBuffer.length > 0) {
+        WOLFSSL_MSG("Application data pending, read it before processing "
+                    "more records");
+        return APP_DATA_READY;
     }
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
@@ -26777,16 +26781,16 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 SERVER_FINISHED_COMPLETE &&
                             ssl->options.handShakeState != HANDSHAKE_DONE)))
 #endif
-#ifdef WOLFSSL_TLS_READ_AHEAD
-                    /* With read-ahead, more than one record may be buffered. If
-                     * application data was just decrypted, return it now so it
-                     * is delivered to the caller before any following buffered
-                     * record (e.g. a close_notify alert) is processed, which
-                     * would otherwise discard the pending app data. The
-                     * remaining records stay buffered for the next call. */
+                    /* If application data was just decrypted, return it now so
+                     * it is delivered to the caller before any following
+                     * buffered record is processed. clearOutputBuffer points
+                     * into inputBuffer, so reading the rest of a partial record
+                     * could compact or reallocate it and leave the pending data
+                     * overwritten or freed. A following record such as a
+                     * close_notify alert would also discard the pending data.
+                     * The remaining records stay buffered for the next call. */
                     || (ssl->curRL.type == application_data &&
                         ssl->buffers.clearOutputBuffer.length > 0)
-#endif
                     ) {
                     /* Shrink input buffer when we successfully finish record
                      * processing */
@@ -26834,9 +26838,13 @@ int ProcessReply(WOLFSSL* ssl)
 int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
     int ret;
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
-    defined(WOLFSSL_RW_THREADED)
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    /* With application data pending, APP_DATA_READY means DoProcessReplyEx()
+     * returned before reading any record. */
+    int appDataPending = (ssl->buffers.clearOutputBuffer.length > 0);
+#ifdef WOLFSSL_RW_THREADED
     int locked;
+#endif
 #endif
 
     ret = DoProcessReplyEx(ssl, allowSocketErr);
@@ -26844,11 +26852,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
     if (ssl->options.dtls) {
         /* Don't clear pending peer if we are going to re-enter
-         * DoProcessReplyEx */
+         * DoProcessReplyEx or no record was processed. */
         if (ret != WC_NO_ERR_TRACE(WANT_READ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                 && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
+                && !(appDataPending &&
+                     ret == WC_NO_ERR_TRACE(APP_DATA_READY))
             ) {
         #ifdef WOLFSSL_RW_THREADED
             /* Drop the pending peer even when the lock cannot be taken, as
@@ -30234,9 +30244,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 #ifdef WOLFSSL_ASYNC_CRYPT
             && error != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
-#if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
             && error != WC_NO_ERR_TRACE(APP_DATA_READY)
-#endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return error;
@@ -47624,11 +47632,9 @@ void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
         return;
     }
 #endif
-#if defined(WOLFSSL_EARLY_DATA)
     if (err == WC_NO_ERR_TRACE(APP_DATA_READY)) {
         return;
     }
-#endif
     if (err == WC_NO_ERR_TRACE(WANT_WRITE) ||
             err == WC_NO_ERR_TRACE(WANT_READ)) {
         return;
