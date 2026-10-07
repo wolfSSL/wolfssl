@@ -32601,6 +32601,45 @@ static int test_wolfSSL_X509_print_dir_altname(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_altname_ctrl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
+    static const struct {
+        int type;
+        const char* expect;
+    } cases[] = {
+        { ASN_DNS_TYPE,    "DNS:a\\0D\\0Ab" },
+        { ASN_RFC822_TYPE, "email:a\\0D\\0Ab" },
+        { ASN_URI_TYPE,    "URI:a\\0D\\0Ab" },
+    };
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char  buf[8192];
+    size_t i;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ExpectIntEQ(wolfSSL_X509_add_altname(x509, "a\r\nb", cases[i].type),
+            WOLFSSL_SUCCESS);
+    }
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ExpectNotNull(XSTRSTR(buf, cases[i].expect));
+    }
+    ExpectNull(XSTRSTR(buf, "a\r\nb"));
+
+    BIO_free(bio);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -44575,6 +44614,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
+    TEST_DECL(test_wolfSSL_X509_print_altname_ctrl),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 

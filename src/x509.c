@@ -7235,6 +7235,28 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     #define MAX_WIDTH 80
 #endif
 
+static int wolfssl_x509_name_esc_value(const char* in, int inSz,
+                                       unsigned long flags, char* out);
+
+/* Write pfx and escaped val to dst. Returns length, or dstSz if too long. */
+static int X509PrintEscStr(char* dst, int dstSz, const char* pfx,
+                           const char* val, int valSz)
+{
+    int pfxSz = (int)XSTRLEN(pfx);
+    int escSz = wolfssl_x509_name_esc_value(val, valSz,
+                    WOLFSSL_ASN1_STRFLGS_ESC_CTRL, NULL);
+
+    if (pfxSz + escSz >= dstSz) {
+        return dstSz;
+    }
+    XMEMCPY(dst, pfx, (size_t)pfxSz);
+    (void)wolfssl_x509_name_esc_value(val, valSz,
+              WOLFSSL_ASN1_STRFLGS_ESC_CTRL, dst + pfxSz);
+    dst[pfxSz + escSz] = '\0';
+
+    return pfxSz + escSz;
+}
+
 #define ACERT_NUM_DIR_TAGS 4
 
 /* Convenience struct and function for printing the Holder sub fields
@@ -7385,7 +7407,8 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
 
         if (entry->type == ASN_DNS_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "DNS:%s", entry->name);
+            len = X509PrintEscStr(scratch, MAX_WIDTH, "DNS:", entry->name,
+                                  entry->len);
         }
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         else if (entry->type == ASN_IP_TYPE) {
@@ -7402,8 +7425,8 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
     #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
         else if (entry->type == ASN_RFC822_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "email:%s",
-                    entry->name);
+            len = X509PrintEscStr(scratch, MAX_WIDTH, "email:", entry->name,
+                                  entry->len);
         }
         else if (entry->type == ASN_DIR_TYPE) {
             len = X509PrintDirType(scratch, MAX_WIDTH, entry);
@@ -7415,8 +7438,8 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             }
         }
         else if (entry->type == ASN_URI_TYPE) {
-            len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
-                entry->name);
+            len = X509PrintEscStr(scratch, MAX_WIDTH, "URI:", entry->name,
+                                  entry->len);
         }
     #ifdef WOLFSSL_RID_ALT_NAME
         else if (entry->type == ASN_RID_TYPE) {
