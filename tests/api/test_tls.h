@@ -248,6 +248,7 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_chain_verify_cb_dtls),                     \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling),                 \
         TEST_DECL_GROUP("tls", test_internal_SetSSL_CTX_DecisionCoverage),     \
-        TEST_DECL_GROUP("tls", test_internal_CheckVersion_DecisionCoverage)
+        TEST_DECL_GROUP("tls", test_internal_CheckVersion_DecisionCoverage), \
+        TEST_DECL_GROUP("tls", test_tls_hmac_inner_cid_decision_coverage)
 
 #endif /* TESTS_API_TEST_TLS_H */

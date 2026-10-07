@@ -2774,3 +2774,87 @@ int test_ech_decision_coverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the SNI option/status guards and the
+ * certificate-authority NULL-argument chains in src/ssl_api_ext.c
+ * (master drift, 2026-10-06). The zeroed objects drive the
+ * extensions == NULL rows the public lifecycle never reaches.
+ */
+int test_ssl_api_ext_guards_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
+    WOLFSSL_CTX  ctx0;
+    WOLFSSL      ssl0;
+    const byte   dn[] = { 0x31, 0x03, 0x01, 0x01, 0xFF, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0 };
+    byte         sni[16];
+    word32       sniSz;
+
+    XMEMSET(&ctx0, 0, sizeof(ctx0));
+    XMEMSET(&ssl0, 0, sizeof(ssl0));
+    XMEMSET(sni, 0, sizeof(sni));
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx == NULL)
+        return EXPECT_RESULT();
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
+
+    /* SNI_SetOptions: (obj != NULL) && (obj->extensions != NULL). The
+     * NULL-object row, the valid-object row, and the zeroed-object row
+     * (extensions == NULL) show each clause's pair. */
+    wolfSSL_SNI_SetOptions(NULL, WOLFSSL_SNI_HOST_NAME, 0);
+    wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME, 0);
+    wolfSSL_SNI_SetOptions(&ssl0, WOLFSSL_SNI_HOST_NAME, 0);
+    wolfSSL_CTX_SNI_SetOptions(NULL, WOLFSSL_SNI_HOST_NAME, 0);
+    wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME, 0);
+    wolfSSL_CTX_SNI_SetOptions(&ctx0, WOLFSSL_SNI_HOST_NAME, 0);
+
+    /* SNI_GetRequest: the extensions-NULL row on the object side. */
+    (void)wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, NULL);
+    (void)wolfSSL_SNI_GetRequest(&ssl0, WOLFSSL_SNI_HOST_NAME, NULL);
+
+    /* SNI_GetFromBuffer: the *inOutSz > 0 clause's false side, then the
+     * all-valid row (a hello without SNI parses to none; the value is
+     * not the point, the clause is). */
+    sniSz = 0;
+    ExpectIntEQ(wolfSSL_SNI_GetFromBuffer((const byte*)"x", 1,
+        WOLFSSL_SNI_HOST_NAME, sni, &sniSz), BAD_FUNC_ARG);
+    sniSz = sizeof(sni);
+    (void)wolfSSL_SNI_GetFromBuffer((const byte*)"x", 1,
+        WOLFSSL_SNI_HOST_NAME, sni, &sniSz);
+
+    /* UseCertificateAuthority: ssl == NULL || dn == NULL || dnSz == 0 ||
+     * dnSz > MAX -- each clause flips alone across this chain. */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(NULL, dn, 16), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, NULL, 16), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn,
+        WOLFSSL_MAX_16BIT), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 16), 0);
+
+    /* CTX mirror. */
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(NULL, dn, 16),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, NULL, 16),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, 0),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn,
+        WOLFSSL_MAX_16BIT), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, 16), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+} /* END test_ssl_api_ext_guards_decision_coverage */
