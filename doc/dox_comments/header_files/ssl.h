@@ -6021,9 +6021,11 @@ long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
     max_fragment_length the smaller of the two limits applies, where OpenSSL
     uses the negotiated length instead. A DTLS write larger than the cap fails
     with DTLS_SIZE_ERROR, like one larger than the MTU, unless
-    WOLFSSL_NO_DTLS_SIZE_CHECK is defined. TLS 1.3 handshake messages that are
-    not split for max_fragment_length either, such as ClientHello and
-    ServerHello, are still sent in one record.
+    WOLFSSL_NO_DTLS_SIZE_CHECK is defined. In TLS 1.3 only Certificate and
+    CertificateVerify are split to the cap. Other handshake messages, such as
+    ClientHello, ServerHello, EncryptedExtensions, CertificateRequest and
+    NewSessionTicket, are sent in one record each, as they are with a
+    negotiated max_fragment_length. Application data is always split.
 
     \return WOLFSSL_SUCCESS (1) If the cap was set.
     \return WOLFSSL_FAILURE (0) If ctx is NULL or max_fragment is not in the
