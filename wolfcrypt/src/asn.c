@@ -9041,11 +9041,8 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = GetASN_Items(rsaKeyASN, dataASN, rsaKeyASN_Length,
             RSA_ASN_COMPLETE, input, inOutIdx, inSz);
     }
-    /* Check version: 0 - two prime, 1 - multi-prime
-     * Multi-prime has optional sequence after coefficient for extra primes.
-     * If extra primes, parsing will fail as not all the buffer was used.
-     */
-    if ((ret == 0) && (version > PKCS1v1)) {
+    /* Only two-prime (version 0) keys are supported. */
+    if ((ret == 0) && (version != PKCS1v0)) {
         ret = ASN_PARSE_E;
     }
     if ((ret == 0) && (key != NULL)) {

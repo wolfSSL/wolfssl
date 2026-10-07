@@ -244,7 +244,7 @@ static void wb_encode_rsa_pss_algo_id(void) { WB_NOTE("RSA-PSS off; wc_EncodeRsa
  * wc_RsaPrivateKeyValidate().
  *   :8850  (inOutIdx==NULL)||(input==NULL)||((key==NULL)&&(keySz==NULL))
  *   :8855/:8903  ret==0 && key!=NULL
- *   :8900  ret==0 && version>PKCS1v1
+ *   :8900  ret==0 && version!=PKCS1v0
  *   :8962  wc_RsaPrivateKeyDecode(): key==NULL||input==NULL||inOutIdx==NULL
  * ===================================================================== */
 #if !defined(NO_RSA) && defined(WOLFSSL_ASN_TEMPLATE)
@@ -286,17 +286,17 @@ static void wb_rsa_private_key_decode(void)
     WB_CHECK(ret == 0, "key!=NULL (ret==0, key!=NULL true)");
     wc_FreeRsaKey(&key);
 
-    WB_NOTE("_RsaPrivateKeyDecode(): version>PKCS1v1 [:8900]");
+    WB_NOTE("_RsaPrivateKeyDecode(): version!=PKCS1v0 [:8900]");
     XMEMCPY(der, server_key_der_2048, sizeof_server_key_der_2048);
-    der[6] = 2; /* version byte -> 2, PKCS1v1 is 1 */
+    der[6] = 2; /* version byte -> 2, only PKCS1v0 is accepted */
     idx = 0;
     ret = _RsaPrivateKeyDecode(der, &idx, NULL, &keySz, sizeof(der));
-    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "version==2 (>PKCS1v1, true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "version==2 (!=PKCS1v0, true)");
 
     idx = 0;
     ret = _RsaPrivateKeyDecode(server_key_der_2048, &idx, NULL, &keySz,
             sizeof_server_key_der_2048);
-    WB_CHECK(ret == 0, "version==0 (<=PKCS1v1, false)");
+    WB_CHECK(ret == 0, "version==0 (==PKCS1v0, false)");
 
     WB_NOTE("wc_RsaPrivateKeyDecode(): key/input/inOutIdx NULL OR [:8962]");
     idx = 0;

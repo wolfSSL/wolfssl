@@ -26,6 +26,7 @@
 
 int test_wc_InitRsaKey(void);
 int test_wc_RsaPrivateKeyDecode(void);
+int test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes(void);
 int test_wc_RsaPublicKeyDecode(void);
 int test_wc_RsaPublicKeyDecodeRaw(void);
 int test_wc_RsaPrivateKeyDecodeRaw(void);
@@ -53,6 +54,7 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void);
 #define TEST_RSA_DECLS                                          \
     TEST_DECL_GROUP("rsa", test_wc_InitRsaKey),                 \
     TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecode),        \
+    TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes), \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicKeyDecode),         \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicKeyDecodeRaw),      \
     TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecodeRaw),     \

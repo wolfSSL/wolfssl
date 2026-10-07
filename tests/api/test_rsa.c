@@ -109,6 +109,39 @@ int test_wc_RsaPrivateKeyDecode(void)
 
 } /* END test_wc_RsaPrivateKeyDecode */
 
+/* A version 1 (multi-prime) RSAPrivateKey with no otherPrimeInfos must be rejected. */
+int test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && (defined(USE_CERT_BUFFERS_1024) || \
+        defined(USE_CERT_BUFFERS_2048)) && !defined(HAVE_FIPS)
+    RsaKey key;
+    byte   der[FOURK_BUF];
+    word32 idx = 0;
+    word32 derSz;
+
+    XMEMSET(&key, 0, sizeof(RsaKey));
+#ifdef USE_CERT_BUFFERS_1024
+    derSz = (word32)sizeof_client_key_der_1024;
+    XMEMCPY(der, client_key_der_1024, derSz);
+#else
+    derSz = (word32)sizeof_client_key_der_2048;
+    XMEMCPY(der, client_key_der_2048, derSz);
+#endif
+    /* SEQUENCE (30 82 LL LL) then version INTEGER (02 01 00). */
+    ExpectIntEQ(der[4], 0x02);
+    ExpectIntEQ(der[5], 1);
+    ExpectIntEQ(der[6], 0);
+    der[6] = 1;
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(der, &idx, &key, derSz),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes */
+
 /*
  * Testing wc_RsaPublicKeyDecode()
  */
