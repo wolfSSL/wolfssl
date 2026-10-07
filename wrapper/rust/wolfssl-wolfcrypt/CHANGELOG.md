@@ -32,6 +32,11 @@ Fixes and improvements:
 - Fix a panic in Keypair::verifying_key() for Ed25519 and Ed448 keys with no
   public key, such as after new() or import_private_only()
 
+Fixes and improvements:
+
+- Validate PBKDF2 and scrypt password hash output length against the PHC
+  minimum before running the KDF
+
 ## v2.2.0
 
 New features:
