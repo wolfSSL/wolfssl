@@ -73,6 +73,18 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_ECC;
                 break;
         #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+        defined(ED25519_MAX_ID_LEN)
+            case ED25519k:
+                type = DYNAMIC_TYPE_ED25519;
+                break;
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+        defined(ED448_MAX_ID_LEN)
+            case ED448k:
+                type = DYNAMIC_TYPE_ED448;
+                break;
+    #endif
     #if defined(WOLFSSL_HAVE_MLDSA)
             case ML_DSA_44k:
             case ML_DSA_65k:
@@ -135,6 +147,28 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                     pubSz);
                 break;
     #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+        defined(ED25519_MAX_ID_LEN)
+            /* Not wc_ed*_check_key: its software fallback skips the device
+             * private key. */
+            case ED25519k:
+                ret = wc_ed25519_import_public_ex(pubKey, pubSz,
+                    (ed25519_key*)pkey, 1);
+                if (ret == 0) {
+                    ret = wc_CryptoCb_Ed25519CheckKey((ed25519_key*)pkey);
+                }
+                break;
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+        defined(ED448_MAX_ID_LEN)
+            case ED448k:
+                ret = wc_ed448_import_public_ex(pubKey, pubSz,
+                    (ed448_key*)pkey, 1);
+                if (ret == 0) {
+                    ret = wc_CryptoCb_Ed448CheckKey((ed448_key*)pkey);
+                }
+                break;
+    #endif
     #if defined(WOLFSSL_HAVE_MLDSA)
             case ML_DSA_44k:
             case ML_DSA_65k:
@@ -195,6 +229,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
     #ifdef HAVE_ECC
         case ECDSAk:
             wc_ecc_free((ecc_key*)pkey);
+            break;
+    #endif
+    #ifdef HAVE_ED25519
+        case ED25519k:
+            wc_ed25519_free((ed25519_key*)pkey);
+            break;
+    #endif
+    #ifdef HAVE_ED448
+        case ED448k:
+            wc_ed448_free((ed448_key*)pkey);
             break;
     #endif
     #if defined(WOLFSSL_HAVE_MLDSA)

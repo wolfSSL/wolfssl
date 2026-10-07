@@ -536,8 +536,8 @@ typedef struct wc_CryptoInfo {
                 ed25519_key* key;       /* routing, heap, resident/sw priv   */
                 const byte*  pubKey;    /* compressed public key (key->p)    */
                 word32       pubKeySz;  /* ED25519_PUB_KEY_SIZE              */
-                int          checkPriv; /* 1: private key present; also check
-                                         * priv/pub consistency              */
+                int          checkPriv; /* 1: private key set or referenced by
+                                         * id/label; also check priv/pub     */
             } ed25519checkkey;
         #endif
         #ifdef HAVE_CURVE448
