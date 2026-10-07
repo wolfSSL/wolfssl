@@ -3339,7 +3339,7 @@ int test_wolfSSL_CRL_cross_ca_akid(void)
 int test_wolfSSL_CRL_unverified_no_evict(void)
 {
     EXPECT_DECLS;
-#ifdef TEST_CRL_UNVERIFIED_NO_EVICT
+#if defined(TEST_CRL_UNVERIFIED_NO_EVICT) && !defined(NO_FILESYSTEM)
     /* CRL number 1 from CA A, revoking nothing, correctly signed. */
     static const unsigned char crlGood[] = {
         0x30, 0x82, 0x01, 0x91, 0x30, 0x7b, 0x02, 0x01, 0x01, 0x30, 0x0d,
