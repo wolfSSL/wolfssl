@@ -45,6 +45,28 @@
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
+#ifndef ecc_get_k_raw
+    /* FIPS replacement of ecc.h predates ecc_get_k_raw but is new enough to
+     * define WOLFSSL_HAVE_ECC_KEY_GET_PRIV, so the block above was skipped. */
+    #define ecc_get_k_raw(key)        (key)->k
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    #ifndef ecc_forcezero_k
+        /* FIPS ecc.h predates ecc_forcezero_k(). */
+        #ifdef WOLFSSL_ECC_BLIND_K
+            #define ecc_forcezero_k(key)                                  \
+                do {                                                      \
+                    mp_forcezero((key)->k);                               \
+                    mp_forcezero((key)->kb);                              \
+                    mp_forcezero((key)->ku);                              \
+                } while (0)
+        #else
+            #define ecc_forcezero_k(key)      mp_forcezero((key)->k)
+        #endif
+    #endif
+#endif
+
 /**
  * Initialize the components of the ECCSI key and use the specified curve.
  *
