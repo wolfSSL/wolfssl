@@ -2770,11 +2770,16 @@ int test_TLSX_KeyShare_gen(void)
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
+            int pushFailRet;
+
             XMEMSET(kse, 0, sizeof(*kse));
             kse->group = WOLFSSL_FFDHE_2048;
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
-            ExpectIntEQ(test_tls_parse_free_kse_push_fail(ssl, kse), 0);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
         }
 #endif
     }
@@ -2828,11 +2833,16 @@ int test_TLSX_KeyShare_gen(void)
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
+            int pushFailRet;
+
             XMEMSET(kse, 0, sizeof(*kse));
             kse->group = WOLFSSL_ECC_X25519;
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
-            ExpectIntEQ(test_tls_parse_free_kse_push_fail(ssl, kse), 0);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
         }
 #endif
     }
@@ -2881,11 +2891,16 @@ int test_TLSX_KeyShare_gen(void)
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
+            int pushFailRet;
+
             XMEMSET(kse, 0, sizeof(*kse));
             kse->group = WOLFSSL_ECC_X448;
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
-            ExpectIntEQ(test_tls_parse_free_kse_push_fail(ssl, kse), 0);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
         }
 #endif
     }
@@ -2895,11 +2910,13 @@ int test_TLSX_KeyShare_gen(void)
     ctx = NULL;
 #endif /* HAVE_CURVE448 */
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
     /* TLSX_KeyShare_GenEccKey(): only the "ret == 0" half of "ret == 0 &&
      * pubKey == NULL" is open (the pubKey half already has coverage
      * elsewhere); force it false the same way as the Curve25519/X448
-     * cases above. */
+     * cases above. P-256 is the group this switch arm accepts. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
@@ -2926,11 +2943,16 @@ int test_TLSX_KeyShare_gen(void)
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
         if (kse != NULL) {
+            int pushFailRet;
+
             XMEMSET(kse, 0, sizeof(*kse));
             kse->group = WOLFSSL_ECC_SECP256R1;
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
-            ExpectIntEQ(test_tls_parse_free_kse_push_fail(ssl, kse), 0);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
         }
 #endif
     }
@@ -2938,7 +2960,9 @@ int test_TLSX_KeyShare_gen(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
-#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT &&
+        (!NO_ECC256 || HAVE_ALL_CURVES) && !NO_ECC_SECP &&
+        ECC_MIN_KEY_SZ <= 256 */
 #endif
     return EXPECT_RESULT();
 }
