@@ -32682,8 +32682,10 @@ static int test_wolfSSL_X509_CRL_print(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
     !defined(NO_RSA) && !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
     X509_CRL* crl = NULL;
+    X509_NAME* name = NULL;
     BIO *bio = NULL;
     XFILE fp = XBADFILE;
+    char buf[8192];
 
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
     ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
@@ -32693,7 +32695,21 @@ static int test_wolfSSL_X509_CRL_print(void)
 
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+    BIO_free(bio);
+    bio = NULL;
 
+    /* Control characters in the issuer are escaped. */
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName,
+        MBSTRING_UTF8, (unsigned char*)"a\r\nb", -1, -1, 0), 1);
+    ExpectIntEQ(X509_CRL_set_issuer_name(crl, name), WOLFSSL_SUCCESS);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "CN=a\\0D\\0Ab"));
+    ExpectNull(XSTRSTR(buf, "a\r\nb"));
+
+    X509_NAME_free(name);
     X509_CRL_free(crl);
     BIO_free(bio);
 #endif
