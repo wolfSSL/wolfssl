@@ -53,17 +53,13 @@ jobs:
         mkdir -p netxduo_src
         tar -xzf ${{ env.NETXDUO_REF }}.tar.gz -C netxduo_src --strip-components=1
 
-    - name: Install NetXDuo Dependencies
-      working-directory: ./netxduo_src
-      run: |
-        ./scripts/install.sh
-
     - name: Configure NetX with DNS Client Support
       working-directory: ./netxduo_src
       run: |
         cp addons/dns/nxd_dns.h ./common/inc/
         cp addons/dns/nxd_dns.c ./common/src/
 
+    # Don't use scripts/install.sh: it downloads ~600 MB of unneeded packages
     - name: Build NetXDuo with DNS Support
       working-directory: ./netxduo_src
       run: |
