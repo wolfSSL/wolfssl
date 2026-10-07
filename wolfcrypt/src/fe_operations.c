@@ -180,6 +180,14 @@ int curve25519(byte* q, const byte* n, const byte* p)
   fe_mul(x2,x2,z2);
   fe_tobytes(q,x2);
 
+  ForceZero(x1, sizeof(x1));
+  ForceZero(x2, sizeof(x2));
+  ForceZero(z2, sizeof(z2));
+  ForceZero(x3, sizeof(x3));
+  ForceZero(z3, sizeof(z3));
+  ForceZero(tmp0, sizeof(tmp0));
+  ForceZero(tmp1, sizeof(tmp1));
+
   return 0;
 }
 #else
@@ -246,6 +254,14 @@ int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
   fe_invert(z2,z2);
   fe_mul(x2,x2,z2);
   fe_tobytes(q,x2);
+
+  ForceZero(x1, sizeof(x1));
+  ForceZero(x2, sizeof(x2));
+  ForceZero(z2, sizeof(z2));
+  ForceZero(x3, sizeof(x3));
+  ForceZero(z3, sizeof(z3));
+  ForceZero(tmp0, sizeof(tmp0));
+  ForceZero(tmp1, sizeof(tmp1));
 
   return 0;
 }
@@ -754,7 +770,10 @@ void fe_invert(fe out,const fe z)
   fe_sq(t1,t1); for (i = 1;i < 5;++i) fe_sq(t1,t1);
   fe_mul(out,t1,t0);
 
-  return;
+  ForceZero(t0, sizeof(t0));
+  ForceZero(t1, sizeof(t1));
+  ForceZero(t2, sizeof(t2));
+  ForceZero(t3, sizeof(t3));
 }
 
 

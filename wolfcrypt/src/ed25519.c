@@ -676,6 +676,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
         WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#else
+        /* On failure the absorbed prefix must not stay in the key's hash. */
+        if (ret != 0)
+            (void)ed25519_hash_reset(key);
 #endif
     }
 

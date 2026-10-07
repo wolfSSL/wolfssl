@@ -310,6 +310,7 @@ void sc_reduce(byte* s)
     for (i = 0; i < 32; i++)
         s[i] = WC_OCTET(s[i]);
 #endif
+    ForceZero(t, sizeof(t));
 }
 
 /*
@@ -638,6 +639,10 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     for (i = 0; i < 32; i++)
         s[i] = WC_OCTET(s[i]);
 #endif
+    ForceZero(ad, sizeof(ad));
+    ForceZero(bd, sizeof(bd));
+    ForceZero(cd, sizeof(cd));
+    ForceZero(t, sizeof(t));
 }
 #endif
 #else
@@ -779,6 +784,7 @@ void sc_reduce(byte* s)
     s[29] = (byte)(t[ 5] >> 22);
     s[30] = (byte)(t[ 5] >> 30);
     s[31] = (byte)(t[ 5] >> 38);
+    ForceZero(t, sizeof(t));
 }
 
 /*
@@ -931,6 +937,10 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[29] = (byte)(t[ 5] >> 22);
     s[30] = (byte)(t[ 5] >> 30);
     s[31] = (byte)(t[ 5] >> 38);
+    ForceZero(ad, sizeof(ad));
+    ForceZero(bd, sizeof(bd));
+    ForceZero(cd, sizeof(cd));
+    ForceZero(t, sizeof(t));
 }
 #endif /* !CURVED25519_ASM */
 #endif /* !HAVE___UINT128_T || NO_CURVED25519_128BIT */
@@ -9093,10 +9103,9 @@ static const ge_precomp base[32][8] = {
 } ;
 #endif
 
-static void ge_select(ge_precomp *t,int pos,signed char b)
+static void ge_select(ge_precomp *t,ge_precomp *minust,int pos,signed char b)
 {
 #ifndef CURVED25519_ASM
-  ge_precomp minust;
   unsigned char bnegative = negative(b);
   unsigned char babs = (unsigned char)(b -
     (signed char)((unsigned char)((-bnegative) & b) << 1));
@@ -9111,9 +9120,10 @@ static void ge_select(ge_precomp *t,int pos,signed char b)
   cmov(t,&base[pos][6],babs,7);
   cmov(t,&base[pos][7],babs,8);
   fe_cswap(t->yminusx, t->yplusx, bnegative);
-  fe_neg(minust.xy2d,t->xy2d);
-  fe_cmov(t->xy2d,minust.xy2d,bnegative);
+  fe_neg(minust->xy2d,t->xy2d);
+  fe_cmov(t->xy2d,minust->xy2d,bnegative);
 #else
+  (void)minust;
   /* (wc_ptr_t) needed to work around C array casting semantics. */
   fe_cmov_table((fe*)t, (const fe*)(wc_ptr_t)base[pos], b);
 #endif
@@ -9136,6 +9146,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   ge_p2 s;
 #endif
   ge_precomp t;
+  ge_precomp minust;
   int i;
 
   for (i = 0;i < 32;++i) {
@@ -9156,7 +9167,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   /* each e[i] is between -8 and 8 */
 
 #ifndef CURVED25519_ASM
-  ge_select(&t,0,e[1]);
+  ge_select(&t,&minust,0,e[1]);
   fe_sub(h->X, t.yplusx, t.yminusx);
   fe_add(h->Y, t.yplusx, t.yminusx);
   fe_0(h->Z);
@@ -9166,7 +9177,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   fe_add(h->Y, h->Y, h->Y);
 
   for (i = 3;i < 64;i += 2) {
-    ge_select(&t,i / 2,e[i]);
+    ge_select(&t,&minust,i / 2,e[i]);
     ge_madd(&r,h,&t); ge_p1p1_to_p3(h,&r);
   }
 
@@ -9176,21 +9187,30 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   ge_p2_dbl(&r,&s); ge_p1p1_to_p3(h,&r);
 
   for (i = 0;i < 64;i += 2) {
-    ge_select(&t,i / 2,e[i]);
+    ge_select(&t,&minust,i / 2,e[i]);
     ge_madd(&r,h,&t); ge_p1p1_to_p3(h,&r);
   }
 #else
-  ge_select(&t, 0, e[0]);
+  ge_select(&t, &minust, 0, e[0]);
   fe_sub(h->X, t.yplusx, t.yminusx);
   fe_add(h->Y, t.yplusx, t.yminusx);
   fe_0(h->Z);
   h->Z[0] = 2;
   fe_copy(h->T, t.xy2d);
   for (i = 1; i < 64; i++) {
-    ge_select(&t, i, e[i]);
+    ge_select(&t, &minust, i, e[i]);
     ge_madd(&r,h,&t); ge_p1p1_to_p3(h,&r);
   }
 #endif
+
+  /* e is the scalar in radix 16; r, s and t are secret dependent. */
+  ForceZero(e, sizeof(e));
+  ForceZero(&r, sizeof(r));
+#ifndef CURVED25519_ASM
+  ForceZero(&s, sizeof(s));
+#endif
+  ForceZero(&t, sizeof(t));
+  ForceZero(&minust, sizeof(minust));
 }
 #endif /* HAVE_ED25519_SIGN || HAVE_ED25519_MAKE_KEY ||
         * WOLFSSL_CURVE25519_USE_ED25519 */
