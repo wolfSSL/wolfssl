@@ -433,9 +433,12 @@ When SCP03 rotation support is compiled in, both initialization APIs retain an
 internal copy of a non-NULL transport port name, so the caller may release its
 input buffer after initialization returns.
 
-The SE05x transport is shared with wolfCrypt. Threaded SE05x builds enable the
-wolfCrypt hardware mutex by default. Every direct middleware call
-through one of these pointers must be serialized with the same lock:
+The SE05x transport is shared with wolfCrypt. Threaded SE05x builds serialize
+it with a dedicated SE05x mutex. This is separate from the wolfCrypt hardware
+mutex (`wolfSSL_CryptHwMutexLock()`) used by on-chip accelerators such as the
+STM32 CRYP/HASH/RNG, so those keep running while an SE05x transaction, which
+can take hundreds of milliseconds, is in progress. Every direct middleware call
+through one of these pointers must be serialized with the SE05x lock:
 
 ```c
 int ret = wc_se050_lock();
@@ -445,8 +448,10 @@ if (ret == 0) {
 }
 ```
 
-Do not call another `wc_se050_*` or wolfCrypt hardware operation while holding
-this lock; those functions acquire it internally.
+Do not call another `wc_se050_*` function, or a wolfCrypt operation that the
+build routes to the SE05x, while holding this lock; those acquire it
+internally. wolfCrypt operations on other hardware, such as an on-chip
+accelerator, do not take this lock and may be used while it is held.
 
 ### wolfSSL SE050 Key Generation
 

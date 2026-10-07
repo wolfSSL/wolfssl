@@ -111,6 +111,33 @@ static ex_sss_boot_ctx_t gBootCtx;
 static char* gSe050PortName;
 #endif
 
+#ifndef SINGLE_THREADED
+/* Serializes the shared SE05x session and transport. This is deliberately
+ * not wolfSSL_CryptHwMutexLock(): the SE05x is a separate device on its own
+ * bus, and an SE05x transaction can take hundreds of milliseconds. Sharing
+ * the on-chip accelerator lock would stall all on-chip AES/hash work for
+ * that long, and would self-deadlock when the middleware's SCP03 host crypto
+ * runs wolfCrypt AES/CMAC on that accelerator inside an SE05x transaction. */
+static wolfSSL_Mutex se050Mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(se050Mutex);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+static int se050MutexInit = 0;
+#endif
+#endif /* !SINGLE_THREADED */
+
+static int se050_mutex_init(void)
+{
+    int ret = 0;
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    if (se050MutexInit == 0) {
+        ret = wc_InitMutex(&se050Mutex);
+        if (ret == 0) {
+            se050MutexInit = 1;
+        }
+    }
+#endif
+    return ret;
+}
+
 int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
 {
@@ -119,7 +146,7 @@ int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     if ((pSession == NULL) || (pKeyStore == NULL)) {
         return BAD_FUNC_ARG;
     }
-    ret = wolfSSL_CryptHwMutexInit();
+    ret = se050_mutex_init();
     if (ret != 0) {
         return ret;
     }
@@ -171,12 +198,28 @@ pSe05xSession_t wc_se050_get_se05x_session(void)
 
 int wc_se050_lock(void)
 {
-    return wolfSSL_CryptHwMutexLock();
+#ifdef SINGLE_THREADED
+    return 0;
+#else
+    /* Make sure the mutex has been initialized */
+    int ret = se050_mutex_init();
+    if (ret == 0) {
+        ret = wc_LockMutex(&se050Mutex);
+    }
+    return ret;
+#endif
 }
 
 void wc_se050_unlock(void)
 {
-    wolfSSL_CryptHwMutexUnLock();
+#ifndef SINGLE_THREADED
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    if (se050MutexInit == 0) {
+        return;
+    }
+#endif
+    wc_UnLockMutex(&se050Mutex);
+#endif
 }
 
 enum se050_policy_object_type {
@@ -648,7 +691,7 @@ static int se050_close_internal(int preservePortName)
     if (cfg_se050_i2c_pi != &gBootCtx.session) {
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
-    ret = wolfSSL_CryptHwMutexLock();
+    ret = wc_se050_lock();
     if (ret != 0) {
         return ret;
     }
@@ -657,7 +700,7 @@ static int se050_close_internal(int preservePortName)
     gHostKeyStore = NULL;
     gKeyStore = NULL;
     XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 #if defined(SE050_RUNTIME_SCP03) && \
     defined(WOLFSSL_SE050_SCP03_ROTATE)
     if (!preservePortName) {
@@ -1056,11 +1099,11 @@ int wc_se050_erase_object(word32 id)
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
     ret = se050_erase_object_locked(id);
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return ret;
 }
@@ -1100,7 +1143,7 @@ int se050_get_random_number(uint32_t count, uint8_t* rand_out)
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
     status = sss_rng_context_init(&rng, cfg_se050_i2c_pi);
@@ -1114,7 +1157,7 @@ int se050_get_random_number(uint32_t count, uint8_t* rand_out)
         ret = RNG_FAILURE_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return ret;
 }
@@ -1214,7 +1257,7 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -1246,7 +1289,7 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
         ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return ret;
 }
@@ -1277,7 +1320,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -1290,7 +1333,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     if (aes->keyIdSet != 0U) {
         ret = se050_erase_object_locked(aes->keyId);
         if (ret != 0) {
-            wolfSSL_CryptHwMutexUnLock();
+            wc_se050_unlock();
             return ret;
         }
         aes->keyId = 0;
@@ -1329,7 +1372,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
         ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return ret;
 }
@@ -1349,7 +1392,7 @@ int se050_aes_crypt(Aes* aes, const byte* in, byte* out, word32 sz, int dir,
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -1392,7 +1435,7 @@ int se050_aes_crypt(Aes* aes, const byte* in, byte* out, word32 sz, int dir,
 
     ret = (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return ret;
 }
@@ -1470,13 +1513,13 @@ static int se050_insert_binary_object(word32 keyId, const byte* object,
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -1499,7 +1542,7 @@ static int se050_insert_binary_object(word32 keyId, const byte* object,
         status = sss_key_store_set_key(&host_keystore, &newObj, object,
             objectSz, (objectSz * 8), (void*)policy, 0);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     if (status != kStatus_SSS_Success) {
         ret = WC_HW_E;
@@ -1565,7 +1608,7 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -1581,12 +1624,12 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         else {
             if (out == NULL) {
                 *outSz = ret;
-                wolfSSL_CryptHwMutexUnLock();
+                wc_se050_unlock();
                 return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
             if ((word32)ret > *outSz) {
                 WOLFSSL_MSG("Output buffer not large enough for object");
-                wolfSSL_CryptHwMutexUnLock();
+                wc_se050_unlock();
                 return BAD_LENGTH_E;
             }
             ret = 0;
@@ -1600,7 +1643,7 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         status = sss_key_store_get_key(&host_keystore, &object, out,
                                        (size_t*)outSz, &outBitSz);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     if (status != kStatus_SSS_Success) {
         ret = WC_HW_E;
@@ -1623,20 +1666,20 @@ int wc_se050_get_object_attributes(word32 keyId, byte* attr, word32* attrSz)
     if (cfg_se050_i2c_pi == NULL) {
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     session = wc_se050_get_se05x_session();
     if (session == NULL) {
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
     size = *attrSz;
     status = Se05x_API_ReadObjectAttributes(session, keyId, attr, &size);
     *attrSz = (word32)size;
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     return (status == SM_OK) ? 0 : WC_HW_E;
 #else
@@ -1813,7 +1856,7 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
     #endif
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -1852,7 +1895,7 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
             status = kStatus_SSS_Fail;
         }
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     if (status != kStatus_SSS_Success) {
         return (ret != 0) ? ret : WC_HW_E;
@@ -2418,7 +2461,7 @@ int se050_rsa_use_key_id(struct RsaKey* key, word32 keyId)
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -2477,7 +2520,7 @@ int se050_rsa_use_key_id(struct RsaKey* key, word32 keyId)
 
     sss_key_object_free(&keyObject);
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_use_key_id: ret %d\n", ret);
@@ -2551,7 +2594,7 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -2625,7 +2668,7 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_create_key: key %p, ret %d, keyId %d\n",
@@ -2650,7 +2693,7 @@ static int se050_rsa_generate_key(word32 keyId, int size, long e,
             ((size & 7) != 0) || (e != 65537)) {
         return BAD_FUNC_ARG;
     }
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -2682,7 +2725,7 @@ static int se050_rsa_generate_key(word32 keyId, int size, long e,
     if (keyObjectInit) {
         sss_key_object_free(&keyPair);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
     return (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
 }
 
@@ -2728,13 +2771,13 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -2785,7 +2828,7 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
         status = sss_key_store_set_key(&host_keystore, &newKey, rsaDer,
             rsaDerSize, (keySize * 8), (void*)policy, 0);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     wc_FreeRsaKey(&key);
     if (status != kStatus_SSS_Success) {
@@ -2899,7 +2942,7 @@ void se050_rsa_free_key(struct RsaKey* key)
         return;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return;
     }
 
@@ -2925,7 +2968,7 @@ void se050_rsa_free_key(struct RsaKey* key)
         key->keyId = 0;
         key->keyIdSet = 0;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 }
 
 /**
@@ -3085,14 +3128,14 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 #ifdef SE050_DEBUG
@@ -3235,7 +3278,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_sign: ret %d, outLen %d\n", ret, outLen);
@@ -3307,14 +3350,14 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -3465,7 +3508,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_verify: key %p, ret %d\n", key, ret);
@@ -3539,14 +3582,14 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -3641,7 +3684,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_public_encrypt: ret %d, outLen %d\n", ret, outLen);
@@ -3716,14 +3759,14 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -3825,7 +3868,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_rsa_public_decrypt: ret %d, outLen %d\n", ret, outLen);
@@ -3944,7 +3987,7 @@ static int se050_ecc_generate_key(word32 keyId, int keySize, int curveId,
     if (ret != 0) {
         return ret;
     }
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -3976,7 +4019,7 @@ static int se050_ecc_generate_key(word32 keyId, int keySize, int curveId,
     if (keyObjectInit) {
         sss_key_object_free(&keyPair);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
     return (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
 }
 
@@ -4042,13 +4085,13 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
-        wolfSSL_CryptHwMutexUnLock();
+        wc_se050_unlock();
         return BAD_FUNC_ARG;
     }
 
@@ -4099,7 +4142,7 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
         status = sss_key_store_set_key(&host_keystore, &newKey, eccDer,
             eccDerSize, keySizeBits, (void*)policy, 0);
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
     wc_ecc_free(&key);
     if (status != kStatus_SSS_Success) {
@@ -4266,7 +4309,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
         return BAD_LENGTH_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -4370,7 +4413,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
             ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_sign_hash_ex: ret %d, outLen %d\n", ret, *outLen);
@@ -4444,7 +4487,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
         return BAD_LENGTH_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -4547,7 +4590,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
             ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_verify_hash_ex: key %p, ret %d, res %d\n",
@@ -4575,7 +4618,7 @@ void se050_ecc_free_key(struct ecc_key* key)
         return;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return;
     }
 
@@ -4601,7 +4644,7 @@ void se050_ecc_free_key(struct ecc_key* key)
         key->keyId = 0;
         key->keyIdSet = 0;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 }
 
 /**
@@ -4636,7 +4679,7 @@ int se050_ecc_use_key_id(struct ecc_key* key, word32 keyId)
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -4673,7 +4716,7 @@ int se050_ecc_use_key_id(struct ecc_key* key, word32 keyId)
 
     sss_key_object_free(&keyObject);
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_use_key_id: ret %d\n", ret);
@@ -4739,7 +4782,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
         return ret;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -4793,7 +4836,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
             ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_create_key: key %p, ret %d, status %d, keyId %d\n",
@@ -4843,7 +4886,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         return ret;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5037,7 +5080,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         }
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_shared_secret: ret %d, status %d, outlen %d\n", ret,
@@ -5068,7 +5111,7 @@ int se050_ed25519_create_key(ed25519_key* key)
         return WC_HW_E;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5104,7 +5147,7 @@ int se050_ed25519_create_key(ed25519_key* key)
         ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ed25519_create_key: ret %d, keyId %ld\n", ret, key->keyId);
@@ -5130,7 +5173,7 @@ void se050_ed25519_free_key(ed25519_key* key)
         return;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return;
     }
 
@@ -5153,7 +5196,7 @@ void se050_ed25519_free_key(ed25519_key* key)
         key->keyId = 0;
         key->keyIdSet = 0;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 }
 
 int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
@@ -5194,7 +5237,7 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5262,7 +5305,7 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
         key->keyIdSet = 1;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ed25519_sign_msg: ret %d, outLen %d\n", ret, *outLen);
@@ -5311,7 +5354,7 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     }
 #endif
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5394,7 +5437,7 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
             ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_ed25519_verify_msg: ret %d, res %d\n", ret, *res);
@@ -5427,7 +5470,7 @@ int se050_curve25519_create_key(curve25519_key* key, int keySize)
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5484,7 +5527,7 @@ int se050_curve25519_create_key(curve25519_key* key, int keySize)
         }
         ret = WC_HW_E;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_curve25519_create_key: key %p, ret %d, keyId %ld\n",
@@ -5525,7 +5568,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -5730,7 +5773,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
             ret = WC_HW_E;
     }
 
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 
 #ifdef SE050_DEBUG
     printf("se050_curve25519_shared_secret: ret %d, outlen %d\n",
@@ -5754,7 +5797,7 @@ void se050_curve25519_free_key(struct curve25519_key* key)
         return;
     }
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
+    if (wc_se050_lock() != 0) {
         return;
     }
 
@@ -5778,7 +5821,7 @@ void se050_curve25519_free_key(struct curve25519_key* key)
         key->keyId = 0;
         key->keyIdSet = 0;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wc_se050_unlock();
 }
 #endif /* HAVE_CURVE25519 */
 

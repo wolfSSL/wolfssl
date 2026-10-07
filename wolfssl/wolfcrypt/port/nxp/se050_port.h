@@ -172,7 +172,8 @@ WOLFSSL_API int wc_se050_get_config(sss_session_t **pSession,
 WOLFSSL_API sss_session_t* wc_se050_get_session(void);
 /** Return the low-level SE05x session, or NULL when none is configured. */
 WOLFSSL_API pSe05xSession_t wc_se050_get_se05x_session(void);
-/** Acquire/release the shared wolfCrypt hardware transport lock. */
+/** Acquire/release the SE05x session/transport lock. This is separate from
+ * the wolfCrypt hardware accelerator lock (wolfSSL_CryptHwMutexLock). */
 WOLFSSL_API int wc_se050_lock(void);
 WOLFSSL_API void wc_se050_unlock(void);
 #ifdef WOLFSSL_SE050_INIT
