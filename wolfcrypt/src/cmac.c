@@ -441,8 +441,7 @@ int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen)
         return BAD_FUNC_ARG;
     }
 
-    if (tagLen != WC_NO_TAG_ASSOCIATION &&
-            (tagLen < WC_CMAC_TAG_MIN_SZ || tagLen > WC_CMAC_TAG_MAX_SZ)) {
+    if (tagLen < WC_CMAC_TAG_MIN_SZ || tagLen > WC_CMAC_TAG_MAX_SZ) {
         return BAD_FUNC_ARG;
     }
 

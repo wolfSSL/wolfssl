@@ -398,8 +398,9 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     reaches this check.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG Returned if aes is NULL, the length is larger
-    than the AES block size, or a different length is already associated.
+    \return BAD_FUNC_ARG Returned if aes is NULL, the length is zero or
+    larger than the AES block size, or a different length is already
+    associated.
 
     \param aes pointer to the AES object holding the key
     \param tagLen tag length to associate with the key

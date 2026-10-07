@@ -354,6 +354,8 @@ int test_wc_CmacSetTagLen(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MAX_SZ + 1),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_NO_TAG_ASSOCIATION),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
         ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
         tagSz = otherSz;

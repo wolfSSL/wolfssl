@@ -246,7 +246,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  */
 int wc_AesSetTagLen(Aes* aes, word32 tagLen)
 {
-    if (aes == NULL || tagLen > WC_AES_BLOCK_SIZE) {
+    if (aes == NULL || tagLen == WC_NO_TAG_ASSOCIATION ||
+            tagLen > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
     /* an associated length can be repeated, never changed or cleared */

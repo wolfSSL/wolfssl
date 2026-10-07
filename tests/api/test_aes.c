@@ -3617,6 +3617,9 @@ static int test_aes_tag_bind(int type, word32 otherSz, word32 ivSz)
     if (EXPECT_SUCCESS())
         aesInit = 1;
     ExpectIntEQ(test_aes_tag_setkey(type, &aes, key, sizeof(key)), 0);
+    /* zero is not a length, so it is refused and fixes nothing */
+    ExpectIntEQ(wc_AesSetTagLen(&aes, WC_NO_TAG_ASSOCIATION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* nothing associated yet, so this first use fixes the length */
     ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
