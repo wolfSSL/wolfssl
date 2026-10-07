@@ -397,8 +397,9 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     public key crosses the callback boundary as its compressed wire bytes in
     wc_CryptoInfo.pk.ed25519checkkey (\c pubKey / \c pubKeySz), so a device
     handler only deals with byte arrays. The dispatch only runs when a public
-    key is present; \c checkPriv is 1 when a private key is also set and the
-    device should additionally validate priv/pub consistency.
+    key is present; \c checkPriv is 1 when a private key is also set or
+    referenced by id or label, and the device should additionally validate
+    priv/pub consistency.
 
     \param key Ed25519 key to validate
 
@@ -442,10 +443,11 @@ int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey, word32 pubKeySz);
 
     \brief Offload validating an Ed448 key to a CryptoCB device.
 
-    Used by wc_ed448_check_key and the key import validation paths. The compressed public key is passed in
+    Used by wc_ed448_check_key and when checking a device private key against
+    a certificate. The compressed public key is passed in
     wc_CryptoInfo.pk.ed448checkkey (\c pubKey / \c pubKeySz). \c checkPriv is
-    1 when a private key is also set, and the device should also check that it
-    matches the public key.
+    1 when a private key is set or referenced by id or label, and the device
+    should also check that it matches the public key.
 
     \param key Ed448 key to validate
 

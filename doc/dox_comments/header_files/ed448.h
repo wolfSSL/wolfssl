@@ -433,6 +433,65 @@ int wc_ed448_init(ed448_key* key);
 /*!
     \ingroup ED448
 
+    \brief Initializes an ed448_key object that references a private key held
+    by a crypto callback device, identified by id. Only available when built
+    with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key is NULL, or id is NULL and len is greater
+    than 0.
+    \return BUFFER_E if len is negative or greater than ED448_MAX_ID_LEN.
+
+    \param [in,out] key Pointer to the ed448_key to initialize.
+    \param [in] id Key identifier bytes.
+    \param [in] len Length of id in bytes.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed448_key key;
+    unsigned char id[] = { 0x01, 0x02, 0x03, 0x04 };
+    int ret = wc_ed448_init_id(&key, id, sizeof(id), NULL, devId);
+    \endcode
+
+    \sa wc_ed448_init_ex
+    \sa wc_ed448_init_label
+*/
+int wc_ed448_init_id(ed448_key* key, const unsigned char* id, int len,
+    void* heap, int devId);
+
+/*!
+    \ingroup ED448
+
+    \brief Initializes an ed448_key object that references a private key held
+    by a crypto callback device, identified by label. Only available when
+    built with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key or label is NULL.
+    \return BUFFER_E if label is empty or longer than ED448_MAX_LABEL_LEN.
+
+    \param [in,out] key Pointer to the ed448_key to initialize.
+    \param [in] label NUL-terminated label string.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed448_key key;
+    int ret = wc_ed448_init_label(&key, "my-key", NULL, devId);
+    \endcode
+
+    \sa wc_ed448_init_ex
+    \sa wc_ed448_init_id
+*/
+int wc_ed448_init_label(ed448_key* key, const char* label, void* heap,
+    int devId);
+
+/*!
+    \ingroup ED448
+
     \brief This function frees an Ed448 object after it has been used.
 
     \param [in,out] key Pointer to the ed448_key object to free
