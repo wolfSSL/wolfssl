@@ -8357,12 +8357,21 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 return WOLFSSL_FAILURE;
             }
             if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                          "%*s%s%*s:%s\n", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, "", data))
+                          "%*s%s%*s:", indent+4, "",
+                          lName, (NAME_SZ/4)-lNameSz, ""))
                 >= MAX_WIDTH)
             {
                 return WOLFSSL_FAILURE;
             }
+            /* Leave room for the newline. */
+            scratchLen += X509PrintEscStr(scratch + scratchLen,
+                    MAX_WIDTH - scratchLen - 1, "", (const char*)data,
+                    wolfSSL_ASN1_STRING_length(
+                        attr->value->value.asn1_string));
+            if (scratchLen >= MAX_WIDTH - 1) {
+                return WOLFSSL_FAILURE;
+            }
+            scratch[scratchLen++] = '\n';
             if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
                 WOLFSSL_MSG("Error writing REQ attribute");
                 return WOLFSSL_FAILURE;

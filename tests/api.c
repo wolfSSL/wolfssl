@@ -31457,16 +31457,20 @@ static int test_wolfSSL_X509_REQ_print(void)
     BIO_free(bio);
     bio = NULL;
 
-    /* Control characters in the subject are escaped. */
+    /* Control characters in the subject and attributes are escaped. */
     ExpectNotNull(name = X509_NAME_new());
     ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName,
         MBSTRING_UTF8, (unsigned char*)"a\r\nb", -1, -1, 0), 1);
     ExpectIntEQ(X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_REQ_add1_attr_by_NID(req, WC_NID_pkcs9_challengePassword,
+        WOLFSSL_MBSTRING_ASC, (byte*)"c\r\nd", -1), WOLFSSL_SUCCESS);
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
     ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
     ExpectNotNull(XSTRSTR(buf, "CN=a\\0D\\0Ab"));
     ExpectNull(XSTRSTR(buf, "a\r\nb"));
+    ExpectNotNull(XSTRSTR(buf, ":c\\0D\\0Ad"));
+    ExpectNull(XSTRSTR(buf, "c\r\nd"));
 
     X509_NAME_free(name);
     BIO_free(bio);
