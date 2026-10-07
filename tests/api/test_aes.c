@@ -11532,12 +11532,10 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
-/* Mock device for the Direct API: counts the one-block ECB requests. It
- * declines them, fails them, or does them itself, based on the flags. */
+/* Mock device: counts one-block ECB requests; declines, fails or does them. */
 #define TEST_CRYPTOCB_AES_DIRECT_DEVID 15
 
-/* What the mock device writes when it does the work. Software would never
- * produce this, so it proves software did not run afterwards. */
+/* Mock device output; software never makes it, so it proves no software run */
 #define TEST_CRYPTOCB_AES_DIRECT_MARK 0xA5
 
 static int cbDirectEncCalled = 0;
@@ -11561,8 +11559,7 @@ static int test_CryptoCb_AesDirect_FindCb(int currentId, int algoType)
 
 #if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
     #define TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
-/* Device owns the key: it takes SetKey, so wolfSSL keeps no software key,
- * and it runs each block itself with the key it was given. */
+/* Device owns the key: it takes SetKey and runs each block with that key */
 static int cbDirectOwnKey = 0;
 static byte cbDirectKey[AES_MAX_KEY_SIZE / 8];
 static word32 cbDirectKeySz = 0;
@@ -11726,8 +11723,7 @@ int test_wc_CryptoCb_AesDirect(void)
     wc_AesFree(&aes);
     cbDirectFail = 0;
 
-    /* Device does the work: its output must be returned as-is, with no
-     * software run afterwards */
+    /* Device does the work: its output is returned as-is, no software run */
     cbDirectHandle = 1;
     XMEMSET(mark, TEST_CRYPTOCB_AES_DIRECT_MARK, sizeof(mark));
     XMEMSET(&aes, 0, sizeof(aes));
@@ -11746,8 +11742,7 @@ int test_wc_CryptoCb_AesDirect(void)
     ExpectIntEQ(cbDirectDecCalled, 3);
     wc_AesFree(&aes);
 
-    /* No key set at all: the device still gets asked first and its result
-     * wins. If it declines, the software key check gives MISSING_KEY. */
+    /* No key: device is still asked first; if it declines, MISSING_KEY */
     cbDirectEncCalled = 0;
     cbDirectDecCalled = 0;
     cbDirectHandle = 1;
@@ -11770,8 +11765,7 @@ int test_wc_CryptoCb_AesDirect(void)
 #endif
     wc_AesFree(&aes);
 
-    /* No device on this Aes: the registered device must not be asked, and
-     * software gives the answer. If it were asked, out would be the mark. */
+    /* No device on this Aes: the registered device is not asked */
     cbDirectEncCalled = 0;
     cbDirectDecCalled = 0;
     cbDirectHandle = 1;
@@ -11793,8 +11787,7 @@ int test_wc_CryptoCb_AesDirect(void)
     cbDirectHandle = 0;
 
 #ifdef WOLF_CRYPTO_CB_FIND
-    /* Find mode: the finder sends a no-device Aes to the mock, so Direct
-     * must ask it, and the mock's output must be returned as-is */
+    /* Find mode: a no-device Aes still reaches the mock through the finder */
     wc_CryptoCb_SetDeviceFindCb(test_CryptoCb_AesDirect_FindCb);
     cbDirectEncCalled = 0;
     cbDirectDecCalled = 0;
@@ -11824,8 +11817,7 @@ int test_wc_CryptoCb_AesDirect(void)
 #endif /* WOLF_CRYPTO_CB_FIND */
 
 #ifdef TEST_CRYPTOCB_AES_DIRECT_OWN_KEY
-    /* Device owns the key: wolfSSL has no software key, so the right answer
-     * can only come from the device. Software would give a wrong block. */
+    /* Device owns the key: only the device can give the right answer */
     cbDirectOwnKey = 1;
     cbDirectEncCalled = 0;
     cbDirectDecCalled = 0;
