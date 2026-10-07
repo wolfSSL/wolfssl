@@ -624,6 +624,11 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         }
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
         ed448_hash_free(key, sha);
+#else
+        /* On failure the absorbed prefix must not stay in the key's hash. */
+        if (ret != 0) {
+            (void)ed448_hash_reset(key);
+        }
 #endif
     }
     if (ret == 0) {

@@ -1267,13 +1267,23 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
 {
     int ret;
 
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL))
+        return BAD_FUNC_ARG;
+
     /* export private part */
     ret = wc_curve25519_export_private_raw_ex(key, priv, privSz, endian);
     if (ret != 0)
         return ret;
 
     /* export public part */
-    return wc_curve25519_export_public_ex(key, pub, pubSz, endian);
+    ret = wc_curve25519_export_public_ex(key, pub, pubSz, endian);
+    if (ret != 0) {
+        /* Public export failed: do not hand back the private key. */
+        ForceZero(priv, *privSz);
+    }
+
+    return ret;
 }
 
 #endif /* HAVE_CURVE25519_KEY_EXPORT */
@@ -1306,7 +1316,13 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
         return ret;
 
     /* import public part */
-    return wc_curve25519_import_public_ex(pub, pubSz, key, endian);
+    ret = wc_curve25519_import_public_ex(pub, pubSz, key, endian);
+    if (ret != 0) {
+        key->privSet = 0;
+        ForceZero(key->k, sizeof(key->k));
+    }
+
+    return ret;
 }
 
 /* curve25519 private key import only. (Big endian)
@@ -1441,6 +1457,12 @@ void wc_curve25519_free(curve25519_key* key)
 
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
+#endif
+#ifdef WC_X25519_NONBLOCK
+    /* An attached context may hold ladder state from an unfinished call. */
+    if (key->nb_ctx != NULL) {
+        ForceZero(key->nb_ctx, sizeof(x25519_nb_ctx_t));
+    }
 #endif
     ForceZero(key, sizeof(*key));
 
