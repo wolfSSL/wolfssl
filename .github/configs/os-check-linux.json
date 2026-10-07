@@ -571,5 +571,9 @@
   "--disable-dh", "--disable-mlkem",
   "CPPFLAGS=-DWOLFSSL_DRBG_SHA512 -DUSE_CERT_BUFFERS_256 -DWOLFSSL_NOSHA3_256"],
  "check": false,
- "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "sp-math-sakke",
+ "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
+ "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
+  "--disable-rsa", "--disable-dh", "--enable-sakke"]}
 ]

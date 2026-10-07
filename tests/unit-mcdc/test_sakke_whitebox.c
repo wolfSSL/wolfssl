@@ -43,6 +43,9 @@
  * sakke.c:411  sakke_mulmod_base_add() "(err == 0) && map" -- every in-tree
  *     caller (sakke_compute_point_i()) hardcodes map=1, so map=0 is
  *     otherwise unreachable. Both values driven directly.
+ * sakke.c:1061 wc_MakeSakkeRsk_ex() "(err == 0) && mp_iszero(a)" -- the
+ *     identity q - z_T makes a + z_T == 0 mod q; must fail with MP_VAL
+ *     rather than return the point at infinity.
  * sakke.c:1483 sakke_addmod() "(err == 0) && (mp_cmp(r, m) != MP_LT)" --
  *     pure mp_int helper, no key state needed. r < m and r >= m both driven.
  * sakke.c:1505/1508/1511 sakke_tplmod() -- same shape, three sequential
@@ -144,6 +147,33 @@ int main(void)
     if (wc_MakeSakkeRsk(&key, id, (word16)sizeof(id), rsk) != 0) wb_fail = 1;
     if (wc_MakeSakkeRsk(&key, id2, (word16)sizeof(id2), rsk2) != 0)
         wb_fail = 1;
+
+    /* --- sakke.c:1061 wc_MakeSakkeRsk_ex(): "mp_iszero(a)" ---
+     * Identity q - z_T makes a + z_T == 0 mod q, which has no inverse.
+     * Drives the guard's TRUE outcome; mp_invmod() of the blinded zero
+     * would also return MP_VAL, so this pins the result, not the guard.
+     * Needs the real master secret, so runs here. */
+    {
+        mp_int idZ;
+        byte idZero[128];
+        int idZeroSz = 0;
+
+        if (mp_init(&idZ) != MP_OKAY) wb_fail = 1;
+        if (mp_sub(&key.params.q, wc_ecc_key_get_priv(&key.ecc), &idZ)
+                != MP_OKAY) wb_fail = 1;
+        idZeroSz = mp_unsigned_bin_size(&idZ);
+        if ((idZeroSz <= 0) || (idZeroSz > (int)sizeof(idZero)) ||
+                (mp_to_unsigned_bin(&idZ, idZero) != MP_OKAY)) {
+            wb_fail = 1;
+        }
+        else if (wc_MakeSakkeRsk(&key, idZero, (word16)idZeroSz, rsk) !=
+                WC_NO_ERR_TRACE(MP_VAL)) {
+            wb_fail = 1;
+        }
+        mp_forcezero(&idZ);
+        mp_free(&idZ);
+        WB_NOTE("wc_MakeSakkeRsk() zero a + z_T (line 1061) exercised");
+    }
 
     /* --- sakke.c:411 sakke_mulmod_base_add(): "(err == 0) && map" ---
      * Only exists without WOLFSSL_HAVE_SP_ECC. Every in-tree caller

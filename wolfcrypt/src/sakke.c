@@ -34,6 +34,11 @@
 
 #ifdef WOLFCRYPT_HAVE_SAKKE
 
+#ifdef WC_NO_RNG
+    /* KMS key generation and RSK blinding draw random numbers. */
+    #error "SAKKE requires a random number generator (WC_NO_RNG defined)"
+#endif
+
 #include <wolfssl/wolfcrypt/sakke.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
@@ -150,13 +155,7 @@ int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId, void* heap,
 #endif
         if (err == 0) {
             err = mp_init_multi(&params->prime, &params->q, &params->g,
-                    &params->a, &key->tmp.m1,
-#ifdef WOLFCRYPT_SAKKE_CLIENT
-                    &key->tmp.m2
-#else
-                    NULL
-#endif
-                    );
+                    &params->a, &key->tmp.m1, &key->tmp.m2);
         }
         if (err == 0) {
             key->mpInit = 1;
@@ -207,9 +206,7 @@ void wc_FreeSakkeKey(SakkeKey* key)
             mp_free(&params->g);
             mp_free(&params->a);
             mp_free(&key->tmp.m1);
-#ifdef WOLFCRYPT_SAKKE_CLIENT
             mp_free(&key->tmp.m2);
-#endif
             key->mpInit = 0;
         }
 #ifdef WOLFCRYPT_SAKKE_CLIENT
@@ -984,19 +981,61 @@ int wc_ExportSakkePublicKey(SakkeKey* key, byte* data, word32* sz, int raw)
  * RSK = [ (a + z_T) ^ 1 modulo q ]P\n
  * RSK is required by receiver to derive SSV.
  *
+ * The inverse is blinded with a random value from a random number generator
+ * instantiated for each call. Use wc_MakeSakkeRsk_ex() to pass an existing
+ * WC_RNG instead.
+ *
  * @param  [in]   key   SAKKE key.
  * @param  [in]   id    Identity to create hash for.
  * @param  [in]   idSz  Length of identity in bytes.
  * @param  [out]  rsk   Receiver Secret Key as an ECC point.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, id, or rsk is NULL.
+ * @return  MP_VAL when a + z_T is zero modulo q.
  * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
- * @return  Other value when an an internal operation fails.
+ * @return  RNG_FAILURE_E when no non-zero blinding factor is drawn within
+ *          SAKKE_MAX_GEN_COUNT attempts.
+ * @return  RNG error when the random number generator cannot be instantiated.
+ * @return  Other value when an internal operation fails.
  */
 int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
 {
+    return wc_MakeSakkeRsk_ex(key, id, idSz, rsk, NULL);
+}
+
+/**
+ * Calculates the Receiver Secret Key (RSK) for the identity.
+ *
+ * RFC 6508, Section 6.1.1
+ *
+ * RSK = [ (a + z_T) ^ 1 modulo q ]P\n
+ * RSK is required by receiver to derive SSV.
+ *
+ * The inverse is blinded with a random value from rng. When rng is NULL, a
+ * random number generator is instantiated for the call.
+ *
+ * @param  [in]   key   SAKKE key.
+ * @param  [in]   id    Identity to create hash for.
+ * @param  [in]   idSz  Length of identity in bytes.
+ * @param  [out]  rsk   Receiver Secret Key as an ECC point.
+ * @param  [in]   rng   Random number generator. May be NULL.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key, id, or rsk is NULL.
+ * @return  MP_VAL when a + z_T is zero modulo q.
+ * @return  MP_MEM or MEMORY_E when dynamic memory allocation fails.
+ * @return  RNG_FAILURE_E when no non-zero blinding factor is drawn within
+ *          SAKKE_MAX_GEN_COUNT attempts.
+ * @return  RNG error when rng is NULL and a random number generator cannot be
+ *          instantiated.
+ * @return  Other value when an internal operation fails.
+ */
+int wc_MakeSakkeRsk_ex(SakkeKey* key, const byte* id, word16 idSz,
+        ecc_point* rsk, WC_RNG* rng)
+{
     int err = 0;
     mp_int* a = NULL;
+    WC_RNG localRng;
+    int localRngInit = 0;
 
     if ((key == NULL) || (id == NULL) || (rsk == NULL)) {
         err = BAD_FUNC_ARG;
@@ -1018,14 +1057,62 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
     if (err == 0) {
         err = mp_addmod(a, wc_ecc_key_get_priv(&key->ecc), &key->params.q, a);
     }
-    /* (a + z_T) ^ 1 modulo q */
+    /* Zero has no inverse. */
+    if ((err == 0) && mp_iszero(a)) {
+        err = MP_VAL;
+    }
+    /* Invert with multiplicative blinding for constant-time operation. */
+    if ((err == 0) && (rng == NULL)) {
+        err = wc_InitRng_ex(&localRng, key->heap, INVALID_DEVID);
+        if (err == 0) {
+            localRngInit = 1;
+            rng = &localRng;
+        }
+    }
+    if (err == 0) {
+        int genTryCnt = 0;
+        int digits = (key->ecc.dp->size * 8 + DIGIT_BIT - 1) / DIGIT_BIT;
+
+        /* Random non-zero blinding factor b modulo q. */
+        do {
+            if ((++genTryCnt) > SAKKE_MAX_GEN_COUNT) {
+                err = RNG_FAILURE_E;
+            }
+            if (err == 0) {
+                err = mp_rand(&key->tmp.m2, digits, rng);
+            }
+            if (err == 0) {
+                err = mp_mod(&key->tmp.m2, &key->params.q, &key->tmp.m2);
+            }
+        }
+        while ((err == 0) && mp_iszero(&key->tmp.m2));
+    }
+    if (localRngInit) {
+        wc_FreeRng(&localRng);
+    }
+    /* Blind: a = (a * b) mod q */
+    if (err == 0) {
+        err = mp_mulmod(a, &key->tmp.m2, &key->params.q, a);
+    }
+    /* Invert: a = (a * b)^-1 mod q */
     if (err == 0) {
         err = mp_invmod(a, &key->params.q, a);
+    }
+    /* Unblind: a = (a * b)^-1 * b mod q = (a + z_T)^-1 mod q */
+    if (err == 0) {
+        err = mp_mulmod(a, &key->tmp.m2, &key->params.q, a);
     }
 
     /* [ (a + z_T) ^ 1 modulo q ]P */
     if (err == 0) {
         err = sakke_mulmod_base(key, a, rsk, 1);
+    }
+
+    if (a != NULL) {
+        mp_forcezero(a);
+    }
+    if (key != NULL) {
+        mp_forcezero(&key->tmp.m2);
     }
 
     return err;

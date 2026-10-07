@@ -92,7 +92,8 @@
 #include "mcdc_fault_mp.h"
 
 /* --------------------------------------------------------------------------
- * Value-forcing mp_rand() interposer for the 543 master-secret retry loop.
+ * Value-forcing mp_rand() interposer for the 543 master-secret retry loop and
+ * the blinding-factor retry loop in wc_MakeSakkeRsk_ex().
  *
  *     do { ... err = mp_rand(priv, digits, rng);
  *              err = mp_mod(priv, &key->params.q, priv); }
@@ -103,12 +104,13 @@
  * a seeded RNG cannot force either, because mp_rand() is served by the sp_int
  * layer in a different TU (the seeded-RNG macro only rewrites call sites in the
  * TU it is included in). Interposing mp_rand() here is the one lever that
- * reaches it: sakke.c has exactly ONE mp_rand() call site (line 536), so no
- * disambiguation is needed.
+ * reaches it. sakke.c has two mp_rand() call sites, the master secret in
+ * wc_MakeSakkeKey() and the inverse's blinding factor in wc_MakeSakkeRsk_ex(),
+ * each in a loop of this shape; arming around a single entry point picks one.
  *
- * Modes are ONE-SHOT, so the loop's second iteration draws a genuine random
- * scalar and the loop terminates on real data -- there is no retry loop here
- * whose termination depends on a random draw going a particular way.
+ * ZERO and FAIL are ONE-SHOT, so the loop's second iteration draws a genuine
+ * random scalar and the loop terminates on real data. ZERO_ALL keeps returning
+ * zero so the loop reaches its SAKKE_MAX_GEN_COUNT cap; that cap bounds it.
  *
  * Ordering is the same load-bearing trick as mcdc_fault_mp.h: the wrapper is
  * compiled while mp_rand still names the real entry point, and only then is the
@@ -117,6 +119,7 @@
 #define WB_SR_OFF   0   /* pass through */
 #define WB_SR_ZERO  1   /* succeed, but hand back the scalar 0 */
 #define WB_SR_FAIL  2   /* fail the draw */
+#define WB_SR_ZERO_ALL 3 /* hand back 0 on every draw until disarmed */
 
 static int wb_sr_mode = WB_SR_OFF;
 
@@ -124,13 +127,13 @@ MCDC_FM_MAYBE_UNUSED static int wb_sr_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int mode = wb_sr_mode;
 
-    if (mode != WB_SR_OFF) {
+    if ((mode != WB_SR_OFF) && (mode != WB_SR_ZERO_ALL)) {
         wb_sr_mode = WB_SR_OFF;   /* one-shot */
     }
     if (mode == WB_SR_FAIL) {
         return MCDC_FM_ERR;
     }
-    if (mode == WB_SR_ZERO) {
+    if ((mode == WB_SR_ZERO) || (mode == WB_SR_ZERO_ALL)) {
         mp_zero(a);
         return 0;
     }
@@ -502,9 +505,10 @@ int main(int argc, char** argv)
          * that reduces to zero -- a ~2^-1024 event that no heap fault and no
          * seeded RNG can produce (mp_rand() is served from another TU, so the
          * seeded-RNG macro never reaches it). The value-forcing mp_rand()
-         * interposer at the top of this file is the lever; sakke.c has exactly
-         * one mp_rand() call site, and both modes are ONE-SHOT so the second
-         * iteration draws real entropy and the loop terminates on real data.
+         * interposer at the top of this file is the lever; arming it around
+         * wc_MakeSakkeKey() alone selects this call site, and both modes are
+         * ONE-SHOT so the second iteration draws real entropy and the loop
+         * terminates on real data.
          *
          *   WB_SR_ZERO -> (T,T) decision TRUE, retries; the retry supplies the
          *                 accepting (T,F) row -> closes idx1 and gives idx0
@@ -525,6 +529,40 @@ int main(int argc, char** argv)
                     printf("  [wb] MakeSakkeKey rand mode %d -> %d\n",
                            mode, e2);
                     wc_FreeSakkeKey(&zk);
+                }
+            }
+        }
+
+        /* --- wc_MakeSakkeRsk_ex: the blinding-factor retry loop
+         *       if ((++genTryCnt) > SAKKE_MAX_GEN_COUNT) ...
+         *       while ((err == 0) && mp_iszero(&key->tmp.m2))
+         * Same lever as the master-secret loop above, armed around the RSK
+         * call alone so it selects the blinding draw:
+         *   WB_SR_ZERO     -> while TRUE, retries; the retry accepts
+         *   WB_SR_FAIL     -> while FALSE on err != 0
+         *   WB_SR_ZERO_ALL -> genTryCnt passes the cap -> RNG_FAILURE_E
+         * Only rsk is written, so the prepared key is reused. --- */
+        {
+            int mode;
+            for (mode = WB_SR_ZERO; mode <= WB_SR_ZERO_ALL; mode++) {
+                ecc_point* rp = wc_ecc_new_point();
+                if (rp != NULL) {
+                    int e2;
+                    wb_sr_mode = mode;
+                    e2 = wc_MakeSakkeRsk(&key, gId, gIdSz, rp);
+                    wb_sr_mode = WB_SR_OFF;
+                    printf("  [wb] MakeSakkeRsk rand mode %d -> %d\n",
+                           mode, e2);
+                    if ((e2 == 0) != (mode == WB_SR_ZERO)) {
+                        WB_NOTE("MakeSakkeRsk blind retry: unexpected result");
+                        wb_fail = 1;
+                    }
+                    if ((mode == WB_SR_ZERO_ALL) && (e2 != RNG_FAILURE_E)) {
+                        WB_NOTE("MakeSakkeRsk blind cap: not RNG_FAILURE_E");
+                        wb_fail = 1;
+                    }
+                    wc_ecc_forcezero_point(rp);
+                    wc_ecc_del_point(rp);
                 }
             }
         }

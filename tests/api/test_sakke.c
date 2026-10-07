@@ -66,6 +66,7 @@
  * wc_ExportSakkePublicKey  (sakke.c:938,942)
  *     key == NULL || sz == NULL; data != NULL (drives sakke_z_from_mont())
  * wc_MakeSakkeRsk       (sakke.c:976)   key==NULL || id==NULL || rsk==NULL
+ * wc_MakeSakkeRsk_ex    -- same guard, with a caller-supplied RNG
  * wc_EncodeSakkeRsk     (sakke.c:1036)  key==NULL || rsk==NULL || sz==NULL
  * wc_ImportSakkePublicKey (sakke.c:1077,1089)
  *     key==NULL || data==NULL; !trusted (drives wc_ecc_check_key())
@@ -146,6 +147,7 @@ int test_wc_Sakke_DecisionCoverage(void)
     SakkeKey key2;
     ecc_point* pub = NULL;
     ecc_point* rsk = NULL;
+    ecc_point* rsk2 = NULL;
     byte id[1] = { 0x00 };
     byte idMax[SAKKE_ID_MAX_SIZE];
     byte data[600];
@@ -173,6 +175,7 @@ int test_wc_Sakke_DecisionCoverage(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectNotNull(rsk2 = wc_ecc_new_point());
     ExpectNotNull(pub = wc_ecc_new_point());
 
     /* --- wc_InitSakkeKey_ex() / wc_InitSakkeKey() --- */
@@ -211,6 +214,18 @@ int test_wc_Sakke_DecisionCoverage(void)
     ExpectIntEQ(wc_MakeSakkeRsk(&key, id, 1, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeSakkeRsk(&key, id, 1, rsk), 0);
+
+    /* --- wc_MakeSakkeRsk_ex() --- */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(NULL, id, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, NULL, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The blinding factor comes from the caller's RNG; the RSK itself is
+     * deterministic, so it must match the one made with a local RNG. */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, rsk2, &rng), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(rsk, rsk2), MP_EQ);
 
     /* --- wc_ValidateSakkeRsk() --- */
     ExpectIntEQ(wc_ValidateSakkeRsk(NULL, id, 1, rsk, &valid),
@@ -629,6 +644,10 @@ int test_wc_Sakke_DecisionCoverage(void)
     if (rsk != NULL) {
         wc_ecc_forcezero_point(rsk);
         wc_ecc_del_point(rsk);
+    }
+    if (rsk2 != NULL) {
+        wc_ecc_forcezero_point(rsk2);
+        wc_ecc_del_point(rsk2);
     }
     if (pub != NULL) {
         wc_ecc_del_point(pub);
