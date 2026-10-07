@@ -163,6 +163,45 @@
 #define SP_PRINT_INT(var, name)                             \
     fprintf(stderr, name "=%d\n", var)
 
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
+/* Conditionally copy len bytes from a to r when copy is 1, in constant time.
+ * Reads r, so r must be initialized. Both candidates are always touched, so
+ * which one was selected is not observable. */
+WC_MAYBE_UNUSED static void sp_cond_memcpy(void* r, const void* a, int copy,
+    size_t len)
+{
+    byte* rb = (byte*)r;
+    const byte* ab = (const byte*)a;
+    byte mask = (byte)(0U - (unsigned int)(copy != 0));
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        rb[i] ^= (byte)((rb[i] ^ ab[i]) & mask);
+    }
+}
+
+/* Set r to a when sel is 0 and to b when sel is 1, in constant time.
+ * Writes r without reading it, so r may be an uninitialized scratch buffer. */
+WC_MAYBE_UNUSED static void sp_cond_select(void* r, const void* a,
+    const void* b, int sel, size_t len)
+{
+    byte* rb = (byte*)r;
+    const byte* ab = (const byte*)a;
+    const byte* bb = (const byte*)b;
+    byte mask = (byte)(0U - (unsigned int)(sel != 0));
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        rb[i] = (byte)((ab[i] & (byte)~mask) | (bb[i] & mask));
+    }
+}
+#endif /* WOLFSSL_HAVE_SP_ECC && WOLFSSL_SP_NONBLOCK */
+
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK) && \
+    (!defined(WOLFSSL_SP_NO_MALLOC) || !defined(WOLFSSL_SP_SMALL))
+    #error SP non-blocking ECC requires small and no-malloc (WOLFSSL_SP_SMALL and WOLFSSL_SP_NO_MALLOC)
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
 /* Read big endian unsigned byte array into r.
@@ -77121,6 +77160,135 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_ecc_mulmod_8_ctx {
+    int state;
+    union {
+        sp_256_proj_point_dbl_8_ctx dbl_ctx;
+        sp_256_proj_point_add_8_ctx add_ctx;
+    };
+    sp_point_256 t[3];
+    sp_digit tmp[2 * 8 * 6];
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+} sp_256_ecc_mulmod_8_ctx;
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      g       Point to multiply.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_256_ecc_mulmod_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+    const sp_point_256* g, const sp_digit* k, int map, int ct, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_ecc_mulmod_8_ctx* ctx = (sp_256_ecc_mulmod_8_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_256_ecc_mulmod_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    /* Implementation is constant time. */
+    (void)ct;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        XMEMSET(ctx->t, 0, sizeof(sp_point_256) * 3);
+        ctx->i = 7;
+        ctx->c = 0;
+        ctx->n = 0;
+
+        /* t[0] = {0, 0, 1} * norm */
+        ctx->t[0].infinity = 1;
+        ctx->state = 1;
+        break;
+    case 1: /* T1X */
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_256_mod_mul_norm_8(ctx->t[1].x, g->x, p256_mod);
+        ctx->state = 2;
+        break;
+    case 2: /* T1Y */
+        err = sp_256_mod_mul_norm_8(ctx->t[1].y, g->y, p256_mod);
+        ctx->state = 3;
+        break;
+    case 3: /* T1Z */
+        err = sp_256_mod_mul_norm_8(ctx->t[1].z, g->z, p256_mod);
+        ctx->state = 4;
+        break;
+    case 4: /* ADDPREP */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 7;
+                break;
+            }
+
+            ctx->n = k[ctx->i--];
+            ctx->c = 32;
+        }
+        ctx->y = (ctx->n >> 31) & 1;
+        ctx->n = (sp_uint32)ctx->n << 1;
+        XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* ADD */
+        err = sp_256_proj_point_add_8_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
+            &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_256));
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* DBL */
+        err = sp_256_proj_point_dbl_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
+            &ctx->t[2], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_256));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_256));
+            ctx->state = 4;
+            ctx->c--;
+        }
+        break;
+    case 7: /* MAP */
+        if (map != 0) {
+            sp_256_map_8(r, &ctx->t[0], ctx->tmp);
+        }
+        else {
+            XMEMCPY(r, &ctx->t[0], sizeof(sp_point_256));
+        }
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 7) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        ForceZero(ctx->tmp, sizeof(ctx->tmp));
+        ForceZero(ctx->t, sizeof(ctx->t));
+    }
+
+    (void)heap;
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -78641,6 +78809,33 @@ static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
 
 #endif
 
+#ifdef WOLFSSL_SP_NONBLOCK
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_256_ecc_mulmod_base_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_256_ecc_mulmod_8_nb(sp_ctx, r, &p256_base, k, map, ct, heap);
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -78995,7 +79190,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p256_order, 1, 1);
+                      infinity, ctx->point, p256_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_256_iszero_8(ctx->point->x) ||
                     sp_256_iszero_8(ctx->point->y)) {
@@ -95441,6 +95636,135 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_384_ecc_mulmod_12_ctx {
+    int state;
+    union {
+        sp_384_proj_point_dbl_12_ctx dbl_ctx;
+        sp_384_proj_point_add_12_ctx add_ctx;
+    };
+    sp_point_384 t[3];
+    sp_digit tmp[2 * 12 * 6];
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+} sp_384_ecc_mulmod_12_ctx;
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      g       Point to multiply.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_384_ecc_mulmod_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
+    const sp_point_384* g, const sp_digit* k, int map, int ct, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_384_ecc_mulmod_12_ctx* ctx = (sp_384_ecc_mulmod_12_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_384_ecc_mulmod_12_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    /* Implementation is constant time. */
+    (void)ct;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        XMEMSET(ctx->t, 0, sizeof(sp_point_384) * 3);
+        ctx->i = 11;
+        ctx->c = 0;
+        ctx->n = 0;
+
+        /* t[0] = {0, 0, 1} * norm */
+        ctx->t[0].infinity = 1;
+        ctx->state = 1;
+        break;
+    case 1: /* T1X */
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_384_mod_mul_norm_12(ctx->t[1].x, g->x, p384_mod);
+        ctx->state = 2;
+        break;
+    case 2: /* T1Y */
+        err = sp_384_mod_mul_norm_12(ctx->t[1].y, g->y, p384_mod);
+        ctx->state = 3;
+        break;
+    case 3: /* T1Z */
+        err = sp_384_mod_mul_norm_12(ctx->t[1].z, g->z, p384_mod);
+        ctx->state = 4;
+        break;
+    case 4: /* ADDPREP */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 7;
+                break;
+            }
+
+            ctx->n = k[ctx->i--];
+            ctx->c = 32;
+        }
+        ctx->y = (ctx->n >> 31) & 1;
+        ctx->n = (sp_uint32)ctx->n << 1;
+        XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* ADD */
+        err = sp_384_proj_point_add_12_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
+            &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_384));
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* DBL */
+        err = sp_384_proj_point_dbl_12_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
+            &ctx->t[2], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_384));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_384));
+            ctx->state = 4;
+            ctx->c--;
+        }
+        break;
+    case 7: /* MAP */
+        if (map != 0) {
+            sp_384_map_12(r, &ctx->t[0], ctx->tmp);
+        }
+        else {
+            XMEMCPY(r, &ctx->t[0], sizeof(sp_point_384));
+        }
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 7) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        ForceZero(ctx->tmp, sizeof(ctx->tmp));
+        ForceZero(ctx->t, sizeof(ctx->t));
+    }
+
+    (void)heap;
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -96961,6 +97285,33 @@ static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
 
 #endif
 
+#ifdef WOLFSSL_SP_NONBLOCK
+/* Multiply the base point of P384 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_384_ecc_mulmod_base_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_384_ecc_mulmod_12_nb(sp_ctx, r, &p384_base, k, map, ct, heap);
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+
 /* Multiply the base point of P384 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -97321,7 +97672,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p384_order, 1, 1);
+                      infinity, ctx->point, p384_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_384_iszero_12(ctx->point->x) ||
                     sp_384_iszero_12(ctx->point->y)) {
@@ -122887,6 +123238,135 @@ static int sp_521_ecc_mulmod_17(sp_point_521* r, const sp_point_521* g,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_521_ecc_mulmod_17_ctx {
+    int state;
+    union {
+        sp_521_proj_point_dbl_17_ctx dbl_ctx;
+        sp_521_proj_point_add_17_ctx add_ctx;
+    };
+    sp_point_521 t[3];
+    sp_digit tmp[2 * 17 * 6];
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+} sp_521_ecc_mulmod_17_ctx;
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      g       Point to multiply.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_521_ecc_mulmod_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
+    const sp_point_521* g, const sp_digit* k, int map, int ct, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_521_ecc_mulmod_17_ctx* ctx = (sp_521_ecc_mulmod_17_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_521_ecc_mulmod_17_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    /* Implementation is constant time. */
+    (void)ct;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        XMEMSET(ctx->t, 0, sizeof(sp_point_521) * 3);
+        ctx->i = 16;
+        ctx->c = 9;
+        ctx->n = (sp_uint32)k[ctx->i--] << (32 - ctx->c);
+
+        /* t[0] = {0, 0, 1} * norm */
+        ctx->t[0].infinity = 1;
+        ctx->state = 1;
+        break;
+    case 1: /* T1X */
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_521_mod_mul_norm_17(ctx->t[1].x, g->x, p521_mod);
+        ctx->state = 2;
+        break;
+    case 2: /* T1Y */
+        err = sp_521_mod_mul_norm_17(ctx->t[1].y, g->y, p521_mod);
+        ctx->state = 3;
+        break;
+    case 3: /* T1Z */
+        err = sp_521_mod_mul_norm_17(ctx->t[1].z, g->z, p521_mod);
+        ctx->state = 4;
+        break;
+    case 4: /* ADDPREP */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 7;
+                break;
+            }
+
+            ctx->n = k[ctx->i--];
+            ctx->c = 32;
+        }
+        ctx->y = (ctx->n >> 31) & 1;
+        ctx->n = (sp_uint32)ctx->n << 1;
+        XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* ADD */
+        err = sp_521_proj_point_add_17_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
+            &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_521));
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* DBL */
+        err = sp_521_proj_point_dbl_17_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
+            &ctx->t[2], ctx->tmp);
+        if (err == MP_OKAY) {
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_521));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_521));
+            ctx->state = 4;
+            ctx->c--;
+        }
+        break;
+    case 7: /* MAP */
+        if (map != 0) {
+            sp_521_map_17(r, &ctx->t[0], ctx->tmp);
+        }
+        else {
+            XMEMCPY(r, &ctx->t[0], sizeof(sp_point_521));
+        }
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 7) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        ForceZero(ctx->tmp, sizeof(ctx->tmp));
+        ForceZero(ctx->t, sizeof(ctx->t));
+    }
+
+    (void)heap;
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -124951,6 +125431,33 @@ static int sp_521_ecc_mulmod_base_17(sp_point_521* r, const sp_digit* k,
 
 #endif
 
+#ifdef WOLFSSL_SP_NONBLOCK
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Non-blocking version.  Call repeatedly until it does not return
+ * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
+ *
+ * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
+ * @param [out]     r       Resulting point.
+ * @param [in]      k       Scalar to multiply by.
+ * @param [in]      map     Indicates whether to convert result to affine.
+ * @param [in]      ct      Constant time required.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  FP_WOULDBLOCK while more work remains.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+static int sp_521_ecc_mulmod_base_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_521_ecc_mulmod_17_nb(sp_ctx, r, &p521_base, k, map, ct, heap);
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+
 /* Multiply the base point of P521 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -125321,7 +125828,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
             err = sp_521_ecc_mulmod_17_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p521_order, 1, 1);
+                      infinity, ctx->point, p521_order, 1, 1, heap);
             if (err == MP_OKAY) {
                 if (sp_521_iszero_17(ctx->point->x) ||
                     sp_521_iszero_17(ctx->point->y)) {
@@ -151357,151 +151864,6 @@ static void sp_1024_proj_point_dbl_32(sp_point_1024* r, const sp_point_1024* p,
     sp_1024_mont_sub_32(y, y, t2, p1024_mod);
 }
 
-#ifdef WOLFSSL_SP_NONBLOCK
-typedef struct sp_1024_proj_point_dbl_32_ctx {
-    int state;
-    sp_digit* t1;
-    sp_digit* t2;
-    sp_digit* x;
-    sp_digit* y;
-    sp_digit* z;
-} sp_1024_proj_point_dbl_32_ctx;
-
-/* Double the Montgomery form projective point p.
- *
- * Non-blocking version.  Call repeatedly until it does not return
- * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
- *
- * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
- * @param [out]     r       Result of doubling point.
- * @param [in]      p       Point to double.
- * @param [out]     t       Temporary ordinate data.
- */
-static int sp_1024_proj_point_dbl_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
-        const sp_point_1024* p, sp_digit* t)
-{
-    int err = FP_WOULDBLOCK;
-    sp_1024_proj_point_dbl_32_ctx* ctx = (sp_1024_proj_point_dbl_32_ctx*)sp_ctx->data;
-
-    typedef char ctx_size_test[sizeof(sp_1024_proj_point_dbl_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
-
-    switch (ctx->state) {
-    case 0:
-        ctx->t1 = t;
-        ctx->t2 = t + 2*32;
-        ctx->x = r->x;
-        ctx->y = r->y;
-        ctx->z = r->z;
-
-        /* Put infinity into result. */
-        if (r != p) {
-            r->infinity = p->infinity;
-        }
-        ctx->state = 1;
-        break;
-    case 1:
-        /* T1 = Z * Z */
-        sp_1024_mont_sqr_32(ctx->t1, p->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 2;
-        break;
-    case 2:
-        /* Z = Y * Z */
-        sp_1024_mont_mul_32(ctx->z, p->y, p->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 3;
-        break;
-    case 3:
-        /* Z = 2Z */
-        sp_1024_mont_dbl_32(ctx->z, ctx->z, p1024_mod);
-        ctx->state = 4;
-        break;
-    case 4:
-        /* T2 = X - T1 */
-        sp_1024_mont_sub_32(ctx->t2, p->x, ctx->t1, p1024_mod);
-        ctx->state = 5;
-        break;
-    case 5:
-        /* T1 = X + T1 */
-        sp_1024_mont_add_32(ctx->t1, p->x, ctx->t1, p1024_mod);
-        ctx->state = 6;
-        break;
-    case 6:
-        /* T2 = T1 * T2 */
-        sp_1024_mont_mul_32(ctx->t2, ctx->t1, ctx->t2, p1024_mod, p1024_mp_mod);
-        ctx->state = 7;
-        break;
-    case 7:
-        /* T1 = 3T2 */
-        sp_1024_mont_tpl_32(ctx->t1, ctx->t2, p1024_mod);
-        ctx->state = 8;
-        break;
-    case 8:
-        /* Y = 2Y */
-        sp_1024_mont_dbl_32(ctx->y, p->y, p1024_mod);
-        ctx->state = 9;
-        break;
-    case 9:
-        /* Y = Y * Y */
-        sp_1024_mont_sqr_32(ctx->y, ctx->y, p1024_mod, p1024_mp_mod);
-        ctx->state = 10;
-        break;
-    case 10:
-        /* T2 = Y * Y */
-        sp_1024_mont_sqr_32(ctx->t2, ctx->y, p1024_mod, p1024_mp_mod);
-        ctx->state = 11;
-        break;
-    case 11:
-        /* T2 = T2/2 */
-        sp_1024_mont_div2_32(ctx->t2, ctx->t2, p1024_mod);
-        ctx->state = 12;
-        break;
-    case 12:
-        /* Y = Y * X */
-        sp_1024_mont_mul_32(ctx->y, ctx->y, p->x, p1024_mod, p1024_mp_mod);
-        ctx->state = 13;
-        break;
-    case 13:
-        /* X = T1 * T1 */
-        sp_1024_mont_sqr_32(ctx->x, ctx->t1, p1024_mod, p1024_mp_mod);
-        ctx->state = 14;
-        break;
-    case 14:
-        /* X = X - Y */
-        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->y, p1024_mod);
-        ctx->state = 15;
-        break;
-    case 15:
-        /* X = X - Y */
-        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->y, p1024_mod);
-        ctx->state = 16;
-        break;
-    case 16:
-        /* Y = Y - X */
-        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->x, p1024_mod);
-        ctx->state = 17;
-        break;
-    case 17:
-        /* Y = Y * T1 */
-        sp_1024_mont_mul_32(ctx->y, ctx->y, ctx->t1, p1024_mod, p1024_mp_mod);
-        ctx->state = 18;
-        break;
-    case 18:
-        /* Y = Y - T2 */
-        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t2, p1024_mod);
-        ctx->state = 19;
-        FALL_THROUGH;
-    case 19:
-        err = MP_OKAY;
-        break;
-    }
-
-    if (err == MP_OKAY && ctx->state != 19) {
-        err = FP_WOULDBLOCK;
-    }
-
-    return err;
-}
-#endif /* WOLFSSL_SP_NONBLOCK */
 /* Compare two numbers to determine if they are equal.
  * Constant time implementation.
  *
@@ -151626,214 +151988,6 @@ static void sp_1024_proj_point_add_32(sp_point_1024* r,
         }
     }
 }
-
-#ifdef WOLFSSL_SP_NONBLOCK
-typedef struct sp_1024_proj_point_add_32_ctx {
-    int state;
-    sp_1024_proj_point_dbl_32_ctx dbl_ctx;
-    const sp_point_1024* ap[2];
-    sp_point_1024* rp[2];
-    sp_digit* t1;
-    sp_digit* t2;
-    sp_digit* t3;
-    sp_digit* t4;
-    sp_digit* t5;
-    sp_digit* t6;
-    sp_digit* x;
-    sp_digit* y;
-    sp_digit* z;
-} sp_1024_proj_point_add_32_ctx;
-
-/* Add two Montgomery form projective points.
- *
- * Non-blocking version.  Call repeatedly until it does not return
- * FP_WOULDBLOCK.  State is saved and restored through sp_ctx.
- *
- * @param [in, out] sp_ctx  Context to save state in for non-blocking calls.
- * @param [out]     r       Result of addition.
- * @param [in]      p       First point to add.
- * @param [in]      q       Second point to add.
- * @param [out]     t       Temporary ordinate data.
- */
-static int sp_1024_proj_point_add_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
-    const sp_point_1024* p, const sp_point_1024* q, sp_digit* t)
-{
-    int err = FP_WOULDBLOCK;
-    sp_1024_proj_point_add_32_ctx* ctx = (sp_1024_proj_point_add_32_ctx*)sp_ctx->data;
-
-    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
-    (void)sizeof(ctx_size_test);
-
-    /* Ensure only the first point is the same as the result. */
-    if (q == r) {
-        const sp_point_1024* a = p;
-        p = q;
-        q = a;
-    }
-
-    switch (ctx->state) {
-    case 0: /* INIT */
-        ctx->t6 = t;
-        ctx->t1 = t + 2*32;
-        ctx->t2 = t + 4*32;
-        ctx->t3 = t + 6*32;
-        ctx->t4 = t + 8*32;
-        ctx->t5 = t + 10*32;
-        ctx->x = ctx->t6;
-        ctx->y = ctx->t1;
-        ctx->z = ctx->t2;
-
-        ctx->state = 1;
-        break;
-    case 1:
-        /* U1 = X1*Z2^2 */
-        sp_1024_mont_sqr_32(ctx->t1, q->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 2;
-        break;
-    case 2:
-        sp_1024_mont_mul_32(ctx->t3, ctx->t1, q->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 3;
-        break;
-    case 3:
-        sp_1024_mont_mul_32(ctx->t1, ctx->t1, p->x, p1024_mod, p1024_mp_mod);
-        ctx->state = 4;
-        break;
-    case 4:
-        /* U2 = X2*Z1^2 */
-        sp_1024_mont_sqr_32(ctx->t2, p->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 5;
-        break;
-    case 5:
-        sp_1024_mont_mul_32(ctx->t4, ctx->t2, p->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 6;
-        break;
-    case 6:
-        sp_1024_mont_mul_32(ctx->t2, ctx->t2, q->x, p1024_mod, p1024_mp_mod);
-        ctx->state = 7;
-        break;
-    case 7:
-        /* S1 = Y1*Z2^3 */
-        sp_1024_mont_mul_32(ctx->t3, ctx->t3, p->y, p1024_mod, p1024_mp_mod);
-        ctx->state = 8;
-        break;
-    case 8:
-        /* S2 = Y2*Z1^3 */
-        sp_1024_mont_mul_32(ctx->t4, ctx->t4, q->y, p1024_mod, p1024_mp_mod);
-        ctx->state = 9;
-        break;
-    case 9:
-        /* Check double */
-        if ((~p->infinity) & (~q->infinity) &
-                sp_1024_cmp_equal_32(ctx->t2, ctx->t1) &
-                sp_1024_cmp_equal_32(ctx->t4, ctx->t3)) {
-            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
-            sp_1024_proj_point_dbl_32(r, p, t);
-            ctx->state = 25;
-        }
-        else {
-            ctx->state = 10;
-        }
-        break;
-    case 10:
-        /* H = U2 - U1 */
-        sp_1024_mont_sub_32(ctx->t2, ctx->t2, ctx->t1, p1024_mod);
-        ctx->state = 11;
-        break;
-    case 11:
-        /* R = S2 - S1 */
-        sp_1024_mont_sub_32(ctx->t4, ctx->t4, ctx->t3, p1024_mod);
-        ctx->state = 12;
-        break;
-    case 12:
-        /* X3 = R^2 - H^3 - 2*U1*H^2 */
-        sp_1024_mont_sqr_32(ctx->t5, ctx->t2, p1024_mod, p1024_mp_mod);
-        ctx->state = 13;
-        break;
-    case 13:
-        sp_1024_mont_mul_32(ctx->y, ctx->t1, ctx->t5, p1024_mod, p1024_mp_mod);
-        ctx->state = 14;
-        break;
-    case 14:
-        sp_1024_mont_mul_32(ctx->t5, ctx->t5, ctx->t2, p1024_mod, p1024_mp_mod);
-        ctx->state = 15;
-        break;
-    case 15:
-        /* Z3 = H*Z1*Z2 */
-        sp_1024_mont_mul_32(ctx->z, p->z, ctx->t2, p1024_mod, p1024_mp_mod);
-        ctx->state = 16;
-        break;
-    case 16:
-        sp_1024_mont_mul_32(ctx->z, ctx->z, q->z, p1024_mod, p1024_mp_mod);
-        ctx->state = 17;
-        break;
-    case 17:
-        sp_1024_mont_sqr_32(ctx->x, ctx->t4, p1024_mod, p1024_mp_mod);
-        ctx->state = 18;
-        break;
-    case 18:
-        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->t5, p1024_mod);
-        ctx->state = 19;
-        break;
-    case 19:
-        sp_1024_mont_mul_32(ctx->t5, ctx->t5, ctx->t3, p1024_mod, p1024_mp_mod);
-        ctx->state = 20;
-        break;
-    case 20:
-        sp_1024_mont_dbl_32(ctx->t3, ctx->y, p1024_mod);
-        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->t3, p1024_mod);
-        ctx->state = 21;
-        break;
-    case 21:
-        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
-        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->x, p1024_mod);
-        ctx->state = 22;
-        break;
-    case 22:
-        sp_1024_mont_mul_32(ctx->y, ctx->y, ctx->t4, p1024_mod, p1024_mp_mod);
-        ctx->state = 23;
-        break;
-    case 23:
-        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t5, p1024_mod);
-        ctx->state = 24;
-        break;
-    case 24:
-    {
-        {
-            int i;
-            sp_digit maskp = (sp_digit)(0 - (q->infinity & (!p->infinity)));
-            sp_digit maskq = (sp_digit)(0 - (p->infinity & (!q->infinity)));
-            sp_digit maskt = ~(maskp | maskq);
-            sp_digit inf = (sp_digit)(p->infinity & q->infinity);
-
-            for (i = 0; i < 32; i++) {
-                r->x[i] = (p->x[i] & maskp) | (q->x[i] & maskq) |
-                          (ctx->x[i] & maskt);
-            }
-            for (i = 0; i < 32; i++) {
-                r->y[i] = (p->y[i] & maskp) | (q->y[i] & maskq) |
-                          (ctx->y[i] & maskt);
-            }
-            for (i = 0; i < 32; i++) {
-                r->z[i] = (p->z[i] & maskp) | (q->z[i] & maskq) |
-                          (ctx->z[i] & maskt);
-            }
-            r->z[0] |= inf;
-            r->infinity = (int)inf;
-        }
-        ctx->state = 25;
-        break;
-    }
-    case 25:
-        err = MP_OKAY;
-        break;
-    }
-
-    if (err == MP_OKAY && ctx->state != 25) {
-        err = FP_WOULDBLOCK;
-    }
-    return err;
-}
-#endif /* WOLFSSL_SP_NONBLOCK */
 
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
