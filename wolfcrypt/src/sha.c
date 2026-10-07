@@ -1236,8 +1236,10 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
+        wc_ShaFree(tmpSha);
     }
 
+    ForceZero(tmpSha, sizeof(*tmpSha));
     WC_FREE_VAR_EX(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
