@@ -51,6 +51,7 @@ extern "C" {
 #define WOLFSSL_ELS_PKC
 
 #define WOLF_CRYPTO_CB
+#define WOLF_CRYPTO_CB_KEYSTORE
 
 /* Seed wolfCrypt's DRBG from the ELS hardware DRBG. */
 #define HAVE_HASHDRBG
@@ -67,6 +68,23 @@ extern "C" {
 #define HAVE_AES_ECB
 #define WOLFSSL_AES_COUNTER
 #define WOLFSSL_CMAC
+
+#define HAVE_ECC
+#define ECC_TIMING_RESISTANT
+#define ECC_USER_CURVES
+#define HAVE_ECC256
+#define HAVE_ECC384
+#define HAVE_CURVE25519
+/* No Ed25519: the PKC does not serve EdDSA. */
+
+/* SP math is per curve: keep this in step with the curve list above. */
+#define WOLFSSL_SP_MATH_ALL
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_384
+#define WOLFSSL_HAVE_SP_RSA
+
+#define WC_RSA_BLINDING
+#define WOLFSSL_KEY_GEN
 
 #define NO_DSA
 #define NO_RC4
