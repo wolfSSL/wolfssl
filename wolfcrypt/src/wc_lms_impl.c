@@ -3284,6 +3284,8 @@ static void wc_lms_priv_state_store(const LmsParams* params,
 static void wc_lms_priv_state_copy(const LmsParams* params,
     LmsPrivState* dst, const LmsPrivState* src)
 {
+    ForceZero(dst->auth_path, LMS_PRIV_STATE_LEN(params->height,
+        params->rootLevels, params->cacheBits, params->hash_len));
     XMEMCPY(dst->auth_path, src->auth_path, LMS_PRIV_STATE_LEN(params->height,
         params->rootLevels, params->cacheBits, params->hash_len));
     dst->stack.offset = src->stack.offset;
@@ -4544,6 +4546,8 @@ static int wc_hss_expand_private_key(LmsState* state, byte* priv,
         c32toa(q32, priv);
 
         if (!skip) {
+            /* Never destroy a SEED by writing the next one over it. */
+            ForceZero(priv + LMS_Q_LEN, params->hash_len + LMS_I_LEN);
             /* Derive SEED and I into private key. */
             ret = wc_hss_derive_seed_i(state, priv_seed_i + params->hash_len,
                 priv_seed_i, priv_q, priv + LMS_Q_LEN);
@@ -4592,6 +4596,7 @@ static int wc_lms_next_subtree_init(LmsState* state, LmsPrivState* privState,
     privState->leaf.offset = 0;
 
     /* Derive SEED and I for next tree. */
+    ForceZero(priv + LMS_Q_LEN, params->hash_len + LMS_I_LEN);
     ret = wc_hss_derive_seed_i(state, priv_i, priv_seed, priv_q,
         priv + LMS_Q_LEN);
     if (ret == 0) {
