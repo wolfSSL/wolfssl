@@ -2530,7 +2530,7 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     int ret;
     int argc;
     const char *argv[3];
-    char code_buf[5];
+    char code_buf[6];
     size_t corrected_count;
     int i;
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -2549,7 +2549,7 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
         corrected_count = count - 1;
     else
         corrected_count = count;
-    if ((corrected_count < 1) || (corrected_count > 4))
+    if ((corrected_count < 1) || (corrected_count > 5))
         return -EINVAL;
     XMEMCPY(code_buf, buf, corrected_count);
     code_buf[corrected_count] = 0;
