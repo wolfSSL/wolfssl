@@ -1942,7 +1942,8 @@ then
     test "$enable_aessiv" = "" && enable_aessiv=yes
     # AFALG lacks AES-EAX
     test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
-    test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
+    test "$enable_sakke" = "" && test "$enable_ecc" != "no" && \
+        test "$enable_rng" != "no" && enable_sakke=yes
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
@@ -6525,6 +6526,11 @@ AC_ARG_ENABLE([sakke],
 if test "$ENABLED_SAKKE" != "no" && test "$ENABLED_ECC" = "no"
 then
     AC_MSG_ERROR([SAKKE requires ECC.])
+fi
+
+if test "$ENABLED_SAKKE" != "no" && test "$ENABLED_RNG" = "no"
+then
+    AC_MSG_ERROR([--enable-sakke requires --enable-rng])
 fi
 
 if test "x$ENABLED_SAKKE" = "xsmall"
