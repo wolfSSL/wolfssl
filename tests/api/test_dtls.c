@@ -8641,6 +8641,7 @@ static int test_dtls_ch_reject_cb(WOLFSSL* ssl, void* ctx)
     return TEST_DTLS_CH_REJECT_E;
 }
 
+#if !defined(WOLFSSL_NO_TLS12)
 struct test_dtls_ch_flip_ctx {
     int calls;
     int disableRet;
@@ -8657,6 +8658,7 @@ static int test_dtls_ch_flip_cb(WOLFSSL* ssl, void* ctx)
     flip->enableRet = wolfSSL_enable_cookie(ssl);
     return 0;
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 
 static int test_dtls_no_cookie_setup(struct test_memio_ctx* io,
     WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s)

@@ -14863,6 +14863,7 @@ int test_tls13_exporter_suite_decision_coverage(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_KEYING_MATERIAL) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS13))
     WOLFSSL_CTX *ctx_c = NULL;

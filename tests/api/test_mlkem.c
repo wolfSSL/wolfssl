@@ -4522,6 +4522,7 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, out, sizeof(out)),
         WC_NO_ERR_TRACE(BAD_STATE_E));
 
+#if !defined(WOLFSSL_MLKEM_NO_ASN1)
     /* --- DER encode/decode decisions: the (ret == 0) operand of the ToDer
      *     output blocks, the decode NULL rows, and the type-set / adopt-type
      *     checks. --- */
@@ -4592,6 +4593,7 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, sz, &idx), 0);
     wc_MlKemKey_Free(adopt);
     XFREE(adopt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WOLFSSL_MLKEM_NO_ASN1 */
 
     /* --- RFC 9935 Section 6 privateKey shapes: seed-only and "both".
      *     The seed expands through the real keygen so the "both" key agrees
@@ -4693,6 +4695,12 @@ int test_wc_MlkemDecisionCoverage(void)
     (void)ss;
     (void)rndMk;
     (void)rndEnc;
+    (void)der;
+    (void)idx;
+    (void)sz;
+    (void)fresh;
+    (void)adopt;
+    (void)unset;
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_MlkemDecisionCoverage */

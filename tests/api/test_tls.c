@@ -5254,13 +5254,10 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL     *ssl = NULL;
-    WOLFSSL_CTX *dctx = NULL;
-    WOLFSSL     *dssl = NULL;
     byte         inner[WOLFSSL_TLS_HMAC_INNER_SZ];
-    byte         cid[4] = { 1, 2, 3, 4 };
 
     ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     if (ctx == NULL)
@@ -5277,6 +5274,10 @@ int test_tls_hmac_inner_cid_decision_coverage(void)
     wolfSSL_CTX_free(ctx);
 
 #if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *dctx = NULL;
+    WOLFSSL     *dssl = NULL;
+    byte         cid[4] = { 1, 2, 3, 4 };
+
     dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
     if (dctx == NULL)
         return EXPECT_RESULT();
