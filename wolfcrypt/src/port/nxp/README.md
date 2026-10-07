@@ -634,6 +634,8 @@ into a wolfSSL tree.
   `CONFIG_MCUX_ELS_PKC=y` for the vendor headers. When a settings file is
   supplied through `CONFIG_WOLFSSL_SETTINGS_FILE`, the feature Kconfigs do
   not apply and `WOLFSSL_ELS_PKC` has to be defined in that file instead.
+- **MCUXpresso SDK / autoconf.** `--with-els-pkc=PATH` and
+  `--with-mcux-sdk=PATH`.
 
 Everything in the port is gated on `WOLFSSL_ELS_PKC`. Without that macro the
 file compiles to an empty translation unit and reaches no vendor header,
