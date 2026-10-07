@@ -1046,6 +1046,13 @@ int wc_DhSetNonBlock(DhKey* key, DhNb* nb)
 int wc_FreeDhKey(DhKey* key)
 {
     if (key) {
+    #ifdef WC_DH_NONBLOCK
+        /* An abandoned operation leaves a copy of x in the context. */
+        if (key->nb != NULL) {
+            ForceZero(key->nb, sizeof(DhNb));
+            key->nb = NULL;
+        }
+    #endif
         mp_clear(&key->p);
         mp_clear(&key->g);
         mp_clear(&key->q);
@@ -2593,6 +2600,8 @@ WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst)
         return ret;
     }
 
+    /* mp_copy covers only the digits in use; wipe the previous value first. */
+    mp_forcezero(&dst->priv);
     if ((ret = mp_copy(&src->priv, &dst->priv)) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
         return ret;
