@@ -207,6 +207,10 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         }
         wc_HmacFree(hmac);
     }
+    if (ret != 0) {
+        /* Partial PRF output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(result, resLen);
+    }
 
     ForceZero(current, P_HASH_MAX_SIZE);
     ForceZero(hmac,    sizeof(Hmac));
@@ -279,6 +283,10 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
             /* md5 result is placed directly in digest */
             xorbuf(digest, sha_result, digLen);
             ForceZero(sha_result, digLen);
+        }
+        else {
+            /* digest holds the unmasked MD5 half (ISO/IEC 19790 7.9.7). */
+            ForceZero(digest, digLen);
         }
     }
 
@@ -857,7 +865,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
             runningKeySz = digestSz;
             ret = _HashFinal(enmhashId, &hash, key);
 
-            for (curBlock = 1; curBlock < blocks; curBlock++) {
+            for (curBlock = 1; (ret == 0) && (curBlock < blocks); curBlock++) {
                 ret = _HashInit(enmhashId, &hash);
                 if (ret != 0) break;
                 ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
@@ -903,6 +911,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     _HashFree(enmhashId, &hash);
     /* hash absorbed the shared secret K (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(&hash, sizeof(hash));
+    if (ret != 0) {
+        ForceZero(key, keySz);
+    }
 
     return ret;
 }
@@ -1088,6 +1099,15 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         ret = wc_srtp_kdf_derive_key(block, WC_SRTP_INDEX_LEN,
             WC_SRTP_LABEL_SALT, key3, key3Sz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        /* Derived keys are not released (ISO/IEC 19790 7.9.7). */
+        if (key1 != NULL)
+            ForceZero(key1, key1Sz);
+        if (key2 != NULL)
+            ForceZero(key2, key2Sz);
+        if (key3 != NULL)
+            ForceZero(key3, key3Sz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
@@ -1182,6 +1202,15 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
         ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_SALT, key3, key3Sz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        /* Derived keys are not released (ISO/IEC 19790 7.9.7). */
+        if (key1 != NULL)
+            ForceZero(key1, key1Sz);
+        if (key2 != NULL)
+            ForceZero(key2, key2Sz);
+        if (key3 != NULL)
+            ForceZero(key3, key3Sz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
@@ -1263,6 +1292,9 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         ret = wc_srtp_kdf_derive_key(block, WC_SRTP_INDEX_LEN, label, outKey,
             outKeySz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        ForceZero(outKey, outKeySz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
@@ -1335,6 +1367,9 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         /* Calculate key. */
         ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN, label, outKey,
             outKeySz, aes);
+    }
+    if ((ret != 0) && aes_inited) {
+        ForceZero(outKey, outKeySz);
     }
 
     if (aes_inited)
