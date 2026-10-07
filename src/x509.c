@@ -6228,6 +6228,44 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
 }
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
+#ifndef NO_BIO
+static int wolfssl_x509_name_esc_value(const char* in, int inSz,
+                                       unsigned long flags, char* out);
+
+/* Write pfx then val to bio with control characters escaped.
+ *
+ * Returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure.
+ */
+static int X509PrintEscStr(WOLFSSL_BIO* bio, const char* pfx,
+                           const char* val, int valSz)
+{
+    char buf[96];
+    int  ret = WOLFSSL_SUCCESS;
+    int  pfxSz = (int)XSTRLEN(pfx);
+    int  inSz = 0;
+    int  escSz;
+    int  i;
+
+    if ((pfxSz > 0) && (wolfSSL_BIO_write(bio, pfx, pfxSz) <= 0)) {
+        ret = WOLFSSL_FAILURE;
+    }
+    /* ESC_CTRL ignores position and at most triples a byte, so chunk it. */
+    for (i = 0; (ret == WOLFSSL_SUCCESS) && (i < valSz); i += inSz) {
+        inSz = valSz - i;
+        if (inSz > (int)sizeof(buf) / 3) {
+            inSz = (int)sizeof(buf) / 3;
+        }
+        escSz = wolfssl_x509_name_esc_value(val + i, inSz,
+                    WOLFSSL_ASN1_STRFLGS_ESC_CTRL, buf);
+        if (wolfSSL_BIO_write(bio, buf, escSz) <= 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+}
+#endif /* !NO_BIO */
+
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO.
  * Can handle following GENERAL_NAME_OBJECT types:
@@ -6272,18 +6310,16 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
         break;
 
     case GEN_EMAIL:
-        ret = wolfSSL_BIO_printf(out, "email:");
-        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_ASN1_STRING_print(out, gen->d.rfc822Name);
+        if (gen->d.rfc822Name != NULL) {
+            ret = X509PrintEscStr(out, "email:", gen->d.rfc822Name->data,
+                                  gen->d.rfc822Name->length);
         }
         break;
 
     case GEN_DNS:
-        ret = wolfSSL_BIO_printf(out, "DNS:");
-        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_ASN1_STRING_print(out, gen->d.dNSName);
+        if (gen->d.dNSName != NULL) {
+            ret = X509PrintEscStr(out, "DNS:", gen->d.dNSName->data,
+                                  gen->d.dNSName->length);
         }
         break;
 
@@ -6307,11 +6343,10 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
         break;
 
     case GEN_URI:
-        ret = wolfSSL_BIO_printf(out, "URI:");
-        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_ASN1_STRING_print(out,
-                                    gen->d.uniformResourceIdentifier);
+        if (gen->d.uniformResourceIdentifier != NULL) {
+            ret = X509PrintEscStr(out, "URI:",
+                                  gen->d.uniformResourceIdentifier->data,
+                                  gen->d.uniformResourceIdentifier->length);
         }
         break;
 
@@ -7235,28 +7270,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     #define MAX_WIDTH 80
 #endif
 
-static int wolfssl_x509_name_esc_value(const char* in, int inSz,
-                                       unsigned long flags, char* out);
-
-/* Write pfx and escaped val to dst. Returns length, or dstSz if too long. */
-static int X509PrintEscStr(char* dst, int dstSz, const char* pfx,
-                           const char* val, int valSz)
-{
-    int pfxSz = (int)XSTRLEN(pfx);
-    int escSz = wolfssl_x509_name_esc_value(val, valSz,
-                    WOLFSSL_ASN1_STRFLGS_ESC_CTRL, NULL);
-
-    if (pfxSz + escSz >= dstSz) {
-        return dstSz;
-    }
-    XMEMCPY(dst, pfx, (size_t)pfxSz);
-    (void)wolfssl_x509_name_esc_value(val, valSz,
-              WOLFSSL_ASN1_STRFLGS_ESC_CTRL, dst + pfxSz);
-    dst[pfxSz + escSz] = '\0';
-
-    return pfxSz + escSz;
-}
-
 #define ACERT_NUM_DIR_TAGS 4
 
 /* Convenience struct and function for printing the Holder sub fields
@@ -7274,24 +7287,20 @@ static struct acert_dir_print_t acert_dir_print[ACERT_NUM_DIR_TAGS] =
     { "CN=", {0x55, 0x04, ASN_COMMON_NAME} },
 };
 
-/* Print an entry of ASN_DIR_TYPE into dst of length max_len.
+/* Print an entry of ASN_DIR_TYPE to bio.
  *
- * Returns total_len of str on success.
- * Returns < 0 on failure.
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns WOLFSSL_FAILURE on failure.
  * */
-static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
+static int X509PrintDirType(WOLFSSL_BIO* bio, const DNS_entry * entry)
 {
     word32       k = 0;
     word32       i = 0;
     const char * src = entry->name;
     word32       src_len = 0;
-    int          total_len = 0;
-    int          bytes_left = max_len;
     int          fld_len = 0;
-    int          esc_len = 0;
+    int          ret = WOLFSSL_SUCCESS;
     int          match_found = 0;
-
-    XMEMSET(dst, 0, max_len);
 
     /* The entry holds raw DER which may contain zero bytes, and under
      * WC_ASN_NO_HEAP it is not NUL terminated, so use the stored length. */
@@ -7300,7 +7309,7 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
     }
 
     /* loop over printable DIR tags. */
-    for (k = 0; k < ACERT_NUM_DIR_TAGS; ++k) {
+    for (k = 0; (ret == WOLFSSL_SUCCESS) && (k < ACERT_NUM_DIR_TAGS); ++k) {
         const char * pfx = acert_dir_print[k].pfx;
         const byte * tag = acert_dir_print[k].tag;
         byte         asn_tag;
@@ -7312,19 +7321,6 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
          * underflowing the bound. */
         for (i = 0; i + 5 <= src_len; ++i) {
             if (XMEMCMP(tag, &src[i], 3) == 0) {
-                if (bytes_left < 5) {
-                    /* Not enough space left for name oid + tag + len. */
-                    break;
-                }
-
-                if (match_found) {
-                    /* append a {',', ' '} before doing anything else. */
-                    *dst++ = ',';
-                    *dst++ = ' ';
-                    total_len += 2;
-                    bytes_left -= 2;
-                }
-
                 i += 3;
 
                 /* Get the ASN Tag. */
@@ -7347,24 +7343,32 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
                     break;
                 }
 
-                /* Copy it in, decrement available space. */
-                esc_len = X509PrintEscStr(dst, bytes_left, pfx, &src[i],
-                                          fld_len);
-                if (esc_len >= bytes_left) {
-                    /* Not enough space left. */
+                if (match_found && (wolfSSL_BIO_puts(bio, ", ") <= 0)) {
+                    ret = WOLFSSL_FAILURE;
+                }
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = X509PrintEscStr(bio, pfx, &src[i], fld_len);
+                }
+                if (ret != WOLFSSL_SUCCESS) {
                     break;
                 }
                 i += fld_len;
-                dst += esc_len;
-                total_len += esc_len;
-                bytes_left -= esc_len;
 
                 match_found = 1;
             }
         }
     }
 
-    return total_len;
+    if ((ret == WOLFSSL_SUCCESS) && !match_found) {
+        /* Nothing in the encoding was printable. Emit a placeholder, as the
+         * other unsupported entry types do, rather than failing the print of
+         * the whole certificate. */
+        if (wolfSSL_BIO_puts(bio, "DirName:<unprintable>") <= 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
 }
 static int X509_print_name_entry(WOLFSSL_BIO* bio,
                                  const DNS_entry* entry, int indent)
@@ -7396,9 +7400,10 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             }
         }
 
+        /* Escaped values go straight to bio, the rest through scratch. */
+        len = 0;
         if (entry->type == ASN_DNS_TYPE) {
-            len = X509PrintEscStr(scratch, MAX_WIDTH, "DNS:", entry->name,
-                                  entry->len);
+            ret = X509PrintEscStr(bio, "DNS:", entry->name, entry->len);
         }
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         else if (entry->type == ASN_IP_TYPE) {
@@ -7415,21 +7420,13 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
     #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
         else if (entry->type == ASN_RFC822_TYPE) {
-            len = X509PrintEscStr(scratch, MAX_WIDTH, "email:", entry->name,
-                                  entry->len);
+            ret = X509PrintEscStr(bio, "email:", entry->name, entry->len);
         }
         else if (entry->type == ASN_DIR_TYPE) {
-            len = X509PrintDirType(scratch, MAX_WIDTH, entry);
-            if (len == 0) {
-                /* Nothing in the encoding was printable. Emit a placeholder,
-                 * as the other unsupported entry types do, rather than
-                 * failing the print of the whole certificate. */
-                len = XSNPRINTF(scratch, MAX_WIDTH, "DirName:<unprintable>");
-            }
+            ret = X509PrintDirType(bio, entry);
         }
         else if (entry->type == ASN_URI_TYPE) {
-            len = X509PrintEscStr(scratch, MAX_WIDTH, "URI:", entry->name,
-                                  entry->len);
+            ret = X509PrintEscStr(bio, "URI:", entry->name, entry->len);
         }
     #ifdef WOLFSSL_RID_ALT_NAME
         else if (entry->type == ASN_RID_TYPE) {
@@ -7454,12 +7451,11 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             ret = WOLFSSL_FAILURE;
             break;
         }
-        if (len >= MAX_WIDTH) {
+        if ((ret != WOLFSSL_SUCCESS) || (len < 0) || (len >= MAX_WIDTH)) {
             ret = WOLFSSL_FAILURE;
             break;
         }
-        if (wolfSSL_BIO_write(bio, scratch, (int)XSTRLEN(scratch))
-                <= 0) {
+        if ((len > 0) && (wolfSSL_BIO_write(bio, scratch, len) <= 0)) {
             ret = WOLFSSL_FAILURE;
             break;
         }
@@ -8363,16 +8359,10 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             {
                 return WOLFSSL_FAILURE;
             }
-            /* Leave room for the newline. */
-            scratchLen += X509PrintEscStr(scratch + scratchLen,
-                    MAX_WIDTH - scratchLen - 1, "", (const char*)data,
+            if ((X509PrintEscStr(bio, scratch, (const char*)data,
                     wolfSSL_ASN1_STRING_length(
-                        attr->value->value.asn1_string));
-            if (scratchLen >= MAX_WIDTH - 1) {
-                return WOLFSSL_FAILURE;
-            }
-            scratch[scratchLen++] = '\n';
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+                        attr->value->value.asn1_string)) != WOLFSSL_SUCCESS) ||
+                (wolfSSL_BIO_write(bio, "\n", 1) <= 0)) {
                 WOLFSSL_MSG("Error writing REQ attribute");
                 return WOLFSSL_FAILURE;
             }

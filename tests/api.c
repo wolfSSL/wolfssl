@@ -23794,6 +23794,16 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     const char* dirNameStr = "DirName:";
     const char* ridStr     = "Registered ID:1.2.3.4.5";
 
+    static const struct {
+        int type;
+        const char* expect;
+    } ctrlCases[] = {
+        { GEN_DNS,   "DNS:a\\0D\\0Ab" },
+        { GEN_EMAIL, "email:a\\0D\\0Ab" },
+        { GEN_URI,   "URI:a\\0D\\0Ab" },
+    };
+    size_t i;
+
     /* BIO to output */
     ExpectNotNull(out = BIO_new(BIO_s_mem()));
 
@@ -24081,6 +24091,21 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ExpectNull(dup_gn = GENERAL_NAME_dup(gn));
     GENERAL_NAME_free(gn);
     gn = NULL;
+
+    /* Control characters in DNS, email and URI names are escaped. */
+    for (i = 0; i < sizeof(ctrlCases) / sizeof(ctrlCases[0]); i++) {
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        if (gn != NULL) {
+            gn->type = ctrlCases[i].type;
+            ExpectIntEQ(ASN1_STRING_set(gn->d.ia5, "a\r\nb", -1), 1);
+        }
+        ExpectIntEQ(GENERAL_NAME_print(out, gn), 1);
+        XMEMSET(outbuf, 0, sizeof(outbuf));
+        ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf) - 1), 0);
+        ExpectStrEQ((const char*)outbuf, ctrlCases[i].expect);
+        GENERAL_NAME_free(gn);
+        gn = NULL;
+    }
 
     BIO_free(out);
 #endif /* OPENSSL_ALL */
@@ -31464,13 +31489,17 @@ static int test_wolfSSL_X509_REQ_print(void)
     ExpectIntEQ(X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
     ExpectIntEQ(X509_REQ_add1_attr_by_NID(req, WC_NID_pkcs9_challengePassword,
         WOLFSSL_MBSTRING_ASC, (byte*)"c\r\nd", -1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_REQ_add1_attr_by_NID(req, WC_NID_pkcs9_unstructuredName,
+        WOLFSSL_MBSTRING_ASC, (byte*)TEST_CTRL_LONG_RAW, -1),
+        WOLFSSL_SUCCESS);
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
     ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
     ExpectNotNull(XSTRSTR(buf, "CN=a\\0D\\0Ab"));
     ExpectNull(XSTRSTR(buf, "a\r\nb"));
-    ExpectNotNull(XSTRSTR(buf, ":c\\0D\\0Ad"));
+    ExpectNotNull(XSTRSTR(buf, ":c\\0D\\0Ad\n"));
     ExpectNull(XSTRSTR(buf, "c\r\nd"));
+    ExpectNotNull(XSTRSTR(buf, ":" TEST_CTRL_LONG_ESC "\n"));
 
     X509_NAME_free(name);
     BIO_free(bio);
@@ -32574,16 +32603,26 @@ static int test_wolfSSL_X509_print_dir_altname(void)
     };
     /* Shorter than the five bytes the tag scan needs. */
     static const char shortDirName[] = { 0x30, 0x00 };
+    /* organizationName header for a value too long once escaped. */
+    static const char longDirHdr[] = { 0x06, 0x03, 0x55, 0x04, 0x0a, 0x0c,
+        (char)(sizeof(TEST_CTRL_LONG_RAW) - 1) };
+    char  longDir[sizeof(longDirHdr) + sizeof(TEST_CTRL_LONG_RAW) - 1];
     X509* x509 = NULL;
     BIO*  bio  = NULL;
     char* data = NULL;
     int   len  = 0;
     char  buf[8192];
 
+    XMEMCPY(longDir, longDirHdr, sizeof(longDirHdr));
+    XMEMCPY(longDir + sizeof(longDirHdr), TEST_CTRL_LONG_RAW,
+        sizeof(TEST_CTRL_LONG_RAW) - 1);
+
     ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, dirName, (word32)sizeof(
         dirName), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, longDir, (word32)sizeof(
+        longDir), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
 
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
@@ -32596,6 +32635,7 @@ static int test_wolfSSL_X509_print_dir_altname(void)
         ExpectNotNull(XSTRSTR(buf, "CN=Test"));
         ExpectNotNull(XSTRSTR(buf, "OU=a\\0D\\0Ab"));
         ExpectNull(XSTRSTR(buf, "a\r\nb"));
+        ExpectNotNull(XSTRSTR(buf, "O=" TEST_CTRL_LONG_ESC));
     }
     BIO_free(bio);
     bio = NULL;
@@ -32633,10 +32673,11 @@ static int test_wolfSSL_X509_print_altname_ctrl(void)
     static const struct {
         int type;
         const char* expect;
+        const char* expectLong;
     } cases[] = {
-        { ASN_DNS_TYPE,    "DNS:a\\0D\\0Ab" },
-        { ASN_RFC822_TYPE, "email:a\\0D\\0Ab" },
-        { ASN_URI_TYPE,    "URI:a\\0D\\0Ab" },
+        { ASN_DNS_TYPE,    "DNS:a\\0D\\0Ab",   "DNS:" TEST_CTRL_LONG_ESC },
+        { ASN_RFC822_TYPE, "email:a\\0D\\0Ab", "email:" TEST_CTRL_LONG_ESC },
+        { ASN_URI_TYPE,    "URI:a\\0D\\0Ab",   "URI:" TEST_CTRL_LONG_ESC },
     };
     X509* x509 = NULL;
     BIO*  bio  = NULL;
@@ -32648,6 +32689,8 @@ static int test_wolfSSL_X509_print_altname_ctrl(void)
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         ExpectIntEQ(wolfSSL_X509_add_altname(x509, "a\r\nb", cases[i].type),
             WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_add_altname(x509, TEST_CTRL_LONG_RAW,
+            cases[i].type), WOLFSSL_SUCCESS);
     }
 
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
@@ -32655,6 +32698,7 @@ static int test_wolfSSL_X509_print_altname_ctrl(void)
     ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         ExpectNotNull(XSTRSTR(buf, cases[i].expect));
+        ExpectNotNull(XSTRSTR(buf, cases[i].expectLong));
     }
     ExpectNull(XSTRSTR(buf, "a\r\nb"));
 
