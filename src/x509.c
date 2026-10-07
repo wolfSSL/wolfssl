@@ -8269,7 +8269,8 @@ static int X509PrintName(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
             return WOLFSSL_FAILURE;
         }
-        if (wolfSSL_X509_NAME_print_ex(bio, name, 1, 0) <= 0) {
+        if (wolfSSL_X509_NAME_print_ex(bio, name, 1,
+                WOLFSSL_ASN1_STRFLGS_ESC_CTRL) <= 0) {
             return WOLFSSL_FAILURE;
         }
         if (wolfSSL_BIO_write(bio, "\n", (int)XSTRLEN("\n")) <= 0) {

@@ -32644,6 +32644,38 @@ static int test_wolfSSL_X509_print_altname_ctrl(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_name_ctrl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
+    X509*      x509 = NULL;
+    X509_NAME* name = NULL;
+    BIO*       bio  = NULL;
+    char       buf[8192];
+
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName,
+        MBSTRING_UTF8, (unsigned char*)"a\r\nb", -1, -1, 0), 1);
+    ExpectIntEQ(X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "Issuer: CN=a\\0D\\0Ab"));
+    ExpectNotNull(XSTRSTR(buf, "Subject: CN=a\\0D\\0Ab"));
+    ExpectNull(XSTRSTR(buf, "a\r\nb"));
+
+    BIO_free(bio);
+    X509_NAME_free(name);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -44619,6 +44651,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
     TEST_DECL(test_wolfSSL_X509_print_altname_ctrl),
+    TEST_DECL(test_wolfSSL_X509_print_name_ctrl),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 
