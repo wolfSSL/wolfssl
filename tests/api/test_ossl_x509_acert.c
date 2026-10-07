@@ -32,6 +32,7 @@
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/pem.h>
 #endif
+#include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_acert.h>
 
@@ -325,6 +326,52 @@ int test_wolfSSL_X509_ACERT_misc_api(void)
             bp = NULL;
         }
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_ACERT_print_ctrl(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    /* Holder entityName CN, replaced with one of the same length. */
+    static const char holderCn[] = "server.example";
+    static const char ctrlCn[]   = "server\r\nxample";
+    X509_ACERT* x509 = NULL;
+    BIO*        bp = NULL;
+    DerBuffer*  der = NULL;
+    byte*       pem = NULL;
+    size_t      pemSz = 0;
+    char        buf[2048];
+    word32      i = 0;
+
+    ExpectIntEQ(load_file("certs/acert/acert_ietf.pem", &pem, &pemSz), 0);
+    ExpectIntEQ(wc_PemToDer(pem, (long)pemSz, ACERT_TYPE, &der, HEAP_HINT,
+        NULL, NULL), 0);
+    if (der != NULL) {
+        for (i = 0; i + sizeof(holderCn) - 1 <= der->length; i++) {
+            if (XMEMCMP(der->buffer + i, holderCn, sizeof(holderCn) - 1) == 0)
+                break;
+        }
+        ExpectIntLE(i + sizeof(holderCn) - 1, der->length);
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(der->buffer + i, ctrlCn, sizeof(ctrlCn) - 1);
+        }
+        ExpectNotNull(x509 = wolfSSL_X509_ACERT_load_certificate_buffer(
+            der->buffer, (int)der->length, WOLFSSL_FILETYPE_ASN1));
+    }
+
+    ExpectNotNull(bp = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_ACERT_print(bp, x509), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bp, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "CN=server\\0D\\0Axample"));
+    ExpectNull(XSTRSTR(buf, ctrlCn));
+
+    BIO_free(bp);
+    X509_ACERT_free(x509);
+    wc_FreeDer(&der);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
