@@ -2975,3 +2975,67 @@ int test_dtls13_ignore_legacy_record_version(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A NewSessionTicket ignored after ECH was not accepted consumes only the
+ * message, not the record padding. */
+int test_dtls13_ech_rejected_ticket_consumed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_ECH) && defined(HAVE_SESSION_TICKET)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+    /* DTLS handshake header followed by an (ignored) ticket body */
+    byte msg[DTLS_HANDSHAKE_HEADER_SZ + 16];
+    const word32 bodySz = (word32)sizeof(msg) - DTLS_HANDSHAKE_HEADER_SZ;
+    word32 idx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* ECH configured on the client but not accepted by the server */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, "ech-public-name.com",
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+
+    XMEMSET(msg, 0, sizeof(msg));
+    msg[0] = session_ticket;
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.disableECH, 0);
+        ExpectIntEQ(ssl_c->options.echAccepted, 0);
+
+        c32to24(bodySz, msg + OPAQUE8_LEN);
+        c16toa(ssl_c->keys.dtls_expected_peer_handshake_number,
+            msg + OPAQUE8_LEN + OPAQUE24_LEN);
+        c32to24(bodySz, msg + DTLS_HANDSHAKE_HEADER_SZ - OPAQUE24_LEN);
+
+        /* as if received in an application traffic record carrying the
+         * content type byte and a 16 byte tag */
+        ssl_c->curRL.pvMajor = ssl_c->version.major;
+        ssl_c->curRL.pvMinor = DTLSv1_2_MINOR;
+        ssl_c->keys.curEpoch64 = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+        ssl_c->keys.padSz = 1 + 16;
+    }
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(Dtls13HandshakeRecv(ssl_c, msg, &idx,
+            (word32)sizeof(msg)), 0);
+        /* only the message is consumed, not the record padding */
+        ExpectIntEQ(idx, (word32)sizeof(msg));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

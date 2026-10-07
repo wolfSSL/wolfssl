@@ -68,6 +68,7 @@ int test_dtls13_reset_clears_alert_history(void);
 int test_dtls13_rtx_timeout_want_write(void);
 int test_dtls13_rtx_timeout_want_write_read(void);
 int test_dtls13_ignore_legacy_record_version(void);
+int test_dtls13_ech_rejected_ticket_consumed(void);
 
 #define TEST_DTLS13_DECLS                                                      \
     TEST_DECL_GROUP("dtls13", test_dtls13_bad_epoch_ch),                       \
@@ -105,6 +106,7 @@ int test_dtls13_ignore_legacy_record_version(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_plaintext_ack_after_handshake),      \
     TEST_DECL_GROUP("dtls13", test_dtls13_plaintext_ack_during_handshake),     \
     TEST_DECL_GROUP("dtls13", test_dtls13_reset_clears_alert_history),         \
-    TEST_DECL_GROUP("dtls13", test_dtls13_ignore_legacy_record_version)        \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ignore_legacy_record_version),       \
+    TEST_DECL_GROUP("dtls13", test_dtls13_ech_rejected_ticket_consumed)
 
 #endif /* TESTS_API_DTLS13_H */

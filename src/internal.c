@@ -25732,7 +25732,25 @@ static int DoChangeCipherSpecTls12(WOLFSSL* ssl)
             WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 #ifdef WOLFSSL_MULTICAST
             if (ssl->options.haveMcast) {
-                peerSeq += ssl->keys.curPeerId;
+                WOLFSSL_DTLS_PEERSEQ* p;
+                int i;
+
+                peerSeq = NULL;
+                for (i = 0, p = ssl->keys.peerSeq;
+                     i < WOLFSSL_DTLS_PEERSEQ_SZ;
+                     i++, p++) {
+
+                    if (p->peerId == ssl->keys.curPeerId) {
+                        peerSeq = p;
+                        break;
+                    }
+                }
+
+                if (peerSeq == NULL) {
+                    WOLFSSL_MSG("Could not find peer sequence");
+                    return SEQUENCE_ERROR;
+                }
+
                 peerSeq->highwaterMark = UpdateHighwaterMark(0,
                         ssl->ctx->mcastFirstSeq,
                         ssl->ctx->mcastSecondSeq,
@@ -26794,6 +26812,14 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->options.processReply = runProcessingOneMessage;
             }
             else {
+                /* a handler consumed more than the record held */
+                if ((ssl->buffers.inputBuffer.idx - ssl->curStartIdx)
+                        > ssl->curSize) {
+                    WOLFSSL_MSG("Record over consumed");
+                    WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+                    return BUFFER_ERROR;
+                }
+
                 /* Done with this record. Advance past padding/MAC. */
                 if (IsEncryptionOn(ssl, 0))
                     ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
