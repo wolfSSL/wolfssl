@@ -31426,6 +31426,8 @@ static int test_wolfSSL_X509_REQ_print(void)
     const char* csrFileName = "certs/csr.attr.der";
     const char* csrExtFileName = "certs/csr.ext.der";
     BIO* bio = NULL;
+    X509_NAME* name = NULL;
+    char buf[8192];
 
     ExpectTrue((fp = XFOPEN(csrFileName, "rb")) != XBADFILE);
     ExpectNotNull(req = d2i_X509_REQ_fp(fp, NULL));
@@ -31452,7 +31454,21 @@ static int test_wolfSSL_X509_REQ_print(void)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1889);
+    BIO_free(bio);
+    bio = NULL;
 
+    /* Control characters in the subject are escaped. */
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName,
+        MBSTRING_UTF8, (unsigned char*)"a\r\nb", -1, -1, 0), 1);
+    ExpectIntEQ(X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf, "CN=a\\0D\\0Ab"));
+    ExpectNull(XSTRSTR(buf, "a\r\nb"));
+
+    X509_NAME_free(name);
     BIO_free(bio);
     wolfSSL_X509_REQ_free(req);
 #endif
