@@ -3450,6 +3450,9 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         /* Instantiate the DRBG */
 
         if (ret == DRBG_SUCCESS) {
+            /* Set before the call: a failed instantiate still leaves V in
+             * the state, and the failure arm below must uninstantiate it. */
+            drbg_instantiated = 1;
 #ifndef NO_SHA256
             if (rng->drbgType == WC_DRBG_SHA256)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
@@ -3471,8 +3474,6 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                 #endif
                     nonce, nonceSz, perso, persoSz, rng->heap, devId);
 #endif
-            if (ret == 0)
-                drbg_instantiated = 1;
         }
     } /* ret == 0 */
 
@@ -6315,6 +6316,10 @@ int wc_FreeRng(WC_RNG* rng)
     #endif
         rng->drbg = NULL;
     }
+    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    /* A failed instantiate nulls rng->drbg with the state still in here. */
+    ForceZero(&rng->drbg_data, sizeof(rng->drbg_data));
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     /* Scratch buffers are tracked independently of rng->drbg so that a
@@ -6346,6 +6351,9 @@ int wc_FreeRng(WC_RNG* rng)
     #endif
         rng->drbg512 = NULL;
     }
+    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    ForceZero(&rng->drbg512_data, sizeof(rng->drbg512_data));
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     /* Same independence rationale as the SHA-256 scratch above. */
