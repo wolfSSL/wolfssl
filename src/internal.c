@@ -42037,9 +42037,9 @@ int ClientAuthRequired(const WOLFSSL* ssl)
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return 0;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    /* Sends no CertificateRequest in the handshake, so it records no
-     * outcome to inherit. */
-    if (ssl->options.verifyPostHandshake)
+    /* Sends no CertificateRequest in the handshake, so it records no outcome
+     * to inherit. TLS 1.2 ignores the flag and still demands the cert. */
+    if (ssl->options.verifyPostHandshake && IsAtLeastTLSv1_3(ssl->version))
         return 0;
 #endif
     return ssl->options.mutualAuth ||

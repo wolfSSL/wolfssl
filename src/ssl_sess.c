@@ -3350,7 +3350,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     if (i - idx == OPAQUE8_LEN) {
         s->peerAuthOk = (data[idx++] != 0);
     }
-    (void)idx;
 
     if (sess != NULL) {
         wolfSSL_FreeSession(NULL, *sess);

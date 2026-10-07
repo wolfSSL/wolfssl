@@ -3735,6 +3735,64 @@ int test_tls12_resume_ticket_client_auth(void)
     return EXPECT_RESULT();
 }
 
+/* verifyPostHandshake defers the request only in TLS 1.3. A TLS 1.2 full
+ * handshake still demands the certificate, so resumption must not read the
+ * flag as a waiver. */
+int test_tls12_resume_ticket_post_handshake_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(sess->ticketLen, 0);
+
+    /* Same CTX, so the ticket decrypts. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s2, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT | WOLFSSL_VERIFY_POST_HANDSHAKE,
+        NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    /* Premise: the flag really is set on a TLS 1.2 connection. */
+    if (ssl_s2 != NULL)
+        ExpectIntEQ(ssl_s2->options.verifyPostHandshake, 1);
+
+    /* The decline becomes a full handshake. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c2, ssl_s2, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 0);
+    if (ssl_s2 != NULL) {
+        ExpectIntEQ(ssl_s2->options.resuming, 0);
+        ExpectIntEQ(ssl_s2->error, WC_NO_ERR_TRACE(NO_PEER_CERT));
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A client that does present its certificate must still abbreviate. */
 int test_tls12_resume_ticket_client_auth_ok(void)
 {
