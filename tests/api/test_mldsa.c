@@ -31445,6 +31445,529 @@ int test_wc_MldsaDerDecisionCoverage(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+/* DER length: short form, or 0x82 two-byte long form. Every crafted
+ * buffer below stays under 64 KiB, so two length bytes always suffice. */
+static word32 mldsa_test_der_len_sz(word32 len)
+{
+    if (len < 0x80) {
+        return 1;
+    }
+    return 3;
+}
+
+static word32 mldsa_test_der_put_len(byte* p, word32 len)
+{
+    if (len < 0x80) {
+        p[0] = (byte)len;
+        return 1;
+    }
+    p[0] = 0x82;
+    p[1] = (byte)(len >> 8);
+    p[2] = (byte)len;
+    return 3;
+}
+
+/* SEQUENCE { SEQUENCE { OID } BIT STRING }. BIT STRING content is the
+ * unused-bits byte followed by the raw public key. */
+static word32 mldsa_test_build_pub_der(byte* buf, const byte* oid,
+    word32 oidLen, const byte* pub, word32 pubLen)
+{
+    word32 bitSz = 1 + pubLen;
+    word32 bitTlv = 1 + mldsa_test_der_len_sz(bitSz) + bitSz;
+    word32 innerContent = 1 + mldsa_test_der_len_sz(oidLen) + oidLen +
+                          bitTlv;
+    word32 innerTlv = 1 + mldsa_test_der_len_sz(innerContent) + innerContent;
+    byte* p = buf;
+
+    *p++ = 0x30;
+    p += mldsa_test_der_put_len(p, innerTlv);
+    *p++ = 0x30;
+    p += mldsa_test_der_put_len(p, innerContent);
+    *p++ = 0x06;
+    p += mldsa_test_der_put_len(p, oidLen);
+    XMEMCPY(p, oid, oidLen);
+    p += oidLen;
+    *p++ = 0x03;
+    p += mldsa_test_der_put_len(p, bitSz);
+    *p++ = 0x00;
+    XMEMCPY(p, pub, pubLen);
+    p += pubLen;
+
+    return (word32)(p - buf);
+}
+
+/* SEQUENCE of INTEGER 0, a SEQUENCE of OID, and nested OCTET STRINGs
+ * wrapping the private key. Private key only: no [1] public key
+ * component. */
+static word32 mldsa_test_build_priv_der(byte* buf, const byte* oid,
+    word32 oidLen, const byte* priv, word32 privLen)
+{
+    word32 innerOctetTlv = 1 + mldsa_test_der_len_sz(privLen) + privLen;
+    word32 outerOctetTlv = 1 + mldsa_test_der_len_sz(innerOctetTlv) +
+                           innerOctetTlv;
+    word32 algoTlv = 1 + mldsa_test_der_len_sz(2 + oidLen) + 2 + oidLen;
+    /* INTEGER 0 (version) is 3 bytes: 0x02 0x01 0x00. */
+    word32 outerContent = 3 + algoTlv + outerOctetTlv;
+    byte* p = buf;
+
+    *p++ = 0x30;
+    p += mldsa_test_der_put_len(p, outerContent);
+    *p++ = 0x02;
+    *p++ = 0x01;
+    *p++ = 0x00;
+    *p++ = 0x30;
+    p += mldsa_test_der_put_len(p, 2 + oidLen);
+    *p++ = 0x06;
+    p += mldsa_test_der_put_len(p, oidLen);
+    XMEMCPY(p, oid, oidLen);
+    p += oidLen;
+    *p++ = 0x04;
+    p += mldsa_test_der_put_len(p, innerOctetTlv);
+    *p++ = 0x04;
+    p += mldsa_test_der_put_len(p, privLen);
+    XMEMCPY(p, priv, privLen);
+    p += privLen;
+
+    return (word32)(p - buf);
+}
+
+/* One keygen + sign + verify round trip, plus a verify of the signature
+ * with its z region corrupted (16 bytes of 0xFF past the commit push the
+ * decoded z coefficients above the gamma1 check bound). Returns 0 on
+ * success, negative on any mismatch. */
+static int mldsa_test_round_trip(WC_RNG* rng, byte level)
+{
+    static const byte msg[4] = { 'M', 'C', 'D', 'C' };
+    wc_MlDsaKey key;
+    byte sig[MLDSA_MAX_SIG_SIZE];
+    word32 sigLen;
+    int res = 0;
+    int ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ret = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(&key, level);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_MakeKey(&key, rng);
+    }
+    if (ret == 0) {
+        sigLen = (word32)sizeof(sig);
+        ret = wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+            (word32)sizeof(msg), rng);
+    }
+    if (ret == 0) {
+        res = 1;
+        ret = wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res);
+        if (ret == 0 && res != 1) {
+            ret = -1234; /* good signature must verify */
+        }
+    }
+    if (ret == 0) {
+        XMEMSET(sig + MLDSA_TR_SZ + 8, 0xFF, 16);
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res);
+        if (ret == 0 && res != 0) {
+            ret = -1235; /* corrupted signature must not verify */
+        }
+    }
+    wc_MlDsaKey_Free(&key);
+
+    return ret;
+}
+
+/* CheckKey on a generated key pair (13612:0/13612:1 pairs: the valid key
+ * gives (T,F) of the x != 0 check, the t1-corrupted key gives (T,T)),
+ * plus the import-side s1 range validation (ImportPrivRaw rejects an
+ * out-of-range s1 before CheckKey ever sees it). s1Corrupt is the first
+ * s1 encoded byte: 0x07 for eta 2 (s1[0] = 2 - 7 = -5), 0x0F for eta 4
+ * (s1[0] = 4 - 15 = -11). Returns 0 on success. */
+static int mldsa_test_check_key_corrupt(WC_RNG* rng, byte level,
+    byte s1Corrupt)
+{
+    wc_MlDsaKey key;
+    byte priv[MLDSA_MAX_KEY_SIZE];
+    byte pub[MLDSA_MAX_PUB_KEY_SIZE];
+    word32 privLen;
+    word32 pubLen;
+    word32 s1Off = MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ;
+    byte s1Byte;
+    int ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(priv, 0, sizeof(priv));
+    XMEMSET(pub, 0, sizeof(pub));
+
+    ret = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(&key, level);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_MakeKey(&key, rng);
+    }
+    if (ret == 0) {
+        privLen = (word32)sizeof(priv);
+        ret = wc_MlDsaKey_ExportPrivRaw(&key, priv, &privLen);
+    }
+    if (ret == 0) {
+        pubLen = (word32)sizeof(pub);
+        ret = wc_MlDsaKey_ExportPubRaw(&key, pub, &pubLen);
+    }
+    if (ret == 0) {
+        /* Valid pair: recomputed t1 matches the stored t1. */
+        ret = wc_MlDsaKey_CheckKey(&key);
+    }
+
+    s1Byte = priv[s1Off];
+    if (ret == 0) {
+        /* Out-of-range s1: the private key import validates the
+         * coefficient range and rejects the key. */
+        priv[s1Off] = s1Corrupt;
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ret = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_MlDsaKey_SetParams(&key, level);
+        }
+        if (ret == 0) {
+            ret = wc_MlDsaKey_ImportPrivRaw(&key, priv, privLen);
+            if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+                ret = 0; /* expected rejection; continue */
+            }
+            else if (ret != 0) {
+                ret = -1236; /* out-of-range s1 must be rejected */
+            }
+        }
+    }
+
+    if (ret == 0) {
+        priv[s1Off] = s1Byte;
+        pub[MLDSA_PUB_SEED_SZ] ^= 0xFF;
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ret = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_MlDsaKey_SetParams(&key, level);
+        }
+        if (ret == 0) {
+            ret = wc_MlDsaKey_ImportPrivRaw(&key, priv, privLen);
+        }
+        if (ret == 0) {
+            ret = wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen);
+        }
+        if (ret == 0) {
+            ret = wc_MlDsaKey_CheckKey(&key);
+            if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+                ret = 0; /* expected failure; continue */
+            }
+            else if (ret != 0) {
+                ret = -1237; /* t1 mismatch must fail the check */
+            }
+        }
+    }
+    wc_MlDsaKey_Free(&key);
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY && ... */
+
+/* =====================================================================
+ * MC/DC coverage supplement for the 2026-10 wc_mldsa.c rework (PR
+ * #11214 cbonly-mldsa plus follow-ups). The rework added the AVX2
+ * matrix/secret samplers (one independent SHAKE stream per polynomial
+ * group), the s1Len-dispatched secret expansion, the hand-rolled DER
+ * length/OID parsers (WOLFSSL_MLDSA_NO_ASN1), and the CheckKey
+ * coefficient range checks. This function drives the public API to the
+ * newly uncovered decision sides:
+ *
+ *  - 32 keygen + sign + verify round trips per parameter set: the
+ *    rejection-sampling loops only observe each "only polynomial i
+ *    incomplete" state when that polynomial is the last to complete in
+ *    its group (~1/4 per group), so the repetition is what covers them.
+ *    Also reaches the s1Len dispatch arms of mldsa_expand_s (AVX2
+ *    build).
+ *  - Corrupted-signature verifies: the gamma1 range check fails, giving
+ *    the valid == 0 side of the verify (ret == 0) && valid gates.
+ *  - CheckKey on corrupted keys: the ret != 0 side of the
+ *    (ret == 0) && (x != 0) mismatch check, and the x != 0 side.
+ *  - Crafted public key DERs (hand-rolled parser build only): per-level
+ *    OIDs, an 8-byte OID, a corrupted 9-byte OID, 0x80/0x83 length
+ *    forms, a non-minimal 0x82 length, and a length overflow.
+ *  - Crafted private key DERs: private-only encodings in the full
+ *    (private + public) and private-only forms.
+ * ===================================================================== */
+int test_wc_MldsaReworkDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+    WC_RNG rng;
+    int rngInited = 0;
+    int i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInited = 1;
+    }
+
+    /* Keygen + sign + verify round trips. The per-iteration corrupted
+     * verify carries the valid == 0 side of the verify gates; the
+     * repetition carries the sampler "last polynomial to complete"
+     * sides. */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    for (i = 0; i < 32; i++) {
+        ExpectIntEQ(mldsa_test_round_trip(&rng, WC_ML_DSA_44), 0);
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    for (i = 0; i < 32; i++) {
+        ExpectIntEQ(mldsa_test_round_trip(&rng, WC_ML_DSA_65), 0);
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    for (i = 0; i < 32; i++) {
+        ExpectIntEQ(mldsa_test_round_trip(&rng, WC_ML_DSA_87), 0);
+    }
+#endif
+
+    /* CheckKey: valid pair, import-side s1 range check, corrupted t1. */
+#if defined(WOLFSSL_MLDSA_CHECK_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(mldsa_test_check_key_corrupt(&rng, WC_ML_DSA_44, 0x07), 0);
+#endif
+#if defined(WOLFSSL_MLDSA_CHECK_KEY) && !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(mldsa_test_check_key_corrupt(&rng, WC_ML_DSA_65, 0x0F), 0);
+#endif
+#if defined(WOLFSSL_MLDSA_CHECK_KEY) && !defined(WOLFSSL_NO_ML_DSA_87)
+    ExpectIntEQ(mldsa_test_check_key_corrupt(&rng, WC_ML_DSA_87, 0x07), 0);
+#endif
+
+    /* Hand-rolled DER parser (WOLFSSL_MLDSA_NO_ASN1 build): crafted
+     * public key encodings. The raw public key bytes are not validated
+     * on import, so zero-filled payloads of the right size suffice. */
+#if defined(WOLFSSL_MLDSA_NO_ASN1)
+    {
+        static const byte oid44[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11
+        };
+        static const byte oid65[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12
+        };
+        static const byte oid87[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x13
+        };
+        static const byte oid44Bad[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x99
+        };
+        byte pub[WC_MLDSA_87_PUB_KEY_SIZE];
+        byte der[WC_MLDSA_87_PUB_KEY_SIZE + 64];
+        wc_MlDsaKey key;
+        word32 idx;
+        word32 derLen;
+
+        XMEMSET(pub, 0, sizeof(pub));
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+    #ifndef WOLFSSL_NO_ML_DSA_44
+        /* Real 44 OID: the level match and the OID table hits. */
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+        derLen = mldsa_test_build_pub_der(der, oid44,
+            (word32)sizeof(oid44), pub, WC_MLDSA_44_PUB_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            0);
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
+        /* Real 65 OID: 44 table miss, 65 table hit. */
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+        derLen = mldsa_test_build_pub_der(der, oid65,
+            (word32)sizeof(oid65), pub, WC_MLDSA_65_PUB_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            0);
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
+        /* Real 87 OID: 44 and 65 table misses, 87 table hit. */
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+        derLen = mldsa_test_build_pub_der(der, oid87,
+            (word32)sizeof(oid87), pub, WC_MLDSA_87_PUB_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            0);
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    #endif
+
+    #ifndef WOLFSSL_NO_ML_DSA_44
+        /* 8-byte OID: every table length check misses. */
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+        derLen = mldsa_test_build_pub_der(der, oid44,
+            (word32)sizeof(oid44) - 1, pub, WC_MLDSA_44_PUB_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+        /* Corrupted 9-byte OID: lengths match, contents do not. */
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+        derLen = mldsa_test_build_pub_der(der, oid44Bad,
+            (word32)sizeof(oid44Bad), pub, WC_MLDSA_44_PUB_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    #endif
+
+        /* Indefinite length form (0x80) in the outer SEQUENCE. */
+        der[0] = 0x30;
+        der[1] = 0x80;
+        der[2] = 0x30;
+        der[3] = 0x02;
+        der[4] = 0x06;
+        der[5] = 0x01;
+        der[6] = 0x06;
+        derLen = 7;
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+        /* Two-byte long form (0x83) in the outer SEQUENCE. */
+        der[0] = 0x30;
+        der[1] = 0x83;
+        der[2] = 0x00;
+        der[3] = 0x02;
+        der[4] = 0x30;
+        der[5] = 0x02;
+        der[6] = 0x06;
+        der[7] = 0x01;
+        der[8] = 0x06;
+        derLen = 9;
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+        /* Non-minimal 0x82 length: 0x0005 < 0x100 is rejected, and the
+         * index plus declared length stays inside the buffer. */
+        der[0] = 0x30;
+        der[1] = 0x82;
+        der[2] = 0x00;
+        der[3] = 0x05;
+        derLen = 4;
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+        /* Declared length runs past the end of the buffer. */
+        der[0] = 0x30;
+        der[1] = 0x82;
+        der[2] = 0x05;
+        der[3] = 0x27;
+        XMEMSET(der + 4, 0xAB, 16);
+        derLen = 20;
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, derLen, &idx),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_MlDsaKey_Free(&key);
+    }
+#endif /* WOLFSSL_MLDSA_NO_ASN1 */
+
+    /* Private key DER: private-only encodings. The full (private +
+     * public) form reaches the "public key included in the private key"
+     * split; the bare private form reaches the private-only import.
+     * Template-engine path: all variants (the NO_ASN1 build hides the
+     * PrivateKeyDecode declaration, so this block is excluded there). */
+#if !defined(WOLFSSL_MLDSA_NO_ASN1)
+    #ifndef WOLFSSL_NO_ML_DSA_44
+    {
+        static const byte oid44b[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11
+        };
+        byte priv[WC_MLDSA_44_KEY_SIZE];
+        byte pub[WC_MLDSA_44_PUB_KEY_SIZE];
+        byte both[WC_MLDSA_44_PRV_KEY_SIZE];
+        byte der[WC_MLDSA_44_PRV_KEY_SIZE + 64];
+        wc_MlDsaKey key;
+        word32 idx;
+        word32 derLen;
+        word32 privLen;
+        word32 pubLen;
+
+        XMEMSET(priv, 0, sizeof(priv));
+        XMEMSET(pub, 0, sizeof(pub));
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+        privLen = (word32)sizeof(priv);
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&key, priv, &privLen), 0);
+        pubLen = (word32)sizeof(pub);
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, pub, &pubLen), 0);
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+
+        /* Full form: private + public in one OCTET STRING. */
+        XMEMCPY(both, priv, WC_MLDSA_44_KEY_SIZE);
+        XMEMCPY(both + WC_MLDSA_44_KEY_SIZE, pub, WC_MLDSA_44_PUB_KEY_SIZE);
+        derLen = mldsa_test_build_priv_der(der, oid44b,
+            (word32)sizeof(oid44b), both, WC_MLDSA_44_PRV_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der, derLen, &idx),
+            0);
+        wc_MlDsaKey_Free(&key);
+
+        /* Bare form: private key only. */
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+        derLen = mldsa_test_build_priv_der(der, oid44b,
+            (word32)sizeof(oid44b), priv, WC_MLDSA_44_KEY_SIZE);
+        idx = 0;
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der, derLen, &idx),
+            0);
+        wc_MlDsaKey_Free(&key);
+    }
+    #endif /* !WOLFSSL_NO_ML_DSA_44 */
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY && ... */
+
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLF_CRYPTO_CB) && \
     defined(WOLF_CRYPTO_CB_FREE)
     #define TEST_MLDSA_CB_FREE

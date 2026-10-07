@@ -5243,3 +5243,62 @@ int test_internal_CheckVersion_DecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the wolfSSL_SetTlsHmacInner content/CID
+ * guard (master drift, 2026-10-06). The dtls and cidTxSize clauses are
+ * only compiled under WOLFSSL_DTLS + WOLFSSL_DTLS_CID, so this test must
+ * run in the campaign's DTLS_CID variant to complete the pairs.
+ */
+int test_tls_hmac_inner_cid_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
+    WOLFSSL_CTX *dctx = NULL;
+    WOLFSSL     *dssl = NULL;
+    byte         inner[WOLFSSL_TLS_HMAC_INNER_SZ];
+    byte         cid[4] = { 1, 2, 3, 4 };
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx == NULL)
+        return EXPECT_RESULT();
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
+    /* content != dtls12_cid, dtls F: the dtls clause's false side. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(ssl, inner, 0, application_data, 0),
+                0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12)
+    dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
+    if (dctx == NULL)
+        return EXPECT_RESULT();
+    dssl = wolfSSL_new(dctx);
+    if (dssl == NULL) {
+        wolfSSL_CTX_free(dctx);
+        return EXPECT_RESULT();
+    }
+    /* content != dtls12_cid, dtls T, cidTxSize F. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
+                0);
+    /* dtls T, cidTxSize T. */
+    ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(dssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
+                0);
+    /* content == dtls12_cid: the first clause's true side. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, dtls12_cid, 0),
+                BAD_FUNC_ARG);
+    wolfSSL_free(dssl);
+    wolfSSL_CTX_free(dctx);
+#endif /* WOLFSSL_DTLS_CID */
+#endif /* WOLFSSL_DTLS */
+    return EXPECT_RESULT();
+} /* END test_tls_hmac_inner_cid_decision_coverage */

@@ -14851,3 +14851,80 @@ int test_tls13_export_client_key_update(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the TLS 1.3 exporter version guards and
+ * FindSuiteSSL's per-byte suite comparison. DeriveExporterSecret's version
+ * check is reached through wolfSSL_export_keying_material after a completed
+ * handshake; the mismatched-minor probes overwrite ssl->version.minor on the
+ * completed object so the guard fires.
+ */
+int test_tls13_exporter_suite_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte  out[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(out, 0, sizeof(out));
+
+#ifdef WOLFSSL_TLS13
+    /* (!dtls) && (minor == TLSv1_3_MINOR): both true on the completed
+     * handshake; the mismatched minor takes the second operand's true side. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(HAVE_KEYING_MATERIAL)
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+        "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
+    ssl_c->version.minor = 0x01; /* TLS 1.0 minor: the guard must fire */
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+        "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
+#endif /* HAVE_KEYING_MATERIAL */
+
+#if defined(WOLFSSL_TEST_STATIC_BUILD)
+    byte probe[2];
+
+    /* FindSuiteSSL: (suites[i] == suite[0]) && (suites[i+1] == suite[1]).
+     * The object's own first suite is the both-true row; its first byte with
+     * 0xFF as the second is the first-true/second-false row (no cipher
+     * suite's second byte is 0xFF). */
+    ExpectIntEQ(FindSuiteSSL(ssl_c, (byte*)ssl_c->suites->suites), 1);
+    probe[0] = ssl_c->suites->suites[0];
+    probe[1] = 0xFF;
+    ExpectIntEQ(FindSuiteSSL(ssl_c, probe), 0);
+#endif /* WOLFSSL_TEST_STATIC_BUILD */
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* WOLFSSL_TLS13 */
+
+#ifdef WOLFSSL_DTLS13
+    /* (dtls) && (minor == DTLSv1_3_MINOR): both true on the completed
+     * handshake; the mismatched minor takes the second operand's true side. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+        "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
+    ssl_c->version.minor = TLSv1_3_MINOR; /* mismatch: the guard must fire */
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
+        "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* WOLFSSL_DTLS13 */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+} /* END test_tls13_exporter_suite_decision_coverage */

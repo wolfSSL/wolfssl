@@ -1854,3 +1854,75 @@ int test_wc_DrbgReworkDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the RNG init-flag guards, the TestSeed
+ * majority-test window guard, and the seed/stir NULL-argument guards
+ * (master drift, 2026-10-06).
+ */
+int test_wc_RngInitFlagsDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG  rng;
+    OS_Seed os;
+    byte    seed[32];
+    byte    out[16];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&os, 0, sizeof(os));
+    XMEMSET(seed, 7, sizeof(seed));
+    XMEMSET(out, 0, sizeof(out));
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* USE_FULL_MUTEX: the full-mutex clause's true side. */
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_USE_FULL_MUTEX), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+    /* USE_AUTO_LOCK: the auto-lock clause's true side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_USE_AUTO_LOCK), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* NO_AUTO_LOCK: the auto-lock clause's false side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_NO_AUTO_LOCK), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* RECOVER_AND_PROMOTE_FROM_NEXT_SEED: the seedRng-non-NULL side of the
+     * primary-seed health-check clause. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+        WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED), 0);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* wc_RNG_TestSeed on a short seed: the window stays below the
+     * majority-test threshold, the cutoff > window/2 clause's false side. */
+    (void)wc_RNG_TestSeed(seed, 16);
+
+    /* wc_GenerateSeed NULL-argument guards. */
+    ExpectIntEQ(wc_GenerateSeed(NULL, out, sizeof(out)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_GenerateSeed(&os, NULL, sizeof(out)), BAD_FUNC_ARG);
+
+    /* wc_RNG_DRBG_Stir_Nonce with a valid rng and a NULL seed: the
+     * rng-NULL clause's false side. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng_ex2(&rng, HEAP_HINT, INVALID_DEVID,
+                               WC_RNG_INIT_FLAG_NONE), 0);
+    ExpectIntEQ(wc_RNG_DRBG_Stir_Nonce(&rng, NULL, 0, out, sizeof(out)),
+                BAD_FUNC_ARG);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+

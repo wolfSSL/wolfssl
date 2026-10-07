@@ -184,7 +184,10 @@ static void wb_array_add(void)
     array_add(d, 4, s, 0);
     array_add(d, 2, s, 4);
 
-    /* True side baseline, same binary. */
+    /* True side baseline, same binary. The (4,4) call is the shared anchor:
+     * each false-side call above differs from it in exactly one operand, so
+     * each shows its condition's independence pair. */
+    array_add(d, 4, s, 4);
     array_add(d, (word32)sizeof(d), s, (word32)sizeof(s));
 }
 
@@ -848,6 +851,24 @@ static void wb_init_rng_seed_rng(void)
 { WB_NOTE("HAVE_HASHDRBG/NO_SHA256 off; seedRng row skipped"); }
 #endif
 
+static void wb_reseed_source_failure(void)
+{
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
+    /* ReseedSourceFailure: (ret == ENTROPY_RT_E) || (ret == ENTROPY_APT_E) --
+     * direct calls show each operand's true/false pair. */
+    if (ReseedSourceFailure(WC_NO_ERR_TRACE(ENTROPY_RT_E)) !=
+            WC_NO_ERR_TRACE(ENTROPY_RT_E))
+        wb_fail++;
+    if (ReseedSourceFailure(WC_NO_ERR_TRACE(ENTROPY_APT_E)) !=
+            WC_NO_ERR_TRACE(ENTROPY_APT_E))
+        wb_fail++;
+    if (ReseedSourceFailure(DRBG_FAILURE) != DRBG_FAILURE)
+        wb_fail++;
+#else
+    WB_NOTE("HAVE_HASHDRBG/NO_SHA256 off; ReseedSourceFailure rows skipped");
+#endif
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -870,6 +891,7 @@ int main(void)
     wb_hash512_gen_alloc_guard();
     wb_stir_nonce_local();
     wb_init_rng_seed_rng();
+    wb_reseed_source_failure();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * suite treats a nonzero exit as a failed variant and discards its

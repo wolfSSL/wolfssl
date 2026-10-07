@@ -30,6 +30,7 @@ int test_wolfSSL_public_null_operands(void);
 int test_wolfSSL_session_lifecycle_guards(void);
 int test_ssl_api_decision_coverage(void);
 int test_ech_decision_coverage(void);
+int test_ssl_api_ext_guards_decision_coverage(void);
 
 int test_wolfSSL_NoTicketTLSv12_ext(void);
 int test_wolfSSL_CTX_UseMaxFragment_ext(void);
@@ -131,6 +132,7 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void);
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_public_null_operands),         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_session_lifecycle_guards),   \
         TEST_DECL_GROUP("ssl_ext", test_ssl_api_decision_coverage), \
-        TEST_DECL_GROUP("ssl_ext", test_ech_decision_coverage)
+        TEST_DECL_GROUP("ssl_ext", test_ech_decision_coverage), \
+        TEST_DECL_GROUP("ssl_ext", test_ssl_api_ext_guards_decision_coverage)
 
 #endif /* TESTS_API_SSL_EXT_H */
