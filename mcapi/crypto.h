@@ -108,9 +108,9 @@ enum {
 typedef struct CRYPT_HMAC_CTX {
     /* big enough to hold internal, but check on init */
     #ifdef WOLF_PRIVATE_KEY_ID
-    long long holder[108];
+    long long holder[160];
     #else
-    long long holder[98];
+    long long holder[150];
     #endif
 } CRYPT_HMAC_CTX;
 
