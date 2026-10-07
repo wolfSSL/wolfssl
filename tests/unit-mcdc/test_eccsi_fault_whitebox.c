@@ -149,6 +149,51 @@ MCDC_FM_MAYBE_UNUSED static int wb_ea_addmod(const mp_int* a, const mp_int* b,
 #undef  mp_addmod
 #define mp_addmod(a, b, c, d)   wb_ea_addmod((a), (b), (c), (d))
 
+/* --------------------------------------------------------------------------
+ * Value-forcing wc_ecc_gen_k() interposer for wc_SignEccsiHash()'s blinding
+ * factor loop:
+ *
+ *     do { if (++loop_check > ECCSI_MAX_GEN_COUNT) {
+ *              err = RNG_FAILURE_E; break; }
+ *          err = wc_ecc_gen_k(rng, (int)sz, &key->tmp, &key->params.order); }
+ *     while (err == MP_ZERO_E);
+ *
+ * wc_ecc_gen_k() returns MP_ZERO_E only for a zero draw, a ~2^-256 event, so
+ * neither the retry nor the ECCSI_MAX_GEN_COUNT cap is reached on real
+ * entropy. eccsi.c has one wc_ecc_gen_k() call site, so no disambiguation is
+ * needed.
+ *
+ * ZERO is ONE-SHOT, so the retry draws a genuine factor and the signature
+ * completes. ZERO_ALL keeps failing until disarmed; the ECCSI_MAX_GEN_COUNT
+ * cap bounds it.
+ *
+ * ecc.h is included first so its prototype is seen under the real name.
+ * ----------------------------------------------------------------------- */
+#include <wolfssl/wolfcrypt/ecc.h>
+
+#define WB_GK_OFF       0   /* pass through */
+#define WB_GK_ZERO      1   /* report one zero draw */
+#define WB_GK_ZERO_ALL  2   /* report a zero draw every time */
+
+static int wb_gk_mode = WB_GK_OFF;
+
+MCDC_FM_MAYBE_UNUSED static int wb_gk_gen_k(WC_RNG* rng, int size, mp_int* k,
+    mp_int* order)
+{
+    int mode = wb_gk_mode;
+
+    if (mode == WB_GK_ZERO) {
+        wb_gk_mode = WB_GK_OFF;   /* one-shot */
+    }
+    if (mode != WB_GK_OFF) {
+        return MP_ZERO_E;
+    }
+    return wc_ecc_gen_k(rng, size, k, order);
+}
+
+#undef  wc_ecc_gen_k
+#define wc_ecc_gen_k(r, s, k, o)    wb_gk_gen_k((r), (s), (k), (o))
+
 #include <wolfcrypt/src/eccsi.c>
 
 #include "mcdc_fault_alloc.h"
@@ -300,6 +345,25 @@ static void wb_gen_sig_reject(WC_RNG* rng)
                     WC_SHA256_DIGEST_SIZE, sg, &z);
             wb_ea_mode = WB_EA_OFF;
             printf("  [wb] gen_sig reject mode %d -> %d\n", mode, e);
+        }
+
+        /* Blinding factor loop: one zero draw retries and signs; zero draws
+         * every time stop at the cap with RNG_FAILURE_E. */
+        for (mode = WB_GK_ZERO; mode <= WB_GK_ZERO_ALL; mode++) {
+            byte   sg[257];
+            word32 z = (word32)sizeof(sg);
+            int    e;
+
+            XMEMSET(sg, 0, sizeof(sg));
+            wb_gk_mode = mode;
+            e = wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, hash,
+                    WC_SHA256_DIGEST_SIZE, sg, &z);
+            wb_gk_mode = WB_GK_OFF;
+            printf("  [wb] sign blind gen_k mode %d -> %d\n", mode, e);
+            if (e != ((mode == WB_GK_ZERO) ? 0 : RNG_FAILURE_E)) {
+                WB_NOTE("sign blind gen_k: unexpected result");
+                wb_fail = 1;
+            }
         }
     }
 
