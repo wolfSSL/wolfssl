@@ -334,6 +334,7 @@ int test_wc_CmacSetTagLen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
+    && defined(WOLFSSL_AES_128) \
     && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) \
     && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Cmac   cmac;
@@ -878,7 +879,8 @@ int test_wc_CryptoCb_CmacFree(void)
 /* The device below only answers CMAC, so software has to run the AES for it.
  * WOLF_CRYPTO_CB_ONLY_AES removes the software AES, so skip it there. */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
-    defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
@@ -918,7 +920,8 @@ int test_wc_CryptoCb_CmacTagLen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
-    defined(WOLFSSL_AES_DIRECT) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
     !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
