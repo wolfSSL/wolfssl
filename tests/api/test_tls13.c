@@ -14887,7 +14887,9 @@ int test_tls13_exporter_suite_decision_coverage(void)
 #if defined(HAVE_KEYING_MATERIAL)
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
         "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
-    ssl_c->version.minor = 0x01; /* TLS 1.0 minor: the guard must fire */
+    /* Stay on the TLS 1.3 exporter path while failing its exact-version
+     * check. A TLS 1.0 minor selects the TLS 1.2 exporter instead. */
+    ssl_c->version.minor = TLSv1_3_MINOR + 1;
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
         "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
 #endif /* HAVE_KEYING_MATERIAL */
@@ -14928,7 +14930,7 @@ int test_tls13_exporter_suite_decision_coverage(void)
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
         "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);
-    ssl_c->version.minor = TLSv1_3_MINOR; /* mismatch: the guard must fire */
+    ssl_c->version.minor = DTLSv1_3_MINOR - 1;
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
         "MCDC", 4, NULL, 0, 0), WOLFSSL_FAILURE);
 
