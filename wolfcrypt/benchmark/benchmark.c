@@ -18323,6 +18323,15 @@ void bench_mldsaKeySign(byte level)
         #ifndef WOLFSSL_MLDSA_NO_ASN1
             ret = wc_MlDsaKey_PublicKeyDecode(key, mldsa44_pub_spki,
                 sizeof_mldsa44_pub_spki, &idx);
+        #elif defined(WOLFSSL_MLDSA_NO_SIGN)
+            /* The baked signature above was made with
+             * certs/mldsa/mldsa44_priv-only.der and verifies only under that
+             * key. Take its raw encoding from the SPKI payload;
+             * bench_mldsa_44_pubkey is an unrelated key pair. */
+            ret = wc_MlDsaKey_ImportPubRaw(key,
+                mldsa44_pub_spki + sizeof_mldsa44_pub_spki -
+                    WC_MLDSA_44_PUB_KEY_SIZE,
+                WC_MLDSA_44_PUB_KEY_SIZE);
         #else
             ret = wc_MlDsaKey_ImportPubRaw(key, bench_mldsa_44_pubkey,
                 sizeof_bench_mldsa_44_pubkey);
@@ -18338,6 +18347,15 @@ void bench_mldsaKeySign(byte level)
         #ifndef WOLFSSL_MLDSA_NO_ASN1
             ret = wc_MlDsaKey_PublicKeyDecode(key, mldsa65_pub_spki,
                 sizeof_mldsa65_pub_spki, &idx);
+        #elif defined(WOLFSSL_MLDSA_NO_SIGN)
+            /* The baked signature above was made with
+             * certs/mldsa/mldsa65_priv-only.der and verifies only under that
+             * key. Take its raw encoding from the SPKI payload;
+             * bench_mldsa_65_pubkey is an unrelated key pair. */
+            ret = wc_MlDsaKey_ImportPubRaw(key,
+                mldsa65_pub_spki + sizeof_mldsa65_pub_spki -
+                    WC_MLDSA_65_PUB_KEY_SIZE,
+                WC_MLDSA_65_PUB_KEY_SIZE);
         #else
             ret = wc_MlDsaKey_ImportPubRaw(key, bench_mldsa_65_pubkey,
                 sizeof_bench_mldsa_65_pubkey);
@@ -18353,6 +18371,15 @@ void bench_mldsaKeySign(byte level)
         #ifndef WOLFSSL_MLDSA_NO_ASN1
             ret = wc_MlDsaKey_PublicKeyDecode(key, mldsa87_pub_spki,
                 sizeof_mldsa87_pub_spki, &idx);
+        #elif defined(WOLFSSL_MLDSA_NO_SIGN)
+            /* The baked signature above was made with
+             * certs/mldsa/mldsa87_priv-only.der and verifies only under that
+             * key. Take its raw encoding from the SPKI payload;
+             * bench_mldsa_87_pubkey is an unrelated key pair. */
+            ret = wc_MlDsaKey_ImportPubRaw(key,
+                mldsa87_pub_spki + sizeof_mldsa87_pub_spki -
+                    WC_MLDSA_87_PUB_KEY_SIZE,
+                WC_MLDSA_87_PUB_KEY_SIZE);
         #else
             ret = wc_MlDsaKey_ImportPubRaw(key, bench_mldsa_87_pubkey,
                 sizeof_bench_mldsa_87_pubkey);
