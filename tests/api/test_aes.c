@@ -13974,11 +13974,13 @@ int test_wc_AesEcb_RetCodeChecked(void)
  * Excluded under HAVE_SELFTEST: the CAVP self-test leg compiles the frozen
  * wolfCrypt 4.1.0 aes.c, whose GCM-stream/XTS/CTR paths predate these
  * guards, so the open aes.c this measures is not the one built (same
- * exclusion as the AesFeatureCoverage GCM/CCM blocks). */
+ * exclusion as the AesFeatureCoverage GCM/CCM blocks). Older FIPS modules
+ * also omit these AES paths and some of their public size constants. */
 int test_wc_AesReworkDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && !defined(HAVE_SELFTEST)
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     Aes        aes;
     byte       key16[16];
     byte       iv[WC_AES_BLOCK_SIZE];
