@@ -2913,7 +2913,8 @@ int test_wc_ecc_pointFns(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_NO_ECC_SW)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -3017,7 +3018,7 @@ int test_wc_ecc_shared_secret_ssh(void)
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_NO_ECC_SW)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;
@@ -3195,7 +3196,8 @@ int test_wc_ecc_mulmod(void)
       defined(WOLFSSL_MICROCHIP_TA100) || \
       defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_FIPS)
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_NO_ECC_SW)
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;
@@ -3451,7 +3453,8 @@ int test_wc_EccDecisionCoverage(void)
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
     WC_RNG  rng;
     ecc_key key;
     int     ret = WC_NO_ERR_TRACE(MEMORY_E);
