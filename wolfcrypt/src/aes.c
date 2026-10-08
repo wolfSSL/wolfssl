@@ -15780,16 +15780,6 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                          authTag, authTagSz, authIn, authInSz);
 }
 
-int wc_GmacFree(Gmac* gmac)
-{
-    if (gmac == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    wc_AesFree(&gmac->aes);
-    return 0;
-}
-
 #endif /* HAVE_AESGCM */
 
 #ifdef HAVE_AESCCM
