@@ -554,31 +554,6 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 /*!
     \ingroup AES
-    \brief This function zeroizes the key schedule and GHASH state held by a
-    Gmac object. Call it when the object is no longer needed.
-
-    \return 0 on success
-    \return BAD_FUNC_ARG if gmac is NULL
-
-    \param gmac pointer to the Gmac object to clear
-
-    _Example_
-    \code
-    Gmac gmac;
-    wc_AesInit(&gmac.aes, NULL, INVALID_DEVID);
-    wc_GmacSetKey(&gmac, key, sizeof(key));
-    wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn), tag,
-        sizeof(tag));
-    wc_GmacFree(&gmac);
-    \endcode
-
-    \sa wc_GmacSetKey
-    \sa wc_GmacUpdate
-*/
-int wc_GmacFree(Gmac* gmac);
-
-/*!
-    \ingroup AES
     \brief This function sets the key for an AES object using CCM
     (Counter with CBC-MAC). It takes a pointer to an AES structure and
     initializes it with supplied key.
