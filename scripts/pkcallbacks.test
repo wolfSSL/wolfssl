@@ -71,7 +71,7 @@ do_cleanup() {
         # sleep to give sanitizers time to dump backtraces.
         sleep 1
         echo "killing server"
-        kill -9 $server_pid
+        kill $server_pid
     fi
     remove_ready_file
 }
@@ -86,7 +86,7 @@ abort_trap() {
         # sleep to give sanitizers time to dump backtraces.
         sleep 1
         echo "killing server"
-        kill -9 $server_pid
+        kill $server_pid
     fi
 
     exit_code=2 #different exit code in case of user interrupt
@@ -126,7 +126,7 @@ run_test() {
     server_pid=$!
 
     counter=0
-    while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
+    while [ ! -s "$ready_file" -a "$counter" -lt 100 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))

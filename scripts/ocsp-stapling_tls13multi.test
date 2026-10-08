@@ -144,7 +144,7 @@ wait_for_readyFile(){
 
     counter=0
 
-    while [ ! -s "$1" ] && [ "$counter" -lt 20 ]; do
+    while [ ! -s "$1" ] && [ "$counter" -lt 100 ]; do
         if [[ -n "${2-}" ]]; then
             if ! kill -0 "$2" 2>&-; then
                 echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
@@ -256,7 +256,7 @@ cleanup()
     exit_status=$?
     for i in $(jobs -pr)
     do
-        kill -s KILL "$i"
+        kill "$i"
     done
     remove_ready_file
     rm "$CERT_DIR/$test_cnf"

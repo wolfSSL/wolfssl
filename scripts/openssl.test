@@ -340,7 +340,7 @@ check_server_ready() {
     # server should be ready, let's make sure
     server_ready=0
     counter=0
-    while [ "$counter" -lt 20 ]; do
+    while [ "$counter" -lt 100 ]; do
         echo -e "waiting for $server_name ready..."
         echo -e Checking | nc -4 -w 1 -z localhost "$server_port"
         nc_result=$?
@@ -458,15 +458,16 @@ do_openssl_client() {
         openssl_seclevel="-cipher ALL:@SECLEVEL=0"
     fi
 
+    # IPv4 like the server. MacOS can use IPv6 for localhost.
     if [ "$tls13_cipher" = "" ]
     then
         echo "#"
-        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
-        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "# $OPENSSL s_client -connect 127.0.0.1:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect 127.0.0.1:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     else
         echo "#"
-        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
-        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "# $OPENSSL s_client -connect 127.0.0.1:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect 127.0.0.1:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     fi
 
     client_result=$?
