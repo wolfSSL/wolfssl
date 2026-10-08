@@ -213,6 +213,7 @@ enum wolfSSL_ErrorCodes {
     WOLFSSL_BAD_FILE             = -463,   /* Input/output error on file */
     WOLFSSL_NOT_IMPLEMENTED      = -464,   /* Function not implemented */
     WOLFSSL_UNKNOWN              = -465,   /* Unknown algorithm (EVP) */
+    CLIENT_HELLO_CB_E            = -466,   /* ClientHello callback failed */
 
     /* negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,   /* unsupported cipher suite */

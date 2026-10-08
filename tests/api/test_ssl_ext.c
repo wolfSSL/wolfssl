@@ -2275,3 +2275,4 @@ int test_wolfSSL_session_lifecycle_guards(void)
 #endif
     return EXPECT_RESULT();
 }
+
