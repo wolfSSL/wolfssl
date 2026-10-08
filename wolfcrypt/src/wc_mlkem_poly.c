@@ -101,6 +101,11 @@
 #endif
 #endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 
+/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
+#include <wolfssl/wolfcrypt/sha3.h>
+/* Words for a multi-state buffer whose tail is also Keccak scratch. */
+#define MLKEM_SHA3_BUF_W(n) \
+    (((n) > WC_SHA3_STATE_W) ? (n) : WC_SHA3_STATE_W)
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -2797,7 +2802,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     word64 *state = NULL;
 #else
     byte rand[4 * GEN_MATRIX_SIZE + 4];
-    word64 state[25 * 4];
+    word64 state[MLKEM_SHA3_BUF_W(25 * 4)];
 #endif
     unsigned int ctr0;
     unsigned int ctr1;
@@ -2969,7 +2974,7 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
     word64 *state = NULL;
 #else
     byte rand[8 * GEN_MATRIX_SIZE + 4];
-    word64 state[25 * 8];
+    word64 state[MLKEM_SHA3_BUF_W(25 * 8)];
 #endif
     unsigned int ctr[8];
 
@@ -3319,7 +3324,7 @@ static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
  */
 static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 {
-    word64 state[3 * 25];
+    word64 state[MLKEM_SHA3_BUF_W(3 * 25)];
     word64* st = (word64*)state;
     unsigned int ctr0;
     unsigned int ctr1;
@@ -3467,7 +3472,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 {
     int i;
     int k;
-    word64 state[3 * 25];
+    word64 state[MLKEM_SHA3_BUF_W(3 * 25)];
     word64* st = (word64*)state;
     unsigned int ctr0;
     unsigned int ctr1;
@@ -5693,7 +5698,7 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
 static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
      sword16* poly, byte* seed)
 {
-    word64 rand[3 * 25];
+    word64 rand[MLKEM_SHA3_BUF_W(3 * 25)];
 
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
     mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
