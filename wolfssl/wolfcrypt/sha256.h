@@ -198,7 +198,10 @@ struct wc_Sha256 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-#if !((defined(WOLFSSL_SMALL_STACK_CACHE) || defined(WOLFSSL_SMALL_STACK)) && \
+/* settings.h drops SMALL_STACK only inside sha256.c under
+ * WC_SHA2_NO_SMALL_STACK, so test that too to keep one layout. */
+#if defined(WC_SHA2_NO_SMALL_STACK) || \
+    !((defined(WOLFSSL_SMALL_STACK_CACHE) || defined(WOLFSSL_SMALL_STACK)) && \
       !defined(WOLFSSL_NO_MALLOC))
     /* Message schedule of the C transform; wiped with the context at Free. */
     #define WC_SHA256_W_IN_CTX
