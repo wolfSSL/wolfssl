@@ -2008,6 +2008,8 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
         /* Return 0 data length on error. */
         idx = ctMaskSelWord32(ctMaskEq(c, 0), idx, pkcsBlockLen);
+        /* c mixed in the decrypted Y byte. */
+        c = 0;
     }
 
     /* adjust pointer to correct location in array and return size of M */
@@ -2257,6 +2259,11 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         *output = (const byte *)(pkcsBlock + i);
         invalidMask = (int)-1 + (int)(inv >> 7);
         ret = invalidMask & ((int)pkcsBlockLen - i);
+        /* Which padding check failed is not left behind. */
+        pastSep = 0;
+        invalid = 0;
+        minPad = 0;
+        invalidMask = 0;
     }
 #endif
 

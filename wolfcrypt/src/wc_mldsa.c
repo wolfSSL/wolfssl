@@ -6321,6 +6321,8 @@ static int mldsa_make_hint(const sword32* s, const sword32* w1, byte k,
         for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
             ret = mldsa_make_hint_88(s, w1, h, &idx, valid);
             if ((ret != 0) || (!*valid)) {
+                /* Hint count of a rejected candidate. */
+                ForceZero(&idx, sizeof(idx));
                 return ret;
             }
             /* Alg 14, Step 10: Store count of hints for polynomial at end of
@@ -6339,6 +6341,8 @@ static int mldsa_make_hint(const sword32* s, const sword32* w1, byte k,
         for (i = 0; i < k; i++) {
             ret = mldsa_make_hint_32(s, w1, omega, h, &idx, valid);
             if ((ret != 0) || (!*valid)) {
+                /* Hint count of a rejected candidate. */
+                ForceZero(&idx, sizeof(idx));
                 return ret;
             }
             /* Alg 14, Step 10: Store count of hints for polynomial at end of

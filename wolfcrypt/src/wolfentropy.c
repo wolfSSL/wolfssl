@@ -522,11 +522,13 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
     for (i = 0; i < samples; i++) {
         ret = Entropy_GetSample(&sample);
         if (ret != 0)
-            return ret;
+            break;
         noise[i] = (byte)sample;
     }
+    /* Raw noise sample (ISO/IEC 19790 7.9.7). */
+    ForceZero(&sample, sizeof(sample));
 
-    return 0;
+    return ret;
 }
 
 /* Mutex to prevent multiple callers requesting entropy operations at the
