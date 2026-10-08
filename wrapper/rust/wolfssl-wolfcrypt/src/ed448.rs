@@ -808,7 +808,7 @@ impl Ed448 {
     ///
     /// # Parameters
     ///
-    /// * `message`: Message digest to sign.
+    /// * `message`: Message to prehash and sign; this method hashes it internally.
     /// * `context`: Optional buffer containing context for which message is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///

@@ -782,11 +782,12 @@ impl Ed25519 {
     /// Sign a message digest with context using Ed25519 key.
     ///
     /// The context is part of the data signed.
-    /// The message is pre-hashed before signature calculation.
+    /// For Ed25519ph interoperability, `hash` must be the 64-byte SHA-512
+    /// prehash of the message (as computed by `sign_msg_ph()`).
     ///
     /// # Parameters
     ///
-    /// * `hash`: Message digest to sign.
+    /// * `hash`: 64-byte SHA-512 message digest to sign.
     /// * `context`: Optional buffer containing context for which hash is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -851,7 +852,7 @@ impl Ed25519 {
     ///
     /// # Parameters
     ///
-    /// * `message`: Message digest to sign.
+    /// * `message`: Message to prehash and sign; this method hashes it internally.
     /// * `context`: Optional buffer containing context for which message is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -1060,13 +1061,13 @@ impl Ed25519 {
     /// Verify the Ed25519 signature of a message digest and context to ensure authenticity.
     ///
     /// The context is included as part of the data verified.
-    /// The hash algorithm used to create message digest must be SHA-512.
-    /// The message is pre-hashed before verification.
+    /// For Ed25519ph interoperability, `hash` must be the 64-byte SHA-512
+    /// prehash of the message (as computed by `verify_msg_ph()`).
     ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
-    /// * `hash`: Message to verify the signature of.
+    /// * `hash`: 64-byte SHA-512 message digest to verify the signature of.
     /// * `context`: Optional buffer containing context for which the hash was signed.
     ///
     /// # Returns
