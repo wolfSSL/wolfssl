@@ -833,7 +833,9 @@ int test_ocsp_d2i_reuse_clears_refs(void)
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
-#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_OCSP) && \
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    defined(HAVE_OCSP) && \
     (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
 static long ocsp_reuse_live = 0;
 
