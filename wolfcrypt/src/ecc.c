@@ -16710,6 +16710,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                         ret = HASH_TYPE_E;
                         WOLFSSL_MSG("ECC Decrypt HMAC Check failed!");
                     }
+                    /* On a mismatch this is a valid tag for the input. */
+                    ForceZero(verify, sizeof(verify));
 
                     wc_HmacFree(hmac);
                 }
@@ -17566,6 +17568,12 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
 
         remaining -= copySz;
         outIdx += copySz;
+    }
+    /* Derived key material, including the unused tail of the last block. */
+    ForceZero(tmp, sizeof(tmp));
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(out, outSz);
     }
 
     wc_HashFree(hash, type);

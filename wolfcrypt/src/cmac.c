@@ -636,6 +636,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
         compareRet = ConstantCompare(check, a, (int)aSz);
         ret = compareRet ? MAC_CMP_FAILED_E : 0;
     }
+    /* On a mismatch this is a valid tag for the message. */
+    ForceZero(a, sizeof(a));
 
     return ret;
 }
