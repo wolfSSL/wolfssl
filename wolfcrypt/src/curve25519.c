@@ -1460,12 +1460,6 @@ void wc_curve25519_free(curve25519_key* key)
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
 #endif
-#ifdef WC_X25519_NONBLOCK
-    /* An attached context may hold ladder state from an unfinished call. */
-    if (key->nb_ctx != NULL) {
-        ForceZero(key->nb_ctx, sizeof(x25519_nb_ctx_t));
-    }
-#endif
     ForceZero(key, sizeof(*key));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO

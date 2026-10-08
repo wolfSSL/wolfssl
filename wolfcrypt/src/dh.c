@@ -1046,13 +1046,6 @@ int wc_DhSetNonBlock(DhKey* key, DhNb* nb)
 int wc_FreeDhKey(DhKey* key)
 {
     if (key) {
-    #ifdef WC_DH_NONBLOCK
-        /* An abandoned operation leaves a copy of x in the context. */
-        if (key->nb != NULL) {
-            ForceZero(key->nb, sizeof(DhNb));
-            key->nb = NULL;
-        }
-    #endif
         mp_clear(&key->p);
         mp_clear(&key->g);
         mp_clear(&key->q);

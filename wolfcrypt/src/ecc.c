@@ -8697,14 +8697,6 @@ int wc_ecc_free(ecc_key* key)
     key->dhuk_plain_priv_len = 0;
 #endif
 
-#ifdef WC_ECC_NONBLOCK
-    /* An abandoned operation leaves a copy of k in the context. */
-    if (key->nb_ctx != NULL) {
-        ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
-        key->nb_ctx = NULL;
-    }
-#endif
-
     mp_clear(key->pubkey.x);
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);

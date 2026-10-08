@@ -669,14 +669,6 @@ int wc_FreeRsaKey(RsaKey* key)
         return BAD_FUNC_ARG;
     }
 
-#ifdef WC_RSA_NONBLOCK
-    /* An abandoned operation leaves a copy of d in the context. */
-    if (key->nb != NULL) {
-        ForceZero(key->nb, sizeof(RsaNb));
-        key->nb = NULL;
-    }
-#endif
-
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
