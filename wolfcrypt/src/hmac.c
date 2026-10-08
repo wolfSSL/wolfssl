@@ -1116,7 +1116,9 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             /* update key length */
             hmac->keyLen = (word16)length;
 
-            return ret;
+            /* A failure falls through to the key cleanup below. */
+            if (ret == 0)
+                return ret;
         }
         /* no need to pad below */
     #endif
