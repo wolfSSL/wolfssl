@@ -185,6 +185,9 @@ enum {
 #ifdef WOLFCRYPT_HAVE_SAKKE
     ECC_MAXSIZE     = 128,  /* MAX Private Key size */
     ECC_MAXSIZE_GEN = 128,  /* MAX Buffer size required when generating ECC keys*/
+#elif MAX_ECC_BYTES > 66
+    ECC_MAXSIZE     = MAX_ECC_BYTES,
+    ECC_MAXSIZE_GEN = MAX_ECC_BYTES + 8,
 #else
     ECC_MAXSIZE     = 66,   /* MAX Private Key size */
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
@@ -238,6 +241,7 @@ enum {
 
     WOLF_ENUM_DUMMY_LAST_ELEMENT(ECC)
 };
+wc_static_assert(MAX_ECC_BYTES <= ECC_MAXSIZE);
 
 #endif /* HAVE_ECC */
 
