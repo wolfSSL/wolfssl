@@ -447,7 +447,15 @@ extern "C" {
 /* AES-GCM */
 #if 1
     #define HAVE_AESGCM
-    #define GCM_SMALL /* GCM Method: GCM_TABLE_4BIT, GCM_SMALL, GCM_WORD32 or GCM_TABLE */
+    #if defined(CONFIG_WOLFSSL_GHASH_TABLE_4BIT)
+        #define GCM_TABLE_4BIT
+    #elif defined(CONFIG_WOLFSSL_GHASH_TABLE_8BIT)
+        #define GCM_TABLE
+    #elif defined(CONFIG_WOLFSSL_GHASH_SMALL)
+        #define GCM_SMALL
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V5)
+        #define AES_GCM_GMULT_CT
+    #endif
     //#define WOLFSSL_AESGCM_STREAM
 #endif
 //#define HAVE_AES_DECRYPT
@@ -674,11 +682,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 #ifdef CONFIG_WOLFCRYPT_ASM
-/* Mirrors the source selection in CMakeLists.txt. ARMv6-M and ARMv8-M
- * baseline are absent from both: the Thumb2 port uses UBFX and LDRD, which
- * those cores do not have, so they keep the C code and the SP speedup only. */
-#if defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE) || defined(CONFIG_ARM64) || \
-    (defined(CONFIG_ARM) && !defined(CONFIG_CPU_CORTEX_M))
+#if defined(CONFIG_WOLFCRYPT_ARM_SYMMETRIC_ASM)
     #define WOLFSSL_ARMASM
     #define WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_ARMASM_INLINE /* use inline .c versions */
