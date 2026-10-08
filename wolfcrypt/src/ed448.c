@@ -420,6 +420,8 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
     }
 
     /* az holds the clamped secret scalar (ISO/IEC 19790:2012 7.9.7). */
+    /* Projective A leaks bits of the private scalar. */
+    ForceZero(&A, sizeof(A));
     ForceZero(az, sizeof(az));
 
     return ret;
@@ -703,6 +705,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
+    /* Projective R leaks bits of the nonce. */
+    ForceZero(&R, sizeof(R));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(nonce, sizeof(nonce));
     wc_MemZero_Check(az, sizeof(az));
