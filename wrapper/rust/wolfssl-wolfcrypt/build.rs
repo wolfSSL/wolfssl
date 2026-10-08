@@ -733,6 +733,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_L1_H5_W1", "lms_sha256_256");
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_SHA256_192_L1_H5_W1", "lms_sha256_192");
 
+    /* signature wrapper: wc_SignatureGenerate() and friends are only declared
+     * when NO_SIG_WRAPPER is not defined. */
+    check_cfg(&binding, "wc_SignatureGenerate", "sig_wrapper");
+
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
     check_cfg(&binding, "wc_InitSha224", "sha224");

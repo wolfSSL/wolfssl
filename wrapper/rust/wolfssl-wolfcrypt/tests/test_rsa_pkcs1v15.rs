@@ -1,4 +1,4 @@
-#![cfg(all(feature = "signature", rsa, rsa_sign))]
+#![cfg(all(feature = "signature", sig_wrapper, rsa, rsa_sign))]
 
 mod common;
 

@@ -66,6 +66,9 @@ Fixes and improvements:
   RSA::private_decrypt_oaep() and the rsa_oaep module) is no longer enabled
   when wolfSSL is built with WC_NO_RSA_OAEP. Previously it failed to link, or
   with WC_RSA_NO_PADDING always returned an unsupported-padding error
+- The ecdsa and rsa_pkcs1v15 modules are no longer enabled when wolfSSL is
+  built with NO_SIG_WRAPPER. Both are built on wc_SignatureGenerate() and
+  wc_SignatureVerify(), so previously they failed to link
 
 ## v2.2.0
 

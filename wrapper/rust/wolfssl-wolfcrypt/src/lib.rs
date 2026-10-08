@@ -56,7 +56,7 @@ pub mod cmac_mac;
 pub mod curve25519;
 pub mod dh;
 pub mod ecc;
-#[cfg(feature = "signature")]
+#[cfg(all(feature = "signature", sig_wrapper))]
 pub mod ecdsa;
 pub mod ed25519;
 pub mod ed448;
@@ -76,7 +76,7 @@ pub mod random;
 pub mod rsa;
 #[cfg(rsa_oaep)]
 pub mod rsa_oaep;
-#[cfg(feature = "signature")]
+#[cfg(all(feature = "signature", sig_wrapper))]
 pub mod rsa_pkcs1v15;
 pub mod sha;
 #[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
