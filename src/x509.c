@@ -14784,7 +14784,7 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
                         WOLFSSL_MSG("Missing newline after header");
                         goto err;
                     }
-                    searchPos = headerEnd - pem;
+                    searchPos = (long)(headerEnd - pem);
                 }
             }
             else if (!footer) {
