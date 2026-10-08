@@ -1947,6 +1947,36 @@ char* wc_strsep(char **stringp, const char *delim)
 }
 #endif /* USE_WOLF_STRSEP */
 
+#ifdef USE_WOLF_MEMCHR
+/* Find where a byte first appears in a buffer.
+ *
+ * Supplied for builds whose own string functions, named through STRING_USER,
+ * do not include a memchr. Matches that function, including returning a
+ * pointer that is not const although the buffer given is.
+ *
+ * @param [in] s  Buffer to search.
+ * @param [in] c  Byte to look for, used as an unsigned char.
+ * @param [in] n  Number of bytes to search.
+ * @return  Where the byte first appears.
+ * @return  NULL when it does not appear in the first n bytes.
+ */
+void* wc_memchr(const void* s, int c, size_t n)
+{
+    const unsigned char* p = (const unsigned char*)s;
+    unsigned char want = (unsigned char)c;
+
+    if (p != NULL) {
+        for (; n > 0; n--, p++) {
+            if (*p == want) {
+                return (void*)p;
+            }
+        }
+    }
+
+    return NULL;
+}
+#endif /* USE_WOLF_MEMCHR */
+
 #ifdef USE_WOLF_STRLCPY
 size_t wc_strlcpy(char *dst, const char *src, size_t dstSize)
 {

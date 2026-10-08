@@ -3925,6 +3925,13 @@ int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
         ret = 0;
     }
     else {
+        /* Produce the deferred encoding if there is one. A failure is not
+         * turned into a return here: an empty pkey - nothing attached, so
+         * nothing to encode - is reported by the buffer loader below as
+         * ASN_PARSE_E, which is what this has always returned and what
+         * callers test for. Note wolfSSL_CTX_use_PrivateKey() answers the
+         * same input with 0 instead. */
+        (void)EvpPkeyEnsureDer(pkey);
         /* Get DER encoded key data from EVP private key. */
         ret = wolfSSL_use_PrivateKey_buffer(ssl, (unsigned char*)pkey->pkey.ptr,
             pkey->pkey_sz, WOLFSSL_FILETYPE_ASN1);
@@ -5612,18 +5619,30 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey");
 
     /* Validate parameters. */
-    if ((ctx == NULL) || (pkey == NULL) || (pkey->pkey.ptr == NULL)) {
+    if ((ctx == NULL) || (pkey == NULL)) {
+        ret = 0;
+    }
+    /* The encoding is produced on demand, so ask for it before testing that
+     * it is there. */
+    else if ((EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS) ||
+             (pkey->pkey.ptr == NULL)) {
         ret = 0;
     }
 
     if (ret == 1) {
         switch (pkey->type) {
-    #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+    /* Nothing here generates a key: PopulateRSAEvpPkeyDer() only encodes one,
+     * through wc_RsaKeyToDer()/wc_RsaKeyToPublicDer(), and those need
+     * WOLFSSL_KEY_TO_DER. Asking for WOLFSSL_KEY_GEN instead dropped this
+     * case - and so sent every RSA key to the default arm below, reporting
+     * failure - in builds that encode keys perfectly well, --enable-opensslall
+     * among them. */
+    #if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
         case WC_EVP_PKEY_RSA:
             WOLFSSL_MSG("populating RSA key");
             ret = PopulateRSAEvpPkeyDer(pkey);
             break;
-    #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+    #endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
     #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
             defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
         case WC_EVP_PKEY_DSA:
@@ -5654,6 +5673,10 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     }
 
     if (ret == 1) {
+        /* No second EvpPkeyEnsureDer() here. The call above cleared derStale -
+         * it only returns success having done so - and nothing in the switch
+         * sets it again: the populate functions write pkey.ptr directly and
+         * only the set1_*() functions invalidate. */
         /* ptr for WOLFSSL_EVP_PKEY struct is expected to be DER format */
         ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx,
             (const unsigned char*)pkey->pkey.ptr, pkey->pkey_sz,

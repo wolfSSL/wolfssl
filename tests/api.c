@@ -3705,7 +3705,11 @@ static int test_wolfSSL_CTX_use_PrivateKey(void)
     p = client_key_der_2048;
     ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
         sizeof_client_key_der_2048));
-#if defined(WOLFSSL_KEY_GEN)
+    /* A valid RSA private key is accepted wherever the key-to-DER encoders
+     * are built. That used to read WOLFSSL_KEY_GEN, matching a guard in
+     * wolfSSL_CTX_use_PrivateKey() that asked for key generation although
+     * nothing in the path generates a key. */
+#if defined(WOLFSSL_KEY_TO_DER)
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -5215,7 +5219,8 @@ static int test_wolfSSL_clear_chain_certs(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(OPENSSL_COEXIST) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(OPENSSL_COEXIST) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
 /* Server-side ssl_ready hook: add chain certs then clear them, so the

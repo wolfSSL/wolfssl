@@ -5750,6 +5750,9 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         x509->pubKey.buffer = NULL;
     }
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+    wolfssl_x509_free_pubkey_evp(x509);
+#endif
     FreeDer(&x509->derCert);
     XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
     x509->sig.buffer = NULL;

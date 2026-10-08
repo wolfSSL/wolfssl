@@ -32,6 +32,8 @@ int test_wolfSSL_EVP_md4(void);
 int test_wolfSSL_EVP_ripemd160(void);
 int test_wolfSSL_EVP_get_digestbynid(void);
 int test_wolfSSL_EVP_Digest(void);
+int test_wolfSSL_EVP_DigestUpdate_bad_ctx(void);
+int test_wolfSSL_EVP_Digest_chunked(void);
 int test_wolfSSL_EVP_Digest_all(void);
 int test_wolfSSL_EVP_DigestFinal_ex(void);
 int test_wolfSSL_EVP_DigestFinalXOF(void);
@@ -48,6 +50,9 @@ int test_wolfSSL_EVP_MD_size(void);
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_ripemd160),          \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_get_digestbynid),    \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_Digest),             \
+    TEST_DECL_GROUP("evp_digest",                                       \
+        test_wolfSSL_EVP_DigestUpdate_bad_ctx),                         \
+    TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_Digest_chunked),     \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_Digest_all),         \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_DigestFinal_ex),     \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_DigestFinalXOF),     \

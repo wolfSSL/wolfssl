@@ -26897,6 +26897,26 @@ static int sm4_gcm_test(void)
         0x83, 0xDE, 0x35, 0x41, 0xE4, 0xC2, 0xB5, 0x81,
         0x77, 0xE0, 0x65, 0xA9, 0xBF, 0x7B, 0x62, 0xEC
     };
+    /* A nonce that is not 12 bytes long. GCM then derives the initial counter
+     * by hashing the nonce with GHASH, instead of using it as the counter
+     * directly, and that path is otherwise untested. Expected results come
+     * from an independent SM4-GCM implementation, cross-checked against
+     * RFC 8998 A.1 above. */
+    WOLFSSL_SMALL_STACK_STATIC const byte i3[] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte c3[] = {
+        0x52, 0x11, 0x9E, 0xD6, 0x50, 0xDC, 0xAE, 0xD8,
+        0x78, 0x23, 0xC4, 0x8B, 0xA1, 0x8E, 0xEB, 0xDA,
+        0x70, 0x2F, 0x6B, 0x9E, 0xC2, 0x67, 0xD5, 0x9C,
+        0x3B, 0x7B, 0x39, 0x31, 0x46, 0x86, 0xD6, 0xD0
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte tag3[] = {
+        0x01, 0x8B, 0x4A, 0x50, 0x24, 0x10, 0x9F, 0x15,
+        0xF3, 0x68, 0x6A, 0xD4, 0x85, 0x93, 0xD9, 0xB4
+    };
 
     wc_Sm4 sm4;
     byte enc[SM4_BLOCK_SIZE * 4];
@@ -26948,6 +26968,27 @@ static int sm4_gcm_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(dec, p2, sizeof(p2)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Nonce that is not 12 bytes, so the initial counter is a GHASH. */
+    ret = wc_Sm4GcmSetKey(&sm4, k1, sizeof(k1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Sm4GcmEncrypt(&sm4, enc, p1, sizeof(p1), i3, sizeof(i3), tag,
+        sizeof(tag), a1, sizeof(a1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(enc, c3, sizeof(c3)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(tag, tag3, sizeof(tag3)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    ret = wc_Sm4GcmDecrypt(&sm4, dec, enc, sizeof(c3), i3, sizeof(i3), tag,
+        sizeof(tag), a1, sizeof(a1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(dec, p1, sizeof(p1)) != 0)
         return WC_TEST_RET_ENC_NC;
 
     wc_Sm4Free(&sm4);

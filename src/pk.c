@@ -6284,14 +6284,26 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                 ret = wolfSSL_PEM_write_bio_ECPrivateKey(bio, key->ecc,
                     cipher, passwd, len, cb, arg);
             #else
+                /* As the DH case below: this arm reads the cached encoding,
+                 * so ask for it first. */
+                if (EvpPkeyEnsureDer(key) != WOLFSSL_SUCCESS) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
+                /* ECC_PRIVATEKEY_TYPE: EC_PRIVATEKEY_TYPE is not defined
+                 * anywhere, so this arm has never compiled. */
                 ret = der_write_to_bio_as_pem((byte*)key->pkey.ptr,
-                    key->pkey_sz, bio, EC_PRIVATEKEY_TYPE);
+                    key->pkey_sz, bio, ECC_PRIVATEKEY_TYPE);
             #endif
                 break;
         #endif
         #ifndef NO_DH
             case WC_EVP_PKEY_DH:
                 /* Write using generic API with DH type. */
+                if (EvpPkeyEnsureDer(key) != WOLFSSL_SUCCESS) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
                 ret = der_write_to_bio_as_pem((byte*)key->pkey.ptr,
                     key->pkey_sz, bio, DH_PRIVATEKEY_TYPE);
                 break;
@@ -6328,6 +6340,12 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
             default:
                 ret = 0;
                 break;
+        }
+        /* The encoding is produced on demand, so ask for it before reading
+         * it: a key attached with set1_RSA(), set1_EC_KEY() or set1_DH() has
+         * none yet. */
+        if ((ret == 1) && (EvpPkeyEnsureDer(key) != WOLFSSL_SUCCESS)) {
+            ret = 0;
         }
         if (ret == 1) {
             /* Write using generic API with generic type. */
@@ -7468,14 +7486,21 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
             else
 #endif /* WOLFSSL_HAVE_MLDSA */
             {
-                /* Encrypt private into buffer. */
-                ret = TraditionalEnc(
-                    (byte*)pkey->pkey.ptr + pkey->pkcs8HeaderSz,
-                    (word32)pkey->pkey_sz - pkey->pkcs8HeaderSz,
-                    key, keySz, passwd, passwdSz, PKCS5, PBES2, encAlgId,
-                    NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL);
-                if (ret > 0) {
-                    *keySz = (word32)ret;
+                /* Encrypt private into buffer. Not a return: the RNG
+                 * above is live and is freed at the end of the enclosing
+                 * block, so leaving by this path would strand it. */
+                if (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS) {
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    ret = TraditionalEnc(
+                        (byte*)pkey->pkey.ptr + pkey->pkcs8HeaderSz,
+                        (word32)pkey->pkey_sz - pkey->pkcs8HeaderSz,
+                        key, keySz, passwd, passwdSz, PKCS5, PBES2, encAlgId,
+                        NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL);
+                    if (ret > 0) {
+                        *keySz = (word32)ret;
+                    }
                 }
             }
         }
@@ -7506,7 +7531,16 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
     /* Get the details of the private key. */
 #ifdef HAVE_ECC
     if (pkey->type == WC_EVP_PKEY_EC) {
-        /* ECC private and get curve OID information. */
+        /* ECC private and get curve OID information.
+         *
+         * Checked first because set1_EC_KEY() records a key without encoding
+         * it, so it accepts one that cannot be encoded at all - an EC_KEY
+         * with no group among them - and this used to walk straight into
+         * pkey->ecc->group->curve_oid on it. A key decoded by d2i is the
+         * other way round: an encoding with pkey->ecc not built yet. */
+        if ((pkey->ecc == NULL) || (pkey->ecc->group == NULL)) {
+            return BAD_FUNC_ARG;
+        }
         algId = ECDSAk;
         ret = wc_ecc_get_oid((word32)pkey->ecc->group->curve_oid, &curveOid,
             &oidSz);
@@ -7534,6 +7568,11 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
             /* Special case. DH buffer is always in PKCS8 format */
             if (keySz == NULL)
                 return BAD_FUNC_ARG;
+
+            /* BAD_STATE_E, not BAD_FUNC_ARG: the caller's arguments are
+             * fine, the key has no encoding and one could not be produced. */
+            if (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS)
+                return BAD_STATE_E;
 
             if (key == NULL) {
                 *keySz = (word32)pkey->pkey_sz;
@@ -7614,6 +7653,15 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         ret = NOT_COMPILED_IN;
     }
 
+    /* Only here, where the encoding is read. The branches above that return
+     * on their own - Ed25519 from pkey->ed25519, ML-DSA from a buffer it
+     * checks itself - do not go through pkey.ptr, so asking for an encoding
+     * up front would fail a key that needs none. */
+    if ((ret >= 0) && (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS)) {
+        /* BAD_STATE_E, not BAD_FUNC_ARG: the arguments are fine, the key has
+         * no encoding and one could not be produced. */
+        ret = BAD_STATE_E;
+    }
     if (ret >= 0) {
         /* Encode private key in PKCS#8 format. */
         ret = wc_CreatePKCS8Key(key, keySz, (byte*)pkey->pkey.ptr +

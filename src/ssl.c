@@ -347,6 +347,40 @@ WC_RNG* wolfssl_make_global_rng(void)
  * for RSA, DH, ECC and DSA for BN. */
 WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local);
 
+/* Whether the shared global RNG is handed to the operations that need one, in
+ * preference to giving each call an RNG of its own.
+ *
+ * Setting up an RNG seeds a DRBG, which costs more than many of the operations
+ * that ask for one: an ECDSA signature spends more time on it than on the
+ * signature. Sharing the one the library already has avoids that, and is only
+ * done where it is safe to share: either the instance takes its own lock
+ * whenever it is used, or there are no other threads to share it with.
+ *
+ * Both halves of the auto-lock test are needed. WC_RNG_HAVE_AUTO_LOCK says
+ * the platform can do it; WC_RNG_AUTO_LOCK_DEFAULT says a plain wc_InitRng()
+ * actually turns it on, and WC_RNG_AUTO_LOCK_DEFAULT_OFF sets that to 0.
+ * globalRNG is created by a plain wc_InitRng(), so without the second half it
+ * would be shared with no lock at all - one DRBG state behind concurrent
+ * ECDSA, RSA and DH, which can repeat an ECDSA nonce.
+ *
+ * Define WOLFSSL_PK_LOCAL_RNG to go back to an RNG per call regardless.
+ */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WC_RNG_AUTO_LOCK_DEFAULT)
+    /* random.h defines WC_RNG_AUTO_LOCK_DEFAULT, to 0 or 1, next to
+     * WC_RNG_HAVE_AUTO_LOCK. Having the capability without the default would
+     * make the test below read the default as 0 and quietly drop the shared
+     * RNG, so say so rather than let that happen. Where random.h has not been
+     * reached at all neither macro is defined, the test is simply false, and
+     * the shared RNG is not used - as it was not before the default was taken
+     * into account. */
+    #error "WC_RNG_HAVE_AUTO_LOCK without WC_RNG_AUTO_LOCK_DEFAULT"
+#endif
+#if !defined(WOLFSSL_PK_LOCAL_RNG) && \
+    ((defined(WC_RNG_HAVE_AUTO_LOCK) && WC_RNG_AUTO_LOCK_DEFAULT) || \
+     defined(SINGLE_THREADED))
+    #define WOLFSSL_PK_GLOBAL_RNG
+#endif
+
 /* Make a random number generator or get global if possible.
  *
  * Global may not be available and NULL will be returned.
@@ -361,7 +395,20 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
     WC_RNG* ret = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     int freeRng = 0;
+#endif
 
+#ifdef WOLFSSL_PK_GLOBAL_RNG
+    /* Hand back the shared one, which is already seeded. */
+    ret = wolfssl_make_global_rng();
+    if (ret != NULL) {
+        /* Not the caller's to free. */
+        *local = 0;
+        return ret;
+    }
+    /* No global to be had, so fall through and make one. */
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
     /* Allocate RNG object . */
     if (rng == NULL) {
         rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
@@ -2540,6 +2587,26 @@ int wolfSSL_Init(void)
         }
 #endif
 
+        /* The compatibility layer's caches each need a global mutex, made here
+         * because a mutex created on first use cannot be made safe. */
+#ifdef WOLFSSL_HAVE_X509_PUBKEY_MUTEX
+        if ((ret == WOLFSSL_SUCCESS) &&
+                (wolfssl_x509_pubkey_mutex_init() != 0)) {
+            ret = BAD_MUTEX_E;
+        }
+#endif
+#ifdef WOLFSSL_HAVE_RSA_RNG_MUTEX
+        if ((ret == WOLFSSL_SUCCESS) && (wolfssl_rsa_rng_mutex_init() != 0)) {
+            ret = BAD_MUTEX_E;
+        }
+#endif
+#ifdef WOLFSSL_HAVE_EVP_PKEY_DER_MUTEX
+        if ((ret == WOLFSSL_SUCCESS) &&
+                (wolfssl_evp_pkey_der_mutex_init() != 0)) {
+            ret = BAD_MUTEX_E;
+        }
+#endif
+
     #ifdef WC_RNG_SEED_CB
         wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
     #endif
@@ -3829,6 +3896,18 @@ int wolfSSL_Cleanup(void)
     wolfSSL_FIPS_drbg_free(gDrbgDefCtx);
     gDrbgDefCtx = NULL;
     #endif
+#endif
+
+/* Outside the global RNG block above: wolfSSL_Init() creates these three
+ * whatever that is configured to. */
+#ifdef WOLFSSL_HAVE_X509_PUBKEY_MUTEX
+    wolfssl_x509_pubkey_mutex_free();
+#endif
+#ifdef WOLFSSL_HAVE_RSA_RNG_MUTEX
+    wolfssl_rsa_rng_mutex_free();
+#endif
+#ifdef WOLFSSL_HAVE_EVP_PKEY_DER_MUTEX
+    wolfssl_evp_pkey_der_mutex_free();
 #endif
 
 #ifdef HAVE_EX_DATA_CRYPTO
