@@ -127,6 +127,16 @@ function(generate_build_flags)
     set(BUILD_INTELASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
+    # OR WOLFSSL_USER_SETTINGS, as the feature flags around this do: a
+    # user-settings build takes WOLFSSL_AUTOSAR from user_settings.h, where
+    # CMake cannot see it, so keying the source list on the CMake option alone
+    # would leave an ECU build linking against Csm.h with nothing behind it --
+    # the unresolved Csm_* symbols this list exists to fix. The three sources
+    # are each wrapped in #ifdef WOLFSSL_AUTOSAR, so compiling them into a
+    # build that does not want them costs three empty objects.
+    if(WOLFSSL_AUTOSAR OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_AUTOSAR "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CAMELLIA "yes" PARENT_SCOPE)
     endif()
@@ -1374,6 +1384,16 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/port/caam/wolfcaam_hash.c
             wolfcrypt/src/port/caam/wolfcaam_rsa.c
             wolfcrypt/src/port/caam/wolfcaam_hmac.c)
+    endif()
+
+    # Corresponds to wolfcrypt/src/port/autosar/include.am. Without these the
+    # WOLFSSL_AUTOSAR define still reaches options.h, so an application's Csm_*
+    # calls compile against Csm.h and then fail to link.
+    if(BUILD_AUTOSAR)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/autosar/csm.c
+            wolfcrypt/src/port/autosar/crypto.c
+            wolfcrypt/src/port/autosar/cryif.c)
     endif()
 
     if(BUILD_HPKE)

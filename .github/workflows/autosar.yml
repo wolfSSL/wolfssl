@@ -1,0 +1,351 @@
+name: AUTOSAR Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  autosar_port_test:
+    name: AUTOSAR port test (${{ matrix.name }})
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Default key selection: GetKey() scans the keystore and takes the
+          # first slot whose key element ID and key length match the job.
+          # Covers singleshot_test, update_test, random_test and key_test.
+          - name: default
+            config: "--enable-autosar"
+            expect_redirect: false
+
+          # Key input redirection pins each key element to one keystore slot at
+          # compile time. Nothing built this half of the port before: GetKey()
+          # used runtime struct members as switch case labels, so no build with
+          # REDIRECTION_CONFIG defined compiled at all, and redirect_test is
+          # gated behind that same macro -- the one test covering the feature
+          # could never run. The slot assignment below is the port README's
+          # example config: cipher key to slot 1, cipher IV to slot 4.
+          - name: key-redirection
+            config: >-
+              --enable-autosar
+              CPPFLAGS="-DREDIRECTION_CONFIG=0x03
+              -DREDIRECTION_IN1_KEYID=1 -DREDIRECTION_IN1_KEYELMID=0x01
+              -DREDIRECTION_IN2_KEYID=4 -DREDIRECTION_IN2_KEYELMID=0x05"
+            expect_redirect: true
+
+          # The MAC services are an add-on enable, so they need their own entry:
+          # nothing else builds csm.c's Csm_MacGenerate/Csm_MacVerify or the
+          # driver's CMAC path, and mac_test is compiled in only here. The entry
+          # also covers the option pulling wolfCrypt's CMAC in by itself --
+          # WOLFSSL_AES_DIRECT included, without which wc_InitCmac() compiles
+          # fine and then fails at runtime.
+          - name: cmac
+            config: "--enable-autosar --enable-autosar-cmac"
+            expect_redirect: false
+            expect_mac: true
+
+          # Csm_ConfigType's devId is what turns the Crypto driver into a front
+          # end for an HSM, and devid_test is compiled in only with the crypto
+          # callback machinery present. It registers a counting callback and
+          # asserts the cipher, MAC and RNG jobs all reach it with the right
+          # devId, and that Csm_Init(NULL) still runs entirely in software.
+          - name: cryptocb
+            config: >-
+              --enable-autosar --enable-autosar-cmac --enable-cryptocb
+              CPPFLAGS=-DWOLF_CRYPTO_CB_FREE
+            expect_redirect: false
+            expect_mac: true
+            expect_devid: true
+
+          # Key handles: a keystore slot names a key in the device instead of
+          # holding it, so the key never enters RAM. keyhandle_test checks that
+          # a named key produces the same ciphertext as the key itself, which
+          # is what proves the identifier reached the device rather than
+          # something merely looking encrypted. WOLF_PRIVATE_KEY_ID is a raw
+          # -D, not a configure option.
+          - name: keyhandle
+            config: >-
+              --enable-autosar --enable-autosar-cmac --enable-cryptocb
+              CPPFLAGS="-DWOLF_PRIVATE_KEY_ID -DWOLF_CRYPTO_CB_FREE"
+            expect_redirect: false
+            expect_mac: true
+            expect_devid: true
+            expect_keyhandle: true
+
+          # Development error reporting. With WOLFSSL_AUTOSAR_DET the port
+          # forwards to Det_ReportError(), which the test program supplies --
+          # hence the static build, so the undefined symbol resolves from the
+          # application rather than from the shared library. det_test asserts
+          # the module and error IDs are the ones the CSM specification
+          # assigns; an earlier version of this port reported a local 0-based
+          # enum, so every ID a DET would have seen was wrong.
+          - name: det
+            config: >-
+              --enable-autosar --enable-autosar-cmac
+              --enable-static --disable-shared
+              CPPFLAGS=-DWOLFSSL_AUTOSAR_DET
+            expect_redirect: false
+            expect_mac: true
+            expect_det: true
+
+          # DET without the MAC services. csm.c compiles the Det_ReportError()
+          # call whenever WOLFSSL_AUTOSAR_DET is defined, so a build that does
+          # not define the symbol fails to link -- which this configuration did,
+          # because test.c had its definition behind CMAC as well. det_test
+          # needs a service that reports a development error to drive it, and
+          # only the MAC services do, so it does not run here; the point of the
+          # entry is that the link succeeds.
+          - name: det-nocmac
+            config: >-
+              --enable-autosar
+              --enable-static --disable-shared
+              CPPFLAGS=-DWOLFSSL_AUTOSAR_DET
+            expect_redirect: false
+            expect_no_det_test: true
+
+          # Key redirection together with the MAC services. That combination
+          # cannot tell CRYPTO_KE_CIPHER_KEY from CRYPTO_KE_MAC_KEY -- both are
+          # element 0x01 and redirection pins one slot for every service -- so
+          # crypto.c refuses it at build time unless the integrator says they
+          # only use one of the two services. This entry is that case, and the
+          # step below asserts the refusal itself.
+          #
+          # Neither entry above covered redirection with CMAC, which is how the
+          # ambiguity went unnoticed: keysep_test failed there and nothing ran
+          # it.
+          - name: key-redirection-cmac
+            config: >-
+              --enable-autosar --enable-autosar-cmac
+              CPPFLAGS="-DREDIRECTION_CONFIG=0x03
+              -DREDIRECTION_IN1_KEYID=1 -DREDIRECTION_IN1_KEYELMID=0x01
+              -DREDIRECTION_IN2_KEYID=4 -DREDIRECTION_IN2_KEYELMID=0x05
+              -DWOLFSSL_AUTOSAR_ALLOW_AMBIGUOUS_KEY_ELEMENT"
+            expect_redirect: true
+            expect_mac: true
+            expect_ambiguous_opt_out: true
+
+          # The escape hatch from the ambiguous-key-element refusal. It is a
+          # security-relevant default being turned off, so it gets its own
+          # entry rather than being trusted to compile: keysep_test drops the
+          # refusal assertion here and must still pass on the named-slot path,
+          # which is what the ECU being told to use it depends on.
+          - name: ambiguous-key
+            config: >-
+              --enable-autosar --enable-autosar-cmac
+              CPPFLAGS=-DWOLFSSL_AUTOSAR_ALLOW_AMBIGUOUS_KEY_ELEMENT
+            expect_redirect: false
+            expect_mac: true
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Autogen
+        run: ./autogen.sh
+
+      # --enable-autosar-cmac is an add-on, not the default. Enabling it
+      # without --enable-autosar has to be an error rather than a quiet no-op.
+      #
+      # In tree, and before the real configure below. AC_MSG_ERROR exits before
+      # AC_OUTPUT, so this writes no Makefile, options.h or config.status for
+      # the build to trip over. Doing it afterwards out of tree does not work:
+      # automake's VPATH guard rejects a source directory that already has a
+      # config.status, so the log would carry that error instead of the one
+      # being asserted.
+      - name: Assert autosar-cmac requires autosar
+        if: ${{ matrix.expect_mac }}
+        run: |
+          if ./configure --enable-autosar-cmac > cmac-alone.log 2>&1; then
+            echo "--enable-autosar-cmac configured without --enable-autosar" >&2
+            exit 1
+          fi
+          grep -q 'requires --enable-autosar' cmac-alone.log
+
+      - name: Build the AUTOSAR port test
+        run: |
+          ./configure ${{ matrix.config }}
+          make -j$(nproc) wolfcrypt/src/port/autosar/test.test
+
+      - name: Run the AUTOSAR port test
+        run: |
+          set -o pipefail
+          ./wolfcrypt/src/port/autosar/test.test | tee autosar-test.log
+
+      # A build that silently loses the redirection macros still passes every
+      # test above, because redirect_test is simply not compiled in -- which is
+      # how the feature stayed broken. Assert it actually ran, so this entry
+      # cannot go green without having exercised redirection.
+      - name: Assert redirect_test ran
+        if: ${{ matrix.expect_redirect }}
+        run: grep -qx 'redirect_test \.\.\. pass' autosar-test.log
+
+      # The converse: the default entry must not be silently picking up a
+      # redirection config from somewhere, or it stops covering the scan path.
+      - name: Assert redirect_test did not run
+        if: ${{ !matrix.expect_redirect }}
+        run: |
+          if grep -q 'redirect_test' autosar-test.log; then
+            echo "redirect_test ran in the default config" >&2
+            exit 1
+          fi
+
+      # Same reasoning as the redirect assertion: mac_test is compiled in only
+      # when the option took effect, so its absence would pass silently.
+      - name: Assert mac_test ran
+        if: ${{ matrix.expect_mac }}
+        run: grep -qx 'mac_test \.\.\. pass' autosar-test.log
+
+      # Same reasoning again: devid_test is absent without --enable-cryptocb,
+      # so its silence would look like success.
+      - name: Assert devid_test ran
+        if: ${{ matrix.expect_devid }}
+        run: grep -qx 'devid_test \.\.\. pass' autosar-test.log
+
+      - name: Assert keyhandle_test ran
+        if: ${{ matrix.expect_keyhandle }}
+        run: grep -qx 'keyhandle_test \.\.\. pass' autosar-test.log
+
+      # A MAC job whose key lives in the device. Compiled in only with the key
+      # handle and MAC options together, so its silence would look like
+      # success -- and it is the case that proves the MAC services can use a
+      # key they never see.
+      - name: Assert machandle_test ran
+        if: ${{ matrix.expect_keyhandle }}
+        run: grep -qx 'machandle_test \.\.\. pass' autosar-test.log
+
+      # reinit_test runs everywhere, but only observes contexts actually being
+      # freed where the device is told about frees.
+      - name: Assert reinit_test ran
+        run: grep -qx 'reinit_test \.\.\. pass' autosar-test.log
+
+      # cancel_test is the counterpart: a re-init is refused while a job is
+      # open, so an abandoned job has to be cancellable or the configuration
+      # could never be changed again.
+      - name: Assert cancel_test ran
+        run: grep -qx 'cancel_test \.\.\. pass' autosar-test.log
+
+      # The threaded case. Single-threaded builds compile it out, and none of
+      # these entries are single-threaded, so silence here means it stopped
+      # being built rather than that it had nothing to do.
+      - name: Assert gate_test ran
+        run: grep -qx 'gate_test \.\.\. pass' autosar-test.log
+
+      - name: Assert det_test ran
+        if: ${{ matrix.expect_det }}
+        run: grep -qx 'det_test \.\.\. pass' autosar-test.log
+
+      # The DET-without-CMAC entry exists for the link, so det_test cannot run
+      # there. Assert that rather than leaving the entry asserting nothing.
+      - name: Assert det_test did not run
+        if: ${{ matrix.expect_no_det_test }}
+        run: |
+          if grep -q 'det_test' autosar-test.log; then
+            echo "det_test ran without the MAC services" >&2
+            exit 1
+          fi
+
+      # keysep_test provisions a cipher key and a MAC key at the same time,
+      # which is the case the shared key element ID 0x01 used to get wrong: the
+      # MAC job took whichever slot came first. It needs both services, so it
+      # is compiled in exactly where mac_test is.
+      # The opt-out exists because the combination is otherwise refused. Assert
+      # that refusal, or the entry above would silently become the only thing
+      # covering redirection with CMAC while the guard rotted.
+      - name: Assert redirection with CMAC is refused without the opt-out
+        if: ${{ matrix.expect_ambiguous_opt_out }}
+        run: |
+          # Touch the source first. The step above already built this target,
+          # so make would otherwise report it up to date and exit 0 without
+          # recompiling anything -- which reads as "the refusal did not fire"
+          # and fails the job on a build that never happened.
+          #
+          # CPPFLAGS on the command line replaces what configure recorded,
+          # which for this entry is these same defines plus the opt-out. So
+          # this rebuilds crypto.c with the opt-out removed and nothing else
+          # changed.
+          touch wolfcrypt/src/port/autosar/crypto.c
+          set +e
+          make wolfcrypt/src/port/autosar/test.test \
+              CPPFLAGS="-DREDIRECTION_CONFIG=0x03 \
+              -DREDIRECTION_IN1_KEYID=1 -DREDIRECTION_IN1_KEYELMID=0x01 \
+              -DREDIRECTION_IN2_KEYID=4 -DREDIRECTION_IN2_KEYELMID=0x05" \
+              > ambig.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "redirection + CMAC built without the opt-out" >&2
+            exit 1
+          fi
+          grep -q 'cannot tell a cipher key from a MAC key' ambig.log
+          # Leave the tree as the entry configured it, for any step after this.
+          touch wolfcrypt/src/port/autosar/crypto.c
+          make wolfcrypt/src/port/autosar/test.test > /dev/null
+
+      - name: Assert keysep_test ran
+        if: ${{ matrix.expect_mac }}
+        run: grep -qx 'keysep_test \.\.\. pass' autosar-test.log
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          if [ -f config.log ] ; then
+            tail -n 100 config.log
+          fi
+
+  autosar_cmake:
+    name: AUTOSAR CMake build and link
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Configure and build with WOLFSSL_AUTOSAR=yes
+        run: |
+          cmake -S . -B build_autosar -DWOLFSSL_AUTOSAR=yes \
+              -DBUILD_SHARED_LIBS=ON -DWOLFSSL_EXAMPLES=no \
+              -DWOLFSSL_CRYPT_TESTS=no
+          cmake --build build_autosar -j$(nproc)
+
+      # The option used to append only -DWOLFSSL_AUTOSAR, never the port
+      # sources, so WOLFSSL_AUTOSAR reached options.h while csm.c, cryif.c and
+      # crypto.c went uncompiled: an application's Csm_* calls compiled against
+      # Csm.h and then failed to link. Linking one here is the assertion --
+      # grepping the source list would not catch a future regression in which
+      # the files build but the symbols do not get exported.
+      - name: Link an application against the AUTOSAR API
+        run: |
+          cat > csm_link_probe.c <<'EOF'
+          #include <wolfssl/options.h>
+          #include <wolfssl/wolfcrypt/port/autosar/Csm.h>
+          int main(void) { Csm_Init(NULL); return 0; }
+          EOF
+          cc -o csm_link_probe csm_link_probe.c \
+              -I. -Ibuild_autosar -Lbuild_autosar -lwolfssl
+          LD_LIBRARY_PATH=build_autosar ./csm_link_probe
+
+      # The converse: a default build must not compile the port.
+      - name: Assert the port stays out of a default build
+        run: |
+          cmake -S . -B build_default -DWOLFSSL_EXAMPLES=no \
+              -DWOLFSSL_CRYPT_TESTS=no > /dev/null
+          if grep -q 'port/autosar' \
+              build_default/CMakeFiles/wolfssl.dir/build.make; then
+            echo "autosar port compiled without WOLFSSL_AUTOSAR" >&2
+            exit 1
+          fi
