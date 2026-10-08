@@ -464,6 +464,42 @@
     #include <wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h>
 #endif
 
+/* PolarFire SoC Athena F5200 port. WOLFSSL_MICROCHIP_MPFS selects the SoC
+ * family and offloads nothing on its own; only the "S" grade parts carry the
+ * engine, which WOLFSSL_MPFS_ATHENA names. */
+#ifdef WOLFSSL_MPFS_ATHENA
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+    /* The CAL hash context lives on wc_Sha384's devCtx, so the port needs the
+     * copy and free events to own its lifetime. */
+    #ifndef WOLF_CRYPTO_CB_COPY
+        #define WOLF_CRYPTO_CB_COPY
+    #endif
+    #ifndef WOLF_CRYPTO_CB_FREE
+        #define WOLF_CRYPTO_CB_FREE
+    #endif
+    /* Serves SHA-384 and AES-256-CTR only; software covers the rest. */
+    #if defined(WOLF_CRYPTO_CB_ONLY_SHA512) || defined(WOLF_CRYPTO_CB_ONLY_AES)
+        #error "WOLFSSL_MPFS_ATHENA needs software SHA-512 and AES"
+    #endif
+    /* Every CAL transaction is serialised with wolfSSL_CryptHwMutex*, which
+     * compiles to nothing unless this is on. CAL has one resource handle and
+     * the engine is one block, so without it two threads corrupt each other's
+     * operation. WC_MPFS_ATHENA_NO_HW_MUTEX opts out, single threaded only. */
+    #if !defined(WOLFSSL_CRYPT_HW_MUTEX) && \
+        !defined(WC_MPFS_ATHENA_NO_HW_MUTEX) && !defined(SINGLE_THREADED)
+        #define WOLFSSL_CRYPT_HW_MUTEX 1
+    #endif
+    #ifndef WC_MPFS_ATHENA_DEVID
+        #define WC_MPFS_ATHENA_DEVID 0xA7
+    #endif
+    /* So the stock test and benchmark drive the port with no argument. */
+    #ifndef WC_USE_DEVID
+        #define WC_USE_DEVID WC_MPFS_ATHENA_DEVID
+    #endif
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
