@@ -1,0 +1,32 @@
+name: wolfIP cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfip
+      repo: wolfSSL/wolfip
+      # Match wolfIP's standard Linux CI configuration.
+      wolfssl_configure: --enable-all --enable-md5
+      # wolfIP's native CI is Makefile-based; keep the matching commands
+      # inline in the reusable workflow rather than in a product shell adapter.
+      build_mode: makefile
+      # check runs the unprivileged unit suite; xxd converts its generated
+      # test certificates into C arrays for build/test-wolfssl.
+      apt_packages: check xxd
