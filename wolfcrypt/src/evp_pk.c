@@ -108,6 +108,10 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         if (ret == 1) {
             /* Copy in key data. */
             XMEMCPY(pkey->pkey.ptr, mem, memSz);
+            /* This DER is authoritative. A caller supplied pkey may still
+             * carry a deferred encode from an earlier set1_*(); clear it so
+             * the next reader does not overwrite what was just decoded in. */
+            pkey->derStale = 0;
         }
     }
     /* The data of the key held before is no longer referenced. */
@@ -679,8 +683,22 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
                 break;
             }
         #ifdef WOLFSSL_CURVE25519_BLINDING
-            /* Use the EVP_PKEY's RNG for scalar blinding on shared-secret. */
-            (void)wc_curve25519_set_rng(cKey, &pkey->rng);
+            /* Use the EVP_PKEY's RNG for scalar blinding on shared-secret.
+             * Through EvpPkeyRng(), which seeds it: the RNG is set up on
+             * first use now, so &pkey->rng on its own hands over a zeroed,
+             * unseeded WC_RNG and curve25519_smul_blind() then fails the
+             * derive. Nothing else on this path asks for the RNG, so there is
+             * no later call to seed it either. */
+            {
+                WC_RNG* blindRng = EvpPkeyRng(pkey);
+
+                if ((blindRng == NULL) ||
+                        (wc_curve25519_set_rng(cKey, blindRng) != 0)) {
+                    wc_curve25519_free(cKey);
+                    XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                    break;
+                }
+            }
         #endif
             /* Raw X25519 keys are little-endian (RFC 7748). */
             if (wc_curve25519_import_private_ex(priv, (word32)len, cKey,
@@ -2557,8 +2575,15 @@ static int wolfssl_i_evp_pkey_get_der(const WOLFSSL_EVP_PKEY* key,
     int sz;
     word16 pkcs8HeaderSz;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (key->pkey_sz == 0)) {
+    /* Validate parameters. The encoding may not have been produced yet, so
+     * ask for it before looking at its size. The const is cast away to do so:
+     * pkey.ptr is a cache of the attached key object and filling it leaves the
+     * key itself untouched, while the const on the way in comes from
+     * i2d_PrivateKey() and the i2d_*PublicKey() helpers, whose signatures are
+     * OpenSSL's. See EvpPkeyEnsureDer(). */
+    if ((key == NULL) ||
+            (EvpPkeyEnsureDer((WOLFSSL_EVP_PKEY*)key) != WOLFSSL_SUCCESS) ||
+            (key->pkey_sz == 0)) {
         return WOLFSSL_FATAL_ERROR;
     }
 

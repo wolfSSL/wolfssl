@@ -41,6 +41,11 @@
 
 WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
                                word32* outLen);
+/* As Base64_Decode(), but for a caller decoding a stream: a trailing partial
+ * group is not an error, and the number of input bytes used is reported
+ * through inConsumed so the caller knows where to resume. */
+WOLFSSL_LOCAL int Base64_Decode_ex(const byte* in, word32 inLen, byte* out,
+                               word32* outLen, word32* inConsumed);
 
 WOLFSSL_API int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out,
                                word32* outLen);

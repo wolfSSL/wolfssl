@@ -7836,6 +7836,27 @@ static WC_INLINE int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_LOCAL WC_RNG* wolfssl_rsa_ensure_rng(WOLFSSL_RSA* rsa);
+
+/* The compatibility layer's lazily populated caches each need a global mutex.
+ * Where the platform has no static mutex initializer they are created in
+ * wolfSSL_Init() and destroyed in wolfSSL_Cleanup(), because creating one on
+ * first use cannot be made safe: two threads arriving together would both
+ * create the same mutex, which is undefined for a Win32 or RTOS mutex. These
+ * conditions mirror the guards on the definitions in src/pk_rsa.c and
+ * wolfcrypt/src/evp.c; change one and the other has to follow. */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    #if !defined(NO_RSA) && !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+        #define WOLFSSL_HAVE_RSA_RNG_MUTEX
+        WOLFSSL_LOCAL int wolfssl_rsa_rng_mutex_init(void);
+        WOLFSSL_LOCAL void wolfssl_rsa_rng_mutex_free(void);
+    #endif
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+        #define WOLFSSL_HAVE_EVP_PKEY_DER_MUTEX
+        WOLFSSL_LOCAL int wolfssl_evp_pkey_der_mutex_init(void);
+        WOLFSSL_LOCAL void wolfssl_evp_pkey_der_mutex_free(void);
+    #endif
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                          int *initTmpRng);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
