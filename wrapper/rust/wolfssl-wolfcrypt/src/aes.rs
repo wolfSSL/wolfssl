@@ -3371,14 +3371,16 @@ impl BlockModeDecrypt for Aes256EcbDec {
 #[cfg(all(any(aes_ctr, aes_ofb), feature = "cipher"))]
 fn apply_stream_chunked(
     ws_aes: &mut sys::Aes,
-    mut buf: cipher::InOutBuf<'_, '_, u8>,
+    buf: cipher::InOutBuf<'_, '_, u8>,
     f: unsafe extern "C" fn(*mut sys::Aes, *mut u8, *const u8, u32) -> core::ffi::c_int,
     name: &str,
 ) {
     const MAX_CHUNK: usize = (u32::MAX as usize) & !(AES_BLOCK_SIZE - 1);
     let len = buf.len();
-    let in_ptr = buf.get_in().as_ptr();
-    let out_ptr = buf.get_out().as_mut_ptr();
+    // Take the raw pointers directly rather than going through get_in() and
+    // get_out(): for in-place buffers those would create a & and &mut slice
+    // over the same memory, invalidating the input pointer.
+    let (in_ptr, out_ptr) = buf.into_raw();
     let mut off = 0usize;
     while off < len {
         let chunk = core::cmp::min(len - off, MAX_CHUNK);
