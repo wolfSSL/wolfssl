@@ -638,7 +638,12 @@ fn scan_cfg() -> Result<()> {
      * out by the public-only and verify-only build options, so only the
      * verify side tracks WC_RSA_PSS itself. */
     check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
-    check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
+    /* wc_RsaPublicEncrypt_ex() and wc_RsaPrivateDecrypt_ex() are declared
+     * unconditionally in rsa.h.  With WC_NO_RSA_OAEP they are either not
+     * defined at all (link failure) or, with WC_RSA_NO_PADDING, defined but
+     * unable to do OAEP.  Require the OAEP sentinel from headers.h too. */
+    check_cfg_if(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep",
+                 has_symbol(&binding, "WOLFSSL_RUST_HAVE_RSA_OAEP"));
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
     /* The RSA "only" build options subtract API, so each cfg names what is
      * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,

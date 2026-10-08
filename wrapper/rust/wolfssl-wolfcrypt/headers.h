@@ -22,3 +22,10 @@
 #include "wolfssl/wolfcrypt/wc_mldsa.h"
 #include "wolfssl/wolfcrypt/wc_mlkem.h"
 #include "wolfssl/wolfcrypt/wc_lms.h"
+
+/* Sentinels for features whose API is declared unconditionally by the
+ * wolfSSL headers and so cannot be detected by probing for a function.
+ * build.rs looks for these names in the generated bindings. */
+#if !defined(NO_RSA) && !defined(WC_NO_RSA_OAEP)
+#define WOLFSSL_RUST_HAVE_RSA_OAEP 1
+#endif

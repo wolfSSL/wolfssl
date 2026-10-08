@@ -62,6 +62,10 @@ Fixes and improvements:
   4112-byte buffer on the stack for every call and no longer limits messages to
   4096 bytes. Decryption now verifies the authentication tag before decrypting,
   so the caller's buffer is left unmodified when verification fails
+- The rsa_oaep feature (RSA::public_encrypt_oaep(),
+  RSA::private_decrypt_oaep() and the rsa_oaep module) is no longer enabled
+  when wolfSSL is built with WC_NO_RSA_OAEP. Previously it failed to link, or
+  with WC_RSA_NO_PADDING always returned an unsupported-padding error
 
 ## v2.2.0
 
