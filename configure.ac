@@ -12336,6 +12336,31 @@ then
 fi
 
 
+# Support for the autosar MAC services (AES-CMAC), an add-on to --enable-autosar
+AC_ARG_ENABLE([autosar-cmac],
+    [AS_HELP_STRING([--enable-autosar-cmac],[Enable AutoSAR MAC generate/verify services using AES-CMAC, requires --enable-autosar (default: disabled)])],
+    [ ENABLED_AUTOSAR_CMAC=$enableval ],
+    [ ENABLED_AUTOSAR_CMAC=no ]
+    )
+
+if test "$ENABLED_AUTOSAR_CMAC" = "yes"
+then
+    if test "$ENABLED_AUTOSAR" != "yes"
+    then
+        AC_MSG_ERROR([--enable-autosar-cmac requires --enable-autosar])
+    fi
+
+    # The driver calls wc_InitCmac()/wc_CmacUpdate()/wc_CmacFinalNoFree().
+    # WOLFSSL_AES_DIRECT comes with it: the WC_CMAC_AES case in cmac.c is
+    # compiled out without it, so wc_InitCmac() would fail at runtime.
+    AS_IF([test "$ENABLED_CMAC" != "yes"],
+          [ENABLED_CMAC="yes"
+           AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR_CMAC"
+fi
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -14910,6 +14935,7 @@ echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo "   * TLS receive read-ahead:     $ENABLED_READAHEAD"
 echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
+echo "   * AutoSAR CMAC :              $ENABLED_AUTOSAR_CMAC"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
 echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"

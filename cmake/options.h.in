@@ -577,6 +577,9 @@ extern "C" {
 #cmakedefine WOLF_C89
 #undef WOLFSSL_AUTOSAR
 #cmakedefine WOLFSSL_AUTOSAR
+
+#undef WOLFSSL_AUTOSAR_CMAC
+#cmakedefine WOLFSSL_AUTOSAR_CMAC
 #undef WOLFSSL_HASH_FLAGS
 #cmakedefine WOLFSSL_HASH_FLAGS
 #undef WOLFSSL_XILINX
