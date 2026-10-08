@@ -331,3 +331,52 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
+
+/* A verification flag must either take effect or be refused. */
+int test_wolfSSL_X509_VERIFY_PARAM_flag_values(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+    static const unsigned long flags[] = {
+        X509_V_FLAG_X509_STRICT,
+        X509_V_FLAG_ALLOW_PROXY_CERTS,
+        X509_V_FLAG_TRUSTED_FIRST,
+        X509_V_FLAG_USE_CHECK_TIME,
+        X509_V_FLAG_NO_CHECK_TIME,
+        X509_V_FLAG_PARTIAL_CHAIN
+    };
+    size_t i;
+    size_t j;
+
+    /* a flag worth zero cannot be told apart from no flag at all */
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        ExpectIntNE(flags[i], 0);
+        for (j = i + 1; j < XELEM_CNT(flags); j++) {
+            ExpectIntNE(flags[i], flags[j]);
+        }
+    }
+
+    /* each flag must read back on its own, and only itself */
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        param = NULL;
+        ExpectNotNull(param = wolfSSL_X509_VERIFY_PARAM_new());
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param, flags[i]),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(param), flags[i]);
+        wolfSSL_X509_VERIFY_PARAM_free(param);
+    }
+
+    /* flags accumulate rather than replace */
+    param = NULL;
+    ExpectNotNull(param = wolfSSL_X509_VERIFY_PARAM_new());
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_X509_STRICT), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_ALLOW_PROXY_CERTS), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(param),
+        X509_V_FLAG_X509_STRICT | X509_V_FLAG_ALLOW_PROXY_CERTS);
+    wolfSSL_X509_VERIFY_PARAM_free(param);
+#endif
+    return EXPECT_RESULT();
+}
