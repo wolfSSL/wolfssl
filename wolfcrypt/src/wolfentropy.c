@@ -50,6 +50,13 @@ data, use this implementation to seed and re-seed the DRBG.
     #include <mach/mach_time.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 /* Define ENTROPY_MEMUSE_THREAD to force use of counter in a new thread.
  * Only do this when high resolution timer not otherwise available.
  */
@@ -184,22 +191,40 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 /* Start and stop thread that counts as a proxy for time counter. */
 #define ENTROPY_MEMUSE_THREADED
 
-/* Data for entropy thread. */
+/* Data for entropy thread.
+ *
+ * All fields are shared between the counter thread and the controlling thread.
+ * stop and running must only be accessed with atomic loads and stores. counter
+ * is volatile and accessed directly - the race is benign.
+ */
 typedef struct ENTROPY_THREAD_DATA {
-    /* Current counter - proxy for time. */
-    word64 counter;
+    /* Current counter - proxy for time. Only written by counter thread.
+     * Torn reads are harmless - only the low bits of differences are used. */
+    volatile word32 counter;
     /* Whether to stop thread. */
-    int stop;
+    wolfSSL_Atomic_Int stop;
+    /* Whether counter thread is running. Set by controller before creating
+     * thread, cleared by thread as last action before exiting. */
+    wolfSSL_Atomic_Int running;
 } ENTROPY_THREAD_DATA;
 
-/* Track whether entropy thread has been started already. */
+/* Track whether entropy thread has been started already.
+ * Only accessed by controller while holding entropy_mutex. */
 static int entropy_thread_started = 0;
 /* Data for thread to update/observer. */
-static volatile ENTROPY_THREAD_DATA entropy_thread_data = { 0, 0 };
+static
+#ifdef WOLFSSL_NO_ATOMICS
+volatile /* fallback to volatile mode */
+#endif
+ENTROPY_THREAD_DATA entropy_thread_data = {
+    0,
+    WOLFSSL_ATOMIC_INITIALIZER(0),
+    WOLFSSL_ATOMIC_INITIALIZER(0)
+};
 
 /* Get the high resolution time counter. Counter incremented in thread.
  *
- * @return  64-bit counter.
+ * @return  Counter as a 64-bit value.
  */
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
@@ -218,14 +243,20 @@ static THREAD_RETURN_NOJOIN WOLFSSL_THREAD_NO_JOIN
     (void)args;
 
     /* Keep going until caller tells us to stop and exit. */
-    while (!entropy_thread_data.stop) {
-        /* Increment counter acting as high resolution timer. */
+    while (!WOLFSSL_ATOMIC_LOAD(entropy_thread_data.stop)) {
+        /* Increment counter acting as high resolution timer.
+         * Only this thread writes counter. Plain volatile access is used to
+         * keep the increment rate high - racy reads are benign as only the
+         * low bits of differences are used. */
         entropy_thread_data.counter++;
     }
 
 #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-    fprintf(stderr, "EXITING ENTROPY COUNTER THREAD\n");
+    WOLFSSL_DEBUG_PRINTF("EXITING ENTROPY COUNTER THREAD\n");
 #endif
+
+    /* Acknowledge stop - no more accesses of shared data after this. */
+    WOLFSSL_ATOMIC_STORE(entropy_thread_data.running, 0);
 
     /* Exit from thread. */
     RETURN_FROM_THREAD_NOJOIN(0);
@@ -246,13 +277,15 @@ static int Entropy_StartThread(void)
     /* Only continue if we haven't started a thread. */
     if (!entropy_thread_started) {
         /* Get counter before starting thread. */
-        word64 start_counter = entropy_thread_data.counter;
+        word32 start_counter = entropy_thread_data.counter;
 
         /* In case of restarting thread, set stop indicator to false. */
-        entropy_thread_data.stop = 0;
+        WOLFSSL_ATOMIC_STORE(entropy_thread_data.stop, 0);
+        /* Mark running before thread exists so stop always waits for it. */
+        WOLFSSL_ATOMIC_STORE(entropy_thread_data.running, 1);
 
     #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-        fprintf(stderr, "STARTING ENTROPY COUNTER THREAD\n");
+        WOLFSSL_DEBUG_PRINTF("STARTING ENTROPY COUNTER THREAD\n");
     #endif
         /* Create a thread that increments the counter in the data. */
         /* Thread resources to be disposed of. */
@@ -263,6 +296,10 @@ static int Entropy_StartThread(void)
                 sched_yield();
             }
         }
+        else {
+            /* No thread created. */
+            WOLFSSL_ATOMIC_STORE(entropy_thread_data.running, 0);
+        }
 
         entropy_thread_started = (ret == 0);
     }
@@ -272,14 +309,18 @@ static int Entropy_StartThread(void)
 
 /* Tell thread to stop and wait for it to complete.
  *
- * Called by wolfCrypt_Cleanup().
+ * Waiting ensures a subsequent start can't overlap with an exiting thread.
  */
 static void Entropy_StopThread(void)
 {
     /* Only stop a thread if one is running. */
     if (entropy_thread_started) {
         /* Tell thread to stop. */
-        entropy_thread_data.stop = 1;
+        WOLFSSL_ATOMIC_STORE(entropy_thread_data.stop, 1);
+        /* Wait for thread to acknowledge it has stopped. */
+        while (WOLFSSL_ATOMIC_LOAD(entropy_thread_data.running)) {
+            sched_yield();
+        }
         /* Stopped thread so no thread started anymore. */
         entropy_thread_started = 0;
     }
@@ -418,18 +459,18 @@ static int Entropy_MemUse(void)
     int i;
     static byte d[WC_SHA3_256_DIGEST_SIZE];
     int j;
-    int ret;
+    int ret = 0;
 
     for (j = 0; j < ENTROPY_NUM_UPDATES; j++) {
         /* Hash the first 32 64-bit words of state. */
         ret = wc_Sha3_256_Update(&entropyHash, (byte*)entropy_state,
             sizeof(*entropy_state) * ENTROPY_NUM_64BIT_WORDS);
         if (ret != 0)
-            return ret;
+            break;
         /* Get pseudo-random indices. */
         ret = wc_Sha3_256_Final(&entropyHash, d);
         if (ret != 0)
-            return ret;
+            break;
 
         for (i = 0; i < ENTROPY_NUM_64BIT_WORDS; i++) {
             /* Choose a 64-bit word from a pseudo-random block.*/
@@ -442,7 +483,7 @@ static int Entropy_MemUse(void)
         }
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -569,12 +610,12 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
     if (ret == 0) {
         ret = Entropy_GetNoise(raw, cnt);
     }
-#ifdef ENTROPY_MEMUSE_THREADED
-    /* Stop the counter thread to avoid thrashing the system. */
-    Entropy_StopThread();
-#endif
 
     if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
         wc_UnLockMutex(&entropy_mutex);
     }
 
@@ -630,7 +671,7 @@ static int Entropy_HealthTest_Repetition(byte noise)
         /* Fail if we reach cutoff. */
         if (rep_cnt >= REP_CUTOFF) {
         #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-            fprintf(stderr, "REPETITION FAILED: %d\n", noise);
+            WOLFSSL_DEBUG_PRINTF("REPETITION FAILED: %d\n", noise);
         #endif
             Entropy_HealthTest_Repetition_Reset();
             ret = ENTROPY_RT_E;
@@ -729,7 +770,8 @@ static int Entropy_HealthTest_Proportion(byte noise)
         /* Check whether first value has too many repetitions in queue. */
         if (prop_cnt[noise] >= PROP_CUTOFF) {
         #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-            fprintf(stderr, "PROPORTION FAILED: %d %d\n", val, prop_cnt[noise]);
+            WOLFSSL_DEBUG_PRINTF("PROPORTION FAILED: %d %d\n", noise,
+                prop_cnt[noise]);
         #endif
             Entropy_HealthTest_Proportion_Reset();
             /* Error code returned. */
@@ -776,7 +818,7 @@ static int Entropy_HealthTest_Startup(void)
     int i;
 
 #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-    fprintf(stderr, "STARTUP HEALTH TEST\n");
+    WOLFSSL_DEBUG_PRINTF("STARTUP HEALTH TEST\n");
 #endif
 
     /* Reset cached values before testing. */
@@ -836,6 +878,7 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
             if (ret == 0) {
                 XMEMCPY(output, hash, len);
             }
+            ForceZero(hash, sizeof(hash));
         }
     }
 
@@ -858,6 +901,7 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
+    int locked = 0;
     int noise_len;
     static byte noise[MAX_NOISE_CNT];
 
@@ -885,8 +929,13 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 #endif
 
     /* Lock the mutex as collection uses globals. */
-    if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
-        ret = BAD_MUTEX_E;
+    if (ret == 0) {
+        if (wc_LockMutex(&entropy_mutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            locked = 1;
+        }
     }
 
 #ifdef ENTROPY_MEMUSE_THREADED
@@ -939,12 +988,11 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         }
     }
 
-#ifdef ENTROPY_MEMUSE_THREADED
-    /* Stop the counter thread to avoid thrashing the system. */
-    Entropy_StopThread();
-#endif
-
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+    if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -963,18 +1011,32 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 int wc_Entropy_OnDemandTest(void)
 {
     int ret = 0;
+    int locked = 0;
 
     /* Lock the mutex as we don't want collecting to happen during testing. */
     if (wc_LockMutex(&entropy_mutex) != 0) {
         ret = BAD_MUTEX_E;
     }
+    else {
+        locked = 1;
+    }
 
+#ifdef ENTROPY_MEMUSE_THREADED
+    if (ret == 0) {
+        /* Start the counter thread as a proxy for time counter. */
+        ret = Entropy_StartThread();
+    }
+#endif
     if (ret == 0) {
         /* Perform startup tests. */
         ret = Entropy_HealthTest_Startup();
     }
 
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+    if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -989,21 +1051,24 @@ int wc_Entropy_OnDemandTest(void)
 int Entropy_Init(void)
 {
     int ret = 0;
+    int locked = 0;
 
     /* Check whether initialization has succeeded before. */
     if (!entropy_memuse_initialized) {
     #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         ret = wc_InitMutex(&entropy_mutex);
     #endif
-        if (ret == 0)
+        if (ret == 0) {
             ret = wc_LockMutex(&entropy_mutex);
+            locked = (ret == 0);
+        }
 
         if (entropy_memuse_initialized) {
             /* Short circuit return -- a competing thread initialized the state
              * while we were waiting.  Note, this is only threadsafe when
              * WOLFSSL_MUTEX_INITIALIZER is defined.
              */
-            if (ret == 0)
+            if (locked)
                 wc_UnLockMutex(&entropy_mutex);
             return 0;
         }
@@ -1030,7 +1095,7 @@ int Entropy_Init(void)
         #endif
         }
 
-        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        if (locked) {
             wc_UnLockMutex(&entropy_mutex);
         }
     }
