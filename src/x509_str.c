@@ -111,8 +111,8 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 #if defined(SESSION_CERTS) || defined(WOLFSSL_SIGNER_DER_CERT)
 
 /**
- * Find the issuing cert of the input cert. On a self-signed cert this
- * function will return an error.
+ * Find the issuing cert of the input cert. On a self-issued cert (issuer name
+ * equals subject name) this function will return an error.
  * @param issuer The issuer x509 struct is returned here
  * @param cm     The cert manager that is queried for the issuer
  * @param x      This cert's issuer will be queried in cm
@@ -137,7 +137,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     /* Use existing CA retrieval APIs that use DecodedCert. */
     InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
     if (ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL) == 0
-            && !cert->selfSigned) {
+            && !cert->selfIssued) {
     #ifndef NO_SKID
         if (cert->extAuthKeyIdSet)
             ca = GetCA(cm, cert->extAuthKeyId);

@@ -2225,7 +2225,7 @@ struct DecodedCert {
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
     WC_BITFIELD extNetscapeCertTypeSet:1;  /* Netscape certificate type seen */
 #endif
-    WC_BITFIELD selfSigned:1;          /* Indicates subject and issuer are same */
+    WC_BITFIELD selfSigned:1;          /* Own key verified the signature */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     WC_BITFIELD extCertPolicySet:1;
 #endif
@@ -2276,6 +2276,7 @@ struct DecodedCert {
                                          * SEQUENCE. Used internally for the
                                          * TRUSTED CERTIFICATE auxiliary trust
                                          * info. */
+    WC_BITFIELD selfIssued:1;           /* Issuer name matches subject name */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
     wc_UnknownExtCallbackEx unknownExtCallbackEx;
@@ -2333,7 +2334,7 @@ struct Signer {
     word16  keyUsage;
     byte    extKeyUsage;
     word16  maxPathLen;
-    WC_BITFIELD selfSigned:1;
+    WC_BITFIELD selfSigned:1;        /* Own key verified the signature */
 #ifndef IGNORE_NAME_CONSTRAINTS
     /*!
      * \brief Mirrors DecodedCert::extNameConstraintCrit and

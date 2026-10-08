@@ -1759,7 +1759,7 @@ static void wb_decode_dsa_asn1_sig(void) { WB_NOTE("NO_DSA/HAVE_SELFTEST; Decode
  *   (a) leaf certificate, CertManager holding its issuing CA
  *       -> cert->ca found, issuer hashes match;
  *   (b) the self-signed root itself, same CertManager
- *       -> selfSigned paths, trust-anchor comparison in the path-length
+ *       -> selfIssued paths, trust-anchor comparison in the path-length
  *          block;
  *   (c) leaf certificate with NO CertManager
  *       -> every cert->ca lookup returns NULL.
@@ -1907,7 +1907,7 @@ static void wb_parse_cert_relative_bad_date(void)
 /* ------------------------------------------------------------------------- *
  * ParseCertRelative()'s RFC 5280 zero-serial guard.
  *   :24444  (type == CA_TYPE || type == TRUSTED_PEER_TYPE) && cert->isCA &&
- *           cert->selfSigned
+ *           cert->selfIssued
  *   :24450  if (!isTrustAnchorLoad && !isCsr)
  * No corpus certificate has serial 0, so the guard's body is never entered.
  * Each fixture below is a private copy whose serialNumber INTEGER has been
@@ -1916,7 +1916,7 @@ static void wb_parse_cert_relative_bad_date(void)
  * and an intermediate CA whose issuer differs from its subject).
  *
  * STILL OPEN, not excluded:
- *   - :24444 3rd and 4th operands (cert->isCA, cert->selfSigned). Driving
+ *   - :24444 3rd and 4th operands (cert->isCA, cert->selfIssued). Driving
  *     them needs a certificate that reaches :24442 with a zero serial and
  *     with cA FALSE, or with a subject that differs from its issuer. Every
  *     attempt made here failed at the DecodeCert() call that precedes the
@@ -2935,7 +2935,7 @@ static void wb_fixture_parse_matrix(void)
      * A certificate can never take the isCsr arm and no certificate can
      * make either of :24624's trailing operands false: DecodeCertInternal()
      * (asn.c:23007) already rejects serial 0 for anything that is not
-     * `isCA && selfSigned`, and ParseCertRelative() returns immediately on a
+     * `isCA && selfIssued`, and ParseCertRelative() returns immediately on a
      * negative DecodeCert(), so `ret == 0` at :24622 implies both.
      *
      * A certificate REQUEST is the exception, and the only one. It is parsed
