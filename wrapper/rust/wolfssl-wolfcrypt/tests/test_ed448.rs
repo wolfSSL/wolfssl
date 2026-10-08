@@ -182,6 +182,16 @@ fn test_ph_sign_verify() {
         0x9f, 0x87, 0x26, 0xe4, 0x62, 0xa1, 0x2a, 0x4f,
         0xeb, 0x06, 0xbd, 0x88, 0x01, 0xe7, 0x51, 0xe4
     ];
+    // Ed448ph prehash is the 64-byte SHAKE256 digest of the message.
+    #[cfg(shake256)]
+    {
+        use wolfssl_wolfcrypt::sha::SHAKE256;
+        let mut shake = SHAKE256::new().expect("Error with SHAKE256::new()");
+        shake.update(&message).expect("Error with update()");
+        let mut computed_hash = [0u8; 64];
+        shake.finalize(&mut computed_hash).expect("Error with finalize()");
+        assert_eq!(computed_hash, hash);
+    }
     let expected_signature = [
         0xc3u8, 0x22, 0x99, 0xd4, 0x6e, 0xc8, 0xff, 0x02,
         0xb5, 0x45, 0x40, 0x98, 0x28, 0x14, 0xdc, 0xe9,
