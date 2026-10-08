@@ -14011,7 +14011,8 @@ int test_wc_AesReworkDecisionCoverage(void)
 #if defined(WOLF_PRIVATE_KEY_ID)
     XMEMSET(id, 4, sizeof(id));
 #endif
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_XTS)
     XMEMSET(in, 5, sizeof(in));
 #endif
