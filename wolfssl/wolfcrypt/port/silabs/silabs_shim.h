@@ -146,7 +146,13 @@ typedef struct {
 #define SLI_SE_WRAPPED_KEY_OVERHEAD  (12 + 16)
 
 /* ---- Internal (built-in) keys (sl_se_manager_internal_keys.h) ---- */
-#define SL_SE_APPLICATION_ATTESTATION_KEY { 0, 0, 0, { 0, { { NULL, 0 } } } }
+/* The slot is not modelled; the flags match the SDK, which the port copies. */
+#define SL_SE_APPLICATION_ATTESTATION_KEY                    \
+    { SL_SE_KEY_TYPE_ECC_P256,                               \
+      SL_SE_KEY_FLAG_IS_DEVICE_GENERATED |                   \
+          SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY | \
+          SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,            \
+      0, { SL_SE_KEY_STORAGE_INTERNAL_IMMUTABLE, { { NULL, 0 } } } }
 
 /* ---- Cipher (sl_se_manager_cipher.h) ---- */
 typedef enum {

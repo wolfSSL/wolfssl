@@ -78,14 +78,18 @@ WOLFSSL_API int wc_SilabsCryptoCb_UnRegisterDevice(int devId);
  * the software key and then dispatch would decline, leaving nothing usable. */
 #if !defined(NO_AES) && defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
     defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER)
+/* seKeyFlags on the wrapped-key calls are SL_SE_KEY_FLAG_* bits (for example
+ * SL_SE_KEY_FLAG_NON_EXPORTABLE). They are part of the wrapped blob, so a key
+ * must be bound with the same flags it was generated or wrapped with. */
 /* Size of the wrapped blob for an AES key of keyBits bits. */
-WOLFSSL_API int wc_SilabsSe_AesGetWrappedKeySize(int keyBits, word32* outSz);
+WOLFSSL_API int wc_SilabsSe_AesGetWrappedKeySize(int keyBits,
+    word32 seKeyFlags, word32* outSz);
 /* Generate an AES key inside the SE, returning only its wrapped form. */
-WOLFSSL_API int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, byte* out,
-    word32* outSz);
+WOLFSSL_API int wc_SilabsSe_AesGenerateWrappedKey(int keyBits,
+    word32 seKeyFlags, byte* out, word32* outSz);
 /* Bind a wrapped AES key to an Aes. */
 WOLFSSL_API int wc_SilabsSe_AesUseWrappedKey(Aes* aes, const byte* wrapped,
-    word32 wrappedSz, int keyBits);
+    word32 wrappedSz, int keyBits, word32 seKeyFlags);
 #endif
 #if !defined(NO_AES) && defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER)
 /* Bind an SE built-in AES slot (for example
@@ -96,13 +100,18 @@ WOLFSSL_API int wc_SilabsSe_AesUseBuiltInKey(Aes* aes, int slot, int keyBits);
 /* As above: these are only usable when the ECC engine is compiled in. */
 #if defined(HAVE_ECC) && defined(WOLFSSL_SILABS_CRYPTOCB_ECC)
 #if defined(WOLFSSL_SILABS_WRAPPED_KEYS_API)
-WOLFSSL_API int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32* outSz);
+/* For ECC the port adds SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY to
+ * seKeyFlags. With SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY the key can only
+ * sign (ECDSA); without it, it can only do key agreement (ECDH). */
+WOLFSSL_API int wc_SilabsSe_EccGetWrappedKeySize(int curveId,
+    word32 seKeyFlags, word32* outSz);
 /* Generate an ECC key inside the SE. wrapped receives the private key in
  * wrapped form; pubOut, when not NULL, receives the public point as X||Y. */
-WOLFSSL_API int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
-    word32* wrappedSz, byte* pubOut, word32* pubOutSz);
+WOLFSSL_API int wc_SilabsSe_EccGenerateWrappedKey(int curveId,
+    word32 seKeyFlags, byte* wrapped, word32* wrappedSz, byte* pubOut,
+    word32* pubOutSz);
 WOLFSSL_API int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
-    word32 wrappedSz, int curveId);
+    word32 wrappedSz, int curveId, word32 seKeyFlags);
 #endif
 /* Bind an SE built-in ECC slot (for example
  * SL_SE_KEY_SLOT_APPLICATION_ATTESTATION_KEY) to an ecc_key. */

@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SILABS_SE_TYPES)
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(HAVE_ECC)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -57,12 +57,6 @@ static sl_se_key_descriptor_t private_device_key =
 #endif
 
 #define SILABS_UNSUPPORTED_KEY_TYPE 0xFFFFFFFF
-
-/* For older Gecko SDK's with spelling error */
-#ifndef SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY
-#define SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY \
-    SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
-#endif
 
 static sl_se_key_type_t silabs_map_key_type(ecc_curve_id curve_id)
 {
@@ -507,4 +501,4 @@ int silabs_ecc_load_vault(ecc_key* key)
 }
 #endif
 
-#endif /* WOLFSSL_SILABS_SE_TYPES */
+#endif /* WOLFSSL_SILABS_SE_TYPES && HAVE_ECC */

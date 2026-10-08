@@ -38,6 +38,12 @@
     #include <sl_se_manager_signature.h>
 #endif
 
+/* For older Gecko SDK's with spelling error */
+#ifndef SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY
+#define SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY \
+    SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
+#endif
+
 typedef struct ecc_key ecc_key;
 
 int silabs_ecc_sign_hash (const byte* in, word32 inlen,
