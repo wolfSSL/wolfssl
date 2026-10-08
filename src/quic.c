@@ -1177,15 +1177,41 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
     return evp_cipher;
 }
 
+/* QUIC's AEAD_AES_128_CCM parameters, RFC 9001 5.3: the nonce is 12 bytes,
+ * built from the packet number and the IV, and the tag is 16. EVP's CCM
+ * defaults are OpenSSL's - a 7 byte nonce and a 12 byte tag - so both have to
+ * be put in force on a CCM context rather than inherited. */
+#define WOLFSSL_QUIC_CCM_IV_LEN    12
+#define WOLFSSL_QUIC_CCM_TAG_LEN   16
+
+/* Whether a context is doing CCM, which has a contract GCM does not: the
+ * payload length has to be declared before any AAD. */
+static int quic_aead_ctx_is_ccm(const WOLFSSL_EVP_CIPHER_CTX* ctx)
+{
+    return wolfSSL_EVP_CIPHER_CTX_mode(ctx) == WOLFSSL_EVP_CIPH_CCM_MODE;
+}
+
 size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
     size_t ret;
 #ifdef WOLFSSL_SMALL_STACK
-    WOLFSSL_EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
-    if (ctx == NULL)
-        return 0;
+    WOLFSSL_EVP_CIPHER_CTX *ctx;
 #else
     WOLFSSL_EVP_CIPHER_CTX ctx[1];
+#endif
+
+    /* CCM's defaults are OpenSSL's - a 12 byte tag - and QUIC uses a 16 byte
+     * one (RFC 9001 5.3), which is what wolfSSL_quic_crypt_new() puts in
+     * force. Report that, so a caller sizing its buffers from here agrees
+     * with the contexts it is given. GCM's default is already 16. */
+    if (wolfSSL_quic_aead_is_ccm(aead_cipher)) {
+        return WOLFSSL_QUIC_CCM_TAG_LEN;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    ctx = wolfSSL_EVP_CIPHER_CTX_new();
+    if (ctx == NULL)
+        return 0;
 #endif
 
     XMEMSET(ctx, 0, sizeof(*ctx));
@@ -1408,7 +1434,28 @@ WOLFSSL_EVP_CIPHER_CTX* wolfSSL_quic_crypt_new(const WOLFSSL_EVP_CIPHER* cipher,
         return NULL;
     }
 
-    if (wolfSSL_EVP_CipherInit(ctx, cipher, key, iv, encrypt)
+    if (wolfSSL_quic_aead_is_ccm(cipher)) {
+        /* CCM takes its nonce and tag lengths from the context before the
+         * nonce itself is read, so OpenSSL's order is: the cipher, then the
+         * two lengths, then the key and nonce. QUIC needs a 12 byte nonce and
+         * a 16 byte tag (RFC 9001 5.3) where CCM defaults to 7 and 12, so
+         * they have to be set rather than inherited. GCM's defaults already
+         * match and it keeps the single call below. */
+        if ((wolfSSL_EVP_CipherInit(ctx, cipher, NULL, NULL, encrypt)
+                 != WOLFSSL_SUCCESS)
+            || (wolfSSL_EVP_CIPHER_CTX_ctrl(ctx,
+                    WOLFSSL_EVP_CTRL_AEAD_SET_IVLEN,
+                    WOLFSSL_QUIC_CCM_IV_LEN, NULL) != WOLFSSL_SUCCESS)
+            || (wolfSSL_EVP_CIPHER_CTX_ctrl(ctx,
+                    WOLFSSL_EVP_CTRL_AEAD_SET_TAG,
+                    WOLFSSL_QUIC_CCM_TAG_LEN, NULL) != WOLFSSL_SUCCESS)
+            || (wolfSSL_EVP_CipherInit(ctx, NULL, key, iv, encrypt)
+                 != WOLFSSL_SUCCESS)) {
+            wolfSSL_EVP_CIPHER_CTX_free(ctx);
+            return NULL;
+        }
+    }
+    else if (wolfSSL_EVP_CipherInit(ctx, cipher, key, iv, encrypt)
             != WOLFSSL_SUCCESS) {
         wolfSSL_EVP_CIPHER_CTX_free(ctx);
         return NULL;
@@ -1439,6 +1486,12 @@ int wolfSSL_quic_aead_encrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
     }
 
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 1) != WOLFSSL_SUCCESS
+        /* CCM puts the payload length in its first block, so it has to be
+         * declared before any AAD. GCM has no such call - and rejects one -
+         * so this is asked only of CCM. */
+        || (quic_aead_ctx_is_ccm(ctx)
+            && wolfSSL_EVP_CipherUpdate(
+                ctx, NULL, &len, NULL, (int)plainlen) != WOLFSSL_SUCCESS)
         || wolfSSL_EVP_CipherUpdate(
                 ctx, NULL, &len, aad, (int)aadlen) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(
@@ -1474,6 +1527,11 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
         || wolfSSL_EVP_CIPHER_CTX_ctrl(
                 ctx, WOLFSSL_EVP_CTRL_AEAD_SET_TAG, ctx->authTagSz, (uint8_t*)tag)
             != WOLFSSL_SUCCESS
+        /* As in wolfSSL_quic_aead_encrypt(): CCM is told the payload length
+         * before it is given any AAD. */
+        || (quic_aead_ctx_is_ccm(ctx)
+            && wolfSSL_EVP_CipherUpdate(
+                ctx, NULL, &len, NULL, (int)enclen) != WOLFSSL_SUCCESS)
         || wolfSSL_EVP_CipherUpdate(ctx, NULL, &len, aad, (int)aadlen)
             != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(ctx, dest, &len, enc, (int)enclen)

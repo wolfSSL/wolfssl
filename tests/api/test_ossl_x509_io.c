@@ -305,3 +305,113 @@ int test_wolfSSL_PEM_write_bio_X509(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * PEM_read_bio_X509() has to stop at the end of the certificate it returns and
+ * leave whatever follows in the BIO, because that is how a caller reads a file
+ * holding several certificates: it calls again until NULL comes back.
+ *
+ * A memory BIO is scanned for the footer and then read up to it in one go,
+ * rather than a byte at a time, so how much is consumed is worth pinning down:
+ * reading one byte too many swallows the start of the next certificate, and one
+ * too few leaves a stray line ending behind. Text between and before the
+ * blocks, and both line endings, are included because they change where the
+ * footer falls.
+ */
+int test_wolfSSL_PEM_read_bio_X509_multiple(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER)
+    byte*  pem = NULL;
+    size_t pemSz = 0;
+    char*  joined = NULL;
+    int    variant;
+
+    /* One certificate in PEM form to build the inputs from. */
+    ExpectIntEQ(load_file(cliCertFile, &pem, &pemSz), 0);
+    ExpectNotNull(pem);
+    ExpectIntGT(pemSz, 0);
+
+    /* variant 0: blocks adjacent. 1: text between them. 2: text before the
+     * first as well. 3: carriage returns in that text. */
+    for (variant = 0; (pem != NULL) && (variant < 4); variant++) {
+        WOLFSSL_BIO* bio = NULL;
+        int found = 0;
+        size_t len = 0;
+        const char* gap = (variant >= 3) ? "filler text\r\n" : "filler text\n";
+        size_t gapLen = XSTRLEN(gap);
+        size_t total = (pemSz * 2) + (gapLen * 2) + 1;
+
+        joined = (char*)XMALLOC(total, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(joined);
+        if (joined == NULL) {
+            break;
+        }
+
+        if (variant >= 2) {
+            XMEMCPY(joined + len, gap, gapLen);
+            len += gapLen;
+        }
+        XMEMCPY(joined + len, pem, pemSz);
+        len += pemSz;
+        if (variant >= 1) {
+            XMEMCPY(joined + len, gap, gapLen);
+            len += gapLen;
+        }
+        XMEMCPY(joined + len, pem, pemSz);
+        len += pemSz;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_mem_buf(joined, (int)len));
+        /* Both certificates have to come back, and the same one twice. */
+        for (;;) {
+            WOLFSSL_X509* x = wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL);
+            byte* der = NULL;
+            int derSz;
+
+            if (x == NULL) {
+                break;
+            }
+            found++;
+            ExpectIntGT(derSz = wolfSSL_i2d_X509(x, &der), 0);
+            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+            wolfSSL_X509_free(x);
+            if (found > 4) {
+                break;    /* runaway: more than was put in */
+            }
+        }
+        ExpectIntEQ(found, 2);
+        wolfSSL_BIO_free(bio);
+        XFREE(joined, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        joined = NULL;
+    }
+
+    /* A single block must leave the BIO empty, not one byte short or over. */
+    if (pem != NULL) {
+        WOLFSSL_BIO* bio = NULL;
+        WOLFSSL_X509* x = NULL;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_mem_buf(pem, (int)pemSz));
+        ExpectNotNull(x = wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL));
+        /* Exactly the certificate was taken: the line ending that closes it
+         * belongs to it, so nothing at all is left behind. */
+        ExpectIntEQ(wolfSSL_BIO_pending(bio), 0);
+        /* And nothing further to find. */
+        ExpectNull(wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL));
+        wolfSSL_X509_free(x);
+        wolfSSL_BIO_free(bio);
+    }
+
+    /* Truncated input must not yield a certificate. */
+    if (pem != NULL) {
+        WOLFSSL_BIO* bio = NULL;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_mem_buf(pem, (int)(pemSz / 2)));
+        ExpectNull(wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL));
+        wolfSSL_BIO_free(bio);
+    }
+
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
