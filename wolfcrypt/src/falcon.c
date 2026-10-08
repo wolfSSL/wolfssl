@@ -11328,7 +11328,8 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
 /* Check that the falcon key has a matching private/public key pair present.
  *
  * key     [in]      Falcon private/public key.
- * returns BAD_FUNC_ARG when key is NULL or the level is unset,
+ * returns BAD_FUNC_ARG when key is NULL, the level is unset, or the level
+ *         does not match the key buffers,
  *         PUBLIC_KEY_E when either key is not set, or when the stored public
  *         key h does not satisfy the defining relation h = g/f (mod q) for the
  *         private (f, g), the crypto callback result for a device backed key,
@@ -11343,11 +11344,7 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  * always a copy of the same bytes and so could never detect a mismatch. */
 int wc_falcon_check_key(falcon_key* key)
 {
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if ((key->level != 1) && (key->level != 5)) {
+    if ((key == NULL) || !falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 

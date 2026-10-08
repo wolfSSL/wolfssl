@@ -435,7 +435,8 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
     is checked.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or the level is unset.
+    \return BAD_FUNC_ARG if key is NULL, the level is unset, or the level was
+    changed without wc_falcon_set_level() to one the key buffers do not fit.
     \return PUBLIC_KEY_E if the public or private key is missing, or if the
     public and private keys are cryptographically inconsistent.
     \return Other negative values returned by the crypto callback.

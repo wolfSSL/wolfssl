@@ -96334,13 +96334,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if (ret == 0) {
             byte savedLevel = key->level;
 
+            prev = myCtx.exampleVar;
             if (wc_falcon_check_key(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ret = WC_TEST_RET_ENC_NC;
             key->level = 3; /* not a Falcon parameter set */
             if ((ret == 0) &&
                 (wc_falcon_check_key(key) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)))
                 ret = WC_TEST_RET_ENC_NC;
+        #if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) || \
+            defined(WOLFSSL_NO_FALCON_LEVEL1) || \
+            defined(WOLFSSL_NO_FALCON_LEVEL5)
+            /* Key buffers only fit the level given to wc_falcon_set_level */
+            key->level = (savedLevel == FALCON_LEVEL1) ? FALCON_LEVEL5 :
+                                                         FALCON_LEVEL1;
+            if ((ret == 0) &&
+                (wc_falcon_check_key(key) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)))
+                ret = WC_TEST_RET_ENC_NC;
+        #endif
             key->level = savedLevel;
+            if ((ret == 0) && (myCtx.exampleVar != prev))
+                ret = WC_TEST_RET_ENC_NC; /* reached the callback */
         }
         /* Device error is returned as-is; software never returns WC_HW_E */
         if (ret == 0) {
