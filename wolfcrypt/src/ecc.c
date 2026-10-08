@@ -17418,8 +17418,7 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp)
         return BAD_FUNC_ARG;
     }
     /* Curve size must fit the fixed size buffers in the ECC code. */
-    if ((dp->size <= 0) || (dp->size > MAX_ECC_BYTES) ||
-            (dp->size > ECC_MAXSIZE)) {
+    if ((dp->size <= 0) || (dp->size > MAX_ECC_BYTES)) {
         return ECC_BAD_ARG_E;
     }
 

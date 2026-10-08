@@ -34692,8 +34692,7 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         curve->size =
                 (int)dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length;
         /* Curve size must fit the fixed size buffers in the ECC code. */
-        if ((curve->size <= 0) || (curve->size > MAX_ECC_BYTES) ||
-                (curve->size > ECC_MAXSIZE)) {
+        if ((curve->size <= 0) || (curve->size > MAX_ECC_BYTES)) {
             WOLFSSL_MSG("ECC explicit domain prime outside MAX_ECC_BYTES");
             ret = ASN_PARSE_E;
         }

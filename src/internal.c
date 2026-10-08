@@ -35104,7 +35104,7 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
       !defined(WOLFSSL_NO_TLS12)) || \
      (!defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)))
 /* Is this one of the cipher suites that can only be negotiated at TLS 1.3? */
-static int IsTls13OnlySuite(byte first, byte second)
+static int IsTls13CipherSuite(byte first, byte second)
 {
     (void)second;
 
@@ -35201,21 +35201,31 @@ static int IsTls13OnlySuite(byte first, byte second)
             return SUITES_ERROR;
         }
 
-#ifdef WOLFSSL_TLS13
-        /* Reached only below TLS 1.3, where a TLS 1.3 suite the server picked
-         * from the list could not be used to derive keys. */
-        suiteSz = 0;
-        for (i = 0; i + SUITE_LEN <= suites->suiteSz; i += SUITE_LEN) {
-            if (!IsTls13OnlySuite(suites->suites[i], suites->suites[i + 1]))
-                suiteSz += SUITE_LEN;
+#ifndef NO_FORCE_SCR_SAME_SUITE
+        if (IsSCR(ssl)) {
+            suiteSz = SUITE_LEN;
         }
-        if (suiteSz == 0) {
-            WOLFSSL_MSG("No cipher suite valid for version in ClientHello");
-            return SUITES_ERROR;
-        }
-#else
-        suiteSz = suites->suiteSz;
+        else
 #endif
+        {
+#ifdef WOLFSSL_TLS13
+            /* Reached only below TLS 1.3, where a TLS 1.3 suite the server
+             * picked from the list could not be used to derive keys. */
+            suiteSz = 0;
+            for (i = 0; i + SUITE_LEN <= suites->suiteSz; i += SUITE_LEN) {
+                if (!IsTls13CipherSuite(suites->suites[i],
+                                        suites->suites[i + 1])) {
+                    suiteSz += SUITE_LEN;
+                }
+            }
+            if (suiteSz == 0) {
+                WOLFSSL_MSG("No cipher suite valid for version in ClientHello");
+                return SUITES_ERROR;
+            }
+#else
+            suiteSz = suites->suiteSz;
+#endif
+        }
 
 #ifdef HAVE_SESSION_TICKET
         if (ssl->options.resuming && ssl->session->ticketLen > 0) {
@@ -35269,12 +35279,7 @@ static int IsTls13OnlySuite(byte first, byte second)
                + COMP_LEN + ENUM_LEN;
         if (ssl->options.usingCompression)
             length += ENUM_LEN;   /* null is offered next to zlib */
-#ifndef NO_FORCE_SCR_SAME_SUITE
-        if (IsSCR(ssl))
-            length += SUITE_LEN;
-        else
-#endif
-            length += suiteSz;
+        length += suiteSz;
 
 #ifdef HAVE_TLS_EXTENSIONS
         /* auto populate extensions supported unless user defined */
@@ -35384,8 +35389,10 @@ static int IsTls13OnlySuite(byte first, byte second)
             idx += OPAQUE16_LEN;
 #ifdef WOLFSSL_TLS13
             for (i = 0; i + SUITE_LEN <= suites->suiteSz; i += SUITE_LEN) {
-                if (IsTls13OnlySuite(suites->suites[i], suites->suites[i + 1]))
+                if (IsTls13CipherSuite(suites->suites[i],
+                                       suites->suites[i + 1])) {
                     continue;
+                }
                 output[idx++] = suites->suites[i];
                 output[idx++] = suites->suites[i + 1];
             }
@@ -41458,7 +41465,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* When negotiating TLS 1.3, reject non-TLS 1.3 cipher suites */
         if (IsAtLeastTLSv1_3(ssl->version) &&
             ssl->options.side == WOLFSSL_SERVER_END) {
-            if (!IsTls13OnlySuite(first, second)) {
+            if (!IsTls13CipherSuite(first, second)) {
                 WOLFSSL_MSG("TLS 1.2 cipher suite not valid for TLS 1.3");
                 return 0;
             }
@@ -41568,7 +41575,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return 0; /* not found */
     #endif /* HAVE_SUPPORTED_CURVES */
         }
-        else if (IsTls13OnlySuite(first, second)) {
+        else if (IsTls13CipherSuite(first, second)) {
             /* Can't negotiate TLS 1.3 cipher suites with lower protocol
              * version. */
             return 0;
