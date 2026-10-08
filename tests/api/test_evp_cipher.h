@@ -47,6 +47,7 @@ int test_wolfssl_EVP_aes_gcm_zeroLen(void);
 int test_wolfSSL_EVP_aes_256_ccm(void);
 int test_wolfSSL_EVP_aes_192_ccm(void);
 int test_wolfSSL_EVP_aes_128_ccm(void);
+int test_evp_cipher_aes_ccm_message_iv(void);
 int test_wolfssl_EVP_aes_ccm(void);
 int test_wolfssl_EVP_aes_ccm_zeroLen(void);
 int test_wolfssl_EVP_chacha20(void);
@@ -55,8 +56,10 @@ int test_wolfssl_EVP_aria_gcm(void);
 int test_wolfssl_EVP_sm4_ecb(void);
 int test_wolfssl_EVP_sm4_cbc(void);
 int test_wolfssl_EVP_sm4_ctr(void);
+int test_evp_cipher_sm4_gcm_message_iv(void);
 int test_wolfssl_EVP_sm4_gcm_zeroLen(void);
 int test_wolfssl_EVP_sm4_gcm(void);
+int test_evp_cipher_sm4_ccm_message_iv(void);
 int test_wolfssl_EVP_sm4_ccm_zeroLen(void);
 int test_wolfssl_EVP_sm4_ccm(void);
 int test_wolfSSL_EVP_rc4(void);
@@ -92,6 +95,7 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_256_ccm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_192_ccm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_128_ccm),            \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aes_ccm_message_iv),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_ccm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_ccm_zeroLen),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_chacha20),               \
@@ -100,8 +104,10 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ecb),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ctr),                \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_sm4_gcm_message_iv),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_gcm_zeroLen),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_gcm),                \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_sm4_ccm_message_iv),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ccm_zeroLen),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ccm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_rc4),                    \
