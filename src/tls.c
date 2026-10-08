@@ -563,6 +563,12 @@ int DeriveTlsKeys(WOLFSSL* ssl)
                         2 * ssl->specs.iv_size;
     WC_DECLARE_VAR(key_dig, byte, MAX_PRF_DIG, 0);
 
+    if (key_dig_len <= 0 || key_dig_len > MAX_PRF_DIG) {
+        WOLFSSL_MSG("Key block too large for PRF digest buffer");
+        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+        return BUFFER_E;
+    }
+
     WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
         DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 

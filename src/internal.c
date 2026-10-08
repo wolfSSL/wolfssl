@@ -35099,6 +35099,35 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && \
+    ((!defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+      !defined(WOLFSSL_NO_TLS12)) || \
+     (!defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)))
+/* Is this one of the cipher suites that can only be negotiated at TLS 1.3? */
+static int IsTls13CipherSuite(byte first, byte second)
+{
+    (void)second;
+
+    if (first == TLS13_BYTE)
+        return 1;
+
+#ifdef HAVE_NULL_CIPHER
+    if ((first == ECC_BYTE) && ((second == TLS_SHA256_SHA256) ||
+                                (second == TLS_SHA384_SHA384)))
+        return 1;
+#endif
+
+#if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+     defined(WOLFSSL_SM3)
+    if ((first == CIPHER_BYTE) && ((second == TLS_SM4_GCM_SM3) ||
+                                   (second == TLS_SM4_CCM_SM3)))
+        return 1;
+#endif
+
+    return 0;
+}
+#endif
+
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
@@ -35128,6 +35157,10 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         int                ret;
         word32             extSz = 0;
         const Suites*      suites;
+        word16             suiteSz;
+#ifdef WOLFSSL_TLS13
+        word16             i;
+#endif
 
         if (ssl == NULL) {
             return BAD_FUNC_ARG;
@@ -35166,6 +35199,32 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         if (suites == NULL) {
             WOLFSSL_MSG("Bad suites pointer in SendClientHello");
             return SUITES_ERROR;
+        }
+
+#ifndef NO_FORCE_SCR_SAME_SUITE
+        if (IsSCR(ssl)) {
+            suiteSz = SUITE_LEN;
+        }
+        else
+#endif
+        {
+#ifdef WOLFSSL_TLS13
+            /* Reached only below TLS 1.3, where a TLS 1.3 suite the server
+             * picked from the list could not be used to derive keys. */
+            suiteSz = 0;
+            for (i = 0; i + SUITE_LEN <= suites->suiteSz; i += SUITE_LEN) {
+                if (!IsTls13CipherSuite(suites->suites[i],
+                                        suites->suites[i + 1])) {
+                    suiteSz += SUITE_LEN;
+                }
+            }
+            if (suiteSz == 0) {
+                WOLFSSL_MSG("No cipher suite valid for version in ClientHello");
+                return SUITES_ERROR;
+            }
+#else
+            suiteSz = suites->suiteSz;
+#endif
         }
 
 #ifdef HAVE_SESSION_TICKET
@@ -35220,12 +35279,7 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                + COMP_LEN + ENUM_LEN;
         if (ssl->options.usingCompression)
             length += ENUM_LEN;   /* null is offered next to zlib */
-#ifndef NO_FORCE_SCR_SAME_SUITE
-        if (IsSCR(ssl))
-            length += SUITE_LEN;
-        else
-#endif
-            length += suites->suiteSz;
+        length += suiteSz;
 
 #ifdef HAVE_TLS_EXTENSIONS
         /* auto populate extensions supported unless user defined */
@@ -35331,10 +35385,21 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 #endif /* NO_FORCE_SCR_SAME_SUITE */
         {
             /* then cipher suites */
-            c16toa(suites->suiteSz, output + idx);
+            c16toa(suiteSz, output + idx);
             idx += OPAQUE16_LEN;
-            XMEMCPY(output + idx, &suites->suites, suites->suiteSz);
-            idx += suites->suiteSz;
+#ifdef WOLFSSL_TLS13
+            for (i = 0; i + SUITE_LEN <= suites->suiteSz; i += SUITE_LEN) {
+                if (IsTls13CipherSuite(suites->suites[i],
+                                       suites->suites[i + 1])) {
+                    continue;
+                }
+                output[idx++] = suites->suites[i];
+                output[idx++] = suites->suites[i + 1];
+            }
+#else
+            XMEMCPY(output + idx, &suites->suites, suiteSz);
+            idx += suiteSz;
+#endif
         }
 
         /* last, compression.  RFC 5246 7.4.1.2 requires the list to always
@@ -41370,37 +41435,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_TLS13
-    /* Check if a cipher suite is a TLS 1.3 cipher suite
-     * Returns 1 if TLS 1.3 cipher suite, 0 otherwise
-     */
-    static WC_INLINE int IsTls13CipherSuite(byte first, byte second)
-    {
-        (void)second;  /* Suppress unused parameter warning */
-
-        /* TLS 1.3 cipher suites use TLS13_BYTE (0x13) as first byte */
-        if (first == TLS13_BYTE)
-            return 1;
-
-#ifdef HAVE_NULL_CIPHER
-        /* Special cases for integrity-only cipher suites */
-        if (first == ECC_BYTE && (second == TLS_SHA256_SHA256 ||
-                                  second == TLS_SHA384_SHA384))
-            return 1;
-#endif
-
-#if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
-     defined(WOLFSSL_SM3)
-        /* SM4 cipher suites for TLS 1.3 */
-        if (first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
-                                     second == TLS_SM4_CCM_SM3))
-            return 1;
-#endif
-
-        return 0;
-    }
-#endif /* WOLFSSL_TLS13 */
-
     /* Make sure server cert/key are valid for this suite, true on success
      * Returns 1 for valid server suite or 0 if not found
      * For asynchronous this can return WC_PENDING_E
@@ -41541,11 +41575,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return 0; /* not found */
     #endif /* HAVE_SUPPORTED_CURVES */
         }
-        else if ((first == TLS13_BYTE) || ((first == ECC_BYTE) &&
-                 ((second == TLS_SHA256_SHA256) ||
-                  (second == TLS_SHA384_SHA384))) ||
-                 ((first == CIPHER_BYTE) && ((second == TLS_SM4_GCM_SM3) ||
-                  (second == TLS_SM4_CCM_SM3)))) {
+        else if (IsTls13CipherSuite(first, second)) {
             /* Can't negotiate TLS 1.3 cipher suites with lower protocol
              * version. */
             return 0;
