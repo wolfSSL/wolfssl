@@ -185,6 +185,8 @@
     }
 #endif
 
+/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
+#include <wolfssl/wolfcrypt/sha3.h>
 #if defined(WC_MLDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -530,6 +532,45 @@ static int mldsa_alloc_pub_buf(wc_MlDsaKey* key)
         }
     }
     return ret;
+}
+#endif
+
+/* Private key import also runs in callback-only builds. */
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) || \
+    (!defined(WOLFSSL_MLDSA_VERIFY_ONLY) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_MLDSA))
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+/* Wipe the cached private vectors s1, s2 and t0. */
+static void mldsa_wipe_priv_vecs(wc_MlDsaKey* key)
+{
+#ifndef WC_MLDSA_FIXED_ARRAY
+    if ((key->s1 != NULL) && (key->params != NULL)) {
+        ForceZero(key->s1, (word32)key->params->s1Sz +
+            2U * (word32)key->params->s2Sz);
+    }
+#else
+    ForceZero(key->s1, sizeof(key->s1));
+    ForceZero(key->s2, sizeof(key->s2));
+    ForceZero(key->t0, sizeof(key->t0));
+#endif
+    key->privVecsSet = 0;
+}
+#endif
+
+/* Wipe the private key and anything cached from it. */
+static void mldsa_wipe_priv(wc_MlDsaKey* key)
+{
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
+    if (key->k != NULL) {
+        ForceZero(key->k, key->kSz);
+    }
+#elif !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+    ForceZero(key->k, sizeof(key->k));
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    mldsa_wipe_priv_vecs(key);
+#endif
+    key->prvKeySet = 0;
 }
 #endif
 
@@ -9186,40 +9227,6 @@ static int mldsa_vec_make_pos(sword32* a, byte l)
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
 
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
-#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
-/* Wipe the cached private vectors s1, s2 and t0. */
-static void mldsa_wipe_priv_vecs(wc_MlDsaKey* key)
-{
-#ifndef WC_MLDSA_FIXED_ARRAY
-    if ((key->s1 != NULL) && (key->params != NULL)) {
-        ForceZero(key->s1, (word32)key->params->s1Sz +
-            2U * (word32)key->params->s2Sz);
-    }
-#else
-    ForceZero(key->s1, sizeof(key->s1));
-    ForceZero(key->s2, sizeof(key->s2));
-    ForceZero(key->t0, sizeof(key->t0));
-#endif
-    key->privVecsSet = 0;
-}
-#endif
-
-/* Wipe the private key and anything cached from it. */
-static void mldsa_wipe_priv(wc_MlDsaKey* key)
-{
-#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
-    if (key->k != NULL) {
-        ForceZero(key->k, key->kSz);
-    }
-#elif !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
-    ForceZero(key->k, sizeof(key->k));
-#endif
-#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
-    mldsa_wipe_priv_vecs(key);
-#endif
-    key->prvKeySet = 0;
-}
-
 /* Wipe a SHAKE object that a failed step left mid-operation. */
 static void mldsa_shake_wipe(wc_Shake* shake)
 {
