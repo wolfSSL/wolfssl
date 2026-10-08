@@ -11535,6 +11535,13 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 
 #else
 
+    /* ECDH uses the point's Z but the SP checks read only x and y, so accept
+     * only an affine point (Z = 1); all zero x and y still reports ECC_INF_E. */
+    if (!wc_ecc_point_is_at_infinity(&key->pubkey) &&
+            !mp_isone(key->pubkey.z)) {
+        return ECC_BAD_ARG_E;
+    }
+
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {

@@ -912,6 +912,14 @@ int test_wc_ecc_shared_secret_ex_peer_point(void)
         wc_ecc_free(&key2);
     }
 #endif
+#ifdef WOLFSSL_PUBLIC_MP
+    /* G with Z = 2: ECDH would use the Jacobian point (x/4, y/8), not the
+     * affine (x, y) that the checks read. */
+    ExpectIntEQ(wc_ecc_import_point_der(g, (word32)sizeof(g), idx, peer), 0);
+    ExpectIntEQ(mp_set(peer->z, 2), MP_OKAY);
+    outLen = sizeof(out);
+    ExpectIntNE(wc_ecc_shared_secret_ex(&key, peer, out, &outLen), 0);
+#endif
 #else
     (void)bad;
 #endif
