@@ -106,19 +106,6 @@
     #endif
 #endif /* !WC_DEPRECATED */
 
-/* Pointer qualifier promising no aliasing, for scratch kept in a context. */
-#ifndef WC_RESTRICT
-    #if defined(__GNUC__) || defined(__clang__)
-        #define WC_RESTRICT __restrict__
-    #elif defined(_MSC_VER)
-        #define WC_RESTRICT __restrict
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-        #define WC_RESTRICT restrict
-    #else
-        #define WC_RESTRICT
-    #endif
-#endif
-
 /* Use inlining if compiler allows -- omit the static attribute here, so that
  * WC_INLINE can be used on functions that are instantiated both inline in the
  * TU, and callable from outside the TU.
@@ -2169,8 +2156,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
-    /* No real data barrier here: ForceZero falls back to volatile stores. */
-    #define WC_BARRIER_DATA_WEAK
     #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
 #endif
 

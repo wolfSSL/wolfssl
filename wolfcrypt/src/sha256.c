@@ -1828,7 +1828,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (W == NULL)
             return MEMORY_E;
     #elif defined(WC_SHA256_W_IN_CTX)
-        word32* WC_RESTRICT W = sha256->Wbuf;
+        word32* W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
     #endif
@@ -1905,7 +1905,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int j;
     #endif
     #ifdef WC_SHA256_W_IN_CTX
-        word32* WC_RESTRICT W = sha256->Wbuf;
+        word32* W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
     #endif
