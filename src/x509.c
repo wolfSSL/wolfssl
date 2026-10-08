@@ -8418,7 +8418,20 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
 
     wolfSSL_EVP_PKEY_free(pubKey);
 
-    return ret;
+    if (ret == WOLFSSL_SUCCESS)
+        return WOLFSSL_SUCCESS;
+    if (ret != WC_NO_ERR_TRACE(WOLFSSL_UNKNOWN))
+        return WOLFSSL_FAILURE;
+
+    /* if the alg is unhandled then still try to print the rest of the cert */
+    len = XSNPRINTF(scratch, MAX_WIDTH, "%*sprint not supported\n", indent + 8,
+        "");
+    if (len < 0 || len >= MAX_WIDTH)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, scratch, len) <= 0)
+        return WOLFSSL_FAILURE;
+
+    return WOLFSSL_SUCCESS;
 }
 
 

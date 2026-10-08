@@ -32762,6 +32762,38 @@ static int test_wolfSSL_X509_print_mldsa(void)
     return EXPECT_RESULT();
 }
 
+/* X509_print() renders the rest of the certificate when the subject key is
+ * not one this build can print */
+static int test_wolfSSL_X509_print_unsupported(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(XSNPRINTF) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT)
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    char* data = NULL;
+    char* p = NULL;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(
+        "./certs/ed25519/server-ed25519.der", SSL_FILETYPE_ASN1));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    X509_free(x509);
+    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
+    ExpectIntEQ(BIO_write(bio, "", 1), 1);
+    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+    if (data != NULL) {
+        ExpectNotNull(p = XSTRSTR(data, "Public Key Algorithm: ED25519"));
+        ExpectNotNull(p = XSTRSTR(p, "print not supported"));
+        /* the rest of the certificate is still printed */
+        ExpectNotNull(p = XSTRSTR(p, "Signature Algorithm: ED25519"));
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* X509_print() renders the X9.146 extensions of a dual algorithm certificate */
 static int test_wolfSSL_X509_print_dual_alg(void)
 {
@@ -32838,7 +32870,8 @@ static int test_wolfSSL_X509_print_dual_alg_mldsa(void)
     !defined(NO_FILESYSTEM) && defined(XSNPRINTF) && defined(HAVE_ECC) && \
     defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-    !defined(WOLFSSL_NO_ML_DSA_44) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
     char keyFile[] = "./certs/ecc-key.der";
     char sapkiFile[] = "./certs/mldsa/mldsa44_pub-spki.der";
     char altPrivFile[] = "./certs/mldsa/mldsa44_priv-only.der";
@@ -44921,6 +44954,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
     TEST_DECL(test_wolfSSL_X509_print_mldsa),
+    TEST_DECL(test_wolfSSL_X509_print_unsupported),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg_mldsa),
     TEST_DECL(test_wolfSSL_X509_print_dual_alg_unsupported),

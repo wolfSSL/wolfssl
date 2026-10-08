@@ -1062,9 +1062,13 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_subject_alt_public_key_info \
                                        SUBJ_ALT_PUB_KEY_INFO_OID /* 2.5.29.72 */
 #define WC_NID_alt_signature_algorithm ALT_SIG_ALG_OID  /* 2.5.29.73 */
+#ifdef WOLFSSL_OLD_OID_SUM
 #define WC_NID_alt_signature_value 1300 /* 2.5.29.74, changed to not conflict
                                          * with the NID of
                                          * dhSinglePass_stdDH_sha224kdf_scheme*/
+#else
+#define WC_NID_alt_signature_value ALT_SIG_VAL_OID  /* 2.5.29.74 */
+#endif
 #define WC_NID_policy_mappings POLICY_MAP_OID
 #define WC_NID_policy_constraints POLICY_CONST_OID
 #define WC_NID_inhibit_any_policy INHIBIT_ANY_OID       /* 2.5.29.54 */

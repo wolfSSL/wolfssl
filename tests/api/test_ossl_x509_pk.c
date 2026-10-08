@@ -456,7 +456,8 @@ int test_wolfSSL_X509_set_pubkey(void)
 
             #if !defined(NO_CHECK_PRIVATE_KEY) && \
                 !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-                !defined(WOLFSSL_MLDSA_NO_VERIFY)
+                !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+                defined(WOLFSSL_MLDSA_CHECK_KEY)
                 /* trickles down to wc_CheckPrivateKey() which depends on
                  * the pubKey buffer being raw */
                 ExpectIntEQ(wolfSSL_X509_check_private_key(x509, pkey),

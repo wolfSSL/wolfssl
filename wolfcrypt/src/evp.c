@@ -13558,7 +13558,9 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
-#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT)
 /* PrintPubKeyMlDsa is a helper function for wolfSSL_EVP_PKEY_print_public
  * to parse a DER format ML-DSA public key specified in the second parameter.
  * Parameters:
@@ -13591,6 +13593,17 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = WOLFSSL_FAILURE;
     }
     if (res == WOLFSSL_SUCCESS) {
+        res = keyType == ML_DSA_44k ||
+              keyType == ML_DSA_65k ||
+              keyType == ML_DSA_87k
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+              || keyType == DILITHIUM_LEVEL2k
+              || keyType == DILITHIUM_LEVEL3k
+              || keyType == DILITHIUM_LEVEL5k
+        #endif
+              ;
+    }
+    if (res == WOLFSSL_SUCCESS) {
         nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
         res = nameStr != NULL;
     }
@@ -13619,7 +13632,9 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     return res;
 }
-#endif /* WOLFSSL_HAVE_MLDSA && WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
+        * !WOLFSSL_MLDSA_NO_ASN1 && WC_ENABLE_ASYM_KEY_EXPORT &&
+        * WC_ENABLE_ASYM_KEY_IMPORT */
 
 /* wolfSSL_EVP_PKEY_print_public parses the specified key then
  * outputs public key info in human readable format to the specified BIO.
@@ -13650,7 +13665,9 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     }
 #if !defined(NO_RSA) || defined(HAVE_ECC) || !defined(NO_DSA) || \
     defined(WOLFSSL_DH_EXTRA) || \
-    (defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT))
+    (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+     defined(WC_ENABLE_ASYM_KEY_IMPORT))
     if (indent < 0) {
         indent = 0;
     }
@@ -13726,7 +13743,9 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
 
         case WC_EVP_PKEY_DILITHIUM:
 
-#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT)
             res     = PrintPubKeyMlDsa(
                         out,
                         (byte*)(pkey->pkey.ptr),  /* buffer for pkey raw data */
