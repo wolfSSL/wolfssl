@@ -8352,9 +8352,9 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 WOLFSSL_MSG("No REQ attribute found when expected");
                 return WOLFSSL_FAILURE;
             }
-            if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
+            if (XSNPRINTF(scratch, MAX_WIDTH,
                           "%*s%s%*s:", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, ""))
+                          lName, (NAME_SZ/4)-lNameSz, "")
                 >= MAX_WIDTH)
             {
                 return WOLFSSL_FAILURE;
