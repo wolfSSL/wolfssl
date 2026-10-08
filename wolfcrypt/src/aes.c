@@ -10891,6 +10891,8 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #endif
     XMEMCPY(s, x, sSz);
     ForceZero(x, sizeof(x));
+    /* bigH is a copy of the hash subkey H. */
+    ForceZero(bigH, sizeof(bigH));
 }
 #endif /* !FREESCALE_LTC_AES_GCM */
 
@@ -11199,6 +11201,8 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #endif
     XMEMCPY(s, x, sSz);
     ForceZero(x, sizeof(x));
+    /* bigH is a copy of the hash subkey H. */
+    ForceZero(bigH, sizeof(bigH));
 }
 
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -12863,9 +12867,10 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     }
 #endif
 done:
-    /* Tag mask E(J0) and the last keystream block. */
+    /* Tag mask E(J0), the last keystream block and the expected tag. */
     ForceZero(EKY0, WC_AES_BLOCK_SIZE);
     ForceZero(scratch, WC_AES_BLOCK_SIZE);
+    ForceZero(Tprime, WC_AES_BLOCK_SIZE);
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
@@ -15792,6 +15797,8 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
                     ret = AES_GCM_AUTH_E;
                 }
             }
+            /* On a mismatch this is a valid tag for the input. */
+            ForceZero(calcTag, sizeof(calcTag));
         }
     }
 
