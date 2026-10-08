@@ -1422,8 +1422,7 @@ int test_x509_decision_coverage(void)
     EXPECT_DECLS;
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-     defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
+    (defined(OPENSSL_EXTRA) || defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
      defined(SESSION_CERTS))
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509* fresh = NULL;
