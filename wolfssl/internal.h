@@ -7401,7 +7401,6 @@ do {                                                                           \
     } while (0)
 
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
-WOLFSSL_LOCAL int  CheckVersion(WOLFSSL* ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL void FreeSSL(WOLFSSL* ssl, void* heap);

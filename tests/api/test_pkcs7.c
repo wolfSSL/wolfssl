@@ -9051,6 +9051,9 @@ int test_wc_PKCS7_SkidParseDecisionCoverage(void)
     marker = test_PKCS7_findBytes(explicitSKIDSignedData, (int)sz,
         explicitMarker, (int)sizeof(explicitMarker));
     ExpectIntGE(marker, 0);
+    ExpectIntLE(marker, (int)(sz - sizeof(explicitMarker)));
+    if (marker < 0 || (word32)marker > sz - sizeof(explicitMarker))
+        return EXPECT_RESULT();
 
     /* Truncate after the [0] tag: the [0] length read fails, so the
      * (ret == 0) operands of the inSz and GetASNTag checks are false. */
