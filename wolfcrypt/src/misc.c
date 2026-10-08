@@ -788,8 +788,8 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
    with zeros. It ensures compiler optimization doesn't skip it. */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
-#ifdef WC_BARRIER_DATA_WEAK
-    /* Volatile stores cannot be dropped as dead when no barrier backs them. */
+#if !defined(__CC_ARM) && (!defined(__GNUC__) || defined(WOLFSSL_NO_ASM))
+    /* No data barrier backs the wipe; volatile stores cannot be dropped. */
     typedef volatile byte wc_wipe_byte;
     typedef volatile unsigned long wc_wipe_word;
 #else
