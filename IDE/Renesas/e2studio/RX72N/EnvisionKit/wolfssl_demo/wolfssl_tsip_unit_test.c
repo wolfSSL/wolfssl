@@ -982,16 +982,20 @@ static void tskAes128_Gcm_Test(void *pvParam)
     vTaskDelete(NULL);
 }
 #endif /* FREERTOS */
+#endif /* WOLFSSL_AES_128 && HAVE_AESGCM */
 
+#if defined(HAVE_AESGCM) && \
+    (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 /* Regression test for zero-length payload/AAD handling in
  * wc_tsip_AesGcmEncrypt()/wc_tsip_AesGcmDecrypt() (renesas_tsip_aes.c): a
  * payload or AAD length of 0 is a legal AES-GCM input, but those functions
  * used to XMALLOC(0, ...) a same-sized scratch buffer for it and treat a
  * NULL result as an allocation failure -- whether that happened depended on
  * the platform allocator's handling of a zero-byte request, not on the
- * actual GCM inputs.
+ * actual GCM inputs. Decrypt also rejected sz == 0; now it is accepted.
+ * keySz (16 or 32) selects the TSIP AES-128 or AES-256 GCM entry points.
  */
-static int tsip_aesgcm_zerolen_test(int prnt, int devId)
+static int tsip_aesgcm_zerolen_test(int prnt, int devId, int keySz)
 {
     Aes enc[1];
     Aes dec[1];
@@ -999,7 +1003,9 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
     WOLFSSL_SMALL_STACK_STATIC const byte key[] =
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
     };
 
     WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
@@ -1026,7 +1032,7 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
     int  ret;
 
     if (prnt) {
-        printf(" tsip_aesgcm_zerolen_test() ");
+        printf(" tsip_aes%d_gcm_zerolen_test() ", keySz * 8);
     }
 
     if (wc_AesInit(enc, NULL, devId) != 0) {
@@ -1037,13 +1043,11 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
         ret = -2;
         goto out;
     }
-    wc_AesGcmSetKey(enc, key, sizeof(key));
-    wc_AesGcmSetKey(dec, key, sizeof(key));
+    wc_AesGcmSetKey(enc, key, keySz);
+    wc_AesGcmSetKey(dec, key, keySz);
 
     /* (a) empty payload, non-empty AAD -- used to fail because plainBuf was
-     * XMALLOC(0, ...)'d in wc_tsip_AesGcmEncrypt(). TSIP rejects a
-     * zero-length decrypt by design (unrelated to this fix), so this case
-     * is encrypt-only. */
+     * XMALLOC(0, ...)'d in wc_tsip_AesGcmEncrypt(). */
     XMEMSET(resultT, 0, sizeof(resultT));
     ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
                             resultT, sizeof(resultT), aad, sizeof(aad));
@@ -1086,6 +1090,45 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
         goto out;
     }
 
+    /* (d) empty payload, non-empty AAD, round trip */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret != 0) {
+        ret = -8;
+        goto out;
+    }
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret != 0) {
+        ret = -9;
+        goto out;
+    }
+
+    /* (e) corrupted tag must fail */
+    resultT[0] ^= 0x01;
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), aad, sizeof(aad));
+    if (ret == 0) {
+        ret = -10;
+        goto out;
+    }
+
+    /* (f) empty payload and empty AAD, round trip */
+    XMEMSET(resultT, 0, sizeof(resultT));
+    ret = wc_AesGcmEncrypt(enc, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -11;
+        goto out;
+    }
+    ret = wc_AesGcmDecrypt(dec, NULL, NULL, 0, iv, sizeof(iv),
+                            resultT, sizeof(resultT), NULL, 0);
+    if (ret != 0) {
+        ret = -12;
+        goto out;
+    }
+
     ret = 0;
 
   out:
@@ -1098,7 +1141,7 @@ static int tsip_aesgcm_zerolen_test(int prnt, int devId)
 
     return ret;
 }
-#endif
+#endif /* HAVE_AESGCM && (WOLFSSL_AES_128 || WOLFSSL_AES_256) */
 
 
 #ifdef FREERTOS
@@ -1875,7 +1918,15 @@ int tsip_crypt_test(void)
             Clr_CallbackCtx(&userContext);
             ret = TSIP_AesKeyGeneration(&userContext, 16);
             if (ret == 0)
-                ret = tsip_aesgcm_zerolen_test(1, devId);
+                ret = tsip_aesgcm_zerolen_test(1, devId, 16);
+        }
+    #endif
+    #if defined(WOLFSSL_AES_256)
+        if (ret == 0) {
+            Clr_CallbackCtx(&userContext);
+            ret = TSIP_AesKeyGeneration(&userContext, 32);
+            if (ret == 0)
+                ret = tsip_aesgcm_zerolen_test(1, devId, 32);
         }
     #endif
     #endif
