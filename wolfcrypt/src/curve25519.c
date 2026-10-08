@@ -223,6 +223,8 @@ static int curve25519_make_pub_ex(int public_size, byte* pub, int private_size,
         lm_invert(A.T, A.T);
         lm_mul(pub, A.X, A.T);
     #endif
+        /* A is the private scalar times the base point. */
+        ForceZero(&A, sizeof(A));
         ret = 0;
     }
 #elif defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \

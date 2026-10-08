@@ -410,6 +410,8 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     #else
         ge_scalarmult_base(&A, az);
         ge_p3_tobytes(pubKey, &A);
+        /* Projective A leaks bits of the private scalar. */
+        ForceZero(&A, sizeof(A));
     #endif
 
         if (storePub)
@@ -699,6 +701,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
            r and B */
         ge_scalarmult_base(&R,nonce);
         ge_p3_tobytes(out,&R);
+        /* Projective R leaks bits of the nonce. */
+        ForceZero(&R, sizeof(R));
 #endif
     }
 
