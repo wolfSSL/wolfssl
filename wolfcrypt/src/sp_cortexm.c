@@ -43953,6 +43953,9 @@ static int sp_256_ecc_gen_k_8(WC_RNG* rng, sp_digit* k)
     }
     while (err == 0);
 
+    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
+    ForceZero(buf, sizeof(buf));
+
     return err;
 #else
     (void)rng;
@@ -55092,6 +55095,9 @@ static int sp_384_ecc_gen_k_12(WC_RNG* rng, sp_digit* k)
         }
     }
     while (err == 0);
+
+    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
+    ForceZero(buf, sizeof(buf));
 
     return err;
 #else
@@ -68562,6 +68568,9 @@ static int sp_521_ecc_gen_k_17(WC_RNG* rng, sp_digit* k)
         }
     }
     while (err == 0);
+
+    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
+    ForceZero(buf, sizeof(buf));
 
     return err;
 #else
