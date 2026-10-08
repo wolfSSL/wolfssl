@@ -84,6 +84,8 @@
     #endif
 #endif
 
+/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
+#include <wolfssl/wolfcrypt/sha3.h>
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -672,6 +674,26 @@ int wc_MlKemKey_Free(MlKemKey* key)
     return 0;
 }
 
+#if !defined(WOLF_CRYPTO_CB_ONLY_MLKEM) && \
+    (!defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE))
+/* Wipe a SHA-3 object that a failed step left mid-operation. */
+static void mlkemkey_hash_wipe(wc_Sha3* h)
+{
+#ifndef PSOC6_HASH_SHA3
+    ForceZero(h->s, sizeof(h->s));
+    ForceZero(h->t, sizeof(h->t));
+#ifdef WC_SHA3_SCRATCH_W
+    ForceZero(h->scratch, sizeof(h->scratch));
+#endif
+    h->i = 0;
+#else
+    (void)wc_Sha3_256_Reset(h);
+#endif
+}
+#endif
+
 /******************************************************************************/
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -769,21 +791,6 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
     (void)rng;
     return NOT_COMPILED_IN;
 #endif /* WC_NO_RNG */
-}
-
-/* Wipe a SHA-3 object that a failed step left mid-operation. */
-static void mlkemkey_hash_wipe(wc_Sha3* h)
-{
-#ifndef PSOC6_HASH_SHA3
-    ForceZero(h->s, sizeof(h->s));
-    ForceZero(h->t, sizeof(h->t));
-#ifdef WC_SHA3_SCRATCH_W
-    ForceZero(h->scratch, sizeof(h->scratch));
-#endif
-    h->i = 0;
-#else
-    (void)wc_Sha3_256_Reset(h);
-#endif
 }
 
 /**
