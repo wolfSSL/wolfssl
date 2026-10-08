@@ -7,6 +7,49 @@ function(override_cache VAR VAL)
             " Please select value from \"${VAR_STRINGS}\"\n")
     endif()
     set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
+    # A value the build chose stays a build choice: keep the record of it
+    # current so the next configure does not mistake it for the user's.
+    if(DEFINED CACHE{WOLFSSL_AUTO_${VAR}})
+        set_property(CACHE WOLFSSL_AUTO_${VAR} PROPERTY VALUE "${VAL}")
+    endif()
+endfunction()
+
+# Whether the user chose an option's current value, as opposed to it being
+# a default or forced value that an earlier configure left in the cache.
+#
+# add_option() records the value the build itself put in the cache as
+# WOLFSSL_AUTO_<NAME>. A cached value still equal to that record was not
+# changed by the user (-D or cmake-gui), so it is recomputed on every
+# configure - which lets a bundle switched on in a re-run still supply its
+# defaults. Only the cache entry is looked at: the user can only set that,
+# while a normal variable of the same name is set by the build itself (an
+# application bundle turning on what it needs). The one case this cannot
+# see is the user passing -D with exactly the value the build had chosen;
+# that is treated as unset.
+function(wolfssl_option_user_set NAME RESULT)
+    set(_user FALSE)
+    if(DEFINED CACHE{${NAME}})
+        set(_user TRUE)
+        if(DEFINED CACHE{WOLFSSL_AUTO_${NAME}})
+            if("$CACHE{${NAME}}" STREQUAL "$CACHE{WOLFSSL_AUTO_${NAME}}")
+                set(_user FALSE)
+            endif()
+        endif()
+    endif()
+    set(${RESULT} ${_user} PARENT_SCOPE)
+endfunction()
+
+# Whether the user explicitly turned an option off. Bundles use this to
+# leave alone a feature whose prerequisite the user disabled.
+function(wolfssl_option_user_off NAME RESULT)
+    wolfssl_option_user_set(${NAME} _user)
+    set(_off FALSE)
+    # Through a variable, so a value such as "small" counts as on.
+    set(_val "$CACHE{${NAME}}")
+    if(_user AND NOT _val)
+        set(_off TRUE)
+    endif()
+    set(${RESULT} ${_off} PARENT_SCOPE)
 endfunction()
 
 # Record that an option must be forced to a given value by a dependency (e.g. an
@@ -20,6 +63,42 @@ function(force_option NAME VALUE)
     # Track pending forces so wolfssl_warn_unconsumed_forces() can report one
     # with no matching add_option(), which would otherwise be ignored.
     set_property(GLOBAL APPEND PROPERTY WOLFSSL_FORCE_PENDING "${NAME}")
+endfunction()
+
+# Forget, at the start of a configure, every option value that the build
+# chose on an earlier one (see wolfssl_option_user_set()), so the option is
+# undefined until its add_option() runs - exactly as on a first configure.
+# Without this, code that reads an option before its add_option() would see
+# what the last configure left, e.g. a bundle that has since been turned
+# off. Options the user set are kept and no longer tracked.
+function(wolfssl_forget_auto_options)
+    get_cmake_property(_vars CACHE_VARIABLES)
+    foreach(_v ${_vars})
+        if(_v MATCHES "^WOLFSSL_AUTO_(.+)$")
+            set(_n "${CMAKE_MATCH_1}")
+            if(DEFINED CACHE{${_n}} AND
+                    ("$CACHE{${_n}}" STREQUAL "$CACHE{${_v}}"))
+                unset(${_n} CACHE)
+            else()
+                unset(${_v} CACHE)
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
+# Record a bundle's preferred value for an option, unless that option has
+# already been settled -- either by the user (see wolfssl_option_user_set();
+# a value cached by an earlier configure does not count) or by an outer
+# bundle that recorded a force first. This is the CMake counterpart of the
+# `test "$enable_x" = "" &&` guard configure.ac uses in --enable-all and
+# friends: a bundle supplies a default, it does not overrule a choice
+# already made.
+function(default_option NAME VALUE)
+    get_property(_already GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" SET)
+    wolfssl_option_user_set(${NAME} _user)
+    if(NOT _user AND NOT _already)
+        force_option(${NAME} "${VALUE}")
+    endif()
 endfunction()
 
 # Warn about any force_option() whose target option was never declared with
@@ -41,6 +120,10 @@ function(add_option NAME HELP_STRING DEFAULT VALUES)
     # Record the name for the options.h.in guard in CMakeLists.txt.
     set_property(GLOBAL APPEND PROPERTY WOLFSSL_DECLARED_OPTIONS "${NAME}")
 
+    # Decided before the cache entry is touched: whether the current value,
+    # if any, is the user's.
+    wolfssl_option_user_set(${NAME} _wolfssl_user)
+
     if(VALUES STREQUAL "yes;no")
         # Set the default value for the option.
         set(${NAME} ${DEFAULT} CACHE BOOL ${HELP_STRING})
@@ -49,6 +132,17 @@ function(add_option NAME HELP_STRING DEFAULT VALUES)
         set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
         # Set the list of allowed values for the option.
         set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+    endif()
+
+    if(_wolfssl_user)
+        # The user's value: stop tracking it as the build's.
+        unset(WOLFSSL_AUTO_${NAME} CACHE)
+    else()
+        # Not the user's: start again from the default, as on a first
+        # configure, instead of keeping whatever an earlier one cached.
+        set_property(CACHE ${NAME} PROPERTY VALUE "${DEFAULT}")
+        set(WOLFSSL_AUTO_${NAME} "${DEFAULT}" CACHE INTERNAL
+            "Value of ${NAME} chosen by the build, not the user")
     endif()
 
     # Apply any force_option(), after the cache entry exists so its type and
@@ -291,6 +385,9 @@ function(generate_build_flags)
     set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_RNG_BANK OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_RNG_BANK "yes" PARENT_SCOPE)
     endif()
     set(USE_VALGRIND ${WOLFSSL_VALGRIND})
     if(WOLFSSL_MD4 OR WOLFSSL_USER_SETTINGS)
@@ -1249,6 +1346,14 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_SRP)
             list(APPEND LIB_SOURCES wolfcrypt/src/srp.c)
+        endif()
+
+        # WOLFSSL_RNG_BANK defined WC_RNG_BANK_SUPPORT without ever adding
+        # the file that implements it, so the option only linked once
+        # something else pulled rng_bank.c in. Matches BUILD_RNG_BANK in
+        # wolfcrypt/src/include.am.
+        if(BUILD_RNG_BANK)
+            list(APPEND LIB_SOURCES wolfcrypt/src/rng_bank.c)
         endif()
 
         if(BUILD_AFALG)

@@ -1,0 +1,235 @@
+name: Enterprise Build Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore, by re-running --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only.
+  schedule:
+    - cron: '46 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # --enable-enterprise and the --disable-/--enable- overrides it has to
+  # yield to, through autotools. All configs build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config in its own out-of-tree ("VPATH") build directory
+  # off one checkout/autogen, checks on a pool of one-per-CPU worker
+  # threads, longest first. bubblewrap gives every test script its own
+  # network namespace so concurrent checks cannot collide on TCP/UDP ports
+  # (do not set AM_BWRAPPED here - that would disable it).
+  make_check:
+    name: make check
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
+      # `make check`); without it that test is SKIPped.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - run: pip install tlslite-ng
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: enterprise
+          config-hash: shard-${{ matrix.shard }}
+          max-size: 500M
+          # PRs read the cache the weekday seed writes; they never
+          # save, so PR runs add nothing to the Actions cache.
+          read-only: ${{ github.event_name == 'pull_request' }}
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The config list lives in .github/configs/enterprise.json; add new
+      # configs there as new entries (a "comment" key is allowed for notes).
+      # "minutes" is the expected duration driving longest-first scheduling
+      # and shard balancing: take it from the Minutes column of a previous
+      # run's step summary (one whose ccache hit), or omit it for a new
+      # config (defaults to 1) and refresh later.
+      # --private-dir=certs gives every build dir its own certs/ copy:
+      # crl-gen-openssl.test writes generated CRLs under certs/crl/, which
+      # would race through the shared VPATH certs symlink.
+      - name: Build and make check this shard's configs (parallel, out-of-tree)
+        run: |
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
+            --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
+            --private-dir=certs \
+            .github/configs/enterprise.json
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: enterprise-logs-${{ matrix.shard }}
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore
+
+  # -DWOLFSSL_ENTERPRISE=yes and the overrides it has to yield to, through
+  # CMake. The CMake bundle is a separate implementation of the configure.ac
+  # one (force_option()/default_option() cascade in CMakeLists.txt), so it
+  # gets its own build-and-ctest per variant rather than relying on the
+  # autotools job above.
+  cmake:
+    name: cmake (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: enterprise
+            options: ''
+          # TLS 1.0 pulls old TLS back on, so -DWOLFSSL_OLD_TLS=no has to
+          # suppress the bundle's TLS 1.0 default as well.
+          - name: no-old-tls
+            options: '-DWOLFSSL_OLD_TLS=no'
+          # Without the OSP bundles nothing turns 3DES back on, so the
+          # bundle's DES3 exclusion takes effect, and nothing else supplies
+          # the OPENSSL_COMPATIBLE_DEFAULTS companion defines.
+          - name: no-all-osp
+            options: '-DWOLFSSL_ALL_OSP=no'
+          # Mutually exclusive with secure renegotiation, which the bundle
+          # must then leave off.
+          - name: renegotiation-indication
+            options: '-DWOLFSSL_RENEGOTIATION_INDICATION=yes'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: cmake build-essential
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      # ccache-setup puts its compiler symlinks first on PATH, so CMake's
+      # compiler detection picks up the ccache-wrapped gcc unchanged.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: enterprise-cmake
+          config-hash: ${{ matrix.name }}
+          max-size: 200M
+          read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Configure
+        run: |
+          cmake -B build -DWOLFSSL_ENTERPRISE=yes ${{ matrix.options }}
+
+      # Applications only see what wolfssl/options.h defines: a bundle
+      # define without a cmake/options.h.in entry changes the library's
+      # structure layouts behind their back.
+      - name: Check options.h exports every library define
+        run: |
+          missing=$(.github/scripts/cmake-config-defines.sh names build)
+          if [ -n "$missing" ]; then
+              echo "::error::Not exported by cmake/options.h.in:" $missing
+              exit 1
+          fi
+
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+
+      - name: Test
+        if: ${{ github.event_name != 'schedule' }}
+        working-directory: build
+        run: ctest -j "$(nproc)" --output-on-failure
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+  # Re-running CMake in an existing build directory must give the same
+  # configuration as a fresh one: option values an earlier configure chose
+  # are recomputed (wolfssl_forget_auto_options()), while values the user
+  # set are kept. Configure only - nothing is built.
+  cmake_reconfigure:
+    name: cmake reconfigure
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: cmake build-essential
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      # Each case configures with FIRST, re-runs in the same directory with
+      # SECOND, and compares the result with a fresh configure of EXPECTED
+      # (SECOND, unless a user value from FIRST is meant to carry over).
+      - name: Compare re-runs with fresh configures
+        run: |
+          defs=.github/scripts/cmake-config-defines.sh
+          fail=0
+          check() {
+              local name=$1 first=$2 second=$3 expected=$4
+              cmake -B "rerun-$name" $first > /dev/null
+              cmake -B "rerun-$name" $second > /dev/null
+              cmake -B "fresh-$name" $expected > /dev/null
+              for kind in lib header; do
+                  if ! diff <($defs $kind "fresh-$name") \
+                          <($defs $kind "rerun-$name"); then
+                      echo "::error::$name: re-run $kind defines differ"
+                      fail=1
+                  fi
+              done
+          }
+          ent="-DWOLFSSL_ENTERPRISE=yes"
+          check enable "" "$ent" "$ent"
+          check disable "$ent" "-DWOLFSSL_ENTERPRISE=no" ""
+          check keep-user "$ent -DWOLFSSL_SMIME=no" "" \
+              "$ent -DWOLFSSL_SMIME=no"
+          check add-user "$ent" "$ent -DWOLFSSL_SMIME=no" \
+              "$ent -DWOLFSSL_SMIME=no"
+          check app-bundle "-DWOLFSSL_QUIC=yes" "-DWOLFSSL_QUIC=no" ""
+          exit $fail

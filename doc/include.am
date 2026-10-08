@@ -8,7 +8,8 @@ dist_doc_DATA+= doc/README.txt \
 	doc/SBOM.md \
 	doc/CRA.md \
 	doc/ASM_AND_MATH_DEFINES.md \
-	doc/ALGORITHM_DEFINES.md
+	doc/ALGORITHM_DEFINES.md \
+	doc/OPENSSL_OPTION_MAPPING.md
 
 
 dox-pdf:
