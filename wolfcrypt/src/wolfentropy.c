@@ -46,12 +46,6 @@ data, use this implementation to seed and re-seed the DRBG.
 #endif
 
 #include <wolfssl/wolfcrypt/sha3.h>
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
 #if defined(__APPLE__) || defined(__MACH__)
     #include <mach/mach_time.h>
 #endif
@@ -402,8 +396,6 @@ static void Entropy_StopThread(void)
 
 /* State to update that is multiple cache lines long. */
 static word64 entropy_state[ENTROPY_NUM_WORDS + EXTRA_ENTROPY_WORDS] = {0};
-/* Digest of the state, used as the next update indices. */
-static byte entropy_idx[WC_SHA3_256_DIGEST_SIZE];
 
 /* Using memory will take different amount of times depending on the CPU's
  * caches and business.
@@ -424,6 +416,7 @@ static byte entropy_idx[WC_SHA3_256_DIGEST_SIZE];
 static int Entropy_MemUse(void)
 {
     int i;
+    static byte d[WC_SHA3_256_DIGEST_SIZE];
     int j;
     int ret;
 
@@ -434,13 +427,13 @@ static int Entropy_MemUse(void)
         if (ret != 0)
             return ret;
         /* Get pseudo-random indices. */
-        ret = wc_Sha3_256_Final(&entropyHash, entropy_idx);
+        ret = wc_Sha3_256_Final(&entropyHash, d);
         if (ret != 0)
             return ret;
 
         for (i = 0; i < ENTROPY_NUM_64BIT_WORDS; i++) {
             /* Choose a 64-bit word from a pseudo-random block.*/
-            int idx = ((int)entropy_idx[i] << ENTROPY_BLOCK_SZ) +
+            int idx = ((int)d[i] << ENTROPY_BLOCK_SZ) +
                       (j << ENTROPY_OFFSET_SHIFTING);
             /* Update a pseudo-random 64-bit word with a pseudo-random value. */
             entropy_state[idx] += Entropy_TimeHiRes();
@@ -522,13 +515,11 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
     for (i = 0; i < samples; i++) {
         ret = Entropy_GetSample(&sample);
         if (ret != 0)
-            break;
+            return ret;
         noise[i] = (byte)sample;
     }
-    /* Raw noise sample (ISO/IEC 19790 7.9.7). */
-    ForceZero(&sample, sizeof(sample));
 
-    return ret;
+    return 0;
 }
 
 /* Mutex to prevent multiple callers requesting entropy operations at the
@@ -611,7 +602,7 @@ static void Entropy_HealthTest_Repetition_Reset(void)
     /* No previous stored. */
     rep_have_prev = 0;
     /* Clear previous. */
-    ForceZero(&rep_prev_noise, sizeof(rep_prev_noise));
+    rep_prev_noise = 0;
 }
 
 /* Test sample value with repetition test.
@@ -690,9 +681,9 @@ static word16 prop_samples[PROP_WINDOW_SIZE];
 static void Entropy_HealthTest_Proportion_Reset(void)
 {
     /* Clear out samples. */
-    ForceZero(prop_samples, sizeof(prop_samples));
+    XMEMSET(prop_samples, 0, sizeof(prop_samples));
     /* Clear out counts. */
-    ForceZero(prop_cnt, sizeof(prop_cnt));
+    XMEMSET(prop_cnt, 0, sizeof(prop_cnt));
     /* Clear stored count. */
     prop_total = 0;
     /* Reset first and last index for samples. */
@@ -805,8 +796,6 @@ static int Entropy_HealthTest_Startup(void)
         /* Failing test only resets its own data. */
         Entropy_HealthTest_Reset();
     }
-    /* Raw samples of the live source. */
-    ForceZero(initial, sizeof(initial));
 
     return ret;
 }
@@ -847,7 +836,6 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
             if (ret == 0) {
                 XMEMCPY(output, hash, len);
             }
-            ForceZero(hash, sizeof(hash));
         }
     }
 
@@ -957,9 +945,6 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 #endif
 
     if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
-        /* Raw samples were conditioned into the seed
-         * (ISO/IEC 19790:2012 7.9.7). */
-        ForceZero(noise, sizeof(noise));
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -1066,10 +1051,6 @@ void Entropy_Final(void)
     #endif
         /* Clear health test data. */
         Entropy_HealthTest_Reset();
-        /* Raw timing state, its digest and the last sample time. */
-        ForceZero(entropy_state, sizeof(entropy_state));
-        ForceZero(entropy_idx, sizeof(entropy_idx));
-        ForceZero(&entropy_last_time, sizeof(entropy_last_time));
         /* No longer initialized. */
         entropy_memuse_initialized = 0;
     }
