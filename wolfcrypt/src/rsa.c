@@ -5962,15 +5962,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             (void)i;
 #endif
 
-#if FIPS_VERSION3_GE(7,0,0)
             /* Check err before WC_CHECK_FOR_INTR_SIGNALS() overwrites it, as
-             * the p loop above does.  Otherwise a DRBG failure is discarded
-             * and resurfaces as PRIME_GEN_E, hiding what actually went wrong.
-             * SP 800-90A Rev1 sec 11.4.2 requires the DRBG's own error
-             * indicator to reach the caller. */
+             * the p loop does; a lost error retries forever without failCount.
+             * SP 800-90A Rev1 sec 11.4.2: DRBG errors must reach the caller. */
             if (err != MP_OKAY || isPrime || i >= failCount)
                 break;
-#endif
 
             err = WC_CHECK_FOR_INTR_SIGNALS();
             if (err != 0)
