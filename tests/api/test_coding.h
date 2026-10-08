@@ -27,6 +27,7 @@
 int test_wc_Base64_DecodeDecisionCoverage(void);
 int test_wc_Base64_DecodeWhitespaceCoverage(void);
 int test_wc_Base64_EncodeDecisionCoverage(void);
+int test_wc_Base64_EncodeKnownAnswer(void);
 int test_wc_Base16DecisionCoverage(void);
 int test_wc_Utf8_DecodeChar(void);
 
@@ -34,6 +35,7 @@ int test_wc_Utf8_DecodeChar(void);
     TEST_DECL_GROUP("coding", test_wc_Base64_DecodeDecisionCoverage),        \
     TEST_DECL_GROUP("coding", test_wc_Base64_DecodeWhitespaceCoverage),      \
     TEST_DECL_GROUP("coding", test_wc_Base64_EncodeDecisionCoverage),        \
+    TEST_DECL_GROUP("coding", test_wc_Base64_EncodeKnownAnswer),             \
     TEST_DECL_GROUP("coding", test_wc_Base16DecisionCoverage),               \
     TEST_DECL_GROUP("coding", test_wc_Utf8_DecodeChar)
 
