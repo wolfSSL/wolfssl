@@ -130,6 +130,47 @@ int test_wc_PortDecisionCoverage(void)
     }
 #endif /* USE_WOLF_STRSEP */
 
+#ifdef USE_WOLF_MEMCHR
+    {
+        /* wc_memchr() stands in for memchr() on builds whose own string
+         * functions do not include one, so there is nothing to compare its
+         * answers against here: the expected results are spelled out.
+         *
+         * It is reached through XMEMCHR, which the PEM reader uses to find the
+         * end of a certificate, so a wrong answer there either runs past the
+         * certificate or stops short of it. */
+        static const unsigned char mcBuf[] = {
+            0x11, 0x22, 0x33, 0x44, 0x22, 0x55
+        };
+        const unsigned char* mcEnd = mcBuf + sizeof(mcBuf);
+
+        /* Found at the front, in the middle and at the back. */
+        ExpectPtrEq(wc_memchr(mcBuf, 0x11, sizeof(mcBuf)), mcBuf);
+        ExpectPtrEq(wc_memchr(mcBuf, 0x33, sizeof(mcBuf)), mcBuf + 2);
+        ExpectPtrEq(wc_memchr(mcBuf, 0x55, sizeof(mcBuf)), mcEnd - 1);
+
+        /* Repeated byte gives the first of them. */
+        ExpectPtrEq(wc_memchr(mcBuf, 0x22, sizeof(mcBuf)), mcBuf + 1);
+
+        /* Not in the buffer at all. */
+        ExpectNull(wc_memchr(mcBuf, 0x99, sizeof(mcBuf)));
+
+        /* Present, but past the length given. */
+        ExpectNull(wc_memchr(mcBuf, 0x55, sizeof(mcBuf) - 1));
+        ExpectNull(wc_memchr(mcBuf, 0x11, 0));
+
+        /* Starting part way in, so the earlier match is not seen. */
+        ExpectPtrEq(wc_memchr(mcBuf + 2, 0x22, sizeof(mcBuf) - 2), mcBuf + 4);
+
+        /* The value is used as an unsigned char, so anything outside that
+         * range still matches the byte it narrows to. */
+        ExpectPtrEq(wc_memchr(mcBuf, 0x100 | 0x33, sizeof(mcBuf)), mcBuf + 2);
+
+        /* No buffer to search. */
+        ExpectNull(wc_memchr(NULL, 0x11, sizeof(mcBuf)));
+    }
+#endif /* USE_WOLF_MEMCHR */
+
 #ifndef SINGLE_THREADED
     {
         THREAD_TYPE portThread;

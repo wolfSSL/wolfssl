@@ -627,3 +627,85 @@ int test_wolfSSL_EVP_DecodeFinal(void)
     return res;
 }
 
+
+/*
+ * EVP_EncodeUpdate() across chunk boundaries.
+ *
+ * The encoder works in 48-byte blocks, one output line each, and holds back a
+ * partial block in the ctx for the next call. The result must not depend on how
+ * the caller splits the input, so each size below is fed in every chunking and
+ * compared against the same data encoded in a single call.
+ */
+int test_wolfSSL_EVP_EncodeUpdate_chunked(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
+    static const int totals[] = { 1, 47, 48, 49, 95, 96, 97, 144, 145, 200 };
+    byte   in[256];
+    byte   whole[512];
+    byte   piece[512];
+    int    wholeLen = 0;
+    size_t t;
+    int    i;
+
+    for (i = 0; i < (int)sizeof(in); i++) {
+        in[i] = (byte)(i * 7 + 3);
+    }
+
+    for (t = 0; t < sizeof(totals) / sizeof(totals[0]); t++) {
+        int total = totals[t];
+        int chunk;
+
+        /* Reference: the whole input in one call. */
+        {
+            EVP_ENCODE_CTX* ctx = NULL;
+            int outl = 0;
+
+            wholeLen = 0;
+            ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+            EVP_EncodeInit(ctx);
+            ExpectIntEQ(EVP_EncodeUpdate(ctx, whole, &outl, in, total), 1);
+            wholeLen = outl;
+            outl = 0;
+            EVP_EncodeFinal(ctx, whole + wholeLen, &outl);
+            wholeLen += outl;
+            EVP_ENCODE_CTX_free(ctx);
+            ExpectIntGT(wholeLen, 0);
+        }
+
+        /* Every chunk size has to reproduce it exactly. */
+        for (chunk = 1; chunk <= total; chunk++) {
+            EVP_ENCODE_CTX* ctx = NULL;
+            int used = 0;
+            int off  = 0;
+
+            XMEMSET(piece, 0xEE, sizeof(piece));
+            ExpectNotNull(ctx = EVP_ENCODE_CTX_new());
+            EVP_EncodeInit(ctx);
+
+            while (off < total) {
+                int n = chunk;
+                int outl = 0;
+
+                if (n > total - off) {
+                    n = total - off;
+                }
+                ExpectIntEQ(EVP_EncodeUpdate(ctx, piece + used, &outl,
+                    in + off, n), 1);
+                used += outl;
+                off  += n;
+            }
+            {
+                int outl = 0;
+                EVP_EncodeFinal(ctx, piece + used, &outl);
+                used += outl;
+            }
+            EVP_ENCODE_CTX_free(ctx);
+
+            ExpectIntEQ(used, wholeLen);
+            ExpectIntEQ(XMEMCMP(piece, whole, (size_t)wholeLen), 0);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}

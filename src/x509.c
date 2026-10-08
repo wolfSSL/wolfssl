@@ -6785,6 +6785,84 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
  *
  * returns a pointer to the created WOLFSSL_EVP_PKEY on success and NULL on fail
  */
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+/* Serialises installing a certificate's decoded public key, so two threads
+ * asking for it at once cannot both leave one behind. */
+static wolfSSL_Mutex x509PubKeyMutex
+    WOLFSSL_MUTEX_INITIALIZER_CLAUSE(x509PubKeyMutex);
+#ifdef WOLFSSL_HAVE_X509_PUBKEY_MUTEX
+static int x509PubKeyMutexValid = 0;
+
+/* Create the lock guarding certificates' decoded public keys.
+ *
+ * Called from wolfSSL_Init(), which is already serialised against itself, so
+ * that no caller has to create the mutex on first use. */
+int wolfssl_x509_pubkey_mutex_init(void)
+{
+    if (x509PubKeyMutexValid == 0) {
+        if (wc_InitMutex(&x509PubKeyMutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex x509 pubkey");
+            return BAD_MUTEX_E;
+        }
+        x509PubKeyMutexValid = 1;
+    }
+    return 0;
+}
+
+/* Destroy the lock guarding certificates' decoded public keys. Called from
+ * wolfSSL_Cleanup(). */
+void wolfssl_x509_pubkey_mutex_free(void)
+{
+    if (x509PubKeyMutexValid == 1) {
+        (void)wc_FreeMutex(&x509PubKeyMutex);
+        x509PubKeyMutexValid = 0;
+    }
+}
+#endif /* WOLFSSL_HAVE_X509_PUBKEY_MUTEX */
+
+/* Take the lock guarding the decoded public key. Returns 1 on success.
+ *
+ * Fails when wolfSSL_Init() has not created the lock. Callers then go without
+ * the cache: wolfSSL_X509_get_pubkey() decodes the key as it did before the
+ * cache existed, and nothing is installed for the release path to find. */
+static int x509PubKeyLock(void)
+{
+#ifdef WOLFSSL_HAVE_X509_PUBKEY_MUTEX
+    if (x509PubKeyMutexValid == 0) {
+        return 0;
+    }
+#endif
+    return wc_LockMutex(&x509PubKeyMutex) == 0;
+}
+
+/* Release the decoded public key held by a certificate, if there is one.
+ * Called when the certificate goes away and when its public key is replaced. */
+void wolfssl_x509_free_pubkey_evp(WOLFSSL_X509* x509)
+{
+    WOLFSSL_EVP_PKEY* key;
+    int locked;
+
+    if (x509 == NULL) {
+        return;
+    }
+    /* Taken where it can be. A key only ever gets installed under the same
+     * lock, so if there is none to take there is no installer to race with
+     * either - and returning early here would leak the key instead. */
+    locked = x509PubKeyLock();
+    key = x509->pubKeyEvp;
+    x509->pubKeyEvp = NULL;
+    if (locked) {
+        wc_UnLockMutex(&x509PubKeyMutex);
+    }
+
+    /* Dropped outside the lock: this only releases the certificate's own
+     * reference, and any caller still holding one keeps the key alive. */
+    if (key != NULL) {
+        wolfSSL_EVP_PKEY_free(key);
+    }
+}
+#endif /* WOLFSSL_X509_PUBKEY_CACHE */
+
 WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key = NULL;
@@ -6793,6 +6871,24 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     (void)ret;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_pubkey");
+
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+    /* Hand back the key decoded on an earlier call. Chain verification asks
+     * each certificate for its public key, and decoding it again every time is
+     * wasted work. */
+    if ((x509 != NULL) && x509PubKeyLock()) {
+        key = x509->pubKeyEvp;
+        if ((key != NULL) &&
+                (wolfSSL_EVP_PKEY_up_ref(key) != WOLFSSL_SUCCESS)) {
+            key = NULL;
+        }
+        wc_UnLockMutex(&x509PubKeyMutex);
+        if (key != NULL) {
+            return key;
+        }
+    }
+#endif
+
     if (x509 != NULL) {
         key = wolfSSL_EVP_PKEY_new_ex(x509->heap);
         if (key != NULL) {
@@ -6961,6 +7057,37 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             #endif /* WOLFSSL_HAVE_MLDSA */
         }
     }
+
+    /* Keep it on the certificate for next time. The certificate takes one
+     * reference and the caller keeps the one it already has, which is the
+     * ownership OpenSSL's X509_get_pubkey() gives. */
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+    /* Nothing below may fail the call: the caller asked for the key, not for
+     * it to be cached. Without the lock it simply is not kept. */
+    if ((key != NULL) && x509PubKeyLock()) {
+        if (x509->pubKeyEvp == NULL) {
+            if (wolfSSL_EVP_PKEY_up_ref(key) == WOLFSSL_SUCCESS) {
+                x509->pubKeyEvp = key;
+            }
+            wc_UnLockMutex(&x509PubKeyMutex);
+        }
+        else {
+            /* Another thread decoded it first. Use that one so every caller
+             * sees the same key, and discard the one decoded here. */
+            WOLFSSL_EVP_PKEY* cached = x509->pubKeyEvp;
+
+            if (wolfSSL_EVP_PKEY_up_ref(cached) != WOLFSSL_SUCCESS) {
+                cached = NULL;
+            }
+            wc_UnLockMutex(&x509PubKeyMutex);
+            if (cached != NULL) {
+                wolfSSL_EVP_PKEY_free(key);
+                key = cached;
+            }
+        }
+    }
+#endif /* WOLFSSL_X509_PUBKEY_CACHE */
+
     return key;
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
@@ -9643,6 +9770,11 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         return WOLFSSL_FATAL_ERROR;
     }
 
+    if (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Error encoding EVP_PKEY");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     /* Most key types verify against the cached public-key DER. */
     pubKey   = (const byte*)pkey->pkey.ptr;
     pubKeySz = pkey->pkey_sz;
@@ -12278,6 +12410,15 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
         *ppkalg = pub->algor->algorithm;
 
     if ((pk != NULL) || (ppklen != NULL)) {
+        /* The encoding is produced on demand, so ask for it before reading
+         * it: a key attached with set1_RSA(), set1_EC_KEY() or set1_DH() has
+         * none yet. Nothing to hand back if one could not be produced - and
+         * pub->pkey itself has to be there to be read. */
+        if ((pub->pkey == NULL) ||
+                (EvpPkeyEnsureDer(pub->pkey) != WOLFSSL_SUCCESS)) {
+            return WOLFSSL_FAILURE;
+        }
+
         bitStr = (const unsigned char*)pub->pkey->pkey.ptr;
         bitStrSz = pub->pkey->pkey_sz;
 
@@ -14428,9 +14569,144 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
         }
     }
 
-    /* TODO: Inefficient
-     * reading in one byte at a time until see the footer
-     */
+    /* A memory source can be looked at where it already sits, so the footer is
+     * found without reading anything and the bytes up to and including it are
+     * then taken in one read. The loop below pays a BIO read for every
+     * character of the input, which for a file carrying a text dump alongside
+     * the PEM block is most of the work. The reason it goes a byte at a time is
+     * that it must not consume past the footer - a caller reads a chain of
+     * certificates by calling again - and that is what examining the buffer
+     * first avoids.
+     *
+     * Only a memory BIO with nothing chained after it qualifies.
+     * wolfSSL_BIO_get_mem_data() reports the last memory BIO in a chain while
+     * wolfSSL_BIO_read() reads from the tail, so on a chain the two can be
+     * different BIOs - and matching pending counts would not prove otherwise.
+     * The footer check below would then fail only after end bytes had already
+     * been taken from the real source, and the byte-at-a-time loop does not
+     * look back inside them, so a footer ending there would be missed. With
+     * no next BIO the buffer scanned is the one the read consumes. The footer
+     * is still checked for again in what was read, before it is used. */
+    if ((wolfSSL_BIO_method_type(bp) == WOLFSSL_BIO_MEMORY) &&
+            (wolfSSL_BIO_next(bp) == NULL)) {
+        const byte* mem = NULL;
+        int avail = wolfSSL_BIO_get_mem_data(bp, (void*)&mem);
+
+        if ((mem != NULL) && (avail > 0) &&
+                (avail == wolfSSL_BIO_pending(bp)) && (avail <= pemSz)) {
+            long footerEnd = 0;   /* bytes up to and including the footer */
+            long end;
+            long k;
+
+            /* The same test the loop below makes, at the same offsets. */
+            /* A footer can only end where its last character is, so look for
+             * that character and test only those places, rather than testing
+             * every byte. The C library searches several bytes at a time where
+             * this would do one.
+             *
+             * Both footers in use end with the same character, so the one
+             * search offers up the candidates for either. Were that not so
+             * there would be no single character to search for, and the walk
+             * below serves instead. */
+            if ((altFooter == NULL) ||
+                    (footer[footerSz-1] == altFooter[altFooterSz-1])) {
+                byte lastCh = (byte)footer[footerSz-1];
+                long pos = 0;
+
+                while (pos < (long)avail) {
+                    const byte* at = (const byte*)XMEMCHR(mem + pos, lastCh,
+                        (size_t)(avail - pos));
+
+                    if (at == NULL) {
+                        break;
+                    }
+                    /* Past pos, so the search always moves on. */
+                    k = (long)(at - mem) + 1;
+
+                    if (k > footerSz &&
+                            XMEMCMP(&mem[k-footerSz], footer,
+                                (size_t)footerSz) == 0) {
+                        footerEnd = k;
+                        break;
+                    }
+                    if (k > altFooterSz && altFooter != NULL &&
+                            XMEMCMP(&mem[k-altFooterSz], altFooter,
+                                (size_t)altFooterSz) == 0) {
+                        footerEnd = k;
+                        break;
+                    }
+                    pos = k;
+                }
+            }
+            else
+            /* The two footers end differently, so there is no one character to
+             * search for and every byte is tested. */
+            for (k = 1; k <= (long)avail; k++) {
+                if (k > footerSz &&
+                        mem[k-1] == (byte)footer[footerSz-1] &&
+                        XMEMCMP(&mem[k-footerSz], footer,
+                            (size_t)footerSz) == 0) {
+                    footerEnd = k;
+                    break;
+                }
+                if (k > altFooterSz && altFooter != NULL &&
+                        mem[k-1] == (byte)altFooter[altFooterSz-1] &&
+                        XMEMCMP(&mem[k-altFooterSz], altFooter,
+                            (size_t)altFooterSz) == 0) {
+                    footerEnd = k;
+                    break;
+                }
+            }
+
+            if (footerEnd > 0) {
+                /* Take the line ending after the footer too, which is what the
+                 * loop below does once it has found it. */
+                end = footerEnd;
+                if (end < (long)avail) {
+                    end++;
+                    if ((mem[end-1] == '\r') && (end < (long)avail)) {
+                        end++;
+                    }
+                }
+            }
+            else {
+                /* No footer anywhere, which is what the loop below would be
+                 * left with after consuming the lot. */
+                end = (long)avail;
+            }
+
+            if (wolfSSL_BIO_read(bp, (char *)pem, (int)end) == (int)end) {
+                int footerOk = 1;
+
+                i = end;
+                if (footerEnd > 0) {
+                    /* Where the scan said the footer ended, not where the read
+                     * ended: the line ending comes after it. */
+                    footerOk = (footerEnd >= footerSz) &&
+                        (XMEMCMP((char *)&pem[footerEnd-footerSz], footer,
+                            (size_t)footerSz) == 0);
+                    if ((!footerOk) && (altFooter != NULL) &&
+                            (footerEnd >= altFooterSz)) {
+                        footerOk = XMEMCMP((char *)&pem[footerEnd-altFooterSz],
+                            altFooter, (size_t)altFooterSz) == 0;
+                    }
+                }
+                if (footerOk) {
+                    l = 0;
+                    goto scanned;
+                }
+                /* Not the footer after all, so keep reading as before. A footer
+                 * can still turn up later in the input. */
+            }
+            else {
+                i = 0;
+            }
+        }
+    }
+
+    /* Sources that cannot be examined in place read a byte at a time until the
+     * footer appears, since reading more than that would take data belonging to
+     * whatever follows. */
     while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
         int foundFooter = 0;
         i++;
@@ -14463,12 +14739,18 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
         }
 
         /* Check for the expected footer OR alternate footer (for
-         * TRUSTED_CERT_TYPE) */
-        if (i > footerSz &&
+         * TRUSTED_CERT_TYPE).
+         *
+         * The byte just read has to be the last character of the footer for
+         * the bytes before it to be the footer, so test that first. It keeps
+         * the whole comparison off every other byte of the input, which in a
+         * file carrying text alongside the PEM block is most of it. */
+        if (i > footerSz && pem[i-1] == (unsigned char)footer[footerSz-1] &&
             XMEMCMP((char *)&pem[i-footerSz], footer, footerSz) == 0) {
             foundFooter = 1;
         }
         else if (i > altFooterSz && altFooter != NULL &&
+            pem[i-1] == (unsigned char)altFooter[altFooterSz-1] &&
             XMEMCMP((char *)&pem[i-altFooterSz], altFooter, altFooterSz) == 0) {
             foundFooter = 1;
         }
@@ -14486,6 +14768,8 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             break;
         }
     }
+
+scanned:
     if (l == 0 && i == 0) {
         WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
     }
@@ -15796,6 +16080,9 @@ int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key)
     }
 
 #ifndef NO_CHECK_PRIVATE_KEY
+    if (EvpPkeyEnsureDer(key) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
     return wc_CheckPrivateKey((byte*)key->pkey.ptr, key->pkey_sz,
             x509->pubKey.buffer, x509->pubKey.length,
             (enum Key_Sum)x509->pubKeyOID, key->heap) == 1 ?
@@ -17661,6 +17948,11 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     cert->pubKey.buffer = p;
     cert->pubKey.length = (unsigned int)derSz;
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+    /* Whatever was decoded from the old buffer no longer describes this
+     * certificate. */
+    wolfssl_x509_free_pubkey_evp(cert);
+#endif
 
     return WOLFSSL_SUCCESS;
 }
@@ -18692,6 +18984,10 @@ int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509, WOLFSSL_EVP_PKEY* pkey)
         return WOLFSSL_FATAL_ERROR;
     }
 
+
+    if (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     ret = VerifyX509Acert(der, (word32)derSz,
                           (const byte *)pkey->pkey.ptr, pkey->pkey_sz,

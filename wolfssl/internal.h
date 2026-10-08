@@ -6072,6 +6072,15 @@ typedef struct WOLFSSL_AIA_ENTRY {
 } WOLFSSL_AIA_ENTRY;
 #endif /* WOLFSSL_AIA_ENTRY_DEFINED */
 
+/* wolfSSL_X509_get_pubkey() can keep the decoded key on the certificate and
+ * hand out a reference to it, rather than decoding it on every call. That
+ * needs EVP_PKEY reference counting, which is compiled only with
+ * OPENSSL_EXTRA: an OPENSSL_EXTRA_X509_SMALL build has the function but not
+ * wolfSSL_EVP_PKEY_up_ref(), and there decodes the key every time as before. */
+#if defined(OPENSSL_EXTRA)
+    #define WOLFSSL_X509_PUBKEY_CACHE
+#endif
+
 struct WOLFSSL_X509 {
     int              version;
     int              serialSz;
@@ -6123,6 +6132,12 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_CERT_EXT */
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
     wolfSSL_Ref      ref;
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+    /* The public key decoded out of pubKey, kept so that repeated
+     * wolfSSL_X509_get_pubkey() calls do not decode it again. The certificate
+     * holds one reference to it; each caller is given one of its own. */
+    WOLFSSL_EVP_PKEY* pubKeyEvp;
+#endif
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
@@ -7658,6 +7673,37 @@ static WC_INLINE int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_LOCAL WC_RNG* wolfssl_rsa_ensure_rng(WOLFSSL_RSA* rsa);
+#ifdef WOLFSSL_X509_PUBKEY_CACHE
+WOLFSSL_LOCAL void wolfssl_x509_free_pubkey_evp(WOLFSSL_X509* x509);
+#endif
+
+/* The compatibility layer's lazily populated caches each need a global mutex.
+ * Where the platform has no static mutex initializer they are created in
+ * wolfSSL_Init() and destroyed in wolfSSL_Cleanup(), because creating one on
+ * first use cannot be made safe: two threads arriving together would both
+ * create the same mutex, which is undefined for a Win32 or RTOS mutex. These
+ * conditions mirror the guards on the definitions in src/x509.c,
+ * src/pk_rsa.c and wolfcrypt/src/evp.c; change one and the others have to
+ * follow. */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+        !defined(NO_CERT) && defined(WOLFSSL_X509_PUBKEY_CACHE)
+        #define WOLFSSL_HAVE_X509_PUBKEY_MUTEX
+        WOLFSSL_LOCAL int wolfssl_x509_pubkey_mutex_init(void);
+        WOLFSSL_LOCAL void wolfssl_x509_pubkey_mutex_free(void);
+    #endif
+    #if !defined(NO_RSA) && !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+        #define WOLFSSL_HAVE_RSA_RNG_MUTEX
+        WOLFSSL_LOCAL int wolfssl_rsa_rng_mutex_init(void);
+        WOLFSSL_LOCAL void wolfssl_rsa_rng_mutex_free(void);
+    #endif
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+        #define WOLFSSL_HAVE_EVP_PKEY_DER_MUTEX
+        WOLFSSL_LOCAL int wolfssl_evp_pkey_der_mutex_init(void);
+        WOLFSSL_LOCAL void wolfssl_evp_pkey_der_mutex_free(void);
+    #endif
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                          int *initTmpRng);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */

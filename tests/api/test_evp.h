@@ -29,6 +29,7 @@ int test_wolfSSL_EVP_ENCODE_CTX_free(void);
 int test_wolfSSL_EVP_EncodeInit(void);
 int test_wolfSSL_EVP_EncodeUpdate(void);
 int test_wolfSSL_EVP_EncodeFinal(void);
+int test_wolfSSL_EVP_EncodeUpdate_chunked(void);
 int test_wolfSSL_EVP_DecodeInit(void);
 int test_wolfSSL_EVP_DecodeUpdate(void);
 int test_wolfSSL_EVP_DecodeFinal(void);
@@ -38,6 +39,7 @@ int test_wolfSSL_EVP_DecodeFinal(void);
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_ENCODE_CTX_free),   \
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_EncodeInit),        \
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_EncodeUpdate),      \
+    TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_EncodeUpdate_chunked), \
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_EncodeFinal),       \
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_DecodeInit),        \
     TEST_DECL_GROUP("evp_enc", test_wolfSSL_EVP_DecodeUpdate),      \

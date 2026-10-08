@@ -754,3 +754,128 @@ int test_wolfSSL_X509_set_pubkey(void)
     return EXPECT_RESULT();
 }
 
+
+/*
+ * X509_get_pubkey() hands back the key decoded on the first call rather than
+ * decoding it again, so the certificate and every caller share one object, as
+ * they do in OpenSSL. The reference counting that makes that safe is what this
+ * checks: the key has to outlive both the certificate and any individual
+ * caller, replacing the certificate's public key has to discard it, and a
+ * duplicate must not end up sharing it.
+ */
+int test_wolfSSL_X509_get_pubkey_cached(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    WOLFSSL_X509*     x509 = NULL;
+    WOLFSSL_EVP_PKEY* first = NULL;
+    WOLFSSL_EVP_PKEY* second = NULL;
+
+    /* Repeated calls describe the same key and, being the same object, compare
+     * equal to each other. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(first = wolfSSL_X509_get_pubkey(x509));
+    ExpectNotNull(second = wolfSSL_X509_get_pubkey(x509));
+    ExpectPtrEq(first, second);
+    /* The two describe the same key. Which value says so follows the build's
+     * error code convention, as test_EVP_PKEY_cmp() does. */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(wolfSSL_EVP_PKEY_cmp(first, second), 1);
+#else
+    ExpectIntEQ(wolfSSL_EVP_PKEY_cmp(first, second), 0);
+#endif
+    ExpectIntGT(wolfSSL_EVP_PKEY_bits(first), 0);
+
+    /* Releasing one caller's reference must leave the other usable. */
+    wolfSSL_EVP_PKEY_free(second);
+    second = NULL;
+    ExpectIntGT(wolfSSL_EVP_PKEY_bits(first), 0);
+    /* Still encodes to the certificate's SubjectPublicKeyInfo. */
+    {
+        byte* der = NULL;
+        ExpectIntGT(wolfSSL_i2d_PUBKEY(first, &der), 0);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* And the key must outlive the certificate it came from. */
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectIntGT(wolfSSL_EVP_PKEY_bits(first), 0);
+    wolfSSL_EVP_PKEY_free(first);
+    first = NULL;
+
+    /* A certificate duplicated after the key was cached gets its own. */
+    {
+        WOLFSSL_X509*     dup = NULL;
+        WOLFSSL_EVP_PKEY* a = NULL;
+        WOLFSSL_EVP_PKEY* b = NULL;
+
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(a = wolfSSL_X509_get_pubkey(x509));
+        ExpectNotNull(dup = wolfSSL_X509_dup(x509));
+        ExpectNotNull(b = wolfSSL_X509_get_pubkey(dup));
+        ExpectPtrNE(a, b);
+        /* Freeing the copy must not disturb the original's key. */
+        wolfSSL_X509_free(dup);
+        ExpectIntGT(wolfSSL_EVP_PKEY_bits(a), 0);
+        wolfSSL_EVP_PKEY_free(a);
+        wolfSSL_EVP_PKEY_free(b);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    /* Replacing the certificate's public key must discard what was decoded
+     * from the old one. */
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+    {
+        WOLFSSL_EVP_PKEY* other = NULL;
+        WOLFSSL_EVP_PKEY* before = NULL;
+        WOLFSSL_EVP_PKEY* after = NULL;
+        WOLFSSL_X509*     otherCert = NULL;
+        byte*             beforeDer = NULL;
+        byte*             afterDer = NULL;
+        int               beforeSz = 0;
+        int               afterSz = 0;
+
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(before = wolfSSL_X509_get_pubkey(x509));
+        ExpectIntGT(beforeSz = wolfSSL_i2d_PUBKEY(before, &beforeDer), 0);
+
+        /* A different certificate's key, so a stale cache would be visible. */
+        ExpectNotNull(otherCert = wolfSSL_X509_load_certificate_file(cliCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(other = wolfSSL_X509_get_pubkey(otherCert));
+        ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, other), WOLFSSL_SUCCESS);
+
+        ExpectNotNull(after = wolfSSL_X509_get_pubkey(x509));
+        ExpectIntGT(afterSz = wolfSSL_i2d_PUBKEY(after, &afterDer), 0);
+        /* The encoding must have followed the new key, not the cached one. */
+        if ((beforeDer != NULL) && (afterDer != NULL) &&
+                (beforeSz == afterSz)) {
+            ExpectIntNE(XMEMCMP(beforeDer, afterDer, (size_t)afterSz), 0);
+        }
+        /* The handle taken before the replacement still works. */
+        ExpectIntGT(wolfSSL_EVP_PKEY_bits(before), 0);
+
+        XFREE(beforeDer, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(afterDer, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_EVP_PKEY_free(before);
+        wolfSSL_EVP_PKEY_free(after);
+        wolfSSL_EVP_PKEY_free(other);
+        wolfSSL_X509_free(otherCert);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+#endif
+
+    /* A certificate nobody asks for a key from must still free cleanly. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
