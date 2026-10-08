@@ -53,6 +53,29 @@ impl Ed448 {
     pub const ED448: u8 = sys::Ed448 as u8;
     pub const ED448PH: u8 = sys::Ed448ph as u8;
 
+    /// Validate an Ed448 variant and optional context, returning the
+    /// context pointer and length to pass to wolfCrypt.
+    ///
+    /// Unknown variant values are rejected rather than being passed through
+    /// to wolfCrypt.
+    #[cfg(any(ed448_sign, ed448_verify, ed448_streaming_verify))]
+    fn check_variant_context(typ: u8, context: Option<&[u8]>) -> Result<(*const u8, u8), i32> {
+        let context = context.unwrap_or(&[]);
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        match typ {
+            Self::ED448 | Self::ED448PH => {}
+            _ => return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+        let context_ptr = if context.is_empty() {
+            core::ptr::null()
+        } else {
+            context.as_ptr()
+        };
+        Ok((context_ptr, context.len() as u8))
+    }
+
     /// Generate a new Ed448 key.
     ///
     /// # Parameters
@@ -841,6 +864,7 @@ impl Ed448 {
     /// * `din`: Data to sign.
     /// * `context`: Optional buffer containing context for which `din` is being signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     /// * `signature`: Output buffer to hold signature.
     ///
     /// # Returns
@@ -867,15 +891,7 @@ impl Ed448 {
     #[cfg(ed448_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448_sign_msg_ex(din.as_ptr(), din_size,
@@ -1096,6 +1112,7 @@ impl Ed448 {
     /// * `din`: Message to verify the signature of.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1123,15 +1140,7 @@ impl Ed448 {
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_ex(signature.as_ptr(), signature_size,
@@ -1156,6 +1165,7 @@ impl Ed448 {
     /// * `signature`: Signature to verify.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1185,15 +1195,7 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)

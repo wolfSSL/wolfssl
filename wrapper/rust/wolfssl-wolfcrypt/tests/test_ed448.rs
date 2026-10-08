@@ -5,6 +5,7 @@ mod common;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::ed448::*;
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 #[cfg(all(ed448_import, ed448_export, random))]
@@ -243,6 +244,26 @@ fn test_verify_msg_bad_sig() {
     signature[0] ^= 0x01;
 
     assert_eq!(ed.verify_msg(&signature, &message, None), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed448_sign, ed448_verify, random))]
+fn test_msg_ex_variant_validation() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed448::SIG_SIZE];
+
+    // Unknown variant values are rejected.
+    for typ in [2u8, 0xFF] {
+        assert_eq!(ed.sign_msg_ex(&message, None, typ, &mut signature),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+        assert_eq!(ed.verify_msg_ex(&signature, &message, None, typ),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    }
 }
 
 #[test]

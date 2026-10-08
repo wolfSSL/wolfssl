@@ -54,6 +54,36 @@ impl Ed25519 {
     pub const ED25519CTX: u8 = sys::Ed25519ctx as u8;
     pub const ED25519PH: u8 = sys::Ed25519ph as u8;
 
+    /// Validate an Ed25519 variant and optional context, returning the
+    /// context pointer and length to pass to wolfCrypt.
+    ///
+    /// wolfCrypt only binds the context into the signature for the
+    /// Ed25519ctx and Ed25519ph variants. A non-empty context with pure
+    /// Ed25519 would be silently ignored, so it is rejected here, as are
+    /// unknown variant values.
+    #[cfg(any(ed25519_sign, ed25519_verify, ed25519_streaming_verify))]
+    fn check_variant_context(typ: u8, context: Option<&[u8]>) -> Result<(*const u8, u8), i32> {
+        let context = context.unwrap_or(&[]);
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        match typ {
+            Self::ED25519 => {
+                if !context.is_empty() {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+            }
+            Self::ED25519CTX | Self::ED25519PH => {}
+            _ => return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+        let context_ptr = if context.is_empty() {
+            core::ptr::null()
+        } else {
+            context.as_ptr()
+        };
+        Ok((context_ptr, context.len() as u8))
+    }
+
     /// Generate a new Ed25519 key.
     ///
     /// # Parameters
@@ -879,6 +909,10 @@ impl Ed25519 {
     /// * `din`: Data to sign.
     /// * `context`: Optional buffer containing context for which `din` is being signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     /// * `signature`: Output buffer to hold signature.
     ///
     /// # Returns
@@ -899,21 +933,13 @@ impl Ed25519 {
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed25519::SIG_SIZE];
-    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
+    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519CTX, &mut signature).expect("Error with sign_msg_ex()");
     /// }
     /// ```
     #[cfg(ed25519_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed25519_sign_msg_ex(din.as_ptr(), din_size,
@@ -1177,6 +1203,10 @@ impl Ed25519 {
     /// * `din`: Message to verify the signature of.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     ///
     /// # Returns
     ///
@@ -1195,8 +1225,8 @@ impl Ed25519 {
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed25519::SIG_SIZE];
-    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
-    /// let signature_valid = ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519).expect("Error with verify_msg_ex()");
+    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519CTX, &mut signature).expect("Error with sign_msg_ex()");
+    /// let signature_valid = ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519CTX).expect("Error with verify_msg_ex()");
     /// assert!(signature_valid);
     /// }
     /// ```
@@ -1204,15 +1234,7 @@ impl Ed25519 {
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_ex(signature.as_ptr(), signature_size,
@@ -1237,6 +1259,10 @@ impl Ed25519 {
     /// * `signature`: Signature to verify.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     ///
     /// # Returns
     ///
@@ -1265,15 +1291,7 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)

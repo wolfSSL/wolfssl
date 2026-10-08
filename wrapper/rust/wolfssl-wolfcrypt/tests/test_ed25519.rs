@@ -5,6 +5,7 @@ mod common;
 #[cfg(all(ed25519_make_key, random))]
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::ed25519::*;
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
@@ -255,6 +256,62 @@ fn test_verify_msg_ex_bad_sig() {
     signature[0] ^= 0x01;
 
     assert_eq!(ed.verify_msg_ex(&signature, &message, None, Ed25519::ED25519), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
+fn test_msg_ex_variant_context_validation() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let context = b"context";
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+
+    // Pure Ed25519 does not bind a context, so a non-empty one is rejected.
+    assert_eq!(ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519, &mut signature),
+        Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    // An empty context is equivalent to none and is accepted.
+    ed.sign_msg_ex(&message, Some(&[]), Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
+    assert_eq!(ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519),
+        Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    assert_eq!(ed.verify_msg_ex(&signature, &message, Some(&[]), Ed25519::ED25519), Ok(true));
+
+    // Unknown variant values are rejected.
+    for typ in [2u8, 3] {
+        assert_eq!(ed.sign_msg_ex(&message, None, typ, &mut signature),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+        assert_eq!(ed.verify_msg_ex(&signature, &message, None, typ),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    }
+
+    // Ed25519ph requires a SHA-512 sized prehash.
+    assert!(ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519PH, &mut signature).is_err());
+
+    // A context-bound signature only verifies under the same context.
+    ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519CTX, &mut signature).expect("Error with sign_msg_ex()");
+    assert_eq!(ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519CTX), Ok(true));
+    assert_eq!(ed.verify_msg_ex(&signature, &message, Some(b"other"), Ed25519::ED25519CTX), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_streaming_verify, random))]
+fn test_verify_msg_init_variant_context_validation() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg(&message, &mut signature).expect("Error with sign_msg()");
+
+    assert_eq!(ed.verify_msg_init(&signature, Some(b"context"), Ed25519::ED25519),
+        Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    assert_eq!(ed.verify_msg_init(&signature, None, 3),
+        Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
 }
 
 #[test]
