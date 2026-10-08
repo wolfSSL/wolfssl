@@ -31446,7 +31446,10 @@ int test_wc_MldsaDerDecisionCoverage(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
-    defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* DER length: short form, or 0x82 two-byte long form. Every crafted
  * buffer below stays under 64 KiB, so two length bytes always suffice. */
 static word32 mldsa_test_der_len_sz(word32 len)
@@ -31711,7 +31714,10 @@ int test_wc_MldsaReworkDecisionCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
-    defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
     WC_RNG rng;
     int rngInited = 0;
     int i;

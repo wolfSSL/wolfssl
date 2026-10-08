@@ -832,7 +832,7 @@ static void wb_init_rng_seed_rng(void)
     /* :3273 seedRng!=NULL row: the seed is drawn from the parent's generate
      * function and its health test is skipped -- the exact branch the row
      * selects. */
-    ret = _InitRng(&child, NULL, 0, NULL, 0, NULL, INVALID_DEVID, &parent,
+    ret = _InitRng(&child, NULL, 0, NULL, 0, NULL, 0, NULL, INVALID_DEVID, &parent,
                    WC_RNG_INIT_FLAG_NONE);
     if (ret != 0) {
         WB_NOTE("_InitRng with seedRng failed");

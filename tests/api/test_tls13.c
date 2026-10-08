@@ -14881,6 +14881,8 @@ int test_tls13_exporter_suite_decision_coverage(void)
      * handshake; the mismatched minor takes the second operand's true side. */
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 #if defined(HAVE_KEYING_MATERIAL)
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
@@ -14921,6 +14923,8 @@ int test_tls13_exporter_suite_decision_coverage(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_export_keying_material(ssl_c, out, sizeof(out),
         "MCDC", 4, NULL, 0, 0), WOLFSSL_SUCCESS);

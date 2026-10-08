@@ -5323,7 +5323,8 @@ int test_SetCertificatePolicies_no_empty_qualifiers(void)
 int test_wc_Pkcs8EncryptDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_AES_CBC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+#if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && \
+    defined(HAVE_AES_CBC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
     defined(HAVE_ECC) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG rng;
     byte   key[32];

@@ -4374,6 +4374,7 @@ int test_wc_MlkemDecisionCoverage(void)
     word32    derSz = 0;
 #endif
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     word32    ctLen = 0;
@@ -4561,6 +4562,8 @@ int test_wc_MlkemDecisionCoverage(void)
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(fresh);
     XMEMSET(fresh, 0, sizeof(*fresh));
+    ExpectIntEQ(wc_MlKemKey_Init(fresh, WC_ML_KEM_TYPE_UNSET, NULL,
+        INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_MlKemKey_PublicKeyDecode(fresh, der, sz, &idx), 0);
     wc_MlKemKey_Free(fresh);
@@ -4570,7 +4573,7 @@ int test_wc_MlkemDecisionCoverage(void)
 
     /* Private key DER: the NULL rows, the valid decode (type already
      * set, so the adopt check takes its false side), and the adopt:
-     * a zeroed key has no type, so the DER's type is adopted. */
+     * an initialized key with no type takes the DER's type. */
     sz = wc_MlKemKey_PrivateKeyToDer(key2, NULL, 0);
     ExpectIntGT(sz, 0);
     ExpectIntEQ(wc_MlKemKey_PrivateKeyToDer(key2, der, sizeof(der)), sz);
@@ -4589,6 +4592,8 @@ int test_wc_MlkemDecisionCoverage(void)
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(adopt);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, WC_ML_KEM_TYPE_UNSET, NULL,
+        INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, sz, &idx), 0);
     wc_MlKemKey_Free(adopt);
@@ -4619,6 +4624,7 @@ int test_wc_MlkemDecisionCoverage(void)
      * uncovered until the parser is fixed; expect the failure. */
     derSz = test_mlkem_der_seed_only(der, t, rndMk, sizeof(rndMk), 0);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
@@ -4628,6 +4634,7 @@ int test_wc_MlkemDecisionCoverage(void)
      * (ret == 0) is false with seed != NULL. */
     derSz = test_mlkem_der_seed_only(der, t, rndMk, sizeof(rndMk), 1);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
@@ -4639,6 +4646,7 @@ int test_wc_MlkemDecisionCoverage(void)
     derSz = test_mlkem_der_both(der, t, rndMk, sizeof(rndMk),
         expanded, privLen);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntNE(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx), 0);
     wc_MlKemKey_Free(adopt);
@@ -4648,6 +4656,7 @@ int test_wc_MlkemDecisionCoverage(void)
     derSz = test_mlkem_der_both(der, t, rndMk, sizeof(rndMk),
         expanded, privLen - 1);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
@@ -4657,6 +4666,7 @@ int test_wc_MlkemDecisionCoverage(void)
      * fails first, so (ret == 0) is false with the mismatch held. */
     derSz = test_mlkem_der_both(der, t, rndMk, 32, expanded, privLen - 1);
     XMEMSET(adopt, 0, sizeof(*adopt));
+    ExpectIntEQ(wc_MlKemKey_Init(adopt, t, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_MlKemKey_PrivateKeyDecode(adopt, der, derSz, &idx),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
@@ -4672,6 +4682,7 @@ int test_wc_MlkemDecisionCoverage(void)
      *     the false side (the SW-only fast path is skipped and the software
      *     sponge runs instead). --- */
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     ExpectIntEQ(wc_MlKemKey_CipherTextSize(key2, &ctLen), 0);
