@@ -4030,10 +4030,6 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                            hash, mgf, label, labelSz, saltLen,
                            mp_count_bits(&key->n), key->heap);
         if (ret < 0) {
-            if (rsa_type == RSA_PUBLIC_ENCRYPT) {
-                /* Padding failed with the secret already copied in. */
-                ForceZero(out, (word32)sz);
-            }
             break;
         }
 
@@ -4050,16 +4046,6 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
-            /* out holds the padded secret (ISO/IEC 19790:2012 7.9.7); a
-             * pending or would-block result still needs it. */
-            if ((rsa_type == RSA_PUBLIC_ENCRYPT) &&
-                    (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
-            #ifdef WC_RSA_NONBLOCK
-                    && (ret != FP_WOULDBLOCK)
-            #endif
-                    ) {
-                ForceZero(out, (word32)sz);
-            }
             break;
         }
 
