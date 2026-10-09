@@ -1869,7 +1869,6 @@ static void showPeerPEM(WOLFSSL* ssl)
     (void)ssl;
 }
 
-
 static void Usage(void)
 {
     int msgid = 0;
@@ -4418,6 +4417,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     timeoutConnect.tv_sec  = DEFAULT_TIMEOUT_SEC;
     timeoutConnect.tv_usec = 0;
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    /* print before ret is checked: ECH status is always significant */
+    if (echConfigs64 != NULL)
+        PrintEchStatus(ssl);
 #endif
     if (ret != WOLFSSL_SUCCESS) {
         err = wolfSSL_get_error(ssl, 0);
