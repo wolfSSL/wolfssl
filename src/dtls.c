@@ -467,7 +467,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     int ret;
 #endif
 #ifdef HAVE_EXT_CACHE
-    int copy;
+    int copy = 1;
 #endif
     *resume = FALSE;
 
