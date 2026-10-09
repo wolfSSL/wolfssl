@@ -298,8 +298,11 @@ WOLFSSL_LOCAL void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0,
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if defined(WOLFSSL_FALCON_FPR_ASM) && !defined(__x86_64__)
-    #error "WOLFSSL_FALCON_FPR_ASM requires x86-64 (wc_falcon_fpr_x86_64_asm.S)."
+/* _M_X64 as well as __x86_64__: the backend is wc_falcon_fpr_x86_64_asm.S for
+ * GCC/Clang and wc_falcon_fpr_intrin.c for a C-intrinsics build, and the
+ * latter compiles with MSVC, which defines only _M_X64. */
+#if defined(WOLFSSL_FALCON_FPR_ASM) && !defined(__x86_64__) && !defined(_M_X64)
+    #error "WOLFSSL_FALCON_FPR_ASM requires x86-64."
 #endif
 #if defined(WOLFSSL_FALCON_FFT_AVX2) && \
     !defined(__x86_64__) && !defined(__i386__)
