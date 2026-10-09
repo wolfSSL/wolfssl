@@ -14,6 +14,7 @@
 #   F. flush-left function calls (debug residue) in C-like files
 #   G. invalid UTF-8 (requires iconv)
 #   H. macros that take args but have an empty definition
+#   M. clamp WOLFSSL_CACHE_VERSION to +1 prior release.
 #
 # Not ported (require pcre2grep against built artifacts or are
 # wolfSSL-internal conventions covered elsewhere):
@@ -291,27 +292,29 @@ check_empty_macros() {
             -- "${files[@]}" 2>/dev/null || true)
 }
 
-# I. WOLFSSL_CACHE_VERSION should be bumped only once per release, max, and
+# M. WOLFSSL_CACHE_VERSION should be bumped only once per release, max, and
 # only if a backwards compat breaking change was made to the session cache.
 # Check against the previous release tag, if available.
 check_sess_cache_ver() {
-    local release_tag=$(git describe --tags --abbrev=0 --match 'v*-stable' \
-                        2>/dev/null)
-    if [ -z $release_tag ]; then
+    local release_tag prev_ver this_ver
+
+    release_tag=$(git describe --tags --abbrev=0 --match 'v*-stable' \
+                  2>/dev/null)
+    if [ -z "$release_tag" ]; then
         # shallow clone or no tag data, skip test
         return
     fi
 
     # get previous release
-    local prev_ver=$(git show "${release_tag}:wolfssl/ssl_sess.h" | \
-                     grep "define WOLFSSL_CACHE_VERSION ." | awk '{print $3}')
+    prev_ver=$(git show "${release_tag}:wolfssl/ssl_sess.h" | \
+               grep "define WOLFSSL_CACHE_VERSION ." | awk '{print $3}')
     # get this branch
-    local this_ver=$(grep "define WOLFSSL_CACHE_VERSION ." wolfssl/ssl_sess.h \
-                    | awk '{print $3}')
+    this_ver=$(grep "define WOLFSSL_CACHE_VERSION ." wolfssl/ssl_sess.h \
+               | awk '{print $3}')
 
-    if [[ $this_ver -gt $(($prev_ver + 1)) ]]; then
+    if [[ "$this_ver" -gt $((prev_ver + 1)) ]]; then
         printf 'error: WOLFSSL_CACHE_VERSION: bumped too many times:\n'
-        printf '    got %d, expected <= %d\n' $this_ver $(($prev_ver + 1))
+        printf '    got %d, expected <= %d\n' "$this_ver" $((prev_ver + 1))
         FAIL=1
     fi
 }
