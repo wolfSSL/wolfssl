@@ -5636,6 +5636,262 @@ int test_tls13_multi_pqc_key_share(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 4.2.8 and the ML-KEM TLS drafts require an illegal_parameter alert
+ * when an ML-KEM key share fails the FIPS 203 input checks. Tamper with the
+ * key_share of the ClientHello or ServerHello on the wire and check that the
+ * receiver sends the alert instead of closing silently. */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    #if !defined(WOLFSSL_NO_ML_KEM_768) && \
+        !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+        #define TEST_TLS13_BAD_KS_ML_KEM_768
+    #endif
+    #if defined(WOLFSSL_PQC_HYBRIDS) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+        defined(HAVE_CURVE25519)
+        #define TEST_TLS13_BAD_KS_X25519MLKEM768
+    #endif
+    #if defined(WOLFSSL_PQC_HYBRIDS) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+        defined(HAVE_ECC) && !defined(NO_ECC256) && ECC_MIN_KEY_SZ <= 256
+        #define TEST_TLS13_BAD_KS_SECP256R1MLKEM768
+    #endif
+    #if defined(WOLFSSL_PQC_HYBRIDS) && !defined(WOLFSSL_NO_ML_KEM_1024) && \
+        defined(HAVE_ECC) && \
+        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 384
+        #define TEST_TLS13_BAD_KS_SECP384R1MLKEM1024
+    #endif
+    #if defined(TEST_TLS13_BAD_KS_ML_KEM_768) || \
+        defined(TEST_TLS13_BAD_KS_X25519MLKEM768) || \
+        defined(TEST_TLS13_BAD_KS_SECP256R1MLKEM768) || \
+        defined(TEST_TLS13_BAD_KS_SECP384R1MLKEM1024)
+        #define TEST_TLS13_MLKEM_BAD_KEY_SHARE_ENABLED
+    #endif
+#endif
+
+#ifdef TEST_TLS13_MLKEM_BAD_KEY_SHARE_ENABLED
+/* Add diff to the 16-bit big-endian length at p. */
+static void test_tls13_adjust_len16(byte* p, int diff)
+{
+    word16 v;
+
+    ato16(p, &v);
+    c16toa((word16)(v + diff), p);
+}
+
+/* Edit the first key_share entry of the hello record at the start of the
+ * memio buffer and fix every enclosing length. A negative diff removes bytes
+ * at key_exchange offset at, a positive diff inserts zero bytes there, and an
+ * at of -1 edits the end of key_exchange. When poke is non-negative the two
+ * bytes at that key_exchange offset are set to 0xff, which makes an ML-KEM
+ * coefficient 4095 >= q. */
+static int test_tls13_tamper_key_share(struct test_memio_ctx* ctx, int client,
+    int at, int diff, int poke)
+{
+    byte* buf = client ? ctx->c_buff : ctx->s_buff;
+    int* len = client ? &ctx->c_len : &ctx->s_len;
+    int* msgSz = client ? &ctx->c_msg_sizes[0] : &ctx->s_msg_sizes[0];
+    int isCh;
+    int idx;
+    int extTotIdx;
+    int extEnd;
+    int extLenIdx = 0;
+    int keIdx;
+    word16 v16;
+    word32 v24;
+    int keLen;
+
+    if (*len < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + OPAQUE16_LEN +
+            RAN_LEN + OPAQUE8_LEN || buf[0] != handshake) {
+        return -1;
+    }
+    isCh = (buf[RECORD_HEADER_SZ] == client_hello);
+    idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN;
+    idx += OPAQUE8_LEN + buf[idx];
+    if (isCh) {
+        ato16(buf + idx, &v16);
+        idx += OPAQUE16_LEN + v16;
+        idx += OPAQUE8_LEN + buf[idx];
+    }
+    else {
+        idx += OPAQUE16_LEN + OPAQUE8_LEN;
+    }
+    if (idx + OPAQUE16_LEN > *len)
+        return -1;
+    extTotIdx = idx;
+    ato16(buf + idx, &v16);
+    extEnd = idx + OPAQUE16_LEN + v16;
+    idx += OPAQUE16_LEN;
+    while (idx + 2 * OPAQUE16_LEN <= extEnd &&
+            idx + 2 * OPAQUE16_LEN <= *len) {
+        ato16(buf + idx, &v16);
+        if (v16 == TLSX_KEY_SHARE) {
+            extLenIdx = idx + OPAQUE16_LEN;
+            break;
+        }
+        ato16(buf + idx + OPAQUE16_LEN, &v16);
+        idx += 2 * OPAQUE16_LEN + v16;
+    }
+    if (extLenIdx == 0)
+        return -1;
+    /* Skip extension length, client_shares length (ClientHello only), group
+     * and key_exchange length. */
+    keIdx = extLenIdx + 3 * OPAQUE16_LEN;
+    if (isCh)
+        keIdx += OPAQUE16_LEN;
+    if (keIdx > *len)
+        return -1;
+    ato16(buf + keIdx - OPAQUE16_LEN, &v16);
+    keLen = v16;
+    if (at < 0)
+        at = (diff < 0) ? keLen + diff : keLen;
+    if (keIdx + keLen > *len || at < 0 || at - diff > keLen ||
+            *len + diff > TEST_MEMIO_BUF_SZ) {
+        return -1;
+    }
+
+    if (poke >= 0) {
+        if (poke + 2 > keLen)
+            return -1;
+        buf[keIdx + poke] = 0xff;
+        buf[keIdx + poke + 1] = 0xff;
+    }
+    if (diff == 0)
+        return 0;
+
+    test_tls13_adjust_len16(buf + 3, diff);
+    ato24(buf + RECORD_HEADER_SZ + 1, &v24);
+    c32to24(v24 + (word32)diff, buf + RECORD_HEADER_SZ + 1);
+    test_tls13_adjust_len16(buf + extTotIdx, diff);
+    test_tls13_adjust_len16(buf + extLenIdx, diff);
+    if (isCh)
+        test_tls13_adjust_len16(buf + extLenIdx + OPAQUE16_LEN, diff);
+    test_tls13_adjust_len16(buf + keIdx - OPAQUE16_LEN, diff);
+    if (diff < 0)
+        return test_memio_remove_from_buffer(ctx, client, keIdx + at, -diff);
+
+    XMEMMOVE(buf + keIdx + at + diff, buf + keIdx + at,
+        (size_t)(*len - keIdx - at));
+    XMEMSET(buf + keIdx + at, 0, (size_t)diff);
+    *len += diff;
+    *msgSz += diff;
+    return 0;
+}
+
+/* Tamper with the ClientHello (serverSide) or ServerHello key share and
+ * check the receiver fails with expErr and a fatal illegal_parameter alert. */
+static int test_tls13_mlkem_bad_key_share_once(int group, int serverSide,
+    int at, int diff, int poke, int expErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL *ssl_rx = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, (word16)group), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    if (serverSide) {
+        ssl_rx = ssl_s;
+    }
+    else {
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ssl_rx = ssl_c;
+    }
+
+    ExpectIntEQ(test_tls13_tamper_key_share(&test_ctx, !serverSide, at, diff,
+        poke), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_rx), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_rx, WOLFSSL_FATAL_ERROR), expErr);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_rx, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* kemOff: where the ML-KEM part starts in both key shares.
+ * eccLen: bytes of ECDH public key in each share, 0 for pure ML-KEM. */
+static int test_tls13_mlkem_bad_key_share_group(int group, int kemOff,
+    int eccLen)
+{
+    EXPECT_DECLS;
+    int bad = WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA);
+    /* A hybrid ServerHello with the right ciphertext size but the wrong total
+     * length leaves the ECDH part the wrong size, which ECDH rejects. */
+    int badSh = (eccLen > 0) ? WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR) : bad;
+
+    /* ClientHello: total share 1 or 32 bytes short, cut from the end. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 1, -1, -1, -1,
+        bad), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 1, -1, -32, -1,
+        bad), TEST_SUCCESS);
+    /* ClientHello: ML-KEM key 1 byte short, ECDH part intact. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 1, kemOff, -1, -1,
+        bad), TEST_SUCCESS);
+    /* ClientHello: total share 1 byte long. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 1, -1, 1, -1,
+        bad), TEST_SUCCESS);
+    /* ClientHello: ML-KEM key fails the modulus check. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 1, -1, 0, kemOff,
+        bad), TEST_SUCCESS);
+
+    /* ServerHello: ML-KEM ciphertext 1 byte short, ECDH part intact. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 0, kemOff, -1, -1,
+        badSh), TEST_SUCCESS);
+    /* ServerHello: total share 1 byte long. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 0, -1, 1, -1,
+        badSh), TEST_SUCCESS);
+    /* ServerHello: share 1 byte shorter than the ML-KEM ciphertext alone. */
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_once(group, 0, -1,
+        -(eccLen + 1), -1, bad), TEST_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS13_MLKEM_BAD_KEY_SHARE_ENABLED */
+
+int test_tls13_mlkem_bad_key_share(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_BAD_KS_ML_KEM_768
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_ML_KEM_768, 0,
+        0), TEST_SUCCESS);
+#endif
+#ifdef TEST_TLS13_BAD_KS_X25519MLKEM768
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_X25519MLKEM768, 0,
+        CURVE25519_KEYSIZE), TEST_SUCCESS);
+#endif
+#ifdef TEST_TLS13_BAD_KS_SECP256R1MLKEM768
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_SECP256R1MLKEM768,
+        65, 65), TEST_SUCCESS);
+#endif
+#ifdef TEST_TLS13_BAD_KS_SECP384R1MLKEM1024
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(
+        WOLFSSL_SECP384R1MLKEM1024, 97, 97), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
     defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET)
 static int test_tls13_read_until_write_ok(WOLFSSL* ssl, void* buf, int bufLen)

@@ -46,6 +46,7 @@ int test_tls13_rpk_unoffered_cert_type(void);
 int test_tls13_rpk_multiple_certs(void);
 int test_tls13_pq_groups(void);
 int test_tls13_multi_pqc_key_share(void);
+int test_tls13_mlkem_bad_key_share(void);
 int test_tls13_early_data(void);
 int test_tls13_same_ch(void);
 int test_tls13_hrr_different_cs(void);
@@ -198,6 +199,7 @@ int test_tls13_export_client_key_update(void);
     TEST_DECL_GROUP("tls13", test_tls13_rpk_multiple_certs), \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
     TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
+    TEST_DECL_GROUP("tls13", test_tls13_mlkem_bad_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
     TEST_DECL_GROUP("tls13", test_tls13_same_ch),               \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),      \
