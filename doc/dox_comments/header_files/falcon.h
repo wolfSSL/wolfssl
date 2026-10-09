@@ -515,9 +515,16 @@ int wc_falcon_sig_size(falcon_key* key);
     \ingroup Falcon
 
     \brief Decodes a DER/ASN.1 (PKCS#8) Falcon private key into key. On return
-    *inOutIdx is advanced past the consumed input.
+    *inOutIdx is advanced past the consumed input. When the input carries a
+    public key, either in the publicKey field or after the private key in the
+    legacy concatenated privateKey layout, it is checked against the private
+    key with wc_falcon_check_key(). The check is cryptographic only when
+    native signing is compiled in; verify-only and crypto-callback-only builds
+    check only that both halves are present. On a failed check the key is
+    left with neither half set.
 
     \return 0 on success.
+    \return PUBLIC_KEY_E if the public key does not match the private key.
     \return ASN_PARSE_E or other negative error on a malformed input.
 
     \param [in] input DER-encoded private key.
@@ -527,6 +534,7 @@ int wc_falcon_sig_size(falcon_key* key);
 
     \sa wc_Falcon_PrivateKeyToDer
     \sa wc_Falcon_PublicKeyDecode
+    \sa wc_falcon_check_key
 */
 int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     falcon_key* key, word32 inSz);
@@ -556,6 +564,9 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \brief Encodes a Falcon private key (with its public key) as a DER/ASN.1
     (PKCS#8) structure. Pass a NULL output to query the required length.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read; wc_Falcon_PrivateKeyToDer()
+    omits it.
 
     \return Number of bytes written (or required, if output is NULL) on success.
     \return BAD_FUNC_ARG or BUFFER_E on error.

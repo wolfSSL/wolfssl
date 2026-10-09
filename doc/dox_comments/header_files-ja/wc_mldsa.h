@@ -694,13 +694,14 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 /*!
     \ingroup ML_DSA
 
-    \brief DER/ASN.1でエンコードされたバッファ(PKCS#8 OneAsymmetricKey)からML-DSA秘密鍵を解析します。パラメータセットはエンコード内のアルゴリズム識別子から推定されるため、事前に設定する必要はありません。成功時、*inOutIdxは消費したバイト数分進められます。
+    \brief DER/ASN.1でエンコードされたバッファ(PKCS#8 OneAsymmetricKey)からML-DSA秘密鍵を解析します。パラメータセットはエンコード内のアルゴリズム識別子から推定されるため、事前に設定する必要はありません。成功時、*inOutIdxは消費したバイト数分進められます。秘密鍵が展開形式のみの場合、エンコードに含まれる公開鍵(publicKeyフィールド、または展開形式の秘密鍵の後に連結された形式)は秘密鍵内のtr = H(pk)の値と照合されます。WOLFSSL_ASN_TEMPLATEかつ鍵生成が有効なビルドでは、シードを含む秘密鍵はシードから鍵ペアが再導出され、エンコードされた公開鍵は無視されます。WOLF_CRYPTO_CB_ONLY_MLDSAが定義されている場合、この照合は行われません。
 
     WOLFSSL_MLDSA_NO_ASN1が定義されていない場合にのみ利用できます。
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合に返されます。
     \return ASN_PARSE_E エンコードの形式が不正な場合に返されます。
+    \return PUBLIC_KEY_E エンコードされた公開鍵が秘密鍵と一致しない場合に返されます。拒否された鍵ペアは鍵オブジェクトに読み込まれません。
 
     \param [in,out] key 初期化済みのwc_MlDsaKeyへのポインタ。
     \param [in] input DERエンコードされた秘密鍵バイト列。
@@ -757,7 +758,7 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
 /*!
     \ingroup ML_DSA
 
-    \brief ML-DSA鍵ペア(公開鍵+秘密鍵)をPKCS#8 OneAsymmetricKey構造としてDERにエンコードします。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。
+    \brief ML-DSA鍵ペア(公開鍵+秘密鍵)をPKCS#8 OneAsymmetricKey構造としてDERにエンコードします。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。[1] publicKeyはRFC 5958に従いBIT STRINGとして書き込まれるため、この変更より前のwolfSSLリリースでは読み込めません。wc_MlDsaKey_PrivateKeyToDer()はこのフィールドを出力しません。
 
     \return 成功した場合、エンコードされたDERのサイズ(バイト単位)を返します。
     \return BAD_FUNC_ARG keyがNULLの場合、またはパラメータセットが選択されていない場合に返されます。
@@ -777,10 +778,12 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 /*!
     \ingroup ML_DSA
 
-    \brief ML-DSA秘密鍵をDERにエンコードします。FIPS 204では秘密鍵のエンコードに公開鍵の要素が含まれるため、この関数は現在wc_MlDsaKey_KeyToDer()のエイリアスであり、他のアルゴリズムとのAPIの一貫性のために維持されています。
+    \brief ML-DSA秘密鍵を、[1] publicKeyフィールドを含まないPKCS#8 OneAsymmetricKey v1構造としてDERにエンコードします。この出力は以前のwolfSSLリリースでも読み込めます。必要なバッファサイズを問い合わせるには、outputにNULLを渡してください。
 
     \return 成功した場合、エンコードされたDERのサイズ(バイト単位)を返します。
-    \return wc_MlDsaKey_KeyToDer()から引き継がれたエラーコードが返されます。
+    \return BAD_FUNC_ARG keyがNULLの場合、秘密鍵が設定されていない場合、パラメータセットが選択されていない場合、またはoutputがNULLでなくinLenが小さすぎる場合に返されます。
+    \return BUFFER_E outputがNULLでなく、inLenが0の場合に返されます。
+    \return MEMORY_E 動的メモリの割り当てに失敗した場合に返されます。
 
     \param [in] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
     \param [out] output DERエンコードを受け取るバッファ。サイズを問い合わせる場合はNULL。

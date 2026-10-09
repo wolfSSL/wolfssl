@@ -38,6 +38,8 @@
   cache rows and columns, so an image written by a build with different
   dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
   A saved cache from an older release cannot be restored by this one.
+* **BREAKING (RFC 5958)**: The `publicKey` field of PKCS#8 v2 private keys (`OneAsymmetricKey`) for Ed25519, Ed448, X25519, ML-DSA and Falcon is a BIT STRING and now carries its unused-bits byte, so keys written by wolfSSL load in ring and other conformant parsers, and wolfSSL reads theirs. X25519 key values are still stored in reversed byte order, a separate bug, so X25519 PKCS#8 keys do not yet interoperate. Keys written by earlier wolfSSL still decode, but earlier wolfSSL cannot read keys written by this release. To write keys that every version reads, use `wc_Ed25519PrivateKeyToDer` and the other `*PrivateKeyToDer` functions, which omit `publicKey`. `WC_MLDSA_44/65/87_BOTH_KEY_DER_SIZE` and `CURVE25519_MAX_KEY_TO_DER_SZ` each grow by one byte, so applications that size buffers from them must be recompiled. A non-empty `publicKey` that matches neither form is now rejected with `ASN_PARSE_E`; an empty one is still treated as absent. by @MarkAtwood (PR 11674)
+* `wc_Falcon_PrivateKeyDecode()` now rejects a PKCS#8 key whose public key, in `publicKey` or in the legacy concatenated `privateKey`, does not match the private key, returning `PUBLIC_KEY_E` and leaving the key unset; verify-only and crypto-callback-only builds check only that both halves are present. by @MarkAtwood (issue 11671)
 
 ## Post-Quantum Cryptography (PQC)
 
@@ -47,6 +49,7 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 * Added ML-KEM (FIPS 203) key OIDs, SubjectPublicKeyInfo and PKCS#8 encoding, and X.509 certificate support, including issuing an ML-KEM certificate with `wc_MakeCert_ex`. A key initialised with the new `WC_ML_KEM_TYPE_UNSET` takes its parameter set from the DER being decoded. by @Frauschi
+* `wc_MlDsaKey_PrivateKeyDecode` now returns `PUBLIC_KEY_E` for an expanded ML-DSA private key whose public key does not match the `tr = H(pk)` value the private key embeds (not checked in `WOLF_CRYPTO_CB_ONLY_MLDSA` builds). Such keys previously loaded and then produced signatures that failed to verify. by @MarkAtwood
 
 ## Bug Fixes
 

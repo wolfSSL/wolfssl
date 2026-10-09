@@ -34,6 +34,9 @@
 #ifdef HAVE_ED448
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -71,7 +74,7 @@ int test_SetAsymKeyDer(void)
     /* We can't access the keyEd25519Oid variable, so declare it instead */
     byte algId[] = {43, 101, 112};
     /* RFC 5958: version is v1 (0) for private only, v2 (1) when public key
-     * bundled. Conditions 1-5 are private only, 6-8 include pub key and
+     * bundled. Conditions 1-5 are private only, 6-10 include pub key and
      * mutate version[0] = 0x1 before building trueDer. */
     byte version[] = {0x0};
     byte keyPat = 0xcc;
@@ -80,7 +83,7 @@ int test_SetAsymKeyDer(void)
     word32 privKeySz = 0;
     byte* pubKey = NULL;
     word32 pubKeySz = 0;
-    byte trueDer[310]; /* The largest size is 310 bytes on Condition 8 */
+    byte trueDer[311]; /* The largest size is 311 bytes on Condition 8 */
     word32 trueDerSz = 0;
 
     /*
@@ -298,12 +301,12 @@ int test_SetAsymKeyDer(void)
      * Condition 6:
      *     PKEY data = 34            (1 to 127)
      *     PKEY_CURVEPKEY data = 32  (1 to 127)
-     *     PUBKEY data = 32          (1 to 127)
-     *     SEQ data = 80             (1 to 127)
+     *     PUBKEY data = 33          (1 to 127)
+     *     SEQ data = 81             (1 to 127)
      */
     privKeySz = 32;
     pubKeySz = 32;
-    trueDerSz = 82;
+    trueDerSz = 83;
     version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
@@ -330,9 +333,10 @@ int test_SetAsymKeyDer(void)
     XMEMSET(privKey, keyPat, privKeySz); /* trueDer[16] to trueDer[47] */
     /* PUBKEY */
     trueDer[48] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
-    trueDer[49] = pubKeySz;
-    pubKey      = &trueDer[50];
-    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[50] to trueDer[81] */
+    trueDer[49] = pubKeySz + 1;
+    trueDer[50] = 0x00; /* BIT STRING unused bits */
+    pubKey      = &trueDer[51];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[51] to trueDer[82] */
 
     EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
         trueDer, trueDerSz));
@@ -341,12 +345,12 @@ int test_SetAsymKeyDer(void)
      * Condition 7:
      *     PKEY data = 34            (1 to 127)
      *     PKEY_CURVEPKEY data = 32  (1 to 127)
-     *     PUBKEY data = 128         (128 to 255)
-     *     SEQ data = 180            (128 to 255)
+     *     PUBKEY data = 129         (128 to 255)
+     *     SEQ data = 181            (128 to 255)
      */
     privKeySz = 32;
     pubKeySz = 128;
-    trueDerSz = 180;
+    trueDerSz = 181;
     version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
@@ -375,9 +379,10 @@ int test_SetAsymKeyDer(void)
     /* PUBKEY */
     trueDer[49] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
     trueDer[50] = 0x81;
-    trueDer[51] = pubKeySz;
-    pubKey      = &trueDer[52];
-    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[52] to trueDer[179] */
+    trueDer[51] = pubKeySz + 1;
+    trueDer[52] = 0x00; /* BIT STRING unused bits */
+    pubKey      = &trueDer[53];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[53] to trueDer[180] */
 
     EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
         trueDer, trueDerSz));
@@ -386,12 +391,12 @@ int test_SetAsymKeyDer(void)
      * Condition 8:
      *     PKEY data = 34            (1 to 127)
      *     PKEY_CURVEPKEY data = 32  (1 to 127)
-     *     PUBKEY data = 256         (256 to 65535)
-     *     SEQ data = 306            (256 to 65535)
+     *     PUBKEY data = 257         (256 to 65535)
+     *     SEQ data = 307            (256 to 65535)
      */
     privKeySz = 32;
     pubKeySz = 256;
-    trueDerSz = 310;
+    trueDerSz = 311;
     version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
@@ -421,10 +426,107 @@ int test_SetAsymKeyDer(void)
     /* PUBKEY */
     trueDer[50] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
     trueDer[51] = 0x82;
-    trueDer[52] = (pubKeySz >> 8) & 0xff;
-    trueDer[53] = pubKeySz & 0xff;
-    pubKey      = &trueDer[54];
-    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[54] to trueDer[309] */
+    trueDer[52] = ((pubKeySz + 1) >> 8) & 0xff;
+    trueDer[53] = (pubKeySz + 1) & 0xff;
+    trueDer[54] = 0x00; /* BIT STRING unused bits */
+    pubKey      = &trueDer[55];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[55] to trueDer[310] */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 9: the unused-bits byte pushes PUBKEY from 127 to 128,
+     * the first length that needs the long form.
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 128         (128 to 255)
+     *     SEQ data = 177            (128 to 255)
+     */
+    privKeySz = 32;
+    pubKeySz = 127;
+    trueDerSz = 180;
+    version[0] = 0x1; /* publicKey present (v2) */
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x81;
+    trueDer[2]  = 0xb1;
+    /* VER */
+    trueDer[3]  = ASN_INTEGER;
+    trueDer[4]  = sizeof(version);
+    trueDer[5]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[6]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[7]  = sizeof(algId) + 2;
+    trueDer[8]  = ASN_OBJECT_ID;
+    trueDer[9]  = sizeof(algId);
+    trueDer[10] = algId[0];
+    trueDer[11] = algId[1];
+    trueDer[12] = algId[2];
+    /* PKEY */
+    trueDer[13] = ASN_OCTET_STRING;
+    trueDer[14] = privKeySz + 2;
+    trueDer[15] = ASN_OCTET_STRING;
+    trueDer[16] = privKeySz;
+    privKey     = &trueDer[17];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[17] to trueDer[48] */
+    /* PUBKEY */
+    trueDer[49] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    trueDer[50] = 0x81;
+    trueDer[51] = 0x80;
+    trueDer[52] = 0x00; /* BIT STRING unused bits */
+    pubKey      = &trueDer[53];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[53] to trueDer[179] */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 10: the unused-bits byte pushes PUBKEY from 255 to 256,
+     * the first length that needs two length bytes.
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 256         (256 to 65535)
+     *     SEQ data = 306            (256 to 65535)
+     */
+    privKeySz = 32;
+    pubKeySz = 255;
+    trueDerSz = 310;
+    version[0] = 0x1; /* publicKey present (v2) */
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x82;
+    trueDer[2]  = 0x01;
+    trueDer[3]  = 0x32;
+    /* VER */
+    trueDer[4]  = ASN_INTEGER;
+    trueDer[5]  = sizeof(version);
+    trueDer[6]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[7]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[8]  = sizeof(algId) + 2;
+    trueDer[9]  = ASN_OBJECT_ID;
+    trueDer[10] = sizeof(algId);
+    trueDer[11] = algId[0];
+    trueDer[12] = algId[1];
+    trueDer[13] = algId[2];
+    /* PKEY */
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = privKeySz + 2;
+    trueDer[16] = ASN_OCTET_STRING;
+    trueDer[17] = privKeySz;
+    privKey     = &trueDer[18];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[18] to trueDer[49] */
+    /* PUBKEY */
+    trueDer[50] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    trueDer[51] = 0x82;
+    trueDer[52] = 0x01;
+    trueDer[53] = 0x00;
+    trueDer[54] = 0x00; /* BIT STRING unused bits */
+    pubKey      = &trueDer[55];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[55] to trueDer[309] */
 
     EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
         trueDer, trueDerSz));
@@ -582,6 +684,306 @@ int test_DecodeAsymKey_negative(void)
     wc_ed25519_free(&key);
     wc_FreeRng(&rng);
 #endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_ASN) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
+static int test_DecodeAsymKey_pub_once(const byte* der, word32 derSz,
+    int expRet, const byte* expPub)
+{
+    EXPECT_DECLS;
+    ed25519_key key;
+    byte pub[ED25519_PUB_KEY_SIZE];
+    word32 pubSz = (word32)sizeof(pub);
+    word32 idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(der, &idx, &key, derSz), expRet);
+    if (expPub != NULL) {
+        ExpectIntEQ(wc_ed25519_export_public(&key, pub, &pubSz), 0);
+        ExpectIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
+        ExpectBufEQ(pub, expPub, ED25519_PUB_KEY_SIZE);
+    }
+    wc_ed25519_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#if !defined(NO_ASN) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_KEY_IMPORT) && defined(HAVE_ED448_KEY_EXPORT)
+/* RFC 8032 section 7.4 "Blank" key in RFC 5958 form. */
+static int test_DecodeAsymKey_ed448_pub(void)
+{
+    EXPECT_DECLS;
+    static const byte ed448Der[] = {
+        0x30, 0x81, 0x83, 0x02, 0x01, 0x01, 0x30, 0x05,
+        0x06, 0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04,
+        0x39, 0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d,
+        0x10, 0xd6, 0x32, 0xbe, 0x89, 0xc8, 0x51, 0x3e,
+        0xbf, 0x6c, 0x92, 0x9f, 0x34, 0xdd, 0xfa, 0x8c,
+        0x9f, 0x63, 0xc9, 0x96, 0x0e, 0xf6, 0xe3, 0x48,
+        0xa3, 0x52, 0x8c, 0x8a, 0x3f, 0xcc, 0x2f, 0x04,
+        0x4e, 0x39, 0xa3, 0xfc, 0x5b, 0x94, 0x49, 0x2f,
+        0x8f, 0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98,
+        0xf9, 0x5b, 0x81, 0x3a, 0x00, 0x5f, 0xd7, 0x44,
+        0x9b, 0x59, 0xb4, 0x61, 0xfd, 0x2c, 0xe7, 0x87,
+        0xec, 0x61, 0x6a, 0xd4, 0x6a, 0x1d, 0xa1, 0x34,
+        0x24, 0x85, 0xa7, 0x0e, 0x1f, 0x8a, 0x0e, 0xa7,
+        0x5d, 0x80, 0xe9, 0x67, 0x78, 0xed, 0xf1, 0x24,
+        0x76, 0x9b, 0x46, 0xc7, 0x06, 0x1b, 0xd6, 0x78,
+        0x3d, 0xf1, 0xe5, 0x0f, 0x6c, 0xd1, 0xfa, 0x1a,
+        0xbe, 0xaf, 0xe8, 0x25, 0x61, 0x80
+    };
+    static const byte ed448Pub[] = {
+        0x5f, 0xd7, 0x44, 0x9b, 0x59, 0xb4, 0x61, 0xfd,
+        0x2c, 0xe7, 0x87, 0xec, 0x61, 0x6a, 0xd4, 0x6a,
+        0x1d, 0xa1, 0x34, 0x24, 0x85, 0xa7, 0x0e, 0x1f,
+        0x8a, 0x0e, 0xa7, 0x5d, 0x80, 0xe9, 0x67, 0x78,
+        0xed, 0xf1, 0x24, 0x76, 0x9b, 0x46, 0xc7, 0x06,
+        0x1b, 0xd6, 0x78, 0x3d, 0xf1, 0xe5, 0x0f, 0x6c,
+        0xd1, 0xfa, 0x1a, 0xbe, 0xaf, 0xe8, 0x25, 0x61,
+        0x80
+    };
+    ed448_key key;
+    byte pub[ED448_PUB_KEY_SIZE];
+    word32 pubSz = (word32)sizeof(pub);
+    word32 idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode(ed448Der, &idx, &key,
+        (word32)sizeof(ed448Der)), 0);
+    ExpectIntEQ(wc_ed448_export_public(&key, pub, &pubSz), 0);
+    ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+    ExpectBufEQ(pub, ed448Pub, ED448_PUB_KEY_SIZE);
+    wc_ed448_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#if !defined(NO_ASN) && defined(HAVE_CURVE25519) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT) && defined(HAVE_CURVE25519_KEY_EXPORT)
+/* RFC 7748 section 6.1 Alice key in RFC 5958 form. This checks the [1]
+ * framing only: wolfSSL's X25519 DER key byte order is reversed. */
+static int test_DecodeAsymKey_x25519_pub(void)
+{
+    EXPECT_DECLS;
+    static const byte x25519Der[] = {
+        0x30, 0x51, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04, 0x20,
+        0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d,
+        0x3c, 0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45,
+        0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0, 0x99, 0x2a,
+        0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a,
+        0x81, 0x21, 0x00, 0x85, 0x20, 0xf0, 0x09, 0x89,
+        0x30, 0xa7, 0x54, 0x74, 0x8b, 0x7d, 0xdc, 0xb4,
+        0x3e, 0xf7, 0x5a, 0x0d, 0xbf, 0x3a, 0x0d, 0x26,
+        0x38, 0x1a, 0xf4, 0xeb, 0xa4, 0xa9, 0x8e, 0xaa,
+        0x9b, 0x4e, 0x6a
+    };
+    static const byte x25519Pub[] = {
+        0x85, 0x20, 0xf0, 0x09, 0x89, 0x30, 0xa7, 0x54,
+        0x74, 0x8b, 0x7d, 0xdc, 0xb4, 0x3e, 0xf7, 0x5a,
+        0x0d, 0xbf, 0x3a, 0x0d, 0x26, 0x38, 0x1a, 0xf4,
+        0xeb, 0xa4, 0xa9, 0x8e, 0xaa, 0x9b, 0x4e, 0x6a
+    };
+    curve25519_key key;
+    byte pub[CURVE25519_PUB_KEY_SIZE];
+    word32 pubSz = (word32)sizeof(pub);
+    word32 idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_curve25519_init(&key), 0);
+    ExpectIntEQ(wc_Curve25519KeyDecode(x25519Der, &idx, &key,
+        (word32)sizeof(x25519Der)), 0);
+    ExpectIntEQ(wc_curve25519_export_public(&key, pub, &pubSz), 0);
+    ExpectIntEQ(pubSz, CURVE25519_PUB_KEY_SIZE);
+    ExpectBufEQ(pub, x25519Pub, CURVE25519_PUB_KEY_SIZE);
+    wc_curve25519_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 5958 publicKey is a BIT STRING, so it carries an unused-bits byte. */
+int test_DecodeAsymKey_bitstring_pubkey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
+    /* RFC 8032 section 7.1 test 1 in RFC 5958 form. */
+    static const byte tv1Der[] = {
+        0x30, 0x51, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60,
+        0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
+        0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
+        0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60,
+        0x81, 0x21, 0x00, 0xd7, 0x5a, 0x98, 0x01, 0x82,
+        0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9,
+        0x64, 0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda,
+        0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7,
+        0x07, 0x51, 0x1a
+    };
+    /* The same key as wolfSSL wrote it before the unused-bits byte. */
+    static const byte tv1LegacyDer[] = {
+        0x30, 0x50, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60,
+        0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
+        0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
+        0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60,
+        0x81, 0x20, 0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1,
+        0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64,
+        0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6,
+        0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07,
+        0x51, 0x1a
+    };
+    static const byte tv1Pub[] = {
+        0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7,
+        0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a,
+        0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25,
+        0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a
+    };
+    /* RFC 8410 section 10.3 example key, without its attributes. */
+    static const byte rfc8410Der[] = {
+        0x30, 0x51, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0xd4, 0xee, 0x72, 0xdb, 0xf9, 0x13, 0x58, 0x4a,
+        0xd5, 0xb6, 0xd8, 0xf1, 0xf7, 0x69, 0xf8, 0xad,
+        0x3a, 0xfe, 0x7c, 0x28, 0xcb, 0xf1, 0xd4, 0xfb,
+        0xe0, 0x97, 0xa8, 0x8f, 0x44, 0x75, 0x58, 0x42,
+        0x81, 0x21, 0x00, 0x19, 0xbf, 0x44, 0x09, 0x69,
+        0x84, 0xcd, 0xfe, 0x85, 0x41, 0xba, 0xc1, 0x67,
+        0xdc, 0x3b, 0x96, 0xc8, 0x50, 0x86, 0xaa, 0x30,
+        0xb6, 0xb6, 0xcb, 0x0c, 0x5c, 0x38, 0xad, 0x70,
+        0x31, 0x66, 0xe1
+    };
+    static const byte rfc8410Pub[] = {
+        0x19, 0xbf, 0x44, 0x09, 0x69, 0x84, 0xcd, 0xfe,
+        0x85, 0x41, 0xba, 0xc1, 0x67, 0xdc, 0x3b, 0x96,
+        0xc8, 0x50, 0x86, 0xaa, 0x30, 0xb6, 0xb6, 0xcb,
+        0x0c, 0x5c, 0x38, 0xad, 0x70, 0x31, 0x66, 0xe1
+    };
+    /* Generated by ring 0.17.14 Ed25519KeyPair::generate_pkcs8. */
+    static const byte ringDer[] = {
+        0x30, 0x51, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0x32, 0x35, 0x0b, 0xd8, 0xf5, 0x24, 0x8d, 0x59,
+        0x94, 0x6a, 0x7e, 0x44, 0xc0, 0x68, 0xc1, 0x4b,
+        0xf0, 0x02, 0x20, 0xd2, 0xe3, 0x4c, 0xd7, 0x00,
+        0x60, 0x1d, 0x81, 0xe6, 0xbd, 0xc2, 0x2c, 0x16,
+        0x81, 0x21, 0x00, 0x2b, 0xf0, 0xf5, 0x97, 0x1f,
+        0xbe, 0x7f, 0x83, 0xd7, 0xb8, 0x74, 0x7f, 0x34,
+        0x7c, 0x62, 0x44, 0x97, 0xb2, 0x9e, 0xd3, 0x8a,
+        0x14, 0x89, 0x65, 0x5d, 0x7c, 0x35, 0x8a, 0x90,
+        0xf8, 0x08, 0xe4
+    };
+    static const byte ringPub[] = {
+        0x2b, 0xf0, 0xf5, 0x97, 0x1f, 0xbe, 0x7f, 0x83,
+        0xd7, 0xb8, 0x74, 0x7f, 0x34, 0x7c, 0x62, 0x44,
+        0x97, 0xb2, 0x9e, 0xd3, 0x8a, 0x14, 0x89, 0x65,
+        0x5d, 0x7c, 0x35, 0x8a, 0x90, 0xf8, 0x08, 0xe4
+    };
+#ifdef HAVE_ED25519_SIGN
+    /* ring signature over ringMsg with ringDer. */
+    static const char ringMsg[] = "wolfSSL issue 10019";
+    static const byte ringSig[] = {
+        0xc8, 0x7e, 0xe1, 0x78, 0x09, 0xdc, 0xa3, 0xf3,
+        0xfb, 0x6b, 0xe5, 0xb9, 0xbe, 0xc0, 0x78, 0x71,
+        0x3c, 0x1e, 0x33, 0xf2, 0xb8, 0x88, 0x7e, 0x6e,
+        0xd1, 0x17, 0x38, 0xa5, 0xb1, 0x6b, 0x5b, 0xe5,
+        0xe3, 0xe4, 0xc3, 0x26, 0x75, 0x2b, 0xed, 0x52,
+        0x9a, 0xb5, 0x85, 0x48, 0xc0, 0x5f, 0xbd, 0xd2,
+        0xe6, 0x42, 0x84, 0x90, 0xf3, 0xeb, 0x4d, 0x21,
+        0x67, 0x79, 0x14, 0x43, 0xb2, 0x34, 0xdd, 0x06
+    };
+#endif
+    byte tmp[sizeof(tv1Der) + 1];
+#ifdef HAVE_ED25519_SIGN
+    ed25519_key key;
+    byte out[128];
+    byte sig[ED25519_SIG_SIZE];
+    word32 sigSz = (word32)sizeof(sig);
+    word32 idx = 0;
+#endif
+
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tv1Der, (word32)sizeof(tv1Der), 0,
+        tv1Pub));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tv1LegacyDer,
+        (word32)sizeof(tv1LegacyDer), 0, tv1Pub));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(ringDer, (word32)sizeof(ringDer), 0,
+        ringPub));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(rfc8410Der,
+        (word32)sizeof(rfc8410Der), 0, rfc8410Pub));
+
+    /* tv1Der offsets: [1] SEQUENCE length, [48] publicKey tag, [49] its
+     * length, [50] unused-bits byte, [51..82] public key. */
+
+    /* Unused bits must be 0; 0x40 would otherwise import as OpenPGP form. */
+    XMEMCPY(tmp, tv1Der, sizeof(tv1Der));
+    tmp[50] = 0x01;
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tmp, (word32)sizeof(tv1Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E), NULL));
+    tmp[50] = 0x40;
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tmp, (word32)sizeof(tv1Der),
+        WC_NO_ERR_TRACE(ASN_PARSE_E), NULL));
+
+#ifdef HAVE_ED25519_MAKE_KEY
+    /* The stripped key must still be checked against the private key. */
+    XMEMCPY(tmp, tv1Der, sizeof(tv1Der));
+    XMEMCPY(tmp + 51, rfc8410Pub, sizeof(rfc8410Pub));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tmp, (word32)sizeof(tv1Der),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E), NULL));
+#endif
+
+    /* Two leading zero bytes is neither form: SEQUENCE and [1] grow by 1. */
+    XMEMCPY(tmp, tv1Der, 48);
+    tmp[1] = 0x52;
+    tmp[48] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    tmp[49] = ED25519_PUB_KEY_SIZE + 2;
+    tmp[50] = 0x00;
+    tmp[51] = 0x00;
+    XMEMCPY(tmp + 52, tv1Pub, sizeof(tv1Pub));
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tmp, (word32)sizeof(tmp),
+        WC_NO_ERR_TRACE(ASN_PARSE_E), NULL));
+
+    /* An empty publicKey is treated as absent: SEQUENCE ends after [1]. */
+    XMEMCPY(tmp, tv1Der, 48);
+    tmp[1] = 0x30;
+    tmp[48] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    tmp[49] = 0x00;
+    EXPECT_TEST(test_DecodeAsymKey_pub_once(tmp, 50, 0, NULL));
+
+#ifdef HAVE_ED25519_SIGN
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(ringDer, &idx, &key,
+        (word32)sizeof(ringDer)), 0);
+    ExpectIntEQ(wc_ed25519_sign_msg((const byte*)ringMsg,
+        (word32)XSTRLEN(ringMsg), sig, &sigSz, &key), 0);
+    ExpectIntEQ(sigSz, ED25519_SIG_SIZE);
+    ExpectBufEQ(sig, ringSig, ED25519_SIG_SIZE);
+    /* Re-encoding must match ring byte for byte. */
+    ExpectIntEQ(wc_Ed25519KeyToDer(&key, out, (word32)sizeof(out)),
+        (int)sizeof(ringDer));
+    ExpectBufEQ(out, ringDer, sizeof(ringDer));
+    wc_ed25519_free(&key);
+#endif
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_KEY_IMPORT) && defined(HAVE_ED448_KEY_EXPORT)
+    EXPECT_TEST(test_DecodeAsymKey_ed448_pub());
+#endif
+#if !defined(NO_ASN) && defined(HAVE_CURVE25519) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT) && defined(HAVE_CURVE25519_KEY_EXPORT)
+    EXPECT_TEST(test_DecodeAsymKey_x25519_pub());
+#endif
+
     return EXPECT_RESULT();
 }
 

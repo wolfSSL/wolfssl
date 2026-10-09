@@ -57257,18 +57257,10 @@ static wc_test_ret_t ed25519_asn_test(ed25519_key* key3)
                                    sizeof(badPrivateEd25519)) == 0)
         return WC_TEST_RET_ENC_NC;
 
-    /* Signing with a private-only key (no public loaded yet) is rejected on
-     * the host with BAD_FUNC_ARG. The SE050 port instead fails inside
-     * sss_se05x_key_store_set_ecc_keypair and returns WC_HW_E, so accept
-     * that alternate error code when built against an SE050. Under
-     * WOLFSSL_SE050_ONLY_KEY_ID this software key (keyIdSet == 0) takes the
-     * host path, so the host BAD_FUNC_ARG applies. */
+    /* Signing with a private-only key (no public loaded yet) is rejected
+     * with BAD_FUNC_ARG, on the host and in the SE050 port. */
     ret = wc_ed25519_sign_msg(msg, 0, out, &outlen, key3);
-#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
-    if (ret != WC_NO_ERR_TRACE(WC_HW_E))
-#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-#endif
         return WC_TEST_RET_ENC_EC(ret);
 
     /* try with a buffer size that is too large */

@@ -876,13 +876,21 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     buffer (PKCS#8 OneAsymmetricKey). The parameter set is inferred
     from the algorithm identifier in the encoding, so it does NOT
     need to be set beforehand. On success *inOutIdx is advanced past
-    the consumed bytes.
+    the consumed bytes. When the private key is in expanded form only,
+    a public key carried in the encoding, in the publicKey field or
+    appended to the expanded private key, is checked against the
+    tr = H(pk) value in the private key. In WOLFSSL_ASN_TEMPLATE builds
+    with key generation, a private key holding a seed is re-derived from
+    the seed and any encoded public key is ignored. The check is not made when WOLF_CRYPTO_CB_ONLY_MLDSA
+    is defined.
 
     Only available when WOLFSSL_MLDSA_NO_ASN1 is not defined.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E on malformed encoding.
+    \return PUBLIC_KEY_E if the encoded public key does not match the
+    private key. The rejected keys are not loaded.
 
     \param [in,out] key Pointer to an initialized wc_MlDsaKey.
     \param [in] input DER-encoded private key bytes.
@@ -954,6 +962,9 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     \brief Encodes an ML-DSA key pair (public + private) to DER as a
     PKCS#8 OneAsymmetricKey structure. Pass NULL as output to query
     the required buffer size.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read;
+    wc_MlDsaKey_PrivateKeyToDer() omits it.
 
     \return Size of the encoded DER in bytes on success.
     \return BAD_FUNC_ARG if key is NULL or no parameter set is
@@ -975,13 +986,17 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 /*!
     \ingroup ML_DSA
 
-    \brief Encodes the ML-DSA private key to DER. Per FIPS 204 the
-    private key encoding includes the public component, so this
-    function is currently an alias of wc_MlDsaKey_KeyToDer() kept for
-    API parity with other algorithms.
+    \brief Encodes the ML-DSA private key to DER as a PKCS#8
+    OneAsymmetricKey v1 structure with no [1] publicKey field. Earlier
+    wolfSSL releases can read this output. Pass NULL as output to query
+    the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return Inherited error codes from wc_MlDsaKey_KeyToDer().
+    \return BAD_FUNC_ARG if key is NULL, the private key has not been
+    set, no parameter set is selected, or output is non-NULL and inLen
+    is too small.
+    \return BUFFER_E if output is non-NULL and inLen is 0.
+    \return MEMORY_E if dynamic memory allocation fails.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
     \param [out] output Buffer that receives the DER encoding, or
