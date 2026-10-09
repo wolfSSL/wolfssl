@@ -22592,6 +22592,76 @@ static int test_wolfSSL_sigalg_info(void)
     return EXPECT_RESULT();
 }
 
+/* peerAuthOk is the last field, so a blob written before it existed is simply
+ * short and an older reader ignores the trailing byte. */
+static int test_wolfSSL_i2d_SSL_SESSION_peer_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* restored = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* ptr = NULL;
+    unsigned char* pp = NULL;
+    int sz = 0;
+
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (sess != NULL) {
+        sess->peerAuthOk = 1;
+        sess->isSetup = 1;
+    }
+    ExpectIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, NULL)), 0);
+    /* Two sessions back to back, then slack, to exercise the length contract. */
+    ExpectNotNull(der = (unsigned char*)XMALLOC((size_t)(2 * sz) + 8, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (der != NULL) {
+        XMEMSET(der, 0xAA, (size_t)(2 * sz) + 8);
+        pp = der;
+        ExpectIntGT(wolfSSL_i2d_SSL_SESSION(sess, &pp), 0);
+        /* i2d does not advance *p, so place the second one by hand. */
+        pp = der + sz;
+        ExpectIntGT(wolfSSL_i2d_SSL_SESSION(sess, &pp), 0);
+    }
+
+    /* Round trip keeps it, and consumes exactly the session. */
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 1);
+    ExpectPtrEq(ptr, der + sz);
+    wolfSSL_SESSION_free(restored);
+    restored = NULL;
+
+    /* Too few bytes is an error, not a partial import. */
+    ptr = der;
+    ExpectNull(wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz - 1));
+
+    /* More bytes than the session is allowed: the extra is ignored, the field
+     * survives and *p stops at the end of the session. */
+    ptr = der;
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr, (long)sz + 8));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 1);
+    ExpectPtrEq(ptr, der + sz);
+    wolfSSL_SESSION_free(restored);
+    restored = NULL;
+
+    /* So the second of two stored back to back decodes from where the first
+     * one left off. */
+    ExpectNotNull(restored = wolfSSL_d2i_SSL_SESSION(NULL, &ptr,
+        (long)(der + (2 * sz) - ptr)));
+    if (restored != NULL)
+        ExpectIntEQ(restored->peerAuthOk, 1);
+    ExpectPtrEq(ptr, der + (2 * sz));
+    wolfSSL_SESSION_free(restored);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_d2i_SSL_SESSION_bounds_check(void)
 {
     EXPECT_DECLS;
@@ -45044,6 +45114,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
     TEST_DECL(test_wolfSSL_sigalg_info),
     /* Can't memory test as tcp_connect aborts. */
+    TEST_DECL(test_wolfSSL_i2d_SSL_SESSION_peer_auth),
     TEST_DECL(test_wolfSSL_d2i_SSL_SESSION_bounds_check),
     TEST_DECL(test_wolfSSL_sk_GENERAL_NAME),
     TEST_DECL(test_wolfSSL_sk_GENERAL_NAME_new_null),

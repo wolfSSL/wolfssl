@@ -2941,6 +2941,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+    /* peerAuthOk, last so an older reader stops before it. */
+    size += OPAQUE8_LEN;
 
     if (p != NULL) {
         unsigned char *data;
@@ -3036,6 +3038,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
+        data[idx++] = sess->peerAuthOk;
     }
 #endif
 
@@ -3056,6 +3059,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
  *       enabled with the wolfSSL library exporting a session then it is
  *       expected to be turned on with the wolfSSL library importing the
  *       session.
+ *
+ * i is how many bytes are readable at *p, not necessarily the size of the
+ * session: trailing bytes are ignored, and *p is advanced to the end of the
+ * session decoded, so sessions stored back to back decode with repeated
+ * calls. Passing in too few bytes will cause an error.
  */
 WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
                                 const unsigned char** p, long i)
@@ -3342,7 +3350,11 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    (void)idx;
+    if (i - idx < OPAQUE8_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->peerAuthOk = (data[idx++] != 0);
 
     if (sess != NULL) {
         wolfSSL_FreeSession(NULL, *sess);
@@ -3916,6 +3928,14 @@ void SetupSession(WOLFSSL* ssl)
         session->haveEMS = 1;
     else
         session->haveEMS = ssl->options.haveEMS;
+    /* Server only: on a client these flags describe the server certificate,
+     * a different statement that nothing reads. A resumed connection sends no
+     * Certificate, so it keeps what it inherited. */
+    if (!ssl->options.resuming &&
+            (ssl->options.side == WOLFSSL_SERVER_END)) {
+        session->peerAuthOk = (byte)(ssl->options.havePeerCert &&
+                                     ssl->options.havePeerVerify);
+    }
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */
