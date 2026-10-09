@@ -1447,6 +1447,15 @@ int test_wc_FalconDecisionCoverage(void)
     falcon_key key;
     byte out[64];
     word32 outLen;
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+    WC_RNG rng;
+    int i;
+    int rngInited = 0;
+#endif
     /* Buffers sized for a raw Falcon-512 private/public import so the ret==0
      * arm of wc_falcon_import_private_key is reachable without keygen. */
     /* Sized for the largest level built; the imports below use the exact size
@@ -1580,16 +1589,16 @@ int test_wc_FalconDecisionCoverage(void)
      * The (!prvKeySet) F + valid-rng fall-through into the native signer is
      * owned by test_wc_falcon_sign_vfy (real key). */
     {
-        WC_RNG rng;
+        WC_RNG rng2;
         byte msg[4];
-        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(&rng2, 0, sizeof(rng2));
         XMEMSET(msg, 0, sizeof(msg));
         XMEMSET(&key, 0, sizeof(key));
         ExpectIntEQ(wc_falcon_init(&key), 0);
         ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
-            &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
+            &key, &rng2), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
         key.prvKeySet = 1;                                 /* !prvKeySet F */
         outLen = (word32)sizeof(out);
         ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
@@ -1684,6 +1693,54 @@ int test_wc_FalconDecisionCoverage(void)
             WC_NO_ERR_TRACE(BUFFER_E));
     }
 #endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* ---- wc_falcon_make_key: (f[u] >= lim || f[u] <= -lim ||
+     *      g[u] >= lim || g[u] <= -lim) COMP_TRIM encodability check -----
+     * Each keygen attempt samples (f,g) and rejects out-of-range
+     * coefficients; the deterministic seed callback makes the attempt
+     * stream reproducible, and enough attempts fire each bound operand. */
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+    XMEMSET(&rng, 0, sizeof(rng));
+    DoExpectIntEQ(wc_SetSeed_Cb(falcon_det_seed_cb), 0);
+    if (wc_InitRng(&rng) == 0) {
+        rngInited = 1;
+    }
+    DoExpectIntEQ(rngInited, 1);
+    for (i = 0; i < 64; i++) {
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+        ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+        wc_falcon_free(&key);
+    }
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+#endif /* det seed-cb guard */
+
+    /* ---- wc_Falcon_KeyToDer / wc_Falcon_PrivateKeyToDer:
+     *      (key == NULL) || !falcon_level_ok(key) ------------------------
+     * key==NULL is owned by the error-paths test; here the level operand is
+     * flipped: a fresh init (level 0) fails falcon_level_ok in the guard,
+     * a valid level passes the guard and fails later on the unset key
+     * material (same code, different decision outcome). */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_Falcon_KeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_set_level(&key, falcon_levels[0]), 0);
+    ExpectIntEQ(wc_Falcon_KeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
 #endif /* HAVE_FALCON */
     return EXPECT_RESULT();
 }
@@ -1697,7 +1754,7 @@ int test_wc_FalconDecisionCoverage(void)
 #ifdef TEST_FALCON_CB_FREE
 /* What the free callback saw, so the test can check the contract rather than
  * just that something fired. */
-typedef struct {
+typedef struct FalconCbFreeCtx {
     int frees;        /* matching free callbacks seen */
     int badObj;       /* callback was handed the wrong object */
     int wiped;        /* callback saw a key already cleaned up */

@@ -1252,6 +1252,18 @@ static void wb_run_dispatch_256(void)
         (void)WB_CHECK(sp_256_add_points_4(&pp1, &pp2, tmp2));
     }
     {
+        sp_point_256 zp1;
+        sp_point_256 zp2;
+        sp_digit     ztmp[48];
+
+        XMEMSET(&zp1, 0, sizeof(zp1));
+        XMEMSET(&zp2, 0, sizeof(zp2));
+        XMEMSET(ztmp, 0, sizeof(ztmp));
+        /* All-zero points: the add yields the point at infinity, driving
+         * the z==0 and x&&y==0 true sides of add_points_4's checks. */
+        (void)WB_CHECK(sp_256_add_points_4(&zp1, &zp2, ztmp));
+    }
+    {
         sp_point_256 pt;
 
         XMEMSET(&pt, 0, sizeof(pt));

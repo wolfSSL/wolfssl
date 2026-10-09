@@ -68,6 +68,7 @@ int test_wc_MldsaFeatureCoverage(void);
 int test_mldsa_legacy_shim(void);
 int test_wc_MldsaDecisionCoverage2(void);
 int test_wc_MldsaDerDecisionCoverage(void);
+int test_wc_MldsaReworkDecisionCoverage(void);
 int test_mldsa_cb_free(void);
 
 int test_wc_MlDsaKey_seed_service_indicator(void);
@@ -104,6 +105,7 @@ int test_wc_MlDsaKey_SetPrecompA(void);
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage2),                  \
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_seed_service_indicator),         \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage),                \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaReworkDecisionCoverage),             \
     TEST_DECL_GROUP("mldsa", test_mldsa_cb_free),                              \
     TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA)
 

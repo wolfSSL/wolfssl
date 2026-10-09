@@ -3218,3 +3218,59 @@ int test_wolfSSL_session_cache_restore(void)
 #endif /* PERSIST_SESSION_CACHE && !NO_SESSION_CACHE &&
         * !SESSION_CACHE_DYNAMIC_MEM && !TITAN_SESSION_CACHE &&
         * !HUGE_SESSION_CACHE */
+
+/* Decision-coverage drivers for the ssl_sess.c argument guards left
+ * unpaired by the functional tests. Each block names the
+ * source line:condition it closes. */
+int test_session_decision_coverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs session fns whose definitions need OPENSSL_EXTRA/HAVE_EXT_CACHE
+     * and are hidden from the .so - shared builds compile this out;
+     * WOLFSSL_TEST_STATIC_BUILD is set for static-only builds (configure)
+     * and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_SESSION_CACHE) && \
+    (defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_CIPHER cipher;
+
+    XMEMSET(&cipher, 0, sizeof(cipher));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+
+    /* --- 1552:0/1/2 wolfSSL_SetSession: ssl==NULL || session==NULL ||
+     *     !session->isSetup ---------------------------------------------- */
+    (void)wolfSSL_SetSession(NULL, sess);
+    (void)wolfSSL_SetSession(ssl, NULL);
+    (void)wolfSSL_SetSession(ssl, sess);
+
+    /* --- 3296:0/1 wolfSSL_SSL_SESSION_set_timeout: ses==NULL || t<0 ------ */
+    (void)wolfSSL_SSL_SESSION_set_timeout(NULL, 100);
+    (void)wolfSSL_SSL_SESSION_set_timeout(sess, -1);
+    (void)wolfSSL_SSL_SESSION_set_timeout(sess, 100);
+
+    /* --- 3320:0/1 wolfSSL_SESSION_set_time: ses==NULL || t<0 ------------- */
+    (void)wolfSSL_SESSION_set_time(NULL, 100);
+    (void)wolfSSL_SESSION_set_time(sess, -1);
+    (void)wolfSSL_SESSION_set_time(sess, 100);
+
+    /* --- 3955:0/1 wolfSSL_SESSION_up_ref: session==NULL || type!=HEAP ---- */
+    (void)wolfSSL_SESSION_up_ref(NULL);
+    (void)wolfSSL_SESSION_up_ref(sess);
+
+    /* --- 4383:0/1 wolfSSL_SESSION_set_cipher: session==NULL || cipher==NULL */
+    (void)wolfSSL_SESSION_set_cipher(NULL, &cipher);
+    (void)wolfSSL_SESSION_set_cipher(sess, NULL);
+    (void)wolfSSL_SESSION_set_cipher(sess, &cipher);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}

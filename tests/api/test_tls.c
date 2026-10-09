@@ -5060,3 +5060,457 @@ int test_tls12_aesgcm_record_nonce_unique(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Decision-coverage driver for the internal SetSSL_CTX() (src/internal.c).
+ * SetSSL_CTX() runs on every wolfSSL_new() and wolfSSL_write_dup() and on
+ * explicit context switches; the guards below are reached through those
+ * entry points plus direct calls with crafted state. */
+int test_internal_SetSSL_CTX_DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL SetSSL_CTX(), hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_PSK) && \
+    !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL_CTX *ctxHint = NULL;
+    WOLFSSL *ssl = NULL;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ExpectNotNull(ctx);
+
+    /* 7864: !ssl || !ctx */
+    ExpectIntEQ(SetSSL_CTX(NULL, ctx, 0), BAD_FUNC_ARG); /* cond0 T, cond1 F */
+    ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+    ExpectIntEQ(SetSSL_CTX(ssl, NULL, 0), BAD_FUNC_ARG); /* cond0 F, cond1 T */
+    ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS); /* both F */
+
+    /* 7870: ctx->server_hint[0] && ssl->arrays == NULL && !writeDup.
+     * ssl->arrays is allocated by ReinitSSL() before SetSSL_CTX() in the
+     * wolfSSL_new() path, so the guard's arrays-NULL half is only reached
+     * on the writeDup path; a zeroed WOLFSSL stands in for that state.
+     * With writeDup 1 the body never touches ssl->arrays. */
+    ctxHint = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ExpectNotNull(ctxHint);
+    /* The guard (7870) tests only server_hint[0]; a single store keeps the
+     * state minimal and stays clear of strncpy range analysis on the
+     * macro-sized member. */
+    ctxHint->server_hint[0] = 'h';
+    {
+        WOLFSSL *raw = (WOLFSSL *)XMALLOC(sizeof(WOLFSSL), NULL,
+                DYNAMIC_TYPE_SSL);
+        ExpectNotNull(raw);
+        XMEMSET(raw, 0, sizeof(WOLFSSL));
+        /* all T: hint set + arrays NULL + writeDup 0 -> rejected */
+        ExpectIntEQ(SetSSL_CTX(raw, ctxHint, 0), BAD_FUNC_ARG);
+        /* cond0 F: hint unset, same state -> accepted */
+        XMEMSET(raw, 0, sizeof(WOLFSSL));
+        ExpectIntEQ(SetSSL_CTX(raw, ctx, 0), WOLFSSL_SUCCESS);
+        /* cond2 F: writeDup 1 skips the guard */
+        XMEMSET(raw, 0, sizeof(WOLFSSL));
+        ExpectIntEQ(SetSSL_CTX(raw, ctxHint, 1), WOLFSSL_SUCCESS);
+        XFREE(raw, NULL, DYNAMIC_TYPE_SSL);
+        /* cond1 F: hint set + arrays set -> accepted */
+        ExpectIntEQ(SetSSL_CTX(ssl, ctxHint, 0), WOLFSSL_SUCCESS);
+    }
+
+    /* 7910: !got_client_hello && !got_server_hello -> version from ctx. */
+    {
+        WOLFSSL_CTX *ctx2 = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+        ExpectNotNull(ctx2);
+        /* cond0 T / cond1 T: no hellos received -> version taken from ctx */
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx2, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->version.minor, TLSv1_2_MINOR);
+        /* cond0 F: client hello received -> version untouched */
+        ssl->msgsReceived.got_client_hello = 1;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx2, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->version.minor, TLSv1_2_MINOR);
+        ssl->msgsReceived.got_client_hello = 0;
+        /* cond1 F: server hello received -> version untouched */
+        ssl->msgsReceived.got_server_hello = 1;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx2, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->version.minor, TLSv1_2_MINOR);
+        ssl->msgsReceived.got_server_hello = 0;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_free(ctx2);
+    }
+
+    /* 7944: newSSL || ctx->method->side != WOLFSSL_NEITHER_END */
+    {
+        WOLFSSL_CTX *ctxNoSide = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+        ExpectNotNull(ctxNoSide);
+        /* cond0 F / cond1 T: existing SSL, ctx with a defined side */
+        ssl->options.side = WOLFSSL_NEITHER_END;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.side, WOLFSSL_CLIENT_END);
+        /* cond1 F: existing SSL, ctx side poked to NEITHER */
+        ctxNoSide->method->side = WOLFSSL_NEITHER_END;
+        ssl->options.side = WOLFSSL_CLIENT_END;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctxNoSide, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.side, WOLFSSL_CLIENT_END);
+        /* cond0 T: newSSL (ctx poked NULL) with NEITHER side ctx: side
+         * still taken from the ctx method */
+        ssl->options.side = WOLFSSL_NEITHER_END;
+        ssl->ctx = NULL;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctxNoSide, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.side, WOLFSSL_NEITHER_END);
+        wolfSSL_CTX_free(ctxNoSide);
+    }
+
+    /* 7955: haveDH && P.buffer && G.buffer. The condition reads
+     * ssl->options.haveDH, which was just assigned from ctx->haveDH, so the
+     * pairs poke ctx->haveDH (not the ssl field, which would be clobbered).
+     * Lengths stay 0 so the 8051 CopySSL_CTX_DhParams reads nothing. */
+    {
+        byte dummy[4];
+        XMEMSET(dummy, 0, sizeof(dummy));
+        ctx->serverDH_P.length = 0;
+        ctx->serverDH_G.length = 0;
+        /* all T: haveDH on, both buffers set -> suites re-initialized */
+        ctx->haveDH = 1;
+        ctx->serverDH_P.buffer = dummy;
+        ctx->serverDH_G.buffer = dummy;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        /* cond0 F: haveDH off, buffers fixed set */
+        ctx->haveDH = 0;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        /* cond1 F: P NULL, haveDH on + G fixed set */
+        ctx->haveDH = 1;
+        ctx->serverDH_P.buffer = NULL;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        /* cond2 F: G NULL, haveDH on + P fixed set */
+        ctx->serverDH_P.buffer = dummy;
+        ctx->serverDH_G.buffer = NULL;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ctx->serverDH_P.buffer = NULL;
+        ctx->serverDH_G.buffer = NULL;
+        ctx->haveDH = 0;
+    }
+
+    /* 8066: cacheMessages = side == SERVER || keyType ed25519/ed448/sm2.
+     * SetSSL_CTX() takes the side from the ctx method (7944) and the keyType
+     * from the key loaded in the ctx (SetSSL_CTX_CertsAndKeys), so each pair
+     * is a ctx with the matching key loaded. */
+#if defined(HAVE_ED25519) && defined(HAVE_ED448)
+    {
+        WOLFSSL_CTX *ctxSrv = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+        ExpectNotNull(ctxSrv);
+        /* a server ctx without a key makes SetSSL_CTX_CertsAndKeys return
+         * NO_PRIVATE_KEY before the 8066 assignment runs */
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctxSrv, svrKeyFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctxSrv, svrCertFile,
+                CERT_FILETYPE), WOLFSSL_SUCCESS);
+        /* F for all four: client side, no key loaded */
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.cacheMessages, 0);
+        /* cond0 T: server-side ctx */
+        ExpectIntEQ(SetSSL_CTX(ssl, ctxSrv, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.cacheMessages, 1);
+        /* cond1 T: ed25519 key */
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
+            "certs/ed25519/server-ed25519-priv.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "certs/ed25519/server-ed25519-cert.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.cacheMessages, 1);
+        /* cond2 T: ed448 key */
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
+            "certs/ed448/server-ed448-priv.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "certs/ed448/server-ed448-cert.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.cacheMessages, 1);
+        /* cond3 T: sm2 key (structural gap when WOLFSSL_SM2 is off: no sm2
+         * key can load, so keyType can never be sm2_sa_algo) */
+#ifdef HAVE_SM2
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx,
+            "certs/sm2/server-sm2-priv.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "certs/sm2/server-sm2-cert.pem", CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(ssl->options.cacheMessages, 1);
+#endif
+        wolfSSL_CTX_free(ctxSrv);
+    }
+#endif
+
+    /* 8099: ctx->mask != 0 && wolfSSL_set_options(ssl, mask) == 0.
+     * wolfSSL_set_options returns the resulting mask (old | op), which is
+     * nonzero whenever ctx->mask != 0, so the "== 0" half is a dead check;
+     * the "!= 0" half needs that dead half to be T to pair, so both halves
+     * are structurally uncoverable here. The pair below is left to exercise
+     * the mask!=0 path for robustness. */
+    {
+        /* cond0 F: mask 0 -> set_options not called */
+        ctx->mask = 0;
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        /* cond0 T / cond1 F: mask set, set_options returns nonzero */
+        (void)wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TICKET);
+        ExpectTrue(ctx->mask != 0);
+        ExpectIntEQ(SetSSL_CTX(ssl, ctx, 0), WOLFSSL_SUCCESS);
+        ctx->mask = 0;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctxHint);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Decision-coverage driver for CheckVersion() (src/internal.c), called with
+ * crafted protocol versions and poked option state. The version pairs are
+ * chosen so that lowerVersion/higherVersion land exactly where each target
+ * condition needs them. */
+int test_internal_CheckVersion_DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL CheckVersion(), hidden from the .so - shared
+     * builds compile this out; WOLFSSL_TEST_STATIC_BUILD is set for
+     * static-only builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    ProtocolVersion pv;
+    SecureRenegotiation scr;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ExpectNotNull(ctx);
+    ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+
+    XMEMSET(&pv, 0, sizeof(pv));
+    XMEMSET(&scr, 0, sizeof(scr));
+
+    /* 35145: pv.major != DTLS_MAJOR || pv.minor == DTLS_BOGUS_MINOR */
+    ssl->options.dtls = 1;
+    ssl->version.minor = DTLSv1_2_MINOR;
+    pv.major = SSLv3_MAJOR;
+    pv.minor = DTLSv1_2_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR); /* cond0 T */
+    pv.major = DTLS_MAJOR;
+    pv.minor = DTLS_BOGUS_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR); /* cond0 F, cond1 T */
+    pv.minor = DTLSv1_2_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0); /* both F */
+
+    /* 35175: (!dtls && pv.minor < minDowngrade) ||
+     *        (dtls && pv.minor > minDowngrade) */
+    ssl->options.downgrade = 1;
+    /* TLS direction: version 1.2, pv 1.0 -> lowerVersion */
+    ssl->options.dtls = 0;
+    ssl->version.minor = TLSv1_2_MINOR;
+    pv.major = SSLv3_MAJOR;
+    pv.minor = TLSv1_MINOR;
+    /* cond0 T / cond1 F: not dtls, pv.minor >= minDowngrade */
+    ssl->options.minDowngrade = TLSv1_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond1 T: not dtls, pv.minor < minDowngrade (reset version: the
+     * previous call downgraded it) */
+    ssl->version.minor = TLSv1_2_MINOR;
+    ssl->options.minDowngrade = TLSv1_2_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR);
+    ssl->version.minor = TLSv1_2_MINOR;
+    ssl->options.minDowngrade = TLSv1_MINOR;
+    /* exercise the second disjunct's pv>minDowngrade path in the TLS
+     * direction (pv above minDowngrade, version above pv so lowerVersion
+     * holds); the dtls term itself is the negation of the leading !dtls
+     * term, so the tool cannot credit it independently */
+    ssl->version.minor = TLSv1_2_MINOR;
+    pv.minor = TLSv1_MINOR;
+    ssl->options.minDowngrade = SSLv3_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    ssl->version.minor = TLSv1_2_MINOR;
+    ssl->options.minDowngrade = TLSv1_MINOR;
+    /* DTLS direction: version 1.2, pv 1.0 -> lowerVersion (DTLS minors are
+     * inverted: 1.0 = 0xff > 1.2 = 0xfd) */
+    ssl->options.dtls = 1;
+    ssl->version.minor = DTLSv1_2_MINOR;
+    pv.major = DTLS_MAJOR;
+    pv.minor = DTLS_MINOR;
+    /* cond2 T / cond3 F: dtls, pv.minor <= minDowngrade */
+    ssl->options.minDowngrade = DTLS_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond3 T: dtls, pv.minor > minDowngrade (reset version: the
+     * previous call downgraded it) */
+    ssl->version.minor = DTLSv1_2_MINOR;
+    ssl->options.minDowngrade = DTLSv1_2_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR);
+    ssl->version.minor = DTLSv1_2_MINOR;
+    ssl->options.minDowngrade = DTLSv1_2_MINOR;
+
+    /* 35183: secure_renegotiation && ->enabled && handShakeDone */
+    ssl->options.dtls = 0;
+    pv.major = SSLv3_MAJOR;
+    pv.minor = TLSv1_MINOR;
+    ssl->options.minDowngrade = TLSv1_MINOR;
+    /* cond0 F: no secure renegotiation state */
+    ssl->version.minor = TLSv1_2_MINOR;
+    ssl->secure_renegotiation = NULL;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond0 T / cond1 F: state present, not enabled */
+    ssl->version.minor = TLSv1_2_MINOR;
+    scr.enabled = 0;
+    ssl->secure_renegotiation = &scr;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond1 T / cond2 F: enabled, handshake not done */
+    ssl->version.minor = TLSv1_2_MINOR;
+    scr.enabled = 1;
+    ssl->options.handShakeDone = 0;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* all T: enabled + handshake done -> version change rejected */
+    ssl->version.minor = TLSv1_2_MINOR;
+    ssl->options.handShakeDone = 1;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR);
+    ssl->options.handShakeDone = 0;
+    ssl->secure_renegotiation = NULL;
+
+    /* 35227: !dtls && downgrade && mask > 0 (pv == version: no lower) */
+    ssl->version.minor = DTLSv1_2_MINOR;
+    pv.major = DTLS_MAJOR;
+    pv.minor = DTLSv1_2_MINOR;
+    /* cond0 F: dtls on -> whole block skipped */
+    ssl->options.dtls = 1;
+    ssl->options.downgrade = 1;
+    ssl->options.mask = WOLFSSL_OP_NO_TLSv1_2;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond0 T / cond1 F: not dtls, downgrade off */
+    ssl->options.dtls = 0;
+    ssl->options.downgrade = 0;
+    ssl->version.minor = TLSv1_2_MINOR;
+    pv.major = SSLv3_MAJOR;
+    pv.minor = TLSv1_2_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond1 T / cond2 F: downgrade on, mask 0 */
+    ssl->options.downgrade = 1;
+    ssl->options.mask = 0;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* all T: block entered */
+    ssl->options.mask = WOLFSSL_OP_NO_TLSv1_2;
+
+    /* 35230: version.minor == TLSv1_2 && (mask & OP_NO_TLSv1_2) */
+    ExpectIntEQ(CheckVersion(ssl, pv), 0); /* both T: downgrade to 1.1 */
+    ExpectIntEQ(ssl->version.minor, TLSv1_1_MINOR);
+    /* cond1 F: version 1.2 again, mask lacks the NO_TLSv1_2 bit */
+    ssl->version.minor = TLSv1_2_MINOR;
+    pv.minor = TLSv1_2_MINOR;
+    ssl->options.mask = WOLFSSL_OP_NO_TLSv1_1;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond0 F: version no longer 1.2 */
+    ssl->version.minor = TLSv1_1_MINOR;
+    pv.minor = TLSv1_1_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* 35237: version.minor == TLSv1_1 && (mask & OP_NO_TLSv1_1) */
+    /* reset version: the cond0-F call above downgraded it to 1.0, which
+     * would make pv a higher version */
+    ssl->version.minor = TLSv1_1_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0); /* both T: downgrade to 1.0 */
+    ExpectIntEQ(ssl->version.minor, TLSv1_MINOR);
+    ssl->options.mask = 0;
+    /* cond0 F for 35237: version 1.0, not 1.1 */
+    pv.minor = TLSv1_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* 35245: version.minor == TLSv1 && (mask & OP_NO_TLSv1) */
+    ssl->options.mask = WOLFSSL_OP_NO_TLSv1;
+    /* the downgrade to SSLv3 must survive the 35254 minDowngrade check */
+    ssl->options.minDowngrade = SSLv3_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0); /* both T: downgrade to SSLv3 */
+    ExpectIntEQ(ssl->version.minor, SSLv3_MINOR);
+    ssl->options.mask = 0;
+    ssl->options.minDowngrade = TLSv1_MINOR;
+    /* cond0 F for 35245: version SSLv3, not 1.0 */
+    pv.minor = SSLv3_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* 35254: version.minor == SSLv3 && (mask & OP_NO_SSLv3) */
+    ssl->options.mask = WOLFSSL_OP_NO_SSLv3;
+    ExpectIntEQ(CheckVersion(ssl, pv), VERSION_ERROR); /* both T */
+    /* cond0 F: version no longer SSLv3 */
+    pv.minor = TLSv1_MINOR;
+    ssl->version.minor = TLSv1_MINOR;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+    /* cond1 F: SSLv3 version, mask bit clear */
+    pv.minor = SSLv3_MINOR;
+    ssl->version.minor = SSLv3_MINOR;
+    ssl->options.mask = 0;
+    ExpectIntEQ(CheckVersion(ssl, pv), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the wolfSSL_SetTlsHmacInner content/CID
+ * guard (master drift, 2026-10-06). The dtls and cidTxSize clauses are
+ * only compiled under WOLFSSL_DTLS + WOLFSSL_DTLS_CID, so this test must
+ * run in the campaign's DTLS_CID variant to complete the pairs.
+ */
+int test_tls_hmac_inner_cid_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *dctx = NULL;
+    WOLFSSL     *dssl = NULL;
+    byte         cid[4] = { 1, 2, 3, 4 };
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
+    byte         inner[WOLFSSL_TLS_HMAC_INNER_SZ];
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx == NULL)
+        return EXPECT_RESULT();
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
+    /* content != dtls12_cid, dtls F: the dtls clause's false side. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(ssl, inner, 0, application_data, 0),
+                0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12)
+    dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
+    if (dctx == NULL)
+        return EXPECT_RESULT();
+    dssl = wolfSSL_new(dctx);
+    if (dssl == NULL) {
+        wolfSSL_CTX_free(dctx);
+        return EXPECT_RESULT();
+    }
+    /* content != dtls12_cid, dtls T, cidTxSize F. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
+                0);
+    /* dtls T, cidTxSize T. */
+    ExpectIntEQ(wolfSSL_dtls_cid_use(dssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(dssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, application_data, 0),
+                0);
+    /* content == dtls12_cid: the first clause's true side. */
+    ExpectIntEQ(wolfSSL_SetTlsHmacInner(dssl, inner, 0, dtls12_cid, 0),
+                BAD_FUNC_ARG);
+    wolfSSL_free(dssl);
+    wolfSSL_CTX_free(dctx);
+#endif /* WOLFSSL_DTLS_CID */
+#endif /* WOLFSSL_DTLS */
+    return EXPECT_RESULT();
+} /* END test_tls_hmac_inner_cid_decision_coverage */

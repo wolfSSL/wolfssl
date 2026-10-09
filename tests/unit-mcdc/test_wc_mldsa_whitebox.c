@@ -1558,6 +1558,149 @@ static void wb_check_key_range(void)
 }
 #endif
 
+/* ------------------------------------------------------------------ *
+ * SignCtxWithSeed's msg guard (11670/11677): the (msg == NULL) &&
+ * (msgLen != 0) compound clause and the empty-message canonicalization
+ * (msg == NULL, msgLen == 0 -> readable stand-in). A valid key keeps
+ * the rows on the guard itself.
+ * ------------------------------------------------------------------ */
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+static void wb_sign_ctx_msg_guard_rows(void)
+{
+    static const byte seed[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    wc_MlDsaKey key;
+    static byte sig[MLDSA_MAX_SIG_SIZE];
+    word32 sigLen = (word32)sizeof(sig);
+    int    ret;
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0 ||
+            wc_MlDsaKey_MakeKeyFromSeed(&key, seed) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+
+    /* (msg == NULL) && (msgLen != 0): both clauses true -> guard fires. */
+    ret = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen, NULL,
+        8, seed);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("SignCtxWithSeed (NULL msg, len!=0) expected BAD_FUNC_ARG");
+    }
+
+    /* (msg == NULL) && (msgLen == 0): clause 2 false -> canonicalize to
+     * the empty stand-in and sign for real. */
+    sigLen = (word32)sizeof(sig);
+    ret = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen, NULL,
+        0, seed);
+    if (ret != 0) {
+        WB_NOTE("SignCtxWithSeed (NULL msg, len==0) expected 0");
+    }
+
+    wc_MlDsaKey_Free(&key);
+    printf("  [wb] SignCtxWithSeed msg-guard rows exercised\n");
+}
+#else
+static void wb_sign_ctx_msg_guard_rows(void)
+{
+    printf("  [wb] SignCtxWithSeed msg-guard rows skipped (not compiled)\n");
+}
+#endif
+
+
+
+/* ------------------------------------------------------------------ *
+ * wc_MlDsaKey_PrivateKeyDecode's keyType/autoKeyType dispatch and the
+ * pubKey/privKey length cascade (13592, 13672). Inputs are the
+ * library's own encodings of a freshly generated key: the active
+ * template parser walks the key data, so hand-crafted junk bytes
+ * trip it. Traditional form = the bare inner OCTET STRING of the
+ * PKCS8 DER (no OID -> autoKeyType ANONk); priv-only = the PKCS8 DER
+ * itself (pubKeyLen 0, privKeyLen != 0).
+ * Residuals: 13667 c1 is structural (the arm only runs inside the
+ * pubKeyLen == 0 branch, where its first clause is always false);
+ * 13672 c0-F likewise (the cascade only runs when pubKeyLen == 0);
+ * 13672 c1-F needs a successful seed-only decode, and the template
+ * parse rejects the hand-crafted seed-only DER (ASN_PARSE_E).
+ * ------------------------------------------------------------------ */
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) \
+    && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+
+static void wb_decode_dispatch_rows(void)
+{
+    static const byte seed[32] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    byte der[MLDSA_MAX_BOTH_KEY_DER_SIZE];
+    wc_MlDsaKey key;
+    word32 derLen = (word32)sizeof(der);
+    word32 idx = 0;
+    int n;
+    int ret;
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0 ||
+            wc_MlDsaKey_MakeKeyFromSeed(&key, seed) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    n = wc_MlDsaKey_PrivateKeyToDer(&key, der, derLen);
+    wc_MlDsaKey_Free(&key);
+    if (n <= 0) {
+        WB_NOTE("PrivateKeyToDer failed");
+        return;
+    }
+
+    /* (a) Traditional form: the bare inner OCTET STRING of the PKCS8
+     * DER (bytes 24..2588: 04 82 0a 00 + 2560 key bytes). No OID ->
+     * autoKeyType ANONk with an explicit level -> the
+     * (keyType != ANONk) && (autoKeyType == ANONk) arm. */
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    idx = 0;
+    (void)wc_MlDsaKey_PrivateKeyDecode(&key, der + 24, 2564, &idx);
+    wc_MlDsaKey_Free(&key);
+
+    /* (b) Private key only: (pubKeyLen == 0) && (privKeyLen != 0) ->
+     * the ImportPrivRaw arm. */
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44) != 0) {
+        wc_MlDsaKey_Free(&key);
+        return;
+    }
+    idx = 0;
+    ret = wc_MlDsaKey_PrivateKeyDecode(&key, der, (word32)n, &idx);
+    if (ret != 0) {
+        WB_NOTE("decode priv-only expected 0");
+    }
+    wc_MlDsaKey_Free(&key);
+
+    printf("  [wb] PrivateKeyDecode dispatch rows exercised\n");
+}
+#else
+static void wb_decode_dispatch_rows(void)
+{
+    printf("  [wb] PrivateKeyDecode dispatch rows skipped (not compiled)\n");
+}
+#endif
 int main(void)
 {
     /* Unbuffered: on a timeout the process is killed and anything still
@@ -1606,6 +1749,8 @@ int main(void)
     wb_arg_guards();
     wb_verify_invalid();
     wb_check_key_range();
+    wb_sign_ctx_msg_guard_rows();
+    wb_decode_dispatch_rows();
     printf("done (%d note%s)\n", wb_notes, (wb_notes == 1) ? "" : "s");
     return 0;
 #endif

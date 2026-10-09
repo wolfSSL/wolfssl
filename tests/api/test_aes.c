@@ -14205,3 +14205,203 @@ int test_wc_AesEcb_RetCodeChecked(void)
 
 #endif /* WOLF_CRYPTO_CB && !NO_AES && HAVE_AES_ECB && WOLFSSL_AES_128 &&
         * !WOLF_CRYPTO_CB_ONLY_AES && (WOLFSSL_AES_COUNTER || HAVE_AESGCM) */
+
+/* MC/DC pairs the 2026 upstream aes.c changes left open: the GcmInit/
+ * GcmSetIV argument-clause tails, the zero-length key id, the CTR
+ * leftover-keystream loop with an empty request, and the XTS unset-key
+ * guard on both sides.
+ *
+ * Excluded under HAVE_SELFTEST: the CAVP self-test leg compiles the frozen
+ * wolfCrypt 4.1.0 aes.c, whose GCM-stream/XTS/CTR paths predate these
+ * guards, so the open aes.c this measures is not the one built (same
+ * exclusion as the AesFeatureCoverage GCM/CCM blocks). FIPS modules also
+ * use different AES paths and do not provide every public size constant. */
+int test_wc_AesReworkDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    Aes        aes;
+    byte       key16[16];
+    byte       iv[WC_AES_BLOCK_SIZE];
+    byte       ivFixed[AES_IV_FIXED_SZ];
+#if defined(HAVE_AESGCM)
+    byte       tag[WC_AES_BLOCK_SIZE];
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID)
+    byte       id[8];
+#endif
+#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_XTS)
+    byte       in[32];
+    byte       out[32];
+#endif
+#if !defined(WC_NO_RNG)
+    WC_RNG     rng;
+#endif
+#if defined(WOLFSSL_AES_XTS)
+    XtsAes     xaes;
+#endif
+
+    XMEMSET(key16, 1, sizeof(key16));
+    XMEMSET(iv, 2, sizeof(iv));
+    XMEMSET(ivFixed, 3, sizeof(ivFixed));
+#if defined(HAVE_AESGCM)
+    XMEMSET(tag, 4, sizeof(tag));
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID)
+    XMEMSET(id, 4, sizeof(id));
+#endif
+#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_XTS)
+    XMEMSET(in, 5, sizeof(in));
+#endif
+#if !defined(WC_NO_RNG)
+    XMEMSET(&rng, 0, sizeof(rng));
+#endif
+
+    /* wc_AesGcmEncryptInit() -> wc_AesGcmInit(): (ivSz > 0) false with iv
+     * NULL, the clause tail (stream API only). */
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key16, sizeof(key16), NULL, 0),
+        0);
+    /* (ivSz > 0) true with iv NULL: the clause fires. */
+    ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key16, sizeof(key16), NULL, 12),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesFree(&aes);
+#endif
+    /* wc_AesGcmSetIV(): ivFixedSz == AES_IV_FIXED_SZ (clause tail); the
+     * remaining IV bytes come from the RNG. */
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key16, sizeof(key16)), 0);
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, ivFixed,
+                               sizeof(ivFixed), &rng), 0);
+    /* (ivFixedSz != AES_IV_FIXED_SZ) true: the clause fires. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 12, ivFixed, 12, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* rng == NULL side of the guard, isolated with a valid fixed part. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, ivFixed,
+                               sizeof(ivFixed), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* ivFixed == NULL: the whole IV comes from the RNG. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 12, NULL, 0, &rng), 0);
+    /* Invalid IV size: not 8, 12, or 16. */
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 13, ivFixed, 12, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesFree(&aes);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* wc_AesInit_Id(): non-NULL id with zero length is a valid tag. */
+#if defined(WOLF_PRIVATE_KEY_ID)
+    ExpectIntEQ(wc_AesInit_Id(&aes, id, 0, NULL, INVALID_DEVID), 0);
+    wc_AesFree(&aes);
+#endif
+
+    /* CTR leftover-keystream loop: a partial block leaves aes->left, an
+     * empty request evaluates the loop with sz == 0, draining left to zero
+     * with data pending evaluates the loop with left == 0. */
+#if defined(WOLFSSL_AES_COUNTER)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), iv, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(wc_AesSetIV(&aes, iv), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 5), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 0), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 3), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 8), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 3), 0);
+    wc_AesFree(&aes);
+#endif
+
+    /* CFB decrypt chunk loop: exactly two blocks drains sz below the loop
+     * threshold inside the loop, evaluating the false side. */
+#if defined(WOLFSSL_AES_CFB)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    /* CFB always uses the forward cipher for both directions. */
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), iv, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(wc_AesSetIV(&aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 2 * WC_AES_BLOCK_SIZE), 0);
+    wc_AesFree(&aes);
+#endif
+
+#if defined(WOLFSSL_AES_XTS)
+    XMEMSET(&xaes, 0, sizeof(xaes));
+    /* keylen == 0 side of the unset-key guard, both directions. */
+    ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* rounds == 0 side: a key length with no software schedule. */
+    xaes.aes.keylen = (int)sizeof(key16);
+    ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* keylen == 0 with rounds set: the OR's first operand alone. */
+    xaes.aes.keylen = 0;
+    xaes.aes.rounds = 10;
+    ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesXtsDecrypt(&xaes, out, in, sizeof(in), iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    /* wc_AesGcmInit(): direct argument checks - (ivSz > 0) with iv NULL is
+     * the last clause, (ivSz == 0) with iv NULL is the clean path. */
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(&aes, key16, sizeof(key16), NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmInit(&aes, key16, sizeof(key16), NULL, 12),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesFree(&aes);
+#endif
+
+    /* wc_AesGcmSetIV(): (ivFixed == NULL) with ivFixedSz == 0 - the pair
+     * for the (ivFixed != NULL) clause against the size-mismatch failure
+     * above. */
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key16, sizeof(key16)), 0);
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(&aes, 12, NULL, 0, &rng), 0);
+    wc_AesFree(&aes);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+
+    /* GCM tag-failure output wipe: a corrupted tag with out non-NULL and
+     * sz > 0 wipes the unauthenticated plaintext (AES_GCM_AUTH_E). */
+#if defined(HAVE_AESGCM)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key16, sizeof(key16)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in), iv,
+        sizeof(iv), tag, sizeof(tag), NULL, 0), 0);
+    tag[0] ^= 0x01;
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, out, out, sizeof(in), iv,
+        sizeof(iv), tag, sizeof(tag), NULL, 0),
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    wc_AesFree(&aes);
+#endif
+
+    /* CFB leftover-drain loop: a partial decrypt leaves aes->left, an empty
+     * request evaluates the loop with sz == 0, and a call longer than the
+     * leftover exits with left == 0 while sz is still positive. */
+#if defined(WOLFSSL_AES_CFB)
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    /* CFB always uses the forward cipher for both directions. */
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, sizeof(key16), iv, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(wc_AesSetIV(&aes, iv), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 5), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 0), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 3), 0);
+    ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 10), 0);
+    wc_AesFree(&aes);
+#endif
+#endif /* !NO_AES && !HAVE_SELFTEST && !HAVE_FIPS */
+    return EXPECT_RESULT();
+}

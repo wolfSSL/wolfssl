@@ -252,6 +252,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_tfm_whitebox.c \
               tests/unit-mcdc/test_tls13_null_whitebox.c \
               tests/unit-mcdc/test_tls13_whitebox.c \
+              tests/unit-mcdc/test_tls_whitebox.c \
               tests/unit-mcdc/test_tsp_fault_whitebox.c \
               tests/unit-mcdc/test_tsp_whitebox.c \
               tests/unit-mcdc/test_wc_encrypt_whitebox.c \

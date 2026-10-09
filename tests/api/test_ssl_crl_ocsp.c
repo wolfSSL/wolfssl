@@ -581,3 +581,70 @@ int test_wolfSSL_OCSP_parse_url_api(void)
 #endif
     return EXPECT_RESULT();
 }
+int test_ssl_crl_ocsp_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+    struct tm tm;
+#endif
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+#ifdef HAVE_CRL
+    /* --- 77:0/1 wolfSSL_LoadCRLBuffer: ssl==NULL || ssl->ctx==NULL ------ */
+    {
+        WOLFSSL* cssl = wolfSSL_new(ctx);
+        byte buf[4];
+
+        XMEMSET(buf, 0, sizeof(buf));
+        (void)wolfSSL_LoadCRLBuffer(NULL, buf, (long)sizeof(buf),
+                                    CERT_FILETYPE);
+        (void)wolfSSL_LoadCRLBuffer(ssl, buf, (long)sizeof(buf),
+                                    CERT_FILETYPE);
+        ExpectNotNull(cssl);
+        cssl->ctx = NULL;
+        (void)wolfSSL_LoadCRLBuffer(cssl, buf, (long)sizeof(buf),
+                                    CERT_FILETYPE);
+        cssl->ctx = ctx;
+        wolfSSL_free(cssl);
+    }
+#endif
+
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+    XMEMSET(&tm, 0, sizeof(tm));
+    /* --- 917:1 get_ocsp_producedDate_tm: 2nd != (GENERALIZED vs default) - */
+    ssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;
+    (void)wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
+    ssl->ocspProducedDateFormat = 0;
+    (void)wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
+#endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) ||     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    /* --- 1120/1152/1187:1 CTX status cb/arg: ctx->cm == NULL ------------ */
+    {
+        WOLFSSL_CTX* nctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        WOLFSSL_CERT_MANAGER* saved;
+
+        ExpectNotNull(nctx);
+        saved = nctx->cm;
+        nctx->cm = NULL;
+        (void)wolfSSL_CTX_get_tlsext_status_cb(nctx, NULL);
+        (void)wolfSSL_CTX_set_tlsext_status_cb(nctx, NULL);
+        (void)wolfSSL_CTX_set_tlsext_status_arg(nctx, NULL);
+        nctx->cm = saved;
+        wolfSSL_CTX_free(nctx);
+    }
+
+    /* --- 1276:0 set_tlsext_status_ocsp_resp_multi: ssl == NULL ----------- */
+    (void)wolfSSL_set_tlsext_status_ocsp_resp_multi(NULL, NULL, 0, 0);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

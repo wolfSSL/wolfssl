@@ -9068,3 +9068,88 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && USE_CERT_BUFFERS_2048 */
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the explicit-SKID parse in the SignedData
+ * signerInfo decode (wolfcrypt/src/pkcs7.c): the [0] constructed SKID
+ * marker is driven with truncations and one corruption of the explicit
+ * fixture. The (ret == 0) operands of the idx+1/inSz and GetASNTag checks
+ * take their false side from the first truncation; the inSz check's true
+ * side from the second; the inner GetLength's false side from the tag
+ * corruption.
+ */
+int test_wc_PKCS7_SkidParseDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    byte   msg[sizeof(explicitSKIDSignedData)];
+    word32 sz = (word32)sizeof(explicitSKIDSignedData);
+    /* legacy explicit [0] SKID marker: 0xA0 len 0x04 len */
+    static const byte explicitMarker[] = { 0xA0, 0x16, 0x04, 0x14 };
+    int marker = -1;
+
+    marker = test_PKCS7_findBytes(explicitSKIDSignedData, (int)sz,
+        explicitMarker, (int)sizeof(explicitMarker));
+    ExpectIntGE(marker, 0);
+    ExpectIntLE(marker, (int)(sz - sizeof(explicitMarker)));
+    if (marker < 0 || (word32)marker > sz - sizeof(explicitMarker))
+        return EXPECT_RESULT();
+
+    /* Truncate after the [0] tag: the [0] length read fails, so the
+     * (ret == 0) operands of the inSz and GetASNTag checks are false. */
+    XMEMCPY(msg, explicitSKIDSignedData, (size_t)marker + 1);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)marker + 1),
+        0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Truncate after the [0] length: idx+1 > inSz fires BUFFER_E. */
+    XMEMCPY(msg, explicitSKIDSignedData, (size_t)marker + 2);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)marker + 2),
+        0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Corrupt the inner OCTET STRING tag: the tag check fails first, so
+     * the inner GetLength check's (ret == 0) operand is false. */
+    XMEMCPY(msg, explicitSKIDSignedData, sz);
+    msg[marker + 2] = 0x02;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, sz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the SignedData certificates-footer decode
+ * (wolfcrypt/src/pkcs7.c): a non-NULL footer pointer with a zero footer
+ * size drives the (pkiMsg2Sz == 0) operand's true side, which falls back
+ * to the whole message and verifies normally.
+ */
+int test_wc_PKCS7_CertFooterDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    word32 sz = (word32)sizeof(explicitSKIDSignedData);
+
+    /* Footer supplied with size 0: the (pkiMsg2Sz == 0) operand's true
+     * side falls back to the whole message, which verifies normally. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, NULL, 0,
+        (byte*)explicitSKIDSignedData, sz,
+        (byte*)explicitSKIDSignedData, 0), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
+    return EXPECT_RESULT();
+}
