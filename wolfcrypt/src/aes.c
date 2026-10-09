@@ -6030,10 +6030,10 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
         defined(WOLFSSL_NXP_HASHCRYPT_AES)
-        #ifdef WOLF_CRYPTO_CB
-        #ifndef WOLF_CRYPTO_CB_FIND
+        /* HashCrypt always loads the key from devKey, regardless of devId */
+        #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_FIND) && \
+            !defined(WOLFSSL_NXP_HASHCRYPT_AES)
         if (aes->devId != INVALID_DEVID)
-        #endif
         #endif
         {
             if (keylen > sizeof(aes->devKey)) {
