@@ -2295,6 +2295,13 @@ static void IntelQaSymCipherFree(WC_ASYNC_DEV* dev)
     dev->qat.op.cipher.authTag = NULL;
     dev->qat.op.cipher.authTagSz = 0;
 #endif
+    /* clear next IV state, otherwise a later operation that does not set it
+     * (decrypt or AES-GCM) would have the callback write into the IV buffer
+     * of this one */
+    dev->qat.op.cipher.iv = NULL;
+    dev->qat.op.cipher.ivSz = 0;
+    ForceZero(dev->qat.op.cipher.ivTmp, sizeof(dev->qat.op.cipher.ivTmp));
+    dev->qat.op.cipher.ivTmpSz = 0;
 }
 
 static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
@@ -2332,12 +2339,23 @@ static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
             /* capture IV for next call */
             if (dev->qat.op.cipher.iv && dev->qat.op.cipher.ivSz > 0) {
                 word32 ivSz = dev->qat.op.cipher.ivSz;
-                if (ivSz > outLen)
-                    ivSz = outLen;
-                /* copy last block */
-                XMEMCPY(dev->qat.op.cipher.iv,
-                        &pDstBuffer->pBuffers->pData[outLen - ivSz],
+                if (dev->qat.op.cipher.ivTmpSz > 0) {
+                    /* decrypt: next IV was staged from the input before the
+                     * operation, commit it now that it has succeeded */
+                    if (ivSz > dev->qat.op.cipher.ivTmpSz)
+                        ivSz = dev->qat.op.cipher.ivTmpSz;
+                    XMEMCPY(dev->qat.op.cipher.iv, dev->qat.op.cipher.ivTmp,
                         ivSz);
+                }
+                else {
+                    /* encrypt: next IV is the last block of the output */
+                    if (ivSz > outLen)
+                        ivSz = outLen;
+                    /* copy last block */
+                    XMEMCPY(dev->qat.op.cipher.iv,
+                            &pDstBuffer->pBuffers->pData[outLen - ivSz],
+                            ivSz);
+                }
             }
 
         #ifndef NO_AES
@@ -2533,17 +2551,24 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
     dev->qat.out = out;
     dev->qat.outLen = inOutSz;
     /* optional return of next IV */
+    /* always set, the op union is shared with the other algorithms */
+    dev->qat.op.cipher.iv = NULL;
+    dev->qat.op.cipher.ivSz = 0;
+    dev->qat.op.cipher.ivTmpSz = 0;
     if (cipherAlgorithm != CPA_CY_SYM_CIPHER_AES_GCM && iv) {
         if (ivSz > inOutSz)
             ivSz = inOutSz;
-        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
-            /* capture this on the callback */
-            dev->qat.op.cipher.iv = iv;
-            dev->qat.op.cipher.ivSz = ivSz;
-        }
-        else {
-            /* capture last block of input as next IV */
-            XMEMCPY(iv, &in[inOutSz - ivSz], ivSz);
+        if (ivSz > (word32)sizeof(dev->qat.op.cipher.ivTmp))
+            ivSz = (word32)sizeof(dev->qat.op.cipher.ivTmp);
+        /* the callback updates the IV once the operation has succeeded */
+        dev->qat.op.cipher.iv = iv;
+        dev->qat.op.cipher.ivSz = ivSz;
+        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT) {
+            /* stage last block of input as next IV. It has to be captured
+             * now because the operation can be in-place, but it is only
+             * committed to the caller's IV on successful completion. */
+            XMEMCPY(dev->qat.op.cipher.ivTmp, &dataBuf[inOutSz - ivSz], ivSz);
+            dev->qat.op.cipher.ivTmpSz = ivSz;
         }
     }
     if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
