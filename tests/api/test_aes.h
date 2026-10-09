@@ -23,6 +23,7 @@
 #define WOLFCRYPT_TEST_AES_H
 
 #include <tests/api/api_decl.h>
+#include <wolfssl/wolfcrypt/aes.h>
 
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
@@ -192,6 +193,15 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
 #define TEST_CRYPTOCB_AES_KEYWRAP_DECL
 #endif
 
+#if defined(WC_AES_DIRECT_CRYPTO_CB) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT)
+int test_wc_CryptoCb_AesDirect(void);
+#define TEST_CRYPTOCB_AES_DIRECT_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesDirect)
+#else
+#define TEST_CRYPTOCB_AES_DIRECT_DECL
+#endif
+
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
@@ -269,6 +279,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesEcb_RetCodeChecked) \
     TEST_CRYPTOCB_AES_SETKEY_DECL                         \
     TEST_CRYPTOCB_AES_KEYWRAP_DECL                        \
+    TEST_CRYPTOCB_AES_DIRECT_DECL                         \
     TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL                     \
     TEST_CRYPTOCB_AESCFB_DECL                             \
     TEST_CRYPTOCB_AESOFB_DECL
