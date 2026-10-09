@@ -26,13 +26,13 @@ CASE_TIMEOUT=20
 
 # How the wolfSSL server is run for a case whose first ClientHello is
 # fragmented (a post-quantum key share, or a small MTU on the client).
+#   cookie     the cookie exchange is on: the stateless server reassembles the
+#              ClientHello within a bounded budget before the cookie is
+#              verified (wolfSSL_dtls13_reassemble_ch_before_cookie(), on by
+#              default), then runs the cookie check on the complete message.
 #   no-cookie  the cookie exchange is disabled (-J n): the server is stateful
 #              from the first datagram and reassembles the ClientHello.
-# With the cookie exchange on, a stateless wolfSSL server does not hold state
-# for a peer before its cookie is verified, so it drops every fragment of a
-# first ClientHello and these handshakes cannot complete. Running them needs
-# the DoS protection relaxed as above.
-FRAG_CH_SERVER_MODES="no-cookie"
+FRAG_CH_SERVER_MODES="cookie no-cookie"
 
 PASS=0
 FAIL=0
