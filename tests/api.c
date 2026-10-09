@@ -1114,7 +1114,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
         CTC_DATE_SIZE);
     newCert.beforeDateSz = 17;
-    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
         CTC_DATE_SIZE);
     newCert.afterDateSz = 17;
     newCert.sigType = CTC_SHA256wRSA;
@@ -1156,6 +1156,140 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
+
+#if defined(OPENSSL_EXTRA) && defined(XSNPRINTF) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
+    !defined(NO_BIO)
+/* do_dual_alg_root_certgen() with ECC as the base algorithm and ML-DSA as the
+ * alternative one. */
+static int do_dual_alg_root_certgen_mldsa(byte **out, char *caKeyFile,
+                                          char *sapkiFile, char *altPrivFile)
+{
+    EXPECT_DECLS;
+    FILE* file = NULL;
+    Cert newCert;
+    DecodedCert preTBS;
+
+    /* holds the CA key, then the alternative key, then the scratch cert */
+    byte caKeyBuf[LARGE_TEMP_SZ];
+    word32 caKeySz = LARGE_TEMP_SZ;
+    byte sapkiBuf[ML_DSA_LEVEL2_PUB_KEY_DER_SIZE];
+    word32 sapkiSz = ML_DSA_LEVEL2_PUB_KEY_DER_SIZE;
+    word32 altPrivSz = LARGE_TEMP_SZ;
+    byte altSigAlgBuf[MAX_ALGO_SZ];
+    word32 altSigAlgSz = MAX_ALGO_SZ;
+    word32 scratchSz = LARGE_TEMP_SZ;
+    byte preTbsBuf[LARGE_TEMP_SZ];
+    word32 preTbsSz = LARGE_TEMP_SZ;
+    /* the signature wrapped in a BIT STRING */
+    byte altSigValBuf[ML_DSA_LEVEL2_SIG_SIZE + ASN_TAG_SZ + MAX_LENGTH_SZ + 1];
+    word32 altSigValSz = (word32)sizeof(altSigValBuf);
+    byte *outBuf = NULL;
+    /* the ML-DSA public key and signature do not fit in LARGE_TEMP_SZ */
+    word32 outSz = 2 * LARGE_TEMP_SZ;
+    WC_RNG rng;
+    ecc_key caKey;
+    wc_MlDsaKey altCaKey;
+    word32 idx = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&caKey, 0, sizeof(ecc_key));
+    XMEMSET(&altCaKey, 0, sizeof(wc_MlDsaKey));
+
+    ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
+                  DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    XMEMSET(caKeyBuf, 0, caKeySz);
+    ExpectNotNull(file = fopen(caKeyFile, "rb"));
+    ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    ExpectIntEQ(wc_ecc_init(&caKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz), 0);
+    XMEMSET(sapkiBuf, 0, sapkiSz);
+    ExpectNotNull(file = fopen(sapkiFile, "rb"));
+    ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    XMEMSET(caKeyBuf, 0, altPrivSz);
+    ExpectNotNull(file = fopen(altPrivFile, "rb"));
+    ExpectIntGT(altPrivSz = (word32)fread(caKeyBuf, 1, altPrivSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    ExpectIntEQ(wc_MlDsaKey_Init(&altCaKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&altCaKey, WC_ML_DSA_44), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&altCaKey, caKeyBuf, altPrivSz,
+                                             &idx), 0);
+    XMEMSET(altSigAlgBuf, 0, altSigAlgSz);
+    ExpectIntGT(altSigAlgSz = SetAlgoID(CTC_ML_DSA_44, altSigAlgBuf,
+                                         oidSigType, 0), 0);
+    wc_InitCert(&newCert);
+    strncpy(newCert.subject.country, "US", CTC_NAME_SIZE);
+    strncpy(newCert.subject.state, "MT", CTC_NAME_SIZE);
+    strncpy(newCert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    strncpy(newCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(newCert.subject.unit, "Engineering", CTC_NAME_SIZE);
+    strncpy(newCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+    strncpy(newCert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+    strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
+        CTC_DATE_SIZE);
+    newCert.beforeDateSz = 17;
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
+        CTC_DATE_SIZE);
+    newCert.afterDateSz = 17;
+    newCert.sigType = CTC_SHA256wECDSA;
+    newCert.isCA    = 1;
+
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.72", sapkiBuf,
+                sapkiSz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.73", altSigAlgBuf,
+                                altSigAlgSz), 0);
+
+    XMEMSET(caKeyBuf, 0, scratchSz);
+    ExpectIntGT(wc_MakeCert_ex(&newCert, caKeyBuf, scratchSz, ECC_TYPE,
+                &caKey, &rng), 0);
+    ExpectIntGT(scratchSz = wc_SignCert_ex(newCert.bodySz, newCert.sigType,
+                caKeyBuf, scratchSz, ECC_TYPE, &caKey, &rng), 0);
+
+    wc_InitDecodedCert(&preTBS, caKeyBuf, scratchSz, 0);
+    ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+    XMEMSET(preTbsBuf, 0, preTbsSz);
+    ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
+    XMEMSET(altSigValBuf, 0, altSigValSz);
+    ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
+                CTC_ML_DSA_44, preTbsBuf, preTbsSz, ML_DSA_44_TYPE, &altCaKey,
+                &rng), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.74", altSigValBuf,
+                altSigValSz), 0);
+
+    /* Finally, generate the new certificate. */
+    if (outBuf != NULL) {
+        XMEMSET(outBuf, 0, outSz);
+    }
+    ExpectIntGT(wc_MakeCert_ex(&newCert, outBuf, outSz, ECC_TYPE, &caKey,
+                &rng), 0);
+    ExpectIntGT(outSz = wc_SignCert_ex(newCert.bodySz, newCert.sigType, outBuf,
+                outSz, ECC_TYPE, &caKey, &rng), 0);
+    *out = outBuf;
+
+    wc_ecc_free(&caKey);
+    wc_MlDsaKey_Free(&altCaKey);
+    wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
+    return outSz;
+}
+#endif /* HAVE_ECC && WOLFSSL_HAVE_MLDSA && ... */
 
 static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
                                       char *sapkiFile, char *altPrivFile,
@@ -1254,7 +1388,7 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
         CTC_DATE_SIZE);
     newCert.beforeDateSz = 17;
-    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
         CTC_DATE_SIZE);
     newCert.afterDateSz = 17;
 
@@ -1434,7 +1568,7 @@ static int do_dual_alg_root_certgen_crit(byte **out, char *caKeyFile,
     strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
         CTC_DATE_SIZE);
     newCert.beforeDateSz = 17;
-    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
         CTC_DATE_SIZE);
     newCert.afterDateSz = 17;
     newCert.sigType = CTC_SHA256wRSA;
@@ -1606,7 +1740,7 @@ static int do_dual_alg_server_certgen_crit(byte **out, char *caKeyFile,
     strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
         CTC_DATE_SIZE);
     newCert.beforeDateSz = 17;
-    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20491231115959Z",
         CTC_DATE_SIZE);
     newCert.afterDateSz = 17;
 
@@ -1893,7 +2027,8 @@ static int test_dual_alg_ecdsa_mldsa(void)
     defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
-    !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
     WOLFSSL_CERT_MANAGER * cm = NULL;
     wc_MlDsaKey alt_ca_key;
     ecc_key     ca_key;
@@ -32596,6 +32731,254 @@ static int test_wolfSSL_X509_print_dir_altname(void)
     return EXPECT_RESULT();
 }
 
+/* X509_print() renders a certificate whose subject key is ML-DSA */
+static int test_wolfSSL_X509_print_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(XSNPRINTF) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(WOLFSSL_NO_ML_DSA_44)
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    char* data = NULL;
+    char* p = NULL;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(
+        "./certs/mldsa/mldsa44-cert.der", SSL_FILETYPE_ASN1));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    X509_free(x509);
+    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
+    ExpectIntEQ(BIO_write(bio, "", 1), 1);
+    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+    if (data != NULL) {
+        ExpectNotNull(p = XSTRSTR(data, "Public Key Algorithm: ML-DSA 44"));
+        ExpectNotNull(p = XSTRSTR(p, "ML-DSA 44 Public-Key:"));
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X509_print() renders the rest of the certificate when the subject key is
+ * not one this build can print */
+static int test_wolfSSL_X509_print_unsupported(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(XSNPRINTF) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT)
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    char* data = NULL;
+    char* p = NULL;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(
+        "./certs/ed25519/server-ed25519.der", SSL_FILETYPE_ASN1));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    X509_free(x509);
+    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
+    ExpectIntEQ(BIO_write(bio, "", 1), 1);
+    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+    if (data != NULL) {
+        ExpectNotNull(p = XSTRSTR(data, "Public Key Algorithm: ED25519"));
+        ExpectNotNull(p = XSTRSTR(p, "print not supported"));
+        /* the rest of the certificate is still printed */
+        ExpectNotNull(p = XSTRSTR(p, "Signature Algorithm: ED25519"));
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X509_print() renders the X9.146 extensions of a dual algorithm certificate */
+static int test_wolfSSL_X509_print_dual_alg(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
+    char keyFile[] = "./certs/ca-key.der";
+    char sapkiFile[] = "./certs/ecc-keyPub.der";
+    char altPrivFile[] = "./certs/ecc-key.der";
+    static const int dualAlgNids[] = {
+        WC_NID_subject_alt_public_key_info,
+        WC_NID_alt_signature_algorithm,
+        WC_NID_alt_signature_value
+    };
+    static const char* dualAlgOids[] = {
+        "2.5.29.72",
+        "2.5.29.73",
+        "2.5.29.74"
+    };
+    byte* root = NULL;
+    int rootSz = 0;
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    ASN1_OBJECT* obj = NULL;
+    char oidTxt[16];
+    char* data = NULL;
+    char* p = NULL;
+    int i;
+
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile,
+            altPrivFile);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(root, rootSz,
+        WOLFSSL_FILETYPE_ASN1));
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    /* the NIDs' objects carry the OID */
+    for (i = 0; i < (int)(sizeof(dualAlgNids) / sizeof(*dualAlgNids)); i++) {
+        ExpectNotNull(obj = OBJ_nid2obj(dualAlgNids[i]));
+        ExpectIntGT(OBJ_obj2txt(oidTxt, (int)sizeof(oidTxt), obj, 1), 0);
+        ExpectStrEQ(oidTxt, dualAlgOids[i]);
+        ASN1_OBJECT_free(obj);
+        obj = NULL;
+    }
+    X509_free(x509);
+    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
+    ExpectIntEQ(BIO_write(bio, "", 1), 1);
+    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+    if (data != NULL) {
+        ExpectNotNull(p = XSTRSTR(data,
+            "Public Key Algorithm: rsaEncryption"));
+        ExpectNotNull(p = XSTRSTR(p,
+            "X509v3 Subject Alternative Public Key Info"));
+        ExpectNotNull(p = XSTRSTR(p, "ASN1 OID: prime256v1"));
+        ExpectNotNull(p = XSTRSTR(p, "X509v3 Alternative Signature Algorithm"));
+        ExpectNotNull(p = XSTRSTR(p, "sha256WithECDSA"));
+        ExpectNotNull(p = XSTRSTR(p, "X509v3 Alternative Signature Value"));
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X509_print() renders an ML-DSA alternative key and signature */
+static int test_wolfSSL_X509_print_dual_alg_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_FILESYSTEM) && defined(XSNPRINTF) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    char keyFile[] = "./certs/ecc-key.der";
+    char sapkiFile[] = "./certs/mldsa/mldsa44_pub-spki.der";
+    char altPrivFile[] = "./certs/mldsa/mldsa44_priv-only.der";
+    byte* root = NULL;
+    int rootSz = 0;
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    char* data = NULL;
+    char* p = NULL;
+
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_mldsa(&root, keyFile, sapkiFile,
+            altPrivFile);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(root, rootSz,
+        WOLFSSL_FILETYPE_ASN1));
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    X509_free(x509);
+    /* Memory BIO data is not NUL-terminated, terminate it to search in place */
+    ExpectIntEQ(BIO_write(bio, "", 1), 1);
+    ExpectIntGT(BIO_get_mem_data(bio, &data), 0);
+    if (data != NULL) {
+        ExpectNotNull(p = XSTRSTR(data,
+            "Public Key Algorithm: id-ecPublicKey"));
+        ExpectNotNull(p = XSTRSTR(p,
+            "X509v3 Subject Alternative Public Key Info"));
+        ExpectNotNull(p = XSTRSTR(p, "ML-DSA 44 Public-Key:"));
+        ExpectNotNull(p = XSTRSTR(p, "X509v3 Alternative Signature Algorithm"));
+        ExpectNotNull(p = XSTRSTR(p, "ML-DSA 44"));
+        ExpectNotNull(p = XSTRSTR(p, "X509v3 Alternative Signature Value"));
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X509_print() renders the rest of the certificate when the alternative key
+ * and signature algorithm are not ones this build can print */
+static int test_wolfSSL_X509_print_dual_alg_unsupported(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(XSNPRINTF) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    /* Dual algorithm CA:
+     *   The main algorithm is supported (sha256WithECDSA)
+     *   subjectAltPublicKeyInfo and altSignatureAlgorithm carry the unassigned
+     *    OID 2.16.840.1.101.3.4.3.99
+     *   the altSignatureValue is just '0x21', to save space
+     * Expires in 2050
+     */
+    static const char unsupportedAltCertPem[] =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIICKTCCAc+gAwIBAgIQSfq5f4sYoCxjvdh6fvKWbzAKBggqhkjOPQQDAjBuMQsw\n"
+        "CQYDVQQGEwJVUzELMAkGA1UECAwCTVQxEDAOBgNVBAcMB0JvemVtYW4xEDAOBgNV\n"
+        "BAoMB3dvbGZTU0wxEDAOBgNVBAsMB1Rlc3RpbmcxHDAaBgNVBAMME2NoaW1lcmEt\n"
+        "dW5zdXBwb3J0ZWQwHhcNMjYwOTIyMTYwNzE5WhcNNDkxMjMxMjM1OTU5WjBuMQsw\n"
+        "CQYDVQQGEwJVUzELMAkGA1UECAwCTVQxEDAOBgNVBAcMB0JvemVtYW4xEDAOBgNV\n"
+        "BAoMB3dvbGZTU0wxEDAOBgNVBAsMB1Rlc3RpbmcxHDAaBgNVBAMME2NoaW1lcmEt\n"
+        "dW5zdXBwb3J0ZWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQC09lu1gGORci5\n"
+        "kDHlwEzjnq0pOJi6ENbpCSqAqS4XKrmKvzODRuOVC+R3QLU7Q0UzD2FTfDdEwcv8\n"
+        "gMroQ+qno08wTTAMBgNVHRMEBTADAQH/MBoGA1UdSAQTMBEwCwYJYIZIAWUDBANj\n"
+        "AwIApDAUBgNVHUkEDTALBglghkgBZQMEA2MwCwYDVR1KBAQDAgAhMAoGCCqGSM49\n"
+        "BAMCA0gAMEUCIHbL2VSvgCCZGx8t3oja3VPFqCSeK/1109ga4lOEytz7AiEA8E6l\n"
+        "HUu6WKCIDbgQcopra7y2TELfcDTT2IWOUQEJ5tw=\n"
+        "-----END CERTIFICATE-----\n";
+
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    char* data = NULL;
+    char* p = NULL;
+    int len = 0;
+    char buf[8192];
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
+        (const unsigned char*)unsupportedAltCertPem,
+        (int)XSTRLEN(unsupportedAltCertPem), WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    /* Memory BIO data is not NUL-terminated, copy into a bounded buffer */
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        /* SAPKI prints a not supported message, but continues */
+        ExpectNotNull(p = XSTRSTR(buf,
+            "X509v3 Subject Alternative Public Key Info"));
+        ExpectNotNull(p = XSTRSTR(p, "print not supported"));
+        /* altSigAlg prints the OID */
+        ExpectNotNull(p = XSTRSTR(p, "X509v3 Alternative Signature Algorithm"));
+        ExpectNotNull(p = XSTRSTR(p, "2.16.840.1.101.3.4.3.99"));
+        /* altSigVal is still printed */
+        ExpectNotNull(p = XSTRSTR(p,
+            "X509v3 Alternative Signature Value: \n                21\n"));
+    }
+    BIO_free(bio);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -44570,6 +44953,11 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_print_dir_altname),
+    TEST_DECL(test_wolfSSL_X509_print_mldsa),
+    TEST_DECL(test_wolfSSL_X509_print_unsupported),
+    TEST_DECL(test_wolfSSL_X509_print_dual_alg),
+    TEST_DECL(test_wolfSSL_X509_print_dual_alg_mldsa),
+    TEST_DECL(test_wolfSSL_X509_print_dual_alg_unsupported),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 

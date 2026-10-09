@@ -4984,6 +4984,15 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
       "nameConstraints", "X509v3 Name Constraints"},
     { WC_NID_certificate_policies, CERT_POLICY_OID, oidCertExtType,
       "certificatePolicies", "X509v3 Certificate Policies"},
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    { WC_NID_subject_alt_public_key_info, SUBJ_ALT_PUB_KEY_INFO_OID,
+      oidCertExtType, "subjectAltPublicKeyInfo",
+      "X509v3 Subject Alternative Public Key Info"},
+    { WC_NID_alt_signature_algorithm, ALT_SIG_ALG_OID, oidCertExtType,
+      "altSignatureAlgorithm", "X509v3 Alternative Signature Algorithm"},
+    { WC_NID_alt_signature_value, ALT_SIG_VAL_OID, oidCertExtType,
+      "altSignatureValue", "X509v3 Alternative Signature Value"},
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if defined(WOLFSSL_APACHE_HTTPD) && defined(OPENSSL_EXTRA)
     /* "1.3.6.1.4.1.311.20.2.3" */
     { WC_NID_ms_upn, WOLFSSL_MS_UPN_SUM, oidCertExtType, WOLFSSL_SN_MS_UPN,

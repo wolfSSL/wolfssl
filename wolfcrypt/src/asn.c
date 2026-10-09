@@ -5439,6 +5439,11 @@ static const byte extCrlNumberOid[] = {85, 29, 20};
 #ifdef WOLFSSL_SUBJ_INFO_ACC
     static const byte extSubjInfoAccessOid[] = {43, 6, 1, 5, 5, 7, 1, 11};
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    static const byte extSapkiOid[] = {85, 29, 72};
+    static const byte extAltSigAlgOid[] = {85, 29, 73};
+    static const byte extAltSigValOid[] = {85, 29, 74};
+#endif
 
 /* certAuthInfoType */
 static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
@@ -6624,6 +6629,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case SUBJ_INFO_ACC_OID:
                     oid = extSubjInfoAccessOid;
                     *oidSz = sizeof(extSubjInfoAccessOid);
+                    break;
+            #endif
+            #ifdef WOLFSSL_DUAL_ALG_CERTS
+                case SUBJ_ALT_PUB_KEY_INFO_OID:
+                    oid = extSapkiOid;
+                    *oidSz = sizeof(extSapkiOid);
+                    break;
+                case ALT_SIG_ALG_OID:
+                    oid = extAltSigAlgOid;
+                    *oidSz = sizeof(extAltSigAlgOid);
+                    break;
+                case ALT_SIG_VAL_OID:
+                    oid = extAltSigValOid;
+                    *oidSz = sizeof(extAltSigValOid);
                     break;
             #endif
                 default:

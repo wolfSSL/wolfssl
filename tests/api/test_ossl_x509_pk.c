@@ -66,6 +66,7 @@ int test_wolfSSL_X509_PUBKEY_RSA(void)
     EVP_PKEY* evpKey = NULL;
     byte buf[1024];
     byte* tmp;
+    int derSz = 0;
 
     const unsigned char *pk = NULL;
     int ppklen;
@@ -87,7 +88,11 @@ int test_wolfSSL_X509_PUBKEY_RSA(void)
     ExpectIntEQ(wolfSSL_i2d_X509_PUBKEY(NULL, NULL), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_i2d_X509_PUBKEY(NULL, &tmp), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_i2d_X509_PUBKEY(pubKey, NULL), 294);
-    ExpectIntEQ(wolfSSL_i2d_X509_PUBKEY(pubKey, &tmp), 294);
+    ExpectIntEQ(derSz = wolfSSL_i2d_X509_PUBKEY(pubKey, &tmp), 294);
+
+    /* SPKI wraps tmp, so it ends with the same bytes that pk points to */
+    ExpectIntGT(derSz, ppklen);
+    ExpectIntEQ(XMEMCMP(buf + derSz - ppklen, pk, ppklen), 0);
 
     ExpectIntEQ(OBJ_obj2nid(obj), NID_rsaEncryption);
 
@@ -129,6 +134,9 @@ int test_wolfSSL_X509_PUBKEY_EC(void)
     X509_PUBKEY* pubKey = NULL;
     X509_PUBKEY* pubKey2 = NULL;
     EVP_PKEY* evpKey = NULL;
+    byte der[256];
+    byte* tmp;
+    int derSz = 0;
 
     const unsigned char *pk = NULL;
     int ppklen;
@@ -147,6 +155,14 @@ int test_wolfSSL_X509_PUBKEY_EC(void)
     ExpectNotNull(pk);
     ExpectNotNull(pa);
     ExpectIntGT(ppklen, 0);
+
+    tmp = der;
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_PUBKEY(pubKey2, &tmp), 0);
+
+    /* SPKI wraps tmp, so it ends with the same bytes that pk points to */
+    ExpectIntGT(derSz, ppklen);
+    ExpectIntEQ(XMEMCMP(der + derSz - ppklen, pk, ppklen), 0);
+
     X509_ALGOR_get0(&pa_oid, &pptype, &pval, pa);
     ExpectNotNull(pa_oid);
     ExpectNotNull(pval);
@@ -231,6 +247,53 @@ int test_wolfSSL_X509_PUBKEY_DSA(void)
 
     X509_PUBKEY_free(pubKey);
     EVP_PKEY_free(evpKey);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_PUBKEY_MLDSA(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(NO_FILESYSTEM)
+    X509* x509 = NULL;
+    X509_PUBKEY* pubKey = NULL;
+    ASN1_OBJECT* obj = NULL;
+    X509_ALGOR* pa = NULL;
+    const unsigned char* pk = NULL;
+    int ppklen;
+    unsigned char* der = NULL;
+    int derSz = 0;
+    EVP_PKEY* pkey = NULL;
+    unsigned char* der2 = NULL;
+
+    ExpectNotNull(x509 = X509_load_certificate_file(
+        "./certs/mldsa/mldsa44-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(pubKey = X509_get_X509_PUBKEY(x509));
+
+    /* pk is the subjectPublicKey BIT STRING the certificate carries */
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &ppklen, &pa, pubKey), 1);
+    ExpectNotNull(pk);
+    ExpectIntGT(ppklen, 0);
+
+    /* the SPKI wraps that key, so it ends with those bytes */
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_PUBKEY(pubKey, &der), ppklen);
+    ExpectNotNull(der);
+    ExpectIntEQ(XMEMCMP(der + derSz - ppklen, pk, ppklen), 0);
+
+    /* X509_get_pubkey() builds a separate EVP PKEY, so it must encode to the
+     * same SubjectPublicKeyInfo */
+    ExpectNotNull(pkey = X509_get_pubkey(x509));
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY(pkey, &der2), derSz);
+    ExpectNotNull(der2);
+    ExpectIntEQ(XMEMCMP(der2, der, derSz), 0);
+
+    XFREE(der2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    EVP_PKEY_free(pkey);
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }
@@ -390,6 +453,20 @@ int test_wolfSSL_X509_set_pubkey(void)
                 ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
                 ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey),
                     WC_EVP_PKEY_DILITHIUM);
+
+            #if !defined(NO_CHECK_PRIVATE_KEY) && \
+                !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+                !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+                defined(WOLFSSL_MLDSA_CHECK_KEY)
+                /* trickles down to wc_CheckPrivateKey() which depends on
+                 * the pubKey buffer being raw */
+                ExpectIntEQ(wolfSSL_X509_check_private_key(x509, pkey),
+                    WOLFSSL_SUCCESS);
+                /* a public key should fail */
+                ExpectIntEQ(wolfSSL_X509_check_private_key(x509, pubkey),
+                    WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            #endif
+
                 wolfSSL_EVP_PKEY_free(pubkey);
                 pubkey = NULL;
 
@@ -479,10 +556,10 @@ int test_wolfSSL_X509_set_pubkey(void)
         wolfSSL_EVP_PKEY_free(pkey);
         pkey = NULL;
 
-        /* PKCS#8 shapes: a seed-carrying key derives the public half so
-         * set_pubkey succeeds. For a private-only blob the outcome tracks
-         * whether wolfCrypt can derive the public half on demand in
-         * wc_MlDsaKey_PublicKeyToDer() (added by PR #10985). */
+        /* PKCS#8 shapes:
+         *  - a seed-carrying key derives the public half so set_pubkey succeeds
+         *  - A private-only blob fails
+         */
         {
             unsigned char* der = NULL;
             int derSz = 0;
@@ -515,42 +592,12 @@ int test_wolfSSL_X509_set_pubkey(void)
                 XFCLOSE(f);
                 f = XBADFILE;
             }
-            {
-                wc_MlDsaKey* rawKey = NULL;
-                byte* pubDer = NULL;
-                word32 kidx = 0;
-                int expected = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-                int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-
-                ExpectNotNull(pubDer = (byte*)XMALLOC(
-                    MLDSA_MAX_PUB_KEY_DER_SIZE, NULL,
-                    DYNAMIC_TYPE_TMP_BUFFER));
-                ExpectNotNull(rawKey = (wc_MlDsaKey*)XMALLOC(sizeof(*rawKey),
-                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
-                ExpectIntEQ(keyRet = wc_MlDsaKey_Init(rawKey, NULL,
-                    INVALID_DEVID), 0);
-                PRIVATE_KEY_UNLOCK();
-                ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(rawKey, der,
-                    (word32)derSz, &kidx), 0);
-                if (EXPECT_SUCCESS() &&
-                        wc_MlDsaKey_PublicKeyToDer(rawKey, pubDer,
-                            MLDSA_MAX_PUB_KEY_DER_SIZE, 1) > 0) {
-                    expected = WOLFSSL_SUCCESS;
-                }
-                PRIVATE_KEY_LOCK();
-                if (keyRet == 0) {
-                    wc_MlDsaKey_Free(rawKey);
-                }
-                XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(pubDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-                pp = der;
-                ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
-                    WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
-                ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), expected);
-                wolfSSL_EVP_PKEY_free(pkey);
-                pkey = NULL;
-            }
+            pp = der;
+            ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_FAILURE);
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
             XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
@@ -558,9 +605,9 @@ int test_wolfSSL_X509_set_pubkey(void)
         !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_CERT_GEN) && \
         !defined(WOLFSSL_MLDSA_NO_SIGN) && \
         !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44)
-        /* FIPS204-draft Dilithium key: set_pubkey must keep pubKeyOID
-         * consistent with the draft-OID SPKI emitted by
-         * wc_MlDsaKey_PublicKeyToDer(), or the subsequent sign fails. */
+        /* FIPS204-draft Dilithium key: set_pubkey must record the draft OID
+         * in pubKeyOID alongside the raw key, or the subsequent sign
+         * fails. */
         {
             wc_MlDsaKey* draftKey = NULL;
             WC_RNG rng;
@@ -569,6 +616,13 @@ int test_wolfSSL_X509_set_pubkey(void)
             const unsigned char* dp;
             int rngRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
             int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        #ifdef OPENSSL_ALL
+            WOLFSSL_X509* parsed = NULL;
+            WOLFSSL_EVP_PKEY* parsedPub = NULL;
+            unsigned char* certDer = NULL;
+            const unsigned char* cp;
+            int certDerSz = 0;
+        #endif
 
             ExpectNotNull(draftDer = (byte*)XMALLOC(4096, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
@@ -581,7 +635,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 0);
             ExpectIntEQ(wc_MlDsaKey_MakeKey(draftKey, &rng), 0);
             /* KeyToDer (priv+pub): the decode of a priv-only PKCS#8 does
-             * not derive the public part needed by PublicKeyToDer. */
+             * not derive the public part needed by ExportPubRaw. */
             PRIVATE_KEY_UNLOCK();
             ExpectIntGT(draftDerSz = wc_MlDsaKey_KeyToDer(draftKey,
                 draftDer, 4096), 0);
@@ -602,6 +656,26 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectIntGT(wolfSSL_X509_sign(x509, pkey, NULL), 0);
             ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
             ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
+
+        #ifdef OPENSSL_ALL
+            /* A parsed draft certificate's X509_PUBKEY must keep the draft
+             * OID, or it verifies with the final ML-DSA-44 parameters. */
+            ExpectIntGT(certDerSz = wolfSSL_i2d_X509(x509, &certDer), 0);
+            cp = certDer;
+            ExpectNotNull(parsed = wolfSSL_d2i_X509(NULL, &cp, certDerSz));
+            ExpectNotNull(parsedPub = wolfSSL_X509_PUBKEY_get(
+                wolfSSL_X509_get_X509_PUBKEY(parsed)));
+            if (EXPECT_SUCCESS()) {
+                ExpectIntEQ(WOLFSSL_ATOMIC_LOAD(parsedPub->mldsaOID),
+                    WOLFSSL_ATOMIC_LOAD(pubkey->mldsaOID));
+            }
+            ExpectIntEQ(wolfSSL_X509_verify(parsed, parsedPub),
+                WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(parsedPub);
+            wolfSSL_X509_free(parsed);
+            XFREE(certDer, NULL, DYNAMIC_TYPE_OPENSSL);
+        #endif
+
             wolfSSL_EVP_PKEY_free(pubkey);
             pubkey = NULL;
             wolfSSL_EVP_PKEY_free(pkey);
