@@ -796,3 +796,40 @@ int test_wolfSSL_X509_get0_pubkey(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A failed X509_PUBKEY_get0_param() must not leave a half built algorithm
+ * that later calls report as success. */
+int test_wolfSSL_X509_PUBKEY_get0_param_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_QT) && !defined(NO_RSA)
+    X509_PUBKEY* pub = NULL;
+    ASN1_OBJECT* obj = NULL;
+    X509_ALGOR* pa = NULL;
+
+    ExpectNotNull(pub = X509_PUBKEY_new());
+    if (pub != NULL) {
+        X509_ALGOR_free(pub->algor);
+        pub->algor = NULL;
+        /* Key OID with no object table entry. */
+        pub->pubKeyOID = 0x7ffffff0;
+    }
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_FAILURE);
+    ExpectNull(pub == NULL ? NULL : pub->algor);
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_FAILURE);
+    ExpectNull(pub == NULL ? NULL : pub->algor);
+
+    /* A known OID builds the algorithm. */
+    if (pub != NULL) {
+        pub->pubKeyOID = RSAk;
+    }
+    ExpectIntEQ(X509_PUBKEY_get0_param(&obj, NULL, NULL, &pa, pub),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(pa);
+    ExpectIntEQ(OBJ_obj2nid(obj), EVP_PKEY_RSA);
+    X509_PUBKEY_free(pub);
+#endif
+    return EXPECT_RESULT();
+}
