@@ -4030,6 +4030,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                            hash, mgf, label, labelSz, saltLen,
                            mp_count_bits(&key->n), key->heap);
         if (ret < 0) {
+            /* SP 800-56Br2 7.2.2.3: destroy DB, EM and em on any exit,
+             * including an early error exit; the OAEP block is built in
+             * out (ISO/IEC 19790:2012 7.9.7). */
+            if (pad_type == WC_RSA_OAEP_PAD) {
+                ForceZero(out, (word32)sz);
+            }
             break;
         }
 
@@ -4046,6 +4052,16 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
+            /* SP 800-56Br2 7.2.2.3: EM is still in out after a failed RSAEP.
+             * A pending or would-block call resumes from it. */
+            if ((pad_type == WC_RSA_OAEP_PAD) &&
+                    (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+            #ifdef WC_RSA_NONBLOCK
+                    && (ret != FP_WOULDBLOCK)
+            #endif
+                    ) {
+                ForceZero(out, (word32)sz);
+            }
             break;
         }
 
