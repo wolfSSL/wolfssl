@@ -5884,19 +5884,28 @@ int test_wolfSSL_DTLS_rx_bytes(void)
     ssl->dtls_rx_msg_list = NULL;
     ssl->dtls_rx_msg_list_sz = 0;
 
-    /* More than 255 buckets: neither the old cap nor a byte counter remains. */
-    if (WOLFSSL_DTLS_RX_MAX_BYTES >= sizeof(DtlsMsg) +
-            260 * (sizeof(DtlsFragBucket) + 1)) {
-        for (i = 0; i < 260 && EXPECT_SUCCESS(); i++) {
-            ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, NULL, data, 520, certificate,
-                2 * i, 1, NULL), 0);
-        }
-        ExpectNotNull(msg = ssl->dtls_rx_msg_list);
-        ExpectIntEQ(msg->fragBucketListCount, 260);
-        ExpectIntEQ(DtlsMsgListRetainedBytes(msg),
-            sizeof(DtlsMsg) + 260 * (sizeof(DtlsFragBucket) + 1));
-        DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    /* At most DTLS_FRAG_POOL_SZ buckets: a fragment opening one more gap is
+     * dropped, one touching a bucket is still taken. */
+    for (i = 0; i < DTLS_FRAG_POOL_SZ && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, NULL, data, 4 * DTLS_FRAG_POOL_SZ,
+            certificate, 4 * i, 1, NULL), 0);
     }
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, NULL, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 2, 1, NULL), DTLS_MSG_STORE_DROPPED);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, NULL, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 1, 1, NULL), 0);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, NULL, data, 4 * DTLS_FRAG_POOL_SZ,
+        certificate, 2, 2, NULL), 0);
+    ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ - 1);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), sizeof(DtlsMsg) +
+        (DTLS_FRAG_POOL_SZ - 1) * sizeof(DtlsFragBucket) +
+        DTLS_FRAG_POOL_SZ + 3);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();

@@ -11460,15 +11460,15 @@ static int DtlsMsgSetPeer(DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer,
 /* RX raw owns the former single fragment allocation after assembly. */
 static size_t DtlsMsgRetainedBytes(const DtlsMsg* msg)
 {
-    const DtlsFragBucket* frag;
-    size_t bytes = sizeof(DtlsMsg);
+    /* Buckets never overlap, so their payload adds up to bytesReceived; a
+     * complete message keeps its single bucket as raw. Constant time: the
+     * whole receive list is summed for every fragment stored. */
+    size_t bytes = sizeof(DtlsMsg) + msg->bytesReceived +
+        ((size_t)msg->fragBucketListCount + (msg->raw != NULL ? 1 : 0)) *
+            sizeof(DtlsFragBucket);
 #ifdef WOLFSSL_DTLS_CH_FRAG
     bytes += msg->peer.bufSz;
 #endif
-    if (msg->raw != NULL)
-        bytes += sizeof(DtlsFragBucket) + msg->sz;
-    for (frag = msg->fragBucketList; frag != NULL; frag = frag->m.m.next)
-        bytes += sizeof(DtlsFragBucket) + frag->m.m.sz;
     return bytes;
 }
 
@@ -11481,14 +11481,16 @@ size_t DtlsMsgListRetainedBytes(const DtlsMsg* head)
 }
 
 /* Project the resulting retained allocation, not the temporary peak while
- * reallocating/merging buckets. Sorted buckets neither overlap nor touch. */
+ * reallocating/merging buckets, and the resulting number of buckets. Sorted
+ * buckets neither overlap nor touch. */
 static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
-                                    word32 length)
+                                    word32 length, word32* buckets)
 {
     const DtlsFragBucket* frag;
     word32 end = offset + length;
     size_t bytes = DtlsMsgRetainedBytes(msg);
 
+    *buckets = msg->fragBucketListCount;
     if (msg->ready)
         return bytes;
     for (frag = msg->fragBucketList; frag != NULL; frag = frag->m.m.next) {
@@ -11500,7 +11502,9 @@ static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
         offset = min(offset, frag->m.m.offset);
         end = max(end, fragEnd);
         bytes -= sizeof(DtlsFragBucket) + frag->m.m.sz;
+        (*buckets)--;
     }
+    (*buckets)++;
     return bytes + sizeof(DtlsFragBucket) + (end - offset);
 }
 
@@ -11571,6 +11575,7 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     DtlsMsg* cur;
     size_t projected;
     size_t peerSz = 0;
+    word32 buckets = 1;
     word32 received = 0;
     int isNew;
     int ret;
@@ -11618,7 +11623,12 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     if (isNew)
         projected = sizeof(DtlsMsg) + peerSz + sizeof(DtlsFragBucket) + fragSz;
     else
-        projected = DtlsMsgProjectedBytes(cur, fragOffset, fragSz);
+        projected = DtlsMsgProjectedBytes(cur, fragOffset, fragSz, &buckets);
+    /* Every store walks the message's buckets, so their number is capped. A
+     * fragment that would open one more gap is dropped; one that touches what
+     * is held is always taken, so retransmissions still complete it. */
+    if (buckets > DTLS_FRAG_POOL_SZ)
+        return DTLS_MSG_STORE_DROPPED;
     ret = DtlsMsgRxAdmit(ssl, cur, projected, peer != NULL);
     if (ret == 0 && isNew) {
         cur = DtlsMsgNew(dataSz, 0, heap);
@@ -11667,7 +11677,7 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
 int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret)
 {
     return ret < 0 && (ret == WC_NO_ERR_TRACE(MEMORY_E) ||
-        IsEncryptionOn(ssl, 0));
+        ret == WC_NO_ERR_TRACE(MEMORY_ERROR) || IsEncryptionOn(ssl, 0));
 }
 
 /* DtlsMsgInsert() is an in-order insert. */

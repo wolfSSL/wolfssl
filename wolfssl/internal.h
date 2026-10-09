@@ -1244,6 +1244,12 @@ enum {
     #define WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER 500
 #endif /* WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER */
 
+/* Disjoint fragment buckets a buffered handshake message may have. A fragment
+ * that would open one more gap is dropped, not acknowledged. */
+#ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
+    #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
+#endif
+
 /* Allocated bytes retained by each WOLFSSL's DTLS receive message list,
  * including message, peer and fragment metadata. Leave room for a maximum
  * certificate message and other buffered messages. Override for the deployment.
@@ -1677,6 +1683,8 @@ enum Misc {
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
     DTLS_POOL_SZ             = 20, /* allowed number of list items in TX pool */
+    DTLS_FRAG_POOL_SZ        = WOLFSSL_DTLS_FRAG_POOL_SZ,
+                                   /* allowed number of fragments per msg */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
