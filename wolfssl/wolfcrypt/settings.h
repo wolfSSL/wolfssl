@@ -442,6 +442,32 @@
 #if defined(WOLFSSL_VERSAL_GEN2_ASU)
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_settings.h>
 #endif
+/* NXP EdgeLock Secure Enclave: a crypto callback device whose TRNG is the
+ * system hwrng (ele-trng on i.MX93/95), root-only by default. */
+#ifdef WOLFSSL_NXP_ELE
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+    #ifndef WOLFSSL_NXP_ELE_DEVID
+        #define WOLFSSL_NXP_ELE_DEVID 0x454C45 /* "ELE" */
+    #endif
+    #ifndef WOLFSSL_NXP_ELE_TRNG_DEVICE
+        #define WOLFSSL_NXP_ELE_TRNG_DEVICE "/dev/hwrng"
+    #endif
+    #ifndef WOLFSSL_NXP_ELE_TRNG_CURRENT
+        #define WOLFSSL_NXP_ELE_TRNG_CURRENT \
+            "/sys/class/misc/hw_random/rng_current"
+    #endif
+    #ifndef WOLFSSL_NXP_ELE_TRNG_NAME
+        #define WOLFSSL_NXP_ELE_TRNG_NAME "ele-trng"
+    #endif
+    #if !defined(WOLFSSL_NXP_ELE_TRNG) && !defined(WOLFSSL_NXP_ELE_NO_TRNG)
+        #define WOLFSSL_NXP_ELE_TRNG
+    #endif
+    #if !defined(WC_USE_DEVID) && !defined(WOLFSSL_NXP_ELE_NO_DEVID)
+        #define WC_USE_DEVID WOLFSSL_NXP_ELE_DEVID
+    #endif
+#endif
 
 /* SE Manager context members are embedded in the public Aes, ecc_key and
  * wc_Sha* structs. Both SiLabs ports need them, so gate those members on this

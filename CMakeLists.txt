@@ -3581,6 +3581,18 @@ if (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
     endif()
 endif()
 
+# NXP EdgeLock Secure Enclave, the security subsystem that replaces CAAM on
+# i.MX 8ULP / 93 / 95. Implemented as a crypto callback device, so enabling it
+# turns callbacks on the way --enable-ele does.
+add_option("WOLFSSL_ELE"
+    "Enable NXP EdgeLock Secure Enclave support (default: disabled)"
+    "no" "yes;no")
+if (WOLFSSL_ELE)
+    override_cache(WOLFSSL_CRYPTOCB "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NXP_ELE")
+    set(WOLFSSL_NXP_ELE "yes")
+endif()
+
 if (WOLFSSL_ARIA)
    list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_ARIA")
 endif()

@@ -506,6 +506,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
     #include <wolfssl/wolfcrypt/port/nxp/sec_qoriq.h>
 #endif
+#ifdef WOLFSSL_NXP_ELE
+    #include <wolfssl/wolfcrypt/port/nxp/ele.h>
+#endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #ifdef WOLFSSL_SILABS_CRYPTOCB
@@ -1217,6 +1220,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
 #endif
 #if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void);
+#endif
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ele_trng_test(void);
 #endif
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
@@ -3771,6 +3778,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("QorIQ SEC sim test failed!\n", ret);
     else
         TEST_PASS("QorIQ SEC sim test passed!\n");
+#endif
+
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+    if ( (ret = ele_trng_test()) != 0)
+        TEST_FAIL("ELE TRNG  test failed!\n", ret);
+    else
+        TEST_PASS("ELE TRNG  test passed!\n");
 #endif
 
 #if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
@@ -98171,6 +98186,76 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void)
     return ret;
 }
 #endif /* WOLFSSL_SEC_QORIQ && WOLFSSL_SEC_QORIQ_SIM */
+
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+/* Drives the enclave TRNG through the crypto callback, which is the only route
+ * an application has: wc_ele_trng_read() is WOLFSSL_LOCAL. The node is
+ * root-only by default and absent on a host without the enclave, so the test
+ * first checks it is readable and only then requires entropy; otherwise there
+ * is nothing to exercise. Note the DRBG reports a failed seed as
+ * RNG_FAILURE_E, not the WC_HW_E the port returns internally. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ele_trng_test(void)
+{
+    WC_RNG rng;
+    byte buf[64];
+    char cur[64];
+    wc_test_ret_t ret;
+    XFILE f;
+    size_t got;
+    int i, nonZero = 0;
+
+    /* The hwrng node exposes whichever provider rng_current names, so a machine
+     * with some other hardware RNG would otherwise run this as if it had
+     * exercised the enclave. */
+    f = XFOPEN(WOLFSSL_NXP_ELE_TRNG_CURRENT, "rb");
+    if (f == XBADFILE)
+        return 0;
+    got = XFREAD(cur, 1, sizeof(cur) - 1, f);
+    XFCLOSE(f);
+    if (got == 0)
+        return 0;
+    cur[got] = '\0';
+    if (XSTRSTR(cur, WOLFSSL_NXP_ELE_TRNG_NAME) == NULL)
+        return 0; /* a different provider backs the node */
+
+    f = XFOPEN(WOLFSSL_NXP_ELE_TRNG_DEVICE, "rb");
+    if (f == XBADFILE)
+        return 0; /* present but not readable, e.g. unprivileged */
+    XFCLOSE(f);
+
+    ret = wc_EleCryptoCb_RegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, WOLFSSL_NXP_ELE_DEVID);
+    if (ret != 0) {
+        wc_EleCryptoCb_UnRegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_RNG_GenerateBlock(&rng, buf, (word32)sizeof(buf));
+    if (ret == 0) {
+        for (i = 0; i < (int)sizeof(buf); i++) {
+            if (buf[i] != 0) {
+                nonZero = 1;
+                break;
+            }
+        }
+        if (nonZero == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    else {
+        ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    wc_FreeRng(&rng);
+    wc_EleCryptoCb_UnRegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+    return ret;
+}
+#endif /* WOLFSSL_NXP_ELE && WOLFSSL_NXP_ELE_TRNG && !WC_NO_RNG &&
+          !NO_FILESYSTEM */
 
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)

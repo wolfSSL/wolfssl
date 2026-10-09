@@ -221,6 +221,7 @@ function(generate_build_flags)
     set(BUILD_INTELASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
+    set(BUILD_ELE ${WOLFSSL_ELE} PARENT_SCOPE)
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CAMELLIA "yes" PARENT_SCOPE)
     endif()
@@ -1425,6 +1426,12 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/port/devcrypto/devcrypto_hash.c
             wolfcrypt/src/port/devcrypto/devcrypto_aes.c
             wolfcrypt/src/port/devcrypto/wc_devcrypto.c)
+    endif()
+
+    if(BUILD_ELE)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/nxp/ele_rng.c
+            wolfcrypt/src/port/nxp/ele_cryptocb.c)
     endif()
 
     if(BUILD_CAVIUM)
