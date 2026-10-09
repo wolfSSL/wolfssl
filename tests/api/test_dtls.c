@@ -6263,6 +6263,39 @@ int test_dtls_ipv6_check(void)
 }
 #endif
 
+/* Default get/set peer callbacks fail on an IPv6 peer without IPv6 support. */
+int test_dtls_export_peer_ipv6_not_compiled(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+    defined(USE_WOLFSSL_IO) && !defined(WOLFSSL_IPV6) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    SOCKADDR_IN fake_addr6;
+    char ip[MAX_EXPORT_IP];
+    int ipSz = (int)sizeof(ip);
+    unsigned short port = 0;
+    int fam = 0;
+    char ip6[] = "::1";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&fake_addr6, 0, sizeof(fake_addr6));
+    fake_addr6.sin_family = WOLFSSL_IP6;
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, &fake_addr6, sizeof(fake_addr6)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntNE(EmbedGetPeer(ssl, ip, &ipSz, &port, &fam), WOLFSSL_SUCCESS);
+    ExpectIntNE(EmbedSetPeer(ssl, ip6, (int)XSTRLEN(ip6), 4433, WOLFSSL_IP6),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- no_extensions (api.c lines 30824,30913) ---*/
 int test_dtls_no_extensions(void)
 {
@@ -12674,6 +12707,92 @@ int test_wolfSSL_dtls_get0_peer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_RW_THREADED) && \
+    defined(USE_WOLFSSL_IO) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+static WOLFSSL* sendToMigrateSsl = NULL;
+static void* sendToMigrateNewPeer = NULL;
+static int sendToMigrateChanged = 0;
+
+static THREAD_RETURN WOLFSSL_THREAD test_dtls_send_to_migrate_thread(
+    void* arg)
+{
+    (void)arg;
+    (void)wolfSSL_dtls_set_peer(sendToMigrateSsl, sendToMigrateNewPeer,
+        (unsigned int)sizeof(SOCKADDR_IN));
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+static ssize_t test_dtls_send_to_migrate_cb(int sd, const void* buf,
+    size_t len, int flags, const void* addr, word32 addrSz)
+{
+    byte before[sizeof(SOCKADDR_S)];
+    THREAD_TYPE thread;
+
+    (void)sd;
+    (void)buf;
+    (void)flags;
+    XMEMCPY(before, addr, addrSz);
+    /* Another thread migrates the peer while this send is in progress. */
+    if (wolfSSL_NewThread(&thread, test_dtls_send_to_migrate_thread,
+            NULL) == 0) {
+        (void)wolfSSL_JoinThread(thread);
+    }
+    sendToMigrateChanged = (XMEMCMP(before, addr, addrSz) != 0);
+    return (ssize_t)len;
+}
+#endif
+
+/* The destination address handed to a send must not change while that send is
+ * in progress, even when another thread sets a new peer address meanwhile.
+ * The new address is stored once the send returns. */
+int test_dtls_send_to_peer_migration(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_RW_THREADED) && \
+    defined(USE_WOLFSSL_IO) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    void* oldPeer = NULL;
+    char msg[] = "hello";
+    byte stored[sizeof(SOCKADDR_IN)];
+    unsigned int storedSz = (unsigned int)sizeof(stored);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(oldPeer = wolfSSL_dtls_create_peer(11111,
+        (char*)"127.0.0.1"));
+    ExpectNotNull(sendToMigrateNewPeer = wolfSSL_dtls_create_peer(22222,
+        (char*)"127.0.0.2"));
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, oldPeer,
+        (unsigned int)sizeof(SOCKADDR_IN)), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        sendToMigrateSsl = ssl;
+        sendToMigrateChanged = 0;
+        ssl->buffers.dtlsCtx.wfdIsDGram = 1;
+        wolfSSL_SetSendTo(ssl, test_dtls_send_to_migrate_cb);
+        ExpectIntEQ(EmbedSendTo(ssl, msg, (int)sizeof(msg),
+            &ssl->buffers.dtlsCtx), (int)sizeof(msg));
+        ExpectIntEQ(sendToMigrateChanged, 0);
+        /* The migration itself did happen. */
+        ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, stored, &storedSz),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)storedSz, (int)sizeof(SOCKADDR_IN));
+        ExpectBufEQ(stored, sendToMigrateNewPeer, sizeof(SOCKADDR_IN));
+    }
+
+    wolfSSL_dtls_free_peer(oldPeer);
+    wolfSSL_dtls_free_peer(sendToMigrateNewPeer);
+    sendToMigrateNewPeer = NULL;
+    sendToMigrateSsl = NULL;
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_set_timeout_init(void)
 {
     EXPECT_DECLS;
@@ -13062,6 +13181,55 @@ int test_wolfSSL_dtls_set_peer(void)
     ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, NULL, 0), WOLFSSL_SUCCESS);
     peerSz = (unsigned int)sizeof(peer);
     ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_FAILURE);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+static void* dtls_set_peer_oom_malloc(size_t n)
+{
+    (void)n;
+    return NULL;
+}
+#endif
+
+/* A peer update that fails to allocate keeps the previous peer, still marked
+ * as set by the application. */
+int test_wolfSSL_dtls_set_peer_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Malloc_cb mf = NULL;
+    wolfSSL_Free_cb ff = NULL;
+    wolfSSL_Realloc_cb rf = NULL;
+    unsigned char peer[16];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"1234", 5), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&mf, &ff, &rf), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(dtls_set_peer_oom_malloc, ff, rf), 0);
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"123456789012", 12),
+        WOLFSSL_FAILURE);
+    (void)wolfSSL_SetAllocators(mf, ff, rf);
+
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 5);
+    ExpectBufEQ(peer, "1234", 5);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.dtlsCtx.userSet, 1);
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

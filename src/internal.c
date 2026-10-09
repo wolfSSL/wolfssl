@@ -25388,7 +25388,8 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
      * is in the way, so carry on regardless: this bookkeeping is the caller's
      * own and leaving it stale is worse than the race. Only the promotion into
      * dtlsCtx.peer below is skipped, since EmbedSendTo reads that buffer
-     * without the lock. DtlsResetState() and ProcessReplyEx() do the same. */
+     * from another thread. DtlsResetState() and ProcessReplyEx() do the
+     * same. */
     locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
 #endif
     if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
@@ -25412,23 +25413,17 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
             if (isNewest
         #ifdef WOLFSSL_RW_THREADED
                     /* Only this touches the buffer the send path reads
-                     * without the lock, so it is the one thing a failed
+                     * from another thread, so it is the one thing a failed
                      * acquisition has to skip. */
                     && locked
         #endif
                 ) {
                 WOLFSSL_SOCKADDR* from = &ssl->buffers.dtlsCtx.pendingPeer;
 
+                /* A failed update keeps the previous peer and its flag. */
                 if (wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.peer,
                         from->sa, from->sz, ssl->heap) == WOLFSSL_SUCCESS) {
                     ssl->buffers.dtlsCtx.userSet = 1;
-                }
-                else {
-                    /* wolfSSL_dtls_set_peer clears this when it fails to store
-                     * a peer, and the receive path only checks the sender
-                     * while peer.sz is non zero, so leaving it set would drop
-                     * the check rather than fail safe. */
-                    ssl->buffers.dtlsCtx.userSet = 0;
                 }
             }
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
@@ -26943,7 +26938,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
              * DtlsResetState() and dtlsProcessPendingPeer() do. A failure here
              * means the lock is broken rather than held, and nothing below
              * touches dtlsCtx.peer, which is the buffer the send path reads
-             * without this lock. */
+             * from another thread. */
             locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
         #endif
             dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);

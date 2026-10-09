@@ -941,6 +941,8 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
+    int ret = 0;
+    SOCKADDR_S lclPeer;
     const SOCKADDR_S* peer = NULL;
     XSOCKLENT peerSz = 0;
 
@@ -953,8 +955,25 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
     }
     else if (!dtlsCtx->connected) {
-        peer   = (const SOCKADDR_S*)dtlsCtx->peer.sa;
-        peerSz = dtlsCtx->peer.sz;
+#ifdef WOLFSSL_RW_THREADED
+        if (wc_LockRwLock_Rd(&dtlsCtx->peerLock) != 0)
+            return WOLFSSL_CBIO_ERR_GENERAL;
+#endif
+        /* Copy the peer so another thread can't change it mid-send. */
+        if (dtlsCtx->peer.sz > sizeof(lclPeer)) {
+            ret = WOLFSSL_CBIO_ERR_GENERAL;
+        }
+        else if (dtlsCtx->peer.sa != NULL) {
+            XMEMCPY(&lclPeer, dtlsCtx->peer.sa, dtlsCtx->peer.sz);
+            peer   = &lclPeer;
+            peerSz = (XSOCKLENT)dtlsCtx->peer.sz;
+        }
+#ifdef WOLFSSL_RW_THREADED
+        if (wc_UnLockRwLock(&dtlsCtx->peerLock) != 0)
+            return WOLFSSL_CBIO_ERR_GENERAL;
+#endif
+        if (ret != 0)
+            return ret;
 #ifndef WOLFSSL_IPV6
         if (PeerIsIpv6(peer, peerSz)) {
             WOLFSSL_MSG("ipv6 dtls peer set but no ipv6 support compiled");
@@ -1086,6 +1105,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                     return SOCKET_ERROR_E;
                 }
                 *port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+            #else
+                return NOT_COMPILED_IN;
             #endif /* WOLFSSL_IPV6 */
                 break;
 
@@ -1143,6 +1164,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                     WOLFSSL_MSG("Import DTLS peer info error");
                     return ret;
                 }
+            #else
+                return NOT_COMPILED_IN;
             #endif /* WOLFSSL_IPV6 */
                 break;
 
