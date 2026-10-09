@@ -92,7 +92,9 @@ binary, `tests/swdev/Makefile` does the following:
   `swdev.partial.o`.
 - Runs `objcopy --keep-global-symbol=wc_SwDev_Callback
   --keep-global-symbol=wc_SwDev_InternalCleanup` to localize every
-  remaining global except the two intended exports.
+  remaining global except the two intended exports. macOS has no
+  `objcopy`, so there a second `ld -r` with `-exported_symbol` does the
+  same.
 
 The Makefile then enforces the invariant directly:
 
@@ -101,9 +103,8 @@ nm --extern-only --defined-only build/swdev.o
 ```
 
 must list **only** `wc_SwDev_Callback` and `wc_SwDev_InternalCleanup`.
-The build fails loudly otherwise (see `tests/swdev/Makefile:122-129`).
-If you add a third `WC_SWDEV_EXPORT` API, update the keep-list in the
-Makefile too.
+The build fails loudly otherwise. If you add a third `WC_SWDEV_EXPORT`
+API, add it to `SWDEV_EXPORTS` in the Makefile too.
 
 ## ABI Constraint
 
