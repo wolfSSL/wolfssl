@@ -425,6 +425,20 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     while (msg != NULL) {
+        /* Nothing is ever processed from an entry the connection has moved
+         * past: one held for an unverified peer once the server is stateful,
+         * or one older than the next expected message. Left at the head they
+         * would stall every later message. */
+        if ((DtlsMsgIsUnverified(msg) && ssl->options.dtlsStateful) ||
+                (!DtlsMsgIsUnverified(msg) &&
+                 msg->seq < ssl->keys.dtls_expected_peer_handshake_number)) {
+            ssl->dtls_rx_msg_list = msg->next;
+            DtlsMsgDelete(msg, ssl->heap);
+            msg = ssl->dtls_rx_msg_list;
+            ssl->dtls_rx_msg_list_sz--;
+            continue;
+        }
+
         /* an unverified ClientHello is processed only for its own peer, by
          * Dtls13ProcessUnverifiedCh() */
         if (DtlsMsgIsUnverified(msg))
@@ -487,8 +501,8 @@ static const WOLFSSL_SOCKADDR* Dtls13UnverifiedChPeer(WOLFSSL* ssl,
 }
 
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
-/* Unlink msg from the receive list and free it. */
-static void Dtls13RxMsgListRemove(WOLFSSL* ssl, DtlsMsg* msg)
+/* Unlink msg from the receive list without freeing it. */
+static void Dtls13RxMsgListUnlink(WOLFSSL* ssl, DtlsMsg* msg)
 {
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
 
@@ -496,17 +510,18 @@ static void Dtls13RxMsgListRemove(WOLFSSL* ssl, DtlsMsg* msg)
         prevNext = &(*prevNext)->next;
     if (*prevNext == msg) {
         *prevNext = msg->next;
-        DtlsMsgDelete(msg, ssl->heap);
+        msg->next = NULL;
         ssl->dtls_rx_msg_list_sz--;
     }
 }
 
 /* The current peer's ClientHello, buffered before its cookie is verified, is
- * processed on its own once complete: the server is not stateful, so the
- * reply, if any, goes out statelessly and afterwards only this peer's entry is
- * released. Other peers' partial ClientHellos in the list stay. When the
- * ClientHello verified instead, the server is stateful now and continues with
- * whatever else this peer has buffered. */
+ * processed on its own once complete. It is taken out of the list first: when
+ * its cookie verifies, every entry held for an unverified peer is dropped
+ * (DoClientHelloStateless()). Otherwise the server is still stateless, the
+ * reply, if any, went out statelessly and other peers' partial ClientHellos
+ * stay. Either way the message is done with, unless asynchronous crypto has to
+ * resume it: it then goes back as a message of the now stateful connection. */
 static int Dtls13ProcessUnverifiedCh(WOLFSSL* ssl, const WOLFSSL_SOCKADDR* peer)
 {
     DtlsMsg* msg;
@@ -519,16 +534,19 @@ static int Dtls13ProcessUnverifiedCh(WOLFSSL* ssl, const WOLFSSL_SOCKADDR* peer)
     if (msg == NULL || !msg->ready)
         return 0;
 
+    Dtls13RxMsgListUnlink(ssl, msg);
     ret = Dtls13ProcessBufferedMsg(ssl, msg, &processed);
-    if (processed)
-        Dtls13RxMsgListRemove(ssl, msg);
-    if (ret != 0)
-        return ret;
+    if (!processed && ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+            ssl->options.dtlsStateful) {
+        msg->unverified = 0;
+        ssl->dtls_rx_msg_list = DtlsMsgInsert(ssl->dtls_rx_msg_list, msg);
+        ssl->dtls_rx_msg_list_sz++;
+    }
+    else {
+        DtlsMsgDelete(msg, ssl->heap);
+    }
 
-    if (ssl->options.dtlsStateful && Dtls13NextMessageComplete(ssl))
-        return Dtls13ProcessBufferedMessages(ssl);
-
-    return 0;
+    return ret;
 }
 #endif /* WOLFSSL_DTLS_CH_FRAG && !NO_WOLFSSL_SERVER */
 
@@ -2092,10 +2110,6 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
                 }
             }
             WOLFSSL_MSG("ClientHello fragment verified");
-            /* Other peers' ClientHellos buffered before this cookie verified
-             * would stall the handshake from the head of the list. */
-            DtlsMsgListPurgeUnverified(ssl,
-                ssl->keys.dtls_peer_handshake_number);
         }
         /* dtlsStateful is checked again: DoClientHelloStateless() sets it for
          * a DTLS 1.2 ClientHello with a good cookie, which is not tls13. */

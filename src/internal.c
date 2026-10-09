@@ -11411,36 +11411,26 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq,
     return head;
 }
 
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-/* The current peer's cookie has verified. Drop every buffered message except
- * its ClientHello with sequence number seq: the rest are other peers'
- * unverified ClientHellos, which this now stateful object no longer serves,
- * or stale fragments of this peer's earlier ClientHello. Either kind would sit
- * ahead of the verified message in the list and stall
- * Dtls13ProcessBufferedMessages(). */
-/* for review: check this with rfc 9147 as well. The momemnt we verify a Peer,
-* can't we just flush the all list? */
-void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq)
+#ifdef WOLFSSL_DTLS_CH_FRAG
+/* Drop every entry held for a peer whose cookie has not verified. */
+void DtlsMsgListPurgeUnverified(WOLFSSL* ssl)
 {
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
 
     WOLFSSL_ENTER("DtlsMsgListPurgeUnverified");
     while (*prevNext != NULL) {
         DtlsMsg* cur = *prevNext;
-        if (cur->seq == seq && cur->unverified &&
-                DtlsMsgPeerEqual(cur, &ssl->buffers.dtlsCtx.peer)) {
-            /* Kept as a message of the now stateful connection */
-            cur->unverified = 0;
-            prevNext = &cur->next;
-        }
-        else {
+        if (cur->unverified) {
             *prevNext = cur->next;
             DtlsMsgDelete(cur, ssl->heap);
             ssl->dtls_rx_msg_list_sz--;
         }
+        else {
+            prevNext = &cur->next;
+        }
     }
 }
-#endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG */
+#endif /* WOLFSSL_DTLS_CH_FRAG */
 
 /* Mark msg unverified and key it on peer, a copy of the address bytes. NULL
  * peer keys nothing. */
@@ -22172,6 +22162,15 @@ int DtlsMsgDrain(WOLFSSL* ssl)
     int ret = 0;
 
     WOLFSSL_ENTER("DtlsMsgDrain");
+
+    /* An entry held for an unverified peer is of no use once stateful */
+    while (item != NULL && DtlsMsgIsUnverified(item) &&
+            ssl->options.dtlsStateful) {
+        ssl->dtls_rx_msg_list = item->next;
+        DtlsMsgDelete(item, ssl->heap);
+        item = ssl->dtls_rx_msg_list;
+        ssl->dtls_rx_msg_list_sz--;
+    }
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the

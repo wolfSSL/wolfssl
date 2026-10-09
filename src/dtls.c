@@ -1043,8 +1043,8 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
     return 0;
 }
 
-int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
-        byte isFirstCHFrag, byte* tls13)
+static int _DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
+        word32 helloSz, byte isFirstCHFrag, byte* tls13)
 {
     int ret;
     WolfSSL_CH ch;
@@ -1165,6 +1165,25 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         }
     }
 
+    return ret;
+}
+
+int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
+        byte isFirstCHFrag, byte* tls13)
+{
+    byte wasStateful = ssl->options.dtlsStateful;
+    int ret = _DoClientHelloStateless(ssl, input, helloSz, isFirstCHFrag,
+        tls13);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    /* Every way this object turns stateful goes through here. Whatever was
+     * held before the cookie verified belongs to peers this object no longer
+     * serves, or is this peer's own earlier attempt, which it retransmits:
+     * none of it is a message of the connection. */
+    if (!wasStateful && ssl->options.dtlsStateful)
+        DtlsMsgListPurgeUnverified(ssl);
+#else
+    (void)wasStateful;
+#endif
     return ret;
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) */

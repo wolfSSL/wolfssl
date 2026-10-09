@@ -7942,8 +7942,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
     WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch,
                                           word32 seq,
                                           const WOLFSSL_SOCKADDR* peer);
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-    WOLFSSL_TEST_VIS void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    WOLFSSL_TEST_VIS void DtlsMsgListPurgeUnverified(WOLFSSL* ssl);
 #endif
 
     WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
