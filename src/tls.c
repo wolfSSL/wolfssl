@@ -16755,6 +16755,50 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     #endif
 #endif /* HAVE_SUPPORTED_CURVES */
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        /* A status_request configured on the context holds the OCSP nonce
+         * generated when it was configured, so every ClientHello would carry
+         * the same nonce. Give the connection its own copy with a fresh nonce
+         * instead. */
+        if (TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST) == NULL) {
+            TLSX* csrExt = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
+            CertificateStatusRequest* csr = csrExt ?
+                                 (CertificateStatusRequest*)csrExt->data : NULL;
+
+            if (csr != NULL && (csr->options & WOLFSSL_CSR_OCSP_USE_NONCE)) {
+                ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
+                                       csr->status_type, csr->options, ssl,
+                                       ssl->heap, ssl->devId);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+            }
+        }
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        /* Same for status_request_v2. The connection level list replaces the
+         * context level one on the wire, so copy every item. */
+        if (TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2) == NULL) {
+            TLSX* csr2Ext = TLSX_Find(ssl->ctx->extensions,
+                                      TLSX_STATUS_REQUEST_V2);
+            CertificateStatusRequestItemV2* csr2 = csr2Ext ?
+                          (CertificateStatusRequestItemV2*)csr2Ext->data : NULL;
+            CertificateStatusRequestItemV2* item;
+            int useNonce = 0;
+
+            for (item = csr2; item != NULL; item = item->next) {
+                if (item->options & WOLFSSL_CSR2_OCSP_USE_NONCE)
+                    useNonce = 1;
+            }
+            for (item = csr2; useNonce && item != NULL; item = item->next) {
+                ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+                                      item->status_type, item->options,
+                                      ssl->heap, ssl->devId);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+            }
+        }
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+
 #ifdef WOLFSSL_SRTP
         if (ssl->options.dtls && ssl->dtlsSrtpProfiles != 0) {
             WOLFSSL_MSG("Adding DTLS SRTP extension");

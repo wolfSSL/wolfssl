@@ -583,6 +583,337 @@ int test_ocsp_basic_verify(void)
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* The OCSP nonce configured on a context is drawn once, so reusing it would
+ * put the same value in the clear in every ClientHello from that context - a
+ * stable identifier for the process - and would stop binding one OCSP
+ * response to one handshake. Each connection must draw its own. */
+int test_ocsp_ctx_stapling_nonce_per_connection(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    byte ctxNonce[MAX_OCSP_NONCE_SZ];
+    byte nonce[2][MAX_OCSP_NONCE_SZ];
+    TLSX* ext = NULL;
+    CertificateStatusRequest* csr = NULL;
+    int i;
+
+    XMEMSET(ctxNonce, 0, sizeof(ctxNonce));
+    XMEMSET(nonce, 0, sizeof(nonce));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(ctx_c, WOLFSSL_CSR_OCSP,
+        WOLFSSL_CSR_OCSP_USE_NONCE), WOLFSSL_SUCCESS);
+
+    /* The nonce the context holds. */
+    ExpectNotNull(ext = TLSX_Find(ctx_c == NULL ? NULL : ctx_c->extensions,
+        TLSX_STATUS_REQUEST));
+    if (ext != NULL) {
+        csr = (CertificateStatusRequest*)ext->data;
+        ExpectNotNull(csr);
+        if (csr != NULL) {
+            ExpectIntEQ(csr->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+            XMEMCPY(ctxNonce, csr->request.ocsp[0].nonce, MAX_OCSP_NONCE_SZ);
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        if (i > 0) {
+            ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+            wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+            wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        }
+        /* Only the ClientHello is needed; there is no server to answer. */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        ext = TLSX_Find(ssl_c == NULL ? NULL : ssl_c->extensions,
+            TLSX_STATUS_REQUEST);
+        ExpectNotNull(ext);
+        if (ext != NULL) {
+            csr = (CertificateStatusRequest*)ext->data;
+            ExpectNotNull(csr);
+            if (csr != NULL) {
+                ExpectIntEQ(csr->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+                XMEMCPY(nonce[i], csr->request.ocsp[0].nonce,
+                    MAX_OCSP_NONCE_SZ);
+            }
+        }
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+    }
+
+    ExpectIntNE(XMEMCMP(nonce[0], nonce[1], MAX_OCSP_NONCE_SZ), 0);
+    ExpectIntNE(XMEMCMP(nonce[0], ctxNonce, MAX_OCSP_NONCE_SZ), 0);
+    ExpectIntNE(XMEMCMP(nonce[1], ctxNonce, MAX_OCSP_NONCE_SZ), 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_ctx_stapling_nonce_per_connection(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && HAVE_OCSP */
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Same for status_request_v2, which differs in that the context holds a list:
+ * the connection level list replaces the context one on the wire, so every
+ * item has to be copied and every item needs its own fresh nonce. */
+int test_ocsp_ctx_stapling_v2_nonce_per_connection(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    byte ctxNonce[2][MAX_OCSP_NONCE_SZ];
+    byte nonce[2][2][MAX_OCSP_NONCE_SZ];
+    byte ctxTypes[2];
+    TLSX* ext = NULL;
+    CertificateStatusRequestItemV2* csr2 = NULL;
+    int ctxItems = 0;
+    int i;
+    int j;
+
+    XMEMSET(ctxNonce, 0, sizeof(ctxNonce));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(ctxTypes, 0, sizeof(ctxTypes));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Two items of different status types, so the copy has to preserve both
+     * the list length and each item's type. */
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(ctx_c, WOLFSSL_CSR2_OCSP_MULTI,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(ctx_c, WOLFSSL_CSR2_OCSP,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), WOLFSSL_SUCCESS);
+
+    /* What the context holds. */
+    ExpectNotNull(ext = TLSX_Find(ctx_c == NULL ? NULL : ctx_c->extensions,
+        TLSX_STATUS_REQUEST_V2));
+    if (ext != NULL) {
+        for (csr2 = (CertificateStatusRequestItemV2*)ext->data;
+                (csr2 != NULL) && (ctxItems < 2); csr2 = csr2->next) {
+            ExpectIntEQ(csr2->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+            XMEMCPY(ctxNonce[ctxItems], csr2->request.ocsp[0].nonce,
+                MAX_OCSP_NONCE_SZ);
+            ctxTypes[ctxItems] = csr2->status_type;
+            ctxItems++;
+        }
+    }
+    ExpectIntEQ(ctxItems, 2);
+
+    for (i = 0; i < 2; i++) {
+        int items = 0;
+
+        if (i > 0) {
+            ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+            wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+            wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        }
+        /* Only the ClientHello is needed; there is no server to answer. */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        ext = TLSX_Find(ssl_c == NULL ? NULL : ssl_c->extensions,
+            TLSX_STATUS_REQUEST_V2);
+        ExpectNotNull(ext);
+        if (ext != NULL) {
+            for (csr2 = (CertificateStatusRequestItemV2*)ext->data;
+                    (csr2 != NULL) && (items < 2); csr2 = csr2->next) {
+                ExpectIntEQ(csr2->request.ocsp[0].nonceSz, MAX_OCSP_NONCE_SZ);
+                XMEMCPY(nonce[i][items], csr2->request.ocsp[0].nonce,
+                    MAX_OCSP_NONCE_SZ);
+                /* Every item of the context list is copied, in order. */
+                ExpectIntEQ(csr2->status_type, ctxTypes[items]);
+                items++;
+            }
+        }
+        /* Both items, not just the head. */
+        ExpectIntEQ(items, 2);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+    }
+
+    for (i = 0; i < 2; i++) {
+        /* Fresh on each connection, and not the context's. */
+        ExpectIntNE(XMEMCMP(nonce[0][i], nonce[1][i], MAX_OCSP_NONCE_SZ), 0);
+        for (j = 0; j < 2; j++) {
+            ExpectIntNE(XMEMCMP(nonce[j][i], ctxNonce[i], MAX_OCSP_NONCE_SZ),
+                0);
+        }
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_ctx_stapling_v2_nonce_per_connection(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 && HAVE_OCSP */
+
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA)
+/* Decoding into an existing OCSP_RESPONSE releases the buffer the previous
+ * encoding was parsed from. Every reference into it (response, cert, sig,
+ * sigParams, nonce) has to go with it: the new encoding only sets the ones it
+ * carries, so a leftover reference is read from freed memory - a later
+ * OCSP_check_nonce() verdict, for instance, would come from the old buffer. */
+int test_ocsp_d2i_reuse_clears_refs(void)
+{
+    EXPECT_DECLS;
+    const unsigned char* ptr = NULL;
+    OcspResponse* response = NULL;
+
+    /* resp carries an embedded responder certificate. */
+    ptr = (const unsigned char*)resp;
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+        sizeof(resp)));
+    ExpectNotNull(response == NULL ? NULL : response->cert);
+    ExpectIntGT(response == NULL ? 0 : (int)response->certSz, 0);
+
+    /* resp_nocert does not, so nothing sets cert again. */
+    ptr = (const unsigned char*)resp_nocert;
+    ExpectNotNull(wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr,
+        sizeof(resp_nocert)));
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(response->cert);
+        ExpectIntEQ((int)response->certSz, 0);
+        ExpectNull(response->nonce);
+        ExpectIntEQ(response->nonceSz, 0);
+        ExpectNull(response->sigParams);
+        ExpectIntEQ((int)response->sigParamsSz, 0);
+        /* What the new encoding does set must point into the new buffer. */
+        ExpectNotNull(response->response);
+        ExpectTrue((response->response >= response->source) &&
+            (response->response < response->source + response->maxIdx));
+        ExpectNotNull(response->sig);
+        ExpectTrue((response->sig >= response->source) &&
+            (response->sig < response->source + response->maxIdx));
+    }
+
+    wolfSSL_OCSP_RESPONSE_free(response);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_d2i_reuse_clears_refs(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
+
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    defined(HAVE_OCSP) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+static long ocsp_reuse_live = 0;
+
+static void* ocsp_reuse_malloc(size_t size)
+{
+    void* p = malloc(size);
+    if (p != NULL)
+        ocsp_reuse_live++;
+    return p;
+}
+
+static void ocsp_reuse_free(void* ptr)
+{
+    if (ptr != NULL)
+        ocsp_reuse_live--;
+    free(ptr);
+}
+
+static void* ocsp_reuse_realloc(void* ptr, size_t size)
+{
+    void* p = realloc(ptr, size);
+    if ((p != NULL) && (ptr == NULL))
+        ocsp_reuse_live++;
+    return p;
+}
+
+/* Decoding into an existing OCSP_RESPONSE has to release the whole
+ * SingleResponse chain the previous decode built. FreeOcspEntry() on its own
+ * frees the head entry's CertStatus chain and nothing else, so every
+ * SingleResponse after the first used to be leaked on each reuse - an OCSP
+ * poller that refreshes into one object grows without bound. */
+int test_ocsp_d2i_reuse_frees_single_chain(void)
+{
+    EXPECT_DECLS;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    const unsigned char* ptr = NULL;
+    OcspResponse* response = NULL;
+    OcspEntry* s = NULL;
+    long afterFirst = 0;
+    int singles = 0;
+    int i;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(ocsp_reuse_malloc, ocsp_reuse_free,
+        ocsp_reuse_realloc), 0);
+
+    /* resp_multi carries more than one SingleResponse. */
+    ptr = (const unsigned char*)resp_multi;
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+        sizeof(resp_multi)));
+    if (response != NULL) {
+        for (s = response->single; s != NULL; s = s->next)
+            singles++;
+    }
+    ExpectIntGT(singles, 1);
+    afterFirst = ocsp_reuse_live;
+
+    /* Each reuse must end up holding exactly what the first decode held. */
+    for (i = 0; EXPECT_SUCCESS() && (i < 4); i++) {
+        ptr = (const unsigned char*)resp_multi;
+        ExpectNotNull(wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr,
+            sizeof(resp_multi)));
+        ExpectIntEQ((int)(ocsp_reuse_live - afterFirst), 0);
+    }
+
+    wolfSSL_OCSP_RESPONSE_free(response);
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_d2i_reuse_frees_single_chain(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA) && !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
 /* Verify that OCSP responder authorization is bound to BOTH halves of the
