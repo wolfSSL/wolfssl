@@ -237,6 +237,9 @@ NTRU_algorithm/
 NTRU/
 build-test/
 build/
+# tools/sbom/build is vendored source, not a compiler output directory.
+!tools/sbom/build/
+!tools/sbom/build/**
 # Out-of-tree build dirs created by .github/scripts/parallel-make-check.py
 /build-*/
 cyassl.xcodeproj/
