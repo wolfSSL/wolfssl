@@ -27,6 +27,14 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef NO_INLINE
+#include <wolfssl/wolfcrypt/misc.h>
+#else
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
+#endif
+
+
 #if defined(WOLFSSL_NRF51) || defined(WOLFSSL_NRF5x)
 
 #include "bsp.h"
@@ -100,13 +108,12 @@ int nrf51_random_generate(byte* output, word32 size)
 
 #if !defined(NO_AES) && defined(WOLFSSL_NRF51_AES)
 
-#ifdef SOFTDEVICE_PRESENT
-static const byte* nRF51AesKey = NULL;
-#endif
+/* returns 0 on success. With a SoftDevice the key is passed to
+ * sd_ecb_block_encrypt() with each block, so there is nothing to program. */
 int nrf51_aes_set_key(const byte* key)
 {
 #ifdef SOFTDEVICE_PRESENT
-    nRF51AesKey = key;
+    (void)key;
 #else
     if (!mAesInitDone) {
         nrf_ecb_init();
@@ -120,7 +127,7 @@ int nrf51_aes_set_key(const byte* key)
 /* returns 0 on success and -1 on failure. */
 int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
 {
-    int ret;
+    int ret = 0;
 #ifdef SOFTDEVICE_PRESENT
     uint32_t err_code = 0;
     nrf_ecb_hal_data_t ecb_hal_data;
@@ -128,32 +135,42 @@ int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
 
     (void)rounds;
 
-    /* Set key */
-    ret = nrf51_aes_set_key(key);
-    if (ret != 0) {
-        return ret;
-    }
-
 #ifdef SOFTDEVICE_PRESENT
-    /* Define ECB record */
-    XMEMCPY(ecb_hal_data.key, nRF51AesKey, SOC_ECB_KEY_LENGTH);
+    /* Define ECB record. The key comes straight from the caller so no key
+     * state is shared between AES contexts. */
+    XMEMCPY(ecb_hal_data.key, key, SOC_ECB_KEY_LENGTH);
     XMEMCPY(ecb_hal_data.cleartext, in, SOC_ECB_CLEARTEXT_LENGTH);
     XMEMSET(ecb_hal_data.ciphertext, 0, SOC_ECB_CIPHERTEXT_LENGTH);
 
     /* Perform block encrypt */
     err_code = sd_ecb_block_encrypt(&ecb_hal_data);
     if (err_code != NRF_SUCCESS) {
+        ForceZero(&ecb_hal_data, sizeof(ecb_hal_data));
         return -1;
     }
 
     /* Grab result */
     XMEMCPY(out, ecb_hal_data.ciphertext, SOC_ECB_CIPHERTEXT_LENGTH);
+    ForceZero(&ecb_hal_data, sizeof(ecb_hal_data));
 #else
+    /* Program this context's key right before encrypting, since the
+     * peripheral key is shared by every context. */
+    ret = nrf51_aes_set_key(key);
+    if (ret != 0) {
+        return ret;
+    }
+
     /* Returns true or false depending on operation success. */
-    if (nrf_ecb_crypt(out, in))
+    if (nrf_ecb_crypt(out, in)) {
         ret = 0;
-    else
+    }
+    else {
         ret = -1;
+    }
+    {
+        const byte zeroKey[16] = {0};
+        nrf_ecb_set_key(zeroKey);
+    }
 #endif
 
     return ret;
