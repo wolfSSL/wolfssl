@@ -1,4 +1,4 @@
-name: bind9 Tests
+name: tcpdump Tests
 
 # START OF COMMON SECTION
 on:
@@ -29,7 +29,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-all
+          configure: --enable-tcpdump
           install: true
           check: false
 
@@ -39,16 +39,16 @@ jobs:
       - name: Upload built lib
         uses: actions/upload-artifact@v6
         with:
-          name: wolf-install-bind
+          name: wolf-install-tcpdump
           path: build-dir.tgz
           retention-days: 5
 
-  bind_check:
+  tcpdump_check:
     strategy:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 9.18.0, 9.18.28, 9.18.33, 9.20.11, 9.20.23 ]
+        ref: [ 4.99.6 ]
     name: ${{ matrix.ref }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
@@ -65,7 +65,7 @@ jobs:
       - name: Download lib
         uses: actions/download-artifact@v7
         with:
-          name: wolf-install-bind
+          name: wolf-install-tcpdump
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
@@ -73,7 +73,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev liburcu-dev
+          packages: bison flex
           ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout OSP
@@ -83,21 +83,40 @@ jobs:
           path: osp
           fetch-depth: 1
 
-      - name: Checkout bind9
+      # Ubuntu 24.04 ships libpcap 1.10.4, which reads pcap timestamps as
+      # signed 32-bit values. That breaks the time_2038_overflow, time_2039,
+      # time_2106 and time_2106_max tests. Build libpcap 1.10.5 next to
+      # tcpdump instead; tcpdump's configure picks up ../libpcap on its own.
+      - name: Checkout libpcap
         uses: actions/checkout@v5
         with:
-          repository: isc-projects/bind9
-          path: bind
-          ref: v${{ matrix.ref }}
+          repository: the-tcpdump-group/libpcap
+          path: libpcap
+          ref: libpcap-1.10.5
           fetch-depth: 1
 
-      - name: Build and test bind9
-        working-directory: bind
+      - name: Build libpcap
+        working-directory: libpcap
         run: |
-          export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig
-          patch -p1 < $GITHUB_WORKSPACE/osp/bind9/${{ matrix.ref }}.patch
+          ./autogen.sh
+          ./configure
+          make -j
+
+      - name: Checkout tcpdump
+        uses: actions/checkout@v5
+        with:
+          repository: the-tcpdump-group/tcpdump
+          path: tcpdump
+          ref: tcpdump-${{ matrix.ref }}
+          fetch-depth: 1
+
+      - name: Build and test tcpdump
+        working-directory: tcpdump
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          patch -p1 < $GITHUB_WORKSPACE/osp/tcpdump/${{ matrix.ref }}/tcpdump-${{ matrix.ref }}.patch
           autoreconf -ivf
-          ./configure --with-wolfssl
-          sed -i 's/SUBDIRS = system//g' bin/tests/Makefile # remove failing tests
-          make -j V=1
-          make -j V=1 check
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          make -j
+          ldd ./tcpdump | grep wolfssl
+          make check
