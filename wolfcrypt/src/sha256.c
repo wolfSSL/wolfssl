@@ -1831,6 +1831,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         word32* W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
+        #define SHA256_W_ON_STACK
     #endif
 
         /* Copy context->state[] to working vars */
@@ -1873,6 +1874,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         !defined(WOLFSSL_NO_MALLOC)
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(W, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #elif defined(SHA256_W_ON_STACK)
+        ForceZero(W, sizeof(W));
+        #undef SHA256_W_ON_STACK
     #endif
         return 0;
     }
