@@ -6246,7 +6246,7 @@ static int X509PrintEscStr(WOLFSSL_BIO* bio, const char* pfx,
     int  escSz;
     int  i;
 
-    if ((pfxSz > 0) && (wolfSSL_BIO_write(bio, pfx, pfxSz) <= 0)) {
+    if ((pfxSz > 0) && (wolfSSL_BIO_write(bio, pfx, pfxSz) != pfxSz)) {
         ret = WOLFSSL_FAILURE;
     }
     /* ESC_CTRL ignores position and at most triples a byte, so chunk it. */
@@ -6257,7 +6257,7 @@ static int X509PrintEscStr(WOLFSSL_BIO* bio, const char* pfx,
         }
         escSz = wolfssl_x509_name_esc_value(val + i, inSz,
                     WOLFSSL_ASN1_STRFLGS_ESC_CTRL, buf);
-        if (wolfSSL_BIO_write(bio, buf, escSz) <= 0) {
+        if (wolfSSL_BIO_write(bio, buf, escSz) != escSz) {
             ret = WOLFSSL_FAILURE;
         }
     }

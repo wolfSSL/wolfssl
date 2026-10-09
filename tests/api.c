@@ -23802,6 +23802,15 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
         { GEN_EMAIL, "email:a\\0D\\0Ab" },
         { GEN_URI,   "URI:a\\0D\\0Ab" },
     };
+    static const struct {
+        size_t bufSz;
+        const char* val;
+    } shortCases[] = {
+        { 2, "" },       /* "DNS:" cut off */
+        { 8, "a\r\nb" }, /* "a\0D\0Ab" cut off */
+    };
+    BIO* pairW = NULL;
+    BIO* pairR = NULL;
     size_t i;
 
     /* BIO to output */
@@ -24105,6 +24114,24 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
         ExpectStrEQ((const char*)outbuf, ctrlCases[i].expect);
         GENERAL_NAME_free(gn);
         gn = NULL;
+    }
+
+    /* A partial write to the BIO is a failure. */
+    for (i = 0; i < sizeof(shortCases) / sizeof(shortCases[0]); i++) {
+        ExpectIntEQ(BIO_new_bio_pair(&pairW, shortCases[i].bufSz, &pairR,
+            shortCases[i].bufSz), WOLFSSL_SUCCESS);
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        if (gn != NULL) {
+            gn->type = GEN_DNS;
+            ExpectIntEQ(ASN1_STRING_set(gn->d.ia5, shortCases[i].val, -1), 1);
+        }
+        ExpectIntEQ(GENERAL_NAME_print(pairW, gn), 0);
+        GENERAL_NAME_free(gn);
+        gn = NULL;
+        BIO_free(pairW);
+        pairW = NULL;
+        BIO_free(pairR);
+        pairR = NULL;
     }
 
     BIO_free(out);
