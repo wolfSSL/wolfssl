@@ -856,6 +856,114 @@ int test_wolfSSL_i2c_ASN1_INTEGER(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_REVOKED_serialNumber(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN)
+#if defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+    /* DER encoding of the serial number of the single certificate revoked by
+     * certs/crl/crl.der. Oracle is the system openssl, not wolfSSL:
+     *   openssl asn1parse -in certs/crl/crl.der -inform DER
+     * reports inside the revokedCertificates SEQUENCE:
+     *   210:d=4  hl=2 l=   1 prim: INTEGER           :02
+     * i.e. tag 0x02, length 0x01, content 0x02.
+     */
+    const unsigned char expSerialDer[3] = { 0x02, 0x01, 0x02 };
+    WOLFSSL_X509_CRL* crl = NULL;
+    XFILE fp = XBADFILE;
+    WOLFSSL_STACK* revokedSk = NULL;
+    WOLFSSL_X509_REVOKED* rev = NULL;
+    WOLFSSL_ASN1_INTEGER* serial = NULL;
+    WOLFSSL_ASN1_INTEGER* expected = NULL;
+    unsigned char out[8];
+    unsigned char* p = NULL;
+
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
+    ExpectNotNull(crl = wolfSSL_d2i_X509_CRL_fp(fp, NULL));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(revokedSk = wolfSSL_X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(revokedSk), 1);
+    ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(revokedSk, 0));
+    ExpectNotNull(serial = (WOLFSSL_ASN1_INTEGER*)
+        wolfSSL_X509_REVOKED_get0_serial_number(rev));
+
+    /* i2d must emit the whole DER encoding: 02 01 02. i2d copies length bytes
+     * starting at the tag byte, so a content-only length truncates it. Note
+     * that checking get0_data() would not discriminate here because the serial
+     * value 0x02 happens to equal the ASN_INTEGER tag byte. */
+    ExpectIntEQ(wolfSSL_i2d_ASN1_INTEGER(serial, NULL), 3);
+    XMEMSET(out, 0, sizeof(out));
+    p = out;
+    ExpectIntEQ(wolfSSL_i2d_ASN1_INTEGER(serial, &p), 3);
+    ExpectBufEQ(out, expSerialDer, sizeof(expSerialDer));
+    ExpectIntEQ((int)(p - out), 3);
+
+    /* Comparing against an independently built ASN.1 INTEGER holding 2.
+     * wolfSSL_ASN1_INTEGER_cmp() compares lengths before data, so a
+     * content-only length makes this non-zero. */
+    ExpectNotNull(expected = wolfSSL_ASN1_INTEGER_new());
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(expected, 2), 1);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(serial, expected), 0);
+
+    /* Value must decode back to 2. */
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(serial), 2);
+
+    /* i2c writes only the content octets. Guards the original out-of-bounds
+     * read reachable through X509_REVOKED_get0_serialNumber(). */
+    ExpectIntEQ(wolfSSL_i2c_ASN1_INTEGER(serial, NULL), 1);
+    XMEMSET(out, 0, sizeof(out));
+    p = out;
+    ExpectIntEQ(wolfSSL_i2c_ASN1_INTEGER(serial, &p), 1);
+    ExpectIntEQ(out[0], 0x02);
+    ExpectIntEQ((int)(p - out), 1);
+
+    wolfSSL_ASN1_INTEGER_free(expected);
+    /* revokedSk is cached in and owned by crl. */
+    wolfSSL_X509_CRL_free(crl);
+#endif /* HAVE_CRL && !NO_RSA && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
+
+    /* wolfSSL_i2c_ASN1_INTEGER() must reject a DER length that runs past the
+     * buffer instead of reading 127 octets beyond it. The data buffer is a
+     * heap allocation of exactly 4 bytes so ASAN traps any regression. */
+    {
+        WOLFSSL_ASN1_INTEGER bad;
+        unsigned char* badData = NULL;
+        unsigned char badOut[128];
+        unsigned char* q = badOut;
+
+        ExpectNotNull(badData = (unsigned char*)XMALLOC(4, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (badData != NULL) {
+            badData[0] = ASN_INTEGER;
+            badData[1] = 0x7f;      /* claims 127 content octets */
+            badData[2] = 0x01;
+            badData[3] = 0x02;
+
+            XMEMSET(&bad, 0, sizeof(bad));
+            bad.data = badData;
+            bad.dataMax = 4;
+            bad.length = 4;
+
+            ExpectIntLE(wolfSSL_i2c_ASN1_INTEGER(&bad, NULL), 0);
+
+            XMEMSET(badOut, 0, sizeof(badOut));
+            q = badOut;
+            ExpectIntLE(wolfSSL_i2c_ASN1_INTEGER(&bad, &q), 0);
+            /* Nothing written, output pointer not advanced. */
+            ExpectIntEQ((int)(q - badOut), 0);
+            ExpectIntEQ(badOut[0], 0);
+        }
+        XFREE(badData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN */
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_ASN1_OBJECT(void)
 {
     EXPECT_DECLS;
