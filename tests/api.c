@@ -36682,6 +36682,77 @@ static int test_CryptoCb_HmacFind_FindCb(int currentId, int algoType)
 }
 #endif /* TEST_CRYPTOCB_HMAC_FIND */
 
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#define TEST_CRYPTOCB_AES_DEV
+#define TEST_CRYPTOCB_AES_DEV_DEVID 8
+
+/* AES engine that owns the key: claims AES SETKEY and runs GCM itself. */
+typedef struct AesDev {
+    byte   key[AES_256_KEY_SIZE];
+    word32 keyLen;
+    int    setKeyCount;
+    int    gcmCount;
+    int    declineSetKey;
+    int    failSetKey;
+} AesDev;
+
+static int test_CryptoCb_AesDev_Func(int thisDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    AesDev* dev = (AesDev*)ctx;
+    Aes     tmp;
+    int     ret;
+
+    (void)thisDevId;
+
+    if (info == NULL || dev == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES) {
+        if (dev->failSetKey) {
+            return WC_HW_E;
+        }
+        if (dev->declineSetKey ||
+                info->setkey.keySz > (word32)sizeof(dev->key)) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        XMEMCPY(dev->key, info->setkey.key, info->setkey.keySz);
+        dev->keyLen = info->setkey.keySz;
+        dev->setKeyCount++;
+        return 0;
+    }
+
+    if (info->algo_type != WC_ALGO_TYPE_CIPHER ||
+            info->cipher.type != WC_CIPHER_AES_GCM) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    dev->gcmCount++;
+    ret = wc_AesInit(&tmp, NULL, TEST_CRYPTOCB_UNREG_DEVID);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_AesGcmSetKey(&tmp, dev->key, dev->keyLen);
+    if (ret == 0 && info->cipher.enc) {
+        wc_CryptoCb_AesAuthEnc* e = &info->cipher.aesgcm_enc;
+        ret = wc_AesGcmEncrypt(&tmp, e->out, e->in, e->sz, e->iv, e->ivSz,
+            e->authTag, e->authTagSz, e->authIn, e->authInSz);
+    }
+    else if (ret == 0) {
+        wc_CryptoCb_AesAuthDec* d = &info->cipher.aesgcm_dec;
+        ret = wc_AesGcmDecrypt(&tmp, d->out, d->in, d->sz, d->iv, d->ivSz,
+            d->authTag, d->authTagSz, d->authIn, d->authInSz);
+    }
+    wc_AesFree(&tmp);
+    return ret;
+}
+#endif /* TEST_CRYPTOCB_AES_DEV */
+
 /* These callback helpers are only referenced by test_wc_CryptoCb_registry,
  * whose body is compiled only under WOLF_CRYPTO_CB + WOLFSSL_TEST_STATIC_BUILD
  * (it calls WOLFSSL_LOCAL cryptocb helpers). Match that guard so they are not
@@ -37364,6 +37435,196 @@ static int test_wc_CryptoCb_Hmac_Find(void)
 #else
     return TEST_SKIPPED;
 #endif /* TEST_CRYPTOCB_HMAC_FIND */
+    return EXPECT_RESULT();
+}
+
+/* Regression: wc_AesGcmSetKey() must not derive H from, or keep a devKey copy
+ * of, a key a device claimed through SETKEY. */
+static int test_wc_CryptoCb_AesGcm_SetKey(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRYPTOCB_AES_DEV
+    AesDev     dev;
+    Aes        aes;
+    int        aesInit = 0;
+    const byte key[AES_128_KEY_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+#ifdef WOLFSSL_AESGCM_STREAM
+    const byte key2[AES_128_KEY_SIZE] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+    };
+#endif
+    const byte iv[GCM_NONCE_MID_SZ] = {
+        0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
+        0xde, 0xca, 0xf8, 0x88
+    };
+    const byte aad[] = "cryptocb setkey aad";
+    const byte msg[] = "cryptocb setkey gcm message";
+    byte       expCipher[sizeof(msg)];
+    byte       expTag[WC_AES_BLOCK_SIZE];
+    byte       ct[sizeof(msg)];
+    byte       tag[WC_AES_BLOCK_SIZE];
+    byte       pt[sizeof(msg)];
+
+    XMEMSET(&dev, 0, sizeof(dev));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_UNREG_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, expCipher, msg, sizeof(msg), iv,
+        sizeof(iv), expTag, sizeof(expTag), aad, sizeof(aad)), 0);
+    wc_AesFree(&aes);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID,
+        test_CryptoCb_AesDev_Func, &dev), 0);
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DEV_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        aesInit = 1;
+    }
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(dev.setKeyCount, 1);
+    ExpectIntNE(XMEMCMP(aes.devKey, key, sizeof(key)), 0);
+
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, ct, msg, sizeof(msg), iv, sizeof(iv),
+        tag, sizeof(tag), aad, sizeof(aad)), 0);
+    ExpectBufEQ(ct, expCipher, sizeof(ct));
+    ExpectBufEQ(tag, expTag, sizeof(tag));
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, pt, ct, sizeof(ct), iv, sizeof(iv),
+        tag, sizeof(tag), aad, sizeof(aad)), 0);
+    ExpectBufEQ(pt, msg, sizeof(pt));
+    ExpectIntEQ(dev.gcmCount, 2);
+
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* Streaming GCM has no callback, so it must refuse a device-owned key. */
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A claimed key must not inherit the previous software key's GCM state. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key2, sizeof(key2)), 0);
+    dev.declineSetKey = 0;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmInit(&aes, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A failed re-key leaves the context unkeyed for streaming too. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key2, sizeof(key2)), 0);
+    dev.declineSetKey = 0;
+    dev.failSetKey = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    dev.failSetKey = 0;
+    ExpectIntEQ(wc_AesGcmInit(&aes, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A claim through wc_AesSetKey() drops the GCM key as well. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key2, sizeof(key2)), 0);
+    dev.declineSetKey = 0;
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesGcmInit(&aes, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
+        sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
+
+    if (aesInit) {
+        wc_AesFree(&aes);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID);
+#else
+    return TEST_SKIPPED;
+#endif /* TEST_CRYPTOCB_AES_DEV */
+    return EXPECT_RESULT();
+}
+
+/* Regression: a mode the device declines must not run in software on a key the
+ * device claimed, whether the context was fresh or held a software key. */
+static int test_wc_CryptoCb_Aes_SetKey_Declined(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CRYPTOCB_AES_DEV) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_REQUIRE_KEY_SET)
+    AesDev     dev;
+    Aes        aes;
+    int        aesInit = 0;
+    const byte keyA[AES_128_KEY_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const byte keyB[AES_128_KEY_SIZE] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+    };
+    byte       in[2 * WC_AES_BLOCK_SIZE];
+    byte       out[2 * WC_AES_BLOCK_SIZE];
+    word32     keySz = 0;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(in, 0x5a, sizeof(in));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID,
+        test_CryptoCb_AesDev_Func, &dev), 0);
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DEV_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        aesInit = 1;
+    }
+
+    /* Fresh context: the device claims the key, then declines CBC. */
+    ExpectIntEQ(wc_AesSetKey(&aes, keyA, sizeof(keyA), NULL, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(dev.setKeyCount, 1);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGetKeySize(&aes, &keySz), 0);
+    ExpectIntEQ(keySz, sizeof(keyA));
+
+    /* Software key first, then a key the device claims: the old schedule
+     * must not be used for the new key. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, keyA, sizeof(keyA), NULL, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)), 0);
+    dev.declineSetKey = 0;
+    ExpectIntEQ(wc_AesSetKey(&aes, keyB, sizeof(keyB), NULL, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(dev.setKeyCount, 2);
+    ExpectIntNE(XMEMCMP(aes.devKey, keyA, sizeof(keyA)), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A software key, then a set-key the device fails. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, keyA, sizeof(keyA), NULL, AES_ENCRYPTION),
+        0);
+    dev.declineSetKey = 0;
+    dev.failSetKey = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, keyB, sizeof(keyB), NULL, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    dev.failSetKey = 0;
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGetKeySize(&aes, &keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A claimed key still takes the IV it was given. */
+    ExpectIntEQ(wc_AesSetKey(&aes, keyB, sizeof(keyB), in, AES_ENCRYPTION), 0);
+    ExpectBufEQ((byte*)aes.reg, in, WC_AES_BLOCK_SIZE);
+
+    if (aesInit) {
+        wc_AesFree(&aes);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEV_DEVID);
+#else
+    return TEST_SKIPPED;
+#endif
     return EXPECT_RESULT();
 }
 
@@ -45131,6 +45392,8 @@ TEST_CASE testCases[] = {
     /* Unconditional shells (bodies self-guard on their feature macros). */
     TEST_DECL(test_wc_CryptoCb_TLS_CBC_HMAC),
     TEST_DECL(test_wc_CryptoCb_Hmac_Find),
+    TEST_DECL(test_wc_CryptoCb_AesGcm_SetKey),
+    TEST_DECL(test_wc_CryptoCb_Aes_SetKey_Declined),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
 #if !defined(NO_FILESYSTEM) &&                                                 \

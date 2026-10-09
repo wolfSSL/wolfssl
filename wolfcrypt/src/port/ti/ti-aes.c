@@ -341,7 +341,11 @@ static int AesAuthSetKey(Aes* aes, const byte* key, word32 keySz)
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return BAD_FUNC_ARG;
 
-    XMEMSET(nonce, 0, sizeof(nonce));
+    /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesCcmSetNonce(). */
+    if (aes->nonceSz != 0)
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+    else
+        XMEMSET(nonce, 0, sizeof(nonce));
     return wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 
@@ -728,7 +732,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag, WC_AES_BLOCK_SIZE);
         wolfSSL_TI_unlockCCM();
 
-        if (ConstantCompare(authTag, tmpTag, authTagSz) != 0) {
+        if (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0) {
             ret = AES_GCM_AUTH_E;
         }
         return ret;
@@ -779,7 +783,8 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         (unsigned int*)tmpTag);
     wolfSSL_TI_unlockCCM();
 
-    if ((ret == false) || (ConstantCompare(authTag, tmpTag, authTagSz) != 0)) {
+    if ((ret == false) ||
+            (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0)) {
         /* out is NULL for the GMAC case, where inSz is zero. */
         if (out != NULL)
             ForceZero(out, inSz);
