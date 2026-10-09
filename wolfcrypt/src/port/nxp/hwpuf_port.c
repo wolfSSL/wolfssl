@@ -42,8 +42,8 @@
  *     Init -> Start -> GetKey(s)
  *   Enroll and Start are mutually exclusive within one Init session; the PUF
  *   must be re-initialized (Deinit/Init) after Enroll before Start, matching
- *   the NXP SDK PUF example flow. Zeroize wipes PUF state and must be
- *   followed by Deinit/Init before further use.
+ *   the NXP SDK PUF example flow. Zeroize wipes PUF state and deinitializes
+ *   the PUF; only Init is needed before further use.
  */
 
 #define HWPUF_KEY_SIZE_IS_VALID(keysz) \

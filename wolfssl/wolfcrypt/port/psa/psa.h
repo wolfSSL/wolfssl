@@ -85,7 +85,9 @@ WOLFSSL_API int wc_psa_get_random(unsigned char *out, word32 sz);
 #define CUSTOM_RAND_GENERATE_BLOCK wc_psa_get_random
 #endif
 #else
+#ifndef CUSTOM_RAND_GENERATE_SEED
 #define CUSTOM_RAND_GENERATE_SEED wc_psa_get_random
+#endif
 #endif
 
 #endif /* WOLFSSL_HAVE_PSA_RNG */

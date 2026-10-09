@@ -26,6 +26,10 @@
 
 #if defined(WOLFSSL_NXP_HWPUF)
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 WOLFSSL_API int nxp_hwpuf_Init(void);
 WOLFSSL_API int nxp_hwpuf_Deinit(void);
 WOLFSSL_API int nxp_hwpuf_Enroll(byte* actCode, word32 actCodeSz);
@@ -35,6 +39,10 @@ WOLFSSL_API int nxp_hwpuf_GenerateKey(byte keyIdx, word32 keySz,
 WOLFSSL_API int nxp_hwpuf_GetKey(byte* keyCode, word32 keyCodeSz,
                                  byte* key, word32 keySz);
 WOLFSSL_API int nxp_hwpuf_Zeroize(void);
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* WOLFSSL_NXP_HWPUF */
 

@@ -5832,7 +5832,9 @@ static wc_test_ret_t sha_copy_test(wc_Sha* sha, wc_Sha* shaCopy)
     const char* a_input  = "";
     const char* a_output = "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55\xbf\xef\x95\x60\x18"
                            "\x90\xaf\xd8\x07\x09";
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     const char* b_input  = "abc";
+#endif
 
     ret = wc_InitSha_ex(sha, HEAP_HINT, devId);
     if (ret != 0)
@@ -6862,7 +6864,9 @@ static wc_test_ret_t sha256_copy_test(wc_Sha256* sha, wc_Sha256* shaCopy)
     const char* a_output = "\xe3\xb0\xc4\x42\x98\xfc\x1c\x14\x9a\xfb\xf4\xc8\x99\x6f\xb9"
                            "\x24\x27\xae\x41\xe4\x64\x9b\x93\x4c\xa4\x95\x99\x1b\x78\x52"
                            "\xb8\x55";
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     const char* b_input  = "abc";
+#endif
 
     ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
     if (ret != 0)
@@ -6895,6 +6899,7 @@ exit:
     return ret;
 }
 
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
 /* Copy a context and then drive the original and the copy independently.
  * The message is longer than one block so that ports which buffer the whole
  * message before hashing (e.g. PIC32MZ) have to spill it to the heap. The
@@ -7009,6 +7014,7 @@ exit:
 
     return ret;
 }
+#endif /* !NO_WOLFSSL_SHA256_INTERLEAVE */
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)

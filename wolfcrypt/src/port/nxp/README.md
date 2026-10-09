@@ -67,7 +67,8 @@ This is not enabled by `WOLFSSL_NXP_LPC55S6X`. The API is declared in
   `nxp_hwpuf_GenerateKey` (store the key code(s))
 - Normal boot:
   `nxp_hwpuf_Init` -> `nxp_hwpuf_Start` -> `nxp_hwpuf_GetKey`
-- `nxp_hwpuf_Zeroize` wipes PUF state; call `nxp_hwpuf_Deinit` when done.
+- `nxp_hwpuf_Zeroize` wipes PUF state and deinitializes the PUF; call
+  `nxp_hwpuf_Init` before further use (no separate `nxp_hwpuf_Deinit` needed).
 
 Key index 0, which the PUF delivers only over the hardware bus to the AES
 engine, is not supported: `nxp_hwpuf_GenerateKey()` and `nxp_hwpuf_GetKey()`
