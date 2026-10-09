@@ -7030,8 +7030,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha256_copy_test(&sha, &shaCopy)) != 0)
         return ret;
+# ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     if ((ret = sha256_copy_update_test(&sha, &shaCopy)) != 0)
         return ret;
+# endif
 #endif
     return 0;
 }
