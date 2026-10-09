@@ -1351,6 +1351,123 @@ int test_mldsa_sign_vfy(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Collision strength in bits of each pre-hash, FIPS 202 Table 4. */
+static const struct {
+    int hash;
+    int strength;
+} mldsa_prehash_strengths[] = {
+    { WC_HASH_TYPE_SHA224,     112 },
+    { WC_HASH_TYPE_SHA256,     128 },
+    { WC_HASH_TYPE_SHA384,     192 },
+    { WC_HASH_TYPE_SHA512,     256 },
+    { WC_HASH_TYPE_SHA512_224, 112 },
+    { WC_HASH_TYPE_SHA512_256, 128 },
+    { WC_HASH_TYPE_SHA3_224,   112 },
+    { WC_HASH_TYPE_SHA3_256,   128 },
+    { WC_HASH_TYPE_SHA3_384,   192 },
+    { WC_HASH_TYPE_SHA3_512,   256 },
+    { WC_HASH_TYPE_SHAKE128,   128 },
+    { WC_HASH_TYPE_SHAKE256,   256 },
+};
+
+static int mldsa_prehash_strength_level(byte level, int lambda, WC_RNG* rng)
+{
+    EXPECT_DECLS;
+    wc_MlDsaKey* key;
+    byte* sig;
+    byte* goodSig;
+    word32 sigLen;
+    word32 goodSigLen = MLDSA_MAX_SIG_SIZE;
+    byte digest[WC_MAX_DIGEST_SIZE];
+    int digestSz;
+    int hash;
+    int res = 0;
+    int i;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    goodSig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    ExpectNotNull(sig);
+    ExpectNotNull(goodSig);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    XMEMSET(digest, 0x5A, sizeof(digest));
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, rng), 0);
+    /* SHAKE256 is in every ML-DSA build and allowed at every level: a
+     * well-formed signature to verify. */
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, NULL, 0, goodSig, &goodSigLen,
+        digest, (word32)wc_HashGetDigestSize(WC_HASH_TYPE_SHAKE256),
+        WC_HASH_TYPE_SHAKE256, rng), 0);
+
+    for (i = 0; i < (int)(sizeof(mldsa_prehash_strengths) /
+                          sizeof(mldsa_prehash_strengths[0])); i++) {
+        hash = mldsa_prehash_strengths[i].hash;
+        digestSz = wc_HashGetDigestSize((enum wc_HashType)hash);
+        if (digestSz <= 0) {
+            continue; /* hash not compiled in */
+        }
+        sigLen = MLDSA_MAX_SIG_SIZE;
+        if (mldsa_prehash_strengths[i].strength >= lambda) {
+            ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen,
+                digest, (word32)digestSz, hash, rng), 0);
+            ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0,
+                digest, (word32)digestSz, hash, &res), 0);
+            ExpectIntEQ(res, 1);
+        }
+        else {
+            ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen,
+                digest, (word32)digestSz, hash, rng),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, goodSig, goodSigLen,
+                NULL, 0, digest, (word32)digestSz, hash, &res),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+    }
+
+    wc_MlDsaKey_Free(key);
+    XFREE(goodSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* HashML-DSA rejects a pre-hash weaker than lambda, FIPS 204 sec 5.4. */
+int test_mldsa_prehash_strength(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    WC_RNG rng;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(mldsa_prehash_strength_level(WC_ML_DSA_44, 128, &rng),
+        TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(mldsa_prehash_strength_level(WC_ML_DSA_65, 192, &rng),
+        TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(mldsa_prehash_strength_level(WC_ML_DSA_87, 256, &rng),
+        TEST_SUCCESS);
+#endif
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_check_key(void)
 {
     EXPECT_DECLS;

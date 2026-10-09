@@ -862,6 +862,35 @@ static int mldsa_hash256_ctx_msg(wc_Shake* shake256, const byte* tr,
     return ret;
 }
 
+/* Pre-hash must give at least lambda bits of collision strength.
+ * FIPS 204 sec 5.4; strengths from FIPS 202 Table 4. */
+static int mldsa_check_hash_strength(int hashAlg, word16 lambda)
+{
+    word16 strength;
+
+    switch (hashAlg) {
+        case WC_HASH_TYPE_SHA256:
+        case WC_HASH_TYPE_SHA512_256:
+        case WC_HASH_TYPE_SHA3_256:
+        case WC_HASH_TYPE_SHAKE128:
+            strength = 128;
+            break;
+        case WC_HASH_TYPE_SHA384:
+        case WC_HASH_TYPE_SHA3_384:
+            strength = 192;
+            break;
+        case WC_HASH_TYPE_SHA512:
+        case WC_HASH_TYPE_SHA3_512:
+        case WC_HASH_TYPE_SHAKE256:
+            strength = 256;
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return (strength >= lambda) ? 0 : BAD_FUNC_ARG;
+}
+
 /* Get the OID for the digest hash.
  *
  * @param [in]  hash         Hash algorithm.
@@ -11723,6 +11752,9 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
     if ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)) {
         ret = BAD_LENGTH_E;
     }
+    if (ret == 0) {
+        ret = mldsa_check_hash_strength(hashAlg, key->params->lambda);
+    }
 
     if (ret == 0) {
         XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
@@ -12583,6 +12615,9 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
         ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)))
     {
         ret = BAD_LENGTH_E;
+    }
+    if (ret == 0) {
+        ret = mldsa_check_hash_strength(hashAlg, key->params->lambda);
     }
 
     if (ret == 0) {

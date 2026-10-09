@@ -303,8 +303,8 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
-    invalid, hashAlg is not supported or the key has no private key
-    set.
+    invalid, hashAlg is not supported or is weaker than the parameter set
+    (FIPS 204 sec 5.4), or the key has no private key set.
     \return BUFFER_E if the sig buffer is too small.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
@@ -482,7 +482,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
-    invalid, or hashAlg is unsupported.
+    invalid, or hashAlg is unsupported or weaker than the parameter set
+    (FIPS 204 sec 5.4).
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.

@@ -834,6 +834,112 @@ static int ecc_shared_secret_size_bound(WC_RNG* rng, int curveId, int fieldSz)
 }
 #endif
 
+/* wc_ecc_shared_secret_ex fully validates a raw peer point, SP 800-56Ar3
+ * 5.6.2.3.3. Rejections run first: a pending async call leaves key state set. */
+int test_wc_ecc_shared_secret_ex_peer_point(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(PLUTON_CRYPTO_ECC) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* P-256 base point G, uncompressed X9.63 encoding. Not const: older
+     * wc_ecc_import_point_der() takes byte*. */
+    byte g[] = {
+        0x04,
+        0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,0xF8,0xBC,0xE6,0xE5,
+        0x63,0xA4,0x40,0xF2,0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,
+        0xF4,0xA1,0x39,0x45,0xD8,0x98,0xC2,0x96,
+        0x4F,0xE3,0x42,0xE2,0xFE,0x1A,0x7F,0x9B,0x8E,0xE7,0xEB,0x4A,
+        0x7C,0x0F,0x9E,0x16,0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,
+        0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
+    };
+    byte bad[sizeof(g)];
+    ecc_key key;
+    ecc_point* peer = NULL;
+    WC_RNG rng;
+    byte out[MAX_ECC_BYTES];
+    word32 outLen;
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    int ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ret = wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP256R1);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
+#endif
+    ExpectNotNull(peer = wc_ecc_new_point());
+
+    /* Older FIPS and selftest modules keep an ecc.c without this check, and
+     * SE050, STM32 PKA and SILABS hardware are not covered here. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* G with one bit of y flipped is off the curve. */
+    XMEMCPY(bad, g, sizeof(g));
+    bad[sizeof(bad) - 1] ^= 0x01;
+    ExpectIntEQ(wc_ecc_import_point_der(bad, (word32)sizeof(bad), idx, peer),
+        0);
+    outLen = sizeof(out);
+    ExpectIntNE(wc_ecc_shared_secret_ex(&key, peer, out, &outLen), 0);
+#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    {
+        /* A P-384 point is not on P-256. */
+        ecc_key key2;
+
+        XMEMSET(&key2, 0, sizeof(key2));
+        ExpectIntEQ(wc_ecc_init(&key2), 0);
+        ret = wc_ecc_make_key_ex(&rng, 48, &key2, ECC_SECP384R1);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        ExpectIntEQ(ret, 0);
+        outLen = sizeof(out);
+        ExpectIntNE(wc_ecc_shared_secret_ex(&key, &key2.pubkey, out, &outLen),
+            0);
+        wc_ecc_free(&key2);
+    }
+#endif
+#ifdef WOLFSSL_PUBLIC_MP
+    /* G with Z = 2: ECDH would use the Jacobian point (x/4, y/8), not the
+     * affine (x, y) that the checks read. */
+    ExpectIntEQ(wc_ecc_import_point_der(g, (word32)sizeof(g), idx, peer), 0);
+    ExpectIntEQ(mp_set(peer->z, 2), MP_OKAY);
+    outLen = sizeof(out);
+    ExpectIntNE(wc_ecc_shared_secret_ex(&key, peer, out, &outLen), 0);
+#endif
+#else
+    (void)bad;
+#endif
+
+    ExpectIntEQ(wc_ecc_import_point_der(g, (word32)sizeof(g), idx, peer), 0);
+    outLen = sizeof(out);
+    ret = wc_ecc_shared_secret_ex(&key, peer, out, &outLen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+    wc_ecc_del_point(peer);
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    PRIVATE_KEY_LOCK();
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_ecc_shared_secret() output buffer bounds at the field-size edge.
  */
@@ -3169,11 +3275,8 @@ int test_wc_ecc_shared_secret_ssh(void)
     WC_RNG  rng;
     int     ret;
     int     keySz = KEY32;
-#if FIPS_VERSION3_GE(6,0,0)
-    int     key2Sz = KEY28;
-#else
-    int     key2Sz = KEY24;
-#endif
+    /* ECDH needs both keys on one curve, SP 800-56A Rev 3 sec 5.7.1.2. */
+    int     key2Sz = KEY32;
     byte    secret[KEY32];
     word32  secretLen = (word32)keySz;
 

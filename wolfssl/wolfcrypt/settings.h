@@ -6258,6 +6258,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error WC_C_DYNAMIC_FALLBACK needs --enable-fips=dev or dev-no-post
 #endif
 
+/* SP 800-38A sec 5.2: CBC input must be a whole number of blocks. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_AES_CBC_LENGTH_CHECKS)
+    #define WOLFSSL_AES_CBC_LENGTH_CHECKS
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH
