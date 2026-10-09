@@ -140,17 +140,14 @@ if(CONFIG_WOLFSSL)
     if(CONFIG_WOLFCRYPT_ASM)
       set(WOLF_ARM_ASM_DIR ${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm)
 
-      # Thumb2 needs UBFX and LDRD, so it is a mainline-only port; ARMv6-M and
-      # ARMv8-M baseline keep the C code here and take only the SP speedup.
-      if(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
-        set(WOLF_ARM_ASM_PREFIX thumb2)
-      elseif(CONFIG_ARM64)
-        set(WOLF_ARM_ASM_PREFIX armv8)
-      elseif(CONFIG_ARM AND NOT CONFIG_CPU_CORTEX_M)
-        set(WOLF_ARM_ASM_PREFIX armv8-32)
-      endif()
-
-      if(DEFINED WOLF_ARM_ASM_PREFIX)
+      if(CONFIG_WOLFCRYPT_ARM_SYMMETRIC_ASM)
+        if(CONFIG_CPU_CORTEX_M)
+          set(WOLF_ARM_ASM_PREFIX thumb2)
+        elseif(CONFIG_ARM64)
+          set(WOLF_ARM_ASM_PREFIX armv8)
+        else()
+          set(WOLF_ARM_ASM_PREFIX armv8-32)
+        endif()
         foreach(f aes chacha mlkem poly1305 sha256 sha3 sha512)
           zephyr_library_sources(
             ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${f}-asm_c.c)

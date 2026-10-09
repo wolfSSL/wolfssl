@@ -286,12 +286,20 @@ endif # WOLFSSL_ECC
 config WOLFSSL_ECC_ALLOW_ZERO_HASH
   bool
 
-# The v2 and v5 FIPS bundles pin an aes.c that has neither backend in it, and
-# a settings file replaces the module defaults that map the choice below.
+# Thumb2 needs UBFX and LDRD, so ARMv6-M and ARMv8-M baseline keep the C code
+# and take only the SP speedup.
+config WOLFCRYPT_ARM_SYMMETRIC_ASM
+  bool
+  default y if WOLFCRYPT_ASM && (ARM64 || ARMV7_M_ARMV8_M_MAINLINE || \
+                                 (ARM && !CPU_CORTEX_M))
+
+# Not under FIPS v2 or v5, whose pinned aes.c has neither backend, nor with the
+# Arm assembly, which indexes its AES and GHASH tables with secret data.
 config WOLFSSL_AES_CONSTANT_TIME_AVAILABLE
   bool
   depends on !WOLFSSL_HAS_SETTINGS_FILE
-  default y if !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
+  default y if !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5 && \
+               !WOLFCRYPT_ARM_SYMMETRIC_ASM
 
 config WOLFSSL_AES_CONSTANT_TIME
   bool "Constant-time AES software backend"
@@ -310,8 +318,15 @@ config WOLFSSL_AES_CONSTANT_TIME
     A subsystem that requires the guarantee defaults this on and leaves the
     implementation below to the target.
 
-    It has no effect when the build uses a hardware AES engine or the
-    assembly core: neither compiles a software table.
+    It also restricts AES-GCM to the constant-time GHASH below. It has no
+    effect when the build uses a hardware AES engine, which compiles no
+    software table.
+
+    Unavailable where WOLFCRYPT_ASM builds the Arm symmetric assembly
+    (ARMv7-M and ARMv8-M mainline, 32-bit Cortex-A/R, AArch64): that
+    assembly replaces both backends with table lookups indexed by secret
+    data. That includes AArch64 parts with the crypto extension, whose
+    hardware AES is constant time but which Kconfig cannot tell apart.
 
     Unavailable under FIPS v2 and v5, whose pinned aes.c predates both
     backends and would ignore the macro rather than fail: a build would come
@@ -362,6 +377,60 @@ config WOLFSSL_AES_BS_WORD_SIZE
     wolfCrypt itself defaults to 64 on a 64-bit build. 16 is the default
     here because these contexts are allocated per live operation, and 64
     puts a single AES operation beyond the whole heap of a typical part.
+
+choice WOLFSSL_AES_GCM_GHASH
+  prompt "AES-GCM GHASH implementation"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default WOLFSSL_GHASH_SMALL if WOLFCRYPT_FIPS_V2 || WOLFCRYPT_FIPS_V5
+  default WOLFSSL_GHASH_CONSTANT_TIME if !WOLFCRYPT_ARM_SYMMETRIC_ASM
+  default WOLFSSL_GHASH_TABLE_4BIT
+  help
+    Under FIPS the GHASH code sits inside the module boundary, so changing
+    this changes the in-core integrity digest and the module must be
+    rehashed.
+
+config WOLFSSL_GHASH_CONSTANT_TIME
+  bool "Bitwise multiply, constant time"
+  depends on !WOLFCRYPT_ARM_SYMMETRIC_ASM && !WOLFCRYPT_FIPS_V2
+  help
+    Leave the GCM method unset, which builds wolfCrypt's masked bitwise
+    multiply: no branch and no memory access depends on the hash subkey or
+    the data, and no table is stored. The slowest option. Under FIPS
+    v5 this also defines AES_GCM_GMULT_CT, which that module's aes.c needs
+    for the masked form.
+
+    Not available where WOLFCRYPT_ASM builds the Arm symmetric assembly,
+    which has no constant-time bitwise GHASH; the 4-bit table is the
+    default there, at 512 bytes per Aes. Not available under FIPS v2,
+    whose aes.c has only the branching form.
+
+config WOLFSSL_GHASH_SMALL
+  bool "Bitwise multiply, branching (GCM_SMALL)"
+  depends on WOLFCRYPT_FIPS || WOLFCRYPT_ARM_SYMMETRIC_ASM
+  depends on !WOLFSSL_AES_CONSTANT_TIME
+  help
+    Define GCM_SMALL, the module's method before this choice existed. Lets a
+    validated FIPS build keep its boundary object, and gives the Arm
+    symmetric assembly a GHASH with no table. It branches on the hash
+    subkey, so it is not constant time.
+
+config WOLFSSL_GHASH_TABLE_4BIT
+  bool "4-bit table"
+  depends on !WOLFSSL_AES_CONSTANT_TIME && !WOLFCRYPT_FIPS_V2
+  help
+    Define GCM_TABLE_4BIT, the method configure builds by default. Adds a
+    512-byte table to every Aes and indexes it with secret data, so it is
+    not constant time on a part with a data cache. Not available under FIPS
+    v2, whose aes.c predates it.
+
+config WOLFSSL_GHASH_TABLE_8BIT
+  bool "8-bit table"
+  depends on !WOLFSSL_AES_CONSTANT_TIME
+  help
+    Define GCM_TABLE. Faster than the 4-bit table, at 4 KB per Aes, and
+    likewise indexed with secret data.
+
+endchoice
 
 config WOLFSSL_CHACHA_POLY
   bool "wolfCrypt ChaCha20-Poly1305 support"
