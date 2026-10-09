@@ -39,6 +39,21 @@
   dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
   A saved cache from an older release cannot be restored by this one.
 
+* **API (`XFENCE()` now clobbers `"memory"`)**: every inline-asm arm appends a
+  `"memory"` clobber.  Define `XASM_VOLATILE_NO_CLOBBER` if your toolchain
+  rejects a clobber list.  A user-supplied `XFENCE()` is unaffected.  Note the
+  clobber makes this extended asm, so a `%` in a template must be written `%%`.
+* **API (`aarch64_use_sb` renamed to `wc_aarch64_use_sb`)**: an implementation
+  detail of `XFENCE()` under `WOLFSSL_ARMASM_BARRIER_DETECT`.  Affects only code
+  that names the symbol directly.
+* **API (new internal symbol `wc_BarrierDataSink()`)**: exists only on the
+  portable `WC_BARRIER_DATA()` arm - every compiler without `__GNUC__` (MSVC,
+  IAR, Keil armcc5, most embedded toolchains) and GCC or clang with
+  `WOLFSSL_NO_ASM`.  Test `WC_BARRIER_DATA_USES_SINK` to detect it.  On those
+  targets each `ForceZero()` costs two out-of-line calls.  A replacement
+  `WC_BARRIER_DATA()` must still pass the pointer to code the optimizer cannot
+  see into; a bare compiler barrier brings the dead store back.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -66,6 +81,32 @@
 
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
 * SHA-3 crypto callbacks are now told the variant of each call instead of one cached on the context, which gave the wrong digest length when ML-KEM reused one object for SHA3-512 and SHA3-256. by @Frauschi (PR 11544)
+
+## Bug Fixes
+
+* **Fix (`XASM_VOLATILE()` on IAR and KEIL in C99 mode)**: the `WOLF_C99` arm
+  was checked first and handed both compilers `__asm__`, which their assembler
+  dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
+  the spelling IAR keeps available under `--strict`.
+* **Fix (`ForceZero()` could be optimized away)**: on the portable
+  `WC_BARRIER_DATA()` arm - no GNU inline asm, or `WOLFSSL_NO_ASM` - the buffer
+  address never escaped, so the compiler could drop the wipe as a dead store.
+  A fence does not prevent that, so builds with a working `XFENCE()` were
+  affected too; GCC and clang without `WOLFSSL_NO_ASM` were not.  That arm no
+  longer emits `XFENCE()` (two `__isb()` per `ForceZero()` on MSVC ARM64), so
+  callers needing cross-thread ordering must call it themselves.
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: both lived in `memory.c`, which `--disable-memory`,
+  `--enable-leanpsk` and `--enable-leantls` all exclude, so for example
+  `--disable-memory --enable-falcon` failed to link.  They now live in
+  `wc_port.c`, which is always compiled, and their declarations moved from
+  `memory.h` to `wc_port.h`.  No caller change and no ABI change.
+* **Fix (`WOLFSSL_NO_FORCE_ZERO` auto-defined for BLAKE2 and Argon2)**: the
+  `settings.h` heuristic that defines it for very small `WOLFCRYPT_ONLY`
+  configurations did not exclude BLAKE2 or Argon2, which call `ForceZero()`,
+  so those builds failed to link unless the integrator supplied one.  BLAKE2
+  also drops the static `secure_zero_memory()` from the installed
+  `blake2-impl.h`; callers of that helper should use `wc_ForceZero()`.
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
