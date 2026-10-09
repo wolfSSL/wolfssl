@@ -224,25 +224,10 @@ if [[ -n "$WOLFSSL_COMMIT" ]]; then
     cd "${WORKDIR}/zephyrproject"
 fi
 
-# --- 4. Export and install deps ---
+# --- 4. Export Zephyr ---
+# The image already provides west and the Zephyr Python requirements.
 echo "==> [container] Exporting Zephyr..."
 west zephyr-export
-
-echo "==> [container] Installing host packages (newlib, python3-venv)..."
-# `|| true` keeps this best-effort, but without a timeout a wedged mirror
-# stalls here silently until the job budget runs out.
-APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -qq >/dev/null 2>&1 \
-  && sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y -qq \
-       python3-venv libnewlib-dev >/dev/null 2>&1 \
-  || echo "==> [container] host package install skipped (apt update," \
-          "install or the timeout above failed); the build continues without" \
-          "python3-venv and libnewlib-dev"
-python3 -m venv .venv
-source .venv/bin/activate
-pip3 install west
-echo "==> [container] Installing Python dependencies..."
-pip3 install -r zephyr/scripts/requirements.txt
 
 export ZEPHYR_BASE="${WORKDIR}/zephyrproject/zephyr"
 
