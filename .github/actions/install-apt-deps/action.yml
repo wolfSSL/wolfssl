@@ -13,10 +13,10 @@ inputs:
       Nominal wall-clock for the whole retry loop, split across the attempts
       as per-command deadlines, so a wedged mirror is reported by this action
       instead of the job being cancelled around it. The loop overshoots it by
-      retry-delay plus 10s of SIGKILL grace, and the per-command floors make
-      values below retries*80 inert. This, plus pull-timeout, plus any
-      ccache-setup in the same job, has to fit the caller's timeout-minutes -
-      the defaults need ~16 minutes.
+      the retry delays plus up to 20s of SIGKILL grace per attempt, and the
+      per-command floors make values below retries*80 inert. This, plus
+      pull-timeout, plus any ccache-setup in the same job, has to fit the
+      caller's timeout-minutes - the defaults need ~16 minutes.
     required: false
     default: '600'
   pull-timeout:
@@ -37,11 +37,12 @@ inputs:
     description: >
       Tag of a prebuilt .deb bundle published to
       ghcr.io/wolfssl/wolfssl-ci-debs by the ci-deps-image workflow
-      (e.g. "ubuntu-24.04-minimal"). When set, the packages are installed
-      from that bundle with no network access at all and the apt path below
-      is skipped. The install is all-or-nothing, so any failure - bundle
-      missing, not public, or not covering every requested package - falls
-      back to the apt path. Always safe to set; leave empty to use apt only.
+      (e.g. "ubuntu-24.04-minimal"). When set, on x64 runners, the packages
+      are installed from that bundle with no network access at all and the
+      apt path below is skipped. The install is all-or-nothing, so any
+      failure - bundle missing, not public, or not covering every requested
+      package - falls back to the apt path. Always safe to set; leave empty
+      to use apt only.
       .github/scripts/check-ci-deps.py checks on every PR that the tag exists
       and carries every package named above.
     required: false
@@ -78,7 +79,8 @@ runs:
     # packages).
     - name: Install from the ghcr .deb bundle (offline)
       id: ghcr
-      if: inputs.ghcr-debs-tag != ''
+      # Bundles hold amd64 .debs, so other runners go straight to apt.
+      if: inputs.ghcr-debs-tag != '' && runner.arch == 'X64'
       shell: bash
       run: |
         set -u
@@ -200,67 +202,18 @@ runs:
       if: steps.ghcr.outputs.satisfied != 'true'
       shell: bash
       run: |
-        RETRIES=${{ inputs.retries }}
-        DELAY=${{ inputs.retry-delay }}
-        BUDGET=${{ inputs.budget-seconds }}
+        # Update gets half of each attempt (20s..90s, apt's 3 x 30s ladder).
+        PER=$(( ${{ inputs.budget-seconds }} / ${{ inputs.retries }} ))
+        UPD=$((PER / 2))
+        [ "$UPD" -le 90 ] || UPD=90
+        [ "$UPD" -ge 20 ] || UPD=20
+        INS=$((PER - UPD))
+        [ "$INS" -ge 40 ] || INS=40
         NO_REC=""
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
-
-        # A wedged mirror hangs apt rather than failing it, so the retry loop
-        # below never fired and the job burned its whole budget instead.
-        # Defend in depth: apt drops a stalled connection after 30s and retries
-        # it (Acquire timeouts - this is what actually detects a wedge, in
-        # ~90s), `timeout` hard-kills an apt-get that wedged outside its own
-        # I/O loop, then the loop re-runs - re-reading apt-mirrors.txt, so a
-        # retry can land on a different mirror. apt resumes from
-        # archives/partial/, so a killed transfer is not restarted from
-        # scratch.
-
-        # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
-        # and a bad index on either fails apt-get update for everyone. Drop them.
-        grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
-          /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
-        APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-                  -o Acquire::https::Timeout=30)
-
-        DEADLINE=$(($(date +%s) + BUDGET))
-
-        # sudo resets the environment, so DEBIAN_FRONTEND has to ride along
-        # on each privileged command rather than being exported once.
-        for i in $(seq 1 $RETRIES); do
-          # Split what is LEFT over the attempts still to come, rather than
-          # slicing the budget up front: an attempt that ends early hands its
-          # remainder to the next one instead of dropping it.
-          #
-          # update gets half of an attempt, capped at 90s because that is what
-          # apt's own Acquire ladder (3 retries x a 30s timeout) needs to work
-          # through a stalled mirror and move on; install gets the rest. A
-          # sixth of an attempt used to be 50s of the sssd job's 600s budget,
-          # so update was killed mid-transfer twice and the job failed with
-          # 80% of its budget unspent. The floors keep a small budget usable;
-          # they are what makes it overshoot.
-          PER=$(( (DEADLINE - $(date +%s)) / (RETRIES - i + 1) ))
-          UPD=$((PER / 2))
-          [ "$UPD" -le 90 ] || UPD=90
-          [ "$UPD" -ge 20 ] || UPD=20
-          INS=$((PER - UPD))
-          [ "$INS" -ge 40 ] || INS=40
-          # A previous attempt killed mid-unpack leaves dpkg needing this.
-          sudo dpkg --configure -a >/dev/null 2>&1 || true
-          if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $UPD \
-                 apt-get "${APT_OPTS[@]}" update -q && \
-             sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $INS \
-                 apt-get "${APT_OPTS[@]}" install -y \
-                 $NO_REC ${{ inputs.packages }}; then
-            exit 0
-          fi
-          if [ "$i" -eq "$RETRIES" ] || [ "$(date +%s)" -ge "$DEADLINE" ]; then
-            echo "::error::apt-get failed after $i attempt(s) in ${BUDGET}s"
-            exit 1
-          fi
-          echo "::warning::apt-get failed (attempt $i/$RETRIES), retrying in ${DELAY}s..."
-          sleep $DELAY
-          DELAY=$((DELAY * 2))
-        done
+        "$GITHUB_ACTION_PATH/apt-install.sh" \
+          --tries ${{ inputs.retries }} --delay ${{ inputs.retry-delay }} \
+          --update-timeout "$UPD" --install-timeout "$INS" \
+          --drop-vendor-sources $NO_REC ${{ inputs.packages }}
