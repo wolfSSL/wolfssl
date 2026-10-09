@@ -1239,6 +1239,71 @@ int test_dtls13_frag_ch1_over_bound(void)
     return EXPECT_RESULT();
 }
 
+/* A plaintext fragment reaching past the end of its message is dropped, with
+ * the cookie exchange on or off, and the genuine ClientHello is then
+ * answered. */
+int test_dtls13_frag_past_end(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    int cookie;
+
+    for (cookie = 0; cookie < 2 && EXPECT_SUCCESS(); cookie++) {
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int group = WOLFSSL_ECC_SECP256R1;
+        byte ch[TEST_MEMIO_BUF_SZ];
+        int chSz = (int)sizeof(ch);
+        byte frag[TEST_MEMIO_BUF_SZ];
+        int fragSz = 0;
+        int piece = 0;
+        int isHrr = 0;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        if (!cookie) {
+            ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+            TEST_SUCCESS);
+        piece = (chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 2) /
+            3;
+
+        /* Last fragment, announcing a message that ends before it */
+        ExpectIntGT(fragSz = test_dtls13_frag_record(ch, chSz, piece, 2, frag,
+            (int)sizeof(frag)), 0);
+        c32to24(10, frag + DTLS_RECORD_HEADER_SZ + 1);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)frag,
+            fragSz), 0);
+        ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.c_len, 0);
+        ExpectNull(ssl_s->dtls_rx_msg_list);
+
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)ch,
+            chSz), 0);
+        ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+        ExpectIntEQ(isHrr, cookie);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A fragment whose message length contradicts the part of the ClientHello the
  * server holds for this peer is dropped: a stateless server does not fail on a
  * bad message from a peer it has not verified. The genuine fragments then

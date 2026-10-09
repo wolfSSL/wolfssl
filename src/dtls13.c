@@ -2009,8 +2009,17 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return 0;
     }
 
-    if (fragOff + fragLength > messageLength)
-        return BUFFER_ERROR;
+    /* A fragment reaching past the end of its message: like the size cap,
+     * error out only on an authenticated record. */
+    if (fragOff + fragLength > messageLength) {
+        WOLFSSL_MSG("Handshake fragment past the end of the message");
+        if (IsEncryptionOn(ssl, 0)) {
+            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+            return BUFFER_ERROR;
+        }
+        *processedSize = idx + fragLength;
+        return 0;
+    }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
         &implicitAck);
