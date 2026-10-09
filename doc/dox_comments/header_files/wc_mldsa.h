@@ -464,7 +464,8 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     \param [in] ctxLen Length of ctx; no greater than 255.
     \param [in] msg Message that was signed.
     \param [in] msgLen Length of msg in bytes.
-    \param [out] res Set to 1 on a valid signature, 0 otherwise.
+    \param [out] res Set to 1 on a valid signature, 0 otherwise, including
+    when an error is returned.
 
     \sa wc_MlDsaKey_SignCtx
     \sa wc_MlDsaKey_VerifyCtxHash
@@ -492,7 +493,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \param [in] hash The message digest that was signed.
     \param [in] hashLen Length of hash in bytes.
     \param [in] hashAlg Hash algorithm identifier.
-    \param [out] res Set to 1 on a valid signature, 0 otherwise.
+    \param [out] res Set to 1 on a valid signature, 0 otherwise, including
+    when an error is returned.
 
     \sa wc_MlDsaKey_SignCtxHash
     \sa wc_MlDsaKey_VerifyCtx
@@ -517,7 +519,8 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \param [in] sigLen Length of sig in bytes.
     \param [in] mu The 64-byte mu value.
     \param [in] muLen Length of mu; must be 64.
-    \param [out] res Set to 1 on a valid signature, 0 otherwise.
+    \param [out] res Set to 1 on a valid signature, 0 otherwise, including
+    when an error is returned.
 
     \sa wc_MlDsaKey_SignMuWithSeed
 */
@@ -598,7 +601,8 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
     \param [in] sigLen Length of sig in bytes.
     \param [in] msg Message that was signed.
     \param [in] msgLen Length of msg in bytes.
-    \param [out] res Set to 1 on a valid signature, 0 otherwise.
+    \param [out] res Set to 1 on a valid signature, 0 otherwise, including
+    when an error is returned.
 
     \sa wc_MlDsaKey_VerifyCtx
     \sa wc_MlDsaKey_Sign
