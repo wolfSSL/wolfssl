@@ -8273,6 +8273,190 @@ int test_tls13_middlebox_compat_session_id(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_set_session() attaches an expired session but does not resume it,
+ * so no PSK is offered. The session's ID must not be sent either: the
+ * ClientHello carries an empty legacy_session_id, or the fake one of
+ * middlebox compatibility mode, and a full handshake follows. */
+int test_tls13_expired_session_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    byte oldId[ID_LEN];
+    const byte* ch = NULL;
+    char buf[16];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Take in the NewSessionTicket. Its tail becomes the session ID. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Round 0: control, the session resumes and its ID is sent. Round 1: the
+     * same session made to look expired. */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+        ExpectIntEQ(sess->sessionIDSz, ID_LEN);
+        XMEMCPY(oldId, sess->sessionID, ID_LEN);
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        }
+        else {
+            sess->bornOn -= sess->timeout + 1;
+            /* OpenSSL compatibility reports success for an expired session. */
+        #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        #else
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_FAILURE);
+        #endif
+        }
+
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+        /* 5 byte record header + 4 byte handshake header + 2 byte
+         * legacy_version + 32 byte random = offset 43 holds the
+         * legacy_session_id length. */
+        ch = test_ctx.s_buff;
+        ExpectIntGT(test_ctx.s_len, 43 + ID_LEN);
+        ExpectIntEQ(ch[0], handshake);
+        ExpectIntEQ(ch[5], client_hello);
+        if (i == 0) {
+            ExpectIntEQ(ch[43], ID_LEN);
+            ExpectBufEQ(ch + 44, oldId, ID_LEN);
+        }
+        else {
+        #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+            /* The fake session ID is the client random. */
+            ExpectIntEQ(ch[43], ID_LEN);
+            ExpectBufEQ(ch + 44, ch + 11, ID_LEN);
+        #else
+            ExpectIntEQ(ch[43], 0);
+        #endif
+        }
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), i == 0 ? 1 : 0);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The same for an expired TLS 1.2 session on a client that can do TLS 1.3.
+ * The server still has the session cached, so had the ClientHello carried its
+ * ID the server would resume it, and the client, expecting a full handshake,
+ * would fail on the server's ChangeCipherSpec with OUT_OF_ORDER_E. */
+int test_tls13_expired_tls12_session_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    byte oldId[ID_LEN];
+    const byte* ch = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Round 0: control, the session resumes. Round 1: the same session made
+     * to look expired to the client only. */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfSSLv23_client_method, wolfTLSv1_2_server_method), 0);
+
+        ExpectIntEQ(sess->sessionIDSz, ID_LEN);
+        XMEMCPY(oldId, sess->sessionID, ID_LEN);
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        }
+        else {
+            sess->bornOn -= sess->timeout + 1;
+        #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        #else
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_FAILURE);
+        #endif
+        }
+
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+        ch = test_ctx.s_buff;
+        ExpectIntGT(test_ctx.s_len, 43 + ID_LEN);
+        ExpectIntEQ(ch[0], handshake);
+        ExpectIntEQ(ch[5], client_hello);
+        if (i == 0) {
+            ExpectIntEQ(ch[43], ID_LEN);
+            ExpectBufEQ(ch + 44, oldId, ID_LEN);
+        }
+        else {
+        #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+            ExpectIntEQ(ch[43], ID_LEN);
+            ExpectBufEQ(ch + 44, ch + 11, ID_LEN);
+        #else
+            ExpectIntEQ(ch[43], 0);
+        #endif
+        }
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), i == 0 ? 1 : 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_s), i == 0 ? 1 : 0);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_middlebox_compat_server_ccs(void)
 {
     EXPECT_DECLS;
@@ -8291,10 +8475,12 @@ int test_tls13_middlebox_compat_server_ccs(void)
 
     /* Give the client a non-empty legacy_session_id. GetTls13SessionId puts
      * it on the wire whatever the build options are, which is what drives
-     * the server behaviour RFC 8446 Appendix D.4 requires. */
+     * the server behaviour RFC 8446 Appendix D.4 requires. It is only sent
+     * when resuming; with no ticket to offer the handshake is still full. */
     if (EXPECT_SUCCESS()) {
         XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_c->options.resuming = 1;
     }
 
     /* Client sends ClientHello with a non-empty session id. */
@@ -8343,6 +8529,7 @@ int test_tls13_middlebox_compat_server_reuse(void)
     if (EXPECT_SUCCESS()) {
         XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_c->options.resuming = 1;
     }
 
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
@@ -8364,6 +8551,7 @@ int test_tls13_middlebox_compat_server_reuse(void)
         wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx);
         XMEMSET(ssl_c2->session->sessionID, 0x5A, ID_LEN);
         ssl_c2->session->sessionIDSz = ID_LEN;
+        ssl_c2->options.resuming = 1;
     }
 
     ExpectIntNE(wolfSSL_connect(ssl_c2), WOLFSSL_SUCCESS);
@@ -8407,6 +8595,7 @@ static int test_tls13_hrr_ccs_grouped(int grouped)
     if (EXPECT_SUCCESS()) {
         XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_c->options.resuming = 1;
         ssl_s->options.groupMessages = (byte)grouped;
     }
 
@@ -8529,6 +8718,7 @@ int test_tls13_middlebox_compat_server_ccs_retry(void)
     if (EXPECT_SUCCESS()) {
         XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_c->options.resuming = 1;
         /* Ungrouped, so the record is flushed on its own and the refusal
          * below lands on it rather than on a flight carrying it along, and
          * without the automatic retry an OPENSSL_COMPATIBLE_DEFAULTS build
@@ -8601,6 +8791,7 @@ int test_tls13_middlebox_compat_hrr_ccs_retry(void)
     if (EXPECT_SUCCESS()) {
         XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_c->options.resuming = 1;
         ssl_s->options.groupMessages = 0;
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
     defined(HAVE_MEMCACHED)
@@ -11863,6 +12054,8 @@ int test_tls13_legacy_session_id_peer_chain(void)
     if (ssl_c != NULL) {
         XMEMCPY(ssl_c->session->sessionID, legacyId, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        /* Only a resuming client sends its session ID. */
+        ssl_c->options.resuming = 1;
     }
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -11896,6 +12089,8 @@ int test_tls13_legacy_session_id_peer_chain(void)
     if (ssl_c != NULL) {
         XMEMCPY(ssl_c->session->sessionID, legacyId, ID_LEN);
         ssl_c->session->sessionIDSz = ID_LEN;
+        /* Only a resuming client sends its session ID. */
+        ssl_c->options.resuming = 1;
     }
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);

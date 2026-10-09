@@ -60,6 +60,8 @@ int test_key_share_mismatch(void);
 int test_key_share_mismatch_psk_dhe(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
 int test_tls13_middlebox_compat_session_id(void);
+int test_tls13_expired_session_id(void);
+int test_tls13_expired_tls12_session_id(void);
 int test_tls13_middlebox_compat_server_ccs(void);
 int test_tls13_middlebox_compat_server_reuse(void);
 int test_tls13_middlebox_compat_hrr_ccs(void);
@@ -212,6 +214,8 @@ int test_tls13_export_client_key_update(void);
     TEST_DECL_GROUP("tls13", test_key_share_mismatch_psk_dhe),  \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_expired_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_expired_tls12_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_reuse), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs), \
