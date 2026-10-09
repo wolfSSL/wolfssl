@@ -19,6 +19,9 @@ Breaking changes:
   mldsa_level2, mldsa_level3 and mldsa_level5 cfgs, so selecting a parameter
   set the library was not built with is a compile error instead of a runtime
   NOT_COMPILED_IN
+- Replace Lms::export_pub_from() with Lms::export_pub(), which returns a new
+  verify only key instead of re-initializing an existing one; this fixes a leak
+  of the destination's private key data
 
 New features:
 
@@ -27,6 +30,8 @@ New features:
 - Add HMAC::copy(), a fallible equivalent of HMAC::clone()
 - Add ed25519::SigningKey and ed448::SigningKey, which always carry a public
   key and so implement Keypair::verifying_key() without it being able to fail
+- Add Lms::export_pub_ex() to set the heap hint and device ID of the exported
+  verify only key
 
 Fixes and improvements:
 
