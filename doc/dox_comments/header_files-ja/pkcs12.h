@@ -56,7 +56,7 @@ WC_PKCS12* wc_PKCS12_new_ex(void* heap);
 /*!
     \ingroup PKCS12
 
-    \brief この関数は、WC_PKCS12構造体と、解析済みのAuthenticated SafeやMACデータを含む、それに関連するすべてのメモリを解放します。NULLを渡しても安全で、その場合は何も行いません。
+    \brief この関数は、WC_PKCS12構造体を、解析済みのAuthenticated SafeやMACデータを含む関連メモリとともにすべて解放します。NULLを渡しても安全で、その場合は何も行いません。
 
     \return none 戻り値はありません。
 
@@ -149,7 +149,7 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12);
 /*!
     \ingroup PKCS12
 
-    \brief この関数は、WC_PKCS12構造体をDERエンコードされたPKCS #12（PFX）バッファにエンコードします。der引数とderSz引数によって選択される3つの動作モードがあります。derにNULLを渡した場合は必要なバッファサイズの問い合わせのみを行い、サイズが`*derSz`に格納され、LENGTH_ONLY_Eが返されます。データは書き込まれません。derがNULLでなく`*der`がNULLの場合は必要なサイズのバッファを割り当て、そのアドレスを`*der`に格納します。呼び出し元はDYNAMIC_TYPE_PKCSを指定したXFREE()で解放する必要があります。derがNULLでなく`*der`が呼び出し元の用意したバッファを指している場合は、そのバッファにDERを書き込みます。derSzがNULLでなく、バッファが小さすぎることを示している場合はBUFFER_Eを返します。この最後のケースでは、成功時に`*der`が通常のi2dの慣例に従ってエンコードされたDERの末尾の次のバイトへ進められるため、呼び出し元は元のポインタを別途保持しておく必要があります。
+    \brief この関数は、WC_PKCS12構造体をDERエンコードされたPKCS #12（PFX）バッファにエンコードします。der引数とderSz引数によって選択される3つの動作モードがあります。derにNULLを渡した場合は必要なバッファサイズの問い合わせのみを行い、サイズが`*derSz`に格納され、LENGTH_ONLY_Eが返されます。データは書き込まれません。derがNULLでなく`*der`がNULLの場合は必要なサイズのバッファを割り当て、そのアドレスを`*der`に格納します。呼び出し元はDYNAMIC_TYPE_PKCSを指定したXFREE()で解放する必要があります。derがNULLでなく`*der`が呼び出し元の用意したバッファを指している場合は、そのバッファにDERを書き込みます。derSzがNULLでなく、バッファが小さすぎることを示している場合はBUFFER_Eを返します。この最後のケースでは、通常のi2dの慣例に従い、成功時に`*der`がエンコードされたDERの末尾の次のバイトまで進められるため、呼び出し元は元のポインタを別途保持しておく必要があります。
 
     \return Success 成功時に、DERエンコーディングのサイズをバイト単位で返します。
     \return LENGTH_ONLY_E derがNULLの場合に返され、必要なサイズのみが計算されて`*derSz`に格納されたことを示します。
@@ -301,7 +301,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
 /*!
     \ingroup PKCS12
 
-    \brief この関数は、DERエンコードされた秘密鍵、DERエンコードされた証明書、および任意の追加証明書のリストから、新しいWC_PKCS12構造体を作成します。鍵と証明書はそれぞれ独自のContentInfoに配置され、指定されたパスワードで任意に暗号化されます。macIterが0より大きい場合のみ、その結果に対してMACが計算されます。返された構造体はwc_i2d_PKCS12()でDERにエンコードでき、wc_PKCS12_free()で解放する必要があります。nidKey引数とnidCert引数は、それぞれ鍵と証明書に適用されるパスワードベース暗号化を選択します。指定できる値はPBE_SHA1_RC4_128、PBE_SHA1_DES、PBE_SHA1_DES3、PBE_AES128_CBC、PBE_AES256_CBCです。-1を渡すと、対応する内容は暗号化されずに格納されます。
+    \brief この関数は、DERエンコードされた秘密鍵、DERエンコードされた証明書、および任意の追加証明書のリストから、新しいWC_PKCS12構造体を作成します。鍵と証明書はそれぞれ独自のContentInfoに配置され、必要に応じて指定されたパスワードで暗号化されます。macIterが0より大きい場合のみ、その結果に対してMACが計算されます。返された構造体はwc_i2d_PKCS12()でDERにエンコードでき、wc_PKCS12_free()で解放する必要があります。nidKey引数とnidCert引数は、それぞれ鍵と証明書に適用されるパスワードベース暗号化を選択します。指定できる値はPBE_SHA1_RC4_128、PBE_SHA1_DES、PBE_SHA1_DES3、PBE_AES128_CBC、PBE_AES256_CBCです。-1を渡すと、対応する内容は暗号化されずに格納されます。
 
     \note name引数とkeyType引数はAPIの互換性のために受け付けられますが、現在は使用されていません。
 
@@ -310,7 +310,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
 
     \param pass 暗号化とMACに使用するパスワード。
     \param passSz パスワードバッファのサイズ。
-    \param name 使用するfriendlyName。現在は使用されていません。
+    \param name 設定するfriendlyName。現在は使用されていません。
     \param key DERエンコードされた秘密鍵を保持するバッファ。
     \param keySz 鍵バッファのサイズ。
     \param cert DERエンコードされた証明書を保持するバッファ。
@@ -320,7 +320,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     \param nidCert 証明書に適用する暗号化。暗号化しない場合は-1を指定します。
     \param iter 暗号化に使用する反復回数。0以下の値を指定するとWC_PKCS12_ITT_DEFAULTが選択されます。
     \param macIter MACの作成に使用する反復回数。0より大きい場合にのみMACを作成します。iterとは異なり、0以下を指定してもデフォルト値は選択されず、MACは作成されません。この場合、バンドルにはMACによる完全性保護がありません。
-    \param keyType 署名鍵または暗号化鍵を示すフラグ。現在は使用されていません。
+    \param keyType 署名鍵、暗号化鍵、またはその両方を示すフラグ。現在は使用されていません。
     \param heap 動的メモリ割り当てに使用するヒープヒントへのポインタ。デフォルトを使用する場合はNULLを指定します。
 
     _Example_
