@@ -759,7 +759,11 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 #endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    /* i386 this_cpu_read() declares an extern inside the function. */
+    PRAGMA_GCC_DIAG_PUSH
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wnested-externs\"")
     #include "linuxkm/x86_vector_register_glue.c"
+    PRAGMA_GCC_DIAG_POP
 #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
       (defined(CONFIG_ARM64) || defined(CONFIG_ARM))
     #include "linuxkm/arm64_vector_register_glue.c"
