@@ -1,0 +1,123 @@
+name: OpenSSL DTLS 1.3 interop Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save steps below).
+  schedule:
+    - cron: '50 4 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+env:
+  # First OpenSSL line with DTLS 1.3 (RFC 9147) is 4.1.
+  OPENSSL_REF: openssl-4.1.0-beta2
+
+jobs:
+  build_openssl:
+    name: Build OpenSSL
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checking if we have OpenSSL in cache
+        uses: actions/cache/restore@v5
+        id: cache
+        with:
+          path: openssl-install
+          key: openssl-dtls13-${{ env.OPENSSL_REF }}
+          lookup-only: true
+
+      - name: Checkout OpenSSL
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: openssl/openssl
+          ref: ${{ env.OPENSSL_REF }}
+          path: openssl
+          fetch-depth: 1
+
+      - name: Compile OpenSSL
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: openssl
+        run: |
+          # Static, so the openssl binary needs no LD_LIBRARY_PATH.
+          ./Configure --prefix=$GITHUB_WORKSPACE/openssl-install \
+            --libdir=lib no-docs no-tests no-shared
+          make -j$(nproc)
+          make install_sw
+
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save OpenSSL cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: openssl-install
+          key: openssl-dtls13-${{ env.OPENSSL_REF }}
+
+      # On a cache miss, hand the freshly built OpenSSL to openssl_test via
+      # an artifact so it is not compiled a second time in the same run.
+      - name: tar OpenSSL
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zcf openssl-install.tgz openssl-install
+
+      - name: Upload OpenSSL build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: openssl-dtls13-build
+          path: openssl-install.tgz
+          retention-days: 1
+
+  openssl_test:
+    name: Test DTLS 1.3 interop with OpenSSL
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    needs: build_openssl
+    timeout-minutes: 15
+    steps:
+      # Restore only: the build_openssl job (master/schedule) owns the save.
+      - name: Checking if we have OpenSSL in cache
+        uses: actions/cache/restore@v5
+        id: cache
+        with:
+          path: openssl-install
+          key: openssl-dtls13-${{ env.OPENSSL_REF }}
+
+      # On a cache miss, reuse the build_openssl artifact instead of
+      # recompiling. master restores from the cache above instead.
+      - name: Download OpenSSL build (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: openssl-dtls13-build
+
+      - name: untar OpenSSL (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -xf openssl-install.tgz
+
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-dtls --enable-dtls13 --enable-dtls-mtu
+            --enable-dtls-frag-ch --enable-hrrcookie --enable-mlkem
+          install: false
+          check: false
+
+      - name: Test interop
+        working-directory: wolfssl
+        run: |
+          OPENSSL=$GITHUB_WORKSPACE/openssl-install/bin/openssl \
+            bash .github/scripts/openssl-dtls13.sh
