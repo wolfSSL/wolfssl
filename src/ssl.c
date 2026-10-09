@@ -10979,13 +10979,13 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 #ifdef WOLFSSL_SM4_CBC
             case WC_SM4_CBC_TYPE:
                 WOLFSSL_MSG("SM4 CBC");
-                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_CTR
             case WC_SM4_CTR_TYPE:
                 WOLFSSL_MSG("SM4 CTR");
-                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_GCM
@@ -11111,13 +11111,13 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 #ifdef WOLFSSL_SM4_CBC
             case WC_SM4_CBC_TYPE:
                 WOLFSSL_MSG("SM4 CBC");
-                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, ctx->ivSz);
+                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_CTR
             case WC_SM4_CTR_TYPE:
                 WOLFSSL_MSG("SM4 CTR");
-                XMEMCPY(ctx->iv, &ctx->cipher.sm4.iv, ctx->ivSz);
+                XMEMCPY(&ctx->cipher.sm4.iv, ctx->iv, SM4_BLOCK_SIZE);
                 break;
 #endif
 #ifdef WOLFSSL_SM4_GCM

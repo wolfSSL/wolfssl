@@ -40004,7 +40004,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
       (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,2,3)) || \
       FIPS_VERSION3_EQ(5,3,0) || \
       FIPS_VERSION3_EQ(6,0,0) || \
-      defined(NO_WC_DHGENERATEPUBLIC))
+      defined(NO_WC_DHGENERATEPUBLIC) || defined(WOLFSSL_KCAPI_DH))
 
     /* additional test for wc_DhGeneratePublic:
      *   1. reset key2.
@@ -40217,7 +40217,7 @@ exit_dh_check_priv:
 #endif /* WOLFSSL_KEY_GEN && !HAVE_FIPS && !HAVE_SELFTEST */
 
 #if !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
-            !defined(HAVE_SELFTEST)
+            !defined(HAVE_SELFTEST) && !defined(WOLFSSL_KCAPI_DH)
 static wc_test_ret_t dh_agree_ct_test(DhKey* key, DhKey* key2,
     const byte* priv, word32 privSz, const byte* pub, word32 pubSz,
     const byte* priv2, word32 privSz2, const byte* pub2, word32 pubSz2,
@@ -40573,7 +40573,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
 #endif
 
 #if !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
-            !defined(HAVE_SELFTEST)
+            !defined(HAVE_SELFTEST) && !defined(WOLFSSL_KCAPI_DH)
     ret = dh_agree_ct_test(key, key2, priv, privSz, pub, pubSz,
         priv2, privSz2, pub2, pubSz2, agree, agree2, DH_TEST_BUF_SIZE);
     if (ret != 0)
