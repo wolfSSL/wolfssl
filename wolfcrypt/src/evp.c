@@ -1480,6 +1480,15 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case WC_ARIA_128_GCM_TYPE:
         case WC_ARIA_192_GCM_TYPE:
         case WC_ARIA_256_GCM_TYPE:
+            if (ctx->enc && (ctx->cipher.aria.nonceSz == 0 ||
+                             ctx->authIvUsed)) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0)
              || (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -1494,6 +1503,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->authTag, ctx->authTagSz);
 
                 if (ret == 0) {
+                    if (ctx->enc)
+                        ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                     ret = WOLFSSL_SUCCESS;
                     *outl = ctx->authBufferLen;
                 }
@@ -1522,6 +1533,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 else {
                     /* Clear IV, since IV reuse is not recommended for AES GCM. */
                     XMEMSET(ctx->iv, 0, ARIA_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -7606,6 +7618,9 @@ void wolfSSL_EVP_init(void)
                                const byte* iv, int enc)
     {
         int ret = 0;
+#ifdef HAVE_ARIA
+        int ivProvided = (iv != NULL);
+#endif
         (void)key;
         (void)iv;
         (void)enc;
@@ -8425,6 +8440,10 @@ void wolfSSL_EVP_init(void)
                 != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
+            else if (type != NULL)
+                ctx->authIvUsed = 1;
         }
     #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
             * HAVE_FIPS_VERSION >= 2 */
@@ -9148,9 +9167,13 @@ void wolfSSL_EVP_init(void)
             case WC_ARIA_256_GCM_TYPE :
                 WOLFSSL_MSG("ARIA GCM");
                 if (ctx->enc) {
+                    if (ctx->cipher.aria.nonceSz == 0 || ctx->authIvUsed)
+                        return WC_NO_ERR_TRACE(BAD_STATE_E);
                     ret = wc_AriaEncrypt(&ctx->cipher.aria, dst, src, len,
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
+                    if (ret == 0)
+                        ctx->authIvUsed = 1;
                 }
                 else {
                     ret = wc_AriaDecrypt(&ctx->cipher.aria, dst, src, len,
