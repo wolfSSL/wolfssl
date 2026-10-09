@@ -2143,6 +2143,43 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+
+    /* Trailing "idx != length" gate: a complete, valid OfferedPsks followed
+     * by one extra byte inside the extension data must be rejected
+     * (RFC 8446 Section 4.2). */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMCPY(body, psk_ch_body, sizeof(psk_ch_body));
+        body[sizeof(psk_ch_body)] = 0xAA;
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, body,
+                (word16)(sizeof(psk_ch_body) + 1));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Control: the same OfferedPsks without the trailing byte is accepted. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, psk_ch_body,
+                (word16)sizeof(psk_ch_body));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
