@@ -141,3 +141,26 @@ int test_wc_EntropyFeatureCoverage(void)
 #endif /* HAVE_ENTROPY_MEMUSE */
     return EXPECT_RESULT();
 }
+
+/* Back-to-back calls into every entry point that takes the entropy lock. With
+ * ENTROPY_MEMUSE_THREADED each call starts and stops the counter thread, so
+ * this drives the start/stop handshake repeatedly and checks each call still
+ * succeeds. */
+int test_wc_Entropy_RepeatedCalls(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ENTROPY_MEMUSE
+    byte out[WC_SHA3_256_DIGEST_SIZE];
+    byte raw[32];
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        XMEMSET(out, 0, sizeof(out));
+        XMEMSET(raw, 0, sizeof(raw));
+        ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS, out, sizeof(out)), 0);
+        ExpectIntEQ(wc_Entropy_GetRawEntropy(raw, (int)sizeof(raw)), 0);
+        ExpectIntEQ(wc_Entropy_OnDemandTest(), 0);
+    }
+#endif /* HAVE_ENTROPY_MEMUSE */
+    return EXPECT_RESULT();
+}

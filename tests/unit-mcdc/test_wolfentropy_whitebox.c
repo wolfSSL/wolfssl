@@ -68,8 +68,6 @@
  * visible to this TU) immediately before calling the public entry point.
  */
 
-#include "mcdc_fault_mutex.h"
-
 /* ---- SHA3-256 interposer, for the startup health test's noise fill -------
  *
  * Entropy_GetNoise() is a file-static in wolfentropy.c itself, so it cannot be
@@ -87,17 +85,36 @@
  * The wrapper is defined BEFORE the macro exists, so it still reaches the
  * real primitive; ordering is load-bearing, exactly as in mcdc_fault_hash.h.
  *
- * libwolfssl_sources.h has to come first (mcdc_fault_mutex.h deliberately
- * includes nothing, so no configuration has been read yet): without it
- * WOLFSSL_SHA3 is undefined at this point, the whole interposer is
- * preprocessed away, and wb_startup_noise_fail() below -- which is guarded on
- * the same macro but sits AFTER wolfentropy.c has pulled settings.h in --
- * refers to a wb_sha3_refuse that does not exist. That is a compile failure,
- * which the harness scores as a SILENT SKIP.
+ * libwolfssl_sources.h has to come first, so the configuration has been read
+ * before either injector looks at it:
+ *   - without it WOLFSSL_SHA3 is undefined at this point, the whole interposer
+ *     is preprocessed away, and wb_startup_noise_fail() below -- which is
+ *     guarded on the same macro but sits AFTER wolfentropy.c has pulled
+ *     settings.h in -- refers to a wb_sha3_refuse that does not exist;
+ *   - mcdc_fault_mutex.h decides MCDC_FM_UNAVAILABLE from the configuration
+ *     (HAVE_THREAD_LS, SINGLE_THREADED, ...). Included ahead of it, its first
+ *     phase redirects wc_LockMutex() while its second phase, after
+ *     wolfentropy.c, sees the real configuration and leaves mcdc_fm_lock()
+ *     undefined.
+ * Both are compile or link failures, which the harness scores as a SILENT
+ * SKIP. The price of this order is that wc_port.h's prototypes are parsed
+ * before mcdc_fault_mutex.h's redirect exists, so they no longer double as
+ * declarations of mcdc_fm_init()/mcdc_fm_lock(); those are declared
+ * explicitly below.
  */
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+#include "mcdc_fault_mutex.h"
+
+#ifndef MCDC_FM_UNAVAILABLE
+/* wc_port.h was parsed (via libwolfssl_sources.h) before the redirect above,
+ * so its prototypes did not become the hooks' declarations. Declare them here
+ * so the redirected calls in wolfentropy.c are not implicit. */
+int mcdc_fm_init(wolfSSL_Mutex* m);
+int mcdc_fm_lock(wolfSSL_Mutex* m);
+#endif
 
 #ifdef WOLFSSL_SHA3
 #include <wolfssl/wolfcrypt/sha3.h>
@@ -392,24 +409,28 @@ static void wb_startup_noise_fail(void)
 
 /* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
  *
- *   881: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
- *   893: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *   lock:   if (ret == 0) { if (wc_LockMutex(&entropy_mutex) != 0) ...
+ *                           else locked = 1; }
+ *   health: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *   tail:   if (locked) { ... wc_UnLockMutex(&entropy_mutex); }
  *
- * A live, correctly initialised mutex always locks, so 881 only ever shows
- * (T,F) and 893 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
- * redirects this TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes
- * the NEXT lock -- and only that one -- refuse:
+ * A live, correctly initialised mutex always locks, so the wc_LockMutex()
+ * decision only ever goes FALSE, locked is always 1, and the health check's
+ * ret == 0 operand only ever shows TRUE. mcdc_fault_mutex.h redirects this
+ * TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes the NEXT lock
+ * -- and only that one -- refuse:
  *
- *   armed   -> 881 (T,T) -> ret = BAD_MUTEX_E, which then makes 893's idx0
- *              FALSE at the very next decision (same call, same binary)
- *   unarmed -> 881 (T,F) and 893 idx0 TRUE
+ *   armed   -> wc_LockMutex() != 0 TRUE: ret = BAD_MUTEX_E, locked stays 0,
+ *              the health check's ret == 0 is FALSE and the tail is skipped
+ *   unarmed -> wc_LockMutex() != 0 FALSE: locked = 1, the health check's
+ *              ret == 0 is TRUE and the tail unlocks
  *
- * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
- * doesn't: the tail is guarded on the mutex error code, so no unlock of an
- * unheld mutex happens and no global state is touched. The idx0 operand of
- * 881 itself stays a justified residual: outside HAVE_FIPS builds nothing
- * runs between "ret = 0" and this test, so ret is 0 by construction and the
- * operand has no independence pair here.
+ * so the armed and unarmed calls give both outcomes of the tail's locked
+ * decision in the same binary. A refused lock is the one path
+ * wc_Entropy_Get() must NOT unlock on, and it doesn't: no unlock of an unheld
+ * mutex happens and no global state is touched. The enclosing ret == 0 guard
+ * on the lock is only FALSE in HAVE_FIPS builds, where Entropy_Init() runs
+ * first and can fail; elsewhere ret is 0 by construction at that point.
  * ------------------------------------------------------------------------ */
 #if defined(HAVE_ENTROPY_MEMUSE) && !defined(MCDC_FM_UNAVAILABLE)
 static void wb_entropy_get_mutex(void)
