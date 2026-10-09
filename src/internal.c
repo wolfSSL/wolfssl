@@ -6880,16 +6880,21 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
 #else /* HAVE_ED25519_KEY_IMPORT */
     ed25519_key* key = (ed25519_key*)ssl->hsKey;
     int ret = 0;
+    int trusted = 0;
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
         const unsigned char* pubKey;
         word32 pubKeySz;
 
+    #ifdef ED25519_MAX_ID_LEN
+        /* A device key pair is checked by wolfSSL_CTX_check_private_key. */
+        trusted = (key->idLen > 0) || (key->labelLen > 0);
+    #endif
         ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
             ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            ret = wc_ed25519_import_public(pubKey, pubKeySz, key);
+            ret = wc_ed25519_import_public_ex(pubKey, pubKeySz, key, trusted);
         }
     }
 
@@ -7210,16 +7215,21 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
 #else /* HAVE_ED448_KEY_IMPORT */
     ed448_key* key = (ed448_key*)ssl->hsKey;
     int ret = 0;
+    int trusted = 0;
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
         const unsigned char* pubKey;
         word32 pubKeySz;
 
+    #ifdef ED448_MAX_ID_LEN
+        /* A device key pair is checked by wolfSSL_CTX_check_private_key. */
+        trusted = (key->idLen > 0) || (key->labelLen > 0);
+    #endif
         ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
             ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            ret = wc_ed448_import_public(pubKey, pubKeySz, key);
+            ret = wc_ed448_import_public_ex(pubKey, pubKeySz, key, trusted);
         }
     }
 

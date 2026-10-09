@@ -15317,9 +15317,8 @@ static int test_tls13_ed_dev_key_round(TestEdDevCtx* dev, const char* caFile,
         NULL, NULL), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntGE(dev->signs, 1);
-    /* Loading the certificate public key into the device key checks the pair
-     * once more. */
-    ExpectIntEQ(dev->checks, 5);
+    /* The handshake does not check the pair again. */
+    ExpectIntEQ(dev->checks, 4);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
