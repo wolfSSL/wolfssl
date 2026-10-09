@@ -386,11 +386,12 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     \brief This function creates a new WC_PKCS12 structure from a DER-encoded
     private key, a DER-encoded certificate, and an optional list of extra
     certificates. The key and certificate are each placed in their own
-    ContentInfo, optionally encrypted with the password given, and a MAC is
-    computed over the result. The returned structure can be encoded to DER with
-    wc_i2d_PKCS12() and must be freed with wc_PKCS12_free(). The nidKey and
-    nidCert arguments select the password-based encryption applied to the key
-    and to the certificate respectively. Supported values are
+    ContentInfo and optionally encrypted with the password given. A MAC is
+    computed over the result only when macIter is greater than zero. The
+    returned structure can be encoded to DER with wc_i2d_PKCS12() and must be
+    freed with wc_PKCS12_free(). The nidKey and nidCert arguments select the
+    password-based encryption applied to the key and to the certificate
+    respectively. Supported values are
     PBE_SHA1_RC4_128, PBE_SHA1_DES, PBE_SHA1_DES3, PBE_AES128_CBC and
     PBE_AES256_CBC. Passing -1 stores the corresponding content unencrypted.
 
@@ -416,7 +417,10 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     \param nidCert encryption to apply to the certificate, or -1 for none
     \param iter number of iterations to use for the encryption. Values of 0 or
     less select WC_PKCS12_ITT_DEFAULT.
-    \param macIter number of iterations to use when creating the MAC
+    \param macIter number of iterations to use when creating the MAC. A MAC is
+    only created when this is greater than zero. Unlike iter, a value of zero
+    or less does not select a default: no MAC is created at all, and the
+    resulting bundle has no MAC integrity protection.
     \param keyType flag for a signature and/or encryption key. Not currently
     used.
     \param heap pointer to a heap hint used for dynamic memory allocation, or
