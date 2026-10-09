@@ -8474,6 +8474,116 @@ int test_tls13_middlebox_compat_hrr_ccs(void)
 #if defined(WOLFSSL_TLS13) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* HelloRetryRequest handshake with the record layer version of the second
+ * ClientHello, and any ChangeCipherSpec before it, rewritten to
+ * pvMajor.pvMinor. Sets *serverErr to the server's error, or 0 when the
+ * handshake completes. Returns the test verdict. */
+static int test_tls13_hrr_ch2_record_version_run(byte pvMajor, byte pvMinor,
+    int* serverErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int idx = 0;
+    int patched = 0;
+
+    *serverErr = 0;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    /* A session ID turns on the middlebox compatibility ChangeCipherSpec. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+    }
+#endif
+    /* No key share entries, so the server has to ask for one. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.serverState,
+        SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+
+    /* Client reads the HelloRetryRequest and writes the second ClientHello,
+     * possibly behind a middlebox compatibility ChangeCipherSpec. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    /* The ChangeCipherSpec exception is only covered if one is present. */
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.s_buff, test_ctx.s_len), 1);
+#endif
+
+    while (EXPECT_SUCCESS() && idx + RECORD_HEADER_SZ <= test_ctx.s_len) {
+        if (test_ctx.s_buff[idx] == handshake) {
+            patched = 1;
+        }
+        test_ctx.s_buff[idx + 1] = pvMajor;
+        test_ctx.s_buff[idx + 2] = pvMinor;
+        idx += RECORD_HEADER_SZ + ((test_ctx.s_buff[idx + 3] << 8) |
+                                   test_ctx.s_buff[idx + 4]);
+    }
+    ExpectIntEQ(patched, 1);
+
+    if (EXPECT_SUCCESS()) {
+        if (wolfSSL_accept(ssl_s) != WOLFSSL_SUCCESS) {
+            *serverErr = wolfSSL_get_error(ssl_s,
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        }
+    }
+    if (EXPECT_SUCCESS() && *serverErr == WOLFSSL_ERROR_WANT_READ) {
+        *serverErr = 0;
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 8446 Appendix D.2: a server MUST ignore the TLS 1.x record layer
+ * version, including on the second ClientHello after a HelloRetryRequest. */
+int test_tls13_hrr_ch2_record_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    int serverErr = 0;
+
+    ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR,
+        TLSv1_2_MINOR, &serverErr), TEST_SUCCESS);
+    ExpectIntEQ(serverErr, 0);
+    ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR,
+        TLSv1_MINOR, &serverErr), TEST_SUCCESS);
+    ExpectIntEQ(serverErr, 0);
+    ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR,
+        TLSv1_1_MINOR, &serverErr), TEST_SUCCESS);
+    ExpectIntEQ(serverErr, 0);
+    /* Not a TLS 1.x record version: still rejected. */
+    ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR + 1,
+        TLSv1_2_MINOR, &serverErr), TEST_SUCCESS);
+    ExpectIntEQ(serverErr, WC_NO_ERR_TRACE(VERSION_ERROR));
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 /* Refuses one ChangeCipherSpec write, then counts the ones that land. */
 struct test_tls13_ccs_ctx {
     struct test_memio_ctx* memio;
