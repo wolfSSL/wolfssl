@@ -92,7 +92,9 @@ binary, `tests/swdev/Makefile` does the following:
   `swdev.partial.o`.
 - Runs `objcopy --keep-global-symbol=wc_SwDev_Callback
   --keep-global-symbol=wc_SwDev_InternalCleanup` to localize every
-  remaining global except the two intended exports.
+  remaining global except the two intended exports. macOS has no
+  `objcopy`, so there a second `ld -r` with `-exported_symbol` does the
+  same.
 
 The Makefile then enforces the invariant directly:
 
