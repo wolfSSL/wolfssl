@@ -164,7 +164,7 @@ WARN_UNUSED_RESULT int wc_linuxkm_allocate_svr_states(void)
             wc_linuxkm_svr_states_n_tracked * sizeof(wc_linuxkm_svr_states[0]));
 
     if (! wc_linuxkm_svr_states) {
-        pr_err("ERROR: allocation of %lu bytes for "
+        pr_err("ERROR: allocation of %zu bytes for "
                "wc_linuxkm_svr_states failed.\n",
                nr_cpu_ids * sizeof(wc_linuxkm_svr_states[0]));
         return MEMORY_E;

@@ -4794,7 +4794,8 @@ then
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
-            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
+            # A toolchain default such as armv5t lacks strd and rev.
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8-a -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes

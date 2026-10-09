@@ -99,6 +99,11 @@
         #define cpuid_xgetbv0() ((word32)_xgetbv(0))
     #endif /* _MSC_VER */
 
+    /* i386 kernel <asm/ptrace-abi.h> uses these names for ptrace offsets. */
+    #undef EAX
+    #undef EBX
+    #undef ECX
+    #undef EDX
     #define EAX 0
     #define EBX 1
     #define ECX 2

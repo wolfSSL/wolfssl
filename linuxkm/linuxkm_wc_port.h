@@ -1238,6 +1238,11 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+#ifdef CONFIG_X86_32
+    /* asm/string_32.h #defines memcmp, which would rename its slot below. */
+    #undef memcmp
+#endif
+
     struct wolfssl_linuxkm_pie_redirect_table {
     #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
@@ -1634,9 +1639,11 @@
         #define memcmp WC_PIE_INDIRECT_SYM(memcmp)
     #endif
     #ifndef __ARCH_MEMCPY_NO_REDIRECT
+        #undef memcpy
         #define memcpy WC_PIE_INDIRECT_SYM(memcpy)
     #endif
     #ifndef __ARCH_MEMSET_NO_REDIRECT
+        #undef memset
         #define memset WC_PIE_INDIRECT_SYM(memset)
     #endif
     #ifndef __ARCH_MEMMOVE_NO_REDIRECT
