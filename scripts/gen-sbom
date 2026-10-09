@@ -1,14 +1,35 @@
 #!/usr/bin/env python3
-"""Forward to the vendored wolfssl-compliance-tooling generator.
+"""Entry point for the vendored wolfssl-compliance-tooling generator.
 
 The customer command stays `python3 scripts/gen-sbom`.
-The implementation is tools/sbom/gen-sbom. A release tarball carries one copy.
+The implementation is tools/sbom/gen-sbom. A release tarball carries both.
+Importing this module loads that implementation.
+Copying this file without tools/sbom/gen-sbom does not work.
 """
 import os
 import sys
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _target = os.path.abspath(os.path.join(_here, os.pardir, "tools", "sbom", "gen-sbom"))
+_MISSING = (
+    "ERROR: wolfssl-compliance-tooling generator not found at "
+    f"{_target}. scripts/gen-sbom is the entry point. "
+    "tools/sbom/gen-sbom is the program. Keep both files."
+)
+
+if __name__ == "__main__":
+    if not os.path.isfile(_target):
+        sys.exit(_MISSING)
+    os.execv(sys.executable, [sys.executable, _target, *sys.argv[1:]])
+
 if not os.path.isfile(_target):
-    sys.exit(f"ERROR: wolfssl-compliance-tooling generator not found at {_target}")
-os.execv(sys.executable, [sys.executable, _target, *sys.argv[1:]])
+    raise ImportError(_MISSING)
+
+import runpy
+
+_skip = {"__name__", "__package__", "__loader__", "__spec__", "__cached__"}
+globals().update({
+    k: v
+    for k, v in runpy.run_path(_target, run_name=__name__ + "._impl").items()
+    if k not in _skip
+})

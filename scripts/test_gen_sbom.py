@@ -45,6 +45,20 @@ def _load_gen_sbom():
 gs = _load_gen_sbom()
 
 
+class TestEntryPoint(unittest.TestCase):
+    def test_wrapper_loads_generator(self):
+        """scripts/gen-sbom is importable and exposes the vendored program."""
+        here = pathlib.Path(__file__).resolve().parent
+        wrapper = here / 'gen-sbom'
+        loader = SourceFileLoader('gen_sbom_entry', str(wrapper))
+        spec = importlib.util.spec_from_loader('gen_sbom_entry', loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        self.assertTrue(callable(module._is_noise_macro))
+        self.assertTrue(callable(module.main))
+        self.assertFalse(module._is_noise_macro('HAVE_ECC'))
+
+
 class TestIsSimpleSpdxId(unittest.TestCase):
     def test_listed_ids_are_simple(self):
         for spdx in ('Apache-2.0', 'MIT', 'GPL-3.0-or-later',
