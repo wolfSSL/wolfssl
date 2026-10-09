@@ -6350,12 +6350,36 @@ int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)
     return 0;
 }
 
+/* Set up cipher for the suite suite0/suite. ssl may be NULL. A cipher list
+ * entry (inStack) is described from its suite rather than from the session.
+ */
+static void wolfssl_cipher_init(WOLFSSL_CIPHER* cipher, const WOLFSSL* ssl,
+    byte suite0, byte suite, int inStack)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int idx;
+#endif
+
+    XMEMSET(cipher, 0, sizeof(*cipher));
+    cipher->cipherSuite0 = suite0;
+    cipher->cipherSuite  = suite;
+    cipher->ssl          = ssl;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    cipher->in_stack     = (unsigned int)inStack;
+    idx = GetCipherNamesIdx(suite0, suite);
+    if (idx >= 0)
+        cipher->offset = (unsigned long)idx;
+#else
+    (void)inStack;
+#endif
+}
+
 WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_current_cipher");
     if (ssl) {
-        ssl->cipher.cipherSuite0 = ssl->options.cipherSuite0;
-        ssl->cipher.cipherSuite  = ssl->options.cipherSuite;
+        wolfssl_cipher_init(&ssl->cipher, ssl, ssl->options.cipherSuite0,
+            ssl->options.cipherSuite, 0);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         ssl->cipher.bits = ssl->specs.key_size * 8;
 #endif
@@ -6437,9 +6461,11 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_id");
 
-    if (cipher && cipher->ssl) {
-        cipher_id = (word16)(cipher->ssl->options.cipherSuite0 << 8) |
-                     cipher->ssl->options.cipherSuite;
+    /* Read the suite of this entry: stack entries and SSL_CIPHER_find()
+     * results are not the negotiated suite. */
+    if (cipher != NULL) {
+        cipher_id = (word16)((word16)cipher->cipherSuite0 << 8) |
+                     cipher->cipherSuite;
     }
 
     return cipher_id;
@@ -6487,9 +6513,6 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
     WOLFSSL_STACK* node;
-    const CipherSuiteInfo* cipher_names;
-    int cipherSz;
-    int i;
 
     WOLFSSL_ENTER("wolfSSL_SSL_CIPHER_find");
 
@@ -6506,26 +6529,13 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
 
     /* Not enabled on this SSL - fall back to a library-wide lookup so suite
      * ids seen on the wire can still be decoded, matching OpenSSL. */
-    cipher_names = GetCipherNames();
-    cipherSz = GetCipherNamesSize();
-    for (i = 0; i < cipherSz; i++) {
-        if (cipher_names[i].cipherSuite0 == ptr[0] &&
-            cipher_names[i].cipherSuite  == ptr[1]) {
-            XMEMSET(&ssl->cipher, 0, sizeof(ssl->cipher));
-            ssl->cipher.cipherSuite0 = ptr[0];
-            ssl->cipher.cipherSuite  = ptr[1];
-            ssl->cipher.ssl          = ssl;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            ssl->cipher.offset       = (unsigned long)i;
-            /* Describe from cipher_names[offset]: ssl->specs holds the
-             * negotiated suite, not this one. */
-            ssl->cipher.in_stack     = TRUE;
-#endif
-            return &ssl->cipher;
-        }
-    }
+    if (GetCipherNamesIdx(ptr[0], ptr[1]) < 0)
+        return NULL;
 
-    return NULL;
+    /* Describe from the suite: ssl->specs holds the negotiated suite, not
+     * this one. */
+    wolfssl_cipher_init(&ssl->cipher, ssl, ptr[0], ptr[1], 1);
+    return &ssl->cipher;
 }
 #endif
 
@@ -7267,6 +7277,10 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
         return ret;
     }
 #endif
+
+    /* CTX cipher stack entries have no session to describe. */
+    if (cipher->ssl == NULL)
+        return NULL;
 
     /* Get the cipher description based on the SSL session cipher */
     keaStr = wolfssl_kea_to_string(cipher->ssl->specs.kea);
@@ -9502,21 +9516,26 @@ static WC_INLINE int SCSV_Check(byte suite0, byte suite)
     return 0;
 }
 
-static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
-        byte suite)
+/* Is the suite outside the versions allowed by minDowngrade and the
+ * WOLFSSL_OP_NO_* bits of mask? */
+static WC_INLINE int CipherMinMaxCheck(byte minDowngrade, unsigned long mask,
+        byte suite0, byte suite)
 {
     const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
-    int i;
-    for (i = 0; i < cipherSz; i++)
-        if (cipher_names[i].cipherSuite0 == suite0 &&
-                cipher_names[i].cipherSuite == suite)
-            break;
-    if (i == cipherSz)
+    int i = GetCipherNamesIdx(suite0, suite);
+
+    if (i < 0)
         return 1;
+    /* Suites are tagged with TLS minors. Map DTLS to the matching TLS. */
+    if (minDowngrade == DTLS_MINOR)
+        minDowngrade = TLSv1_1_MINOR;
+    else if (minDowngrade == DTLSv1_2_MINOR)
+        minDowngrade = TLSv1_2_MINOR;
+    else if (minDowngrade == DTLSv1_3_MINOR)
+        minDowngrade = TLSv1_3_MINOR;
     /* Check min version */
-    if (cipher_names[i].minor < ssl->options.minDowngrade) {
-        if (ssl->options.minDowngrade <= TLSv1_2_MINOR &&
+    if (cipher_names[i].minor < minDowngrade) {
+        if (minDowngrade <= TLSv1_2_MINOR &&
                 cipher_names[i].minor >= TLSv1_MINOR)
             /* 1.0 ciphersuites are in general available in 1.1 and
              * 1.1 ciphersuites are in general available in 1.2 */
@@ -9526,19 +9545,95 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
     /* Check max version */
     switch (cipher_names[i].minor) {
     case SSLv3_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_SSLv3;
+        return mask & WOLFSSL_OP_NO_SSLv3;
     case TLSv1_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1;
+        return mask & WOLFSSL_OP_NO_TLSv1;
     case TLSv1_1_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1;
+        return mask & WOLFSSL_OP_NO_TLSv1_1;
     case TLSv1_2_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2;
+        return mask & WOLFSSL_OP_NO_TLSv1_2;
     case TLSv1_3_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3;
+        return mask & WOLFSSL_OP_NO_TLSv1_3;
     default:
         WOLFSSL_MSG("Unrecognized minor version");
         return 1;
     }
+}
+
+static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
+        byte suite)
+{
+    return CipherMinMaxCheck(ssl->options.minDowngrade, ssl->options.mask,
+                             suite0, suite);
+}
+
+/* Is the suite at index i left out of a cipher stack? */
+static WC_INLINE int CipherStackSkip(const Suites* suites, int i,
+        byte minDowngrade, unsigned long mask)
+{
+    /* A couple of suites are placeholders for special options, skip those. */
+    return SCSV_Check(suites->suites[i], suites->suites[i+1]) ||
+           CipherMinMaxCheck(minDowngrade, mask, suites->suites[i],
+                             suites->suites[i+1]);
+}
+
+/* Build a stack of the suites that can be offered, highest priority first.
+ * ssl is NULL for the stack of a CTX.
+ * Returns NULL when no suite can be offered or on error. */
+static WOLF_STACK_OF(WOLFSSL_CIPHER)* CipherStackNew(const Suites* suites,
+        byte minDowngrade, unsigned long mask, const WOLFSSL* ssl, void* heap)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
+    int i;
+
+    sk = wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, heap);
+    if (sk == NULL)
+        return NULL;
+
+    /* Walk lowest priority first: each suite is inserted at index 0, so
+     * the highest priority suite ends up on top of the stack. */
+    for (i = suites->suiteSz - 2; i >= 0; i -= 2) {
+        struct WOLFSSL_CIPHER cipher;
+
+        if (CipherStackSkip(suites, i, minDowngrade, mask))
+            continue;
+
+        wolfssl_cipher_init(&cipher, ssl, suites->suites[i],
+            suites->suites[i+1], 1);
+        if (wolfSSL_sk_insert(sk, &cipher, 0) <= 0) {
+            WOLFSSL_MSG("Error inserting cipher onto stack");
+            wolfSSL_sk_CIPHER_free(sk);
+            return NULL;
+        }
+    }
+
+    /* If no ciphers were added, free empty stack and return NULL */
+    if (wolfSSL_sk_num(sk) == 0) {
+        wolfSSL_sk_CIPHER_free(sk);
+        sk = NULL;
+    }
+    return sk;
+}
+
+/* Does sk hold the suites CipherStackNew() would build, in the same order? */
+static int CipherStackMatches(WOLFSSL_STACK* sk, const Suites* suites,
+        byte minDowngrade, unsigned long mask)
+{
+    int num = wolfSSL_sk_num(sk);
+    int i;
+
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        if (CipherStackSkip(suites, i, minDowngrade, mask))
+            continue;
+        if (num == 0 || sk == NULL ||
+                sk->data.cipher.cipherSuite0 != suites->suites[i] ||
+                sk->data.cipher.cipherSuite != suites->suites[i+1]) {
+            return 0;
+        }
+        num--;
+        sk = sk->next;
+    }
+    return num == 0;
 }
 
 /* returns a pointer to internal cipher suite list. Should not be free'd by
@@ -9547,10 +9642,6 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     const Suites* suites;
-#if defined(OPENSSL_ALL)
-    const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
-#endif
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
     if (ssl == NULL)
@@ -9562,59 +9653,66 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 
     /* check if stack needs populated */
     if (ssl->suitesStack == NULL) {
-        int i;
-
-        ((WOLFSSL*)ssl)->suitesStack =
-                wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, ssl->heap);
-        if (ssl->suitesStack == NULL)
-            return NULL;
-
-        /* Walk lowest priority first: each suite is inserted at index 0, so
-         * the highest priority suite ends up on top of the stack. */
-        for (i = suites->suiteSz - 2; i >= 0; i -= 2)
-        {
-            struct WOLFSSL_CIPHER cipher;
-
-            /* A couple of suites are placeholders for special options,
-             * skip those. */
-            if (SCSV_Check(suites->suites[i], suites->suites[i+1])
-                    || sslCipherMinMaxCheck(ssl, suites->suites[i],
-                                            suites->suites[i+1])) {
-                continue;
-            }
-
-            XMEMSET(&cipher, 0, sizeof(cipher));
-            cipher.cipherSuite0 = suites->suites[i];
-            cipher.cipherSuite  = suites->suites[i+1];
-            cipher.ssl          = ssl;
-#if defined(OPENSSL_ALL)
-            cipher.in_stack     = 1;
-            {
-                int j;
-                for (j = 0; j < cipherSz; j++) {
-                    if (cipher_names[j].cipherSuite0 == cipher.cipherSuite0 &&
-                            cipher_names[j].cipherSuite == cipher.cipherSuite) {
-                        cipher.offset = (unsigned long)j;
-                        break;
-                    }
-                }
-            }
-#endif
-            if (wolfSSL_sk_insert(ssl->suitesStack, &cipher, 0) <= 0) {
-                WOLFSSL_MSG("Error inserting cipher onto stack");
-                wolfSSL_sk_CIPHER_free(ssl->suitesStack);
-                ((WOLFSSL*)ssl)->suitesStack = NULL;
-                break;
-            }
-        }
-
-        /* If no ciphers were added, free empty stack and return NULL */
-        if (ssl->suitesStack != NULL && wolfSSL_sk_num(ssl->suitesStack) == 0) {
-            wolfSSL_sk_CIPHER_free(ssl->suitesStack);
-            ((WOLFSSL*)ssl)->suitesStack = NULL;
-        }
+        ((WOLFSSL*)ssl)->suitesStack = CipherStackNew(suites,
+            ssl->options.minDowngrade, ssl->options.mask, ssl, ssl->heap);
     }
     return ssl->suitesStack;
+}
+
+/* OpenSSL SSL_CTX_get_ciphers(): the cipher list of ctx, highest priority
+ * first. The stack is owned by ctx and must not be freed. Changing the list
+ * invalidates it, as in OpenSSL; here the next call frees the old stack.
+ * As in SSL_get_ciphers(), suites outside the version range are left out
+ * and NULL is returned when none is left.
+ * Before wolfSSL_new() derives ctx->suites the defaults are reported, as
+ * OpenSSL does after SSL_CTX_new(). ctx->suites is only read, under the CTX
+ * mutex that guards its derivation. Entries have no SSL, so accessors that
+ * read the session, like SSL_CIPHER_get_version(), report nothing. */
+WOLF_STACK_OF(WOLFSSL_CIPHER)* wolfSSL_CTX_get_ciphers_compat(
+    const WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_CTX* c = (WOLFSSL_CTX*)ctx;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    const Suites* suites;
+    WC_DECLARE_VAR(defSuites, Suites, 1, 0);
+
+    WOLFSSL_ENTER("wolfSSL_CTX_get_ciphers_compat");
+    if (ctx == NULL)
+        return NULL;
+
+    if (wolfSSL_RefWithMutexLock(&c->ref) != 0) {
+        WOLFSSL_MSG("Failed to lock CTX mutex");
+        return NULL;
+    }
+
+    suites = ctx->suites;
+    if (suites == NULL) {
+        /* Not derived yet: use the list wolfSSL_new() would derive. */
+        WC_ALLOC_VAR_EX(defSuites, Suites, 1, ctx->heap, DYNAMIC_TYPE_SUITES,
+            WOLFSSL_MSG("Memory alloc for Suites failed"));
+        if (WC_VAR_OK(defSuites)) {
+            XMEMSET(defSuites, 0, sizeof(Suites));
+            InitSSL_CTX_Suites(ctx, defSuites);
+            suites = defSuites;
+        }
+    }
+
+    if (suites != NULL) {
+        if (!CipherStackMatches(c->suitesStack, suites, ctx->minDowngrade,
+                ctx->mask)) {
+            wolfSSL_sk_CIPHER_free(c->suitesStack);
+            c->suitesStack = CipherStackNew(suites, ctx->minDowngrade,
+                ctx->mask, NULL, ctx->heap);
+        }
+        sk = c->suitesStack;
+    }
+
+    if (wolfSSL_RefWithMutexUnlock(&c->ref) != 0) {
+        WOLFSSL_MSG("Failed to unlock CTX mutex");
+    }
+
+    WC_FREE_VAR_EX(defSuites, ctx->heap, DYNAMIC_TYPE_SUITES);
+    return sk;
 }
 
 /* Get the name of the cipher at index priority in the cipher list configured
@@ -9666,8 +9764,6 @@ const char* wolfSSL_get_cipher_list_compat(const WOLFSSL* ssl, int priority)
 WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
-    const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
     const Suites* suites;
 
     WOLFSSL_ENTER("wolfSSL_get_client_ciphers");
@@ -9690,7 +9786,6 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
     }
     else { /* generate cipher suites stack if not already done */
         int i;
-        int j;
 
         ret = wolfSSL_sk_new_node(ssl->heap);
         if (ret != NULL) {
@@ -9708,22 +9803,8 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
                     continue;
                 }
 
-                cipher.cipherSuite0 = suites->suites[i];
-                cipher.cipherSuite  = suites->suites[i+1];
-                cipher.ssl          = ssl;
-                for (j = 0; j < cipherSz; j++) {
-                    if (cipher_names[j].cipherSuite0 ==
-                            cipher.cipherSuite0 &&
-                            cipher_names[j].cipherSuite ==
-                                    cipher.cipherSuite) {
-                        cipher.offset = (unsigned long)j;
-                        break;
-                    }
-                }
-
-                /* in_stack is checked in wolfSSL_CIPHER_description */
-                cipher.in_stack     = 1;
-
+                wolfssl_cipher_init(&cipher, ssl, suites->suites[i],
+                    suites->suites[i+1], 1);
                 if (wolfSSL_sk_CIPHER_push(ret, &cipher) <= 0) {
                     WOLFSSL_MSG("Error pushing client cipher onto stack");
                     wolfSSL_sk_CIPHER_free(ret);

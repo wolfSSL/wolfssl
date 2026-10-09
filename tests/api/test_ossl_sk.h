@@ -38,6 +38,9 @@ int test_wolfssl_sk_SSL_COMP(void);
 int test_wolfSSL_sk_CIPHER(void);
 int test_wolfssl_sk_WOLFSSL_STRING(void);
 int test_wolfssl_lh_retrieve(void);
+int test_wolfSSL_CTX_get_ciphers_default(void);
+int test_wolfSSL_CTX_get_ciphers_set_list(void);
+int test_wolfSSL_CTX_get_ciphers_versions(void);
 
 #define TEST_SSL_SK_DECLS                                       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_new_free_node),  \
@@ -53,7 +56,13 @@ int test_wolfssl_lh_retrieve(void);
     TEST_DECL_GROUP("ossl_sk", test_wolfssl_sk_SSL_COMP),       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_CIPHER),         \
     TEST_DECL_GROUP("ossl_sk", test_wolfssl_sk_WOLFSSL_STRING), \
-    TEST_DECL_GROUP("ossl_sk", test_wolfssl_lh_retrieve)
+    TEST_DECL_GROUP("ossl_sk", test_wolfssl_lh_retrieve),       \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_default),                  \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_set_list),                 \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_versions)
 
 #endif /* WOLFCRYPT_TEST_SSL_SK_H */
 
