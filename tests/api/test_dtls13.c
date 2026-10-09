@@ -1382,6 +1382,7 @@ int test_dtls13_rx_bytes(void)
     size_t base = sizeof(DtlsMsg) + sizeof(peer) + sizeof(DtlsFragBucket);
     word32 len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - base);
     size_t bytes;
+    const WOLFSSL_SOCKADDR* unv = &ssl->buffers.dtlsCtx.peer;
 
     data = (byte*)XMALLOC(WOLFSSL_DTLS_RX_MAX_BYTES, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -1394,7 +1395,8 @@ int test_dtls13_rx_bytes(void)
     ssl->buffers.dtlsCtx.peer.sa = peer;
     ssl->buffers.dtlsCtx.peer.sz = sizeof(peer);
     ssl->buffers.dtlsCtx.peer.bufSz = sizeof(peer);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 1,
+        NULL), 0);
     ExpectNotNull(current = ssl->dtls_rx_msg_list);
     ExpectIntEQ(current->peer.bufSz, sizeof(peer));
     ExpectIntEQ(DtlsMsgListRetainedBytes(current), base + 1);
@@ -1404,16 +1406,17 @@ int test_dtls13_rx_bytes(void)
     ExpectIntEQ(DtlsMsgListRetainedBytes(current), base + 1);
     if (EXPECT_SUCCESS())
         current->peer.sz = sizeof(peer);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, len, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, len, client_hello, 0, 1,
+        NULL), 0);
     ExpectNotNull(other = current->next);
     bytes = 2 * (base + 1);
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), bytes);
 
     /* An impossible completed CH, or projected disjoint allocation, must not
      * evict either the current entry or an unrelated message. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, data, len + 1, client_hello,
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, unv, data, len + 1, client_hello,
         0, 1, NULL), 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len, client_hello,
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello,
         2, len - 2, NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
     ExpectPtrEq(current->next, other);
@@ -1422,22 +1425,26 @@ int test_dtls13_rx_bytes(void)
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), bytes);
 
     /* Duplicate does not refresh; new bytes do, including partial overlaps. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 1,
+        NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len, client_hello, 0, 2, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 2,
+        NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, other);
     ExpectPtrEq(other->next, current);
     ExpectNull(current->next);
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), bytes + 1);
     /* Refresh other, making current the oldest again. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, len, client_hello, 1, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, len, client_hello, 1, 1,
+        NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, data, len, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, unv, data, len, client_hello, 0, 1,
+        NULL), 0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
 
     /* Completing the oldest to exactly the budget evicts BOTH other entries,
      * never the entry being extended. Ready raw still owns a bucket header. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len, client_hello,
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello,
         2, len - 2, NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
     ExpectNull(current->next);
@@ -1453,19 +1460,23 @@ int test_dtls13_rx_bytes(void)
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
 
     /* Promotion preserves only the verified peer's current ClientHello. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, client_hello, 0, 1, NULL), 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, 4, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, 4, client_hello, 0, 1,
+        NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 4, client_hello, 0, 1,
+        NULL), 0);
     current = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1,
         &ssl->buffers.dtlsCtx.peer);
     peer[0]++;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, 4, client_hello, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 4, client_hello, 0, 1,
+        NULL), 0);
     peer[0]--;
     ssl->options.dtlsStateful = 1;
     DtlsMsgListPurgeUnverified(ssl, 1);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
     ExpectIntEQ(DtlsMsgListRetainedBytes(current), base + 1);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, 4, client_hello, 1, 3, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, NULL, data, 4, client_hello, 1, 3,
+        NULL), 0);
     ExpectIntEQ(current->ready, 1);
     ExpectIntEQ(DtlsMsgListRetainedBytes(current), base + 4);
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);

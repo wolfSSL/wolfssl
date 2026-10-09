@@ -11380,15 +11380,21 @@ static int DtlsMsgPeerEqual(const DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer)
 #endif
 
 /* Whether msg is the message with the given epoch and sequence number. With
- * peer set it must also come from that peer, which tells apart the
- * ClientHellos of different peers buffered before their cookies verify. */
+ * peer set it must be an unverified entry from that peer, which tells apart
+ * the ClientHellos of different peers buffered before their cookies verify.
+ * Without peer it must be an entry stored statefully: an unverified entry is
+ * never merged with, or found as, a message of the connection. */
 static int DtlsMsgMatch(const DtlsMsg* msg, word16 epoch, word32 seq,
                         const WOLFSSL_SOCKADDR* peer)
 {
     int match = msg->epoch == epoch && msg->seq == seq;
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    if (match && peer != NULL)
-        match = DtlsMsgPeerEqual(msg, peer);
+    if (match) {
+        if (peer != NULL)
+            match = msg->unverified && DtlsMsgPeerEqual(msg, peer);
+        else
+            match = !msg->unverified;
+    }
 #else
     (void)peer;
 #endif
@@ -11406,21 +11412,6 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq,
 }
 
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-/* The peer a handshake message of the given type is keyed on in the receive
- * list, or NULL when it is not keyed. Only a plaintext ClientHello a DTLS 1.3
- * server receives before it has verified a cookie is keyed: while stateless the
- * default I/O callback accepts datagrams from any address, so ClientHellos of
- * different peers must not be reassembled into one. Once the server is stateful
- * the peer is pinned and, for encrypted messages, AEAD is the binding. */
-/* for review: it's unclear to me why we need this function */
-const WOLFSSL_SOCKADDR* DtlsMsgUnverifiedPeer(WOLFSSL* ssl, byte type)
-{
-    if (ssl->options.side == WOLFSSL_SERVER_END && !ssl->options.dtlsStateful &&
-            type == client_hello && ssl->keys.decryptedCur != 1)
-        return &ssl->buffers.dtlsCtx.peer;
-    return NULL;
-}
-
 /* The current peer's cookie has verified. Drop every buffered message except
  * its ClientHello with sequence number seq: the rest are other peers'
  * unverified ClientHellos, which this now stateful object no longer serves,
@@ -11436,8 +11427,10 @@ void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq)
     WOLFSSL_ENTER("DtlsMsgListPurgeUnverified");
     while (*prevNext != NULL) {
         DtlsMsg* cur = *prevNext;
-        if (cur->seq == seq &&
+        if (cur->seq == seq && cur->unverified &&
                 DtlsMsgPeerEqual(cur, &ssl->buffers.dtlsCtx.peer)) {
+            /* Kept as a message of the now stateful connection */
+            cur->unverified = 0;
             prevNext = &cur->next;
         }
         else {
@@ -11449,14 +11442,18 @@ void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq)
 }
 #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG */
 
-/* Key msg on peer, a copy of the address bytes. NULL peer keys nothing. */
+/* Mark msg unverified and key it on peer, a copy of the address bytes. NULL
+ * peer keys nothing. */
 static int DtlsMsgSetPeer(DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer,
                           void* heap)
 {
 /* for review: can we do an anlaysis of the benefit of maintaining DTLS_CH_FRAG
 * compile-time knob? */
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    if (peer != NULL && peer->sz > 0) {
+    if (peer == NULL)
+        return 0;
+    msg->unverified = 1;
+    if (peer->sz > 0) {
         if (wolfssl_local_SockAddrSet(&msg->peer, peer->sa, peer->sz, heap)
                 != WOLFSSL_SUCCESS) {
             return MEMORY_E;
@@ -11546,11 +11543,15 @@ static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected,
     return 0;
 }
 
-int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
-        word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
+/* Store a fragment of handshake message seq in the receive list. peer is set
+ * only for a plaintext ClientHello a DTLS 1.3 server holds before it has
+ * verified a cookie: the entry is then keyed on, and found only through, that
+ * peer, and is held within the eviction rules for unverified entries. */
+int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
+        const WOLFSSL_SOCKADDR* peer, const byte* data, word32 dataSz,
+        byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     DtlsMsg* cur;
-    const WOLFSSL_SOCKADDR* peer = NULL;
     size_t projected;
     size_t peerSz = 0;
     word32 received;
@@ -11560,10 +11561,12 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     WOLFSSL_ENTER("DtlsMsgStore");
     if (data == NULL || fragOffset > dataSz || fragSz > dataSz - fragOffset)
         return BAD_FUNC_ARG;
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-    peer = DtlsMsgUnverifiedPeer(ssl, type);
+#ifdef WOLFSSL_DTLS_CH_FRAG
     if (peer != NULL)
         peerSz = peer->sz;
+#else
+    if (peer != NULL)
+        return BAD_FUNC_ARG;
 #endif
     cur = DtlsMsgFind(ssl->dtls_rx_msg_list, epoch, seq, peer);
     isNew = cur == NULL;
@@ -22173,7 +22176,7 @@ int DtlsMsgDrain(WOLFSSL* ssl)
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
      * last message... */
-    while (item != NULL &&
+    while (item != NULL && !DtlsMsgIsUnverified(item) &&
             ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
             item->ready && ret == 0) {
         word32 idx = 0;
@@ -22314,7 +22317,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             WOLFSSL_MSG("Current message is out of order");
 
             ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
-                         ssl->keys.dtls_peer_handshake_number,
+                         ssl->keys.dtls_peer_handshake_number, NULL,
                          input + *inOutIdx, size, type,
                          fragOffset, fragSz, ssl->heap);
             if (ret != 0)
@@ -22379,7 +22382,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
 
         ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
-                     ssl->keys.dtls_peer_handshake_number,
+                     ssl->keys.dtls_peer_handshake_number, NULL,
                      input + *inOutIdx, size, type,
                      fragOffset, fragSz, ssl->heap);
         if (ret != 0)
@@ -22404,7 +22407,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
              * DtlsMsgDrain because in case of a WC_PENDING_E it will be
              * easier this way. */
             ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
-                         ssl->keys.dtls_peer_handshake_number,
+                         ssl->keys.dtls_peer_handshake_number, NULL,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
             if (ret != 0)

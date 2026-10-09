@@ -6425,11 +6425,18 @@ typedef struct DtlsMsg {
     byte            ready:1;
     byte            encrypted:1;
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    WOLFSSL_SOCKADDR peer;     /* Sender of a plaintext ClientHello buffered
-                                * before its cookie was verified. Never set
+    byte            unverified:1; /* A plaintext ClientHello held before its
+                                   * cookie was verified, keyed on peer */
+    WOLFSSL_SOCKADDR peer;     /* Sender of an unverified entry. Never set
                                 * on an encrypted message: AEAD binds those. */
 #endif
 } DtlsMsg;
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    #define DtlsMsgIsUnverified(msg) ((msg)->unverified)
+#else
+    #define DtlsMsgIsUnverified(msg) 0
+#endif
 
 
 #ifdef HAVE_NETX
@@ -7936,13 +7943,12 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                           word32 seq,
                                           const WOLFSSL_SOCKADDR* peer);
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-    WOLFSSL_LOCAL const WOLFSSL_SOCKADDR* DtlsMsgUnverifiedPeer(WOLFSSL* ssl,
-                                                               byte type);
     WOLFSSL_TEST_VIS void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq);
 #endif
 
     WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
     WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
+                                    const WOLFSSL_SOCKADDR* peer,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);

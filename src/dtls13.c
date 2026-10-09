@@ -425,6 +425,11 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     while (msg != NULL) {
+        /* an unverified ClientHello is processed only for its own peer, by
+         * Dtls13ProcessUnverifiedCh() */
+        if (DtlsMsgIsUnverified(msg))
+            break;
+
         /* message not in order */
         if (ssl->keys.dtls_expected_peer_handshake_number != msg->seq)
             break;
@@ -453,9 +458,32 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
     return ssl->dtls_rx_msg_list != NULL &&
+           !DtlsMsgIsUnverified(ssl->dtls_rx_msg_list) &&
            ssl->dtls_rx_msg_list->ready &&
            ssl->dtls_rx_msg_list->seq ==
                ssl->keys.dtls_expected_peer_handshake_number;
+}
+
+/* The peer a ClientHello of this record is keyed on in the receive list, or
+ * NULL when the message is not keyed. Only a plaintext ClientHello a server
+ * receives before it has verified a cookie is keyed: while stateless the
+ * default I/O callback accepts datagrams from any address, so ClientHellos of
+ * different peers must not be reassembled into one. Once the server is
+ * stateful the peer is pinned and, for encrypted messages, AEAD is the
+ * binding. */
+static const WOLFSSL_SOCKADDR* Dtls13UnverifiedChPeer(WOLFSSL* ssl,
+    enum HandShakeType type)
+{
+#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            !ssl->options.dtlsStateful && type == client_hello &&
+            !IsEncryptionOn(ssl, 0))
+        return &ssl->buffers.dtlsCtx.peer;
+#else
+    (void)ssl;
+    (void)type;
+#endif
+    return NULL;
 }
 
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
@@ -2100,14 +2128,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
-#if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)
         /* Set when this is a ClientHello held before its cookie is verified.
          * Such entries are keyed by peer and processed one at a time. */
         const WOLFSSL_SOCKADDR* unverifiedPeer =
-            DtlsMsgUnverifiedPeer(ssl, handshakeType);
-#endif
+            Dtls13UnverifiedChPeer(ssl, (enum HandShakeType)handshakeType);
         ret = DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
-            ssl->keys.dtls_peer_handshake_number,
+            ssl->keys.dtls_peer_handshake_number, unverifiedPeer,
             input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
             fragOff, fragLength, ssl->heap);
         if (ret != 0)
