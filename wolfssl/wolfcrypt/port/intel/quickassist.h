@@ -401,14 +401,14 @@ WOLFSSL_LOCAL int IntelQaGetCyInstanceCount(void);
             const byte* iv, word32 ivSz,
             byte* authTag, word32 authTagSz,
             const byte* authIn, word32 authInSz);
-    #ifdef HAVE_AES_DECRYPT
+    #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
         WOLFSSL_LOCAL int IntelQaSymAesGcmDecrypt(struct WC_ASYNC_DEV* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
             const byte* iv, word32 ivSz,
             const byte* authTag, word32 authTagSz,
             const byte* authIn, word32 authInSz);
-    #endif /* HAVE_AES_DECRYPT */
+    #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
     #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
 

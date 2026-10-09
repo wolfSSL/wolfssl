@@ -131,12 +131,12 @@ int wc_Psoc6_Aes_GcmEncrypt(struct Aes* aes, byte* out, const byte* in,
                             word32 sz, const byte* iv, word32 ivSz,
                             byte* authTag, word32 authTagSz, const byte* authIn,
                             word32 authInSz);
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int wc_Psoc6_Aes_GcmDecrypt(struct Aes* aes, byte* out, const byte* in,
                             word32 sz, const byte* iv, word32 ivSz,
                             const byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz);
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* HAVE_AESGCM */
 #endif /* NO_AES */
 

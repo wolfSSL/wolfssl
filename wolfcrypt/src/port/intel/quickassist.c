@@ -2627,7 +2627,7 @@ int IntelQaSymAesGcmEncrypt(WC_ASYNC_DEV* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_AES_GCM, authTag, authTagSz, authIn, authInSz);
 }
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int IntelQaSymAesGcmDecrypt(WC_ASYNC_DEV* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
@@ -2641,7 +2641,7 @@ int IntelQaSymAesGcmDecrypt(WC_ASYNC_DEV* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_AES_GCM, (byte*)authTag, authTagSz, authIn, authInSz);
 }
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* HAVE_AESGCM */
 
 #ifndef NO_DES3
