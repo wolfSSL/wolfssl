@@ -5651,7 +5651,7 @@ int test_tls13_multi_pqc_key_share(void)
         #define TEST_TLS13_BAD_KS_ML_KEM_768
     #endif
     #if defined(WOLFSSL_PQC_HYBRIDS) && !defined(WOLFSSL_NO_ML_KEM_768) && \
-        defined(HAVE_CURVE25519)
+        defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
         #define TEST_TLS13_BAD_KS_X25519MLKEM768
     #endif
     #if defined(WOLFSSL_PQC_HYBRIDS) && !defined(WOLFSSL_NO_ML_KEM_768) && \
