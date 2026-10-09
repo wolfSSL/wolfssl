@@ -2297,23 +2297,7 @@ end:
 #elif defined(WOLFSSL_LINUXKM)
     word32 TimeNowInMilliseconds(void)
     {
-        s64 t;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        struct timespec ts;
-        getnstimeofday(&ts);
-        t = ts.tv_sec * (s64)1000;
-        t += ts.tv_nsec / (s64)1000000;
-#else
-        struct timespec64 ts;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-        ts = current_kernel_time64();
-#else
-        ktime_get_coarse_real_ts64(&ts);
-#endif
-        t = ts.tv_sec * 1000L;
-        t += ts.tv_nsec / 1000000L;
-#endif
-        return (word32)t;
+        return (word32)wc_linuxkm_time_epoch_msecs();
     }
 #elif defined(WOLFSSL_QNX_CAAM)
     word32 TimeNowInMilliseconds(void)
