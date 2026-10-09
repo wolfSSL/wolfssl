@@ -33,6 +33,10 @@
  *   instead of inline arrays sized for the highest enabled one, which leaves
  *   falcon_key at a few dozen bytes. wc_falcon_set_level can then fail with
  *   MEMORY_E.
+ * WOLFSSL_FALCON_VERIFY_NO_MALLOC                        Default: OFF
+ *   Verify in a 4*n byte buffer held in falcon_key, sized for the highest
+ *   enabled level, instead of allocating it per call (or of the stack under
+ *   WOLFSSL_NO_MALLOC). A key then verifies one signature at a time.
  *
  * WC_FALCON_CACHE_PRIV_BASIS                             Default: OFF
  *   Cache the secret basis (f, g, F, G) in the key on first sign, skipping
@@ -59,6 +63,14 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/memory.h>
+
+/* Hot arithmetic in the NTT and sampler loops; -Os would leave it as calls. */
+#if defined(__GNUC__) && !defined(NO_INLINE)
+    #define FALCON_HOT_INLINE WC_INLINE __attribute__((always_inline))
+#else
+    #define FALCON_HOT_INLINE WC_INLINE
+#endif
+
 /* fpr / FFT / poly seam declarations, folded in from the former internal
  * wc_falcon_{fpr,fft,poly}.h so the native Falcon implementation is a single
  * translation unit (the AVX2/NEON FFT backends at the end of this file
@@ -455,6 +467,7 @@ static size_t falcon_trim_i8_decode(sword8* x, unsigned logn,
  * wolfCrypt error. */
 static int falcon_privkey_decode(const byte* sk, size_t sklen,
         sword8* f, sword8* g, sword8* F, unsigned logn);
+static word32 poly_small_sqnorm(const sword8* f, unsigned logn);
 
 /* Encode a Falcon secret key from (f, g, F). Inverse of falcon_privkey_decode.
  * Returns bytes written, or 0 on failure. */
@@ -482,11 +495,11 @@ static size_t falcon_privkey_encode(byte* sk, size_t max_sk,
     extern "C" {
 #endif
 
-/* PRNG buffer: an integral number of SHAKE256 squeeze blocks (rate = 136
- * bytes). 136 is divisible by 8, so 8-byte reads never straddle the boundary
- * that triggers a refill. */
+/* PRNG buffer: one SHAKE256 squeeze block (rate = 136 bytes). The stream is
+ * consumed in batches of FALCON_PRNG_BLOCKS blocks: an 8-byte read spans a
+ * block boundary inside a batch and drops the batch tail at its end. */
 #define FALCON_PRNG_BLOCKS   8
-#define FALCON_PRNG_BUFLEN   (FALCON_PRNG_BLOCKS * WC_SHA3_256_BLOCK_SIZE)
+#define FALCON_PRNG_BUFLEN   WC_SHA3_256_BLOCK_SIZE
 
 /* SHAKE256-backed pseudo-random byte stream.
  *
@@ -499,6 +512,7 @@ typedef struct falcon_prng {
     byte     buf[FALCON_PRNG_BUFLEN];/* squeezed stream buffer         */
     word32   ptr;                   /* index of next byte to consume  */
     word32   len;                   /* number of valid bytes in buf   */
+    word32   blk;                   /* index of buf within its batch  */
     int      err;                   /* sticky: first refill error, or 0 */
 } falcon_prng;
 
@@ -553,7 +567,7 @@ static int falcon_sampler_z(void* ctx, fpr mu, fpr isigma);
  *   rng   initialized WC_RNG used to seed the SHAKE256 sampler stream.
  *   f,g   output secret polynomials (n signed coefficients each).
  *   F,G   output NTRU completion polynomials (n signed coefficients each);
- *         G may be reconstructed internally but is always written out here.
+ *         G may be NULL, as it can be recomputed from f, g and F.
  *   h     output public key polynomial (n coefficients in [0, q)); may be
  *         NULL if only the (f,g,F,G) basis is required.
  *   logn  base-2 logarithm of the ring degree (1..10; 9 and 10 are the
@@ -692,11 +706,13 @@ static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 /* operand-dependent timing on platforms whose shift is data dependent.      */
 /* ------------------------------------------------------------------------- */
 
-/* Return x unchanged but opaque to the optimizer, so that masks derived from
- * it are not turned into conditional branches. */
+/* Return x unchanged but opaque to the optimizer except on AArch64, so that
+ * masks derived from it are not turned into conditional branches. */
 static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
 {
-#if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+#if defined(__GNUC__) && defined(__aarch64__)
+    /* gcc and clang lower these selects to csel here, inlined or not. */
+#elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
     __asm__ __volatile__("" : "+r"(x));
 #else
     volatile word32 v = x;
@@ -704,6 +720,41 @@ static WC_MAYBE_UNUSED WC_INLINE word32 fpr_ct_opaque32(word32 x)
 #endif
     return x;
 }
+
+/* gcc derives a 64-bit carry or borrow with a branch on Xtensa. */
+#ifdef __XTENSA__
+static WC_MAYBE_UNUSED FALCON_HOT_INLINE word64 falcon_add64_x(word64 a,
+    word64 b)
+{
+    word32 al = (word32)a;
+    word32 bl = (word32)b;
+    word32 lo = al + bl;
+    word32 c = ((al & bl) | ((al | bl) & ~lo)) >> 31;
+
+    return ((word64)((word32)(a >> 32) + (word32)(b >> 32) + c) << 32) | lo;
+}
+
+static WC_MAYBE_UNUSED FALCON_HOT_INLINE word64 falcon_sub64_x(word64 a,
+    word64 b)
+{
+    word32 al = (word32)a;
+    word32 bl = (word32)b;
+    word32 lo = al - bl;
+    word32 c = ((~al & bl) | ((~al | bl) & lo)) >> 31;
+
+    return ((word64)((word32)(a >> 32) - (word32)(b >> 32) - c) << 32) | lo;
+}
+
+#define falcon_add64(a, b)  falcon_add64_x((word64)(a), (word64)(b))
+#define falcon_sub64(a, b)  falcon_sub64_x((word64)(a), (word64)(b))
+#define falcon_mask64(b)    ((word64)(sword64)(sword32)(0U - (word32)(b)))
+#define falcon_nmask64(b)   ((word64)(sword64)(sword32)((word32)(b) - 1U))
+#else
+#define falcon_add64(a, b)  ((word64)(a) + (word64)(b))
+#define falcon_sub64(a, b)  ((word64)(a) - (word64)(b))
+#define falcon_mask64(b)    ((word64)0 - (word64)(b))
+#define falcon_nmask64(b)   ((word64)(b) - 1)
+#endif
 
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
 static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
@@ -784,11 +835,11 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
     /* If e >= -1076 the value is "normal"; otherwise it would be subnormal,
      * which we clamp down to zero. */
     e += 1076;
-    t = (word32)e >> 31;
-    m &= (word64)t - 1;
+    t = fpr_ct_opaque32((word32)e >> 31);
+    m &= falcon_nmask64(t);
 
     /* If m == 0 we want a zero: force e to 0 too (the sign is conserved). */
-    t = (word32)(m >> 54);
+    t = fpr_ct_opaque32((word32)(m >> 54));
     e &= -(int)t;
 
     /* The 52 stored mantissa bits come from m. Its top set bit (bit 54)
@@ -800,7 +851,7 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
      * 011, 110 or 111. A carry spilling into the exponent field is the desired
      * behaviour. */
     f = (unsigned int)m & 7U;
-    x += (0xC8U >> f) & 1U;
+    x = falcon_add64(x, (0xC8U >> f) & 1U);
     return x;
 }
 
@@ -811,33 +862,33 @@ static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
                                                                 \
         (e) -= 63;                                              \
                                                                 \
-        nt_ = (word32)((m) >> 32);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
-        (m) ^= ((m) ^ ((m) << 32)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 32));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
+        (m) ^= ((m) ^ ((m) << 32)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 5);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 48);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
-        (m) ^= ((m) ^ ((m) << 16)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 48));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
+        (m) ^= ((m) ^ ((m) << 16)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 4);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 56);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
-        (m) ^= ((m) ^ ((m) <<  8)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 56));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
+        (m) ^= ((m) ^ ((m) <<  8)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 3);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 60);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
-        (m) ^= ((m) ^ ((m) <<  4)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 60));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
+        (m) ^= ((m) ^ ((m) <<  4)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 2);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 62);                               \
-        nt_ = (nt_ | (word32)(0U - nt_)) >> 31;                  \
-        (m) ^= ((m) ^ ((m) <<  2)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 62));              \
+        nt_ = fpr_ct_opaque32((nt_ | (0U - nt_)) >> 31);         \
+        (m) ^= ((m) ^ ((m) <<  2)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_ << 1);                                  \
                                                                 \
-        nt_ = (word32)((m) >> 63);                               \
-        (m) ^= ((m) ^ ((m) <<  1)) & ((word64)nt_ - 1);         \
+        nt_ = fpr_ct_opaque32((word32)((m) >> 63));              \
+        (m) ^= ((m) ^ ((m) <<  1)) & falcon_nmask64(nt_);       \
         (e) += (int)(nt_);                                       \
     } while (0)
 
@@ -857,9 +908,9 @@ fpr fpr_scaled(sword64 i, int sc)
     word64 m;
 
     /* Sign and absolute value (-i == 1 + ~i). */
-    s = (int)((word64)i >> 63);
-    i ^= -(sword64)s;
-    i += s;
+    s = (int)fpr_ct_opaque32((word32)((word64)i >> 63));
+    i ^= (sword64)falcon_mask64(s);
+    i = (sword64)falcon_add64(i, s);
 
     /* Suppose i != 0 for now: normalize it so the top bit is set. */
     m = (word64)i;
@@ -872,8 +923,8 @@ fpr fpr_scaled(sword64 i, int sc)
     m >>= 9;
 
     /* Corrective action for i == 0: clamp e and m to zero. */
-    t = (word32)((word64)((word64)i | (word64)(0 - (word64)i)) >> 63);
-    m &= (word64)0 - (word64)t;
+    t = fpr_ct_opaque32((word32)(((word64)i | falcon_sub64(0, i)) >> 63));
+    m &= falcon_mask64(t);
     e &= -(int)t;
 
     /* FPR() handles exponents that are too low. */
@@ -904,7 +955,7 @@ sword64 fpr_rint(fpr x)
     e = 1085 - ((int)(x >> 52) & 0x7FF);
 
     /* A shift of more than 63 bits sets m to zero (also covers x == 0). */
-    m &= (word64)0 - (word64)((word32)(e - 64) >> 31);
+    m &= falcon_mask64(fpr_ct_opaque32((word32)(e - 64)) >> 31);
     e &= 63;
 
     /* Right-shift m by e, rounding to nearest with ties to even. We build a
@@ -913,11 +964,11 @@ sword64 fpr_rint(fpr x)
     d = fpr_ulsh(m, 63 - e);
     dd = (word32)d | ((word32)(d >> 32) & 0x1FFFFFFF);
     f = (word32)(d >> 61) | ((dd | (word32)(0U - dd)) >> 31);
-    m = fpr_ursh(m, e) + (word64)((0xC8U >> f) & 1U);
+    m = falcon_add64(fpr_ursh(m, e), (0xC8U >> f) & 1U);
 
     /* Apply the sign bit. */
     s = (word32)(x >> 63);
-    return ((sword64)m ^ -(sword64)s) + (sword64)s;
+    return (sword64)falcon_add64(m ^ falcon_mask64(s), s);
 }
 
 sword64 fpr_floor(fpr x)
@@ -931,7 +982,7 @@ sword64 fpr_floor(fpr x)
     e = (int)(x >> 52) & 0x7FF;
     t = x >> 63;
     xi = (sword64)(((x << 10) | ((word64)1 << 62)) & (((word64)1 << 63) - 1));
-    xi = (xi ^ -(sword64)t) + (sword64)t;
+    xi = (sword64)falcon_add64(xi ^ (sword64)falcon_mask64(t), t);
     cc = 1085 - e;
 
     /* An arithmetic right-shift implements floor() (round toward -inf) for
@@ -941,8 +992,8 @@ sword64 fpr_floor(fpr x)
     /* If the true shift count was 64 or more, replace xi with 0 (nonnegative)
      * or -1 (negative). This also fixes the bogus implicit-bit assumption for
      * a zero input. */
-    xi ^= (xi ^ -(sword64)t)
-          & -(sword64)fpr_ct_opaque32((word32)(63 - cc) >> 31);
+    xi ^= (xi ^ (sword64)falcon_mask64(t))
+          & (sword64)falcon_mask64(fpr_ct_opaque32((word32)(63 - cc) >> 31));
     return xi;
 }
 
@@ -960,11 +1011,11 @@ sword64 fpr_trunc(fpr x)
 
     /* If the exponent is too low (cc > 63), clamp to zero (also covers
      * x == 0). */
-    xu &= (word64)0 - (word64)((word32)(cc - 64) >> 31);
+    xu &= falcon_mask64(fpr_ct_opaque32((word32)(cc - 64)) >> 31);
 
     /* Apply the sign. */
     t = x >> 63;
-    xu = (xu ^ ((word64)0 - t)) + t;
+    xu = falcon_add64(xu ^ falcon_mask64(t), t);
     return (sword64)xu;
 }
 
@@ -983,11 +1034,10 @@ fpr fpr_add(fpr x, fpr y)
      * and the sign of x is 1, which guarantees the result keeps the sign of x
      * (and is +0 in the exact-cancellation case). */
     m = ((word64)1 << 63) - 1;
-    za = (x & m) - (y & m);
-    cs = (word32)(za >> 63)
-         | ((1U - (word32)(((word64)0 - za) >> 63)) & (word32)(x >> 63));
+    za = falcon_sub64(x & m, y & m);
+    cs = fpr_ct_opaque32((word32)(falcon_sub64(za, x >> 63) >> 32)) >> 31;
     cs = fpr_ct_opaque32(cs);
-    m = (x ^ y) & ((word64)0 - (word64)cs);
+    m = (x ^ y) & falcon_mask64(cs);
     x ^= m;
     y ^= m;
 
@@ -997,29 +1047,30 @@ fpr fpr_add(fpr x, fpr y)
     ex = (int)(x >> 52);
     sx = ex >> 11;
     ex &= 0x7FF;
-    m = (word64)(word32)((ex + 0x7FF) >> 11) << 52;
+    m = (word64)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11)) << 52;
     xu = ((x & (((word64)1 << 52) - 1)) | m) << 3;
     ex -= 1078;
     ey = (int)(y >> 52);
     sy = ey >> 11;
     ey &= 0x7FF;
-    m = (word64)(word32)((ey + 0x7FF) >> 11) << 52;
+    m = (word64)fpr_ct_opaque32((word32)((ey + 0x7FF) >> 11)) << 52;
     yu = ((y & (((word64)1 << 52) - 1)) | m) << 3;
     ey -= 1078;
 
     /* x has the larger exponent; right-shift y to align. A shift of 60 bits or
      * more clamps y to zero. */
     cc = ex - ey;
-    yu &= (word64)0 - (word64)((word32)(cc - 60) >> 31);
+    yu &= falcon_mask64(fpr_ct_opaque32((word32)(cc - 60)) >> 31);
     cc &= 63;
 
     /* The lowest bit of yu becomes sticky over the shifted-out bits. */
-    m = fpr_ulsh(1, cc) - 1;
-    yu |= (yu & m) + m;
+    m = falcon_sub64(fpr_ulsh(1, cc), 1);
+    yu |= falcon_add64(yu & m, m);
     yu = fpr_ursh(yu, cc);
 
     /* Same sign: add mantissas; differing signs: subtract. */
-    xu += yu - ((yu << 1) & ((word64)0 - (word64)(sx ^ sy)));
+    xu = falcon_add64(xu, falcon_sub64(yu, (yu << 1)
+                & falcon_mask64(fpr_ct_opaque32((word32)(sx ^ sy)))));
 
     /* Renormalize the (possibly cancelled or carried) result. */
     FPR_NORM64(xu, ex);
@@ -1053,8 +1104,8 @@ fpr fpr_half(fpr x)
     word32 t;
 
     x -= (word64)1 << 52;
-    t = (((word32)(x >> 52) & 0x7FF) + 1) >> 11;
-    x &= (word64)t - 1;
+    t = fpr_ct_opaque32((((word32)(x >> 52) & 0x7FF) + 1) >> 11);
+    x &= falcon_nmask64(t);
     return x;
 }
 
@@ -1094,7 +1145,7 @@ fpr fpr_mul(fpr x, fpr y)
     zu = (word64)x1 * (word64)y1;
     z2 += (z1 >> 25);
     z1 &= 0x01FFFFFF;
-    zu += z2;
+    zu = falcon_add64(zu, z2);
 
     /* The product is in 2^104..2^106-1. Keep the top part (zu); fold the low
      * limbs into a sticky bit. */
@@ -1104,7 +1155,7 @@ fpr fpr_mul(fpr x, fpr y)
      * conditional right-shift preserves the sticky bit. */
     zv = (zu >> 1) | (zu & 1);
     w = fpr_ct_opaque32((word32)(zu >> 55));
-    zu ^= (zu ^ zv) & ((word64)0 - w);
+    zu ^= (zu ^ zv) & falcon_mask64(w);
 
     /* Aggregate scaling factor: sum the exponents, remove 2*(1023+52), then
      * add 50 + w (the right-shift amounts applied above). */
@@ -1117,7 +1168,7 @@ fpr fpr_mul(fpr x, fpr y)
 
     /* Corrective action: if either operand is zero, clamp the mantissa. */
     d = (int)fpr_ct_opaque32((word32)(((ex + 0x7FF) & (ey + 0x7FF)) >> 11));
-    zu &= (word64)0 - (word64)d;
+    zu &= falcon_mask64(d);
 
     return FPR(s, e, zu);
 }
@@ -1141,21 +1192,21 @@ fpr fpr_div(fpr x, fpr y)
     for (i = 0; i < 55; i++) {
         word64 b;
 
-        b = ((xu - yu) >> 63) - 1;
-        xu -= b & yu;
+        b = falcon_nmask64(falcon_sub64(xu, yu) >> 63);
+        xu = falcon_sub64(xu, b & yu);
         q |= b & 1;
         xu <<= 1;
         q <<= 1;
     }
 
     /* Make the 56th (extra) bit sticky: set it iff the remainder is nonzero. */
-    q |= (xu | ((word64)0 - xu)) >> 63;
+    q |= (xu | falcon_sub64(0, xu)) >> 63;
 
     /* Normalize q to the 2^54..2^55-1 range (conditional shift, sticky-aware);
      * the top bit may be zero but then the next bit is one. */
     q2 = (q >> 1) | (q & 1);
-    w = q >> 55;
-    q ^= (q ^ q2) & ((word64)0 - w);
+    w = fpr_ct_opaque32((word32)(q >> 55));
+    q ^= (q ^ q2) & falcon_mask64(w);
 
     /* Scaling: exponent biases cancel; remove 55 (division shift) and add w. */
     ex = (int)((x >> 52) & 0x7FF);
@@ -1167,10 +1218,10 @@ fpr fpr_div(fpr x, fpr y)
 
     /* Corrective action for x == 0 (division by zero is excluded by the
      * caller's contract). */
-    d = (ex + 0x7FF) >> 11;
+    d = (int)fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11));
     s &= d;
     e &= -d;
-    q &= (word64)0 - (word64)d;
+    q &= falcon_mask64(d);
 
     return FPR(s, e, q);
 }
@@ -1194,7 +1245,7 @@ fpr fpr_sqrt(fpr x)
 
     /* If the exponent is odd, double the mantissa and decrement the exponent,
      * then halve the exponent for the square root. */
-    xu += xu & ((word64)0 - (word64)(e & 1));
+    xu = falcon_add64(xu, xu & falcon_mask64(fpr_ct_opaque32((word32)e & 1)));
     e >>= 1;
 
     /* Double the mantissa: now in 2^53..2^55-1, representing a value in
@@ -1208,11 +1259,11 @@ fpr fpr_sqrt(fpr x)
     for (i = 0; i < 54; i++) {
         word64 t, b;
 
-        t = s + r;
-        b = ((xu - t) >> 63) - 1;
-        s += (r << 1) & b;
-        xu -= t & b;
-        q += r & b;
+        t = falcon_add64(s, r);
+        b = falcon_nmask64(falcon_sub64(xu, t) >> 63);
+        s = falcon_add64(s, (r << 1) & b);
+        xu = falcon_sub64(xu, t & b);
+        q = falcon_add64(q, r & b);
         xu <<= 1;
         r >>= 1;
     }
@@ -1220,13 +1271,13 @@ fpr fpr_sqrt(fpr x)
     /* q is a rounded-low 54-bit value (leading 1, 52 fractional digits and a
      * guard bit); add a sticky bit for the remaining operand. */
     q <<= 1;
-    q |= (xu | ((word64)0 - xu)) >> 63;
+    q |= (xu | falcon_sub64(0, xu)) >> 63;
 
     /* q is now an integer in 2^54..2^55-1; bias the exponent by 54. */
     e -= 54;
 
     /* Corrective action for an operand of value zero. */
-    q &= (word64)0 - (word64)((ex + 0x7FF) >> 11);
+    q &= falcon_mask64(fpr_ct_opaque32((word32)((ex + 0x7FF) >> 11)));
 
     return FPR(0, e, q);
 }
@@ -1247,12 +1298,14 @@ int fpr_lt(fpr x, fpr y)
 
     sx = (sword64)x;
     sy = (sword64)y;
-    sy &= ~((sx ^ sy) >> 63); /* sy = 0 if the signs differ */
+    /* sy = 0 if the signs differ */
+    sy &= (sword64)falcon_nmask64(fpr_ct_opaque32((word32)((x ^ y) >> 63)));
 
-    cc0 = (int)((sx - sy) >> 63) & 1; /* neither subtraction overflows when */
-    cc1 = (int)((sy - sx) >> 63) & 1; /* the signs are the same             */
+    /* Neither subtraction overflows when the signs are the same. */
+    cc0 = (int)(fpr_ct_opaque32((word32)(falcon_sub64(sx, sy) >> 32)) >> 31);
+    cc1 = (int)(fpr_ct_opaque32((word32)(falcon_sub64(sy, sx) >> 32)) >> 31);
 
-    return cc0 ^ ((cc0 ^ cc1) & (int)((x & y) >> 63));
+    return cc0 ^ ((cc0 ^ cc1) & (int)fpr_ct_opaque32((word32)((x & y) >> 63)));
 }
 #endif /* !WOLFSSL_FALCON_FPR_ASM */
 
@@ -1270,15 +1323,16 @@ int fpr_lt(fpr x, fpr y)
 #define FALCON_MULHI(z, y) \
     ((word64)(((__uint128_t)(word64)(z) * (__uint128_t)(word64)(y)) >> 64))
 #else
-static WC_INLINE word64 falcon_mulhi(word64 z, word64 y)
+static FALCON_HOT_INLINE word64 falcon_mulhi(word64 z, word64 y)
 {
     word32 z0 = (word32)z, z1 = (word32)(z >> 32);
     word32 y0 = (word32)y, y1 = (word32)(y >> 32);
-    word64 a = ((word64)z0 * (word64)y1) + (((word64)z0 * (word64)y0) >> 32);
+    word64 a = falcon_add64((word64)z0 * (word64)y1,
+                            ((word64)z0 * (word64)y0) >> 32);
     word64 b = ((word64)z1 * (word64)y0);
-    word64 c = (a >> 32) + (b >> 32);
-    c += (((word64)(word32)a + (word64)(word32)b) >> 32);
-    c += (word64)z1 * (word64)y1;
+    word64 c = falcon_add64(a >> 32, b >> 32);
+    c = falcon_add64(c, falcon_add64((word32)a, (word32)b) >> 32);
+    c = falcon_add64(c, (word64)z1 * (word64)y1);
     return c;
 }
 #define FALCON_MULHI(z, y) falcon_mulhi((z), (y))
@@ -1313,18 +1367,18 @@ word64 fpr_expm_p63(fpr x, fpr ccs)
      * 64 bits of z*y. Fully unrolled (the loop bound is a compile-time 13). */
     y = C[0];
     z = (word64)fpr_trunc(fpr_mul(x, fpr_ptwo63)) << 1;
-    y = C[1]  - FALCON_MULHI(z, y);
-    y = C[2]  - FALCON_MULHI(z, y);
-    y = C[3]  - FALCON_MULHI(z, y);
-    y = C[4]  - FALCON_MULHI(z, y);
-    y = C[5]  - FALCON_MULHI(z, y);
-    y = C[6]  - FALCON_MULHI(z, y);
-    y = C[7]  - FALCON_MULHI(z, y);
-    y = C[8]  - FALCON_MULHI(z, y);
-    y = C[9]  - FALCON_MULHI(z, y);
-    y = C[10] - FALCON_MULHI(z, y);
-    y = C[11] - FALCON_MULHI(z, y);
-    y = C[12] - FALCON_MULHI(z, y);
+    y = falcon_sub64(C[1], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[2], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[3], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[4], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[5], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[6], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[7], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[8], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[9], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[10], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[11], FALCON_MULHI(z, y));
+    y = falcon_sub64(C[12], FALCON_MULHI(z, y));
 
     /* Apply the scaling factor ccs (converted to the same fixed-point format)
      * with a final 64x64->high-64 multiplication. */
@@ -2949,7 +3003,7 @@ word32 modp_montymul(word32 a, word32 b, word32 p, word32 p0i)
 
     z = (word64)a * (word64)b;
     w = ((z * p0i) & (word64)0x7FFFFFFF) * p;
-    d = (word32)((z + w) >> 31) - p;
+    d = (word32)(falcon_add64(z, w) >> 31) - p;
     d += p & -(d >> 31);
     return d;
 }
@@ -3230,7 +3284,7 @@ word32 zint_mul_small(word32* m, size_t mlen, word32 x)
     for (u = 0; u < mlen; u ++) {
         word64 z;
 
-        z = (word64)m[u] * (word64)x + cc;
+        z = falcon_add64((word64)m[u] * (word64)x, cc);
         m[u] = (word32)z & 0x7FFFFFFF;
         cc = (word32)(z >> 31);
     }
@@ -3305,7 +3359,7 @@ void zint_add_mul_small(word32* x, const word32* y, size_t len, word32 s)
 
         xw = x[u];
         yw = y[u];
-        z = (word64)yw * (word64)s + (word64)xw + (word64)cc;
+        z = falcon_add64(falcon_add64((word64)yw * (word64)s, xw), cc);
         x[u] = (word32)z & 0x7FFFFFFF;
         cc = (word32)(z >> 31);
     }
@@ -3491,8 +3545,10 @@ word32 zint_co_reduce(word32* a, word32* b, size_t len,
 
         wa = a[u];
         wb = b[u];
-        za = wa * (word64)xa + wb * (word64)xb + (word64)cca;
-        zb = wa * (word64)ya + wb * (word64)yb + (word64)ccb;
+        za = falcon_add64(falcon_add64(wa * (word64)xa, wb * (word64)xb),
+                          cca);
+        zb = falcon_add64(falcon_add64(wa * (word64)ya, wb * (word64)yb),
+                          ccb);
         if (u > 0) {
             a[u - 1] = (word32)za & 0x7FFFFFFF;
             b[u - 1] = (word32)zb & 0x7FFFFFFF;
@@ -3582,10 +3638,10 @@ void zint_co_reduce_mod(word32* a, word32* b, const word32* m, size_t len,
 
         wa = a[u];
         wb = b[u];
-        za = wa * (word64)xa + wb * (word64)xb
-             + m[u] * (word64)fa + (word64)cca;
-        zb = wa * (word64)ya + wb * (word64)yb
-             + m[u] * (word64)fb + (word64)ccb;
+        za = falcon_add64(falcon_add64(wa * (word64)xa, wb * (word64)xb),
+                          falcon_add64(m[u] * (word64)fa, cca));
+        zb = falcon_add64(falcon_add64(wa * (word64)ya, wb * (word64)yb),
+                          falcon_add64(m[u] * (word64)fb, ccb));
         if (u > 0) {
             a[u - 1] = (word32)za & 0x7FFFFFFF;
             b[u - 1] = (word32)zb & 0x7FFFFFFF;
@@ -3755,8 +3811,8 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
         a0 &= ~c1;
         b1 |= b0 & c1;
         b0 &= ~c1;
-        a_hi = ((word64)a0 << 31) + a1;
-        b_hi = ((word64)b0 << 31) + b1;
+        a_hi = falcon_add64((word64)a0 << 31, a1);
+        b_hi = falcon_add64((word64)b0 << 31, b1);
         a_lo = a[0];
         b_lo = b[0];
 
@@ -3792,7 +3848,7 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
             /*
              * rt = 1 if a_hi > b_hi, 0 otherwise.
              */
-            rz = b_hi - a_hi;
+            rz = falcon_sub64(b_hi, a_hi);
             rt = (word32)((rz ^ ((a_hi ^ b_hi)
                                    & (a_hi ^ rz))) >> 63);
 
@@ -3816,25 +3872,25 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
              * Conditional subtractions.
              */
             a_lo -= b_lo & -cAB;
-            a_hi -= b_hi & -(word64)cAB;
-            pa -= qa & -(sword64)cAB;
-            pb -= qb & -(sword64)cAB;
+            a_hi = falcon_sub64(a_hi, b_hi & falcon_mask64(cAB));
+            pa = (sword64)falcon_sub64(pa, (word64)qa & falcon_mask64(cAB));
+            pb = (sword64)falcon_sub64(pb, (word64)qb & falcon_mask64(cAB));
             b_lo -= a_lo & -cBA;
-            b_hi -= a_hi & -(word64)cBA;
-            qa -= pa & -(sword64)cBA;
-            qb -= pb & -(sword64)cBA;
+            b_hi = falcon_sub64(b_hi, a_hi & falcon_mask64(cBA));
+            qa = (sword64)falcon_sub64(qa, (word64)pa & falcon_mask64(cBA));
+            qb = (sword64)falcon_sub64(qb, (word64)pb & falcon_mask64(cBA));
 
             /*
              * Shifting.
              */
             a_lo += a_lo & (cA - 1);
-            pa += pa & ((sword64)cA - 1);
-            pb += pb & ((sword64)cA - 1);
-            a_hi ^= (a_hi ^ (a_hi >> 1)) & -(word64)cA;
+            pa = (sword64)falcon_add64(pa, (word64)pa & falcon_nmask64(cA));
+            pb = (sword64)falcon_add64(pb, (word64)pb & falcon_nmask64(cA));
+            a_hi ^= (a_hi ^ (a_hi >> 1)) & falcon_mask64(cA);
             b_lo += b_lo & -cA;
-            qa += qa & -(sword64)cA;
-            qb += qb & -(sword64)cA;
-            b_hi ^= (b_hi ^ (b_hi >> 1)) & ((word64)cA - 1);
+            qa = (sword64)falcon_add64(qa, (word64)qa & falcon_mask64(cA));
+            qb = (sword64)falcon_add64(qb, (word64)qb & falcon_mask64(cA));
+            b_hi ^= (b_hi ^ (b_hi >> 1)) & falcon_nmask64(cA);
         }
 
         /*
@@ -3844,10 +3900,14 @@ int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
          * had to be negated).
          */
         r = zint_co_reduce(a, b, len, pa, pb, qa, qb);
-        pa -= (pa + pa) & -(sword64)(r & 1);
-        pb -= (pb + pb) & -(sword64)(r & 1);
-        qa -= (qa + qa) & -(sword64)(r >> 1);
-        qb -= (qb + qb) & -(sword64)(r >> 1);
+        pa = (sword64)falcon_sub64(pa,
+            falcon_add64(pa, pa) & falcon_mask64(r & 1));
+        pb = (sword64)falcon_sub64(pb,
+            falcon_add64(pb, pb) & falcon_mask64(r & 1));
+        qa = (sword64)falcon_sub64(qa,
+            falcon_add64(qa, qa) & falcon_mask64(r >> 1));
+        qb = (sword64)falcon_sub64(qb,
+            falcon_add64(qb, qb) & falcon_mask64(r >> 1));
         zint_co_reduce_mod(u0, u1, y, len, y0i, pa, pb, qa, qb);
         zint_co_reduce_mod(v0, v1, x, len, x0i, pa, pb, qa, qb);
     }
@@ -3910,7 +3970,7 @@ void zint_add_scaled_mul_small(word32* x, size_t xlen,
         /*
          * The expression below does not overflow.
          */
-        z = (word64)((sword64)wys * (sword64)k + (sword64)x[u] + cc);
+        z = falcon_add64(falcon_add64((sword64)wys * (sword64)k, x[u]), cc);
         x[u] = (word32)z & 0x7FFFFFFF;
 
         /*
@@ -4211,6 +4271,7 @@ int falcon_privkey_decode(const byte* sk, size_t sklen, sword8* f, sword8* g,
         sword8* F, unsigned logn)
 {
     size_t u, v;
+    word32 norm, ng;
 
     if (sk == NULL || f == NULL || g == NULL || F == NULL) {
         return BAD_FUNC_ARG;
@@ -4239,6 +4300,14 @@ int falcon_privkey_decode(const byte* sk, size_t sklen, sword8* f, sword8* g,
         return ASN_PARSE_E;
     }
     u += v;
+
+    /* Keygen keeps ||(f,g)||^2 below (1.17^2)*q and the signers rely on it. */
+    norm = poly_small_sqnorm(f, logn);
+    ng = poly_small_sqnorm(g, logn);
+    norm = (norm + ng) | (0U - ((norm | ng) >> 31));
+    if (norm >= 16823) {
+        return ASN_PARSE_E;
+    }
 
     v = falcon_trim_i8_decode(F, logn, FALCON_MAX_FG_BITS,
             sk + u, sklen - u);
@@ -4341,14 +4410,15 @@ static const fpr falcon_fpr_sigma_min[11] = {
 /* SHAKE256 pseudo-random byte stream.                                        */
 /*                                                                            */
 /* Construction: absorb FALCON_PRNG_SEED_LEN fresh bytes from WC_RNG into a   */
-/* SHAKE256 sponge, then squeeze the output in fixed FALCON_PRNG_BLOCKS-block */
-/* batches. get_u64 reads 8 stream bytes little-endian; get_u8 reads one.     */
+/* SHAKE256 sponge, then squeeze the output one block at a time, in batches  */
+/* of FALCON_PRNG_BLOCKS. get_u64 reads 8 stream bytes little-endian; get_u8  */
+/* reads one.                                                                 */
 /* The refill is a fixed-size squeeze, hence constant-time; consumption order */
 /* (and thus how many bytes are discarded at a refill boundary) never         */
 /* depends on a secret.                                                       */
 /* -------------------------------------------------------------------------- */
 
-/* Squeeze a fresh batch of blocks into the buffer. Constant-time. */
+/* Squeeze the next block into the buffer. Constant-time. */
 static int falcon_prng_refill(falcon_prng* p)
 {
     int ret;
@@ -4360,9 +4430,10 @@ static int falcon_prng_refill(falcon_prng* p)
         p->len = 0;
         return p->err;
     }
-    ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, FALCON_PRNG_BLOCKS);
+    ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, 1);
     p->ptr = 0;
     p->len = (ret == 0) ? (word32)FALCON_PRNG_BUFLEN : 0;
+    p->blk = (p->blk + 1U) % FALCON_PRNG_BLOCKS;
     /* Latch the first failure. get_u8/get_u64 have no error return, so a squeeze
      * failure is made sticky here and checked by the signer (falcon_sign_core),
      * which rejects any signature produced from an invalid PRNG state instead of
@@ -4382,6 +4453,7 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
 
     p->ptr = 0;
     p->len = 0;
+    p->blk = FALCON_PRNG_BLOCKS - 1U;
     p->err = 0;
 
     ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
@@ -4446,8 +4518,21 @@ word64 falcon_prng_get_u64(falcon_prng* p)
     word64 v;
     word32 i;
 
-    if (p->ptr + 8U > p->len)
+    if (p->ptr + 8U > p->len) {
+        if (p->len != 0 && p->blk + 1U < FALCON_PRNG_BLOCKS) {
+            byte t[8];
+            word32 r = p->len - p->ptr;
+
+            XMEMCPY(t, &p->buf[p->ptr], r);
+            (void)falcon_prng_refill(p);
+            XMEMCPY(t + r, p->buf, 8U - r);
+            p->ptr = 8U - r;
+            v = falcon_load_le64(t);
+            ForceZero(t, sizeof(t));
+            return v;
+        }
         (void)falcon_prng_refill(p);
+    }
     i = p->ptr;
     v = falcon_load_le64(&p->buf[i]);
     p->ptr += 8U;
@@ -4958,7 +5043,7 @@ static int mkgauss(falcon_rng* rng, unsigned logn)
         r = get_rng_u64(rng);
         neg = (word32)(r >> 63);
         r &= ~((word64)1 << 63);
-        f = (word32)((r - gauss_1024_12289[0]) >> 63);
+        f = (word32)(falcon_sub64(r, gauss_1024_12289[0]) >> 63);
 
         /*
          * Second value: locate the first table element not greater than
@@ -4971,7 +5056,7 @@ static int mkgauss(falcon_rng* rng, unsigned logn)
                 / (sizeof gauss_1024_12289[0])); k++) {
             word32 t;
 
-            t = (word32)((r - gauss_1024_12289[k]) >> 63) ^ 1;
+            t = (word32)(falcon_sub64(r, gauss_1024_12289[k]) >> 63) ^ 1;
             v |= k & -(t & (f ^ 1));
             f |= t;
         }
@@ -6202,7 +6287,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     size_t tmpSz, rcSz;
     int ret;
 
-    if (rng == NULL || f == NULL || g == NULL || F == NULL || G == NULL) {
+    if (rng == NULL || f == NULL || g == NULL || F == NULL) {
         return BAD_FUNC_ARG;
     }
     if (logn < 1 || logn > 10) {
@@ -7888,14 +7973,14 @@ static void falcon_get_tables(unsigned logn, const word16** zetas,
  * '%'. Both are bit-identical to a mod q and constant-time.
  *   falcon_barrett: a in [0, q^2) -> [0, q)  (349496 = floor(2^32 / q)).
  *   falcon_csub:    a in [0, 2q)  -> [0, q). */
-static WC_INLINE word32 falcon_barrett(word32 a)
+static FALCON_HOT_INLINE word32 falcon_barrett(word32 a)
 {
     word32 t = (word32)(((word64)a * 349496U) >> 32);
     a -= t * FALCON_Q;
     a -= FALCON_Q & (word32)((sword32)(FALCON_Q - 1 - a) >> 31);
     return a;
 }
-static WC_INLINE word32 falcon_csub(word32 a)
+static FALCON_HOT_INLINE word32 falcon_csub(word32 a)
 {
     a -= FALCON_Q & (word32)((sword32)(FALCON_Q - 1 - a) >> 31);
     return a;
@@ -8246,7 +8331,7 @@ static int falcon_hash_to_point(const byte* nonce, const byte* msg,
 }
 
 /* Center x (given in [0,q)) into (-q/2, q/2]. */
-static WC_INLINE sword32 falcon_center(word32 x)
+static FALCON_HOT_INLINE sword32 falcon_center(word32 x)
 {
     sword32 r = (sword32)x;
     if (r > (FALCON_Q >> 1)) {
@@ -9018,34 +9103,34 @@ static const word16 falcon_sm_izetas_p[] = {
 #define FALCON_SM_STAGE_LEFT    2U
 
 /* a in [0, 2p) -> [0, p). */
-static WC_INLINE word32 falcon_sm_csubp(word32 a)
+static FALCON_HOT_INLINE word32 falcon_sm_csubp(word32 a)
 {
     a -= FALCON_SM_P & (word32)((sword32)(FALCON_SM_P - 1 - a) >> 31);
     return a;
 }
 
 /* a in [0, p^2) -> [0, p). */
-static WC_INLINE word32 falcon_sm_redp(word32 a)
+static FALCON_HOT_INLINE word32 falcon_sm_redp(word32 a)
 {
     word32 t = (word32)(((word64)a * FALCON_SM_P_BARRETT) >> 32);
     return falcon_sm_csubp(a - t * FALCON_SM_P);
 }
 
 /* Signed value in (-m, m) -> [0, m). */
-static WC_INLINE word32 falcon_sm_lift(sword32 v, word32 m)
+static FALCON_HOT_INLINE word32 falcon_sm_lift(sword32 v, word32 m)
 {
     return (word32)v + (m & (word32)(v >> 31));
 }
 
 /* x in [0, m) -> (-m/2, m/2]. */
-static WC_INLINE sword32 falcon_sm_center(word32 x, word32 m)
+static FALCON_HOT_INLINE sword32 falcon_sm_center(word32 x, word32 m)
 {
     return (sword32)x -
         (sword32)(m & (word32)((sword32)((m >> 1) - x) >> 31));
 }
 
 /* Integer x from its residues mod q and mod p, centered on zero. */
-static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
+static FALCON_HOT_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
 {
     word32 k = falcon_csub(xq + FALCON_Q - falcon_barrett(xp));
     word32 x;
@@ -9053,6 +9138,14 @@ static WC_INLINE sword32 falcon_sm_crt(word32 xq, word32 xp)
     k = falcon_barrett(k * FALCON_SM_PINV_Q);
     x = xp + FALCON_SM_P * k;
     return falcon_sm_center(x, FALCON_SM_PQ);
+}
+
+/* z - r/q mod p for a sample z and its target numerator r. */
+static FALCON_HOT_INLINE word16 falcon_sm_fold(sword32 z, sword16 r)
+{
+    return (word16)falcon_sm_csubp(falcon_sm_lift(z, FALCON_SM_P) +
+        FALCON_SM_P - falcon_sm_redp(falcon_sm_lift(r, FALCON_SM_P) *
+        FALCON_SM_QINV_P));
 }
 
 /* Polynomials of the secret basis, in falcon_sm_basis order. */
@@ -9168,7 +9261,7 @@ static void falcon_sm_intt_p(word16* a, unsigned logn)
 }
 
 /* r = c*s mod q (negated when neg is set), centered, for basis polynomial
- * s. tmp holds 2n word16; r may be where c came from. */
+ * s; r may be where c came from. tmp (2n word16) ends with NTT_q(s) at n. */
 static int falcon_sm_target(sword16* r, wc_Shake* cst,
         const falcon_sm_basis* b, int which, int neg, word16* tmp)
 {
@@ -9199,11 +9292,16 @@ static int falcon_sm_target(sword16* r, wc_Shake* cst,
     return 0;
 }
 
+/* falcon_sm_gram flags: x already holds u0 in the q NTT, or accq is done. */
+#define FALCON_SM_GRAM_XREADY   1U
+#define FALCON_SM_GRAM_QDONE    2U
+
 /* accq/accp = u0*adj(v0) + u1*adj(v1) mod q and mod p for basis polynomials
  * u0..v1. x and y are scratch; all four hold n word16. In the NTT domain
  * adj(v)[i] = v[n - 1 - i]. */
 static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
-        const falcon_sm_basis* b, int u0, int v0, int u1, int v1)
+        const falcon_sm_basis* b, int u0, int v0, int u1, int v1,
+        unsigned flags)
 {
     unsigned logn = b->logn;
     int n = (int)MKN(logn), u, k;
@@ -9213,11 +9311,13 @@ static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
 
     uv[0] = u0; uv[1] = v0; uv[2] = u1; uv[3] = v1;
     falcon_get_tables(logn, &zetas, &izetas);
-    for (k = 0; k < 4; k += 2) {
+    for (k = 0; k < 4 && (flags & FALCON_SM_GRAM_QDONE) == 0; k += 2) {
         const word16* yy = (uv[k] == uv[k + 1]) ? x : y;
 
-        falcon_sm_lift_key(x, b, uv[k], FALCON_Q);
-        falcon_ntt(x, n, zetas);
+        if (k != 0 || (flags & FALCON_SM_GRAM_XREADY) == 0) {
+            falcon_sm_lift_key(x, b, uv[k], FALCON_Q);
+            falcon_ntt(x, n, zetas);
+        }
         if (yy == y) {
             falcon_sm_lift_key(y, b, uv[k + 1], FALCON_Q);
             falcon_ntt(y, n, zetas);
@@ -9227,7 +9327,9 @@ static void falcon_sm_gram(word16* accq, word16* accp, word16* x, word16* y,
             accq[u] = (word16)((k == 0) ? t : falcon_csub(accq[u] + t));
         }
     }
-    falcon_intt(accq, n, izetas);
+    if ((flags & FALCON_SM_GRAM_QDONE) == 0) {
+        falcon_intt(accq, n, izetas);
+    }
 
     for (k = 0; k < 4; k += 2) {
         const word16* yy = (uv[k] == uv[k + 1]) ? x : y;
@@ -9387,8 +9489,8 @@ typedef struct falcon_sm_frame {
 } falcon_sm_frame;
 
 /* Sample t against the self-adjoint Gram value a, laid out [a | t | free] in
- * p (2^(logn+1) fpr), writing t - z over t. The fractional part of the
- * target is added from w at the leaves, which receive the samples. */
+ * p (2^(logn+1) fpr), writing t - z over t. The leaves add the target
+ * numerator r from w and leave z - r/q mod p in its place. */
 static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
         sword16* w, unsigned logn, unsigned flags)
 {
@@ -9416,14 +9518,17 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
             fpr isig = fpr_mul(fpr_sqrt(P[0]), fpr_inv_sigma[logn]);
             fpr x0, x1;
             int z0, z1;
+            sword16 r0, r1;
 
             leaf--;
             j = 0;
             for (k = 0; k < logn - 1; k++) {
                 j |= ((leaf >> k) & 1) << (logn - 2 - k);
             }
-            x0 = fpr_mul(fpr_of(w[j]), fpr_inverse_of_q);
-            x1 = fpr_mul(fpr_of(w[j + hn]), fpr_inverse_of_q);
+            r0 = w[j];
+            r1 = w[j + hn];
+            x0 = fpr_mul(fpr_of(r0), fpr_inverse_of_q);
+            x1 = fpr_mul(fpr_of(r1), fpr_inverse_of_q);
             if ((fr->flags & FALCON_SM_ZERO) == 0) {
                 x0 = fpr_add(P[1], x0);
                 x1 = fpr_add(P[2], x1);
@@ -9432,8 +9537,8 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
             z1 = samp(ctx, x1, isig);
             P[1] = fpr_sub(x0, fpr_of(z0));
             P[2] = fpr_sub(x1, fpr_of(z1));
-            w[j] = (sword16)z0;
-            w[j + hn] = (sword16)z1;
+            w[j] = (sword16)falcon_sm_fold(z0, r0);
+            w[j + hn] = (sword16)falcon_sm_fold(z1, r1);
             sp--;
             continue;
         }
@@ -9495,10 +9600,10 @@ static void falcon_sm_ffsamp(falcon_samplerZ samp, void* ctx, fpr* p,
     }
 }
 
-/* G = g*F/f mod q from the basis. Fails unless f is invertible mod q and G
- * fits in 8 bits. tmp holds 3n word16. */
-static int falcon_sm_complete_private(sword8* G, const falcon_sm_basis* b,
-        word16* tmp)
+/* G = g*F/f and, unless accq is NULL, accq = F*adj(f) + G*adj(g) mod q.
+ * Fails unless f is invertible mod q and G fits in 8 bits; tmp is 3n word16. */
+static int falcon_sm_complete_private(sword8* G, word16* accq,
+        const falcon_sm_basis* b, word16* tmp)
 {
     unsigned logn = b->logn;
     int n = (int)MKN(logn), u;
@@ -9506,26 +9611,41 @@ static int falcon_sm_complete_private(sword8* G, const falcon_sm_basis* b,
     const word16* izetas = NULL;
     word16* x = tmp;
     word16* y = tmp + n;
+    word16* z = tmp + 2 * n;
     word32 bad = 0;
 
     falcon_get_tables(logn, &zetas, &izetas);
     falcon_sm_lift_key(x, b, FALCON_SM_G, FALCON_Q);
     falcon_sm_lift_key(y, b, FALCON_SM_BF, FALCON_Q);
+    falcon_sm_lift_key(z, b, FALCON_SM_F, FALCON_Q);
     falcon_ntt(x, n, zetas);
     falcon_ntt(y, n, zetas);
-    for (u = 0; u < n; u++) {
-        x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
+    falcon_ntt(z, n, zetas);
+    if (accq != NULL) {
+        for (u = 0; u < n; u++) {
+            accq[u] = (word16)falcon_barrett((word32)y[u] * z[n - 1 - u]);
+        }
     }
-    falcon_sm_lift_key(y, b, FALCON_SM_F, FALCON_Q);
-    falcon_ntt(y, n, zetas);
-    falcon_invq_all(y, tmp + 2 * n, n);
     for (u = 0; u < n; u++) {
-        bad |= ((word32)y[u] - 1) >> 31;
-        x[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
+        y[u] = (word16)falcon_barrett((word32)x[u] * y[u]);
     }
-    falcon_intt(x, n, izetas);
+    falcon_invq_all(z, x, n);
     for (u = 0; u < n; u++) {
-        sword32 v = falcon_sm_center(x[u], FALCON_Q);
+        bad |= ((word32)z[u] - 1) >> 31;
+        y[u] = (word16)falcon_barrett((word32)y[u] * z[u]);
+    }
+    if (accq != NULL) {
+        falcon_sm_lift_key(x, b, FALCON_SM_G, FALCON_Q);
+        falcon_ntt(x, n, zetas);
+        for (u = 0; u < n; u++) {
+            accq[u] = (word16)falcon_csub(accq[u] +
+                falcon_barrett((word32)y[u] * x[n - 1 - u]));
+        }
+        falcon_intt(accq, n, izetas);
+    }
+    falcon_intt(y, n, izetas);
+    for (u = 0; u < n; u++) {
+        sword32 v = falcon_sm_center(y[u], FALCON_Q);
         bad |= (word32)((v + 127) | (127 - v)) >> 31;
         G[u] = (sword8)v;
     }
@@ -9543,6 +9663,7 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     size_t n = MKN(logn), hn = n >> 1, u;
     sword16* w1 = (sword16*)tmp;
     sword16* w0 = w1 + n;
+    sword16* a = w0;
     fpr* S = (fpr*)(tmp + 4 * n);
     word16* ws = (word16*)S;
     word16* x;
@@ -9559,10 +9680,17 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     if (ret != 0) {
         return ret;
     }
-    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws, ws + n, b, FALCON_SM_F,
-        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G);
+    /* The target left f in the q NTT at ws + n. |a[i]| <= a[0] = ||(f,g)||^2,
+     * which a conformant key bounds by 16822, so a fits idle w0 as int16. */
+    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws + n, ws, b, FALCON_SM_F,
+        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G, FALCON_SM_GRAM_XREADY);
+    if (falcon_sm_crt(ws[2 * n], ws[3 * n]) > 32767) {
+        return BAD_FUNC_ARG;
+    }
     for (u = 0; u < hn; u++) {
-        S[u] = fpr_of(falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]));
+        sword32 v = falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]);
+        a[u] = (sword16)v;
+        S[u] = fpr_of(v);
     }
     falcon_sm_fft_selfadj(S, logn);
     for (u = 0; u < hn; u++) {
@@ -9571,28 +9699,29 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     falcon_sm_ffsamp(samp, ctx, S, w1, logn, FALCON_SM_ZERO);
 
     /* (t1 - z1) * L10 with L10 = (Ff* + Gg*)/(ff* + gg*); G is rebuilt in
-     * the idle w0 unless it is cached. */
+     * the upper half of w0 unless it is cached. */
     XMEMMOVE(S, S + hn, n * sizeof(fpr));
     ws = (word16*)(S + n);
     if (b->fgFG == NULL) {
-        ret = falcon_sm_complete_private((sword8*)w0, b, ws);
+        sword8* G = (sword8*)w0 + n;
+
+        ret = falcon_sm_complete_private(G, ws, b, ws + n);
         if (ret != 0) {
             return ret;
         }
-        b->G = (const sword8*)w0;
+        b->G = G;
     }
     falcon_sm_gram(ws, ws + n, ws + 2 * n, ws + 3 * n, b, FALCON_SM_BF,
-        FALCON_SM_F, FALCON_SM_BG, FALCON_SM_G);
+        FALCON_SM_F, FALCON_SM_BG, FALCON_SM_G,
+        (b->G != NULL) ? FALCON_SM_GRAM_QDONE : 0U);
     b->G = NULL;
     for (u = 0; u < n; u++) {
         ((sword32*)(ws + 2 * n))[u] = falcon_sm_crt(ws[u], ws[n + u]);
     }
     falcon_sm_fft_i32(S + n, (sword32*)(ws + 2 * n), logn);
     falcon_poly_mul_fft(S, S + n, logn);
-    falcon_sm_gram(ws + 2 * n, ws + 3 * n, ws, ws + n, b, FALCON_SM_F,
-        FALCON_SM_F, FALCON_SM_G, FALCON_SM_G);
     for (u = 0; u < hn; u++) {
-        S[n + u] = fpr_of(falcon_sm_crt(ws[2 * n + u], ws[3 * n + u]));
+        S[n + u] = fpr_of(a[u]);
     }
     falcon_sm_fft_selfadj(S + n, logn);
     falcon_poly_div_autoadj_fft(S, S + n, logn);
@@ -9608,31 +9737,11 @@ static int falcon_sm_sign_once(falcon_samplerZ samp, void* ctx,
     XMEMCPY(S, S + 3 * hn, hn * sizeof(fpr));
     falcon_sm_ffsamp(samp, ctx, S, w0, logn, FALCON_SM_DISCARD);
 
-    /* s2 = f*z0 + F*z1 - (f*r0 + F*r1)/q mod p, r being the sampled
-     * fractions; a valid s2 is far below p/2. */
+    /* s2 = f*w0 + F*w1 mod p, the leaves having left w = z - r/q with r the
+     * sampled fractions; a valid s2 is far below p/2. */
     ws = (word16*)S;
     x = ws;
     y = ws + n;
-    ret = falcon_sm_target((sword16*)y, cst, b, FALCON_SM_F, 0, ws + 2 * n);
-    if (ret != 0) {
-        return ret;
-    }
-    for (u = 0; u < n; u++) {
-        word32 r = falcon_sm_lift(((sword16*)y)[u], FALCON_SM_P);
-        ((word16*)w1)[u] = (word16)falcon_sm_csubp(
-            falcon_sm_lift(w1[u], FALCON_SM_P) + FALCON_SM_P -
-            falcon_sm_redp(r * FALCON_SM_QINV_P));
-    }
-    ret = falcon_sm_target((sword16*)y, cst, b, FALCON_SM_BF, 1, ws + 2 * n);
-    if (ret != 0) {
-        return ret;
-    }
-    for (u = 0; u < n; u++) {
-        word32 r = falcon_sm_lift(((sword16*)y)[u], FALCON_SM_P);
-        ((word16*)w0)[u] = (word16)falcon_sm_csubp(
-            falcon_sm_lift(w0[u], FALCON_SM_P) + FALCON_SM_P -
-            falcon_sm_redp(r * FALCON_SM_QINV_P));
-    }
     falcon_sm_lift_key(x, b, FALCON_SM_F, FALCON_SM_P);
     falcon_sm_ntt_p(x, (int)n);
     falcon_sm_ntt_p((word16*)w0, (int)n);
@@ -9815,7 +9924,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     unsigned logn = 0;
     int n = 0;
     word32 pubSz = 0, keySz = 0;
-    sword8 *f = NULL, *g = NULL, *F = NULL, *G = NULL;
+    sword8 *f = NULL, *g = NULL, *F = NULL;
     word16* h = NULL;
     byte* arena = NULL;
     size_t arenaSz = 0;
@@ -9831,15 +9940,14 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
                                             : FALCON_LEVEL5_KEY_SIZE;
     heap = key->heap;
 
-    /* f/g/F/G only; h is derived once the key generator's scratch is gone,
-     * so it does not add to the peak. */
-    arenaSz = 4 * (size_t)n;
+    /* f/g/F only, as G is not encoded; h is derived once the key generator's
+     * scratch is gone, so it does not add to the peak. */
+    arenaSz = 3 * (size_t)n;
     arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (arena != NULL) {
         f = (sword8*)arena;
         g = f + n;
         F = g + n;
-        G = F + n;
     }
     if (arena == NULL) {
         ret = MEMORY_E;
@@ -9855,7 +9963,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
         goto out;
     }
 #endif
-    ret = falcon_keygen(rng, f, g, F, G, NULL, logn);
+    ret = falcon_keygen(rng, f, g, F, NULL, NULL, logn);
 #ifdef WOLFSSL_FALCON_SAVE_VREGS
     RESTORE_VECTOR_REGISTERS();
 #endif
@@ -9896,7 +10004,7 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     key->prvKeySet = 1;
 
 out:
-    /* f/g/F/G are secret; h is public and its scratch already wiped. */
+    /* f/g/F are secret; h is public and its scratch already wiped. */
     XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (arena != NULL) {
         ForceZero(arena, (word32)arenaSz);
@@ -9989,7 +10097,7 @@ static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
             b.G = NULL;
             b.heap = key->heap;
             b.logn = logn;
-            ret = falcon_sm_complete_private(G, &b, (word16*)scratch);
+            ret = falcon_sm_complete_private(G, NULL, &b, (word16*)scratch);
         }
 #endif
 #ifdef WC_FALCON_CACHE_PRIV_BASIS
@@ -10408,14 +10516,9 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sword16* s2 = NULL;
     word64 normS2 = 0;
     void* heap;
-    /* Only two n-element buffers are live at once, so the arena is 2*n word16:
-     * h dies once the pointwise product is formed, which is where c is built,
-     * and s2 once its squared norm is accumulated, before t is lifted in
-     * place. The set is public, so the stack unless WOLFSSL_SMALL_STACK. */
-#ifdef WOLFSSL_SMALL_STACK
     word16* arena = NULL;
-#else
-    word16 arena[2 * FALCON_MAX_N];
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_FALCON_VERIFY_NO_MALLOC)
+    word16 arenaBuf[2 * FALCON_MAX_N];
 #endif
 
     if (sig == NULL || res == NULL || key == NULL ||
@@ -10446,7 +10549,11 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sigData = sig + 1 + FALCON_NONCE_SIZE;
     sigDataLen = sigLen - 1 - FALCON_NONCE_SIZE;
 
-#ifdef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_FALCON_VERIFY_NO_MALLOC
+    arena = key->verifyArena;
+#elif defined(WOLFSSL_NO_MALLOC)
+    arena = arenaBuf;
+#else
     arena = (word16*)XMALLOC(sizeof(word16) * 2 * (size_t)n, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (arena == NULL) {
@@ -10454,8 +10561,8 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         goto out;
     }
 #endif
-    /* Two buffers, each used for two things in sequence: h then c, and s2
-     * then t (the lift from sword16 to word16 is in place). */
+    /* Two n-element buffers, each used for two things in sequence: h then c,
+     * and s2 then t (the lift from sword16 to word16 is in place). */
     h  = arena;
     c  = arena;
     s2 = (sword16*)(arena + n);
@@ -10568,9 +10675,8 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 out:
-    /* h/c and s2/t pair up in one arena; zetas/izetas are static caches. */
-#ifdef WOLFSSL_SMALL_STACK
-    if (arena != NULL) XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(WOLFSSL_FALCON_VERIFY_NO_MALLOC) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
 }

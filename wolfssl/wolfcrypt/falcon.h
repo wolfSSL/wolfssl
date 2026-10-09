@@ -127,8 +127,8 @@
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
 
 /* Every FALCON_MAX_* bound follows the highest enabled level, so
- * WOLFSSL_NO_FALCON_LEVEL5 shrinks the key structure and the verify stack
- * arena to Falcon-512 sizes. WOLFSSL_NO_FALCON_LEVEL1 changes no bound. */
+ * WOLFSSL_NO_FALCON_LEVEL5 shrinks the key structure and the pinned verify
+ * buffer to Falcon-512 sizes. WOLFSSL_NO_FALCON_LEVEL1 changes no bound. */
 #if defined(WOLFSSL_NO_FALCON_LEVEL1) && defined(WOLFSSL_NO_FALCON_LEVEL5)
     #error "Falcon needs at least one of level 1 and level 5 enabled."
 #endif
@@ -214,6 +214,9 @@ struct falcon_key {
     sword8* basis;
     word32 basisSz;
     WC_BITFIELD basisSet:1;
+#endif
+#ifdef WOLFSSL_FALCON_VERIFY_NO_MALLOC
+    word16 verifyArena[2 * FALCON_MAX_N];
 #endif
 };
 
