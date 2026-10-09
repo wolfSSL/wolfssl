@@ -32,6 +32,7 @@ $(top_builddir)/tests/swdev/build/swdev.o: $(top_builddir)/wolfssl/options.h FOR
 	    $(if $(CCAS),CCAS='$(CCAS)') \
 	    $(if $(LD),LD='$(LD)') \
 	    $(if $(OBJCOPY),OBJCOPY='$(OBJCOPY)') \
+	    SWDEV_HOST_OS='$(host_os)' \
 	    PARENT_SRCS='$(filter wolfcrypt/src/%.c src/%.c,$(src_libwolfssl_la_SOURCES))' \
 	    PARENT_ASM_SRCS='$(filter %.S,$(src_libwolfssl_la_SOURCES))' \
 	    PARENT_CPPFLAGS='$(CPPFLAGS) $(filter-out -DBUILDING_WOLFSSL,$(DEFS))' \
