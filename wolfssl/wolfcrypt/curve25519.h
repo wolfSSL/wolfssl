@@ -44,7 +44,7 @@
 
 #define CURVE25519_KEYSIZE 32
 #define CURVE25519_PUB_KEY_SIZE 32
-#define CURVE25519_MAX_KEY_TO_DER_SZ 82 /* for exported DER keys temp buffer */
+#define CURVE25519_MAX_KEY_TO_DER_SZ 83 /* for exported DER keys temp buffer */
 
 #ifdef WOLFSSL_NAMES_STATIC
 typedef char curve25519_str[12];

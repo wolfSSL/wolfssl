@@ -556,6 +556,9 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \brief Encodes a Falcon private key (with its public key) as a DER/ASN.1
     (PKCS#8) structure. Pass a NULL output to query the required length.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read; wc_Falcon_PrivateKeyToDer()
+    omits it.
 
     \return Number of bytes written (or required, if output is NULL) on success.
     \return BAD_FUNC_ARG or BUFFER_E on error.

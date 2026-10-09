@@ -38,6 +38,7 @@
   cache rows and columns, so an image written by a build with different
   dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
   A saved cache from an older release cannot be restored by this one.
+* **BREAKING (RFC 5958)**: The `publicKey` field of PKCS#8 v2 private keys (`OneAsymmetricKey`) for Ed25519, Ed448, X25519, ML-DSA and Falcon is a BIT STRING and now carries its unused-bits byte, so keys written by wolfSSL load in ring and other conformant parsers, and wolfSSL reads theirs. X25519 key values are still stored in reversed byte order, a separate bug, so X25519 PKCS#8 keys do not yet interoperate. Keys written by earlier wolfSSL still decode, but earlier wolfSSL cannot read keys written by this release. To write keys that every version reads, use `wc_Ed25519PrivateKeyToDer` and the other `*PrivateKeyToDer` functions, which omit `publicKey`. `WC_MLDSA_44/65/87_BOTH_KEY_DER_SIZE` and `CURVE25519_MAX_KEY_TO_DER_SZ` each grow by one byte, so applications that size buffers from them must be recompiled. A non-empty `publicKey` that matches neither form is now rejected with `ASN_PARSE_E`; an empty one is still treated as absent. by @MarkAtwood (PR 11674)
 
 ## Post-Quantum Cryptography (PQC)
 

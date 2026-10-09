@@ -953,13 +953,18 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
 
     \brief Encodes an ML-DSA key pair (public + private) to DER as a
     PKCS#8 OneAsymmetricKey structure. Pass NULL as output to query
-    the required buffer size.
+    the required buffer size. Prefer this over hardcoding
+    WC_MLDSA_*_BOTH_KEY_DER_SIZE: the query stays correct if the
+    encoding length changes, as it did by one byte with this change.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read;
+    wc_MlDsaKey_PrivateKeyToDer() omits it.
 
     \return Size of the encoded DER in bytes on success.
-    \return BAD_FUNC_ARG if key is NULL or no parameter set is
-    selected.
-    \return MISSING_KEY if the private key has not been set.
-    \return BUFFER_E if output is non-NULL and inLen is too small.
+    \return BAD_FUNC_ARG if key is NULL, the private or public key
+    has not been set, no parameter set is selected, or output is
+    non-NULL and inLen is smaller than the encoding.
+    \return BUFFER_E if output is non-NULL and inLen is 0.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
     \param [out] output Buffer that receives the DER encoding, or
@@ -975,13 +980,17 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 /*!
     \ingroup ML_DSA
 
-    \brief Encodes the ML-DSA private key to DER. Per FIPS 204 the
-    private key encoding includes the public component, so this
-    function is currently an alias of wc_MlDsaKey_KeyToDer() kept for
-    API parity with other algorithms.
+    \brief Encodes the ML-DSA private key to DER as a PKCS#8
+    OneAsymmetricKey v1 structure with no [1] publicKey field. Earlier
+    wolfSSL releases can read this output. Pass NULL as output to query
+    the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return Inherited error codes from wc_MlDsaKey_KeyToDer().
+    \return BAD_FUNC_ARG if key is NULL, the private key has not been
+    set, no parameter set is selected, or output is non-NULL and inLen
+    is too small.
+    \return BUFFER_E if output is non-NULL and inLen is 0.
+    \return MEMORY_E if dynamic memory allocation fails.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
     \param [out] output Buffer that receives the DER encoding, or
