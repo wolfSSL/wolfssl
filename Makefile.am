@@ -483,7 +483,7 @@ EXTRA_DIST += tools/sbom/frontends/compdb_sbom.py
 EXTRA_DIST += tools/sbom/frontends/iar_sbom.py
 EXTRA_DIST += tools/sbom/frontends/zephyr_sbom.py
 
-include tools/sbom/sbom.am
+include scripts/sbom.am
 
 # Mach-O / ELF basenames. `make bomsh` searches src/.libs for these.
 # Static and Windows names are listed at the bomsh call site.

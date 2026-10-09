@@ -1,0 +1,5 @@
+# Compatibility path for `include scripts/sbom.am`.
+# Automake resolves this include from the top Makefile.am, not from scripts/.
+# The recipe is tools/sbom/sbom.am from wolfssl-compliance-tooling.
+# Keep tools/sbom/ in the tree. Copying this file alone does not work.
+include tools/sbom/sbom.am

@@ -186,6 +186,10 @@ EXTRA_DIST += scripts/user_settings_asm.sh
 # tools/sbom/gen-sbom. Must be in the dist tarball.
 EXTRA_DIST += scripts/gen-sbom
 
+# Old include path. Pulls in tools/sbom/sbom.am. Must stay in the tarball
+# so an existing `include scripts/sbom.am` still finds a file.
+EXTRA_DIST += scripts/sbom.am
+
 # SBOM generator unit tests.  Shipped so downstream consumers building
 # from a release tarball can re-run the regression suite.
 EXTRA_DIST += scripts/test_gen_sbom.py
