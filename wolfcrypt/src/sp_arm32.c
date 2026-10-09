@@ -18521,7 +18521,7 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_2048_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -19122,7 +19122,7 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -19177,7 +19177,7 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
         mp_clamp(res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -46579,7 +46579,7 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -47372,7 +47372,7 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -47427,7 +47427,7 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
         mp_clamp(res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -62404,7 +62404,7 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_4096_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -63389,7 +63389,7 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    XMEMSET(e, 0, sizeof(e));
+    ForceZero(e, sizeof(e));
 
     return err;
 }
@@ -79212,7 +79212,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_256_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_256_ctx));
     }
 
     return err;
@@ -79344,7 +79344,7 @@ int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_256_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_256_ctx));
     }
 
     return err;
@@ -80720,11 +80720,7 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 8U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 8U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_256_ctx));
     }
 
     return err;
@@ -97711,7 +97707,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_384_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_384_ctx));
     }
 
     return err;
@@ -97843,7 +97839,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_384_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_384_ctx));
     }
 
     return err;
@@ -99325,11 +99321,7 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 12U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 12U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_384_ctx));
     }
 
     return err;
@@ -125884,7 +125876,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_521_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_key_gen_521_ctx));
     }
 
     return err;
@@ -126018,7 +126010,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_521_ctx));
+        ForceZero(ctx, sizeof(sp_ecc_sec_gen_521_ctx));
     }
 
     return err;
@@ -128200,11 +128192,7 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 17U);
-        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 17U);
+        ForceZero(ctx, sizeof(sp_ecc_sign_521_ctx));
     }
 
     return err;
@@ -148708,14 +148696,14 @@ static void sp_1024_point_free_32(sp_point_1024* p, int clear, void* heap)
     /* If valid pointer then clear point data if requested and free data. */
     if (p != NULL) {
         if (clear) {
-            XMEMSET(p, 0, sizeof(*p));
+            ForceZero(p, sizeof(*p));
         }
         XFREE(p, heap, DYNAMIC_TYPE_ECC);
     }
 #else
     /* Clear point data if requested. */
     if ((p != NULL) && clear) {
-        XMEMSET(p, 0, sizeof(*p));
+        ForceZero(p, sizeof(*p));
     }
 #endif
     (void)heap;
