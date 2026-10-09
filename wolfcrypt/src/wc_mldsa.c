@@ -10103,6 +10103,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             /* Step 12: Compute vector y from private random seed and kappa. */
             ret = mldsa_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
                 params->gamma1_bits, y, params->l, key->heap);
+            if (ret != 0) {
+                break;
+            }
         #ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y
             if (ret == 0) {
                 ret = mldsa_vec_check_low(y, params->l,
@@ -10471,6 +10474,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             /* Step 12: Compute vector y from private random seed and kappa. */
             ret = mldsa_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
                 params->gamma1_bits, y, params->l, key->heap);
+            if (ret != 0) {
+                break;
+            }
         #ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y
             if (ret == 0) {
                 ret = mldsa_vec_check_low(y, params->l,
