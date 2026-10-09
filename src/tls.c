@@ -10420,9 +10420,11 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
     }
 #endif
 
-    if (ret == 0 && keyShareEntry->keLen < ctSz) {
-        WOLFSSL_MSG("PQC key share data too short for ciphertext.");
-        ret = BUFFER_E;
+    /* FIPS 203 7.3 ciphertext type check. */
+    if (ret == 0 && keyShareEntry->keLen != ctSz) {
+        WOLFSSL_MSG("PQC key share data is not the ciphertext size.");
+        WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+        ret = BAD_KEY_SHARE_DATA;
     }
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
@@ -10571,7 +10573,8 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
                                              &ctSz);
             if (ret == 0 && keyShareEntry->keLen <= ctSz) {
                 WOLFSSL_MSG("Invalid ciphertext size.");
-                ret = BAD_FUNC_ARG;
+                WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+                ret = BAD_KEY_SHARE_DATA;
             }
         }
         if (ret == 0) {
@@ -11167,9 +11170,11 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
         ret = wc_MlKemKey_SharedSecretSize(kemKey, &ssSz);
     }
 
+    /* FIPS 203 7.2 encapsulation key type check. */
     if (ret == 0 && clientLen != pubSz) {
         WOLFSSL_MSG("Invalid public key.");
-        ret = BAD_FUNC_ARG;
+        WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+        ret = BAD_KEY_SHARE_DATA;
     }
 
     if (ret == 0) {
@@ -11183,6 +11188,11 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
 
     if (ret == 0) {
         ret = wc_MlKemKey_DecodePublicKey(kemKey, clientData, pubSz);
+        /* FIPS 203 7.2 modulus check failed; the peer sent a bad key. */
+        if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+            ret = BAD_KEY_SHARE_DATA;
+        }
     }
     if (ret == 0) {
         ret = wc_MlKemKey_Encapsulate(kemKey, ciphertext,
@@ -11367,7 +11377,8 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
     if (ret == 0 && len != pubSz + ecc_kse->pubKeyLen) {
         WOLFSSL_MSG("Invalid public key.");
-        ret = BAD_FUNC_ARG;
+        WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+        ret = BAD_KEY_SHARE_DATA;
     }
 
     /* Allocate buffer for the concatenated client key share data
