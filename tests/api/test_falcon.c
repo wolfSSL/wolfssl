@@ -1199,6 +1199,7 @@ int test_wc_falcon_level_overwrite(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Falcon_PrivateKeyToDer(&key, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #else
     (void)bufLen;
 #endif

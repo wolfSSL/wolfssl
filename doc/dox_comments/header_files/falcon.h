@@ -423,16 +423,23 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
 /*!
     \ingroup Falcon
 
-    \brief Checks the consistency of a Falcon key. Requires both key halves to
-    be present. When the native signing core is compiled in, the stored public
-    key h is additionally verified against the private key by checking the
-    defining relation h*f == g (mod q); in verify-only or crypto-callback-only
-    builds only the presence of both halves is checked.
+    \brief Checks the consistency of a Falcon key. With WOLF_CRYPTO_CB, a key
+    with a device id (or any key with WOLF_CRYPTO_CB_FIND) is first passed to
+    the crypto callback, along with the public key when it is set. The device
+    checks the key it contains, so neither key needs to be set locally.
+    Otherwise, or when the callback returns CRYPTOCB_UNAVAILABLE, both the
+    public and private keys must be present. When the native signing core is
+    compiled in, the stored public key h is additionally verified against the
+    private key by checking the defining relation h*f == g (mod q); in
+    verify-only or crypto-callback-only builds only the presence of both keys
+    is checked.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or the level is unset.
-    \return PUBLIC_KEY_E if either key half is missing, or if the public and
-    private keys are cryptographically inconsistent.
+    \return BAD_FUNC_ARG if key is NULL, the level is unset, or the level was
+    changed without wc_falcon_set_level() to one the key buffers do not fit.
+    \return PUBLIC_KEY_E if the public or private key is missing, or if the
+    public and private keys are cryptographically inconsistent.
+    \return Other negative values returned by the crypto callback.
 
     \param [in] key Pointer to a falcon_key to check.
 

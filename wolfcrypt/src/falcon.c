@@ -11328,28 +11328,49 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
 /* Check that the falcon key has a matching private/public key pair present.
  *
  * key     [in]      Falcon private/public key.
- * returns BAD_FUNC_ARG when key is NULL or the level is unset,
- *         PUBLIC_KEY_E when either half is not set, or when the stored public
+ * returns BAD_FUNC_ARG when key is NULL, the level is unset, or the level
+ *         does not match the key buffers,
+ *         PUBLIC_KEY_E when either key is not set, or when the stored public
  *         key h does not satisfy the defining relation h = g/f (mod q) for the
- *         private (f, g),
+ *         private (f, g), the crypto callback result for a device backed key,
  *         0 otherwise.
  *
- * When the native signing core is compiled in, both halves are decoded and the
+ * When the native signing core is compiled in, both keys are decoded and the
  * relation h*f == g (mod q, mod X^n + 1) is verified in the NTT domain, so a
  * mismatched pair is detected cryptographically. In verify-only or
  * callback-only builds (no private-key codec available) only the presence of
- * both halves is checked. The pre-native implementation compared the stored
+ * both keys is checked. The pre-native implementation compared the stored
  * public key against a duplicate copy kept behind the private key, which was
  * always a copy of the same bytes and so could never detect a mismatch. */
 int wc_falcon_check_key(falcon_key* key)
 {
-    if (key == NULL) {
+    if ((key == NULL) || !falcon_level_ok(key)) {
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level != 1) && (key->level != 5)) {
-        return BAD_FUNC_ARG;
+#ifdef WOLF_CRYPTO_CB
+    /* Before prvKeySet check: a device backed key has no local private key. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        const byte* pub = NULL;
+        word32 pubSz = 0;
+        int cbRet;
+
+        /* Without a public key, the device checks the key it contains. */
+        if (key->pubKeySet) {
+            pub = key->p;
+            pubSz = (word32)wc_falcon_pub_size(key);
+        }
+
+        cbRet = wc_CryptoCb_PqcSignatureCheckPrivKey(key,
+                WC_PQC_SIG_TYPE_FALCON, pub, pubSz);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
     }
+#endif /* WOLF_CRYPTO_CB */
 
     if (!key->pubKeySet || !key->prvKeySet) {
         return PUBLIC_KEY_E;
