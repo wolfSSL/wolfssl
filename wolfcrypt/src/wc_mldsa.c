@@ -140,6 +140,17 @@
  *   All valid reports are true.
  *   Fast fail gives faster signing times on average.
  *   DO NOT enable this if implementation must be conformant to FIPS 204.
+ * WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL                        Default: OFF
+ *   Test aid: wc_MlDsa_TestRejNttFail() makes a chosen later call of
+ *   mldsa_rej_ntt_poly_ex() fail, to test error handling. Every call counts,
+ *   including those from mldsa_expand_a(), except where Intel assembly
+ *   generates matrix A instead.
+ *   Not for production builds.
+ * WOLFSSL_MLDSA_CHECK_INVNTT_BOUND                       Default: OFF
+ *   Test aid: fail with BAD_STATE_E if a coefficient entering the inverse
+ *   NTT on a small-mem path is outside (-Q, Q), the range those paths reduce
+ *   it into.
+ *   Not for production builds.
  *
  * MLDSA_MUL_SLOW                                         Default: OFF
  *   Define when multiplying by Q / 44 is slower than masking.
@@ -2952,6 +2963,31 @@ static int mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
  * Expand operations
  ******************************************************************************/
 
+#ifdef WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL
+/* Calls of mldsa_rej_ntt_poly_ex() left until one fails; 0 is off. */
+static int mldsa_rej_ntt_fail_countdown = 0;
+
+/* Test aid: make a later call of mldsa_rej_ntt_poly_ex() fail.
+ *
+ * @param [in] n  Call to fail, counting from 1; 0 turns failing off.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when n is negative.
+ */
+WOLFSSL_TEST_VIS int wc_MlDsa_TestRejNttFail(int n)
+{
+    int ret = 0;
+
+    if (n < 0) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        mldsa_rej_ntt_fail_countdown = n;
+    }
+
+    return ret;
+}
+#endif
+
 /* Generate a random polynomial by rejection.
  *
  * FIPS 204 Section 7.3, Algorithm 30 RejNTTPoly(rho)
@@ -3191,6 +3227,14 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
     }
 #endif
 
+#ifdef WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL
+    if ((ret == 0) && (mldsa_rej_ntt_fail_countdown > 0)) {
+        mldsa_rej_ntt_fail_countdown--;
+        if (mldsa_rej_ntt_fail_countdown == 0) {
+            ret = BAD_STATE_E;
+        }
+    }
+#endif
     return ret;
 }
 
@@ -6699,6 +6743,11 @@ static sword32 mldsa_mont_red(sword64 a)
 
 #if !defined(WOLFSSL_MLDSA_SMALL) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
+     (!defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+      ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))) || \
      (defined(WOLFSSL_MLDSA_SMALL) && \
       (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
        (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
@@ -8301,7 +8350,42 @@ static int mldsa_invntt(sword32* r)
 }
 #endif
 
+#if defined(WOLFSSL_MLDSA_CHECK_INVNTT_BOUND) && \
+    ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+      defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_SIGN) && \
+      defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)) || \
+     (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+      defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))
+/* Test aid: check a polynomial about to enter mldsa_invntt_full() on a
+ * small-mem path is inside (-Q, Q), the range those paths reduce it into.
+ *
+ * @param [in] r  Polynomial about to be inverse transformed.
+ * @return  0 when every coefficient is in range.
+ * @return  BAD_STATE_E when one is not.
+ */
+static int mldsa_check_invntt_bound(const sword32* r)
+{
+    int ret = 0;
+    unsigned int i;
+
+    for (i = 0; i < MLDSA_N; i++) {
+        if ((r[i] <= -MLDSA_Q) || (r[i] >= MLDSA_Q)) {
+            WOLFSSL_MSG("ML-DSA inverse NTT input outside (-Q, Q)");
+            ret = BAD_STATE_E;
+            break;
+        }
+    }
+
+    return ret;
+}
+#endif
+
 /* Inverse Number-Theoretic Transform.
+ *
+ * Cannot overflow when |r[i]| < Q: the sum lane is left unreduced across
+ * all 8 levels, so it reaches 256 times the input bound, and
+ * 256 * Q < 2^31.
  *
  * @param [in, out] r  Polynomial to transform.
  */
@@ -8802,6 +8886,11 @@ static int mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
+    (!defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+     ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+       defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+      (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+       defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))) || \
     (defined(WOLFSSL_MLDSA_SMALL) && \
      (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
@@ -9457,12 +9546,13 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* s1-l, s2-k, a-1. t is encoded a polynomial at a time, so it and the
-         * one decoded s2 polynomial share the s2 vector, which is dead once
-         * s2 has been encoded into the private key. */
+        /* s1-l, s2-k, a-1, [t64], h. t is encoded a polynomial at a time,
+         * so it and the one decoded s2 polynomial share the s2 vector, which
+         * is dead once s2 has been encoded into the private key.
+         * h is last as its size may be odd. */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
-                   (unsigned int)MLDSA_POLY_SIZE;
+                   (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         /* t64 */
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
@@ -9474,10 +9564,12 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         else {
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t  = s2;
-            h  = (byte*)(s2 + params->s2Sz / sizeof(*s2));
-            a  = (sword32*)(h + MLDSA_REJ_NTT_POLY_H_SIZE);
+            a  = s2 + params->s2Sz / sizeof(*s2);
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64 = (sword64*)(a + MLDSA_N);
+            h  = (byte*)(t64 + MLDSA_N);
+        #else
+            h  = (byte*)(a + MLDSA_N);
         #endif
         }
     }
@@ -9637,9 +9729,23 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
                 /* Next polynomial. */
                 s1t += MLDSA_N;
             }
+            /* A failed row's accumulator was never fully written. */
+            if (ret != 0) {
+                break;
+            }
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             for (e = 0; e < MLDSA_N; e++) {
                 tt[e] = mldsa_mont_red(t64[e]);
+            }
+        #else
+            /* Sum of l Montgomery products reaches l*Q; bring it back
+             * inside |x| < Q, where mldsa_invntt_full() cannot overflow. */
+            ret = mldsa_poly_red(tt);
+        #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            /* Out-of-range input would overflow the inverse NTT. */
+            if (ret == 0) {
+                ret = mldsa_check_invntt_bound(tt);
             }
         #endif
             if (ret == 0) {
@@ -9693,11 +9799,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     }
 
     /* Zeroize the whole buffer before freeing. It holds the private vectors
-     * s1, s2 and t at the front; the rejection-sampling / matrix A region in
-     * the middle is public, but the trailing t64 accumulator (POLY64 builds)
-     * holds A o NTT(s1) - from which s1 is recoverable - so it must be
-     * cleared too. As the secret material is not contiguous, zeroize the
-     * entire allocation rather than a sub-range. */
+     * s1, s2 and t at the front, then the public matrix polynomial a, then
+     * (POLY64 builds) the t64 accumulator holding A o NTT(s1) - from which
+     * s1 is recoverable - and finally the public rejection-sampling buffer
+     * h. As the secret material is not contiguous, zeroize the entire
+     * allocation rather than a sub-range. */
     if (s1 != NULL) {
         ForceZero(s1, allocSz);
     }
@@ -10493,6 +10599,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 ret = mldsa_vec_red(w, maxK);
             }
         #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            /* Out-of-range input would overflow the inverse NTT. */
+            for (r = 0; (ret == 0) && (r < maxK); r++) {
+                ret = mldsa_check_invntt_bound(w + (word32)r * MLDSA_N);
+            }
+        #endif
             if (ret == 0) {
                 ret = mldsa_vec_invntt_full(w, maxK);
             }
@@ -10638,6 +10750,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
                 /* Step 13: w = NTT-1(A o NTT(y)) */
                 ret = mldsa_poly_red(w0t);
+            #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+                /* Out-of-range input would overflow the inverse NTT. */
+                if (ret == 0) {
+                    ret = mldsa_check_invntt_bound(w0t);
+                }
+            #endif
                 if (ret == 0) {
                     ret = mldsa_invntt_full(w0t);
                 }
@@ -11132,6 +11250,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             for (r = 0; (ret == 0) && (r < params->k); r++) {
                 /* Step 13: w = NTT-1(A o NTT(y)) */
                 ret = mldsa_poly_red(wt);
+            #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+                /* Out-of-range input would overflow the inverse NTT. */
+                if (ret == 0) {
+                    ret = mldsa_check_invntt_bound(wt);
+                }
+            #endif
                 if (ret == 0) {
                     ret = mldsa_invntt_full(wt);
                 }
@@ -12159,12 +12283,13 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* z, c, w, t1, w1e. */
+        /* z, c-1, w-1, t1-1, [t64], block, w1e */
         unsigned int allocSz;
 
-        allocSz  = zSz + params->w1EncSz +
+        allocSz  = zSz +
                    3U * (unsigned int)MLDSA_POLY_SIZE +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   params->w1EncSz;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
@@ -12177,12 +12302,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             c     = z + zSz / sizeof(*t1);
             w     = c + MLDSA_N;
             t1    = w + MLDSA_N;
-            block = (byte*)(t1 + MLDSA_N);
-            w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
             aBuf  = t1;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            t64   = (sword64*)(w1e + params->w1EncSz);
+            t64   = (sword64*)(t1 + MLDSA_N);
+            block = (byte*)(t64 + MLDSA_N);
+        #else
+            block = (byte*)(t1 + MLDSA_N);
         #endif
+            w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
         }
     }
 #else
@@ -12402,6 +12529,19 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             for (e = 0; e < MLDSA_N; e++) {
                 w[e] = mldsa_mont_red(t64[e]);
+            }
+        #else
+            /* Sum of l + 1 Montgomery products reaches (l + 1)*Q; bring it
+             * back inside |x| < Q, where mldsa_invntt_full() cannot
+             * overflow. */
+            if (ret == 0) {
+                ret = mldsa_poly_red(w);
+            }
+        #endif
+        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+            /* Out-of-range input would overflow the inverse NTT. */
+            if (ret == 0) {
+                ret = mldsa_check_invntt_bound(w);
             }
         #endif
 
