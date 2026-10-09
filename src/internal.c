@@ -11504,6 +11504,29 @@ static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
     return bytes + sizeof(DtlsFragBucket) + (end - offset);
 }
 
+/* The retained bytes the receive list may reach when admitting an entry. */
+static size_t DtlsMsgRxLimit(int unverified)
+{
+    if (unverified && WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES <
+            WOLFSSL_DTLS_RX_MAX_BYTES)
+        return WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES;
+    return WOLFSSL_DTLS_RX_MAX_BYTES;
+}
+
+/* Unlink msg from the receive list and free it. */
+static void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* msg)
+{
+    DtlsMsg** link = &ssl->dtls_rx_msg_list;
+
+    while (*link != NULL && *link != msg)
+        link = &(*link)->next;
+    if (*link == msg) {
+        *link = msg->next;
+        DtlsMsgDelete(msg, ssl->heap);
+        ssl->dtls_rx_msg_list_sz--;
+    }
+}
+
 /* Check the single-entry bound first: an impossible fragment must not evict
  * unrelated entries. Unverified entries are maintained in LRU list order. */
 static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected,
@@ -11511,13 +11534,14 @@ static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected,
 {
     size_t bytes;
     size_t old = current == NULL ? 0 : DtlsMsgRetainedBytes(current);
+    size_t limit = DtlsMsgRxLimit(unverified);
 
-    if (projected > WOLFSSL_DTLS_RX_MAX_BYTES)
+    if (projected > limit)
         return DTLS_TOO_MANY_FRAGMENTS_E;
     bytes = DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list) - old;
-    if (!unverified && bytes > WOLFSSL_DTLS_RX_MAX_BYTES - projected)
+    if (!unverified && bytes > limit - projected)
         return DTLS_TOO_MANY_FRAGMENTS_E;
-    while (bytes > WOLFSSL_DTLS_RX_MAX_BYTES - projected) {
+    while (bytes > limit - projected) {
         DtlsMsg** link = &ssl->dtls_rx_msg_list;
         DtlsMsg* victim;
         while (*link == current && *link != NULL)
@@ -11558,20 +11582,35 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     if (peer != NULL)
         return BAD_FUNC_ARG;
 #endif
-    cur = DtlsMsgFind(ssl->dtls_rx_msg_list, epoch, seq, peer);
-    isNew = cur == NULL;
-    /* A fragment that contradicts what this unverified peer sent before is
-     * dropped like any bad message from a peer a stateless server has not
-     * verified; it must not end the server. */
-    if (!isNew && (cur->sz != dataSz || cur->type != type))
-        return peer != NULL ? 0 : BAD_FUNC_ARG;
-
     /* Even a tiny first fragment cannot admit an unverified ClientHello whose
      * announced completed allocation can never fit. Check before any eviction. */
-    if (peer != NULL && (peerSz > WOLFSSL_DTLS_RX_MAX_BYTES ||
+    if (peer != NULL && (peerSz > DtlsMsgRxLimit(1) ||
             sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + (size_t)dataSz >
-                WOLFSSL_DTLS_RX_MAX_BYTES - peerSz))
+                DtlsMsgRxLimit(1) - peerSz))
         return 0;
+
+    cur = DtlsMsgFind(ssl->dtls_rx_msg_list, epoch, seq, peer);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (peer != NULL) {
+        /* One ClientHello per unverified peer, the newest. A fragment of
+         * another message, or one that contradicts what is held, replaces the
+         * entry: what a forger sent first cannot pin it, and the peer's
+         * retransmission recovers. */
+        DtlsMsg* held = ssl->dtls_rx_msg_list;
+        while (held != NULL && !(held->unverified &&
+                DtlsMsgPeerEqual(held, peer)))
+            held = held->next;
+        if (held != NULL && (held != cur || held->sz != dataSz ||
+                held->type != type)) {
+            DtlsMsgListRemove(ssl, held);
+            cur = NULL;
+        }
+    }
+#endif
+    isNew = cur == NULL;
+    /* Statefully, a fragment that contradicts the message held is an error */
+    if (!isNew && (cur->sz != dataSz || cur->type != type))
+        return BAD_FUNC_ARG;
 
     if (isNew)
         projected = sizeof(DtlsMsg) + peerSz + sizeof(DtlsFragBucket) + fragSz;

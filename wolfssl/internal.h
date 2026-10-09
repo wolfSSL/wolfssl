@@ -1252,6 +1252,13 @@ enum {
 #ifndef WOLFSSL_DTLS_RX_MAX_BYTES
     #define WOLFSSL_DTLS_RX_MAX_BYTES (MAX_HANDSHAKE_SZ + 16UL * 1024UL)
 #endif
+/* Of that budget, the most a stateless DTLS 1.3 server holds, counted the
+ * same way, for the ClientHellos of peers whose cookie has not verified. Each
+ * peer holds one at most. A ClientHello is a few KiB even with post-quantum
+ * key shares. */
+#ifndef WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
+    #define WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES (16UL * 1024UL)
+#endif
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS

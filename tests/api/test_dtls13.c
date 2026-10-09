@@ -415,6 +415,11 @@ static int test_dtls13_inject_four_frag_ch(struct test_memio_ctx* test_ctx,
 }
 #endif
 
+/* The retained bytes a stateless server holds for unverified ClientHellos */
+#define TEST_DTLS_RX_UNVERIFIED_LIMIT                                          \
+    (WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES < WOLFSSL_DTLS_RX_MAX_BYTES ?        \
+        WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES : WOLFSSL_DTLS_RX_MAX_BYTES)
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(HAVE_ECC) \
     && !defined(NO_ECC256)
@@ -1103,8 +1108,8 @@ int test_dtls13_frag_ch1_interleaved_peers(void)
     return EXPECT_RESULT();
 }
 
-/* Exhaust the byte budget with equal-sized partial ClientHellos. A further
- * peer evicts the oldest, while the newest peer is still served. */
+/* Exhaust the unverified byte budget with equal-sized partial ClientHellos. A
+ * further peer evicts the oldest, while the newest peer is still served. */
 int test_dtls13_frag_ch1_evict_oldest(void)
 {
     EXPECT_DECLS;
@@ -1134,7 +1139,7 @@ int test_dtls13_frag_ch1_evict_oldest(void)
     /* two fragments */
     fragSz = (chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 1) / 2;
 
-    capacity = (int)(WOLFSSL_DTLS_RX_MAX_BYTES /
+    capacity = (int)(TEST_DTLS_RX_UNVERIFIED_LIMIT /
         (sizeof(DtlsMsg) + sizeof(int) + sizeof(DtlsFragBucket) + fragSz));
     ExpectIntGT(capacity, 1);
     /* The same ClientHello from one peer more than the byte budget holds. */
@@ -1169,7 +1174,7 @@ int test_dtls13_frag_ch1_evict_oldest(void)
     /* Completion can require another eviction before the HRR frees it. */
     ExpectIntLE(ssl_s->dtls_rx_msg_list_sz, capacity - 1);
     ExpectIntLE(DtlsMsgListRetainedBytes(ssl_s->dtls_rx_msg_list),
-        WOLFSSL_DTLS_RX_MAX_BYTES);
+        TEST_DTLS_RX_UNVERIFIED_LIMIT);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -1209,10 +1214,10 @@ int test_dtls13_frag_ch1_over_bound(void)
     /* First fragment of a message claiming one byte over the bound */
     ExpectIntGT(fragSz = test_dtls13_frag_record(ch, chSz, 100, 0, frag,
         (int)sizeof(frag)), 0);
-    maxPayload = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - sizeof(DtlsMsg) -
+    maxPayload = (word32)(TEST_DTLS_RX_UNVERIFIED_LIMIT - sizeof(DtlsMsg) -
         sizeof(DtlsFragBucket) - ssl_s->buffers.dtlsCtx.peer.sz);
-    /* With the default budget the protocol's message limit is reached first.
-     * A small-budget build instead exercises byte-budget rejection here. */
+    /* A build whose protocol message limit is below the unverified budget
+     * rejects at that limit instead. */
     maxPayload = min(maxPayload, MAX_HANDSHAKE_SZ);
     c32to24(maxPayload + 1,
         frag + DTLS_RECORD_HEADER_SZ + 1);
@@ -1438,65 +1443,79 @@ int test_dtls13_frag_ch2_stale_fragment(void)
 }
 
 /* A fragment whose message length contradicts the part of the ClientHello the
- * server holds for this peer is dropped: a stateless server does not fail on a
- * bad message from a peer it has not verified. The genuine fragments then
- * complete the message. */
+ * server holds for an unverified peer replaces it, before or after a genuine
+ * fragment: nothing a forger sends first pins the entry, a stateless server
+ * does not fail on it, and the peer's retransmission completes the message. */
 int test_dtls13_frag_ch1_length_mismatch(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
     && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_ECC) && !defined(NO_ECC256)
-    WOLFSSL_CTX *ctx_c = NULL;
-    WOLFSSL_CTX *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL;
-    WOLFSSL *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-    int group = WOLFSSL_ECC_SECP256R1;
-    byte ch[TEST_MEMIO_BUF_SZ];
-    int chSz = (int)sizeof(ch);
-    byte frag[TEST_MEMIO_BUF_SZ];
-    int fragSz = 0;
-    int piece = 0;
-    int isHrr = 0;
-    word32 msgLen = 0;
+    int forgedFirst;
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
-        TEST_SUCCESS);
-    piece = (chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 2) / 3;
+    for (forgedFirst = 0; forgedFirst < 2 && EXPECT_SUCCESS(); forgedFirst++) {
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int group = WOLFSSL_ECC_SECP256R1;
+        byte ch[TEST_MEMIO_BUF_SZ];
+        int chSz = (int)sizeof(ch);
+        byte frag[TEST_MEMIO_BUF_SZ];
+        int fragSz = 0;
+        int piece = 0;
+        int isHrr = 0;
+        word32 msgLen = 0;
 
-    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx, ch, chSz, piece, 0), 1);
-    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s), TEST_SUCCESS);
-    ExpectNotNull(ssl_s->dtls_rx_msg_list);
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+            TEST_SUCCESS);
+        piece = (chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 2) /
+            3;
 
-    /* Second fragment announcing a longer message */
-    ExpectIntGT(fragSz = test_dtls13_frag_record(ch, chSz, piece, 1, frag,
-        (int)sizeof(frag)), 0);
-    ato24(frag + DTLS_RECORD_HEADER_SZ + 1, &msgLen);
-    c32to24(msgLen + 1, frag + DTLS_RECORD_HEADER_SZ + 1);
-    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)frag,
-        fragSz), 0);
-    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_len, 0);
-    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+        if (!forgedFirst) {
+            ExpectIntEQ(test_dtls13_inject_frag(&test_ctx, ch, chSz, piece, 0),
+                1);
+            ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+                TEST_SUCCESS);
+            ExpectNotNull(ssl_s->dtls_rx_msg_list);
+        }
 
-    /* The genuine rest completes the ClientHello */
-    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx, ch, chSz, piece, 1), 1);
-    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx, ch, chSz, piece, 2), 1);
-    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
-    ExpectIntEQ(isHrr, 1);
-    ExpectNull(ssl_s->dtls_rx_msg_list);
+        /* Second fragment announcing a longer message */
+        ExpectIntGT(fragSz = test_dtls13_frag_record(ch, chSz, piece, 1, frag,
+            (int)sizeof(frag)), 0);
+        ato24(frag + DTLS_RECORD_HEADER_SZ + 1, &msgLen);
+        c32to24(msgLen + 1, frag + DTLS_RECORD_HEADER_SZ + 1);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)frag,
+            fragSz), 0);
+        ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.c_len, 0);
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+        /* Only the forged message is held */
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+        ExpectIntEQ(ssl_s->dtls_rx_msg_list != NULL ?
+            ssl_s->dtls_rx_msg_list->sz : 0, msgLen + 1);
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
+        /* The retransmitted ClientHello replaces it and completes */
+        ExpectIntEQ(test_dtls13_inject_fragmented(&test_ctx, ch, chSz, piece),
+            3);
+        ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+        ExpectIntEQ(isHrr, 1);
+        ExpectNull(ssl_s->dtls_rx_msg_list);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -1507,27 +1526,34 @@ int test_dtls13_rx_bytes(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
-    WOLFSSL ssl[1];
+    WOLFSSL* ssl = NULL;
     byte* data = NULL;
     byte peer[16];
+    const WOLFSSL_SOCKADDR* unv = NULL;
     DtlsMsg* current = NULL;
     DtlsMsg* other = NULL;
     size_t base = sizeof(DtlsMsg) + sizeof(peer) + sizeof(DtlsFragBucket);
-    word32 len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - base);
+    word32 len = (word32)(TEST_DTLS_RX_UNVERIFIED_LIMIT - base);
     size_t bytes;
-    const WOLFSSL_SOCKADDR* unv = &ssl->buffers.dtlsCtx.peer;
 
-    data = (byte*)XMALLOC(WOLFSSL_DTLS_RX_MAX_BYTES, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (data == NULL)
-        return MEMORY_E;
+    ExpectNotNull(ssl = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(data = (byte*)XMALLOC(TEST_DTLS_RX_UNVERIFIED_LIMIT, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_FAIL()) {
+        XFREE(ssl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXPECT_RESULT();
+    }
     XMEMSET(ssl, 0, sizeof(*ssl));
-    XMEMSET(data, 0x5a, WOLFSSL_DTLS_RX_MAX_BYTES);
+    XMEMSET(data, 0x5a, TEST_DTLS_RX_UNVERIFIED_LIMIT);
     XMEMSET(peer, 0x01, sizeof(peer));
     ssl->options.side = WOLFSSL_SERVER_END;
     ssl->buffers.dtlsCtx.peer.sa = peer;
     ssl->buffers.dtlsCtx.peer.sz = sizeof(peer);
     ssl->buffers.dtlsCtx.peer.bufSz = sizeof(peer);
+    unv = &ssl->buffers.dtlsCtx.peer;
+
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 1,
         NULL), 0);
     ExpectNotNull(current = ssl->dtls_rx_msg_list);
@@ -1539,7 +1565,9 @@ int test_dtls13_rx_bytes(void)
     ExpectIntEQ(DtlsMsgListRetainedBytes(current), base + 1);
     if (EXPECT_SUCCESS())
         current->peer.sz = sizeof(peer);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, len, client_hello, 0, 1,
+    /* A second peer */
+    peer[0] = 2;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 1,
         NULL), 0);
     ExpectNotNull(other = current->next);
     bytes = 2 * (base + 1);
@@ -1547,8 +1575,10 @@ int test_dtls13_rx_bytes(void)
 
     /* An impossible completed CH, or projected disjoint allocation, must not
      * evict either the current entry or an unrelated message. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, unv, data, len + 1, client_hello,
+    peer[0] = 3;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len + 1, client_hello,
         0, 1, NULL), 0);
+    peer[0] = 1;
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello,
         2, len - 2, NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
@@ -1568,15 +1598,18 @@ int test_dtls13_rx_bytes(void)
     ExpectNull(current->next);
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), bytes + 1);
     /* Refresh other, making current the oldest again. */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, len, client_hello, 1, 1,
+    peer[0] = 2;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 1, 1,
         NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, unv, data, len, client_hello, 0, 1,
+    peer[0] = 3;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello, 0, 1,
         NULL), 0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
 
     /* Completing the oldest to exactly the budget evicts BOTH other entries,
      * never the entry being extended. Ready raw still owns a bucket header. */
+    peer[0] = 1;
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, len, client_hello,
         2, len - 2, NULL), 0);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
@@ -1586,30 +1619,48 @@ int test_dtls13_rx_bytes(void)
     ExpectNotNull(current->raw);
     ExpectNull(current->fragBucketList);
     ExpectBufEQ(current->fullMsg, data, len);
-    ExpectIntEQ(DtlsMsgListRetainedBytes(current), WOLFSSL_DTLS_RX_MAX_BYTES);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(current),
+        TEST_DTLS_RX_UNVERIFIED_LIMIT);
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     ssl->dtls_rx_msg_list = NULL;
     ssl->dtls_rx_msg_list_sz = 0;
     ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
 
-    /* Promotion drops every entry held for an unverified peer, the verified
-     * peer's own included, and keeps what was stored statefully. An unverified
-     * entry is found only through its peer. */
+    /* One entry per unverified peer, the newest: another message, or a
+     * fragment contradicting the one held, replaces it. */
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, unv, data, 4, client_hello, 0, 1,
         NULL), 0);
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 4, client_hello, 0, 1,
         NULL), 0);
-    peer[0]++;
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 0, unv));
+    ExpectNotNull(current = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1, unv));
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 5, client_hello, 1, 1,
+        NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(current = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(current->sz, 5);
+    ExpectIntEQ(current->bytesReceived, 1);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+
+    /* Promotion drops every entry held for an unverified peer, the verified
+     * peer's own included, and keeps what was stored statefully. An unverified
+     * entry is found only through its peer. */
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 4, client_hello, 0, 1,
         NULL), 0);
-    peer[0]--;
+    peer[0] = 2;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, unv, data, 4, client_hello, 0, 1,
+        NULL), 0);
+    peer[0] = 1;
     ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1, NULL));
     ssl->options.dtlsStateful = 1;
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, NULL, data, 4, finished, 0, 1,
         NULL), 0);
     ExpectNotNull(current = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2, NULL));
     ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2, unv));
-    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
     DtlsMsgListPurgeUnverified(ssl);
     ExpectPtrEq(ssl->dtls_rx_msg_list, current);
     ExpectNull(current->next);
@@ -1621,6 +1672,7 @@ int test_dtls13_rx_bytes(void)
         base - sizeof(peer) + 4);
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ssl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
