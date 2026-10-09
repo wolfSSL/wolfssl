@@ -351,7 +351,7 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
     #endif
 #endif
 
-#ifndef WOLFSSL_NO_CONST_CMP
+#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
 WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
 #endif
 
