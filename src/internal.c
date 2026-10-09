@@ -11364,18 +11364,17 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 #ifdef WOLFSSL_DTLS_CH_FRAG
 /* Whether msg was received from peer. The peer is compared as the opaque bytes
  * the I/O layer or the application set, exactly as the cookie binds them; an
- * empty peer matches only an empty peer. */
-
-/* For review: the concept of peer is general, but here we are using
-* WOLFSSL_SOCKADDR*, do you see the need to have a custom peer compare if I/O
-* provide its own peer? can this be postponed? */
+ * empty peer matches only an empty peer. A custom transport that serves
+ * several peers must therefore set each one with wolfSSL_dtls_set_peer(), or
+ * every unverified ClientHello shares one entry. */
 static int DtlsMsgPeerEqual(const DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer)
 {
     if (msg->peer.sz != peer->sz)
         return 0;
-    /* For review: I see the optimization for peer->sz == 0 but I do think it's
-* better for a first cut to aim at readability instead */
-    return peer->sz == 0 || XMEMCMP(msg->peer.sa, peer->sa, peer->sz) == 0;
+    /* An empty peer has no address buffer to compare */
+    if (peer->sz == 0)
+        return 1;
+    return XMEMCMP(msg->peer.sa, peer->sa, peer->sz) == 0;
 }
 #endif
 
@@ -11437,8 +11436,6 @@ void DtlsMsgListPurgeUnverified(WOLFSSL* ssl)
 static int DtlsMsgSetPeer(DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer,
                           void* heap)
 {
-/* for review: can we do an anlaysis of the benefit of maintaining DTLS_CH_FRAG
-* compile-time knob? */
 #ifdef WOLFSSL_DTLS_CH_FRAG
     if (peer == NULL)
         return 0;

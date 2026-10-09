@@ -1803,9 +1803,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     int hrrCookie = 0;
+#endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
     int reassembleBeforeCookie = -1; /* -1 keeps the library default */
-#endif
 #endif
     byte mcastID = 0;
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \

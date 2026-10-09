@@ -47,24 +47,33 @@
  *       On by default; wolfSSL_dtls13_allow_ch_frag() is kept for
  *       compatibility.
  *     - Server: reassemble a fragmented ClientHello before its cookie is
- *       verified, then run the cookie check on the complete message. What is
- *       held for a peer whose return routability is not yet proven is bounded
- *       by WOLFSSL_DTLS_RX_MAX_BYTES per receive list, including allocated
- *       message, peer and fragment metadata and payload, but not allocator
- *       overhead or temporary bucket-replacement allocations. Entries are
- *       keyed by peer address; the least recently progressed is evicted first.
- *       Duplicates do not refresh recency. Once stateful, budget exhaustion
- *       is a hard error instead of eviction. On by default;
- *       wolfSSL_dtls13_reassemble_ch_before_cookie() turns it off for a
- *       server that must hold nothing before the address is proven, at the
- *       price of dropping every fragmented first ClientHello (RFC 9147
- *       Section 5.5 requires a receiver to buffer or process a fragment).
+ *       verified, then run the cookie check on the complete message. Each
+ *       peer address holds one ClientHello at most, the newest: a fragment
+ *       of another message, or contradicting the one held, replaces it. All
+ *       of them together are bounded by WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES
+ *       (counted like WOLFSSL_DTLS_RX_MAX_BYTES below); the least recently
+ *       progressed is evicted first, and duplicates do not refresh recency.
+ *       Whatever is held is dropped when any cookie verifies. On by default,
+ *       and only while the above is on. A server that must hold nothing
+ *       before the address is proven turns it off with
+ *       wolfSSL_dtls13_reassemble_ch_before_cookie(), at the price of
+ *       dropping every fragmented first ClientHello (RFC 9147 Section 5.5
+ *       requires a receiver to buffer or process a fragment).
  *     - Client: send an empty key share in the first ClientHello when the
  *       message would not fit one datagram, so it never fragments, at the
  *       cost of one HelloRetryRequest round trip.
  *     With the cookie exchange disabled (wolfSSL_disable_hrr_cookie()) the
  *     server is stateful from the first datagram and reassembles any
  *     ClientHello.
+ * WOLFSSL_DTLS_RX_MAX_BYTES
+ *     Bound, DTLS 1.2 and 1.3, on the bytes the receive list of one WOLFSSL
+ *     retains for out-of-order and fragmented handshake messages: message,
+ *     peer and fragment metadata and payload, not allocator overhead or the
+ *     temporary allocations while fragments merge. A message also has at most
+ *     WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment ranges. A fragment past
+ *     either limit from a plaintext record, which anyone can send, is dropped
+ *     without an ACK; from an authenticated record, passing the byte bound
+ *     ends the connection with DTLS_TOO_MANY_FRAGMENTS_E.
  */
 
 #ifndef WOLFCRYPT_ONLY

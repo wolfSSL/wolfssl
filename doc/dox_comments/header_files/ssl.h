@@ -2524,10 +2524,10 @@ int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
     Without cookies a DTLS 1.3 server can process a first ClientHello that
     arrives fragmented, but only when ClientHello fragment reassembly is
     available: wolfSSL must be built with WOLFSSL_DTLS_CH_FRAG
-    (--enable-dtls-frag-ch, turned on automatically with ML-KEM and DTLS 1.3)
-    and it must be enabled on the object with wolfSSL_dtls13_allow_ch_frag(),
-    which is done by default only in builds with ML-KEM. Otherwise the
-    fragments are dropped and the handshake does not progress.
+    (--enable-dtls-frag-ch, turned on automatically with ML-KEM and DTLS 1.3),
+    where it is on by default, and not turned off with
+    wolfSSL_dtls13_allow_ch_frag(). Otherwise the fragments are dropped and
+    the handshake does not progress.
 
     The DTLS cookie mode is fixed once the handshake commits to stateful
     processing, which the accept functions do before the first read and
@@ -14893,27 +14893,33 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     \brief This function is called on a DTLS v1.3 server to let it reassemble
     a fragmented ClientHello from a peer whose cookie is not verified yet, and
     run the cookie check on the complete message. It is on by default, in
-    every build with WOLFSSL_DTLS_CH_FRAG. A
-    ClientHello that carries a post-quantum key share does not fit one
-    datagram, and RFC 9147 Section 5.5 requires a receiver to buffer or
-    process a handshake fragment, so with this off the server silently drops
-    the first ClientHello of every such client. When the cookie is already in
-    the first fragment the server verifies it at once and buffers nothing.
+    every build with WOLFSSL_DTLS_CH_FRAG, and takes effect only while
+    ClientHello fragmentation is allowed: wolfSSL_dtls13_allow_ch_frag(ssl, 0)
+    turns it off too. A ClientHello that carries a post-quantum key share does
+    not fit one datagram, and RFC 9147 Section 5.5 requires a receiver to
+    buffer or process a handshake fragment, so with this off the server
+    silently drops the first ClientHello of every such client. When the
+    cookie is in the first fragment the server verifies it at once and keeps
+    that fragment as the start of the connection's ClientHello; fragments
+    held before then are dropped and the peer retransmits them.
 
     This setting lets the server hold ClientHello fragments in memory before
-    it verifies the cookie. A peer that spoofs its source address can make the
-    server retain up to WOLFSSL_DTLS_RX_MAX_BYTES bytes per WOLFSSL receive
-    list (default MAX_HANDSHAKE_SZ + 16 KiB, overridable at compile time).
-    This includes message structures, allocated peer identities and fragment
-    bucket metadata and payload. It excludes allocator-internal overhead and
-    temporary allocations during bucket replacement. Admission checks the
-    resulting retained size before allocation. Unverified entries are evicted
-    least recently used first; only successfully adding new bytes refreshes
-    recency, not duplicate fragments. An entry that cannot fit by itself is
-    dropped without evicting other entries. MAX_HANDSHAKE_SZ still applies.
-    Once stateful, the same budget applies but exhaustion returns
-    DTLS_TOO_MANY_FRAGMENTS_E rather than evicting handshake progress.
-    Size the budget for the expected messages, metadata and concurrent peers.
+    it verifies the cookie, so any sender, with no need to spoof an address,
+    can make it hold memory. Each peer address holds one ClientHello at most,
+    the newest: a fragment of another message, or one contradicting what is
+    held, replaces it. All of them together are bounded by
+    WOLFSSL_DTLS_RX_UNVERIFIED_MAX_BYTES (default 16 KiB, at most
+    WOLFSSL_DTLS_RX_MAX_BYTES, both overridable at compile time) per WOLFSSL
+    receive list. This includes message structures, allocated peer identities
+    and fragment bucket metadata and payload. It excludes allocator-internal
+    overhead and temporary allocations during bucket replacement. Admission
+    checks the resulting retained size before allocation. Unverified entries
+    are evicted least recently used first; only successfully adding new bytes
+    refreshes recency, not duplicate fragments. An entry that cannot fit by
+    itself is dropped without evicting other entries, and a message has at
+    most WOLFSSL_DTLS_FRAG_POOL_SZ disjoint fragment ranges. MAX_HANDSHAKE_SZ
+    still applies. Whatever is held is dropped once any cookie verifies.
+    Size the budget for the expected ClientHellos and concurrent peers.
     Cookie verification still proves return routability before key derivation.
     Peers are told apart by the address the I/O layer reports, or by whatever
     bytes the application set with wolfSSL_dtls_set_peer() on a custom
@@ -14922,6 +14928,12 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
     default I/O callback and is not compatible with serving several unverified
     peers on one object. To keep 0-RTT on a server that sends cookies see
     WOLFSSL_DTLS13_NO_HRR_ON_RESUME. Requires WOLFSSL_DTLS_CH_FRAG.
+
+    The receive list of every DTLS 1.2 and 1.3 connection is bounded by
+    WOLFSSL_DTLS_RX_MAX_BYTES (default MAX_HANDSHAKE_SZ + 16 KiB). A fragment
+    from a plaintext record that does not fit is dropped and not
+    acknowledged; past the bound on an authenticated record the connection
+    fails with DTLS_TOO_MANY_FRAGMENTS_E.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().
