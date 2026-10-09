@@ -77,6 +77,10 @@
     #include "prefix_ssl.h"
 #endif
 
+#ifdef WOLFSSL_CERT_COMPRESSION
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
+
 #ifdef LIBWOLFSSL_VERSION_STRING
     #define WOLFSSL_VERSION LIBWOLFSSL_VERSION_STRING
 #endif
@@ -1551,6 +1555,12 @@ WOLFSSL_API int  wolfSSL_preferred_group(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL* ssl);
 
+#ifdef WOLFSSL_CERT_COMPRESSION
+WOLFSSL_API int wolfSSL_CTX_set_cert_compression_algs(WOLFSSL_CTX* ctx,
+    const word16* algs, int count);
+WOLFSSL_API int wolfSSL_set_cert_compression_algs(WOLFSSL* ssl,
+    const word16* algs, int count);
+#endif
 #ifdef WOLFSSL_EARLY_DATA
 
 #define WOLFSSL_EARLY_DATA_NOT_SENT    0

@@ -170,6 +170,9 @@
     #include <limits.h>
 #endif
 
+#if defined(WOLFSSL_CERT_COMPRESSION) || defined(HAVE_LIBZ)
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -1645,6 +1648,7 @@ enum Misc {
     DTLS13_HANDSHAKE_HEADER_SZ   = 12, /* sizeof(Dtls13HandshakeHeader) */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
+    COMP_CERT_HEADER_SZ   = 8,  /* alg<2> + uncompSz <3> + compSz <3> */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
     TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
@@ -2087,6 +2091,14 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #endif
 #endif
 
+/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and other relevant
+ * macros*/
+#if defined(WOLFSSL_CERT_COMPRESSION) && defined (HAVE_TLS_EXTENSIONS) && \
+    (!defined(WOLFSSL_TLS13) || !defined(HAVE_LIBZ) || defined(NO_CERTS))
+    #error WOLFSSL_CERT_COMPRESSION needs WOLFSSL_TLS13, HAVE_LIBZ, not \
+    NO_CERTS, and HAVE_TLS_EXTENSIONS.
+#endif
+
 /* Max certificate extensions in TLS1.3 */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     /* Number of extensions to set each OCSP response */
@@ -2297,6 +2309,14 @@ WOLFSSL_LOCAL int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOut
 #endif
 WOLFSSL_TEST_VIS int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     int sniff);
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_COMPRESSION) && \
+    !defined(NO_CERTS)
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define DoTls13CompressedCertificate wolfSSL_DoTls13CompressedCertificate
+#endif
+WOLFSSL_TEST_VIS int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
+                                    word32* inOutIdx, word32 totalSz);
+#endif
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites);
 #ifdef WOLFSSL_TLS13
@@ -3245,6 +3265,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_CERT_COMPRESSION           0x001b /* RFC 8879 */
 #define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 9973 */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
@@ -3294,6 +3315,9 @@ typedef enum {
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_CERT_COMPRESSION
+    TLSX_CERT_COMPRESSION           = TLSXT_CERT_COMPRESSION,
+    #endif
     #ifdef WOLFSSL_EARLY_DATA
     TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
@@ -3701,6 +3725,14 @@ WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length);
 #endif
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_UseCertCompression wolfSSL_TLSX_UseCertCompression
+#endif
+WOLFSSL_TEST_VIS int TLSX_UseCertCompression(WOLFSSL* ssl, void* heap);
+#endif
+
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -4557,6 +4589,13 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_TLS13
     word16          group[WOLFSSL_MAX_GROUP_COUNT];
     byte            numGroups;
+#endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+    /* list of offered compression algs, copied to each new WOLFSSL.
+     * NULL = use the built-in default list */
+    byte                     noOfferCompressionAlgPrefList;
+    byte                     compressionAlgPrefListLen;
+    word16*                  compressionAlgPrefList;
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
@@ -7212,6 +7251,16 @@ struct WOLFSSL {
     word32 earlyDataSz;
     byte earlyDataStatus;
 #endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+    /* RFC 8879 algorithm ID; WC_NO_COMPRESSION = none negotiated */
+    word16 peerCertCompressionAlg;
+    wc_CompressionData* compressedCert;
+    /* list of offered compression algs; NULL = use the built-in default,
+     * This also determines what we are willing to send */
+    byte noOfferCompressionAlgPrefList;
+    byte compressionAlgPrefListLen;
+    word16* compressionAlgPrefList;
+#endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
@@ -7496,6 +7545,7 @@ enum HandShakeType {
     finished             =  20,
     certificate_status   =  22,
     key_update           =  24,
+    compressed_certificate = 25,    /* RFC 8879 TLS1.3 > only */
     change_cipher_hs     =  55,    /* simulate unique handshake type for sanity
                                       checks.  record layer change_cipher
                                       conflicts with handshake finished */
