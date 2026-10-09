@@ -3913,7 +3913,12 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
         return 0;
     ++labelCount;
 
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    (void)labelCount;
+    return curLabelHasAlpha;
+#else
     return ((labelCount > 1) && curLabelHasAlpha);
+#endif
 }
 
 /* call before SSL_connect, if verifying will add name check to
