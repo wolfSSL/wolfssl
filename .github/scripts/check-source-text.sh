@@ -295,9 +295,10 @@ check_empty_macros() {
 # only if a backwards compat breaking change was made to the session cache.
 # Check against the previous release tag, if available.
 check_sess_cache_ver() {
-    local release_tag=$(git describe --tags --abbrev=0 --match 'v*-stable')
+    local release_tag=$(git describe --tags --abbrev=0 --match 'v*-stable' \
+                        2>/dev/null)
     if [ -z $release_tag ]; then
-        # shallow clone, skip test
+        # shallow clone or no tag data, skip test
         return
     fi
 
@@ -310,7 +311,7 @@ check_sess_cache_ver() {
 
     if [[ $this_ver -gt $(($prev_ver + 1)) ]]; then
         printf 'error: WOLFSSL_CACHE_VERSION: bumped too many times:\n'
-        printf '  got %d, expected <= %d\n' $this_ver $(($prev_ver + 1))
+        printf '    got %d, expected <= %d\n' $this_ver $(($prev_ver + 1))
         FAIL=1
     fi
 }
