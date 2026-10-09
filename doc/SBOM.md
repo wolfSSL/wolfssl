@@ -21,6 +21,10 @@ covered:
 | `python3 scripts/gen-sbom …` (standalone) | Embedded / RTOS customers building with their own Makefile, Keil, IAR, STM32CubeIDE, ESP-IDF, Zephyr, plain CMake, etc. | Any |
 | `make sbom` (autotools wrapper) | Linux server / Debian / RPM / Yocto / FIPS-Ready customers running `./configure && make` | Autotools |
 
+`scripts/gen-sbom` forwards to the vendored generator at `tools/sbom/gen-sbom`.
+`make sbom` uses that same generator through `tools/sbom/sbom.am`.
+The snapshot is pinned in `tools/sbom/.wolfssl-compliance-tooling-rev`.
+
 Both call the same Python core and produce SBOMs that pass SPDX 2.3
 (`pyspdxtools`) and CycloneDX 1.6 (`cyclonedx-bom` strict JSON validator)
 schema validation.  The autotools `make sbom` integration job

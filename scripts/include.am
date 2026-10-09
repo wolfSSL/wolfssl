@@ -182,17 +182,9 @@ EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
 
-# SBOM generator (invoked from `make sbom` in the top-level Makefile.am).
-# Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
-# ./configure && make sbom` fails for downstream consumers.
+# Customer entry point. Forwards to the vendored generator in
+# tools/sbom/gen-sbom. Must be in the dist tarball.
 EXTRA_DIST += scripts/gen-sbom
-
-# Canonical shared Automake SBOM recipe.  wolfSSL's own top-level Makefile.am
-# does not `include` this fragment (it drives gen-sbom directly against its
-# generated wolfssl/options.h), but the canonical copy lives here and is
-# shipped so downstream wolfSSL-stack products (wolfSSH, wolfEngine, wolfCLU,
-# ...) can vendor an identical copy and stay in sync.
-EXTRA_DIST += scripts/sbom.am
 
 # SBOM generator unit tests.  Shipped so downstream consumers building
 # from a release tarball can re-run the regression suite.
