@@ -186,6 +186,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
             NO_PIE_FLAG := 0
           endif
         endif
+      else ifeq "$(CONFIG_X86_32)" "y"
+        NO_PIE_FLAG := 1
+        $(info Note: disabling -fPIE to avoid R_386_GOTOFF on i386.)
       else
         NO_PIE_FLAG := 0
       endif
