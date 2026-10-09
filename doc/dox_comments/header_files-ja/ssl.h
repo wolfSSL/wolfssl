@@ -4354,7 +4354,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
     WOLFSSL_X509_STORE* str;
     int ret;
     // strを作成して設定
-    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_X509_V_FLAG_CRL_CHECK);
     if (ret != SSL_SUCCESS) {
     	//ret値を確認してエラーケースを処理する
     }

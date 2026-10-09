@@ -5710,7 +5710,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
     WOLFSSL_X509_STORE* str;
     int ret;
     // create and set up str
-    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_STORE_set_flags(str, WOLFSSL_X509_V_FLAG_CRL_CHECK);
     If (ret != SSL_SUCCESS) {
     	//check ret value and handle error case
     }

@@ -2587,7 +2587,8 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *p
         unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_time(
         WOLFSSL_X509_VERIFY_PARAM *param, time_t t);
-WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param);
+WOLFSSL_API unsigned long wolfSSL_X509_VERIFY_PARAM_get_flags(
+        WOLFSSL_X509_VERIFY_PARAM *param);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
         unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
