@@ -25658,14 +25658,14 @@ static int DoChangeCipherSpecTls13(WOLFSSL* ssl)
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
         return UNKNOWN_RECORD_TYPE;
     }
-    if (!ssl->msgsReceived.got_change_cipher) {
-        ssl->msgsReceived.got_change_cipher = 1;
-    }
-    else {
-        SendAlert(ssl, alert_fatal, illegal_parameter);
+    /* RFC 8446 5: every legal CCS is dropped; bound them to stop a flood. */
+    if (ssl->options.ccsIgnoredCount >= WOLFSSL_MAX_TLS13_CCS_RECORDS) {
+        WOLFSSL_MSG("Too many TLS 1.3 ChangeCipherSpec records");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
         return UNKNOWN_RECORD_TYPE;
     }
+    ssl->options.ccsIgnoredCount++;
     if (ssl->keys.decryptedCur == 1) {
         SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
@@ -26677,7 +26677,6 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     }
                     else {
 #ifdef WOLFSSL_TLS13
-                        ssl->msgsReceived.got_change_cipher = 0;
                         ret = DoTls13HandShakeMsg(ssl,
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,

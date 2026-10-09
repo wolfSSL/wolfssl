@@ -4928,6 +4928,15 @@
     #error "WOLFSSL_MAX_EMPTY_RECORDS must be <= 255 (stored in a byte)"
 #endif
 
+/* Plaintext TLS 1.3 ChangeCipherSpec records accepted per handshake. A
+ * middlebox compatible peer sends one, so at least two must be allowed. */
+#ifndef WOLFSSL_MAX_TLS13_CCS_RECORDS
+    #define WOLFSSL_MAX_TLS13_CCS_RECORDS 8
+#endif
+#if WOLFSSL_MAX_TLS13_CCS_RECORDS < 2 || WOLFSSL_MAX_TLS13_CCS_RECORDS > 255
+    #error "WOLFSSL_MAX_TLS13_CCS_RECORDS must be in 2..255 (stored in a byte)"
+#endif
+
 /* Enable blinding by default for C-only, non-small curve25519 implementation */
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
     !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_ARMASM) && \

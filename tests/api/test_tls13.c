@@ -8320,6 +8320,82 @@ int test_tls13_middlebox_compat_server_ccs(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Queue numCcs plaintext CCS records after the ClientHello and check that the
+ * server fails with expErr, or completes the handshake when expErr is 0. */
+static int test_tls13_repeated_ccs_run(int numCcs, int expErr)
+{
+    EXPECT_DECLS;
+    static const byte ccs[] = { change_cipher_spec, 0x03, 0x03, 0x00, 0x01,
+                                0x01 };
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte recs[sizeof(ccs) * (WOLFSSL_MAX_TLS13_CCS_RECORDS + 1)];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntGT(numCcs, 0);
+    ExpectIntLE(numCcs, WOLFSSL_MAX_TLS13_CCS_RECORDS + 1);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Keep the client's own compat CCS out of the injected count. */
+    if (EXPECT_SUCCESS()) {
+        ssl_c->options.tls13MiddleBoxCompat = 0;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* One message keeps the memio message count within its limit. */
+    for (i = 0; i < numCcs && EXPECT_SUCCESS(); i++) {
+        XMEMCPY(recs + i * (int)sizeof(ccs), ccs, sizeof(ccs));
+    }
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)recs,
+        numCcs * (int)sizeof(ccs)), 0);
+
+    if (expErr == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_accept(ssl_s),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_s,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), expErr);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 8446 Section 5 requires every plaintext CCS received during the
+ * handshake to be dropped, not only the first one. A flood is still fatal. */
+int test_tls13_repeated_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    ExpectIntEQ(test_tls13_repeated_ccs_run(1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_repeated_ccs_run(2, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_repeated_ccs_run(WOLFSSL_MAX_TLS13_CCS_RECORDS, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_repeated_ccs_run(WOLFSSL_MAX_TLS13_CCS_RECORDS + 1,
+        WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE)), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* wolfSSL_clear() must not leave the previous handshake's ChangeCipherSpec
  * state behind, or a reused server object stops answering a non-empty
  * legacy_session_id after the first handshake. */

@@ -5879,6 +5879,9 @@ struct Options {
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
     byte            alertCount;         /* detect warning dos attempt */
     byte            emptyRecordCount;   /* detect empty record dos attempt */
+#ifdef WOLFSSL_TLS13
+    byte            ccsIgnoredCount;    /* detect TLS 1.3 CCS dos attempt */
+#endif
 #ifdef WOLFSSL_MULTICAST
     word16          mcastID;            /* Multicast group ID */
 #endif
