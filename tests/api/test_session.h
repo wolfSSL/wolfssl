@@ -40,6 +40,7 @@ int test_wolfSSL_SESSION_get_ex_new_index(void);
 int test_wolfSSL_GetSessionAtIndex(void);
 int test_wolfSSL_client_cache_id_prefix(void);
 int test_wolfSSL_client_cache_id_overwrite(void);
+int test_wolfSSL_client_cache_set1_id(void);
 int test_wolfSSL_session_cache_restore(void);
 int test_wolfSSL_session_cache_client_geometry(void);
 int test_wolfSSL_get_session_default_ref(void);
@@ -62,6 +63,7 @@ int test_wolfSSL_SetServerID_resume(void);
     TEST_DECL_GROUP("session", test_wolfSSL_GetSessionAtIndex),                \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_prefix),           \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_id_overwrite),        \
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_set1_id),             \
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_restore),            \
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_client_geometry),    \
     TEST_DECL_GROUP("session", test_wolfSSL_get_session_default_ref),          \

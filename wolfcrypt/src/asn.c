@@ -15260,25 +15260,20 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                 j = 0;
                 /* Append each number of dotted form. */
                 for (i = 0; (word32)i < tmpSize; i++) {
-                    if (j >= MAX_OID_SZ) {
-                        return BUFFER_E;
-                    }
+                    char arc[8];
 
                     if ((word32)i < tmpSize - 1) {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d.", tmpName[i]);
+                        ret = XSNPRINTF(arc, sizeof(arc), "%d.", tmpName[i]);
                     }
                     else {
-                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d", tmpName[i]);
+                        ret = XSNPRINTF(arc, sizeof(arc), "%d", tmpName[i]);
                     }
 
-                    if (ret >= 0) {
-                        j += ret;
-                    }
-                    else {
+                    if ((ret < 0) || (ret >= MAX_OID_SZ - j)) {
                         return BUFFER_E;
                     }
+                    XMEMCPY(oidName + j, arc, (size_t)ret);
+                    j += ret;
                 }
                 ret = 0;
                 finalName = oidName;
@@ -16210,6 +16205,8 @@ int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
 {
     struct tm t;
     int idx = 0;
+    char tmp[64];
+    int tmpLen;
 
     if (!ExtractDate(date, (unsigned char)format, &t, &idx, dateLen)) {
         return 0;
@@ -16241,13 +16238,13 @@ int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
     }
     idx = 4; /* use idx now for char buffer */
 
-    if (XSNPRINTF(buf + idx, (size_t)(len - idx), "%2d %02d:%02d:%02d %d GMT",
-              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900)
-        >= len - idx)
-    {
+    tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%2d %02d:%02d:%02d %d GMT",
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900);
+    if ((tmpLen < 0) || (tmpLen >= len - idx)) {
         WOLFSSL_MSG("buffer overrun in GetTimeString");
         return 0;
     }
+    XMEMCPY(buf + idx, tmp, (size_t)tmpLen + 1);
 
     return 1;
 }
@@ -22418,6 +22415,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     word32 val, inIdx = 0, outIdx = 0;
     int w = 0;
     int cnt = 0;
+    char arc[12];
 
     if (out == NULL || in == NULL || outSz < 4 || inSz < 2)
         return BAD_FUNC_ARG;
@@ -22427,11 +22425,12 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     /* The first byte expands into b/40 dot b%40. */
     val = in[inIdx++];
 
-    w = XSNPRINTF(out, outSz, "%u.%u", val / 40, val % 40);
-    if (w < 0) {
+    w = XSNPRINTF(arc, sizeof(arc), "%u.%u", val / 40, val % 40);
+    if (w < 0 || (word32)w > outSz) {
         w = BUFFER_E;
         goto exit;
     }
+    XMEMCPY(out, arc, (size_t)w);
     outIdx += (word32)w;
     val = 0;
 
@@ -22450,11 +22449,12 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
         else {
             /* write val as text into out */
             val += in[inIdx];
-            w = XSNPRINTF(out + outIdx, outSz - outIdx, ".%u", val);
+            w = XSNPRINTF(arc, sizeof(arc), ".%u", val);
             if (w < 0 || (word32)w > outSz - outIdx) {
                 w = BUFFER_E;
                 goto exit;
             }
+            XMEMCPY(out + outIdx, arc, (size_t)w);
             outIdx += (word32)w;
             val = 0;
             cnt = 0;
