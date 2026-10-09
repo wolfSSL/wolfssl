@@ -43902,8 +43902,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             if (certDer != NULL && certDerSz > 0 &&
                     certDerSz <= MAX_TICKET_PEER_CERT_SZ
 #ifdef HAVE_MAX_FRAGMENT
-                    /* We don't support fragmentation in
-                     * SendTls13NewSessionTicket yet. */
+                    /* The ticket returns in a ClientHello, which is never
+                     * fragmented and after a HelloRetryRequest must fit the
+                     * reduced limit. */
                     && (!IsAtLeastTLSv1_3(ssl->version) ||
                         ssl->max_fragment == MAX_RECORD_SIZE)
 #endif

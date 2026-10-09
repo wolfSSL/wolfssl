@@ -14955,6 +14955,12 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     word16 extSz;
     int    genAltSessionID;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    word32 hsSz = 0;
+    word32 fragSz;
+    word32 fragOff;
+    word32 fragRoom = 0;
+    int    maxFrag = 0;
+    byte*  plain;
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_SEND);
     WOLFSSL_ENTER("SendTls13NewSessionTicket");
@@ -15059,12 +15065,27 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     sendSz = (int)(idx + length + MAX_MSG_EXTRA);
 
+    /* DTLS 1.3 fragments in Dtls13HandshakeSend(). Otherwise reserve room
+     * for the records ahead of the plaintext so neither overlaps. */
+    if (!ssl->options.dtls) {
+        maxFrag = wolfssl_local_GetMaxPlaintextSize(ssl);
+        if (maxFrag <= 0)
+            return (maxFrag < 0) ? maxFrag : BUFFER_E;
+        hsSz = HANDSHAKE_HEADER_SZ + length;
+        if (hsSz > (word32)maxFrag) {
+            fragRoom = hsSz + ((hsSz + (word32)maxFrag - 1) /
+                               (word32)maxFrag) *
+                       (RECORD_HEADER_SZ + MAX_MSG_EXTRA);
+            sendSz = (int)(fragRoom + idx + length);
+        }
+    }
+
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = GetOutputBuffer(ssl);
+    output = GetOutputBuffer(ssl) + fragRoom;
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, session_ticket, ssl);
@@ -15114,7 +15135,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #endif
 
     if (idx > WOLFSSL_MAX_16BIT ||
-        sendSz > (int)WOLFSSL_MAX_16BIT) {
+        (fragRoom == 0 && sendSz > (int)WOLFSSL_MAX_16BIT)) {
         return BAD_LENGTH_E;
     }
 
@@ -15134,15 +15155,37 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
                                    (word16)idx, session_ticket, 0);
 #endif /* WOLFSSL_DTLS13 */
 
-    /* This message is always encrypted. */
-    sendSz = BuildTls13Message(ssl, output, sendSz,
-                               output + RECORD_HEADER_SZ,
-                               (word16)idx - RECORD_HEADER_SZ,
-                               handshake, 0, 0, 0);
-    if (sendSz < 0)
-        return sendSz;
+    if (fragRoom > 0) {
+        /* RFC 8446 Section 5.1: split across adjacent handshake records so
+         * each fits the negotiated maximum fragment length. */
+        plain = output + RECORD_HEADER_SZ;
+        for (fragOff = 0; fragOff < hsSz; fragOff += fragSz) {
+            fragSz = min(hsSz - fragOff, (word32)maxFrag);
+            output = GetOutputBuffer(ssl);
+            sendSz = BuildTls13Message(ssl, output,
+                                       (int)(RECORD_HEADER_SZ + fragSz +
+                                             MAX_MSG_EXTRA),
+                                       plain + fragOff, (int)fragSz,
+                                       handshake, 0, 0, 0);
+            if (sendSz < 0)
+                break;
+            ssl->buffers.outputBuffer.length += (word32)sendSz;
+        }
+        ForceZero(plain, hsSz);
+        if (sendSz < 0)
+            return sendSz;
+    }
+    else {
+        /* This message is always encrypted. */
+        sendSz = BuildTls13Message(ssl, output, sendSz,
+                                   output + RECORD_HEADER_SZ,
+                                   (word16)idx - RECORD_HEADER_SZ,
+                                   handshake, 0, 0, 0);
+        if (sendSz < 0)
+            return sendSz;
 
-    ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += sendSz;
+    }
 
     /* Always send as this is either directly after server's Finished or only
      * message after client's Finished.
