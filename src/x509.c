@@ -11766,6 +11766,8 @@ static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
         serial->length = rc->serialSz;
         serial->dataMax = rc->serialSz;
         serial->isDynamic = 1;
+        /* Value octets only - no DER tag or length. */
+        serial->dataIsRaw = 1;
     }
     rev->serialNumber = serial;
 
@@ -11936,11 +11938,14 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
         XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
         a->length = x509->serialSz;
+        /* Qt and HAProxy read data/length as the value octets. */
+        a->dataIsRaw = 1;
     #else
         a->data[i++] = ASN_INTEGER;
         i += SetLength(x509->serialSz, a->data + i);
         XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
         a->length = x509->serialSz + 2;
+        a->dataIsRaw = 0;
     #endif
 
     x509->serialNumber = a;
@@ -12966,9 +12971,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
      * this define the function will error out below */
     #ifdef OPENSSL_EXTRA
     if (x509->serialSz == 0 && x509->serialNumber != NULL &&
-            /* Check if the buffer contains more than just the
-             * ASN tag and length */
-            x509->serialNumber->length > 2) {
+            /* Check there is a value to copy. Asking the object rather than
+             * testing length > 2, which assumed a DER layout. */
+            wolfSSL_ASN1_INTEGER_get_length(x509->serialNumber) > 0) {
         if (wolfSSL_X509_set_serialNumber(x509, x509->serialNumber)
                 != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Failed to set serial number");
@@ -17435,19 +17440,24 @@ int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME *t)
 
 int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 {
+    word32 idx = 0;
+    int len = 0;
+
     WOLFSSL_ENTER("wolfSSL_X509_set_serialNumber");
     if (x509 == NULL || s == NULL || s->data == NULL ||
             s->length >= EXTERNAL_SERIAL_SIZE)
         return WOLFSSL_FAILURE;
 
-    /* WOLFSSL_ASN1_INTEGER has type | size | data
-     * Sanity check that the data is actually in ASN format */
-    if (s->length < 3 || s->data[0] != ASN_INTEGER ||
-            s->data[1] != s->length - 2) {
+    /* Take the value octets whichever layout the object records, rather than
+     * requiring a DER one - X509_CRL_get_REVOKED() serials and, under
+     * WOLFSSL_QT/WOLFSSL_HAPROXY, X509_get_serialNumber() hand back bare
+     * values and used to be rejected here. */
+    if ((wolfssl_asn1_integer_value(s, &idx, &len) != 1) || (len <= 0) ||
+            (len >= EXTERNAL_SERIAL_SIZE)) {
         return WOLFSSL_FAILURE;
     }
-    XMEMCPY(x509->serial, s->data + 2, s->length - 2);
-    x509->serialSz = s->length - 2;
+    XMEMCPY(x509->serial, s->data + idx, (size_t)len);
+    x509->serialSz = len;
     x509->serial[x509->serialSz] = 0;
 
     return WOLFSSL_SUCCESS;

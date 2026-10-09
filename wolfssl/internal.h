@@ -8312,6 +8312,12 @@ WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_LOCAL int wolfssl_asn1_integer_value(const WOLFSSL_ASN1_INTEGER* a,
+    word32* idx, int* len);
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key,
         word32* keySz);

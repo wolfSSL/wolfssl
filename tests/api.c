@@ -30194,6 +30194,8 @@ static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
         serial->dataMax = (int)sizeof(serialData);
         serial->length = (int)sizeof(serialData);
         serial->isDynamic = 0;
+        /* serialData is the value, with no DER tag or length. */
+        serial->dataIsRaw = 1;
     }
 
     revDate.length = MAX_DATE_SIZE + 1; /* intentionally too large */
@@ -30324,18 +30326,24 @@ static int generate_crl_test(const char* keyFile, const char* certFile,
           .data = serialsToRevokeBytes[0],
           .dataMax = sizeof(serialsToRevokeBytes[0]),
           .isDynamic = 0,
+          /* The bytes are the value, with no DER tag or length. */
+          .dataIsRaw = 1,
           .length = sizeof(serialsToRevokeBytes[0]),
           .type = 0 },
         { .intData = {0}, .negative = 0,
           .data = serialsToRevokeBytes[1],
           .dataMax = sizeof(serialsToRevokeBytes[1]),
           .isDynamic = 0,
+          /* The bytes are the value, with no DER tag or length. */
+          .dataIsRaw = 1,
           .length = sizeof(serialsToRevokeBytes[1]),
           .type = 0 },
         { .intData = {0}, .negative = 0,
           .data = serialsToRevokeBytes[2],
           .dataMax = sizeof(serialsToRevokeBytes[2]),
           .isDynamic = 0,
+          /* The bytes are the value, with no DER tag or length. */
+          .dataIsRaw = 1,
           .length = sizeof(serialsToRevokeBytes[2]),
           .type = 0 }
     };
@@ -30625,7 +30633,10 @@ static int test_wolfSSL_X509_CRL_sign_large(void)
     revoked.reason = CRL_REASON_NONE;
     if (revoked.serialNumber != NULL) {
         revoked.serialNumber->data = serial;
+        revoked.serialNumber->dataMax = (unsigned int)sizeof(serial);
         revoked.serialNumber->length = (int)sizeof(serial);
+        /* serial is the value, with no DER tag or length. */
+        revoked.serialNumber->dataIsRaw = 1;
     }
 
     for (i = 1; i <= 1024; i++) {

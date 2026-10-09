@@ -315,6 +315,10 @@ int test_wolfSSL_EC_POINT(void)
     EC_POINT* get_point = NULL;
     EC_POINT* infinity = NULL;
     EC_POINT* dup_point = NULL;
+#if !defined(HAVE_ECC_BRAINPOOL) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    EC_POINT* jacobian_point = NULL;
+#endif
     BIGNUM* k = NULL;
     BIGNUM* Gx = NULL;
     BIGNUM* Gy = NULL;
@@ -519,6 +523,35 @@ int test_wolfSSL_EC_POINT(void)
     ExpectIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
+
+#ifndef HAVE_ECC_BRAINPOOL
+    /* group2 is a curve wolfCrypt was not built with, so its curve_idx is -1
+     * and the curve parameters these operations need are not in ecc_sets.
+     * Each has to fail rather than index ecc_sets with that. Every call is
+     * guarded the way the function it calls is built. */
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    ExpectIntEQ(EC_POINT_add(group2, new_point, new_point, Gxy, ctx), 0);
+    ExpectIntEQ(EC_POINT_mul(group2, new_point, Gx, Gxy, k, ctx), 0);
+#endif
+    ExpectIntEQ(EC_POINT_invert(group2, new_point, ctx), 0);
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* get_affine_coordinates_GFp() only converts when the point is in
+     * Jacobian form, and the conversion is what needs the curve's prime. An
+     * already-affine point is returned without touching the curve, so give it
+     * one with Z != 1. */
+    ExpectNotNull(jacobian_point = EC_POINT_dup(Gxy, group));
+    if (jacobian_point != NULL) {
+        ExpectIntEQ(BN_set_word(jacobian_point->Z, 2), 1);
+    }
+    ExpectIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group2,
+        jacobian_point, X, Y, ctx), 0);
+    /* The same point is converted fine on a curve wolfCrypt does have. */
+    ExpectIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group,
+        jacobian_point, X, Y, ctx), 1);
+#endif
+#endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
@@ -857,6 +890,10 @@ int test_wolfSSL_EC_POINT(void)
     BN_free(set_point_bn);
     EC_POINT_free(infinity);
     EC_POINT_free(dup_point);
+#if !defined(HAVE_ECC_BRAINPOOL) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    EC_POINT_free(jacobian_point);
+#endif
     EC_POINT_free(new_point);
     EC_POINT_free(set_point);
     EC_POINT_clear_free(Gxy);
