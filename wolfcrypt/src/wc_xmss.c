@@ -1370,6 +1370,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_XmssKey_Reload below.
+ * WOLF_CRYPTO_CB_ONLY_XMSS removes the software reload, so the read callback
+ * is never called.
  *
  * Neither arm populates key->pk, so the reloaded key can sign but cannot
  * export a public key or verify.
@@ -1384,6 +1386,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  * @return  MEMORY_E when allocating dynamic memory fails.
  * @return  BAD_STATE_E when wrong state for operation.
  * @return  IO_FAILED_E when reading private key failed.
+ * @return  NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_XMSS unless the key is
+ *          device-backed.
  */
 int wc_XmssKey_Reload(XmssKey* key)
 {
@@ -1416,7 +1420,7 @@ int wc_XmssKey_Reload(XmssKey* key)
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_XMSS
-    /* The device owns the state, so there is nothing to reload. */
+    /* No software reload exists to use the read callback. */
     if (ret == 0) {
         ret = NO_VALID_DEVID;
     }

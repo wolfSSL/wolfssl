@@ -444,6 +444,8 @@ int test_wc_LmsKey_reload_devid(void)
     word32  sigSz;
     byte    pub[64];
     word32  pubSz = sizeof(pub);
+    const byte* kid = NULL;
+    word32  kidSz = 0;
 
     /* Zero so cleanup is safe if an early alloc failure skips init. */
     XMEMSET(&key, 0, sizeof(key));
@@ -468,6 +470,8 @@ int test_wc_LmsKey_reload_devid(void)
     ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
     /* The reload must have expanded the private key, not been skipped. */
     ExpectNotNull(key.priv_data);
+    ExpectIntEQ(wc_LmsKey_GetKid(&key, &kid, &kidSz), 0);
+    ExpectIntEQ(kidSz, WC_LMS_I_LEN);
 
     /* Sign with the reloaded key and verify with a software-only key. */
     sigSz = sizeof(sig);
@@ -488,6 +492,8 @@ int test_wc_LmsKey_reload_devid(void)
     ExpectIntEQ(test_lms_set_params(&hsmKey), 0);
     ExpectIntEQ(wc_LmsKey_Reload(&hsmKey), 0);
     ExpectNull(hsmKey.priv_data);
+    ExpectIntEQ(wc_LmsKey_GetKid(&hsmKey, &kid, &kidSz),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
     wc_LmsKey_Free(&hsmKey);
     wc_LmsKey_Free(&vkey);
@@ -642,6 +648,8 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
     defined(WOLF_CRYPTO_CB)
     LmsKey key;
     WC_RNG rng;
+    const byte* kid = NULL;
+    word32 kidSz = 0;
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
@@ -654,6 +662,9 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
     ExpectIntEQ(test_lms_set_params(&key), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ(key.state, WC_LMS_STATE_OK);
+    /* The device keeps the private key, which contains the key ID. */
+    ExpectIntEQ(wc_LmsKey_GetKid(&key, &kid, &kidSz),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
@@ -661,6 +672,17 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLFSSL_SWDEV) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY)
+static int test_lms_read_fail(byte* priv, word32 privSz, void* context)
+{
+    (void)priv;
+    (void)privSz;
+    (void)context;
+    return WC_LMS_RC_READ_FAIL;
+}
+#endif
 
 /* Callback-only LMS returns NO_VALID_DEVID when no device does the work. */
 int test_wc_LmsKey_cb_only_no_device(void)
@@ -689,6 +711,14 @@ int test_wc_LmsKey_cb_only_no_device(void)
     ExpectIntEQ(test_lms_set_params(&key), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng),
         WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    ExpectIntEQ(wc_LmsKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_LmsKey_Free(&key);
+
+    /* A read callback skips the device no-op, and no software reload
+     * exists to call it. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_SetReadCb(&key, test_lms_read_fail), 0);
     ExpectIntEQ(wc_LmsKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
     wc_LmsKey_Free(&key);
 
@@ -957,6 +987,18 @@ int test_wc_XmssKey_reload_devid_verify(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLFSSL_SWDEV) && \
+    !defined(WOLFSSL_XMSS_VERIFY_ONLY) && defined(TEST_XMSS_H10_AVAILABLE)
+static enum wc_XmssRc test_xmss_read_fail(byte* priv, word32 privSz,
+    void* context)
+{
+    (void)priv;
+    (void)privSz;
+    (void)context;
+    return WC_XMSS_RC_READ_FAIL;
+}
+#endif
+
 /* Same as test_wc_LmsKey_cb_only_no_device, for XMSS. */
 int test_wc_XmssKey_cb_only_no_device(void)
 {
@@ -984,6 +1026,14 @@ int test_wc_XmssKey_cb_only_no_device(void)
     ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
     ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng),
         WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    ExpectIntEQ(wc_XmssKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_XmssKey_Free(&key);
+
+    /* A read callback skips the device no-op, and no software reload
+     * exists to call it. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_SetReadCb(&key, test_xmss_read_fail), 0);
     ExpectIntEQ(wc_XmssKey_Reload(&key), WC_NO_ERR_TRACE(NO_VALID_DEVID));
     wc_XmssKey_Free(&key);
 

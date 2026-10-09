@@ -71397,14 +71397,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_LmsKey_GetKid(&signingKey, &kid, &kidSz);
-#ifdef WOLF_CRYPTO_CB_ONLY_LMS
-    /* The key ID stays on the device. */
-    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+#if defined(WOLFSSL_SWDEV) && defined(WOLF_CRYPTO_CB_FIND)
+    /* swdev keeps the private key, which contains the key ID. */
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #else
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
     if (kidSz != WC_LMS_I_LEN) {
         ERROR_OUT(WC_TEST_RET_ENC_I(kidSz), out);
+    }
+    /* The key ID follows the L, LMS and LM-OTS types in the public key. */
+    if (XMEMCMP(kid, signingKey.pub + LMS_L_LEN + 2 * LMS_TYPE_LEN,
+            kidSz) != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 #endif
 

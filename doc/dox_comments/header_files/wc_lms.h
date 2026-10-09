@@ -363,6 +363,10 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     taken to be device-backed and Reload is a no-op. With a read
     callback the software reload runs as usual.
 
+    WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read
+    callback is never called and only the device-backed no-op
+    succeeds.
+
     A reloaded key holds no public key: neither arm populates it.
     Call wc_LmsKey_ImportPubRaw() on a separate key to verify, or keep
     the public key exported at generation time.
@@ -371,6 +375,8 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_LMS_RC_* mapped error if the read callback fails.
     \return IO_FAILED_E if the private key could not be read.
+    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_LMS when the key is
+    not device-backed.
 
     \param [in,out] key Pointer to an LmsKey with parameters and read
     callback set.
@@ -627,6 +633,8 @@ const char* wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if the private key is not in memory, such as
+    when a device keeps it.
 
     \param [in,out] key Pointer to an LmsKey with a private key.
     \param [out] kid Receives a pointer to the I bytes.
