@@ -38,6 +38,12 @@ use core::mem::MaybeUninit;
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed25519 {
     ws_key: sys::ed25519_key,
+    /// Number of bytes passed to `verify_msg_update()` so far when a
+    /// streaming verification was initialized with the prehash variant, or
+    /// `None` otherwise. Used to enforce that exactly one prehash of
+    /// `PREHASH_SIZE` bytes is verified.
+    #[cfg(ed25519_streaming_verify)]
+    ph_stream_len: Option<usize>,
 }
 
 impl Ed25519 {
@@ -53,6 +59,9 @@ impl Ed25519 {
     pub const ED25519: u8 = sys::Ed25519 as u8;
     pub const ED25519CTX: u8 = sys::Ed25519ctx as u8;
     pub const ED25519PH: u8 = sys::Ed25519ph as u8;
+
+    /** Size of the prehashed message for the prehash variant. */
+    pub const PREHASH_SIZE: usize = sys::WC_SHA512_DIGEST_SIZE as usize;
 
     /// Validate an Ed25519 variant and optional context, returning the
     /// context pointer and length to pass to wolfCrypt.
@@ -151,7 +160,11 @@ impl Ed25519 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let mut ed25519 = Ed25519 { ws_key };
+        let mut ed25519 = Ed25519 {
+            ws_key,
+            #[cfg(ed25519_streaming_verify)]
+            ph_stream_len: None,
+        };
         let rc = unsafe {
             sys::wc_ed25519_make_key(rng.wc_rng,
                 sys::ED25519_KEY_SIZE as i32, &mut ed25519.ws_key)
@@ -219,7 +232,11 @@ impl Ed25519 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let ed25519 = Ed25519 { ws_key };
+        let ed25519 = Ed25519 {
+            ws_key,
+            #[cfg(ed25519_streaming_verify)]
+            ph_stream_len: None,
+        };
         Ok(ed25519)
     }
 
@@ -1255,6 +1272,11 @@ impl Ed25519 {
 
     /// Initialize Ed25519 key to perform streaming verification.
     ///
+    /// When `typ` is `Ed25519::ED25519PH`, the data passed to `verify_msg_update()`
+    /// must total exactly `Ed25519::PREHASH_SIZE` bytes (the prehashed
+    /// message); otherwise `verify_msg_update()` or `verify_msg_final()`
+    /// returns `BAD_FUNC_ARG`.
+    ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
@@ -1298,12 +1320,18 @@ impl Ed25519 {
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
+            self.ph_stream_len = None;
             return Err(rc);
         }
+        self.ph_stream_len = if typ == Self::ED25519PH { Some(0) } else { None };
         Ok(())
     }
 
     /// Add input data to Ed25519 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed25519::ED25519PH`, a
+    /// segment that would bring the total input beyond
+    /// `Ed25519::PREHASH_SIZE` bytes is rejected with `BAD_FUNC_ARG`.
     ///
     /// # Parameters
     ///
@@ -1336,6 +1364,19 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
+        // For the prehash variant, the total input must be exactly one
+        // prehash. Reject any segment that would exceed it.
+        let new_ph_len = match self.ph_stream_len {
+            Some(len) => {
+                let new_len = len.checked_add(din.len())
+                    .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+                if new_len > Self::PREHASH_SIZE {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+                Some(new_len)
+            }
+            None => None,
+        };
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
@@ -1343,10 +1384,15 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
+        self.ph_stream_len = new_ph_len;
         Ok(())
     }
 
     /// Finalize Ed25519 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed25519::ED25519PH` and
+    /// the total input was not exactly `Ed25519::PREHASH_SIZE` bytes,
+    /// `BAD_FUNC_ARG` is returned.
     ///
     /// # Parameters
     ///
@@ -1379,6 +1425,11 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        // For the prehash variant, the input must have been exactly one
+        // prehash. The streaming state is consumed either way.
+        if let Some(len) = self.ph_stream_len.take() && len != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,

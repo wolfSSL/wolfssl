@@ -69,6 +69,9 @@ Fixes and improvements:
 - The ecdsa and rsa_pkcs1v15 modules are no longer enabled when wolfSSL is
   built with NO_SIG_WRAPPER. Both are built on wc_SignatureGenerate() and
   wc_SignatureVerify(), so previously they failed to link
+- Ed25519 and Ed448 streaming verification with the prehash variant now
+  requires exactly PREHASH_SIZE (64) bytes of input, matching one-shot
+  verification
 
 ## v2.2.0
 

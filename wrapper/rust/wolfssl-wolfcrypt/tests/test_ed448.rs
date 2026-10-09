@@ -346,6 +346,46 @@ fn test_verify_msg_final_bad_sig() {
 }
 
 #[test]
+#[cfg(all(ed448_sign, ed448_streaming_verify, random))]
+fn test_verify_msg_streaming_ph_length() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+
+    let hash = [0x55u8; Ed448::PREHASH_SIZE];
+    let context = b"context";
+    let mut signature = [0u8; Ed448::SIG_SIZE];
+    ed.sign_hash_ph(&hash, Some(context), &mut signature).expect("Error with sign_hash_ph()");
+
+    // Exactly one prehash, split across updates.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash[0..32]).expect("Error with verify_msg_update()");
+    ed.verify_msg_update(&hash[32..]).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_final(&signature), Ok(true));
+
+    // Too little input is rejected at finalization.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash[0..Ed448::PREHASH_SIZE - 1]).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_final(&signature), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    // No input is rejected at finalization.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    assert_eq!(ed.verify_msg_final(&signature), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    // Input beyond one prehash is rejected and not consumed.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_update(&[0u8]), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    assert_eq!(ed.verify_msg_final(&signature), Ok(true));
+
+    // A single oversized update is rejected.
+    let long = [0x55u8; Ed448::PREHASH_SIZE + 1];
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    assert_eq!(ed.verify_msg_update(&long), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+}
+
+#[test]
 #[cfg(all(ed448_import, ed448_export, random))]
 fn test_import_export() {
     common::setup();
