@@ -1138,17 +1138,22 @@
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         /* work around backward dependency of asn.c on ssl.c. */
         struct Signer;
-        struct Signer *GetCA(void *signers, unsigned char *hash);
+        struct WOLFSSL_CERT_MANAGER;
+        struct Signer *GetCA(struct WOLFSSL_CERT_MANAGER *cm,
+                             unsigned char *hash);
         #ifndef NO_SKID
-            struct Signer *GetCAByName(void* signers, unsigned char *hash);
+            struct Signer *GetCAByName(struct WOLFSSL_CERT_MANAGER *cm,
+                                       unsigned char *hash);
             #ifdef HAVE_OCSP
-                struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
+                struct Signer* GetCAByKeyHash(struct WOLFSSL_CERT_MANAGER *cm,
+                                              const unsigned char* keyHash);
             #endif /* HAVE_OCSP */
             #ifdef WOLFSSL_AKID_NAME
                 #ifdef WOLFSSL_API_PREFIX_MAP
                     #define GetCAByAKID wolfSSL_GetCAByAKID
                 #endif
-                struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
+                struct Signer* GetCAByAKID(struct WOLFSSL_CERT_MANAGER *cm,
+                                           const unsigned char* issuer,
                                            unsigned int issuerSz,
                                            const unsigned char* serial,
                                            unsigned int serialSz);

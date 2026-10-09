@@ -136,7 +136,7 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     \sa wolfSSL_CertManagerLoadCA
 */
 int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
-                          void* cm);
+                          WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup ASN

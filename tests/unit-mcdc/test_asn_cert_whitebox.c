@@ -2331,7 +2331,7 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
  * only the decisions evaluated on the way matter here. A DecodedCert is
  * ~4KB, so it lives on the heap for the small_stack variant's benefit. */
 static void wb_parse_one(const WbFix* fix, int type, int verify,
-                         void* cm, Signer* extraCAList)
+                         WOLFSSL_CERT_MANAGER* cm, Signer* extraCAList)
 {
     DecodedCert* dc;
 

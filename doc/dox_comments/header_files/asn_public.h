@@ -4050,7 +4050,8 @@ void wc_InitDecodedCert(struct DecodedCert* cert,
     \sa wc_InitDecodedCert
     \sa wc_FreeDecodedCert
 */
-int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
+int wc_ParseCert(DecodedCert* cert, int type, int verify,
+    WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup ASN

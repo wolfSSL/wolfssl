@@ -4670,7 +4670,9 @@ static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert);
 #endif
 static int DecodeCertExtensions(DecodedCert* cert);
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
-static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap, void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req);
+static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
+    WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
+    int pubKeyOID, int req);
 #endif
 #if !defined(NO_RSA) && \
 (defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
@@ -4709,7 +4711,9 @@ static int OcspDecodeCertIDInt(const byte* input, word32* inOutIdx, word32 inSz,
 static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size, int wrapperSz, OcspEntry* single);
 static int DecodeOcspRespExtensions(byte* source, word32* ioIndex, OcspResponse* resp, word32 sz);
 static int DecodeResponseData(byte* source, word32* ioIndex, OcspResponse* resp, word32 size);
-static int DecodeBasicOcspResponse(byte* source, word32* ioIndex, OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify, int noVerifySignature);
+static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
+    OcspResponse* resp, word32 size, WOLFSSL_CERT_MANAGER* cm, void* heap,
+    int noVerify, int noVerifySignature);
 #endif
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx, DecodedCRL* dcrl, word32 maxIdx);
@@ -24484,7 +24488,7 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
+int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
 {
     int   ret;
 #if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
@@ -24535,7 +24539,8 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
-int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
+int wc_ParseCert(DecodedCert* cert, int type, int verify,
+    WOLFSSL_CERT_MANAGER* cm)
 {
     return ParseCert(cert, type, verify, cm);
 }
@@ -24630,44 +24635,49 @@ int wc_GetDecodedCertSerial(const struct DecodedCert* cert, byte* buf,
 
 #ifdef WOLFCRYPT_ONLY
 
-/* dummy functions, not using wolfSSL so don't need actual ones */
-Signer* GetCA(void* signers, byte* hash);
-Signer* GetCA(void* signers, byte* hash)
+/* dummy functions, there is no certificate manager in a wolfCrypt only
+ * build, so no CA can be found */
+Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
+    (void)cm;
     (void)hash;
 
-    return (Signer*)signers;
+    return NULL;
 }
 
 #ifndef NO_SKID
-Signer* GetCAByName(void* signers, byte* hash);
-Signer* GetCAByName(void* signers, byte* hash)
+Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
+    (void)cm;
     (void)hash;
 
-    return (Signer*)signers;
+    return NULL;
 }
 #endif /* NO_SKID */
 
 #ifdef WOLFSSL_AKID_NAME
-Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
-        const byte* serial, word32 serialSz);
-Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
-        const byte* serial, word32 serialSz)
+Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm, const byte* issuer,
+        word32 issuerSz, const byte* serial, word32 serialSz);
+Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm, const byte* issuer,
+        word32 issuerSz, const byte* serial, word32 serialSz)
 {
+    (void)cm;
     (void)issuer;
     (void)issuerSz;
     (void)serial;
     (void)serialSz;
 
-    return (Signer*)vp;
+    return NULL;
 }
 #endif
 
 #endif /* WOLFCRYPT_ONLY */
 
 #if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
-static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
+static Signer* GetCABySubjectAndPubKey(DecodedCert* cert,
+    WOLFSSL_CERT_MANAGER* cm)
 {
     Signer* ca = NULL;
     if (cert->extSubjKeyIdSet)
@@ -24774,7 +24784,8 @@ static int GetAKIHash(const byte* input, word32 maxIdx, word32 sigOID,
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
-        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req)
+        WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
+        int pubKeyOID, int req)
 {
     /* X509 ASN.1 template longer than Certificate Request template. */
     DECL_ASNGETDATA(dataASN, x509CertASN_Length);
@@ -25005,7 +25016,8 @@ int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
 #endif /* WOLFSSL_CERT_REQ */
 
 /* Call CheckCertSignature_ex using a certificate manager (cm) */
-int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
+    WOLFSSL_CERT_MANAGER* cm)
 {
     return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0);
 }
@@ -25225,8 +25237,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
  * absent. */
-static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
-                                      Signer* cert)
+static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                      Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -25374,8 +25386,8 @@ static int CheckRpkVerifyMode(int type, int verify)
 }
 #endif /* HAVE_RPK */
 
-int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
-                      Signer *extraCAList)
+int ParseCertRelative(DecodedCert* cert, int type, int verify,
+                      WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList)
 {
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -37527,7 +37539,8 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 static int DecodeBasicOcspResponse(const byte* source, word32* ioIndex,
-            OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify,
+            OcspResponse* resp, word32 size, WOLFSSL_CERT_MANAGER* cm,
+            void* heap, int noVerify,
             int noVerifySignature)
 {
     DECL_ASNGETDATA(dataASN, ocspBasicRespASN_Length);
@@ -37585,7 +37598,7 @@ static int DecodeBasicOcspResponse(const byte* source, word32* ioIndex,
 
     if ((ret == 0) && resp->certSz > 0) {
         ret = OcspCheckCert(resp, noVerify, noVerifySignature,
-                            (WOLFSSL_CERT_MANAGER*)cm, heap);
+                            cm, heap);
         if (ret == 0) {
             sigValid = 1;
         }
@@ -37595,7 +37608,7 @@ static int DecodeBasicOcspResponse(const byte* source, word32* ioIndex,
     /* try to verify using cm certs */
     if (ret == 0 && !noVerifySignature && !sigValid)
     {
-        ca = OcspFindSigner(resp, (WOLFSSL_CERT_MANAGER*)cm);
+        ca = OcspFindSigner(resp, cm);
         if (ca == NULL)
             ret = ASN_NO_SIGNER_E;
     }
@@ -37799,8 +37812,8 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 #endif /* HAVE_OCSP_RESPONDER */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
-    int noVerifyCert, int noVerifySignature)
+int OcspResponseDecode(OcspResponse* resp, WOLFSSL_CERT_MANAGER* cm,
+                       void* heap, int noVerifyCert, int noVerifySignature)
 {
     DECL_ASNGETDATA(dataASN, ocspResponseASN_Length);
     int ret = 0;
@@ -38894,7 +38907,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
  * @return  ASN_CRL_CONFIRM_E when signature did not verify.
  */
 static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* sigParams,
-    int sigParamsSz, const byte* buff, void* cm)
+    int sigParamsSz, const byte* buff, WOLFSSL_CERT_MANAGER* cm)
 {
     int ret = 0;
     Signer* ca = NULL;
@@ -39248,7 +39261,7 @@ enum {
 /* parse crl buffer into decoded state, 0 on success */
 #ifdef WOLFSSL_ASN_TEMPLATE
 int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
-             int verify, void* cm)
+             int verify, WOLFSSL_CERT_MANAGER* cm)
 {
     DECL_ASNGETDATA(dataASN, crlASN_Length);
     int ret = 0;

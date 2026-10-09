@@ -4516,7 +4516,8 @@ end:
 
 #if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
-        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req)
+        WOLFSSL_CERT_MANAGER* cm, const byte* pubKey, word32 pubKeySz,
+        int pubKeyOID, int req)
 {
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     SignatureCtx  sigCtx[1];
@@ -8954,8 +8955,8 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
 
 #endif
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
-            OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify,
-            int noVerifySignature)
+            OcspResponse* resp, word32 size, WOLFSSL_CERT_MANAGER* cm,
+            void* heap, int noVerify, int noVerifySignature)
 {
     int    length;
     word32 idx = *ioIndex;
@@ -9035,7 +9036,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     if (!noVerifySignature && !sigValid) {
         Signer* ca;
         SignatureCtx sigCtx;
-        ca = OcspFindSigner(resp, (WOLFSSL_CERT_MANAGER*)cm);
+        ca = OcspFindSigner(resp, cm);
         if (ca == NULL)
             return ASN_NO_SIGNER_E;
 
@@ -9076,8 +9077,8 @@ int OcspResponseEncode(OcspResponse* resp, byte* out, word32* outSz,
 }
 
 #endif
-int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
-    int noVerifyCert, int noVerifySignature)
+int OcspResponseDecode(OcspResponse* resp, WOLFSSL_CERT_MANAGER* cm,
+    void* heap, int noVerifyCert, int noVerifySignature)
 {
     int ret;
     int length = 0;
@@ -9729,7 +9730,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 }
 
 int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
-             int verify, void* cm)
+             int verify, WOLFSSL_CERT_MANAGER* cm)
 {
     Signer*      ca = NULL;
     SignatureCtx sigCtx;
