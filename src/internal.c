@@ -11560,7 +11560,10 @@ static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected,
 /* Store a fragment of handshake message seq in the receive list. peer is set
  * only for a plaintext ClientHello a DTLS 1.3 server holds before it has
  * verified a cookie: the entry is then keyed on, and found only through, that
- * peer, and is held within the eviction rules for unverified entries. */
+ * peer, and is held within the eviction rules for unverified entries.
+ * Returns 0 when the fragment is held, a duplicate included,
+ * DTLS_MSG_STORE_DROPPED when it is not and that is no error, which is always
+ * the case for an unverified peer, or a negative error. */
 int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
         const WOLFSSL_SOCKADDR* peer, const byte* data, word32 dataSz,
         byte type, word32 fragOffset, word32 fragSz, void* heap)
@@ -11568,7 +11571,7 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     DtlsMsg* cur;
     size_t projected;
     size_t peerSz = 0;
-    word32 received;
+    word32 received = 0;
     int isNew;
     int ret;
 
@@ -11587,7 +11590,7 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     if (peer != NULL && (peerSz > DtlsMsgRxLimit(1) ||
             sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + (size_t)dataSz >
                 DtlsMsgRxLimit(1) - peerSz))
-        return 0;
+        return DTLS_MSG_STORE_DROPPED;
 
     cur = DtlsMsgFind(ssl->dtls_rx_msg_list, epoch, seq, peer);
 #ifdef WOLFSSL_DTLS_CH_FRAG
@@ -11617,26 +11620,26 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
     else
         projected = DtlsMsgProjectedBytes(cur, fragOffset, fragSz);
     ret = DtlsMsgRxAdmit(ssl, cur, projected, peer != NULL);
-    if (ret != 0)
-        return peer != NULL ? 0 : ret;
-
-    if (isNew) {
+    if (ret == 0 && isNew) {
         cur = DtlsMsgNew(dataSz, 0, heap);
         if (cur == NULL)
-            return MEMORY_E;
-        ret = DtlsMsgSetPeer(cur, peer, heap);
-        if (ret != 0) {
+            ret = MEMORY_E;
+        else if ((ret = DtlsMsgSetPeer(cur, peer, heap)) != 0) {
             DtlsMsgDelete(cur, heap);
-            return ret;
+            cur = NULL;
         }
     }
-    received = cur->bytesReceived;
-    ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset, fragSz, heap,
-                     dataSz, ssl->keys.decryptedCur == 1);
-    if (ret != 0) {
-        if (isNew)
+    if (ret == 0) {
+        received = cur->bytesReceived;
+        ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset, fragSz,
+                         heap, dataSz, ssl->keys.decryptedCur == 1);
+        if (ret != 0 && isNew)
             DtlsMsgDelete(cur, heap);
-        return ret;
+    }
+    if (ret != 0) {
+        /* Nothing a peer that has not verified sends, nor the memory it
+         * would take, may end the server: it is dropped. */
+        return peer != NULL ? DTLS_MSG_STORE_DROPPED : ret;
     }
     if (isNew)
         ssl->dtls_rx_msg_list_sz++;
@@ -11656,6 +11659,15 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
         ssl->dtls_rx_msg_list = DtlsMsgInsert(ssl->dtls_rx_msg_list, cur);
     }
     return 0;
+}
+
+/* Whether ret, from DtlsMsgStore(), ends the connection. A plaintext record
+ * could come from anyone, so a fragment it carries that cannot be stored is
+ * dropped instead, unless memory ran out. */
+int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret)
+{
+    return ret < 0 && (ret == WC_NO_ERR_TRACE(MEMORY_E) ||
+        IsEncryptionOn(ssl, 0));
 }
 
 /* DtlsMsgInsert() is an in-order insert. */
@@ -22358,7 +22370,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                          ssl->keys.dtls_peer_handshake_number, NULL,
                          input + *inOutIdx, size, type,
                          fragOffset, fragSz, ssl->heap);
-            if (ret != 0)
+            if (DtlsMsgStoreFatal(ssl, ret))
                 return ret;
             *inOutIdx += fragSz;
             ret = 0;
@@ -22423,7 +22435,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      ssl->keys.dtls_peer_handshake_number, NULL,
                      input + *inOutIdx, size, type,
                      fragOffset, fragSz, ssl->heap);
-        if (ret != 0)
+        if (DtlsMsgStoreFatal(ssl, ret))
             return ret;
         *inOutIdx += fragSz;
         ret = 0;
@@ -22448,7 +22460,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                          ssl->keys.dtls_peer_handshake_number, NULL,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
-            if (ret != 0)
+            if (DtlsMsgStoreFatal(ssl, ret))
                 return ret;
             ret = DtlsMsgDrain(ssl);
         }

@@ -2150,10 +2150,13 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             ssl->keys.dtls_peer_handshake_number, unverifiedPeer,
             input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
             fragOff, fragLength, ssl->heap);
-        if (ret != 0)
+        if (DtlsMsgStoreFatal(ssl, ret))
             return ret;
-        /* Only ack a fragment we really buffered. */
-        Dtls13RtxAddAckForCurRecord(ssl);
+        /* Only ack a fragment we really buffered: the peer does not resend an
+         * acknowledged record. */
+        if (ret == 0)
+            Dtls13RtxAddAckForCurRecord(ssl);
+        ret = 0;
 
         *processedSize = idx + fragLength;
 #if defined(WOLFSSL_DTLS_CH_FRAG) && !defined(NO_WOLFSSL_SERVER)

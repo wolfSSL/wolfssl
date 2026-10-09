@@ -7954,11 +7954,15 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #endif
 
     WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
+    /* DtlsMsgStore() kept nothing and that is not an error: the fragment
+     * must not be acknowledged */
+    #define DTLS_MSG_STORE_DROPPED 1
     WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const WOLFSSL_SOCKADDR* peer,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
+    WOLFSSL_LOCAL int DtlsMsgStoreFatal(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
 
     WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data,
