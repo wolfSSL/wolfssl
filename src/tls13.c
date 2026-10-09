@@ -14053,7 +14053,7 @@ tls13_send_finished_derives:
             ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_MASTER_SECRET;
         }
         /* Last use of preMasterSecret - zeroize as soon as possible. */
-        ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+        ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
 #ifdef WOLFSSL_EARLY_DATA
 
 #ifdef WOLFSSL_DTLS13
@@ -15925,7 +15925,7 @@ int DoTls13MsgDerives(WOLFSSL* ssl, byte type)
                 }
                 /* Zeroized only after the derive completed: a pend retry
                  * still reads preMasterSecret. */
-                ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+                ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
                 ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_MASTER_SECRET;
             }
     #ifdef WOLFSSL_EARLY_DATA

@@ -10522,13 +10522,9 @@ int test_tls13_fragmented_session_ticket(void)
      * configurations that already release the arrays (e.g. no HAVE_SESSION_TICKET)
      * they are NULL at this point and the free is skipped. */
     if (EXPECT_SUCCESS() && ssl_c->arrays != NULL) {
-        /* Zero before freeing so WOLFSSL_CHECK_MEM_ZERO builds don't abort. */
-        if (ssl_c->arrays->preMasterSecret != NULL) {
-            ForceZero(ssl_c->arrays->preMasterSecret, ENCRYPT_LEN);
-            XFREE(ssl_c->arrays->preMasterSecret, ssl_c->heap,
-                  DYNAMIC_TYPE_SECRET);
-            ssl_c->arrays->preMasterSecret = NULL;
-        }
+        /* The pre-master secret is carried at the end of the same allocation,
+         * so it goes with it. Zero before freeing so WOLFSSL_CHECK_MEM_ZERO
+         * builds don't abort. */
         ForceZero(ssl_c->arrays, sizeof(Arrays));
         XFREE(ssl_c->arrays, ssl_c->heap, DYNAMIC_TYPE_ARRAYS);
         ssl_c->arrays = NULL;
@@ -14223,7 +14219,7 @@ int test_tls13_hs_secret_zeroized_psk_ke(void)
     WOLFSSL* ssl_s = NULL;
     struct test_memio_ctx test_ctx;
 
-    byte zeros[ENCRYPT_LEN];
+    byte zeros[MAX_PREMASTER_SZ];
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(zeros, 0, sizeof(zeros));
@@ -14242,16 +14238,18 @@ int test_tls13_hs_secret_zeroized_psk_ke(void)
     wolfSSL_KeepArrays(ssl_c);
     wolfSSL_KeepArrays(ssl_s);
     if (EXPECT_SUCCESS()) {
-        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
-        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, MAX_PREMASTER_SZ);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, MAX_PREMASTER_SZ);
     }
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_c->options.noPskDheKe, 1);
     ExpectIntEQ(ssl_c->arrays->preMasterSz, 0);
 
-    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
-    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros,
+        MAX_PREMASTER_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros,
+        MAX_PREMASTER_SZ), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -14497,7 +14495,7 @@ int test_tls13_hs_secret_zeroized_sha384(void)
     WOLFSSL* ssl_s = NULL;
     struct test_memio_ctx test_ctx;
 
-    byte zeros[ENCRYPT_LEN];
+    byte zeros[MAX_PREMASTER_SZ];
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(zeros, 0, sizeof(zeros));
@@ -14517,15 +14515,17 @@ int test_tls13_hs_secret_zeroized_sha384(void)
     wolfSSL_KeepArrays(ssl_c);
     wolfSSL_KeepArrays(ssl_s);
     if (EXPECT_SUCCESS()) {
-        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
-        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, ENCRYPT_LEN);
+        XMEMSET(ssl_c->arrays->preMasterSecret, 0xAA, MAX_PREMASTER_SZ);
+        XMEMSET(ssl_s->arrays->preMasterSecret, 0xAA, MAX_PREMASTER_SZ);
     }
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_c->specs.hash_size, WC_SHA384_DIGEST_SIZE);
 
-    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
-    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros, ENCRYPT_LEN), 0);
+    ExpectIntEQ(XMEMCMP(ssl_c->arrays->preMasterSecret, zeros,
+        MAX_PREMASTER_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ssl_s->arrays->preMasterSecret, zeros,
+        MAX_PREMASTER_SZ), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
