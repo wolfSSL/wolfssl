@@ -3365,6 +3365,1008 @@ L_mlkem_thumb2_csubq_loop:
 	.size	mlkem_thumb2_csubq,.-mlkem_thumb2_csubq
 	.text
 	.align	4
+	.globl	mlkem_thumb2_vec_compress_10
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_vec_compress_10)
+	.type	mlkem_thumb2_vec_compress_10, %function
+mlkem_thumb2_vec_compress_10:
+	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	ADD	r2, r1, r2, LSL #9
+#ifndef WOLFSSL_ARM_ARCH_7M
+	MOV	r8, #0xdbb6
+	MOVT	r8, #0x9d7
+	MOV	r9, #13
+L_mlkem_thumb2_vec_compress_10_loop:
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r7, r5, r8
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #10, #10
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #20, #10
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #30, #2
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #2
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #8, #10
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #18, #10
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #28, #4
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #4
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #6, #10
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #16, #10
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #26, #6
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #6
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #4, #10
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #14, #10
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #24, #8
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #8
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #2, #10
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #12, #10
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #3
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #22, #10
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	CMP	r1, r2
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_mlkem_thumb2_vec_compress_10_loop
+#else
+	BNE.W	L_mlkem_thumb2_vec_compress_10_loop
+#endif
+#else
+	MOV	r8, #0xebed
+	MOVT	r8, #0x4
+	MOV	r9, #0xff62
+	MOVT	r9, #0x7
+	MOV	r10, #0xd01
+	MOV	r11, #0x680
+L_mlkem_thumb2_vec_compress_10_loop:
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r7, r5, r8, r9
+	LSR	r7, r7, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r7, r10, r5
+	ADD	r7, r7, r5, LSR #31
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #10, #10
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #20, #10
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #30, #2
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #2
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #8, #10
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #18, #10
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #28, #4
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #4
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #6, #10
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #16, #10
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #26, #6
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #6
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #4, #10
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #14, #10
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #24, #8
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #8
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #2, #10
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #12, #10
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #20
+	SUB	r5, r11, r5, LSL #10
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #22, #10
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	CMP	r1, r2
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_mlkem_thumb2_vec_compress_10_loop
+#else
+	BNE.W	L_mlkem_thumb2_vec_compress_10_loop
+#endif
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	/* Cycle Count = 408 */
+	.size	mlkem_thumb2_vec_compress_10,.-mlkem_thumb2_vec_compress_10
+	.text
+	.align	4
+	.globl	mlkem_thumb2_vec_compress_11
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_vec_compress_11)
+	.type	mlkem_thumb2_vec_compress_11, %function
+mlkem_thumb2_vec_compress_11:
+	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	ADD	r2, r1, #0x800
+#ifndef WOLFSSL_ARM_ARCH_7M
+	MOV	r8, #0xdbb6
+	MOVT	r8, #0x9d7
+	MOV	r9, #13
+L_mlkem_thumb2_vec_compress_11_loop:
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r7, r5, r8
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #11, #11
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #22, #10
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #10
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #1, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #12, #11
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #23, #9
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #9
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #2, #11
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #13, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #24, #8
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #8
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #3, #11
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #14, #11
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #25, #7
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #7
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #4, #11
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #15, #11
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #26, #6
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #6
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #5, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #16, #11
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #27, #5
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #5
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #6, #11
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #17, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #28, #4
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #4
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #7, #11
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #18, #11
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #29, #3
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #3
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #8, #11
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #19, #11
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #30, #2
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #2
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #9, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #20, #11
+	LSR	r5, r3, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #31, #1
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #1
+	UXTH	r5, r4
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #10, #11
+	LSR	r5, r4, #16
+	ADD	r5, r9, r5, LSL #4
+	UMULL	r5, r6, r5, r8
+	BFI	r7, r6, #21, #11
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	CMP	r1, r2
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_mlkem_thumb2_vec_compress_11_loop
+#else
+	BNE.W	L_mlkem_thumb2_vec_compress_11_loop
+#endif
+#else
+	MOV	r8, #0xebed
+	MOVT	r8, #0x4
+	MOV	r9, #0xffb1
+	MOVT	r9, #0x3
+	MOV	r10, #0xd01
+	MOV	r11, #0x680
+L_mlkem_thumb2_vec_compress_11_loop:
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r7, r5, r8, r9
+	LSR	r7, r7, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r7, r10, r5
+	ADD	r7, r7, r5, LSR #31
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #11, #11
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #22, #10
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #10
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #1, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #12, #11
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #23, #9
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #9
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #2, #11
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #13, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #24, #8
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #8
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #3, #11
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #14, #11
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #25, #7
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #7
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #4, #11
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #15, #11
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #26, #6
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #6
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #5, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #16, #11
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #27, #5
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #5
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #6, #11
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #17, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #28, #4
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #4
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #7, #11
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #18, #11
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #29, #3
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #3
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #8, #11
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #19, #11
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #30, #2
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #2
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #9, #11
+	LDM	r1!, {r3, r4}
+	UXTH	r5, r3
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #20, #11
+	LSR	r5, r3, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #31, #1
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	LSR	r7, r6, #1
+	UXTH	r5, r4
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #10, #11
+	LSR	r5, r4, #16
+	MLA	r6, r5, r8, r9
+	LSR	r6, r6, #19
+	SUB	r5, r11, r5, LSL #11
+	MLA	r5, r6, r10, r5
+	ADD	r6, r6, r5, LSR #31
+	BFI	r7, r6, #21, #11
+#ifdef __ARM_FEATURE_UNALIGNED
+	STR	r7, [r0], #4
+#else
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+	LSR	r7, r7, #8
+	STRB	r7, [r0], #1
+#endif /* __ARM_FEATURE_UNALIGNED */
+	CMP	r1, r2
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_mlkem_thumb2_vec_compress_11_loop
+#else
+	BNE.W	L_mlkem_thumb2_vec_compress_11_loop
+#endif
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	/* Cycle Count = 807 */
+	.size	mlkem_thumb2_vec_compress_11,.-mlkem_thumb2_vec_compress_11
+	.text
+	.align	4
 	.globl	mlkem_thumb2_rej_uniform
 	WC_ASM_ATT_HIDDEN(mlkem_thumb2_rej_uniform)
 	.type	mlkem_thumb2_rej_uniform, %function

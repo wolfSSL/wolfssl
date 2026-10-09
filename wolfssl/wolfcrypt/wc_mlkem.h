@@ -889,6 +889,9 @@ WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
+    unsigned int k);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v);
 WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)
