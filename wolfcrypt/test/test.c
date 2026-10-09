@@ -527,6 +527,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #ifdef WOLFSSL_RTL8735B_HOST_TEST
         #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
     #endif
+    #ifdef WOLFSSL_MPFS_ATHENA
+        #include <wolfssl/wolfcrypt/port/microchip/mpfs_athena.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -3778,6 +3781,17 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RTL8735B HUK self-test failed!\n", ret);
     else
         TEST_PASS("RTL8735B HUK self-test passed!\n");
+#endif
+
+#ifdef WOLFSSL_MPFS_ATHENA
+    /* The self-test counts callback entries, so the device has to be
+     * registered first or it reports a software fallback. */
+    if ( (ret = wc_MpfsAthena_RegisterDevice(WC_MPFS_ATHENA_DEVID)) != 0)
+        TEST_FAIL("MPFS Athena register failed!\n", ret);
+    else if ( (ret = wc_MpfsAthena_SelfTest()) != 0)
+        TEST_FAIL("MPFS Athena self-test failed!\n", ret);
+    else
+        TEST_PASS("MPFS Athena self-test passed!\n");
 #endif
 #if defined(WOLFSSL_RTL8735B_AES) && defined(WOLFSSL_RTL8735B_HOST_TEST) && \
     !defined(NO_AES)

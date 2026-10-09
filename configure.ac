@@ -4182,6 +4182,55 @@ then
 fi
 
 
+# Microchip PolarFire SoC Athena F5200 (TeraFire) crypto-callback port.
+#
+# "S" grade parts only (e.g. MPFS250TS; a plain MPFS250T has no engine). The
+# argument is the path to Microchip's user-crypto (CAL) directory, which supplies
+# both the headers and the archive. CAL is referenced, never vendored: it carries
+# a Mercury Systems notice. Two published builds are recognised: the rv64imac one
+# shipped with hart-software-services (E51/M-mode) and the rv64imafd one under
+# polarfire-soc-bare-metal-examples .../middleware/cal (U54). Both archives are
+# soft-float lp64, so the whole build must be -mabi=lp64.
+#
+# Example: ./configure --host=riscv64-unknown-elf \
+#              --with-mpfs-athena=<hart-software-services>/services/crypto \
+#              CFLAGS="-march=rv64imac -mabi=lp64 -mcmodel=medany"
+#
+# Forces crypto callbacks on (see the cryptocb block).
+ENABLED_MPFS_ATHENA="no"
+AC_ARG_WITH([mpfs-athena],
+    [AS_HELP_STRING([--with-mpfs-athena=PATH],[PATH to the Microchip PolarFire SoC user-crypto (CAL) directory, enabling the Athena F5200 crypto-callback port.])],
+    [
+        AC_MSG_CHECKING([for the Microchip user-crypto (CAL) directory])
+        if test "x$withval" = "xno" || test "x$withval" = "xyes"; then
+            AC_MSG_ERROR([--with-mpfs-athena needs the path to the Microchip user-crypto (CAL) directory])
+        fi
+        if test ! -f "$withval/calini.h" || test ! -f "$withval/config_user.h"; then
+            AC_MSG_ERROR([no calini.h/config_user.h in $withval -- --with-mpfs-athena wants the CAL directory])
+        fi
+        MPFS_ATHENA_CAL_LIB=""
+        for mpfs_athena_a in mpfs-rv64imac-user-crypto-lib.a mss-user-crypto-lib.a; do
+            if test -f "$withval/$mpfs_athena_a"; then
+                MPFS_ATHENA_CAL_LIB="$withval/$mpfs_athena_a"
+            fi
+        done
+        if test "x$MPFS_ATHENA_CAL_LIB" = "x"; then
+            AC_MSG_ERROR([no user-crypto archive in $withval; expected mpfs-rv64imac-user-crypto-lib.a or mss-user-crypto-lib.a])
+        fi
+        CPPFLAGS="$CPPFLAGS -I$withval"
+        LIB_STATIC_ADD="$MPFS_ATHENA_CAL_LIB $LIB_STATIC_ADD"
+        # The CAL archive is non-PIC, so it cannot go into a shared library.
+        enable_shared=no
+        enable_static=yes
+        # WOLFSSL_MICROCHIP_MPFS selects the SoC family; WOLFSSL_MPFS_ATHENA says
+        # the part carries the engine, which asking for the CAL implies.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MICROCHIP_MPFS -DWOLFSSL_MPFS_ATHENA"
+        ENABLED_MPFS_ATHENA="yes"
+        AC_MSG_RESULT([$withval])
+    ]
+)
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -12214,7 +12263,19 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_MPFS_ATHENA" = "xyes"
+then
+    # The port offloads what the ordinary wolfCrypt gates turn on, so without
+    # these it would compile to nothing.
+    if test "x$ENABLED_SHA384" = "xno"; then
+        AC_MSG_ERROR([--with-mpfs-athena needs SHA-384; drop --disable-sha384])
+    fi
+    if test "x$ENABLED_AESCTR" = "xno"; then
+        AC_MSG_ERROR([--with-mpfs-athena needs AES-CTR; add --enable-aesctr])
+    fi
+fi
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_MPFS_ATHENA" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -14375,6 +14436,7 @@ AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
+AM_CONDITIONAL([BUILD_MPFS_ATHENA],[test "x$ENABLED_MPFS_ATHENA" = "xyes"])
 AM_CONDITIONAL([BUILD_SILABS_CRYPTOCB],[test "x$ENABLED_SILABS_CRYPTOCB" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
@@ -15006,6 +15068,7 @@ echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
 echo "   * RealTek RTL8735B HUK:       $ENABLED_RTL8735B"
+echo "   * Microchip MPFS Athena:      $ENABLED_MPFS_ATHENA"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
