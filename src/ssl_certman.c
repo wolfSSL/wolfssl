@@ -779,6 +779,37 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(WOLFSSL_CERT_MANAGER* cm,
 #endif /* HAVE_CRL */
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
+#ifdef HAVE_CRL
+/* Check the CRL for a parsed certificate that passed or failed only its date.
+ *
+ * @param [in] cm    Certificate manager.
+ * @param [in] cert  Decoded certificate.
+ * @param [in] ret   0 or the certificate's date error.
+ * @return  The CRL result, or ret when the CRL result is 0 or CRL_MISSING.
+ */
+static int cm_check_cert_crl(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert,
+    int ret)
+{
+    int crlRet;
+
+    crlRet = CheckCertCRL(cm->crl, cert);
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    /* A synchronous caller cannot retry a fetch that would block. */
+    if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+        crlRet = CRL_MISSING;
+#endif
+    if (crlRet != 0) {
+        WOLFSSL_MSG("CheckCertCRL failed");
+    }
+    /* A caller may waive the date error, so it may hide only a missing CRL. */
+    if ((ret == 0) || ((crlRet != 0) &&
+            (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)))) {
+        ret = crlRet;
+    }
+    return ret;
+}
+#endif /* HAVE_CRL */
+
 #if !defined(NO_WOLFSSL_CM_VERIFY) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 /* Certificate verdicts a verify callback may override, matching the errors the
@@ -892,9 +923,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
+    if (cm->crlEnabled && ((ret == 0) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
+        ret = cm_check_cert_crl(cm, cert, ret);
     }
 #endif
 
@@ -2033,12 +2065,15 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
-            if (ret != 0) {
+            if ((ret != 0) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
                 WOLFSSL_MSG("ParseCert failed");
             }
-            /* Do CRL checks with decoded certificate. */
-            else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
-                WOLFSSL_MSG("CheckCertCRL failed");
+            else {
+                /* A date error is returned only after the parse completed,
+                 * so still answer the revocation question that was asked. */
+                ret = cm_check_cert_crl(cm, cert, ret);
             }
 
             /* Dispose of dynamically allocated memory. */

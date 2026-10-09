@@ -2516,6 +2516,80 @@ int test_wolfSSL_CertManagerCRL(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* 2021-01-01, before the test certs are valid, before the CRL expires. */
+#define TEST_CM_CRL_BEFORE_NOTBEFORE 1609459200L
+
+/* 2030-01-01, after both the test certs and the CRL have expired. */
+#define TEST_CM_CRL_AFTER_NEXTUPDATE 1893456000L
+
+static time_t test_cm_crl_out_of_date_now;
+
+static time_t test_cm_crl_out_of_date_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_cm_crl_out_of_date_now;
+    return test_cm_crl_out_of_date_now;
+}
+#endif
+
+int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* crl_revoked = "./certs/crl/crl.revoked";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_revoked,
+        WOLFSSL_FILETYPE_PEM), 1);
+
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Backwards, so the cert is not yet valid but the CRL is still current. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+    /* A revocation question must not be answered with a date error. */
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Forwards, so the CRL has expired too and must not hide behind the
+     * waivable date error. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_AFTER_NEXTUPDATE;
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* With no CRL loaded the date error stays, as CRL_MISSING may be waived
+     * as well. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_reason_extensions_cleanup(void)
 {
     EXPECT_DECLS;
