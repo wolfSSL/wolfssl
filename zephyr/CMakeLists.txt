@@ -136,6 +136,14 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/psa/psa_pkcbs.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/st/stm32.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/realtek/rtl8735b.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/nxp/els_pkc_port.c)
+
+    # Not under TF-M, where els_pkc does not create McuxElsPkc.
+    if(CONFIG_MCUX_ELS_PKC AND NOT CONFIG_BUILD_WITH_TFM)
+      zephyr_library_include_directories(
+        $<TARGET_PROPERTY:McuxElsPkc,INTERFACE_INCLUDE_DIRECTORIES>
+      )
+    endif()
 
     if(CONFIG_WOLFCRYPT_ASM)
       set(WOLF_ARM_ASM_DIR ${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm)

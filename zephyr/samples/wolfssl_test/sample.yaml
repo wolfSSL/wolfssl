@@ -125,3 +125,21 @@ tests:
       - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
     integration_platforms:
       - qemu_cortex_a53
+  sample.crypto.wolfssl_test_els_pkc:
+    # Not in boards/frdm_rw612.conf, which every build for the board would
+    # merge.
+    timeout: 600
+    platform_allow: frdm_rw612
+    extra_configs:
+      - CONFIG_WOLFSSL_ELS_PKC=y
+      # wc_port.c calls clock_gettime(). POSIX_TIMERS is gated behind
+      # POSIX_SYSTEM_INTERFACES and silently does nothing without it.
+      - CONFIG_POSIX_SYSTEM_INTERFACES=y
+      - CONFIG_POSIX_TIMERS=y
+      # The board has a real entropy source, so drop prj.conf's placeholder.
+      - CONFIG_TEST_RANDOM_GENERATOR=n
+      - CONFIG_ENTROPY_GENERATOR=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - frdm_rw612

@@ -232,6 +232,10 @@ Threading/Mutex options:
 #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#ifdef WOLFSSL_ELS_PKC
+#include <wolfssl/wolfcrypt/port/nxp/els_pkc_port.h>
+#endif
+
 #ifdef WOLFSSL_SCE
     #include "hal_data.h"
 #endif
@@ -1019,6 +1023,14 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #ifdef WOLFSSL_ELS_PKC
+        ret = wc_ElsPkc_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("EdgeLock (ELS/PKC) init failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
     #ifdef WOLFSSL_ARMASM
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
@@ -1244,6 +1256,13 @@ int wolfCrypt_Cleanup(void)
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
 
+    #ifdef WOLFSSL_ELS_PKC
+        {
+            int ret2 = wc_ElsPkc_Cleanup();
+            if (ret == 0)
+                ret = ret2;
+        }
+    #endif
     #if defined(WOLFSSL_CAAM)
         wc_caamFree();
     #endif
