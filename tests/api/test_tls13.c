@@ -14480,6 +14480,155 @@ int test_tls13_new_session_ticket_keeps_ems(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* One connection, resumed from *sess when set. The server issues one ticket,
+ * or two with sendTicket. The newest ticket, with nonce expected, replaces
+ * *sess. */
+static int test_tls13_ticket_nonce_round(WOLFSSL_CTX* ctx_c,
+    WOLFSSL_CTX* ctx_s, struct test_memio_ctx* test_ctx,
+    WOLFSSL_SESSION** sess, int sendTicket, byte expected)
+{
+    EXPECT_DECLS;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    char buf[64];
+
+    test_memio_clear_buffer(test_ctx, 0);
+    test_memio_clear_buffer(test_ctx, 1);
+    ExpectIntEQ(test_memio_setup(test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (*sess != NULL)
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, *sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), *sess != NULL);
+    if (sendTicket)
+        ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Consume the NewSessionTicket messages. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Both ends hold the newest ticket. */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_c->session->ticketNonce.data[0], expected);
+    }
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_s->session->ticketNonce.data[0], expected);
+    }
+
+    wolfSSL_SESSION_free(*sess);
+    *sess = NULL;
+    ExpectNotNull(*sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The nonce only has to be unique among the tickets of one connection
+ * (RFC 8446 Section 4.6.1), so each connection numbers its tickets from 0.
+ * The nonce restored from a resumed ticket derives the PSK and is no starting
+ * point for the count: a chain of resumptions, each from the newest ticket,
+ * must not run the one byte nonce into SESSION_TICKET_NONCE_OVERFLOW. */
+int test_tls13_ticket_nonce_per_connection(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* A full handshake, then more resumptions than a one byte nonce can
+     * count, each from the ticket of the connection before. */
+    for (i = 0; i <= 256 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(test_tls13_ticket_nonce_round(ctx_c, ctx_s, &test_ctx,
+            &sess, 0, 0), TEST_SUCCESS);
+    }
+    /* A second ticket on a resumed connection is numbered after the first
+     * one, and the connection resumed from it counts from 0 again. */
+    ExpectIntEQ(test_tls13_ticket_nonce_round(ctx_c, ctx_s, &test_ctx, &sess,
+        1, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_ticket_nonce_round(ctx_c, ctx_s, &test_ctx, &sess,
+        0, 0), TEST_SUCCESS);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A server object reused with wolfSSL_clear() keeps its session and with it
+ * the nonce of the last ticket. The connection after it numbers from 0. */
+int test_tls13_ticket_nonce_server_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
+        if (i > 0) {
+            /* The same server object, a fresh client. */
+            ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+            test_memio_clear_buffer(&test_ctx, 0);
+            test_memio_clear_buffer(&test_ctx, 1);
+            wolfSSL_free(ssl_c);
+            ssl_c = NULL;
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                NULL, wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Consume the NewSessionTicket. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        if (ssl_c != NULL) {
+            ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+            ExpectIntEQ(ssl_c->session->ticketNonce.data[0], 0);
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* An X25519 handshake under TLS_AES_256_GCM_SHA384, where preMasterSz is 32
  * and the handshake secret 48 bytes, must leave none of it in preMasterSecret.
  */

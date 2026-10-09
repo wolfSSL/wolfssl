@@ -5931,6 +5931,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
+        #ifndef NO_WOLFSSL_SERVER
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            ssl->session->ticketNonce.len = 0;
+        #endif
         #if !defined(NO_WOLFSSL_SERVER) && \
             defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
         /* Recorded from the ClientHello, so it must not carry into the next
