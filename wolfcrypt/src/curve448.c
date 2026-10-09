@@ -291,6 +291,9 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         else {
             ForceZero(key->k, sizeof(key->k));
             XMEMSET(key->p, 0, sizeof(key->p));
+            /* A zeroised SSP shall not be reusable
+             * (ISO/IEC 19790:2012 7.9.7 [09.29]). */
+            key->privSet = 0;
         }
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
@@ -809,11 +812,20 @@ int wc_curve448_export_key_raw_ex(curve448_key* key, byte* priv, word32 *privSz,
 {
     int ret;
 
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* export private part */
     ret = wc_curve448_export_private_raw_ex(key, priv, privSz, endian);
     if (ret == 0) {
         /* export public part */
         ret = wc_curve448_export_public_ex(key, pub, pubSz, endian);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;
@@ -867,7 +879,11 @@ int wc_curve448_import_private_raw_ex(const byte* priv, word32 privSz,
     ret = wc_curve448_import_private_ex(priv, privSz, key, endian);
     if (ret == 0) {
         /* import public part */
-        return wc_curve448_import_public_ex(pub, pubSz, key, endian);
+        ret = wc_curve448_import_public_ex(pub, pubSz, key, endian);
+        if (ret != 0) {
+            key->privSet = 0;
+            ForceZero(key->k, sizeof(key->k));
+        }
     }
 
     return ret;

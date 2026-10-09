@@ -1827,8 +1827,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                              sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
+    #elif defined(WC_SHA256_W_IN_CTX)
+        word32* W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
+        #define SHA256_W_ON_STACK
     #endif
 
         /* Copy context->state[] to working vars */
@@ -1871,6 +1874,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         !defined(WOLFSSL_NO_MALLOC)
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(W, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #elif defined(SHA256_W_ON_STACK)
+        ForceZero(W, sizeof(W));
+        #undef SHA256_W_ON_STACK
     #endif
         return 0;
     }
@@ -1902,7 +1908,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #ifdef USE_SLOW_SHA256
         int j;
     #endif
+    #ifdef WC_SHA256_W_IN_CTX
+        word32* W = sha256->Wbuf;
+    #else
         word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
+    #endif
 
         /* Copy digest to working vars */
         S[0] = sha256->digest[0];
@@ -1948,6 +1958,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha256->digest[6] += S[6];
         sha256->digest[7] += S[7];
 
+    #ifndef WC_SHA256_W_IN_CTX
+        ForceZero(W, sizeof(W));
+    #endif
         return 0;
     }
 #endif /* SHA256_MANY_REGISTERS */
@@ -2400,6 +2413,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                               WC_SHA256_DIGEST_SIZE);
         }
         XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+        ForceZero(digest, sizeof(digest));
     #else
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
     #endif
@@ -2478,13 +2492,16 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         #endif
         {
             byte buffer[WC_SHA256_BLOCK_SIZE];
+            int tret;
             ByteReverseWords((word32*)buffer, (word32*)data,
                 WC_SHA256_BLOCK_SIZE);
         #ifdef __aarch64__
-            return Transform_Sha256_aarch64(sha256, buffer);
+            tret = Transform_Sha256_aarch64(sha256, buffer);
         #else
-            return Transform_Sha256(sha256, buffer);
+            tret = Transform_Sha256(sha256, buffer);
         #endif
+            ForceZero(buffer, sizeof(buffer));
+            return tret;
         }
     #else
         return Transform_Sha256(sha256, data);
@@ -3129,8 +3146,26 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
             /* If they want the standard free, they can call it themselves */
             /* via their callback setting devId to INVALID_DEVID */
             /* otherwise assume the callback handled it */
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                /* Release heap state first; the wipe drops its pointers. */
+                #ifdef WOLFSSL_SMALL_STACK_CACHE
+                if (sha224->W != NULL) {
+                    ForceZero(sha224->W,
+                        sizeof(word32) * WC_SHA224_BLOCK_SIZE);
+                    XFREE(sha224->W, sha224->heap, DYNAMIC_TYPE_DIGEST);
+                    sha224->W = NULL;
+                }
+                #endif
+                #ifdef WOLFSSL_HASH_KEEP
+                if (sha224->msg != NULL) {
+                    ForceZero(sha224->msg, sha224->len);
+                    XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    sha224->msg = NULL;
+                }
+                #endif
+                ForceZero(sha224, sizeof(*sha224));
                 return;
+            }
             /* fall-through when unavailable */
         }
 
@@ -3206,8 +3241,26 @@ void wc_Sha256Free(wc_Sha256* sha256)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+            #ifdef WOLFSSL_SMALL_STACK_CACHE
+            if (sha256->W != NULL) {
+                ForceZero(sha256->W,
+                    sizeof(word32) * WC_SHA256_BLOCK_SIZE);
+                XFREE(sha256->W, sha256->heap, DYNAMIC_TYPE_DIGEST);
+                sha256->W = NULL;
+            }
+            #endif
+            #ifdef WOLFSSL_HASH_KEEP
+            if (sha256->msg != NULL) {
+                ForceZero(sha256->msg, sha256->len);
+                XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha256->msg = NULL;
+            }
+            #endif
+            ForceZero(sha256, sizeof(*sha256));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -3418,6 +3471,8 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
             wc_Sha224Free(tmpSha224);
         }
 
+        ForceZero(tmpSha224, sizeof(*tmpSha224));
+
         WC_FREE_VAR_EX(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -3454,7 +3509,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                                   dst->heap, DYNAMIC_TYPE_DIGEST);
         if (dst->W == NULL) {
-            XMEMSET(dst, 0, sizeof(wc_Sha224));
+            ForceZero(dst, sizeof(wc_Sha224));
             return MEMORY_E;
         }
     #endif
@@ -3567,6 +3622,9 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     }
 
 
+    ForceZero(tmpSha256, sizeof(*tmpSha256));
+
+
     WC_FREE_VAR_EX(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -3608,7 +3666,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                               dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha256));
+        ForceZero(dst, sizeof(wc_Sha256));
         return MEMORY_E;
     }
 #endif

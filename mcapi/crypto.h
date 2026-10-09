@@ -48,7 +48,7 @@ enum {
 
 /* SHA */
 typedef struct CRYPT_SHA_CTX {
-    int holder[29];   /* big enough to hold internal, but check on init */
+    int holder[48];   /* big enough to hold internal, but check on init */
 } CRYPT_SHA_CTX;
 
 int CRYPT_SHA_Initialize(CRYPT_SHA_CTX*);
@@ -63,7 +63,7 @@ enum {
 
 /* SHA-256 */
 typedef struct CRYPT_SHA256_CTX {
-    int holder[32];   /* big enough to hold internal, but check on init */
+    int holder[112];  /* big enough to hold internal, but check on init */
 } CRYPT_SHA256_CTX;
 
 int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX*);
@@ -108,9 +108,9 @@ enum {
 typedef struct CRYPT_HMAC_CTX {
     /* big enough to hold internal, but check on init */
     #ifdef WOLF_PRIVATE_KEY_ID
-    long long holder[108];
+    long long holder[160];
     #else
-    long long holder[98];
+    long long holder[150];
     #endif
 } CRYPT_HMAC_CTX;
 

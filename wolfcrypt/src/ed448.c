@@ -419,6 +419,11 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         key->pubKeySet = 1;
     }
 
+    /* az holds the clamped secret scalar (ISO/IEC 19790:2012 7.9.7). */
+    /* Projective A leaks bits of the private scalar. */
+    ForceZero(&A, sizeof(A));
+    ForceZero(az, sizeof(az));
+
     return ret;
 }
 
@@ -466,6 +471,13 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
         ret = wc_ed448_check_key(key);
         if (ret == 0) {
             ret = ed448_pairwise_consistency_test(key, rng);
+        }
+        if (ret != 0) {
+            /* Do not hand back a key that failed its check or PCT. */
+            key->privKeySet = 0;
+            key->pubKeySet = 0;
+            ForceZero(key->k, ED448_PRV_KEY_SIZE);
+            ForceZero(key->p, ED448_PUB_KEY_SIZE);
         }
     }
 #endif
@@ -614,6 +626,11 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         }
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
         ed448_hash_free(key, sha);
+#else
+        /* On failure the absorbed prefix must not stay in the key's hash. */
+        if (ret != 0) {
+            (void)ed448_hash_reset(key);
+        }
 #endif
     }
     if (ret == 0) {
@@ -662,7 +679,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
     }
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
-    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+    /* key may be NULL here and XFREE evaluates its heap argument. */
+    WC_FREE_VAR_EX(sha, key ? key->heap : NULL, DYNAMIC_TYPE_HASHES);
 #endif
 
     if (ret == 0) {
@@ -687,6 +705,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
+    /* Projective R leaks bits of the nonce. */
+    ForceZero(&R, sizeof(R));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(nonce, sizeof(nonce));
     wc_MemZero_Check(az, sizeof(az));
@@ -924,6 +944,7 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
                     "signature verification");
         return BAD_FUNC_ARG;
     }
+
 
     /* uncompress A (public key), test if valid, and negate it */
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
@@ -1588,10 +1609,18 @@ int wc_ed448_export_key(const ed448_key* key, byte* priv, word32 *privSz,
     int ret = 0;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed448_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed448_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;

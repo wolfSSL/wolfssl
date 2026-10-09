@@ -788,8 +788,16 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
    with zeros. It ensures compiler optimization doesn't skip it. */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
-    byte *zb = (byte *)mem;
-    unsigned long *zl;
+#if !defined(__CC_ARM) && (!defined(__GNUC__) || defined(WOLFSSL_NO_ASM))
+    /* No data barrier backs the wipe; volatile stores cannot be dropped. */
+    typedef volatile byte wc_wipe_byte;
+    typedef volatile unsigned long wc_wipe_word;
+#else
+    typedef byte wc_wipe_byte;
+    typedef unsigned long wc_wipe_word;
+#endif
+    wc_wipe_byte *zb = (wc_wipe_byte *)mem;
+    wc_wipe_word *zl;
 
     /* Make the compiler put the buffer's current contents at mem, so the
      * wipe below hits the memory that holds them and not a copy. */
@@ -803,14 +811,14 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
         --len;
     }
 
-    zl = (unsigned long *)zb;
+    zl = (wc_wipe_word *)zb;
 
     while (len >= sizeof(unsigned long)) {
         *zl++ = 0;
         len -= sizeof(unsigned long);
     }
 
-    zb = (byte *)zl;
+    zb = (wc_wipe_byte *)zl;
 
     while (len) {
         *zb++ = 0;

@@ -192,8 +192,13 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     wc_MemZero_Check(digest, sizeof(digest));
 #endif
 
-    if (err != 0)
+    if (err != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(key, (word32)keyLen);
+        if (iv != NULL)
+            ForceZero(iv, (word32)ivLen);
         return err;
+    }
 
     if (keyOutput != (keyLen + ivLen))
         return BUFFER_E;
@@ -227,6 +232,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     Hmac   hmac[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
@@ -362,6 +369,10 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         }
         wc_HmacFree(hmac);
     }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
+    }
 
     ForceZero(buffer, (word32)hLen);
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -461,6 +472,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     mp_int res[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     (void)heap;
 
@@ -588,7 +601,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
             ret = MP_ADD_E;
 
         if (ret != 0) {
-            mp_clear(B1);
+            mp_forcezero(B1);
             break;
         }
 
@@ -611,6 +624,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                     byte  tmp[WC_MAX_BLOCK_SIZE + 1];
                     ret = mp_to_unsigned_bin(res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
+                    ForceZero(tmp, sizeof(tmp));
                 }
                 else if (outSz < (int)v) {
                     XMEMSET(I + i, 0, v - (word32)outSz);
@@ -620,13 +634,13 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                     ret = mp_to_unsigned_bin(res, I + i);
             }
 
-            mp_clear(i1);
-            mp_clear(res);
+            mp_forcezero(i1);
+            mp_forcezero(res);
             if (ret < 0) break;
         }
 
         if (ret < 0) {
-            mp_clear(B1);
+            mp_forcezero(B1);
             break;
         }
 
@@ -634,7 +648,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         XMEMCPY(output, Ai, currentLen);
         output += currentLen;
         kLen   -= (int)currentLen;
-        mp_clear(B1);
+        mp_forcezero(B1);
+    }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -644,8 +662,14 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
     ForceZero(B, WC_MAX_BLOCK_SIZE);
     XFREE(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (B1 != NULL)
+        ForceZero(B1, sizeof(*B1));
     XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (i1 != NULL)
+        ForceZero(i1, sizeof(*i1));
     XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (res != NULL)
+        ForceZero(res, sizeof(*res));
     XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ForceZero(Ai, WC_MAX_DIGEST_SIZE);
@@ -707,6 +731,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #endif
     byte*  buffer = staticBuffer;
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     (void)heap;
 
@@ -835,6 +861,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         PKCS12_ByteReverseWords((PKCS12_WORD*)I, (PKCS12_WORD*)I, nBlocks * v);
 #endif
     }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
+    }
 
     ForceZero(B, WC_MAX_BLOCK_SIZE);
     WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -916,6 +946,7 @@ static void scryptSalsa(word32* out, word32* in)
     for (i = 0; i < 16; i++)
         out[i] = ByteReverseWord32(ByteReverseWord32(in[i]) + x[i]);
 #endif
+    ForceZero(x, sizeof(x));
 }
 
 /* Mix a block using Salsa20/8.
@@ -969,6 +1000,7 @@ static void scryptBlockMix(byte* b, byte* y, int r)
         }
 #endif
     }
+    ForceZero(x, sizeof(x));
 }
 
 /* Random oracles mix.

@@ -198,6 +198,15 @@ struct wc_Sha256 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
+/* Kernel builds (WC_SHA2_NO_SMALL_STACK) keep W on the stack so the
+ * context fits the kernel hash descriptor. */
+#if !defined(WC_SHA2_NO_SMALL_STACK) && \
+    !((defined(WOLFSSL_SMALL_STACK_CACHE) || defined(WOLFSSL_SMALL_STACK)) && \
+      !defined(WOLFSSL_NO_MALLOC))
+    /* Message schedule of the C transform; wiped with the context at Free. */
+    #define WC_SHA256_W_IN_CTX
+    word32  Wbuf[WC_SHA256_BLOCK_SIZE];
+#endif
 
 #endif /* end of the hardware-vs-software member chain */
 

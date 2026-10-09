@@ -1293,6 +1293,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 if (ret != 0) {
                     WOLFSSL_MSG("error: XMSS keygen failed");
                     key->state = WC_XMSS_STATE_BAD;
+                    ForceZero(key->sk, key->sk_len);
                 }
                 /* Free state after use. */
                 wc_xmss_state_free(state);
@@ -1593,15 +1594,19 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
         ret = 0;
     }
-    /* Read the current secret key from NV storage.*/
-    else if (key->read_private_key(key->sk, key->sk_len, key->context) !=
-             WC_XMSS_RC_READ_TO_MEMORY) {
-        WOLFSSL_MSG("error: XMSS read_private_key failed");
-        ret = 0;
-    }
     else {
-        /* Ask implementation to check index in private key. */
-        ret = wc_xmss_sigsleft(key->params, key->sk);
+        /* Read the current secret key from NV storage.*/
+        if (key->read_private_key(key->sk, key->sk_len, key->context) !=
+                 WC_XMSS_RC_READ_TO_MEMORY) {
+            WOLFSSL_MSG("error: XMSS read_private_key failed");
+            ret = 0;
+        }
+        else {
+            /* Ask implementation to check index in private key. */
+            ret = wc_xmss_sigsleft(key->params, key->sk);
+        }
+        /* Only the index was needed (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(key->sk, key->sk_len);
     }
 
     return ret;

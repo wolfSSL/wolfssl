@@ -235,7 +235,7 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
         }
 
         if (ret == 0) {
-            byte l[WC_AES_BLOCK_SIZE];
+            ALIGN16 byte l[WC_AES_BLOCK_SIZE];
 
             XMEMSET(l, 0, WC_AES_BLOCK_SIZE);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -591,6 +591,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 
 #ifdef WOLFSSL_SMALL_STACK
+    ForceZero(cmac, sizeof(Cmac));
     XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
@@ -635,6 +636,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
         compareRet = ConstantCompare(check, a, (int)aSz);
         ret = compareRet ? MAC_CMP_FAILED_E : 0;
     }
+    /* On a mismatch this is a valid tag for the message. */
+    ForceZero(a, sizeof(a));
 
     return ret;
 }
@@ -676,6 +679,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                               INVALID_DEVID);
 
 #ifdef WOLFSSL_SMALL_STACK
+    ForceZero(cmac, sizeof(Cmac));
     XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));

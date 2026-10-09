@@ -536,7 +536,7 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
         if (hashes_copied >= 3)
             HmacKeyFreeHash(src->macType, &dst->o_hash);
 #endif
-        XMEMSET(dst, 0, sizeof(*dst));
+        ForceZero(dst, sizeof(*dst));
     }
     return ret;
 }
@@ -1116,7 +1116,9 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             /* update key length */
             hmac->keyLen = (word16)length;
 
-            return ret;
+            /* A failure falls through to the key cleanup below. */
+            if (ret == 0)
+                return ret;
         }
         /* no need to pad below */
     #endif
@@ -1138,6 +1140,20 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 #ifdef WOLFSSL_HMAC_COPY_HASH
     if (ret == 0) {
         ret = _HmacInitIOHashes(hmac);
+    }
+#endif
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    if (ret != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        int devId = hmac->devId;
+    #endif
+        /* The key entered the object; clear it (ISO/IEC 19790 7.9.7). */
+        wc_HmacFree(hmac);
+        hmac->heap = heap;
+    #ifdef WOLF_CRYPTO_CB
+        hmac->devId = devId;
+    #endif
     }
 #endif
 
@@ -1636,6 +1652,8 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             break;
     }
 
+    /* The inner digest is keyed output (ISO/IEC 19790 7.9.7). */
+    ForceZero(hmac->innerHash, sizeof(hmac->innerHash));
     if (ret == 0) {
         hmac->innerHashKeyed = 0;
     }
@@ -1756,7 +1774,7 @@ void wc_HmacFree(Hmac* hmac)
         byte finalHash[WC_HMAC_BLOCK_SIZE];
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
         (void)ret; /* must ignore return code here */
-        (void)finalHash;
+        ForceZero(finalHash, sizeof(finalHash));
     }
 #endif
 
@@ -1981,6 +1999,10 @@ int wolfSSL_GetHmacMaxSize(void)
 
             outIdx += left;
             n++;
+        }
+        if (ret != 0) {
+            /* Partial OKM is not released (ISO/IEC 19790 7.9.7). */
+            ForceZero(out, outSz);
         }
 
         ForceZero(tmp, WC_MAX_DIGEST_SIZE);

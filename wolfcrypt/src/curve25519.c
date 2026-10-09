@@ -223,6 +223,8 @@ static int curve25519_make_pub_ex(int public_size, byte* pub, int private_size,
         lm_invert(A.T, A.T);
         lm_mul(pub, A.X, A.T);
     #endif
+        /* A is the private scalar times the base point. */
+        ForceZero(&A, sizeof(A));
         ret = 0;
     }
 #elif defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \
@@ -704,6 +706,12 @@ static int wc_curve25519_make_key_nb(WC_RNG* rng, int keysize,
         if (ret == 0)  {
             key->pubSet = 1;
         }
+        else if (ret != FP_WOULDBLOCK) {
+            /* Public half failed: drop the scalar too
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(key->k, sizeof(key->k));
+            key->privSet = 0;
+        }
     }
 
     return ret;
@@ -717,7 +725,7 @@ int wc_curve25519_set_nonblock(curve25519_key* key, x25519_nb_ctx_t* ctx)
     /* If a different context is already set, clear it before replacing.
      * The caller is responsible for freeing any heap-allocated context. */
     if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
-        XMEMSET(key->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
+        ForceZero(key->nb_ctx, sizeof(x25519_nb_ctx_t));
     }
     if (ctx != NULL) {
         XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
@@ -792,6 +800,12 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
             }
 #endif
             key->pubSet = (ret == 0);
+            if (ret != 0) {
+                /* Public half failed: drop the scalar too
+                 * (ISO/IEC 19790:2012 7.9.7). */
+                ForceZero(key->k, sizeof(key->k));
+                key->privSet = 0;
+            }
         }
     }
 #endif /* !WOLFSSL_SE050 */
@@ -867,7 +881,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     }
 
     if (ret != FP_WOULDBLOCK) {
-        XMEMSET(privKey->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
+        ForceZero(privKey->nb_ctx, sizeof(x25519_nb_ctx_t));
     }
 
     return ret;
@@ -1255,13 +1269,23 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
 {
     int ret;
 
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL))
+        return BAD_FUNC_ARG;
+
     /* export private part */
     ret = wc_curve25519_export_private_raw_ex(key, priv, privSz, endian);
     if (ret != 0)
         return ret;
 
     /* export public part */
-    return wc_curve25519_export_public_ex(key, pub, pubSz, endian);
+    ret = wc_curve25519_export_public_ex(key, pub, pubSz, endian);
+    if (ret != 0) {
+        /* Public export failed: do not hand back the private key. */
+        ForceZero(priv, *privSz);
+    }
+
+    return ret;
 }
 
 #endif /* HAVE_CURVE25519_KEY_EXPORT */
@@ -1294,7 +1318,13 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
         return ret;
 
     /* import public part */
-    return wc_curve25519_import_public_ex(pub, pubSz, key, endian);
+    ret = wc_curve25519_import_public_ex(pub, pubSz, key, endian);
+    if (ret != 0) {
+        key->privSet = 0;
+        ForceZero(key->k, sizeof(key->k));
+    }
+
+    return ret;
 }
 
 /* curve25519 private key import only. (Big endian)
@@ -1430,7 +1460,6 @@ void wc_curve25519_free(curve25519_key* key)
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
 #endif
-
     ForceZero(key, sizeof(*key));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO

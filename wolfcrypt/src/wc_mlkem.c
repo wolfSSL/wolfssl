@@ -84,6 +84,8 @@
     #endif
 #endif
 
+/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
+#include <wolfssl/wolfcrypt/sha3.h>
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -672,6 +674,26 @@ int wc_MlKemKey_Free(MlKemKey* key)
     return 0;
 }
 
+#if !defined(WOLF_CRYPTO_CB_ONLY_MLKEM) && \
+    (!defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE))
+/* Wipe a SHA-3 object that a failed step left mid-operation. */
+static void mlkemkey_hash_wipe(wc_Sha3* h)
+{
+#ifndef PSOC6_HASH_SHA3
+    ForceZero(h->s, sizeof(h->s));
+    ForceZero(h->t, sizeof(h->t));
+#ifdef WC_SHA3_SCRATCH_W
+    ForceZero(h->scratch, sizeof(h->scratch));
+#endif
+    h->i = 0;
+#else
+    (void)wc_Sha3_256_Reset(h);
+#endif
+}
+#endif
+
 /******************************************************************************/
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -861,6 +883,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     }
 
     if (ret == 0) {
+        int hadPriv = (key->flags & MLKEM_FLAG_PRIV_SET) != 0;
+
         /* Discards the key material, not the parameter set. */
         key->flags &= MLKEM_FLAG_TYPE_SET;
 
@@ -868,6 +892,13 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         k = mlkemkey_get_k(key);
         if (k == 0) {
             ret = NOT_COMPILED_IN;
+        }
+        else if (hadPriv) {
+            /* Do not write the new key over the old one. */
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
+            ForceZero(key->priv, (size_t)k * MLKEM_N * sizeof(sword16));
+#endif
+            ForceZero(key->z, sizeof(key->z));
         }
     }
 
@@ -1019,6 +1050,20 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #ifdef WOLFSSL_MLKEM_CACHE_A
         key->flags |= MLKEM_FLAG_A_SET;
 #endif
+    }
+    else if ((key != NULL) && (k != 0)) {
+        /* Keygen failed after s and z were written; k is 0 until the
+         * argument checks passed (ISO/IEC 19790:2012 7.9.7). */
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+        if (key->priv != NULL) {
+            ForceZero(key->priv, key->privAllocSz);
+        }
+#else
+        ForceZero(key->priv, sizeof(key->priv));
+#endif
+        ForceZero(key->z, sizeof(key->z));
+        mlkemkey_hash_wipe(&key->hash);
+        mlkemkey_hash_wipe(&key->prf);
     }
 
     /* Zeroize the secret seed material in rho||sigma (sigma) before return. */
@@ -1824,7 +1869,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     }
 
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
-    if (key->type & MLKEM_KYBER)
+    /* key may be NULL here; reading it lets the compiler drop later checks. */
+    if ((ret == 0) && (key->type & MLKEM_KYBER))
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
     {
@@ -1854,6 +1900,10 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
             (wc_MlKemKey_CipherTextSize(key, &ctSz) == 0)) {
         /* FIPS 203 3.3: a failed encapsulation leaves no ciphertext. */
         ForceZero(ct, ctSz);
+    }
+    if ((ret != 0) && (key != NULL)) {
+        mlkemkey_hash_wipe(&key->hash);
+        mlkemkey_hash_wipe(&key->prf);
     }
 
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -2297,10 +2347,16 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 
     ForceZero(msg, sizeof(msg));
     ForceZero(kr, sizeof(kr));
+    /* The implicit-rejection flag is destroyed too (FIPS 203 6.3). */
+    ForceZero(&fail, sizeof(fail));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(msg, sizeof(msg));
     wc_MemZero_Check(kr, sizeof(kr));
 #endif
+    if ((ret != 0) && (key != NULL)) {
+        mlkemkey_hash_wipe(&key->hash);
+        mlkemkey_hash_wipe(&key->prf);
+    }
 #endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 
     return ret;
@@ -2452,6 +2508,13 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
     if (ret == 0) {
         /* Forget the old key before its buffers are replaced, so a failure
          * from here on leaves the key unusable. */
+        if (key->flags & MLKEM_FLAG_PRIV_SET) {
+            /* Do not write the new key over the old one. */
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
+            ForceZero(key->priv, (size_t)k * MLKEM_N * sizeof(sword16));
+#endif
+            ForceZero(key->z, sizeof(key->z));
+        }
         key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET |
                         MLKEM_FLAG_A_SET);
     }
@@ -2867,6 +2930,10 @@ int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out, word32 len)
         /* Encode public key - calculates hash of public key. */
         ret = wc_MlKemKey_EncodePublicKey(key, p, pubLen);
         p += pubLen;
+        if (ret != 0) {
+            /* s_hat is already in the buffer. */
+            ForceZero(out, privLen);
+        }
     }
     if (ret == 0) {
         /* Append public hash. */
@@ -3184,6 +3251,9 @@ int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output, word32 len)
     if ((ret == 0) && (output != NULL)) {
         ret = SetAsymKeyDer(output + ((word32)sz - privLen), privLen, NULL, 0,
             output, len, oidSum);
+        if (ret < 0) {
+            ForceZero(output + ((word32)sz - privLen), privLen);
+        }
     }
     else if (ret == 0) {
         ret = sz;
