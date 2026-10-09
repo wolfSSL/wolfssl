@@ -30284,6 +30284,96 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     return sent;
 }
 
+#ifdef WOLFSSL_TLS13
+/* Check that a TLS v1.3 connection may send application data now: not while
+ * a post-handshake flight is part sent, nor after a record error, a fatal
+ * alert or close_notify.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 when it may, otherwise BAD_STATE_E.
+ */
+int wolfssl_local_CheckTls13SendState(const WOLFSSL* ssl)
+{
+    if (!ssl->options.handShakeDone ||
+            (ssl->options.handShakeState != HANDSHAKE_DONE) ||
+            (ssl->error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)) ||
+            (ssl->error == WC_NO_ERR_TRACE(DECRYPT_ERROR)) ||
+            ssl->options.isClosed || ssl->options.sentNotify) {
+        return BAD_STATE_E;
+    }
+
+    return 0;
+}
+
+/* Send a TLS v1.3 application_data record with no content, only padding.
+ * Runs the checks and owed work SendData() runs before application data.
+ * A KeyUpdate that returns WANT_WRITE is queued with the new keys in use, so
+ * the record is still built and queued behind it.
+ *
+ * ssl    The SSL/TLS object.
+ * padSz  Number of padding bytes.
+ * returns 0 on success, WANT_WRITE when the record is queued, BAD_STATE_E
+ * when no application data may be sent, otherwise failure.
+ */
+int wolfssl_local_SendTls13CoverTraffic(WOLFSSL* ssl, word16 padSz)
+{
+    byte* output;
+    int   outputSz;
+    int   sendSz;
+    int   ret;
+
+    WOLFSSL_ENTER("wolfssl_local_SendTls13CoverTraffic");
+
+    ret = wolfssl_local_CheckTls13SendState(ssl);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_RW_THREADED
+    /* A KeyUpdate response goes before the next application data record. */
+    if (ssl->options.sendKeyUpdate) {
+        ssl->options.sendKeyUpdate = 0;
+        ret = SendTls13KeyUpdate(ssl);
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WANT_WRITE)))
+            return ret;
+    }
+#endif
+
+    ret = RetrySendAlert(ssl);
+    if (ret != 0)
+        return ret;
+
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    ret = CheckTLS13AEADSendLimit(ssl);
+    if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WANT_WRITE)))
+        return ret;
+#endif
+
+    /* MAX_MSG_EXTRA covers the record header, content type and tag. */
+    outputSz = (int)padSz + MAX_MSG_EXTRA;
+    ret = CheckAvailableSize(ssl, outputSz);
+    if (ret != 0)
+        return ret;
+
+    output = GetOutputBuffer(ssl);
+    /* Not resumable: a pending cipher operation completes before this
+     * returns, so no build state is left behind. */
+    sendSz = wolfssl_local_BuildTls13Message_ex(ssl, output, outputSz,
+                 output + RECORD_HEADER_SZ, 0, application_data, 0, 0, 0,
+                 padSz);
+    if (sendSz < 0)
+        return sendSz;
+
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
+
+    ret = SendBuffered(ssl);
+    /* As SendData(): clear a stale error or record the pending flush. */
+    if ((ret == 0) || (ret == WC_NO_ERR_TRACE(WANT_WRITE)))
+        ssl->error = ret;
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13 */
+
 /* process input data */
 int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 {

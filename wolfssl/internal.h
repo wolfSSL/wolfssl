@@ -8032,6 +8032,12 @@ WOLFSSL_TEST_VIS int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 WOLFSSL_TEST_VIS int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
 WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfssl_local_BuildTls13Message_ex(WOLFSSL* ssl,
+               byte* output, int outSz, const byte* input, int inSz, int type,
+               int hashOutput, int sizeOnly, int asyncOkay, word16 padSz);
+WOLFSSL_LOCAL int wolfssl_local_CheckTls13SendState(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfssl_local_SendTls13CoverTraffic(WOLFSSL* ssl,
+               word16 padSz);
 #endif
 
 WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
