@@ -328,6 +328,84 @@ int test_wc_AesCmacGenerate(void)
 
 } /* END test_wc_AesCmacGenerate */
 
+
+/* A tag length associated with the key must be the only one it accepts. */
+int test_wc_CmacSetTagLen(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
+    && defined(WOLFSSL_AES_128) \
+    && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) \
+    && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    Cmac   cmac;
+    byte   key[WC_AES_BLOCK_SIZE];
+    byte   msg[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    word32 tagSz;
+    /* smallest length CMAC allows, so never the one associated below */
+    word32 otherSz = WC_CMAC_TAG_MIN_SZ;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(msg, 0, sizeof(msg));
+
+    /* generate side: only the associated size is taken */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(NULL, (word32)sizeof(tag)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MAX_SZ + 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_NO_TAG_ASSOCIATION),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
+        tagSz = otherSz;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        ExpectIntEQ(tagSz, (word32)sizeof(tag));
+        /* NoFree leaves the cmac to us */
+        wc_CmacFree(&cmac);
+    }
+
+    /* once set it can be repeated, never changed or cleared */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MIN_SZ - 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, otherSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_NO_TAG_ASSOCIATION),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_CmacFree(&cmac);
+    }
+
+    /* a new key starts over, so another size goes through */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
+        tagSz = otherSz;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        wc_CmacFree(&cmac);
+    }
+
+    /* verify side: a check value of another size is refused */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
+        /* key NULL keeps the cmac that was just keyed, so it applies */
+        ExpectIntEQ(wc_AesCmacVerify_ex(&cmac, tag, otherSz, msg, sizeof(msg),
+            NULL, 0, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* refused before any work, so the cmac is still ours to free */
+        wc_CmacFree(&cmac);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CmacSetTagLen */
+
 /*
  * MC/DC: wc_CMAC_Grow()'s (cmac == NULL) || (in == NULL && inSz != 0)
  * guard. Compiled out entirely unless WOLFSSL_HASH_KEEP is defined.
@@ -797,3 +875,94 @@ int test_wc_CryptoCb_CmacFree(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CryptoCb_CmacFree */
+
+/* The device below only answers CMAC, so software has to run the AES for it.
+ * WOLF_CRYPTO_CB_ONLY_AES removes the software AES, so skip it there. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+/* Device that does the work in software. The one-shot branch returns before
+ * wc_CmacFinal(), which is the path that used to keep a stale tag length. */
+static int cmac_tag_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int prevDevId;
+
+    (void)devIdArg;
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_CMAC ||
+            info->cmac.cmac == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    /* keeps the software call below from coming back through here */
+    prevDevId = info->cmac.cmac->devId;
+    info->cmac.cmac->devId = INVALID_DEVID;
+    if (info->cmac.key != NULL && info->cmac.in != NULL &&
+            info->cmac.out != NULL) {
+        ret = wc_AesCmacGenerate(info->cmac.out, info->cmac.outSz,
+            info->cmac.in, info->cmac.inSz, info->cmac.key, info->cmac.keySz);
+    }
+    info->cmac.cmac->devId = prevDevId;
+
+    return ret;
+}
+#endif
+
+/* The device path records the length it used against the key it was
+ * handed, so a later call at another length is refused.
+ */
+int test_wc_CryptoCb_CmacTagLen(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    int    devId = 4461;
+    Cmac   cmac;
+    byte   key[WC_AES_BLOCK_SIZE];
+    byte   msg[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    word32 tagSz;
+
+    XMEMSET(key, 0x0a, sizeof(key));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, cmac_tag_test_crypto_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
+        HEAP_HINT, devId), 0);
+    if (EXPECT_SUCCESS()) {
+        /* a call refused for a NULL out must not fix the length, or the
+         * smallest one could not be set next */
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, NULL, &tagSz, msg,
+            sizeof(msg), NULL, 0, HEAP_HINT, devId),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* start from the smallest length so the device call has to
+         * change it */
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MIN_SZ), 0);
+        /* the device runs this one at the full length */
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_AesCmacGenerate_ex(&cmac, tag, &tagSz, msg, sizeof(msg),
+            key, sizeof(key), HEAP_HINT, devId), 0);
+        /* the length it started with is refused from here on */
+        tagSz = WC_CMAC_TAG_MIN_SZ;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* and the one the device used is accepted */
+        tagSz = (word32)sizeof(tag);
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        wc_CmacFree(&cmac);
+    }
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCb_CmacTagLen */

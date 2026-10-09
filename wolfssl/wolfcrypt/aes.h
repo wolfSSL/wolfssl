@@ -36,6 +36,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/types.h>
 
+/* One tag length per key is a shall in SP 800-38D 5.2.1.2, so a FIPS 140-3
+ * v7 or later module is not allowed to build it out. */
+#if defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0)
+    #error "WOLFSSL_NO_AES_TAG_ASSOCIATION is not allowed in FIPS v7 or later"
+#endif
+
 #if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
     !defined(GCM_TABLE_4BIT)
     #define GCM_TABLE_4BIT
@@ -537,6 +544,12 @@ struct Aes {
      * path, which is exactly the case that would otherwise encrypt with an
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+    /* tag length associated with the key, at the end so offsets do not move.
+     * Always present, so the opt-out cannot change the struct size. */
+    word32 tagLen;
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -624,6 +637,17 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
+/* no tag length is associated with the key yet; only a new key returns
+ * it to this state */
+enum {
+    WC_NO_TAG_ASSOCIATION = 0
+};
+
+WOLFSSL_API int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
+#endif
 
 /* AES-CBC */
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,

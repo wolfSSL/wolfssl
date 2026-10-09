@@ -1343,6 +1343,83 @@ int test_evp_cipher_aes_gcm(void)
     return EXPECT_RESULT();
 }
 
+/* One key carries one tag length, per SP 800-38D section 5.2.1.2, and a
+ * reused EVP context is held to it on verify. A new key clears it.
+ */
+int test_evp_cipher_aes_gcm_tag_len(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    WOLFSSL_MIN_AUTH_TAG_SZ <= 12 && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte key[16];
+    byte iv1[GCM_NONCE_MID_SZ];
+    byte iv2[GCM_NONCE_MID_SZ];
+    byte plain[16];
+    byte ct1[16];
+    byte ct2[16];
+    byte tag1[16];
+    byte tag2[16];
+    byte out[16];
+    int len = 0;
+    /* allowed by RFC 5084 section 3.2, but not once 16 is associated */
+    const int shortTagSz = 12;
+
+    XMEMSET(key, 0xa5, sizeof(key));
+    XMEMSET(iv1, 0x01, sizeof(iv1));
+    XMEMSET(iv2, 0x02, sizeof(iv2));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+
+    /* two messages under one key */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct1, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct1 + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv2), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct2, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct2 + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+        (int)sizeof(tag2), tag2), 1);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* the first verify associates 16, a shorter one is then refused */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct1, sizeof(ct1)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, NULL, iv2), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        shortTagSz, tag2), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct2, sizeof(ct2)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* handing in the key again clears it, so the shorter one is allowed */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct1, sizeof(ct1)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv2), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        shortTagSz, tag2), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct2, sizeof(ct2)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfssl_EVP_aes_gcm(void)
 {
     EXPECT_DECLS;

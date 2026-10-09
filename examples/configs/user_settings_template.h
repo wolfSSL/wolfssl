@@ -209,6 +209,11 @@ extern "C" {
     //#define HAVE_AES_ECB
     //#define WOLFSSL_AES_COUNTER
     //#define HAVE_AESCCM
+
+    /* One key carries one tag length, per SP 800-38D 5.2.1.2. Define this
+     * to let one key use several, which departs from that requirement.
+     * A FIPS v7 or later build refuses it. */
+    //#define WOLFSSL_NO_AES_TAG_ASSOCIATION
 #else
     #define NO_AES
 #endif

@@ -362,6 +362,69 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 
 /*!
     \ingroup AES
+    \brief This function associates one tag length with the key held by an
+    AES object, as SP 800-38D section 5.2.1.2 and SP 800-38C section 5.3
+    require. Once set, AES-GCM and AES-CCM calls with that key accept only
+    that tag length. wc_AesGcmSetKey() and wc_AesCcmSetKey() clear the
+    association. The mode still applies its own list of allowed tag lengths
+    on top of this.
+
+    WOLFSSL_NO_AES_TAG_ASSOCIATION builds all of this out, which departs from
+    the requirement above, so a FIPS v7 or later build refuses it.
+
+    The first use of a key writes the length into the AES object, so a keyed
+    object shared read only between threads for one-shot AES-GCM or AES-CCM
+    needs its length set here before it is handed out.
+
+    The first use of a key fixes its tag length even without this call. Once
+    a length is associated this call can repeat it but not change or clear
+    it; set the key again through one of those two to start over.
+    wc_AesSetKey() clears it as well on builds that use the software key
+    schedule, but a backend with its own key setter does not. Hardware
+    offload ports do not apply this association, and such a build would be
+    validated as a hybrid module.
+
+    A crypto callback is checked here before the work is handed over, because
+    the key it forwards is the one this object holds. A callback that builds a
+    fresh context per call cannot see the association, so this is the only
+    place it can be caught. A device key installed by id or label is the
+    exception, it is never seen here, so its first tag length stays associated
+    until the object is freed.
+
+    An OpenSSL-compat EVP context re-initialized without a new key keeps the
+    association, so a later verify asking for a different tag length fails.
+    That is the one key one tag length rule, not a caller error. EVP encrypt
+    always tags at the full length and shortens afterwards, so it never
+    reaches this check.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG Returned if aes is NULL, the length is zero or
+    larger than the AES block size, or a different length is already
+    associated.
+
+    \param aes pointer to the AES object holding the key
+    \param tagLen tag length to associate with the key
+
+    _Example_
+    \code
+    Aes enc;
+    byte key[] = { some 16, 24, 32 byte key };
+    if (wc_AesGcmSetKey(&enc, key, sizeof(key)) != 0) {
+        // failed to set aes key
+    }
+    if (wc_AesSetTagLen(&enc, 16) != 0) {
+        // failed to associate the tag length
+    }
+    \endcode
+
+    \sa wc_AesGcmSetKey
+    \sa wc_AesCcmSetKey
+    \sa wc_CmacSetTagLen
+*/
+int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
+
+/*!
+    \ingroup AES
     \brief This function encrypts the input message, held in the buffer in,
     and stores the resulting cipher text in the output buffer out. It
     requires a new iv (initialization vector) for each call to encrypt.
