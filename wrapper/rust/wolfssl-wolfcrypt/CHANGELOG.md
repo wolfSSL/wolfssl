@@ -35,6 +35,8 @@ Breaking changes:
   Result<(usize, usize), i32> holding the private and public key sizes.
   Previously, callers passing an oversized output buffer had no way to know
   where the exported key ended
+- ChaCha20Poly1305::finalize() now fails with BAD_FUNC_ARG on a decryption
+  instance; use finalize_verify() to authenticate decrypted data
 
 New features:
 

@@ -78,10 +78,8 @@ fn test_chacha20_poly1305_1() {
     ccp.update_aad(&aad1).expect("Error with update_aad()");
     let mut out_plaintext1 = [0u8; 114];
     ccp.update_data(&cipher1, &mut out_plaintext1).expect("Error with update_data()");
-    let mut out_auth_tag_1 = [0u8; ChaCha20Poly1305::AUTH_TAG_SIZE];
-    ccp.finalize(&mut out_auth_tag_1).expect("Error with finalize()");
+    ccp.finalize_verify(&auth_tag_1).expect("Error with finalize_verify()");
     assert_eq!(out_plaintext1, plaintext1);
-    assert_eq!(out_auth_tag_1, auth_tag_1);
 }
 
 #[test]
@@ -199,10 +197,8 @@ fn test_chacha20_poly1305_2() {
     let mut out_plaintext2 = [0u8; 265];
     ccp.update_data(&cipher2[0..128], &mut out_plaintext2[0..128]).expect("Error with update_data()");
     ccp.update_data(&cipher2[128..265], &mut out_plaintext2[128..265]).expect("Error with update_data()");
-    let mut out_auth_tag_2 = [0u8; ChaCha20Poly1305::AUTH_TAG_SIZE];
-    ccp.finalize(&mut out_auth_tag_2).expect("Error with finalize()");
+    ccp.finalize_verify(&auth_tag_2).expect("Error with finalize_verify()");
     assert_eq!(out_plaintext2, plaintext2);
-    assert_eq!(out_auth_tag_2, auth_tag_2);
 }
 
 #[test]
@@ -267,6 +263,23 @@ fn test_chacha20_poly1305_finalize_verify() {
     ccp.update_data(&cipher1, &mut out_plaintext1).expect("Error with update_data()");
     let rc = ccp.finalize_verify(&bad_auth_tag);
     assert_eq!(rc, Err(sys::wolfCrypt_ErrorCodes_MAC_CMP_FAILED_E));
+
+    /* finalize() must be rejected on a decryption instance. */
+    let mut ccp = ChaCha20Poly1305::new(&key1, &iv1, false).expect("Error with new()");
+    ccp.update_aad(&aad1).expect("Error with update_aad()");
+    let mut out_plaintext1 = [0u8; 114];
+    ccp.update_data(&cipher1, &mut out_plaintext1).expect("Error with update_data()");
+    let mut out_auth_tag_1 = [0u8; ChaCha20Poly1305::AUTH_TAG_SIZE];
+    let rc = ccp.finalize(&mut out_auth_tag_1);
+    assert_eq!(rc, Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    /* finalize_verify() must be rejected on an encryption instance. */
+    let mut ccp = ChaCha20Poly1305::new(&key1, &iv1, true).expect("Error with new()");
+    ccp.update_aad(&aad1).expect("Error with update_aad()");
+    let mut out_cipher1 = [0u8; 114];
+    ccp.update_data(&plaintext1, &mut out_cipher1).expect("Error with update_data()");
+    let rc = ccp.finalize_verify(&auth_tag_1);
+    assert_eq!(rc, Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
 }
 
 #[test]

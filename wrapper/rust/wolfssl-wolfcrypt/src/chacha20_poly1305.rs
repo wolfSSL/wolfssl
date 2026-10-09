@@ -31,6 +31,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct ChaCha20Poly1305 {
     wc_ccp: sys::ChaChaPoly_Aead,
+    encrypt: bool,
 }
 
 impl ChaCha20Poly1305 {
@@ -142,7 +143,9 @@ impl ChaCha20Poly1305 {
     /// * `key`: Encryption key (must be 32 bytes).
     /// * `iv`: Initialization Vector (must be 12 bytes).
     /// * `encrypt`: Whether the instance will be used to encrypt (true) or
-    ///   decrypt (false).
+    ///   decrypt (false). An encryption instance must be finalized with
+    ///   `finalize()` and a decryption instance must be finalized with
+    ///   `finalize_verify()`.
     ///
     /// Returns either Ok(chacha20poly1305) on success or Err(e) containing the
     /// wolfSSL library error code value.
@@ -162,7 +165,7 @@ impl ChaCha20Poly1305 {
             return Err(rc);
         }
         let wc_ccp = unsafe { wc_ccp.assume_init() };
-        Ok(ChaCha20Poly1305 { wc_ccp })
+        Ok(ChaCha20Poly1305 { wc_ccp, encrypt })
     }
 
     /// Update AAD (additional authenticated data).
@@ -193,8 +196,8 @@ impl ChaCha20Poly1305 {
     ///
     /// This function can be called multiple times. If AAD is used, the
     /// `update_aad()` function must be called before this function. The
-    /// `finalize()` function should be called after adding all input data to
-    /// finalize the operation and compute the authentication tag.
+    /// `finalize()` (encryption) or `finalize_verify()` (decryption) function
+    /// should be called after adding all input data to finalize the operation.
     ///
     /// # Parameters
     ///
@@ -221,17 +224,15 @@ impl ChaCha20Poly1305 {
         Ok(())
     }
 
-    /// Finalize the decrypt/encrypt operation.
+    /// Finalize the encrypt operation and compute the authentication tag.
     ///
     /// This function consumes the `ChaCha20Poly1305` instance. The
     /// `update_data()` function must be called before calling this function to
     /// add all input data (if present).
     ///
-    /// Note that for decryption operations, the authentication tag is computed
-    /// and returned but is *not* checked so it is up to the caller to compare
-    /// to the expected tag. Use `finalize_verify()` instead for decryption
-    /// operations to finalize and compare against the expected authentication
-    /// tag in one operation.
+    /// This function may only be used on an instance created for encryption.
+    /// Decryption instances must use `finalize_verify()` so that the
+    /// authentication tag is always checked (in constant time).
     ///
     /// # Parameters
     ///
@@ -240,8 +241,12 @@ impl ChaCha20Poly1305 {
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// library error code value. Err with the `BAD_FUNC_ARG` error code is
+    /// returned if the instance was created for decryption.
     pub fn finalize(mut self, auth_tag: &mut [u8]) -> Result<(), i32> {
+        if !self.encrypt {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -255,15 +260,21 @@ impl ChaCha20Poly1305 {
         Ok(())
     }
 
-    /// Finalize the decrypt/encrypt operation and verify the authentication
-    /// tag against `auth_tag`.
+    /// Finalize the decrypt operation and verify the authentication tag
+    /// against `auth_tag`.
     ///
     /// This function consumes the `ChaCha20Poly1305` instance. The
     /// `update_data()` function must be called before calling this function to
     /// add all input data (if present). The authentication tag is computed
     /// internally and compared against the expected `auth_tag` in constant
-    /// time. This is typically used when decrypting to verify the transmitted
-    /// authentication tag.
+    /// time.
+    ///
+    /// This function may only be used on an instance created for decryption.
+    /// Encryption instances must use `finalize()`.
+    ///
+    /// Note that `update_data()` outputs decrypted data before the tag is
+    /// verified. If this function returns Err, any plain text previously
+    /// output must be discarded.
     ///
     /// # Parameters
     ///
@@ -274,8 +285,12 @@ impl ChaCha20Poly1305 {
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
     /// library error code value. A tag mismatch is reported as Err with the
-    /// `MAC_CMP_FAILED_E` error code.
+    /// `MAC_CMP_FAILED_E` error code. Err with the `BAD_FUNC_ARG` error code
+    /// is returned if the instance was created for encryption.
     pub fn finalize_verify(mut self, auth_tag: &[u8]) -> Result<(), i32> {
+        if self.encrypt {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
