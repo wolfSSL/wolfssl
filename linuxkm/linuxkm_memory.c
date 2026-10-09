@@ -52,6 +52,8 @@ static const struct reloc_layout_ent {
     [WC_R_X86_64_64]                  = { "R_X86_64_64",                                                ~0UL, 64, .is_signed = 0, .is_relative = 0 },
     [WC_R_X86_64_PC32]                = { "R_X86_64_PC32",                                              ~0UL, 32, .is_signed = 1, .is_relative = 1 },
     [WC_R_X86_64_PLT32]               = { "R_X86_64_PLT32",                                             ~0UL, 32, .is_signed = 1, .is_relative = 1 },
+    [WC_R_386_32]                     = { "R_386_32",                                                   ~0UL, 32, .is_signed = 0, .is_relative = 0 },
+    [WC_R_386_PC32]                   = { "R_386_PC32",                                                 ~0UL, 32, .is_signed = 1, .is_relative = 1 },
     [WC_R_AARCH64_ABS32]              = { "R_AARCH64_ABS32",                                            ~0UL, 32, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_AARCH64_ABS64]              = { "R_AARCH64_ABS64",                                            ~0UL, 64, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_AARCH64_ADD_ABS_LO12_NC]    = { "R_AARCH64_ADD_ABS_LO12_NC",    0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
@@ -414,6 +416,12 @@ ssize_t wc_reloc_normalize_segment(
 #endif
             }
 
+            break;
+
+        case WC_R_386_32:
+        case WC_R_386_PC32:
+            /* i386 is REL: its addend lives in the field, not in reloc_tab. */
+            reloc_buf = 0;
             break;
 
         case WC_R_ARM_ABS32:

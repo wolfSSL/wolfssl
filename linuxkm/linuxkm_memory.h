@@ -60,7 +60,9 @@ enum wc_reloc_type {
     WC_R_ARM_THM_JUMP11,
     WC_R_ARM_THM_JUMP24,
     WC_R_ARM_THM_MOVT_ABS,
-    WC_R_ARM_THM_MOVW_ABS_NC
+    WC_R_ARM_THM_MOVW_ABS_NC,
+    WC_R_386_32,
+    WC_R_386_PC32
 };
 
 /* This structure is accessed natively by kernel module glue logic, and also

@@ -207,7 +207,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		next;									\
 	}										\
 	/^0/ {										\
-		if ($$3 !~ "^(R_X86_.*|R_AARCH64_.*|R_ARM.*)$$") {			\
+		if ($$3 !~ "^(R_X86_.*|R_386_(32|PC32)|R_AARCH64_.*|R_ARM.*)$$") {	\
 		    print "Unexpected relocation type in " cur_seg ":\n" $$0 >"/dev/stderr";		\
 		    ++bad_relocs;							\
 		}									\
