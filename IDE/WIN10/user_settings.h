@@ -32,6 +32,28 @@
     #define HAVE_FIPS_VERSION_MINOR 3
 #endif
 
+/* The region between the two markers below is rewritten by fips-check.sh when
+ * a FIPS bundle is assembled, so that a Visual Studio build of the bundle uses
+ * the same HAVE_FIPS_VERSION_* values that ./configure derives for the bundled
+ * module. It sits after the hand-maintained blocks above so that it wins.
+ *
+ * In a plain git checkout there is no bundled module, so it stays inert.
+ * Do not edit between the markers; edits are overwritten. */
+/* BEGIN GENERATED FIPS VERSION */
+#if 0
+#undef  HAVE_FIPS
+#define HAVE_FIPS
+#undef  HAVE_FIPS_VERSION
+#define HAVE_FIPS_VERSION 5
+#undef  HAVE_FIPS_VERSION_MAJOR
+#define HAVE_FIPS_VERSION_MAJOR 5
+#undef  HAVE_FIPS_VERSION_MINOR
+#define HAVE_FIPS_VERSION_MINOR 2
+#undef  HAVE_FIPS_VERSION_PATCH
+#define HAVE_FIPS_VERSION_PATCH 1
+#endif
+/* END GENERATED FIPS VERSION */
+
 
 /* Verify this is Windows */
 #ifndef _WIN32
