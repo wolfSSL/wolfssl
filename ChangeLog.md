@@ -101,6 +101,11 @@
   `mp_div_2_mod_ct()`)**: these now return `MP_VAL` for an operand wider than
   the modulus, and grow their input operands to the modulus width. by @stenslae (PR 11159)
 
+* **Behavioral change (`WOLFSSL_NO_CONST_CMP`)**: no longer defined
+  automatically for `WOLFCRYPT_ONLY` builds that still compile a caller of
+  `ConstantCompare()`: RSA, ECC, Ed25519/Ed448, ChaCha20-Poly1305, Ascon,
+  CMAC, SRP, PKCS#12 or Altera FCS hash. by @stenslae (PR 11159)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -117,6 +122,7 @@
 * ECCSI signing (`wc_SignEccsiHash()`) now blinds its modular inverse instead of inverting the secret value directly. by @stenslae (PR 11159)
 * SAKKE RSK derivation now blinds the inverse of a + z_T, which involves the KMS master secret. by @stenslae (PR 11159)
 * Heap-math (`--enable-heapmath`) `mp_addmod_ct()`, `mp_submod_ct()` and `mp_div_2_mod_ct()` no longer branch on operand values or lengths. by @stenslae (PR 11159)
+* TLS signature checks, RSA-PSS verification and the ATECC GCM tag check now compare with `ConstantCompare()`, whose loads are volatile so it cannot be compiled to an early-exit compare. by @stenslae (PR 11159)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
   absorbs the key, nonce and associated data into the sponge state and then
