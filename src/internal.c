@@ -2974,6 +2974,13 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->readAheadSz = WOLFSSL_READ_AHEAD_SZ;
 #endif
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* Advertise by default so the extension actually negotiates; an
+     * application that does not want to offer one sets 0. Inherited by every
+     * WOLFSSL made from this context. */
+    ctx->recordSizeLimit = WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT;
+#endif
+
 #ifdef WOLFSSL_DTLS
     if (method->version.major == DTLS_MAJOR) {
         ctx->minDowngrade = WOLFSSL_MIN_DTLS_DOWNGRADE;
@@ -3326,6 +3333,33 @@ void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
  * wolfSSL_CTX_load_static_memory after CTX creation, which means variables
  * allocated in InitSSL_Ctx were allocated from heap and should be free'd with
  * a NULL heap hint. */
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* Drop the compressed copy of the certificate message.
+ *
+ * The cache is built from the context's certificate and chain, so replacing
+ * either leaves it describing a certificate that is no longer configured.
+ * Called from every site that frees or replaces them.
+ *
+ * ctx  SSL/TLS context object, may be NULL.
+ */
+void CertCompInvalidate(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return;
+    XFREE(ctx->certComp, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ctx->certComp = NULL;
+    ctx->certCompSz = 0;
+    ctx->certCompPlainSz = 0;
+    ctx->certCompAlgo = 0;
+    /* The recorded shape describes the cache, so it goes with it: leaving it
+     * behind would have UseCompressedCertificate()'s backstop compare a new
+     * certificate against the dimensions of one that is gone. */
+    ctx->certCompCertSz = 0;
+    ctx->certCompChainSz = 0;
+    ctx->certCompChainCnt = 0;
+}
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
+
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
@@ -3337,6 +3371,15 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if (ctx->onHeapHint == 0) {
         heapAtCTXInit = NULL;
     }
+#endif
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+    CertCompInvalidate(ctx);
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    XFREE(ctx->sctList, ctx->heap, DYNAMIC_TYPE_TLSX);
+    ctx->sctList = NULL;
+    ctx->sctListSz = 0;
 #endif
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -8812,6 +8855,16 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->numGroups = ctx->numGroups;
     }
 
+    /* The SCT list is deliberately not copied from the context here: this
+     * function cannot report an allocation failure. The copy is taken in
+     * TLSX_SCTS_Parse() when the server decides to answer, which can. */
+
+    if (ctx->ourCertSigAlgoSz > 0) {
+        XMEMCPY(ssl->ourCertSigAlgo, ctx->ourCertSigAlgo,
+                ctx->ourCertSigAlgoSz);
+        ssl->ourCertSigAlgoSz = ctx->ourCertSigAlgoSz;
+    }
+
     /* Server clears this when the ClientHello legacy_session_id is empty. */
     ssl->options.tls13MiddleBoxCompat = 1;
 }
@@ -9087,6 +9140,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     ssl->options.useClientOrder = ctx->useClientOrder;
     ssl->options.mutualAuth = ctx->mutualAuth;
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* Version independent on purpose: RFC 8449 covers TLS 1.2, where the
+     * server answers in the ServerHello, so this must not live in
+     * InitSSL_Tls13Options() - a TLS 1.2 only build would never inherit the
+     * context's limit and would silently never offer the extension. */
+    ssl->recordSizeLimit = ctx->recordSizeLimit;
+    ssl->recordSizeLimitSet = ctx->recordSizeLimitSet;
+#endif
 
 #ifdef WOLFSSL_TLS13
     InitSSL_Tls13Options(ssl, ctx);
@@ -10113,6 +10175,14 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void wolfSSL_ResourceFree(WOLFSSL* ssl)
 {
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    XFREE(ssl->peerSctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->peerSctList = NULL;
+    ssl->peerSctListSz = 0;
+    XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->sctList = NULL;
+    ssl->sctListSz = 0;
+#endif
     /* Note: any resources used during the handshake should be released in the
      * function FreeHandshakeResources(). Be careful with the special cases
      * like the RNG which may optionally be kept for the whole session. (For
@@ -13196,6 +13266,9 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case session_ticket:
             case end_of_early_data:
             case encrypted_extensions:
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            case compressed_certificate:
+#endif
             case certificate:
             case server_key_exchange:
             case certificate_request:
@@ -13214,6 +13287,9 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
                 }
                 break;
             case message_hash:
+#ifndef HAVE_CERTIFICATE_COMPRESSION
+            case compressed_certificate:
+#endif
             case no_shake:
             default:
                 WOLFSSL_MSG("Unknown message type");
@@ -13270,6 +13346,7 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case request_connection_id:
             case new_connection_id:
             case message_hash:
+            case compressed_certificate:
             case no_shake:
             default:
                 WOLFSSL_MSG("Unknown message type");
@@ -13309,6 +13386,9 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                     break;
                 case session_ticket:
                 case encrypted_extensions:
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+                case compressed_certificate:
+#endif
                 case certificate:
                 case server_key_exchange:
                 case certificate_request:
@@ -13322,6 +13402,9 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                     break;
                 case server_hello_done:
                 case message_hash:
+#ifndef HAVE_CERTIFICATE_COMPRESSION
+                case compressed_certificate:
+#endif
                 case no_shake:
                 default:
                     WOLFSSL_MSG("Unknown message type");
@@ -13359,6 +13442,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case request_connection_id:
                 case new_connection_id:
                 case message_hash:
+                case compressed_certificate:
                 case no_shake:
                 default:
                     WOLFSSL_MSG("Unknown message type");
@@ -13397,6 +13481,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
             case request_connection_id:
             case new_connection_id:
             case message_hash:
+            case compressed_certificate:
             case no_shake:
             default:
                 WOLFSSL_MSG("Unknown message type");
@@ -13860,6 +13945,116 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         WOLFSSL_MSG_EX("Record length %d exceeds max record size", *size);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
+    }
+#endif
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449 Sect. 4: "A TLS endpoint that receives a record larger than
+     * its advertised limit MUST generate a fatal record_overflow alert."
+     * LENGTH_ERROR is what the caller turns into that alert. The limit is on
+     * the plaintext, so the ciphertext is allowed its expansion on top.
+     *
+     * The limits only bind once the extension "is negotiated", so this waits
+     * for the peer's own limit to arrive, which is the point at which it has
+     * acknowledged ours. Enforcing on advertisement alone would drop every
+     * peer that ignores the extension, and ignoring it is what an
+     * implementation without RFC 8449 does.
+     *
+     * "Unprotected messages are not subject to this limit", which matters at
+     * TLS 1.2 where the whole certificate flight travels in the clear and
+     * routinely exceeds a small limit. */
+    if ((ssl->recordSizeLimit != 0) && (ssl->peerRecordSizeLimit != 0) &&
+            IsEncryptionOn(ssl, 0)
+#ifdef WOLFSSL_EARLY_DATA
+            /* Not 0-RTT data. The client composes early data straight after
+             * its ClientHello, before it can have seen our limit - RFC 8449
+             * does not carry the value in the ticket - yet a server has the
+             * client's limit and its early-data keys from that same
+             * ClientHello, so every condition above already holds. Holding
+             * those records to a limit the peer could not know would fail the
+             * handshake with record_overflow for an early write it had no way
+             * to bound.
+             *
+             * Bounded to the handshake, because no early data can arrive after
+             * it: expecting_early_data only records that the application
+             * called wolfSSL_read_early_data(), and a server that then refuses
+             * 0-RTT never leaves that state, so testing the state alone
+             * disabled this check for the whole connection - including every
+             * application record that followed. */
+            && !(((ssl->earlyData == expecting_early_data) ||
+                  (ssl->earlyData == process_early_data)) &&
+                 (ssl->options.handShakeState != HANDSHAKE_DONE))
+#endif
+            ) {
+        /* Allow the ciphertext only the expansion the negotiated cipher
+         * actually adds. MAX_MSG_EXTRA is the worst case over every suite
+         * wolfSSL supports, and at a small limit that slack is wide enough to
+         * wave through a record several times the size advertised. TLS 1.3 is
+         * AEAD throughout, so the expansion is exactly the tag - the content
+         * type byte and any padding are inside the limit already. At TLS 1.2
+         * an explicit IV, the MAC and block padding all vary by suite, and the
+         * worst case is the honest bound to use. */
+        /* ssl->recordSizeLimit is payload, so rebuild what that permits on
+         * the wire: the same content type byte the advertisement carried,
+         * then the cipher's expansion. */
+        word32 maxSz = (word32)ssl->recordSizeLimit;
+
+    #ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version))
+            maxSz += 1 + ssl->specs.aead_mac_size;
+        else
+    #endif
+        {
+            /* MAX_MSG_EXTRA is the worst case over the suites wolfSSL itself
+             * generates, which always pad a CBC record minimally. A peer may
+             * add up to 256 bytes of padding (RFC 5246 Sect. 6.2.3.2) and
+             * RFC 8449 Sect. 4 measures the limit against the plaintext, so
+             * padding is not counted against it - a peer padding to hide
+             * lengths would be refused with record_overflow for a record it
+             * was entitled to send. cipherExtraData() gives the exact expansion
+             * for the negotiated suite - including the explicit nonce that
+             * TLS 1.2 GCM and CCM carry and ChaCha20-Poly1305 does not - so
+             * use that rather than the global slack, which is dozens of bytes
+             * too generous for an AEAD suite and would leave this end
+             * accepting records above the limit it advertised. Compression
+             * cannot add to it: HAVE_RECORD_SIZE_LIMIT sets
+             * WOLFSSL_NO_TLS_COMPRESSION, so no build has both. */
+            int    cipherExtra = cipherExtraData(ssl);
+            word32 suiteExtra;
+
+            if (cipherExtra < 0)
+                cipherExtra = 0;
+            suiteExtra = (word32)cipherExtra;
+    #ifndef WOLFSSL_AEAD_ONLY
+            if (ssl->specs.cipher_type == block) {
+                /* cipherExtraData() allows one block of padding, which is what
+                 * wolfSSL itself emits. A peer may pad up to MAX_PAD_SIZE to
+                 * hide the plaintext length, so swap that one block for the
+                 * whole allowance. */
+                if ((word32)ssl->specs.block_size < MAX_PAD_SIZE) {
+                    suiteExtra += MAX_PAD_SIZE -
+                                  (word32)ssl->specs.block_size;
+                }
+            }
+    #endif
+            maxSz += suiteExtra;
+    #ifdef WOLFSSL_TLS13
+            /* A client advertises in its ClientHello, before the version is
+             * settled, so TLSX_RecordSizeLimit_Write() sent the value with the
+             * TLS 1.3 content type byte folded in. After a downgrade that byte
+             * is payload the peer is entitled to use, so enforcing the payload
+             * limit alone would reject a record the advertisement allowed. */
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                maxSz += 1;
+    #endif
+        }
+
+        if ((word32)*size > maxSz) {
+            WOLFSSL_MSG_EX("Record length %d exceeds record size limit",
+                           *size);
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
     }
 #endif
 
@@ -18693,7 +18888,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG_EX("\tParsing %d bytes of cert extensions",
                         args->exts[args->totalCerts].length);
                     #if !defined(NO_TLS)
-                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                        defined(HAVE_SIGNED_CERT_TIMESTAMP)
                     ssl->response_idx = args->totalCerts;
                     #endif
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
@@ -33352,14 +33548,16 @@ static byte GetSigAlgFromName(const char* name, int len)
     return alg;
 }
 
-/* Set the hash/signature algorithms that are supported for certificate signing.
+/* Set a signature algorithms list from a text list.
  *
- * suites  [in,out]  Cipher suites and signature algorithms.
- * list    [in]      String representing hash/signature algorithms to set.
- * returns  0 on failure.
- *          1 on success.
+ * hashSigAlgo    Buffer of WOLFSSL_MAX_SIGALGO bytes to encode the list into.
+ * hashSigAlgoSz  Encoded length in bytes. Zeroed first: setting is
+ *                destructive on error.
+ * list           Colon separated <public key>+<digest> algorithms.
+ * returns 1 on success, 0 on error.
  */
-int SetSuitesHashSigAlgo(Suites* suites, const char* list)
+int SetHashSigAlgoList(byte* hashSigAlgo, word16* hashSigAlgoSz,
+                       const char* list)
 {
     int ret = 1;
     word16 idx = 0;
@@ -33368,7 +33566,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     byte mac_alg = no_mac;
 
     /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    *hashSigAlgoSz = 0;
 
     do {
         if (*list == '+') {
@@ -33408,7 +33606,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            AddSuiteHashSigAlgo(hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -33422,10 +33620,22 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
         ret = 0;
     }
     else {
-        suites->hashSigAlgoSz = idx;
+        *hashSigAlgoSz = idx;
     }
 
     return ret;
+}
+
+/* Set the signature algorithms list on a cipher suite holder.
+ *
+ * suites  Cipher suites holder.
+ * list    Colon separated <public key>+<digest> algorithms.
+ * returns 1 on success, 0 on error.
+ */
+int SetSuitesHashSigAlgo(Suites* suites, const char* list)
+{
+    return SetHashSigAlgoList(suites->hashSigAlgo, &suites->hashSigAlgoSz,
+                              list);
 }
 
 #endif /* OPENSSL_EXTRA */
@@ -47066,6 +47276,26 @@ int wolfSSL_GetMaxFragSize(WOLFSSL* ssl)
         maxFragment = ssl->max_fragment;
     }
 #endif /* HAVE_MAX_FRAGMENT */
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449 Sect. 4: never generate a protected record whose plaintext is
+     * larger than the peer's limit. In TLS 1.3 that limit counts the content
+     * type byte of the TLSInnerPlaintext, so one byte fewer is available to
+     * the payload itself. */
+    /* RFC 8449 Sect. 4: "Unprotected messages are not subject to this limit."
+     * The receive check in GetRecordHeader() tests the same thing, so without
+     * this the two directions disagree: at TLS 1.2 peerRecordSizeLimit is set
+     * while parsing the ClientHello, which fragmented the whole cleartext
+     * certificate flight to the peer's limit. */
+    if ((ssl->peerRecordSizeLimit != 0) && (IsEncryptionOn(ssl, 1) == 1)) {
+        /* Already payload: TLSX_RecordSizeLimit_Parse() took the TLS 1.3
+         * content type byte off when it read the value. */
+        int limit = (int)ssl->peerRecordSizeLimit;
+
+        if (maxFragment > limit)
+            maxFragment = limit;
+    }
+#endif /* HAVE_RECORD_SIZE_LIMIT */
 
     return maxFragment;
 }

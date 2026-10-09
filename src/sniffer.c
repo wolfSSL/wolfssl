@@ -5141,6 +5141,17 @@ static int DoHandShake(const byte* input, int* sslBytes,
         case certificate_status:
             Trace(GOT_CERT_STATUS_STR);
             break;
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+        case compressed_certificate:
+            /* RFC 8879 replaces the Certificate message with this one, which
+             * the sniffer cannot read: the body is deflated and nothing here
+             * inflates it. Recognised rather than left to the default arm
+             * below, which raised GOT_UNKNOWN_HANDSHAKE_STR and killed the
+             * session - the rest of the session decodes fine, only the peer
+             * chain that WOLFSSL_SNIFFER_WATCH reports is unavailable. */
+            Trace(GOT_CERT_STR);
+            break;
+#endif
         default:
             SetError(GOT_UNKNOWN_HANDSHAKE_STR, error, session, 0);
             ret = WOLFSSL_FATAL_ERROR;
