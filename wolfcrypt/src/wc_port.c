@@ -2217,7 +2217,7 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
 }
 
 #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
-        !defined(__cplusplus)
+      !defined(__cplusplus) && !defined(NO_STDATOMIC_H)
 
 /* Default C Implementation */
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG i)
@@ -5095,26 +5095,7 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 
 
 #if defined(WOLFSSL_LINUXKM)
-time_t time(time_t * timer)
-{
-    time_t ret;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-    struct timespec ts;
-    getnstimeofday(&ts);
-    ret = ts.tv_sec;
-#else
-    struct timespec64 ts;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-    ts = current_kernel_time64();
-#else
-    ktime_get_coarse_real_ts64(&ts);
-#endif
-    ret = ts.tv_sec;
-#endif
-    if (timer)
-        *timer = ret;
-    return ret;
-}
+/* linuxkm XTIME() implementation lives in linuxkm/module_hooks.c */
 #endif /* WOLFSSL_LINUXKM */
 
 #ifdef HAL_RTC_MODULE_ENABLED

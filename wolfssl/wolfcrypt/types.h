@@ -2554,6 +2554,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_SIG_IGNORE_END() 0
 #endif
 
+#ifndef WC_CAN_BLOCK
+    #define WC_CAN_BLOCK() 1
+#endif
+#ifndef WC_CAN_LONG_LOOP
+    #define WC_CAN_LONG_LOOP() 1
+#endif
+
 #ifndef RESTORE_NO_VECTOR_REGISTERS
     #define RESTORE_NO_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP()
 #endif

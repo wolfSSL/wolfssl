@@ -4524,6 +4524,9 @@
     #ifndef NO_CTYPE_H
         #define NO_CTYPE_H
     #endif
+    #ifndef NO_STDATOMIC_H
+        #define NO_STDATOMIC_H
+    #endif
     /* Linux kernel includes linux/stddef.h.  The gcc stddef.h conflicts with it
      * (e.g. offsetof()) and needs to be inhibited.
      */

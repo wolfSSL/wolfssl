@@ -261,8 +261,13 @@ int wc_rng_bank_default_clear(struct wc_rng_bank *bank);
     wc_rng_bank_inst_checkin().  WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED consumes
     a ready banked next seed in an immediate source-free credited reseed
     before returning; WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (per-call,
-    requires _CAN_WAIT) freshly credited-reseeds the lease before the
-    caller's first draw.
+    requires _CAN_WAIT) freshly credited-reseeds the lease from the
+    primary source (wc_RNG_DRBG_Reseed_Now_Primary()) before the caller's
+    first draw.  On a bank whose members are RBG-chain children of a root
+    (WC_RNG_BANK_FLAG_RBGC) in a WC_RNG_RBGC_STRATUM_IMMUTABLE build, that
+    reseed is conformant but the lease's output carries no SP 800-90C
+    prediction-resistance claim -- a chain member is not a DRBG with direct
+    access to its entropy source (see wc_RNG_DRBG_Reseed_Now_Primary()).
 
     \details Out-of-service instances: a targeted (non-failover) checkout
     admits them; failover checkouts divert around them.

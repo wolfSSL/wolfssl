@@ -547,11 +547,158 @@ MODULE_PARM_DESC(rodata_dump_path,
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+/* NMI-safe Epoch time accessors */
+
+/* Shared calibration state for the pre-4.15 compositions; see
+ * wc_linuxkm_time_epoch_secs() for the full scheme notes.  Primed from
+ * wolfssl_init(); refreshed by every non-NMI call to either accessor.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+    static struct {
+        unsigned long ref_jiffies;
+        unsigned long ref_secs;
+        unsigned long ref_msfrac; /* 0-999: ms-within-second at calibration */
+    } wc_time_refs[2];
+    static unsigned int wc_time_refs_seq = 0;
+    static DEFINE_SPINLOCK(wc_time_refs_lock); /* writers only; see below */
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+    static unsigned long wc_real_offset_s = 0;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+static void wc_linuxkm_time_recalibrate(unsigned long now_jiffies,
+                                        unsigned long secs,
+                                        unsigned long msfrac)
+{
+    if (spin_trylock(&wc_time_refs_lock)) {
+        unsigned int seq = wc_time_refs_seq;
+
+        ACCESS_ONCE(wc_time_refs[(seq + 1) & 1].ref_jiffies) = now_jiffies;
+        ACCESS_ONCE(wc_time_refs[(seq + 1) & 1].ref_secs)    = secs;
+        ACCESS_ONCE(wc_time_refs[(seq + 1) & 1].ref_msfrac)  = msfrac;
+        smp_wmb();
+        ACCESS_ONCE(wc_time_refs_seq) = seq + 1;
+        smp_wmb();
+        ACCESS_ONCE(wc_time_refs[seq & 1].ref_jiffies) = now_jiffies;
+        ACCESS_ONCE(wc_time_refs[seq & 1].ref_secs)    = secs;
+        ACCESS_ONCE(wc_time_refs[seq & 1].ref_msfrac)  = msfrac;
+        smp_wmb();
+        ACCESS_ONCE(wc_time_refs_seq) = seq + 2;
+        spin_unlock(&wc_time_refs_lock);
+    }
+}
+
+static void wc_linuxkm_time_read_latch(unsigned long *rj, unsigned long *rs,
+                                       unsigned long *rf)
+{
+    unsigned int seq;
+    do {
+        seq = ACCESS_ONCE(wc_time_refs_seq);
+        smp_rmb();
+        *rj = ACCESS_ONCE(wc_time_refs[seq & 1].ref_jiffies);
+        *rs = ACCESS_ONCE(wc_time_refs[seq & 1].ref_secs);
+        *rf = ACCESS_ONCE(wc_time_refs[seq & 1].ref_msfrac);
+        smp_rmb();
+    } while (ACCESS_ONCE(wc_time_refs_seq) != seq);
+}
+#endif
+
+time_t wc_linuxkm_time_epoch_secs(time_t *tp) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+    u64 s = div_u64(ktime_get_real_fast_ns(), NSEC_PER_SEC);
+    if (tp)
+        *tp = (time_t)s;
+    return (time_t)s;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+    /* Note that an NMI-context read can lag a bracketing task-context read by
+     * up to a second, i.e. time can appear to step back 1 s across contexts.
+     * In practice this doesn't matter. */
+    u64 s;
+    if (! in_nmi()) {
+        u64 mono_ns = ktime_get_mono_fast_ns();
+        u64 ns = ktime_get_real_ns();
+        WRITE_ONCE(wc_real_offset_s, div_u64(ns - mono_ns, NSEC_PER_SEC));
+        s = div_u64(ns, NSEC_PER_SEC);
+    }
+    else
+        s = div_u64(ktime_get_mono_fast_ns(), NSEC_PER_SEC) + READ_ONCE(wc_real_offset_s);
+    if (tp)
+        *tp = (time_t)s;
+    return (time_t)s;
+#else
+    /* < 3.17: [existing contraption comment, unchanged] */
+    unsigned long now_jiffies = jiffies;
+    unsigned long s;
+
+    if (! in_nmi()) {
+        struct timespec ts;
+        getnstimeofday(&ts);
+        s = (unsigned long)ts.tv_sec;
+        wc_linuxkm_time_recalibrate(now_jiffies, s,
+                                    (unsigned long)(ts.tv_nsec / NSEC_PER_MSEC));
+    }
+    else {
+        unsigned long rj, rs, rf;
+        wc_linuxkm_time_read_latch(&rj, &rs, &rf);
+        s = rs + (now_jiffies - rj) / HZ;
+    }
+    if (tp)
+        *tp = (time_t)s;
+    return (time_t)s;
+#endif
+}
+
+long long wc_linuxkm_time_epoch_msecs(void) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+    return (long long)div_u64(ktime_get_real_fast_ns(), NSEC_PER_MSEC);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+    /* The cached offset is whole seconds (word-sized for 32-bit store
+     * atomicity), so the NMI-context absolute value is quantized to the
+     * second; millisecond granularity within and between NMI-context reads
+     * is preserved (deltas ride ktime_get_mono_fast_ns()).  Cross-context
+     * skew up to ~1 s, as for the seconds accessor. */
+    if (! in_nmi()) {
+        u64 mono_ns = ktime_get_mono_fast_ns();
+        u64 ns = ktime_get_real_ns();
+        WRITE_ONCE(wc_real_offset_s, div_u64(ns - mono_ns, NSEC_PER_SEC));
+        return (long long)div_u64(ns, NSEC_PER_MSEC);
+    }
+    else
+        return (long long)(div_u64(ktime_get_mono_fast_ns(), NSEC_PER_MSEC)
+                           + (u64)READ_ONCE(wc_real_offset_s) * MSEC_PER_SEC);
+#else
+    /* Same latch as the seconds accessor; ref_msfrac restores ms-within-
+     * second at the calibration instant, and the jiffies delta carries ms
+     * granularity (1/HZ resolution) from there. */
+    unsigned long now_jiffies = jiffies;
+
+    if (! in_nmi()) {
+        struct timespec ts;
+        unsigned long s, f;
+        getnstimeofday(&ts);
+        s = (unsigned long)ts.tv_sec;
+        f = (unsigned long)(ts.tv_nsec / NSEC_PER_MSEC);
+        wc_linuxkm_time_recalibrate(now_jiffies, s, f);
+        return (long long)s * MSEC_PER_SEC + (long long)f;
+    }
+    else {
+        unsigned long rj, rs, rf;
+        wc_linuxkm_time_read_latch(&rj, &rs, &rf);
+        return (long long)rs * MSEC_PER_SEC + (long long)rf
+            + (long long)div_u64((u64)(now_jiffies - rj) * MSEC_PER_SEC, HZ);
+    }
+#endif
+}
+
 int wc_linuxkm_can_block(void) {
     /* We can't use preemptible() for this, because we need an accurate test
      * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
      */
     return (preempt_count() == 0) && (! irqs_disabled());
+}
+
+int wc_linuxkm_can_long_loop(void) {
+    return in_task() && !irqs_disabled();
 }
 
 /* for simplicity, we use a global count to suspend signal processing while any
@@ -819,6 +966,11 @@ static int wolfssl_init(void)
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+    /* prime real_offset_s */
+    (void)wc_linuxkm_time_epoch_secs(NULL);
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(HAVE_FIPS)
@@ -1243,11 +1395,11 @@ static int wolfssl_init(void)
             perso = (const char *)&init_addr;
             persoSz = (word32)sizeof(init_addr);
         }
-        ret = wc_RNG_Fallback_Init((const byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
-                                   (const byte *)perso, persoSz,
-                                   NULL /* heap */, INVALID_DEVID, WC_RNG_INIT_FLAG_NONE);
+        ret = wc_RNG_global_fallback_init((const byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
+                                          (const byte *)perso, persoSz,
+                                          NULL /* heap */, INVALID_DEVID, WC_RNG_INIT_FLAG_NONE);
         if (ret != 0) {
-            pr_err("ERROR: wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+            pr_err("ERROR: wc_RNG_global_fallback_init() failed: %s\n", wc_GetErrorString(ret));
             (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
@@ -1702,11 +1854,16 @@ static const struct wc_reloc_table_segments seg_map = {
 
 void *wc_linuxkm_malloc(size_t size)
 {
-    return kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE);
+    if (in_nmi())
+        return NULL;
+    else
+        return kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE);
 }
 
 void wc_linuxkm_free(void *ptr)
 {
+    if (in_nmi())
+        return; /* better to leak than to UB */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
     if (wc_linuxkm_can_block())
         kvfree(ptr);
@@ -1719,7 +1876,10 @@ void wc_linuxkm_free(void *ptr)
 
 void *wc_linuxkm_realloc(void *ptr, size_t newsize)
 {
-    return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC));
+    if (in_nmi())
+        return NULL;
+    else
+        return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC));
 }
 
 size_t wc_linuxkm_malloc_usable_size(void *ptr)
@@ -1920,16 +2080,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
 #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        wolfssl_linuxkm_pie_redirect_table.getnstimeofday =
-            getnstimeofday;
-    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-        wolfssl_linuxkm_pie_redirect_table.current_kernel_time64 =
-            current_kernel_time64;
-    #else
-        wolfssl_linuxkm_pie_redirect_table.ktime_get_coarse_real_ts64 =
-            ktime_get_coarse_real_ts64;
-    #endif
+
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_time_epoch_secs = wc_linuxkm_time_epoch_secs;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_time_epoch_msecs = wc_linuxkm_time_epoch_msecs;
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
@@ -2178,6 +2331,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_can_block = wc_linuxkm_can_block;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_can_long_loop = wc_linuxkm_can_long_loop;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_begin = wc_linuxkm_sig_ignore_begin;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;

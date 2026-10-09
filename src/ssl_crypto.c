@@ -3969,13 +3969,17 @@ int wolfSSL_RAND_egd(const char* nm)
             /* Caller material carries no entropy credit; mix it as an
              * uncredited stir -- credited user-class reseeds of conformant
              * instances are refused with WC_RNG_RBGC_STRATUM_IMMUTABLE.
-             * NOT_READY_E (a credited reseed is due) outranks advisory
-             * material and is not a failure. */
+             * A standing reseed or recovery obligation (NEEDS_RECOVERY_E:
+             * credited reseed due, invalidation latched, or epoch stale;
+             * NOT_READY_E: the reseed interval tripped within the call)
+             * outranks advisory material and is not a failure: the next
+             * generate performs the credited reseed. */
             {
                 int stir_ret = wc_RNG_DRBG_Stir(&globalRNG,
                                                 (const byte*) buf, bytes);
                 if ((stir_ret != 0) &&
-                    (stir_ret != WC_NO_ERR_TRACE(NOT_READY_E)))
+                    (stir_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                    (stir_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
                 {
                     WOLFSSL_MSG("Error with stirring DRBG structure");
                     ret = WOLFSSL_FATAL_ERROR;
@@ -4493,11 +4497,13 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
        !defined(HAVE_SELFTEST)) || \
       defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
         /* File material carries no entropy credit; mix it as an uncredited
-         * stir. */
+         * stir.  A standing reseed or recovery obligation (NEEDS_RECOVERY_E,
+         * NOT_READY_E -- see wolfSSL_RAND_egd()) is not a failure. */
         {
             int stir_ret = wc_RNG_DRBG_Stir(&globalRNG, buf, (word32)n);
             if ((stir_ret != 0) &&
-                (stir_ret != WC_NO_ERR_TRACE(NOT_READY_E)))
+                (stir_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (stir_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
             {
                 wc_UnLockMutex(&globalRNGMutex);
                 WOLFSSL_MSG("RAND_load_file: DRBG stir failed");
