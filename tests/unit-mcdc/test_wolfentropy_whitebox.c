@@ -446,6 +446,97 @@ static void wb_entropy_get_mutex(void)
           "wc_Entropy_Get mutex vectors skipped"); }
 #endif
 
+/* ---- wc_Entropy_GetRawEntropy64() vectors ------------------------------- *
+ *
+ * Only built where the time source is a free-running 64-bit counter; the
+ * other builds return NOT_COMPILED_IN, which tests/api already accepts.
+ *
+ *   width   entropy_last_time is file-static, so place it just above "now":
+ *           the first delta then wraps to ~2^64 whatever the counter
+ *           frequency. A full-width store keeps the high bits; the 8-bit
+ *           path would have kept only the low byte.
+ *   mutex   refused lock -> BAD_MUTEX_E, nothing collected, output untouched.
+ *   sha3    refused conditioner update -> Entropy_MemUse() fails before the
+ *           first sample, the error propagates, output untouched.
+ *
+ * Thread-start failure is not reachable: the counter thread never defines
+ * ENTROPY_TIMEHIRES_FREE_RUNNING_64.
+ * ------------------------------------------------------------------------ */
+#if defined(HAVE_ENTROPY_MEMUSE) && defined(ENTROPY_TIMEHIRES_FREE_RUNNING_64)
+static int wb_raw64_untouched(const word64* raw, int cnt)
+{
+    int i;
+
+    for (i = 0; i < cnt; i++) {
+        if (raw[i] != W64LIT(0xA5A5A5A5A5A5A5A5))
+            return 0;
+    }
+    return 1;
+}
+
+static void wb_raw64(void)
+{
+    word64 raw[4];
+    int    ret;
+    int    i;
+
+    if (Entropy_Init() != 0) {
+        WB_NOTE("Entropy_Init failed; skipping GetRawEntropy64 vectors");
+        return;
+    }
+
+    /* Width: no counter frequency assumption. */
+    entropy_last_time = Entropy_TimeHiRes() + (W64LIT(1) << 40);
+    ret = wc_Entropy_GetRawEntropy64(raw, 1);
+    if (ret != 0) {
+        WB_NOTE("GetRawEntropy64 width vector failed (skip, not fail)");
+    }
+    else if (raw[0] < (W64LIT(0) - (W64LIT(1) << 40))) {
+        WB_NOTE("GetRawEntropy64 lost the high bits of the delta");
+        wb_fail = 1;
+    }
+
+#ifndef MCDC_FM_UNAVAILABLE
+    /* Refused lock. */
+    for (i = 0; i < 4; i++)
+        raw[i] = W64LIT(0xA5A5A5A5A5A5A5A5);
+    mcdc_fm_lock_once = 1;
+    ret = wc_Entropy_GetRawEntropy64(raw, 4);
+    mcdc_fm_lock_once = 0;
+    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E) || !wb_raw64_untouched(raw, 4)) {
+        WB_NOTE("GetRawEntropy64 refused lock not reported / output touched");
+        wb_fail = 1;
+    }
+#endif
+
+#ifdef WOLFSSL_SHA3
+    /* Refused conditioner update. */
+    for (i = 0; i < 4; i++)
+        raw[i] = W64LIT(0xA5A5A5A5A5A5A5A5);
+    wb_sha3_refuse = 1;
+    ret = wc_Entropy_GetRawEntropy64(raw, 4);
+    wb_sha3_refuse = 0;
+    if (ret == 0 || !wb_raw64_untouched(raw, 4)) {
+        WB_NOTE("GetRawEntropy64 SHA3 failure not propagated / output touched");
+        wb_fail = 1;
+    }
+#endif
+
+    /* Unarmed baseline: the mutex was not left held by the failures. */
+    if (wc_Entropy_GetRawEntropy64(raw, 4) != 0) {
+        WB_NOTE("GetRawEntropy64 unarmed baseline failed");
+        wb_fail = 1;
+    }
+
+    Entropy_Final();
+
+    WB_NOTE("wc_Entropy_GetRawEntropy64 width/mutex/sha3 vectors exercised");
+}
+#else
+static void wb_raw64(void)
+{ WB_NOTE("no free-running 64-bit counter; GetRawEntropy64 vectors skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -461,6 +552,7 @@ int main(void)
     wb_get_loop_early_exit();
     wb_startup_noise_fail();
     wb_entropy_get_mutex();
+    wb_raw64();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
      * suite discard this variant's coverage. */
