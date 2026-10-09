@@ -1520,6 +1520,132 @@ int test_dtls13_frag_ch1_length_mismatch(void)
     return EXPECT_RESULT();
 }
 
+/* A reassembled first ClientHello that fails to parse is released and the
+ * stateless server goes on serving: the genuine ClientHello then gets its
+ * HelloRetryRequest. */
+int test_dtls13_frag_ch1_bad_reassembled(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch[TEST_MEMIO_BUF_SZ];
+    byte bad[TEST_MEMIO_BUF_SZ];
+    int chSz = (int)sizeof(ch);
+    int piece = 0;
+    int isHrr = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx, ssl_c, ch, &chSz),
+        TEST_SUCCESS);
+    piece = (chSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 2) / 3;
+
+    /* Same framing, body past the version and random replaced */
+    XMEMCPY(bad, ch, (size_t)chSz);
+    XMEMSET(bad + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN + RAN_LEN, 0xff, (size_t)(chSz - DTLS_RECORD_HEADER_SZ -
+        DTLS_HANDSHAKE_HEADER_SZ - OPAQUE16_LEN - RAN_LEN));
+    ExpectIntEQ(test_dtls13_inject_fragmented(&test_ctx, bad, chSz, piece), 3);
+    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s), TEST_SUCCESS);
+    /* At most a stateless alert goes back */
+    ExpectTrue(test_ctx.c_len == 0 || test_ctx.c_buff[0] == alert);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+
+    /* Fresh record numbers for the genuine message */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)ch,
+        chSz), 0);
+    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+    ExpectIntEQ(isHrr, 1);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Peer 2 holds a partial first ClientHello when peer 1's second ClientHello
+ * verifies from its first fragment: the server turns stateful, drops peer 2's
+ * entry, and completes the handshake with peer 1. */
+int test_dtls13_frag_ch2_verify_purges_other_peers(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_ECC) && !defined(NO_ECC256)
+    WOLFSSL_CTX *ctx_c1 = NULL, *ctx_c2 = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c1 = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx1, test_ctx2;
+    int group = WOLFSSL_ECC_SECP256R1;
+    byte ch1[TEST_MEMIO_BUF_SZ], ch2[TEST_MEMIO_BUF_SZ];
+    int ch1Sz = (int)sizeof(ch1), ch2Sz = (int)sizeof(ch2);
+    int piece1 = 0, piece2 = 0;
+
+    XMEMSET(&test_ctx1, 0, sizeof(test_ctx1));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx1, &ctx_c1, &ctx_s, &ssl_c1, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c2, NULL, &ssl_c2, NULL,
+        wolfDTLSv1_3_client_method, NULL), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c1, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c2, &group, 1), WOLFSSL_SUCCESS);
+
+    /* Peer 1: CH1 and HRR */
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx1, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c1), -1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx1, ssl_c1, ch1, &ch1Sz),
+        TEST_SUCCESS);
+    /* The cookie fits the first fragment */
+    piece1 = ch1Sz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ - 1;
+
+    /* Peer 2: part of its first ClientHello */
+    ExpectIntEQ(test_dtls13_take_ch(&test_ctx2, ssl_c2, ch2, &ch2Sz),
+        TEST_SUCCESS);
+    piece2 = (ch2Sz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ + 2) /
+        3;
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx2, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx2, ch2, ch2Sz, piece2, 0), 1);
+    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx2, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+
+    /* Peer 1's second ClientHello verifies from its first fragment */
+    ExpectIntEQ(test_dtls13_server_peer(ssl_s, &test_ctx1, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx1, ch1, ch1Sz, piece1, 0), 1);
+    ExpectIntEQ(test_dtls13_server_read_all(&test_ctx1, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    ExpectIntEQ(ssl_s->dtls_rx_msg_list_sz, 1);
+    ExpectNull(DtlsMsgFind(ssl_s->dtls_rx_msg_list, 0, 0,
+        &ssl_s->buffers.dtlsCtx.peer));
+    ExpectIntEQ(test_dtls13_inject_frag(&test_ctx1, ch1, ch1Sz, piece1, 1), 1);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c1, ssl_s, 10, NULL), 0);
+    ExpectNull(ssl_s->dtls_rx_msg_list);
+    ExpectIntEQ(test_ctx2.c_len, 0);
+
+    wolfSSL_free(ssl_c1);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c1);
+    wolfSSL_CTX_free(ctx_c2);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* With the cookie exchange off the server is stateful from the first
  * datagram, but a plaintext record still comes from anyone: a ClientHello
  * fragment contradicting the one held is dropped, not acknowledged, and does
