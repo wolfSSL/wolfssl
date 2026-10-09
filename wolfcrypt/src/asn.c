@@ -35363,7 +35363,8 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for a general asymmetric private key: Ed25519, Ed448,
  * falcon, dilithium, etc.
- * RFC 8410, 7 - Private Key Format (but public value is EXPLICIT OCTET_STRING)
+ * RFC 8410, 7 - Private Key Format. publicKey is [1] IMPLICIT BIT STRING: its
+ * content is the unused-bits byte (0) followed by the key.
  * Check draft-ietf-lamps-dilithium-certificates of draft RFC also.
  */
 static const ASNItem privateKeyASN[] = {
@@ -35382,8 +35383,8 @@ static const ASNItem privateKeyASN[] = {
 /* PKEY_BOTH_SEQ  */            { 2, ASN_SEQUENCE, 1, 1, 2 },
 /* PKEY_BOTH_SEED */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
 /* PKEY_BOTH_KEY  */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
-                                         /* attributes */
-/* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
+                                         /* attributes: skipped, not used */
+/* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 0, 1 },
                                          /* publicKey */
 /* PUBKEY         */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, 0, 0, 1 },
 };
@@ -35414,6 +35415,72 @@ enum {
     || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM) \
     || (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)))
 
+static word32 AsymKeyPubSz(int keyType)
+{
+    switch (keyType) {
+    #ifdef HAVE_ED25519
+        case ED25519k:
+            return ED25519_PUB_KEY_SIZE;
+    #endif
+    #ifdef HAVE_ED448
+        case ED448k:
+            return ED448_PUB_KEY_SIZE;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case X25519k:
+            return CURVE25519_PUB_KEY_SIZE;
+    #endif
+    #ifdef HAVE_CURVE448
+        case X448k:
+            return CURVE448_PUB_KEY_SIZE;
+    #endif
+    #ifdef HAVE_FALCON
+        case FALCON_LEVEL1k:
+            return FALCON_LEVEL1_PUB_KEY_SIZE;
+        case FALCON_LEVEL5k:
+            return FALCON_LEVEL5_PUB_KEY_SIZE;
+    #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+        case ML_DSA_44k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+        #endif
+            return WC_MLDSA_44_PUB_KEY_SIZE;
+        case ML_DSA_65k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL3k:
+        #endif
+            return WC_MLDSA_65_PUB_KEY_SIZE;
+        case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL5k:
+        #endif
+            return WC_MLDSA_87_PUB_KEY_SIZE;
+    #endif
+        default:
+            return 0;
+    }
+}
+
+/* publicKey is a BIT STRING (RFC 5958), so drop its unused-bits byte. Older
+ * wolfSSL wrote the key without it; the exact length tells the two apart.
+ * For a fixed-size key, any other non-empty form is an error. An empty
+ * field is treated as absent, as before. */
+static int AsymKeyPubSkipUnusedBits(int keyType, const byte** pub,
+    word32* pubSz)
+{
+    word32 keySz = AsymKeyPubSz(keyType);
+
+    if (keySz == 0 || *pubSz == 0 || *pubSz == keySz) {
+        return 0;
+    }
+    if (*pubSz == keySz + 1 && (*pub)[0] == 0x00) {
+        (*pub)++;
+        (*pubSz)--;
+        return 0;
+    }
+    return ASN_PARSE_E;
+}
 
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** seed, word32* seedLen,
@@ -35496,6 +35563,17 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         endKeyIdx = (int)*inOutIdx;
     }
 
+    /* RFC 5958 attributes are optional and not used: skip them. */
+    if ((int)*inOutIdx < endKeyIdx && input[*inOutIdx] ==
+            (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_ASYMKEY_ATTRS)) {
+        if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                         ASN_ASYMKEY_ATTRS, inOutIdx, &length,
+                         (word32)endKeyIdx) < 0) {
+            return ASN_PARSE_E;
+        }
+        *inOutIdx += (word32)length;
+    }
+
     if (endKeyIdx == (int)*inOutIdx) {
         *privKeyLen = (word32)privSz;
         *privKey = priv;
@@ -35518,6 +35596,8 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         *privKeyLen = (word32)privSz;
         *privKey = priv;
         *pubKeyLen = (word32)pubSz;
+        if (AsymKeyPubSkipUnusedBits(*inOutKeyType, &pub, pubKeyLen) != 0)
+            return ASN_PARSE_E;
         if (pubKey != NULL)
             *pubKey = pub;
     }
@@ -35599,6 +35679,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
             /* Import public value. */
             *pubKeyLen = dataASN[PRIVKEYASN_IDX_PUBKEY].data.ref.length;
             *pubKey = dataASN[PRIVKEYASN_IDX_PUBKEY].data.ref.data;
+            ret = AsymKeyPubSkipUnusedBits(*inOutKeyType, pubKey, pubKeyLen);
         }
         else {
             /* Set public length to 0 as not seen. */
@@ -35931,10 +36012,12 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
 /* Build ASN.1 formatted key based on RFC 5958 (Asymmetric Key Packages)
  *
  * Pass NULL for output to get the size of the encoding.
+ * publicKey is written as [1] IMPLICIT BIT STRING; this function adds the
+ * unused-bits byte, so pass the raw key in pubKey.
  *
  * @param [in]  privKey      private key buffer
  * @param [in]  privKeyLen   private key buffer length
- * @param [in]  pubKey       public key buffer (optional)
+ * @param [in]  pubKey       raw public key buffer (optional)
  * @param [in]  pubKeyLen    public key buffer length
  * @param [out] output       Buffer to put encoded data in (optional)
  * @param [in]  outLen       Size of buffer in bytes
@@ -35966,8 +36049,9 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 #ifndef WOLFSSL_ASN_TEMPLATE
     /* calculate size */
     if (pubKey) {
-        pubSz = SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, pubKeyLen,
-            NULL, 0) + pubKeyLen;
+        /* publicKey is a BIT STRING: unused-bits byte, then the key. */
+        pubSz = SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY,
+            pubKeyLen + 1, NULL, 0) + 1 + pubKeyLen;
     }
 
     tmpSz  = SetOctetString(privKeyLen, NULL) + privKeyLen;
@@ -36002,7 +36086,8 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         /* pubKey */
         if (pubKey) {
             idx += SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY,
-                pubKeyLen, output + idx, 0);
+                pubKeyLen + 1, output + idx, 0);
+            output[idx++] = 0x00;
             XMEMCPY(output + idx, pubKey, pubKeyLen);
             idx += pubKeyLen;
         }
@@ -36032,8 +36117,9 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         /* Don't write out attributes. */
         dataASN[PRIVKEYASN_IDX_ATTRS].noOut = 1;
         if (pubKey) {
-            /* Leave space for public key. */
-            SetASN_Buffer(&dataASN[PRIVKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
+            /* Leave space for the BIT STRING unused-bits byte and key. */
+            SetASN_Buffer(&dataASN[PRIVKEYASN_IDX_PUBKEY], NULL,
+                pubKeyLen + 1);
         }
         else {
             /* Don't put out public part. */
@@ -36067,12 +36153,12 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         }
 
         if (pubKey != NULL) {
-            /* Put public value into space provided. */
+            /* Put unused-bits byte and public value into space provided. */
             /* safe cast -- the pointer is actually inside output buffer. */
-            XMEMCPY(
-                (byte*)(wc_ptr_t)
-                    dataASN[PRIVKEYASN_IDX_PUBKEY].data.buffer.data,
-                pubKey, pubKeyLen);
+            byte* pubOut = (byte*)(wc_ptr_t)
+                dataASN[PRIVKEYASN_IDX_PUBKEY].data.buffer.data;
+            pubOut[0] = 0x00;
+            XMEMCPY(pubOut + 1, pubKey, pubKeyLen);
         }
     }
     if (ret == 0) {

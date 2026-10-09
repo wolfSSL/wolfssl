@@ -27,6 +27,8 @@
 int test_SetAsymKeyDer(void);
 int test_DecodeAsymKey_lenient_versions(void);
 int test_DecodeAsymKey_negative(void);
+int test_DecodeAsymKey_bitstring_pubkey(void);
+int test_DecodeAsymKey_attributes(void);
 int test_GetSetShortInt(void);
 int test_wc_IndexSequenceOf(void);
 int test_wolfssl_local_MatchBaseName(void);
@@ -67,6 +69,8 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
     TEST_DECL_GROUP("asn", test_DecodeAsymKey_lenient_versions),    \
     TEST_DECL_GROUP("asn", test_DecodeAsymKey_negative),            \
+    TEST_DECL_GROUP("asn", test_DecodeAsymKey_bitstring_pubkey),    \
+    TEST_DECL_GROUP("asn", test_DecodeAsymKey_attributes),          \
     TEST_DECL_GROUP("asn", test_GetSetShortInt),                    \
     TEST_DECL_GROUP("asn", test_wc_IndexSequenceOf),                \
     TEST_DECL_GROUP("asn", test_wolfssl_local_MatchBaseName),       \
