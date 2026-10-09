@@ -21,6 +21,10 @@ covered:
 | `python3 scripts/gen-sbom …` (standalone) | Embedded / RTOS customers building with their own Makefile, Keil, IAR, STM32CubeIDE, ESP-IDF, Zephyr, plain CMake, etc. | Any |
 | `make sbom` (autotools wrapper) | Linux server / Debian / RPM / Yocto / FIPS-Ready customers running `./configure && make` | Autotools |
 
+`scripts/gen-sbom` forwards to the vendored generator at `tools/sbom/gen-sbom`.
+`make sbom` uses that same generator through `tools/sbom/sbom.am`.
+The snapshot is pinned in `tools/sbom/.wolfssl-compliance-tooling-rev`.
+
 Both call the same Python core and produce SBOMs that pass SPDX 2.3
 (`pyspdxtools`) and CycloneDX 1.6 (`cyclonedx-bom` strict JSON validator)
 schema validation.  The autotools `make sbom` integration job
@@ -32,11 +36,14 @@ validators run on every PR.  Pick whichever matches your build flow.
 
 ## 1. Standalone Python tool (recommended for embedded / IDE builds)
 
-`scripts/gen-sbom` is pure Python 3 stdlib (plus an optional `pcpp` dep,
-see below).  Customers who configure wolfSSL via a hand-edited
-`user_settings.h` and link wolfSSL source files directly into firmware
-invoke it directly, without running `./configure` or producing a
-standalone `libwolfssl.a`.
+`scripts/gen-sbom` is the customer entry point.  It loads
+`tools/sbom/gen-sbom`, which is pure Python 3 stdlib (plus an optional
+`pcpp` dep, see below).  Both files ship in the release tarball.
+Copying `scripts/gen-sbom` without `tools/sbom/gen-sbom` does not work.
+Customers who configure wolfSSL via a hand-edited `user_settings.h` and
+link wolfSSL source files directly into firmware invoke the entry point
+directly, without running `./configure` or producing a standalone
+`libwolfssl.a`.
 
 ### 1.1 Quick start
 
@@ -211,7 +218,7 @@ compiler / preprocessor reserved identifiers (`__VERSION__`, `__SSE2__`,
 configuration in the SBOM and break reproducibility across hosts.
 `gen-sbom` filters them automatically; the SBOM ends up with only the
 `HAVE_*` / `WOLFSSL_*` / `NO_*` / etc. macros that actually describe
-the wolfSSL build.  See `_is_noise_macro` in `scripts/gen-sbom` for the
+the wolfSSL build.  See `_is_noise_macro` in `tools/sbom/gen-sbom` for the
 exact policy and the test cases in `scripts/test_gen_sbom.py`
 (`TestIsNoiseMacro`) for the pinned coverage.
 
@@ -455,7 +462,7 @@ Both formats contain the same information:
 | Copyright | `Copyright (C) 2006-<year> wolfSSL Inc.` |
 | SHA-256 | hash of the installed `libwolfssl.so.X.Y.Z` |
 | CPE | `cpe:2.3:a:wolfssl:wolfssl:<version>:*:*:*:*:*:*:*` |
-| PURL | `pkg:github/wolfSSL/wolfssl@v<version>` (resolves directly in OSV / GHSA / Snyk / Trivy without per-vendor mapping) |
+| PURL | `pkg:github/wolfssl/wolfssl@v<version>-stable` (resolves directly in OSV / GHSA / Snyk / Trivy without per-vendor mapping) |
 | Download location | `https://github.com/wolfSSL/wolfssl` |
 | Third-party deps | none in a default build; `--with-libz` adds zlib (recorded as a `DEPENDS_ON` package with its own purl/CPE/supplier).  All builds depend transitively on the host C runtime; this is not enumerated as an SBOM component since it is system-supplied and varies per runtime target. |
 
@@ -567,9 +574,10 @@ The generated files are removed by `make clean`.
 
 ### 2.7 Implementation notes
 
-SBOM generation is implemented in `scripts/gen-sbom` (Python 3, stdlib
-only for the autotools path) and hooked into the autotools build via
-`Makefile.am` and `configure.ac`.  The script stages a `make install`
+SBOM generation is implemented in `tools/sbom/gen-sbom` (Python 3, stdlib
+only for the autotools path).  `scripts/gen-sbom` forwards to that file.
+`scripts/sbom.am` includes `tools/sbom/sbom.am`, and `Makefile.am` includes
+`scripts/sbom.am`.  The recipe stages a `make install`
 into a temporary directory, hashes the installed library, generates both
 SBOM formats, then removes the staging directory.  The `pyspdxtools`
 validation and conversion step runs after generation and gates the build
