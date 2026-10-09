@@ -794,15 +794,24 @@ SP_NOINLINE static int sp_2048_sub_24(sp_digit* r, const sp_digit* a,
 {
     int i;
 
+    /* Inputs to sp_2048_mul_36() and sp_2048_sqr_36() have limbs 0..34 below
+     * 2^29 and each 12-limb chunk below 2^(12*29) + 2^(11*29).  This holds for
+     * normalized 36-limb operands and normalized Karatsuba sums built by
+     * sp_2048_mul_72() and sp_2048_sqr_72(). The final Toom-3 cross terms sum
+     * two chunk products: low limbs are in [-2, 3]*(2^29-1), and the high limb
+     * is below 2*2^29+7. The following add_24 keeps the overlapping high limb
+     * below 3*2^29+7. These bounds show add_24 and norm_24 cannot overflow.
+     * The subtraction itself keeps the low word, identical to -fwrapv
+     * regardless of the bounds; cancellation precedes normalization. */
     for (i = 0; i < 24; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
 
     return 0;
@@ -10714,20 +10723,27 @@ SP_NOINLINE static int sp_3072_sub_28(sp_digit* r, const sp_digit* a,
 {
     int i;
 
+    /* In sp_3072_mul_28() and sp_3072_sqr_28(), the leaf multipliers
+     * accumulate in sp_uint64. Their top limb is converted to sp_digit
+     * and may wrap (implementation-defined, not undefined behaviour).
+     * Each 14-limb half is below 2*2^(14*28), so the final Karatsuba cross
+     * term is below 4*2^(28*28) and its true high limb fits sp_digit. Both
+     * subtractions are done modulo 2^32 so the wrap cancels before carry
+     * normalization. */
     for (i = 0; i < 24; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
+        r[i + 0] = (sp_digit)((sp_uint32)a[i + 0] - (sp_uint32)b[i + 0]);
+        r[i + 1] = (sp_digit)((sp_uint32)a[i + 1] - (sp_uint32)b[i + 1]);
+        r[i + 2] = (sp_digit)((sp_uint32)a[i + 2] - (sp_uint32)b[i + 2]);
+        r[i + 3] = (sp_digit)((sp_uint32)a[i + 3] - (sp_uint32)b[i + 3]);
+        r[i + 4] = (sp_digit)((sp_uint32)a[i + 4] - (sp_uint32)b[i + 4]);
+        r[i + 5] = (sp_digit)((sp_uint32)a[i + 5] - (sp_uint32)b[i + 5]);
+        r[i + 6] = (sp_digit)((sp_uint32)a[i + 6] - (sp_uint32)b[i + 6]);
+        r[i + 7] = (sp_digit)((sp_uint32)a[i + 7] - (sp_uint32)b[i + 7]);
     }
-    r[24] = a[24] - b[24];
-    r[25] = a[25] - b[25];
-    r[26] = a[26] - b[26];
-    r[27] = a[27] - b[27];
+    r[24] = (sp_digit)((sp_uint32)a[24] - (sp_uint32)b[24]);
+    r[25] = (sp_digit)((sp_uint32)a[25] - (sp_uint32)b[25]);
+    r[26] = (sp_digit)((sp_uint32)a[26] - (sp_uint32)b[26]);
+    r[27] = (sp_digit)((sp_uint32)a[27] - (sp_uint32)b[27]);
 
     return 0;
 }
@@ -25647,30 +25663,21 @@ static int sp_256_mod_mul_norm_9(sp_digit* r, const sp_digit* a, const sp_digit*
     if (err == MP_OKAY) {
         a32 = t + 8;
 
-        a32[0] = a[0];
-        a32[0] |= (int64_t)a[1] << 29U;
-        a32[0] &= 0xffffffffL;
-        a32[1] = (a[1] >> 3);
-        a32[1] |= (int64_t)a[2] << 26U;
-        a32[1] &= 0xffffffffL;
-        a32[2] = (a[2] >> 6);
-        a32[2] |= (int64_t)a[3] << 23U;
-        a32[2] &= 0xffffffffL;
-        a32[3] = (a[3] >> 9);
-        a32[3] |= (int64_t)a[4] << 20U;
-        a32[3] &= 0xffffffffL;
-        a32[4] = (a[4] >> 12);
-        a32[4] |= (int64_t)a[5] << 17U;
-        a32[4] &= 0xffffffffL;
-        a32[5] = (a[5] >> 15);
-        a32[5] |= (int64_t)a[6] << 14U;
-        a32[5] &= 0xffffffffL;
-        a32[6] = (a[6] >> 18);
-        a32[6] |= (int64_t)a[7] << 11U;
-        a32[6] &= 0xffffffffL;
-        a32[7] = (a[7] >> 21);
-        a32[7] |= (int64_t)a[8] << 8U;
-        a32[7] &= 0xffffffffL;
+        a32[0] = (sp_uint32)a[0] | ((sp_uint32)a[1] << 29U);
+        a32[1] = ((sp_uint32)a[1] >> 3U) |
+            ((sp_uint32)a[2] << 26U);
+        a32[2] = ((sp_uint32)a[2] >> 6U) |
+            ((sp_uint32)a[3] << 23U);
+        a32[3] = ((sp_uint32)a[3] >> 9U) |
+            ((sp_uint32)a[4] << 20U);
+        a32[4] = ((sp_uint32)a[4] >> 12U) |
+            ((sp_uint32)a[5] << 17U);
+        a32[5] = ((sp_uint32)a[5] >> 15U) |
+            ((sp_uint32)a[6] << 14U);
+        a32[6] = ((sp_uint32)a[6] >> 18U) |
+            ((sp_uint32)a[7] << 11U);
+        a32[7] = ((sp_uint32)a[7] >> 21U) |
+            ((sp_uint32)a[8] << 8U);
 
         /*  1  1  0 -1 -1 -1 -1  0 */
         t[0] = 0 + a32[0] + a32[1] - a32[3] - a32[4] - a32[5] - a32[6];
@@ -25709,28 +25716,21 @@ static int sp_256_mod_mul_norm_9(sp_digit* r, const sp_digit* a, const sp_digit*
         t[6] += t[5] >> 32U; t[5] &= 0xffffffffL;
         t[7] += t[6] >> 32U; t[6] &= 0xffffffffL;
 
-        r[0] = (sp_digit)(t[0]) & 0x1fffffffL;
-        r[1] = (sp_digit)(t[0] >> 29U);
-        r[1] |= (sp_digit)((sp_uint32)t[1] << 3U);
-        r[1] &= 0x1fffffffL;
-        r[2] = (sp_digit)(t[1] >> 26U);
-        r[2] |= (sp_digit)((sp_uint32)t[2] << 6U);
-        r[2] &= 0x1fffffffL;
-        r[3] = (sp_digit)(t[2] >> 23U);
-        r[3] |= (sp_digit)((sp_uint32)t[3] << 9U);
-        r[3] &= 0x1fffffffL;
-        r[4] = (sp_digit)(t[3] >> 20U);
-        r[4] |= (sp_digit)((sp_uint32)t[4] << 12U);
-        r[4] &= 0x1fffffffL;
-        r[5] = (sp_digit)(t[4] >> 17U);
-        r[5] |= (sp_digit)((sp_uint32)t[5] << 15U);
-        r[5] &= 0x1fffffffL;
-        r[6] = (sp_digit)(t[5] >> 14U);
-        r[6] |= (sp_digit)((sp_uint32)t[6] << 18U);
-        r[6] &= 0x1fffffffL;
-        r[7] = (sp_digit)(t[6] >> 11U);
-        r[7] |= (sp_digit)((sp_uint32)t[7] << 21U);
-        r[7] &= 0x1fffffffL;
+        r[0] = (sp_digit)((sp_uint32)t[0] & 0x1fffffffU);
+        r[1] = (sp_digit)((((sp_uint32)t[0] >> 29U) |
+            ((sp_uint32)t[1] << 3U)) & 0x1fffffffU);
+        r[2] = (sp_digit)((((sp_uint32)t[1] >> 26U) |
+            ((sp_uint32)t[2] << 6U)) & 0x1fffffffU);
+        r[3] = (sp_digit)((((sp_uint32)t[2] >> 23U) |
+            ((sp_uint32)t[3] << 9U)) & 0x1fffffffU);
+        r[4] = (sp_digit)((((sp_uint32)t[3] >> 20U) |
+            ((sp_uint32)t[4] << 12U)) & 0x1fffffffU);
+        r[5] = (sp_digit)((((sp_uint32)t[4] >> 17U) |
+            ((sp_uint32)t[5] << 15U)) & 0x1fffffffU);
+        r[6] = (sp_digit)((((sp_uint32)t[5] >> 14U) |
+            ((sp_uint32)t[6] << 18U)) & 0x1fffffffU);
+        r[7] = (sp_digit)((((sp_uint32)t[6] >> 11U) |
+            ((sp_uint32)t[7] << 21U)) & 0x1fffffffU);
         r[8] = (sp_digit)(t[7] >> 8U);
     }
 
@@ -30143,7 +30143,7 @@ static int sp_256_num_bits_29_9(sp_digit v)
     v |= v >> 4;
     v |= v >> 8;
     v |= v >> 16;
-    return sp_256_tab32_9[(word32)(v*0x07C4ACDD) >> 27];
+    return sp_256_tab32_9[((sp_uint32)v * 0x07C4ACDDU) >> 27];
 }
 
 /* Get the number of bits in the number.
@@ -33289,44 +33289,29 @@ static int sp_384_mod_mul_norm_15(sp_digit* r, const sp_digit* a, const sp_digit
     if (err == MP_OKAY) {
         a32 = t + 12;
 
-        a32[0] = a[0];
-        a32[0] |= (int64_t)a[1] << 26U;
-        a32[0] &= 0xffffffffL;
-        a32[1] = (a[1] >> 6);
-        a32[1] |= (int64_t)a[2] << 20U;
-        a32[1] &= 0xffffffffL;
-        a32[2] = (a[2] >> 12);
-        a32[2] |= (int64_t)a[3] << 14U;
-        a32[2] &= 0xffffffffL;
-        a32[3] = (a[3] >> 18);
-        a32[3] |= (int64_t)a[4] << 8U;
-        a32[3] &= 0xffffffffL;
-        a32[4] = (a[4] >> 24);
-        a32[4] |= (int64_t)a[5] << 2U;
-        a32[4] |= (int64_t)a[6] << 28U;
-        a32[4] &= 0xffffffffL;
-        a32[5] = (a[6] >> 4);
-        a32[5] |= (int64_t)a[7] << 22U;
-        a32[5] &= 0xffffffffL;
-        a32[6] = (a[7] >> 10);
-        a32[6] |= (int64_t)a[8] << 16U;
-        a32[6] &= 0xffffffffL;
-        a32[7] = (a[8] >> 16);
-        a32[7] |= (int64_t)a[9] << 10U;
-        a32[7] &= 0xffffffffL;
-        a32[8] = (a[9] >> 22);
-        a32[8] |= (int64_t)a[10] << 4U;
-        a32[8] |= (int64_t)a[11] << 30U;
-        a32[8] &= 0xffffffffL;
-        a32[9] = (a[11] >> 2);
-        a32[9] |= (int64_t)a[12] << 24U;
-        a32[9] &= 0xffffffffL;
-        a32[10] = (a[12] >> 8);
-        a32[10] |= (int64_t)a[13] << 18U;
-        a32[10] &= 0xffffffffL;
-        a32[11] = (a[13] >> 14);
-        a32[11] |= (int64_t)a[14] << 12U;
-        a32[11] &= 0xffffffffL;
+        a32[0] = (sp_uint32)a[0] | ((sp_uint32)a[1] << 26U);
+        a32[1] = ((sp_uint32)a[1] >> 6U) |
+            ((sp_uint32)a[2] << 20U);
+        a32[2] = ((sp_uint32)a[2] >> 12U) |
+            ((sp_uint32)a[3] << 14U);
+        a32[3] = ((sp_uint32)a[3] >> 18U) |
+            ((sp_uint32)a[4] << 8U);
+        a32[4] = ((sp_uint32)a[4] >> 24U) |
+            ((sp_uint32)a[5] << 2U) | ((sp_uint32)a[6] << 28U);
+        a32[5] = ((sp_uint32)a[6] >> 4U) |
+            ((sp_uint32)a[7] << 22U);
+        a32[6] = ((sp_uint32)a[7] >> 10U) |
+            ((sp_uint32)a[8] << 16U);
+        a32[7] = ((sp_uint32)a[8] >> 16U) |
+            ((sp_uint32)a[9] << 10U);
+        a32[8] = ((sp_uint32)a[9] >> 22U) |
+            ((sp_uint32)a[10] << 4U) | ((sp_uint32)a[11] << 30U);
+        a32[9] = ((sp_uint32)a[11] >> 2U) |
+            ((sp_uint32)a[12] << 24U);
+        a32[10] = ((sp_uint32)a[12] >> 8U) |
+            ((sp_uint32)a[13] << 18U);
+        a32[11] = ((sp_uint32)a[13] >> 14U) |
+            ((sp_uint32)a[14] << 12U);
 
         /*  1  0  0  0  0  0  0  0  1  1  0 -1 */
         t[0] = 0 + a32[0] + a32[8] + a32[9] - a32[11];
@@ -33381,42 +33366,31 @@ static int sp_384_mod_mul_norm_15(sp_digit* r, const sp_digit* a, const sp_digit
         t[10] += t[9] >> 32; t[9] &= 0xffffffff;
         t[11] += t[10] >> 32; t[10] &= 0xffffffff;
 
-        r[0] = (sp_digit)(t[0]) & 0x3ffffffL;
-        r[1] = (sp_digit)(t[0] >> 26U);
-        r[1] |= (sp_digit)((sp_uint32)t[1] << 6U);
-        r[1] &= 0x3ffffffL;
-        r[2] = (sp_digit)(t[1] >> 20U);
-        r[2] |= (sp_digit)((sp_uint32)t[2] << 12U);
-        r[2] &= 0x3ffffffL;
-        r[3] = (sp_digit)(t[2] >> 14U);
-        r[3] |= (sp_digit)((sp_uint32)t[3] << 18U);
-        r[3] &= 0x3ffffffL;
-        r[4] = (sp_digit)(t[3] >> 8U);
-        r[4] |= (sp_digit)((sp_uint32)t[4] << 24U);
-        r[4] &= 0x3ffffffL;
-        r[5] = (sp_digit)(t[4] >> 2U) & 0x3ffffffL;
-        r[6] = (sp_digit)(t[4] >> 28U);
-        r[6] |= (sp_digit)((sp_uint32)t[5] << 4U);
-        r[6] &= 0x3ffffffL;
-        r[7] = (sp_digit)(t[5] >> 22U);
-        r[7] |= (sp_digit)((sp_uint32)t[6] << 10U);
-        r[7] &= 0x3ffffffL;
-        r[8] = (sp_digit)(t[6] >> 16U);
-        r[8] |= (sp_digit)((sp_uint32)t[7] << 16U);
-        r[8] &= 0x3ffffffL;
-        r[9] = (sp_digit)(t[7] >> 10U);
-        r[9] |= (sp_digit)((sp_uint32)t[8] << 22U);
-        r[9] &= 0x3ffffffL;
-        r[10] = (sp_digit)(t[8] >> 4U) & 0x3ffffffL;
-        r[11] = (sp_digit)(t[8] >> 30U);
-        r[11] |= (sp_digit)((sp_uint32)t[9] << 2U);
-        r[11] &= 0x3ffffffL;
-        r[12] = (sp_digit)(t[9] >> 24U);
-        r[12] |= (sp_digit)((sp_uint32)t[10] << 8U);
-        r[12] &= 0x3ffffffL;
-        r[13] = (sp_digit)(t[10] >> 18U);
-        r[13] |= (sp_digit)((sp_uint32)t[11] << 14U);
-        r[13] &= 0x3ffffffL;
+        r[0] = (sp_digit)((sp_uint32)t[0] & 0x3ffffffU);
+        r[1] = (sp_digit)((((sp_uint32)t[0] >> 26U) |
+            ((sp_uint32)t[1] << 6U)) & 0x3ffffffU);
+        r[2] = (sp_digit)((((sp_uint32)t[1] >> 20U) |
+            ((sp_uint32)t[2] << 12U)) & 0x3ffffffU);
+        r[3] = (sp_digit)((((sp_uint32)t[2] >> 14U) |
+            ((sp_uint32)t[3] << 18U)) & 0x3ffffffU);
+        r[4] = (sp_digit)((((sp_uint32)t[3] >> 8U) |
+            ((sp_uint32)t[4] << 24U)) & 0x3ffffffU);
+        r[5] = (sp_digit)(((sp_uint32)t[4] >> 2U) & 0x3ffffffU);
+        r[6] = (sp_digit)((((sp_uint32)t[4] >> 28U) |
+            ((sp_uint32)t[5] << 4U)) & 0x3ffffffU);
+        r[7] = (sp_digit)((((sp_uint32)t[5] >> 22U) |
+            ((sp_uint32)t[6] << 10U)) & 0x3ffffffU);
+        r[8] = (sp_digit)((((sp_uint32)t[6] >> 16U) |
+            ((sp_uint32)t[7] << 16U)) & 0x3ffffffU);
+        r[9] = (sp_digit)((((sp_uint32)t[7] >> 10U) |
+            ((sp_uint32)t[8] << 22U)) & 0x3ffffffU);
+        r[10] = (sp_digit)(((sp_uint32)t[8] >> 4U) & 0x3ffffffU);
+        r[11] = (sp_digit)((((sp_uint32)t[8] >> 30U) |
+            ((sp_uint32)t[9] << 2U)) & 0x3ffffffU);
+        r[12] = (sp_digit)((((sp_uint32)t[9] >> 24U) |
+            ((sp_uint32)t[10] << 8U)) & 0x3ffffffU);
+        r[13] = (sp_digit)((((sp_uint32)t[10] >> 18U) |
+            ((sp_uint32)t[11] << 14U)) & 0x3ffffffU);
         r[14] = (sp_digit)(t[11] >> 12U);
     }
 
@@ -38422,7 +38396,7 @@ static int sp_384_num_bits_26_15(sp_digit v)
     v |= v >> 4;
     v |= v >> 8;
     v |= v >> 16;
-    return sp_384_tab32_15[(word32)(v*0x07C4ACDD) >> 27];
+    return sp_384_tab32_15[((sp_uint32)v * 0x07C4ACDDU) >> 27];
 }
 
 /* Get the number of bits in the number.
@@ -46801,7 +46775,7 @@ static int sp_521_num_bits_25_21(sp_digit v)
     v |= v >> 4;
     v |= v >> 8;
     v |= v >> 16;
-    return sp_521_tab32_21[(word32)(v*0x07C4ACDD) >> 27];
+    return sp_521_tab32_21[((sp_uint32)v * 0x07C4ACDDU) >> 27];
 }
 
 /* Get the number of bits in the number.

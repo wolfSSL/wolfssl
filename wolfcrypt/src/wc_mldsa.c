@@ -6771,7 +6771,8 @@ static sword32 mldsa_mont_red(sword64 a)
      * MLDSA_MUL_QINV_WIDE64 in dilithium.h. */
     sword64 t = (sword32)((sword64)(sword32)a * (sword64)MLDSA_QINV);
 #else
-    sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
+    /* Only the low 32 bits are used; unsigned multiplication wraps there. */
+    sword64 t = (sword32)((word32)a * (word32)MLDSA_QINV);
 #endif
 #else
     /* Shifts are done on word32: a is routinely negative and left-shifting
