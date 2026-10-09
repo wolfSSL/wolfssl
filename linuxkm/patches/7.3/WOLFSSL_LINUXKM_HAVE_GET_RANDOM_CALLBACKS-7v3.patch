@@ -1,5 +1,5 @@
 --- 7.3/drivers/char/random.c.dist	2026-09-07 15:16:52.000000000 -0500
-+++ 7.3/drivers/char/random.c	2026-09-08 14:52:24.223216472 -0500
++++ 7.3/drivers/char/random.c	2026-10-09 12:21:47.699984161 -0500
 @@ -84,6 +84,310 @@ static enum {
  } crng_init __read_mostly = CRNG_EMPTY;
  static DEFINE_STATIC_KEY_FALSE(crng_is_ready);
@@ -343,7 +343,7 @@
  		nb->notifier_call(nb, 0, NULL);
  	else
  		ret = raw_notifier_chain_register((struct raw_notifier_head *)&random_ready_notifier.head, nb);
-@@ -392,6 +696,24 @@ static void _get_random_bytes(void *buf,
+@@ -392,6 +696,31 @@ static void _get_random_bytes(void *buf,
  	if (!len)
  		return;
  
@@ -352,23 +352,30 @@
 +		int cb_ret = call__get_random_bytes_cb(buf, len);
 +		if (cb_ret == 0)
 +			return;
-+                /* Nonzero cb_ret: no handlers installed (-ENODEV), a lost
-+		 * race with deinstallation (also -ENODEV), or a genuine
-+		 * callback failure.  Check the sentinel at warn time to
-+		 * distinguish: only a failure with the sentinel still live is
-+		 * a contract violation.  Continue regardless; native
-+		 * fallthrough is the only available mechanism to preserve
-+		 * the void contract. */
-+		WARN_ONCE(READ_ONCE(random_bytes_cb_live),
-+			  "_get_random_bytes callback failed with code %d; "
-+			  "native fallthrough\n", cb_ret);
++		/* Fall through to native ChaCha20 generator --
++		 * _get_random_bytes() returns void, so success is
++		 * non-negotiable.
++		 *
++		 * Nota bene: Due to the absence of a mechanism for error
++		 * percolation, _get_random_bytes() is incompatible with
++		 * generation of random bytes for a FIPS-controlled purpose.
++		 *
++		 * Consumption fulfilled by get_random_bytes_user() with the
++		 * FIPS callback installed is fully compatible with
++		 * FIPS-controlled uses, failing closed, and blocking for
++		 * entropy recovery, as needed.  This encompasses /dev/random,
++		 * /dev/urandom, and the getrandom() syscall.  And note that
++		 * VDSO-based delivery of random bytes is explicitly disabled
++		 * when the callback is installed, to assure consistently
++		 * compliant delivery of random bytes.
++		 */
 +	}
 +#endif
 +
  	first_block_len = min_t(size_t, 32, len);
  	crng_make_state(&chacha_state, buf, first_block_len);
  	len -= first_block_len;
-@@ -437,6 +759,20 @@ static ssize_t get_random_bytes_user(str
+@@ -437,6 +766,20 @@ static ssize_t get_random_bytes_user(str
  	if (unlikely(!iov_iter_count(iter)))
  		return 0;
  
@@ -389,16 +396,7 @@
  	/*
  	 * Immediately overwrite the ChaCha key at index 4 with random
  	 * bytes, in case userspace causes copy_to_iter() below to sleep
-@@ -512,7 +848,7 @@ type get_random_ ##type(void)							\
- 	struct batch_ ##type *batch;						\
- 	unsigned long next_gen;							\
- 										\
--	if  (!crng_ready()) {							\
-+	if  (READ_ONCE(random_bytes_cb_live) || !crng_ready()) {		\
- 		_get_random_bytes(&ret, sizeof(ret));				\
- 		return ret;							\
- 	}									\
-@@ -648,6 +984,11 @@ static void mix_pool_bytes(const void *b
+@@ -648,6 +991,11 @@ static void mix_pool_bytes(const void *b
  {
  	unsigned long flags;
  
@@ -410,7 +408,7 @@
  	spin_lock_irqsave(&input_pool.lock, flags);
  	_mix_pool_bytes(buf, len);
  	spin_unlock_irqrestore(&input_pool.lock, flags);
-@@ -707,7 +1048,13 @@ static void extract_entropy(void *buf, s
+@@ -707,7 +1055,13 @@ static void extract_entropy(void *buf, s
  	memzero_explicit(&block, sizeof(block));
  }
  
@@ -425,7 +423,7 @@
  
  static void __cold _credit_init_bits(size_t bits)
  {
-@@ -731,7 +1078,11 @@ static void __cold _credit_init_bits(siz
+@@ -731,7 +1085,11 @@ static void __cold _credit_init_bits(siz
  		if (system_dfl_wq)
  			queue_work(system_dfl_wq, &set_ready);
  		atomic_notifier_call_chain(&random_ready_notifier, 0, NULL);
@@ -438,7 +436,7 @@
  			WRITE_ONCE(vdso_k_rng_data->is_ready, true);
  		wake_up_interruptible(&crng_init_wait);
  		kill_fasync(&fasync, SIGIO, POLL_IN);
-@@ -934,6 +1285,10 @@ void add_device_randomness(const void *b
+@@ -934,6 +1292,10 @@ void add_device_randomness(const void *b
  	_mix_pool_bytes(&entropy, sizeof(entropy));
  	_mix_pool_bytes(buf, len);
  	spin_unlock_irqrestore(&input_pool.lock, flags);
@@ -449,7 +447,7 @@
  }
  EXPORT_SYMBOL(add_device_randomness);
  
-@@ -1392,7 +1747,7 @@ SYSCALL_DEFINE3(getrandom, char __user *
+@@ -1392,7 +1754,7 @@ SYSCALL_DEFINE3(getrandom, char __user *
  	if ((flags & (GRND_INSECURE | GRND_RANDOM)) == (GRND_INSECURE | GRND_RANDOM))
  		return -EINVAL;
  
@@ -458,7 +456,7 @@
  		if (flags & GRND_NONBLOCK)
  			return -EAGAIN;
  		ret = wait_for_random_bytes();
-@@ -1408,6 +1763,10 @@ SYSCALL_DEFINE3(getrandom, char __user *
+@@ -1408,6 +1770,10 @@ SYSCALL_DEFINE3(getrandom, char __user *
  
  static __poll_t random_poll(struct file *file, poll_table *wait)
  {
@@ -469,7 +467,7 @@
  	poll_wait(file, &crng_init_wait, wait);
  	return crng_ready() ? EPOLLIN | EPOLLRDNORM : EPOLLOUT | EPOLLWRNORM;
  }
-@@ -1453,10 +1812,10 @@ static ssize_t urandom_read_iter(struct
+@@ -1453,10 +1819,10 @@ static ssize_t urandom_read_iter(struct
  	 * Opportunistically attempt to initialize the RNG on platforms that
  	 * have fast cycle counters, but don't (for now) require it to succeed.
  	 */
@@ -482,7 +480,7 @@
  		if (!ratelimit_disable && maxwarn <= 0)
  			ratelimit_state_inc_miss(&urandom_warning);
  		else if (ratelimit_disable || __ratelimit(&urandom_warning)) {
-@@ -1473,7 +1832,7 @@ static ssize_t random_read_iter(struct k
+@@ -1473,7 +1839,7 @@ static ssize_t random_read_iter(struct k
  {
  	int ret;
  
@@ -491,7 +489,7 @@
  	    ((kiocb->ki_flags & (IOCB_NOWAIT | IOCB_NOIO)) ||
  	     (kiocb->ki_filp->f_flags & O_NONBLOCK)))
  		return -EAGAIN;
-@@ -1538,6 +1897,14 @@ static long random_ioctl(struct file *f,
+@@ -1538,6 +1904,14 @@ static long random_ioctl(struct file *f,
  	case RNDRESEEDCRNG:
  		if (!capable(CAP_SYS_ADMIN))
  			return -EPERM;

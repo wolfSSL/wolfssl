@@ -12146,7 +12146,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* decryptedKeySz, int* recipFound)
 {
     int length, encryptedKeySz = 0, ret = 0;
-    int keySz, version, sidType = 0;
+    int keySz, version = -1, sidType = 0;
     int keyIdSize;
     word32 encOID = 0;
     word32 keyIdx;

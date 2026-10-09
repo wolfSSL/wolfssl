@@ -12002,7 +12002,7 @@ ProtocolVersion MakeDTLSv1_3(void)
 #elif defined(WOLFSSL_LINUXKM)
     word32 LowResTimer(void)
     {
-        return (word32)time(NULL);
+        return (word32)XTIME(NULL);
     }
 
 #else
@@ -13505,6 +13505,8 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     byte epochBits;
     int readSize;
     int ret;
+
+    XMEMSET(&hdrInfo, 0, sizeof(hdrInfo));
 
     readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
 

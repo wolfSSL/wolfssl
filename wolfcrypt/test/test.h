@@ -147,6 +147,7 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
  */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  flags_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
@@ -298,6 +299,8 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_lifecycle_test(void);
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \

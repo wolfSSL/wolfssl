@@ -599,8 +599,9 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
      * Note that this is not actually an abnormal condition -- e.g. with
      * LINUXKM_DRBG_GET_RANDOM_BYTES, get_random_u32() and the like called from
      * hard IRQ handlers can land here, and we return success if
-     * WC_SVR_USE_NATIVE_REG_BUFS, else WC_ACCEL_INHIBIT_E.  Callers whose lane
-     * is pinned report that error rather than computing the answer in C.
+     * WC_SVR_USE_NATIVE_REG_BUFS, else WC_ACCEL_INHIBIT_E.  In
+     * WC_C_DYNAMIC_FALLBACK builds, this induces graceful fallback to C, else
+     * it induces a percolated error reporting a failed function call.
      */
     if ((cur_preempt_count & (NMI_MASK | HARDIRQ_MASK)) != 0) {
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS

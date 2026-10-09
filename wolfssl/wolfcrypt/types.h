@@ -534,6 +534,13 @@ enum {
 #define WOLFSSL_MAX_16BIT 0xffffU
 #define WOLFSSL_MAX_32BIT 0xffffffffU
 
+#ifndef WC_STATIC_STRUCT_INITIALIZER
+    /* Note, don't use this to dynamically initialize structs on the stack.
+     * On some targets/toolchains/configs, that pattern is an implicit
+     * memset reference that is unmaskable. */
+    #define WC_STATIC_STRUCT_INITIALIZER {0}
+#endif
+
 #ifndef WC_DO_NOTHING
     #define WC_DO_NOTHING do {} while (0)
     #ifdef _MSC_VER
@@ -1415,6 +1422,10 @@ WOLFSSL_API int wc_PackOctets(byte* out, word32 outSz, const byte* in,
     #else
         #define WC_OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
     #endif
+#endif
+
+#ifndef WC_SIZEOFMEMBER
+    #define WC_SIZEOFMEMBER(type, field) sizeof(((type *)0)->field)
 #endif
 
 
@@ -2541,6 +2552,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #endif
 #ifndef WC_SIG_IGNORE_END
     #define WC_SIG_IGNORE_END() 0
+#endif
+
+#ifndef WC_CAN_BLOCK
+    #define WC_CAN_BLOCK() 1
+#endif
+#ifndef WC_CAN_LONG_LOOP
+    #define WC_CAN_LONG_LOOP() 1
 #endif
 
 #ifndef RESTORE_NO_VECTOR_REGISTERS

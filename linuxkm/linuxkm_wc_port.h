@@ -217,9 +217,11 @@
         #define WC_LINUXKM_INTR_SIGNALS { SIGKILL, SIGABRT, SIGHUP, SIGINT }
     #endif
     WOLFSSL_API int wc_linuxkm_can_block(void);
+    WOLFSSL_API int wc_linuxkm_can_long_loop(void);
     WOLFSSL_API int wc_linuxkm_sig_ignore_begin(void);
     WOLFSSL_API int wc_linuxkm_sig_ignore_end(void);
     WOLFSSL_API int wc_linuxkm_check_for_intr_signals(void);
+
     #ifndef WC_LINUXKM_MAX_NS_WITHOUT_YIELD
         #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD (25 * 1000 * 1000)
     #endif
@@ -236,6 +238,12 @@
     #endif
     #ifndef WC_RELAX_LONG_LOOP
         #define WC_RELAX_LONG_LOOP() wc_linuxkm_relax_long_loop()
+    #endif
+    #ifndef WC_CAN_BLOCK
+        #define WC_CAN_BLOCK() wc_linuxkm_can_block()
+    #endif
+    #ifndef WC_CAN_LONG_LOOP
+        #define WC_CAN_LONG_LOOP() wc_linuxkm_can_long_loop()
     #endif
 
     enum wc_svr_flags {
@@ -616,6 +624,7 @@
         #include <linux/module.h>
         #include <linux/moduleparam.h>
         #include <linux/delay.h>
+        #include <linux/dmi.h>
     #endif
 
     #if defined(HAVE_KVMALLOC) && \
@@ -1006,6 +1015,14 @@
      */
     _Pragma("GCC diagnostic pop");
 
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+    typedef __kernel_time_t time_t;
+    #else
+    typedef __kernel_time64_t time_t;
+    #endif
+    WOLFSSL_API time_t wc_linuxkm_time_epoch_secs(time_t *tp);
+    WOLFSSL_API long long wc_linuxkm_time_epoch_msecs(void);
+
     #define PTR_ERR(x) ((int)PTR_ERR(x))
 
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0) && !defined(NO_AES)
@@ -1367,13 +1384,9 @@
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         typeof(get_random_bytes) *get_random_bytes;
 #endif
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-            typeof(getnstimeofday) *getnstimeofday;
-        #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-            typeof(current_kernel_time64) *current_kernel_time64;
-        #else
-            typeof(ktime_get_coarse_real_ts64) *ktime_get_coarse_real_ts64;
-        #endif
+
+        typeof(wc_linuxkm_time_epoch_secs) *wc_linuxkm_time_epoch_secs;
+        typeof(wc_linuxkm_time_epoch_msecs) *wc_linuxkm_time_epoch_msecs;
 
         struct task_struct *(*get_current)(void);
 
@@ -1571,6 +1584,7 @@
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
+        typeof(wc_linuxkm_can_long_loop) *wc_linuxkm_can_long_loop;
         typeof(wc_linuxkm_sig_ignore_begin) *wc_linuxkm_sig_ignore_begin;
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
@@ -1751,13 +1765,9 @@
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
 #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
-    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-        #define current_kernel_time64 WC_PIE_INDIRECT_SYM(current_kernel_time64)
-    #else
-        #define ktime_get_coarse_real_ts64 WC_PIE_INDIRECT_SYM(ktime_get_coarse_real_ts64)
-    #endif
+
+    #define wc_linuxkm_time_epoch_secs WC_PIE_INDIRECT_SYM(wc_linuxkm_time_epoch_secs)
+    #define wc_linuxkm_time_epoch_msecs WC_PIE_INDIRECT_SYM(wc_linuxkm_time_epoch_msecs)
 
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
@@ -1879,6 +1889,7 @@
     #endif
 
     #define wc_linuxkm_can_block WC_PIE_INDIRECT_SYM(wc_linuxkm_can_block)
+    #define wc_linuxkm_can_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_can_long_loop)
     #define wc_linuxkm_sig_ignore_begin WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin)
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
@@ -2061,14 +2072,7 @@
     _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"");
     #endif
 
-    /* includes are all above, with incompatible warnings masked out. */
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
-    typedef __kernel_time_t time_t;
-    #else
-    typedef __kernel_time64_t time_t;
-    #endif
-    extern time_t time(time_t * timer);
-    #define XTIME time
+    #define XTIME wc_linuxkm_time_epoch_secs
     #define WOLFSSL_GMTIME
     #define XGMTIME(c, t) gmtime(c)
     #define NO_TIMEVAL 1
@@ -2348,21 +2352,21 @@
         #endif
     #else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
     #ifdef USE_KVMALLOC
-        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
+        #define malloc(size) (in_nmi() ? NULL : kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE))
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-            #define free(ptr) (wc_linuxkm_can_block() ? kvfree(ptr) : kvfree_atomic(ptr))
+            #define free(ptr) (in_nmi() ? (void)(ptr) : (wc_linuxkm_can_block() ? kvfree(ptr) : kvfree_atomic(ptr)))
         #else
-            #define free(ptr) kvfree(ptr)
+            #define free(ptr) (in_nmi() ? (void)(ptr) : kvfree(ptr))
         #endif
         #ifdef USE_KVREALLOC
-            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
+            #define realloc(ptr, newsize) (in_nmi() ? NULL : kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
         #else
             #define realloc(ptr, newsize) ((void)(ptr), (void)(newsize), NULL)
         #endif
     #else
-        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
-        #define free(ptr) kfree(ptr)
-        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
+        #define malloc(size) (in_nmi() ? NULL : kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
+        #define free(ptr) (in_nmi() ? (void)(ptr) : kfree(ptr))
+        #define realloc(ptr, newsize) (in_nmi() ? NULL : krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
     #endif
     #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 

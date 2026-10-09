@@ -56,7 +56,8 @@
  * Present whenever either side of such a race can be compiled in: the
  * next-seed banker, or any root_rng (whose transitions the gate brackets).
  */
-#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) || defined(WC_RNG_HAVE_NEXT_SEED)
+#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) || defined(WC_RNG_HAVE_NEXT_SEED) || \
+    !defined(WC_RNG_HAVE_LOCK)
     #define WC_RNG_BANK_HAVE_INST_OP_GATE
 #endif
 
@@ -302,6 +303,14 @@ WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
 #endif
 #endif
 
+WOLFSSL_LOCAL int wc_rng_bank_reinit_rng(
+    struct wc_rng_bank *bank,
+    WC_RNG *rng,
+    WC_RNG *seedRng,
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
+    word32 flags);
+
 WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
@@ -507,8 +516,15 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
                          sizeof(((struct DRBG_internal *)NULL)->reseedCtr));
     #endif
 
+    /* no perso/persoSz in backported wc_InitRngNonceRBGC() */
+    #undef wc_InitRngNonceRBGC
+    #define wc_InitRngNonceRBGC(leaf,root,nonce,nonceSz,perso,persoSz,flags) \
+        ((void)perso, (void)persoSz,\
+            wc_InitRngNonceRBGC_fips(leaf, root, nonce, nonceSz, flags))
     #define wc_InitRngRBGC(leaf, root, flags) \
-        wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+        wc_InitRngNonceRBGC(leaf, root, NULL, 0, NULL, 0, flags)
+    #define wc_RNG_DRBG_Reseed_Now_Primary(rng, nonce, nonceSz) \
+        wc_RNG_DRBG_Reseed_Now(rng, nonce, nonceSz)
     WOLFSSL_TEST_VIS int wc_RNG_GetStatus(const WC_RNG* rng);
     WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
     WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng);
