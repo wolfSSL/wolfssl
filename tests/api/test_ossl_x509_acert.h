@@ -26,6 +26,7 @@
 
 int test_wolfSSL_X509_ACERT_verify(void);
 int test_wolfSSL_X509_ACERT_misc_api(void);
+int test_wolfSSL_X509_ACERT_print_ctrl(void);
 int test_wolfSSL_X509_ACERT_buffer(void);
 int test_wolfSSL_X509_ACERT_new_and_sign(void);
 int test_wolfSSL_X509_ACERT_asn(void);
@@ -33,6 +34,7 @@ int test_wolfSSL_X509_ACERT_asn(void);
 #define TEST_OSSL_X509_ACERT_DECLS                                             \
     TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_verify),        \
     TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_misc_api),      \
+    TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_print_ctrl),    \
     TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_buffer),        \
     TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_new_and_sign),  \
     TEST_DECL_GROUP("ossl_x509_acert", test_wolfSSL_X509_ACERT_new_and_sign)

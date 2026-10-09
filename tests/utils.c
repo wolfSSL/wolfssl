@@ -871,6 +871,24 @@ int test_memio_setup(struct test_memio_ctx *ctx,
 
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+/* Copy a memory BIO into buf as a string. Returns length, or -1. */
+int test_bio_mem_to_str(WOLFSSL_BIO* bio, char* buf, int bufSz)
+{
+    char* data = NULL;
+    int len = wolfSSL_BIO_get_mem_data(bio, &data);
+
+    buf[0] = '\0';
+    if ((data == NULL) || (len <= 0) || (len >= bufSz)) {
+        return -1;
+    }
+    XMEMCPY(buf, data, (size_t)len);
+    buf[len] = '\0';
+
+    return len;
+}
+#endif
+
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
 /* Used when debugging name constraint tests. Not static to allow use in
