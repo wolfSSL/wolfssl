@@ -20,6 +20,8 @@
  */
 
 
+#define WOLFSSL_VIS_FOR_TESTS
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
