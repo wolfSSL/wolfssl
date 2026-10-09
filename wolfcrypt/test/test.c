@@ -3560,7 +3560,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("Falcon   test passed!\n");
 #endif
 
-#if defined(WOLFSSL_HAVE_XMSS)
+#if defined(WOLFSSL_HAVE_XMSS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_XMSS) || defined(WOLFSSL_SWDEV))
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10 && \
         defined(WC_XMSS_SHA256) && \
         WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
@@ -3579,7 +3580,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) */
 
-#if defined(WOLFSSL_HAVE_LMS)
+#if defined(WOLFSSL_HAVE_LMS) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_LMS) || defined(WOLFSSL_SWDEV))
     #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
         !defined(WOLFSSL_NO_LMS_SHA256_256)
     if ( (ret = lms_test_verify_only()) != 0)
@@ -70975,7 +70977,11 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
     /* The BDS traversal counters, stored node heights and tree hash entries are
      * all re-parsed from the persisted private key on every sign. Corrupt them
      * and the library must stay inside the key's own buffers, and must reject
-     * a counter that is plainly out of range. */
+     * a counter that is plainly out of range.
+     *
+     * Needs the software reload of caller-held state, which a callback-only
+     * build removes: there is no reload operation on the cryptocb surface. */
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     if (sk_snapshot != NULL) {
         /* Enough samples to reach every field of the state without making the
          * test signing-bound. */
@@ -71028,6 +71034,7 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
         }
         ret = 0;
     }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 #endif /* !WOLFSSL_NO_MALLOC */
 
 out:
@@ -71786,10 +71793,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_LmsKey_GetKid(&signingKey, &kid, &kidSz);
+#if defined(WOLFSSL_SWDEV) && defined(WOLF_CRYPTO_CB_FIND)
+    /* swdev keeps the private key, which contains the key ID. */
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
     if (kidSz != WC_LMS_I_LEN) {
         ERROR_OUT(WC_TEST_RET_ENC_I(kidSz), out);
     }
+    /* The key ID follows the L, LMS and LM-OTS types in the public key. */
+    if (XMEMCMP(kid, signingKey.pub + LMS_L_LEN + 2 * LMS_TYPE_LEN,
+            kidSz) != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+#endif
 
     ret = wc_LmsKey_ExportPub_ex(&verifyKey, &signingKey, NULL, devId);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
@@ -71814,10 +71832,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
 
+/* swdev's find callback routes this key to the device, so skip the check. */
+#if !defined(WOLF_CRYPTO_CB_FIND) || !defined(WOLFSSL_SWDEV)
 #ifdef WOLF_CRYPTO_CB
-        /* The NULL-WriteCb -> BAD_FUNC_ARG check in wc_LmsKey_Sign sits after
-         * the cryptocb dispatch; an HSM-backed Sign succeeds without ever
-         * reaching it. Only exercise this on the pure software path. */
         if (devId == INVALID_DEVID)
 #endif
         {
@@ -71832,6 +71849,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             }
         }
+#endif /* !WOLF_CRYPTO_CB_FIND || !WOLFSSL_SWDEV */
 
         ret = 0;
     }
@@ -89565,6 +89583,10 @@ typedef struct {
 #ifdef WOLF_CRYPTO_CB_FREE
     int hashFreeType;     /* hash type seen by last hash free dispatch */
 #endif
+#if defined(WOLF_CRYPTO_CB_FREE) && \
+    (defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS))
+    int statefulFreeType; /* stateful sig type seen by last free dispatch */
+#endif
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
@@ -93656,6 +93678,13 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+                case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+                    /* record the dispatch and let software do the free */
+                    myCtx->statefulFreeType = info->free.subType;
+                    ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+                    break;
+#endif
                 default:
                     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
                     break;
@@ -96668,13 +96697,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         myCtx.exampleVar = baseline;
     }
 #endif
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_XMSS) || defined(WOLFSSL_SWDEV))
+#ifdef WOLF_CRYPTO_CB_FREE
+    myCtx.statefulFreeType = WC_PQC_STATEFUL_SIG_TYPE_NONE;
+#endif
     if (ret == 0)
         ret = xmss_test();
+#ifdef WOLF_CRYPTO_CB_FREE
+    if ((ret == 0) &&
+            (myCtx.statefulFreeType != WC_PQC_STATEFUL_SIG_TYPE_XMSS))
+        ret = WC_TEST_RET_ENC_NC;
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_LMS) || defined(WOLFSSL_SWDEV))
+#ifdef WOLF_CRYPTO_CB_FREE
+    myCtx.statefulFreeType = WC_PQC_STATEFUL_SIG_TYPE_NONE;
+#endif
     if (ret == 0)
         ret = lms_test();
+#ifdef WOLF_CRYPTO_CB_FREE
+    if ((ret == 0) &&
+            (myCtx.statefulFreeType != WC_PQC_STATEFUL_SIG_TYPE_LMS))
+        ret = WC_TEST_RET_ENC_NC;
+#endif
 #endif
 #if defined(HAVE_ED25519) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ED25519) || defined(WOLFSSL_SWDEV))

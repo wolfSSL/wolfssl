@@ -32,6 +32,8 @@
 #undef WOLF_CRYPTO_CB_ONLY_CURVE448
 #undef WOLF_CRYPTO_CB_ONLY_SLHDSA
 #undef WOLF_CRYPTO_CB_ONLY_MLKEM
+#undef WOLF_CRYPTO_CB_ONLY_LMS
+#undef WOLF_CRYPTO_CB_ONLY_XMSS
 
 #ifndef WOLF_CRYPTO_CB
     #error "wc_swdev requires the main build to define WOLF_CRYPTO_CB"
