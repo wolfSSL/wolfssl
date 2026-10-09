@@ -941,8 +941,8 @@ static void wb_getkid_from_privraw(void)
  * its independence pair still needs the all-valid baseline row alongside it
  * (masking MC/DC on an OR chain: the operand's pair is baseline-all-false
  * vs only-that-operand-true, not two different-failure rows). No real
- * keygen needed -- GetKid does not check state, only key/params/kid/kidSz,
- * and reads a zeroed priv_raw harmlessly.
+ * keygen needed -- forcing privSet stands in for it, and GetKid reads a
+ * zeroed priv_raw harmlessly.
  ******************************************************************/
 static void wb_getkid(void)
 {
@@ -953,7 +953,13 @@ static void wb_getkid(void)
 
     XMEMSET(&key, 0, sizeof(key));
     wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
-    wc_LmsKey_SetParameters(&key, 1, 5, 8); /* baseline: all operands false */
+    wc_LmsKey_SetParameters(&key, 1, 5, 8);
+    ret = wc_LmsKey_GetKid(&key, &kid, &kidSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("GetKid(privSet==0) did not fail");
+        wb_fail = 1;
+    }
+    key.privSet = 1; /* baseline: all operands false */
     ret = wc_LmsKey_GetKid(&key, &kid, &kidSz);
     if (ret != 0) {
         WB_NOTE("GetKid baseline failed");

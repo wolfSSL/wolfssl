@@ -1043,6 +1043,7 @@ void wc_LmsKey_Free(LmsKey* key)
         }
 
         ForceZero(key->priv_raw, HSS_MAX_PRIVATE_KEY_LEN);
+        key->privSet = 0;
         ForceZero(&key->priv, sizeof(HssPrivKey));
 
         key->write_private_key = NULL;
@@ -1316,6 +1317,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
         key->pubSet = 1;
+        key->privSet = 1;
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
@@ -1332,13 +1334,17 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_LmsKey_Reload below.
+ * WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read callback
+ * is never called.
  *
  * Neither arm populates key->pub, so the reloaded key can sign but cannot
  * export a public key or verify.
  *
  * @param [in, out] key  LMS key.
  *
- * Returns 0 on success. */
+ * Returns 0 on success.
+ * Returns NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_LMS unless the key is
+ * device-backed. */
 int wc_LmsKey_Reload(LmsKey* key)
 {
     int ret = 0;
@@ -1370,7 +1376,7 @@ int wc_LmsKey_Reload(LmsKey* key)
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_LMS
-    /* The device owns the state, so there is nothing to reload. */
+    /* No software reload exists to use the read callback. */
     if (ret == 0) {
         ret = NO_VALID_DEVID;
     }
@@ -1458,6 +1464,7 @@ int wc_LmsKey_Reload(LmsKey* key)
     if (ret == 0) {
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
+        key->privSet = 1;
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
@@ -2119,7 +2126,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
  * @param [out] kidSz  Size of key ID.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a key, kid or kidSz is NULL.
- * @return  NOT_COMPILED_IN when key is on a device.
+ * @return  BAD_STATE_E when the private key is not in memory, such as when a
+ *          device keeps it.
  */
 int wc_LmsKey_GetKid(LmsKey* key, const byte** kid, word32* kidSz)
 {
@@ -2130,31 +2138,17 @@ int wc_LmsKey_GetKid(LmsKey* key, const byte** kid, word32* kidSz)
             (kidSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->privSet)) {
+        WOLFSSL_MSG("error: LMS key contains no private key");
+        ret = BAD_STATE_E;
+    }
 
-#ifdef WOLF_CRYPTO_CB_ONLY_LMS
-    /* The device owns the private key, which contains the key ID. */
-    if (ret == 0) {
-        ret = NOT_COMPILED_IN;
-    }
-    (void)offset;
-#else
-#ifdef WOLF_CRYPTO_CB
-    /* priv_raw is not populated for HSM-backed keys where the device owns
-     * the private state. Extend the CryptoCb surface if device-side KID
-     * retrieval becomes a requirement.
-     */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
-        WOLFSSL_MSG(
-                "wc_LmsKey_GetKid: priv_raw may be uninitialised for HSM keys");
-    }
-#endif
     if (ret == 0) {
         /* SEED length is hash length. */
         offset = HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + key->params->hash_len;
         *kid = key->priv_raw + offset;
         *kidSz = HSS_PRIVATE_KEY_LEN(key->params->hash_len) - offset;
     }
-#endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
 }
