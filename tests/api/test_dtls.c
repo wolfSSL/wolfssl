@@ -15296,3 +15296,85 @@ int test_dtls13_hrr_cookie_secret_generate_fail(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MAX_FRAGMENT)
+/* Check a DTLS write against a negotiated max_fragment_length on one version.
+ *
+ * @param [in] client_method  Client method.
+ * @param [in] server_method  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_dtls_mfl_write(method_provider client_method,
+    method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte buf[1000];
+    int ret;
+
+    XMEMSET(buf, 0x42, sizeof(buf));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* Fits the MTU but not the 512 bytes the peer accepts. */
+    ret = wolfSSL_write(ssl_c, buf, (int)sizeof(buf));
+#ifndef WOLFSSL_NO_DTLS_SIZE_CHECK
+    ExpectIntLT(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+    ExpectIntEQ(test_ctx.s_len, 0);
+#else
+    ExpectIntEQ(ret, (int)sizeof(buf));
+    ExpectIntEQ(test_ctx.s_msg_count, 2);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        (int)sizeof(buf) - 512);
+#endif
+
+    /* A write at the negotiated length is delivered. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, buf, 512), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+    ExpectIntEQ(wolfSSL_write(ssl_s, buf, 512), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 512);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A DTLS write is one record, so one larger than a negotiated
+ * max_fragment_length must not be sent: the peer would drop it. It fails
+ * like a write over the MTU, or is split with WOLFSSL_NO_DTLS_SIZE_CHECK.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_dtls_max_fragment_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MAX_FRAGMENT)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_dtls_mfl_write(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_dtls_mfl_write(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}

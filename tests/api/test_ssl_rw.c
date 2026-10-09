@@ -30,6 +30,8 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+/* For the SSL_set_max_send_fragment() compatibility names. */
+#include <wolfssl/openssl/ssl.h>
 
 #include <tests/utils.h>
 #include <tests/api/test_ssl_rw.h>
@@ -1617,6 +1619,522 @@ int test_wolfSSL_write_dup_err(void)
          * own, and recorded so wolfSSL_get_error() can report it. */
         ExpectIntEQ(ssl_w->error, WC_NO_ERR_TRACE(DECRYPT_ERROR));
     }
+
+    wolfSSL_free(ssl_w);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the wolfSSL_set_max_send_fragment() setters.
+ *
+ * As in OpenSSL: 512 to 16384 is accepted, 1 is returned on success and 0 on
+ * failure, unset means no cap, and wolfSSL_new() copies the WOLFSSL_CTX value
+ * so a later change of it does not reach the object.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_set_max_send_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctx2 = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL* ssl2 = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(NULL, 512),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(NULL, 512),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (ctx != NULL) {
+        ExpectIntEQ(ctx->maxSendFragment, 0);
+    }
+
+    /* Out of range values fail and leave the setting alone. 0x10200 would
+     * wrap to 512 if narrowed before the range check. */
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 511),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 16385),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 0x10200),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if (ctx != NULL) {
+        ExpectIntEQ(ctx->maxSendFragment, 0);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 16384),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 512), WOLFSSL_SUCCESS);
+    if (ctx != NULL) {
+        ExpectIntEQ(ctx->maxSendFragment, 512);
+    }
+
+    /* The object starts with the WOLFSSL_CTX value. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->maxSendFragment, 512);
+    }
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl, 511),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl, 16385),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl, 0x10200),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->maxSendFragment, 512);
+    }
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl, 16384), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->maxSendFragment, 16384);
+    }
+
+    /* A WOLFSSL_CTX change only applies to objects created after it. */
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx, 1024), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->maxSendFragment, 16384);
+    }
+    ExpectNotNull(ssl2 = wolfSSL_new(ctx));
+    if (ssl2 != NULL) {
+        ExpectIntEQ(ssl2->maxSendFragment, 1024);
+    }
+
+    /* Neither switching the WOLFSSL_CTX nor wolfSSL_clear() resets the
+     * object value, as in OpenSSL. */
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx2, 2048),
+        WOLFSSL_SUCCESS);
+    ExpectPtrEq(wolfSSL_set_SSL_CTX(ssl, ctx2), ctx2);
+    ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->maxSendFragment, 16384);
+    }
+
+    /* OpenSSL names. */
+    ExpectIntEQ(SSL_CTX_set_max_send_fragment(ctx, 511), 0);
+    ExpectIntEQ(SSL_CTX_set_max_send_fragment(ctx, 512), 1);
+    ExpectIntEQ(SSL_set_max_send_fragment(ssl2, 16385), 0);
+    ExpectIntEQ(SSL_set_max_send_fragment(ssl2, 16384), 1);
+
+    wolfSSL_free(ssl2);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx2);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_TLS)
+#define TEST_SEND_FRAG_SZ   2048
+
+/* Send sz bytes from wr to rd and check each record carries at most fragSz
+ * bytes of plaintext, both on the wire and as read back.
+ *
+ * @param [in, out] test_ctx  memio context of the connection.
+ * @param [in, out] wr        Object to write with.
+ * @param [in, out] rd        Object to read with.
+ * @param [in]      sz        Number of bytes to send.
+ * @param [in]      fragSz    Most plaintext expected in one record.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_send_frag_xfer(struct test_memio_ctx* test_ctx, WOLFSSL* wr,
+    WOLFSSL* rd, int sz, int fragSz)
+{
+    EXPECT_DECLS;
+    byte out[TEST_SEND_FRAG_SZ];
+    byte in[TEST_SEND_FRAG_SZ];
+    /* Where the records of the writer land. */
+    int toServer = (wolfSSL_GetSide(wr) == WOLFSSL_CLIENT_END);
+    const byte* buf = toServer ? test_ctx->s_buff : test_ctx->c_buff;
+    const int* len = toServer ? &test_ctx->s_len : &test_ctx->c_len;
+    int idx = *len;
+    int recMax = 0;
+    int records = 0;
+    int got = 0;
+    int i;
+
+    for (i = 0; i < sz; i++)
+        out[i] = (byte)i;
+
+    ExpectIntGT(recMax = wolfSSL_GetOutputSize(wr, fragSz), 0);
+    ExpectIntEQ(wolfSSL_write(wr, out, sz), sz);
+
+    /* TLS record header: type, version and 16-bit length. */
+    while (EXPECT_SUCCESS() && idx + RECORD_HEADER_SZ <= *len) {
+        int recSz = RECORD_HEADER_SZ + ((buf[idx + 3] << 8) | buf[idx + 4]);
+
+        ExpectIntEQ(buf[idx], application_data);
+        ExpectIntLE(recSz, recMax);
+        idx += recSz;
+        records++;
+    }
+    ExpectIntEQ(idx, *len);
+    ExpectIntEQ(records, (sz + fragSz - 1) / fragSz);
+
+    /* wolfSSL_read() returns one record at most. */
+    while (EXPECT_SUCCESS() && got < sz) {
+        int want = (sz - got < fragSz) ? (sz - got) : fragSz;
+
+        ExpectIntEQ(wolfSSL_read(rd, in + got, sz - got), want);
+        got += want;
+    }
+    ExpectBufEQ(in, out, sz);
+
+    return EXPECT_RESULT();
+}
+
+/* Check the send cap on one protocol version.
+ *
+ * @param [in] client_method  Client method.
+ * @param [in] server_method  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_send_frag_records(method_provider client_method,
+    method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Nothing set: no cap, the data goes in one record. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, MAX_RECORD_SIZE), TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Cap set on the WOLFSSL_CTX before the objects are made. The server one
+     * also splits its handshake messages. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx_c, 1024),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx_s, 512),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), 1024);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 512);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, 1024), TEST_SUCCESS);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_s, ssl_c,
+        TEST_SEND_FRAG_SZ, 512), TEST_SUCCESS);
+
+    /* The object value replaces the WOLFSSL_CTX one, larger or smaller, from
+     * the next write on. */
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_c, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, 2048), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, 512), TEST_SUCCESS);
+
+    /* A WOLFSSL_CTX change does not reach an existing object. */
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx_c, 16384),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, 512), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that sent records honour wolfSSL_set_max_send_fragment().
+ *
+ * Covers no cap by default, the cap copied from the WOLFSSL_CTX, the object
+ * override and a WOLFSSL_CTX change after the object was made. Records are
+ * checked on the wire and as read back.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_max_send_fragment_records(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_TLS)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_send_frag_records(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_send_frag_records(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+/* Check the send cap with a negotiated max_fragment_length on one version.
+ *
+ * @param [in] client_method  Client method.
+ * @param [in] server_method  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_send_frag_mfl(method_provider client_method,
+    method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    /* 1024 bytes in both directions. */
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_10),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_s, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Cap below the negotiated length: the cap applies. */
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_c, ssl_s,
+        TEST_SEND_FRAG_SZ, 512), TEST_SUCCESS);
+    /* Cap above it: the negotiated length applies. The client still takes
+     * records larger than its own cap. */
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_s, ssl_c,
+        TEST_SEND_FRAG_SZ, 1024), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test the send cap together with a negotiated max_fragment_length.
+ *
+ * The smaller limit applies to what is sent. OpenSSL instead uses the
+ * negotiated length in place of the cap, so with a cap below it OpenSSL sends
+ * larger records. The peer accepts both.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_max_send_fragment_mfl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_send_frag_mfl(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_send_frag_mfl(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* Check the send cap on one DTLS version.
+ *
+ * @param [in] client_method  Client method.
+ * @param [in] server_method  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_send_frag_dtls(method_provider client_method,
+    method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte buf[1024];
+    int ret;
+
+    XMEMSET(buf, 0x42, sizeof(buf));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        client_method, server_method), 0);
+    /* The server handshake messages are split to fit. */
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx_s, 512),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* No cap by default: one record. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, buf, (int)sizeof(buf)), (int)sizeof(buf));
+    ExpectIntEQ(test_ctx.s_msg_count, 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(buf));
+
+    /* A write at the cap is one record. */
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), 512);
+    ExpectIntEQ(wolfSSL_write(ssl_c, buf, 512), 512);
+    ExpectIntEQ(test_ctx.s_msg_count, 1);
+    ExpectIntEQ(test_ctx.s_len, wolfSSL_GetOutputSize(ssl_c, 512));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+
+    /* A write is one datagram, so one over the cap is refused like one over
+     * the MTU, or split when size checks are off. Unlike OpenSSL, where this
+     * is fatal, the connection stays usable. */
+    ret = wolfSSL_write(ssl_c, buf, 513);
+#ifndef WOLFSSL_NO_DTLS_SIZE_CHECK
+    ExpectIntLT(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, buf, 512), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+#else
+    ExpectIntEQ(ret, 513);
+    ExpectIntEQ(test_ctx.s_msg_count, 2);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 1);
+#endif
+
+    /* Same for the server, capped from its WOLFSSL_CTX. */
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 512);
+    ExpectIntEQ(wolfSSL_write(ssl_s, buf, 512), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 512);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test the send cap with DTLS.
+ *
+ * Handshake messages are split to fit. A write is sent as one record, so a
+ * write over the cap fails with DTLS_SIZE_ERROR, like one over the MTU.
+ * OpenSSL fails it too.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_max_send_fragment_dtls(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_send_frag_dtls(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_send_frag_dtls(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a write duplicate sends with the cap of the object it was made
+ * from, including one set on the object rather than its WOLFSSL_CTX.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_max_send_fragment_write_dup(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_WRITE_DUP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_w = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_max_send_fragment(ctx_c, 1024),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_max_send_fragment(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_c));
+    ExpectIntEQ(test_send_frag_xfer(&test_ctx, ssl_w, ssl_s,
+        TEST_SEND_FRAG_SZ, 512), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_w);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a write duplicate keeps to a negotiated max_fragment_length.
+ *
+ * The duplicate does the sending, so records over the negotiated length would
+ * be rejected by the peer with a length error.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_write_dup_max_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_WRITE_DUP) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_w = NULL;
+    struct test_memio_ctx test_ctx;
+    byte buf[1000];
+
+    XMEMSET(buf, 0x42, sizeof(buf));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_c));
+    ExpectIntEQ(wolfSSL_write(ssl_w, buf, (int)sizeof(buf)),
+        (int)sizeof(buf));
+    /* wolfSSL_read() returns one record at most. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 512);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        (int)sizeof(buf) - 512);
 
     wolfSSL_free(ssl_w);
     wolfSSL_free(ssl_c);

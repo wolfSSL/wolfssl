@@ -4528,6 +4528,7 @@ struct WOLFSSL_CTX {
 #ifdef OPENSSL_EXTRA
     SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
     void*           protoMsgCtx;        /* user set context with msg callback */
+    word16          maxSendFragment;    /* send record plaintext cap, 0 none */
 #endif
     word32          timeout;            /* session timeout */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
@@ -7026,6 +7027,7 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
     void*           protoMsgCtx;        /* user set context with msg callback */
+    word16          maxSendFragment;    /* send record plaintext cap, 0 none */
 #endif
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     byte            hsInfoOn;           /* track handshake info        */
@@ -7633,6 +7635,7 @@ WOLFSSL_TEST_VIS int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
         int isEncrypted);
 WOLFSSL_LOCAL int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl);
 WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfssl_local_GetMaxSendFragSize(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);

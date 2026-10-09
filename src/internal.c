@@ -9157,6 +9157,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 
     ssl->disabledCurves = ctx->disabledCurves;
+
+    /* Only copied here, as OpenSSL's SSL_new() does. */
+    ssl->maxSendFragment = ctx->maxSendFragment;
 #endif
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
@@ -30094,7 +30097,10 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             mtu = MAX_MTU;
 #endif
             outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
-            if (outputSz > mtu) {
+            /* A write is one record here, so the negotiated max fragment
+             * length and the send cap are handled like the MTU. */
+            if (outputSz > mtu ||
+                    buffSz > wolfssl_local_GetMaxSendFragSize(ssl)) {
 #if defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
                 /* split instead of error out */
                 buffSz = min(buffSz, wolfssl_local_GetMaxPlaintextSize(ssl));
@@ -30110,7 +30116,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         else
 #endif /* WOLFSSL_DTLS */
         {
-            int maxFrag = wolfSSL_GetMaxFragSize(ssl);
+            int maxFrag = wolfssl_local_GetMaxPlaintextSize(ssl);
             if (maxFrag > 0)
                 buffSz = min((word32)buffSz, (word32)maxFrag);
             /* No MTU to respect here, so the record is simply allocated big
@@ -46983,7 +46989,8 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 }
 #endif
 
-/** Return the maximum plaintext size for the current Max Fragment and MTU.
+/** Return the maximum plaintext size to send for the current Max Fragment,
+ * send fragment cap and MTU.
  * @param ssl         WOLFSSL object containing ciphersuite information.
  * @return            Max plaintext size for current MTU
  */
@@ -46994,7 +47001,7 @@ int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    maxFrag = wolfSSL_GetMaxFragSize(ssl);
+    maxFrag = wolfssl_local_GetMaxSendFragSize(ssl);
 
 #if defined(WOLFSSL_DTLS)
     if (IsDtlsNotSctpMode(ssl)) {
@@ -47066,6 +47073,26 @@ int wolfSSL_GetMaxFragSize(WOLFSSL* ssl)
         maxFragment = ssl->max_fragment;
     }
 #endif /* HAVE_MAX_FRAGMENT */
+
+    return maxFragment;
+}
+
+/**
+ * Return the max fragment size for records sent: the negotiated max fragment
+ * length and the local send cap. Not used for receiving.
+ * @param ssl         WOLFSSL object.
+ * @return            Max fragment size to send
+ */
+int wolfssl_local_GetMaxSendFragSize(WOLFSSL* ssl)
+{
+    int maxFragment = wolfSSL_GetMaxFragSize(ssl);
+
+#ifdef OPENSSL_EXTRA
+    if (maxFragment > 0 && ssl->maxSendFragment != 0 &&
+            maxFragment > ssl->maxSendFragment) {
+        maxFragment = ssl->maxSendFragment;
+    }
+#endif
 
     return maxFragment;
 }

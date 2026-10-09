@@ -1510,6 +1510,11 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
                             wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg
 #define SSL_CTX_set_tlsext_max_fragment_length \
                             wolfSSL_CTX_set_tlsext_max_fragment_length
+#ifdef OPENSSL_EXTRA
+#define SSL_CTX_set_max_send_fragment   wolfSSL_CTX_set_max_send_fragment
+#define SSL_set_max_send_fragment       wolfSSL_set_max_send_fragment
+#define SSL3_RT_MAX_PLAIN_LENGTH        16384
+#endif
 #define SSL_get_server_random           wolfSSL_get_server_random
 #define SSL_get_server_tmp_key          wolfSSL_get_peer_tmp_key
 #define SSL_get_peer_tmp_key            wolfSSL_get_peer_tmp_key
