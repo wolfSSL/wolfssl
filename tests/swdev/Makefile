@@ -16,6 +16,8 @@ CCAS      ?= $(CC)
 LD        ?= ld
 OBJCOPY   ?= objcopy
 NM        ?= nm
+# Target OS; the parent build passes configure's host_os.
+SWDEV_HOST_OS ?= $(shell uname -s)
 
 SWDEV_LOCAL_SRCS = swdev.c
 
@@ -95,6 +97,18 @@ ASM_OBJS    = $(patsubst wolfcrypt/src/%.S,$(BUILDDIR)/wc/%.o,$(SWDEV_ASM_SRCS))
 LOCAL_OBJS  = $(patsubst %.c,$(BUILDDIR)/local/%.o,$(SWDEV_LOCAL_SRCS))
 ALL_OBJS    = $(CRYPT_OBJS) $(SSL_OBJS) $(ASM_OBJS) $(LOCAL_OBJS)
 
+# macOS has no objcopy: ld64 -exported_symbol on a relocatable link
+# localizes the other globals. Mach-O prefixes C symbols with '_'.
+ifneq ($(filter darwin% Darwin,$(SWDEV_HOST_OS)),)
+SWDEV_LOCALIZE   = $(LD) -r -exported_symbol _wc_SwDev_Callback \
+                   -exported_symbol _wc_SwDev_InternalCleanup -o $@ $<
+SWDEV_SYM_PREFIX = _
+else
+SWDEV_LOCALIZE   = $(OBJCOPY) --keep-global-symbol=wc_SwDev_Callback \
+                   --keep-global-symbol=wc_SwDev_InternalCleanup $< $@
+SWDEV_SYM_PREFIX =
+endif
+
 .PHONY: all clean
 all: $(BUILDDIR)/swdev.o
 
@@ -121,10 +135,10 @@ $(BUILDDIR)/swdev.o: $(BUILDDIR)/swdev.partial.o
 	@# visibility("default") and overrides the command-line
 	@# -fvisibility=hidden. --keep-global-symbol sidesteps that by matching
 	@# on symbol name directly.
-	$(OBJCOPY) --keep-global-symbol=wc_SwDev_Callback \
-	           --keep-global-symbol=wc_SwDev_InternalCleanup $< $@
+	$(SWDEV_LOCALIZE)
 	@# Sanity-check: only the two swdev entry points may be externally visible.
 	@visible=$$( $(NM) --extern-only --defined-only $@ | awk '{print $$3}' \
+	             | sed 's/^$(SWDEV_SYM_PREFIX)//' \
 	             | grep -v '^wc_SwDev_Callback$$' \
 	             | grep -v '^wc_SwDev_InternalCleanup$$' || true); \
 	if [ -n "$$visible" ]; then \
