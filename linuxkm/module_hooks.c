@@ -22,6 +22,7 @@
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifndef WOLFSSL_LICENSE
     #define WOLFSSL_LICENSE "GPL"
@@ -645,7 +646,6 @@ int wc_linuxkm_GenerateSeed_wolfEntropy(OS_Seed* os, byte* output, word32 sz)
 
 /* backported wc_GenerateSeed_IntelRD() for FIPS v5, before breakout of wolfentropy.c. */
 
-#include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
@@ -768,8 +768,10 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
     !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
     !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
+    !defined(WC_LINUXKM_NO_SVR_DYNAMIC_AUDITING)
     #define WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    static int svr_dynamic_auditing = 0;
 #endif
 
 #ifdef FIPS_OPTEST
@@ -828,6 +830,21 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 #endif
+
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    /* inhibit auditing if no vector extensions are available on the host CPU. */
+    {
+        cpuid_flags_t cpuflags = cpuid_get_flags();
+        if (IS_INTEL_AVX1(cpuflags)) {
+            svr_dynamic_auditing = 1;
+        }
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        else {
+            pr_info("wolfssl_init(): SVR dynamic auditing disabled -- host cpuflags missing AVX (0x%lx).\n", (unsigned long)cpuflags);
+        }
+#endif
+    }
+#endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
 #ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
 
@@ -1138,7 +1155,7 @@ static int wolfssl_init(void)
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    {
+    if (svr_dynamic_auditing) {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
     #if !(defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP))
         long long unsigned int svr_disallowed_snapshot;
@@ -1261,7 +1278,7 @@ static int wolfssl_init(void)
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    {
+    if (svr_dynamic_auditing) {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count > 0) {
             pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wc_RunAllCast_fips().\n", svr_disallowed_count);
@@ -1322,17 +1339,19 @@ static int wolfssl_init(void)
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
-    if (ret != 0) {
-        pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
-        (void)libwolfssl_cleanup();
-        return -ECANCELED;
-    }
-    ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
-    if (ret != 0) {
-        pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
-        (void)libwolfssl_cleanup();
-        return -ECANCELED;
+    if (svr_dynamic_auditing) {
+        ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+        if (ret != 0) {
+            pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
+            (void)libwolfssl_cleanup();
+            return -ECANCELED;
+        }
+        ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+        if (ret != 0) {
+            pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
+            (void)libwolfssl_cleanup();
+            return -ECANCELED;
+        }
     }
 #endif
 
@@ -1503,8 +1522,10 @@ static void wc_linuxkm_deinstall(void) {
 #ifdef FIPS_OPTEST
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
-    (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+    if (svr_dynamic_auditing) {
+        (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+        (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+    }
 #endif
 #endif
 #endif
@@ -2476,28 +2497,29 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    if (svr_dynamic_auditing) {
+        /* Note that wc_svr_disallowed_count*() can't be checked in
+         * FIPS_rerun_self_test_handler() -- we're already multiuser at this point
+         * and other threads can and will increment wc_svr_disallowed_count outside
+         * our control.
+         */
 
-    /* Note that wc_svr_disallowed_count*() can't be checked in
-     * FIPS_rerun_self_test_handler() -- we're already multiuser at this point
-     * and other threads can and will increment wc_svr_disallowed_count outside
-     * our control.
-     */
+        ret = DISABLE_VECTOR_REGISTERS();
+        if (ret != 0) {
+            WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
+            pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
+            return -EINVAL;
+        }
 
-    ret = DISABLE_VECTOR_REGISTERS();
-    if (ret != 0) {
-        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
-        return -EINVAL;
-    }
+        ret = wc_RunAllCast_fips();
 
-    ret = wc_RunAllCast_fips();
+        REENABLE_VECTOR_REGISTERS();
 
-    REENABLE_VECTOR_REGISTERS();
-
-    if (ret != 0) {
-        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
-        return -EINVAL;
+        if (ret != 0) {
+            WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
+            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            return -EINVAL;
+        }
     }
 #endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
@@ -2603,46 +2625,49 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     #endif
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    if (svr_dynamic_auditing) {
+        /* The audits treat wc_svr_disallowed_count as ours alone: in_fips_test
+         * excludes the other trigger nodes, and getting
+         * linuxkm_lkcapi_registering_now then checking linuxkm_lkcapi_registered
+         * excludes registered-algorithm consumers.  Optests entail transient
+         * degradation states, necessitating the registered-algorithm exclusion
+         * bidirectionally.
+         */
 
-    /* The audits treat wc_svr_disallowed_count as ours alone: in_fips_test
-     * excludes the other trigger nodes, and getting
-     * linuxkm_lkcapi_registering_now then checking linuxkm_lkcapi_registered
-     * excludes registered-algorithm consumers.  Optests entail transient
-     * degradation states, necessitating the registered-algorithm exclusion
-     * bidirectionally.
-     */
-
-    if ((audit_mode == FIPS_OPTEST_AUDIT_ACCEL) ||
-        (audit_mode == FIPS_OPTEST_AUDIT_C))
-    {
-        if (audit_mode == FIPS_OPTEST_AUDIT_C) {
-            ret = DISABLE_VECTOR_REGISTERS();
-            if (ret != 0) {
-                pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for FIPS_optest_trig_handler() returned %d.\n", ret);
-                ret_count = -EINVAL;
-                goto out;
+        if ((audit_mode == FIPS_OPTEST_AUDIT_ACCEL) ||
+            (audit_mode == FIPS_OPTEST_AUDIT_C))
+        {
+            if (audit_mode == FIPS_OPTEST_AUDIT_C) {
+                ret = DISABLE_VECTOR_REGISTERS();
+                if (ret != 0) {
+                    pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for FIPS_optest_trig_handler() returned %d.\n", ret);
+                    ret_count = -EINVAL;
+                    goto out;
+                }
             }
+            svr_disallowed_before_optest = wc_svr_disallowed_count_current();
         }
-        svr_disallowed_before_optest = wc_svr_disallowed_count_current();
     }
 #endif
 
     ret = linuxkm_op_test_1(argc, &argv[0]);
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    if (audit_mode == FIPS_OPTEST_AUDIT_C) {
-        REENABLE_VECTOR_REGISTERS();
-        svr_disallowed_after_optest = wc_svr_disallowed_count_current();
-        if (svr_disallowed_after_optest == svr_disallowed_before_optest) {
-            pr_err("ERROR: wc_svr_disallowed_count_current() did not increment during optest with DISABLE_VECTOR_REGISTERS().\n");
-            ret_count = -EINVAL;
+    if (svr_dynamic_auditing) {
+        if (audit_mode == FIPS_OPTEST_AUDIT_C) {
+            REENABLE_VECTOR_REGISTERS();
+            svr_disallowed_after_optest = wc_svr_disallowed_count_current();
+            if (svr_disallowed_after_optest == svr_disallowed_before_optest) {
+                pr_err("ERROR: wc_svr_disallowed_count_current() did not increment during optest with DISABLE_VECTOR_REGISTERS().\n");
+                ret_count = -EINVAL;
+            }
         }
-    }
-    else if (audit_mode == FIPS_OPTEST_AUDIT_ACCEL) {
-        svr_disallowed_after_optest = wc_svr_disallowed_count_current();
-        if (svr_disallowed_after_optest != svr_disallowed_before_optest) {
-            pr_err("ERROR: wc_svr_disallowed_count_current() incremented (+%llu) during optest.\n", svr_disallowed_after_optest - svr_disallowed_before_optest);
-            ret_count = -EINVAL;
+        else if (audit_mode == FIPS_OPTEST_AUDIT_ACCEL) {
+            svr_disallowed_after_optest = wc_svr_disallowed_count_current();
+            if (svr_disallowed_after_optest != svr_disallowed_before_optest) {
+                pr_err("ERROR: wc_svr_disallowed_count_current() incremented (+%llu) during optest.\n", svr_disallowed_after_optest - svr_disallowed_before_optest);
+                ret_count = -EINVAL;
+            }
         }
     }
 #endif
@@ -2689,9 +2714,14 @@ out:
 #endif
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    return ret_count ? ret_count : (ssize_t)count;
+    if (svr_dynamic_auditing) {
+        return ret_count ? ret_count : (ssize_t)count;
+    }
+    else
 #else
-    return (ssize_t)count;
+    {
+        return (ssize_t)count;
+    }
 #endif
 }
 
