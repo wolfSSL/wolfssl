@@ -1798,6 +1798,10 @@ enum wc_PkType {
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_SM2_CREATE_DIGEST
 #endif
+    WC_PK_TYPE_ED448_MAKE_PUB  = 54,
+    WC_PK_TYPE_ED448_CHECK_KEY = 55,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_CHECK_KEY
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

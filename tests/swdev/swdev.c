@@ -49,6 +49,9 @@
 #ifdef HAVE_CURVE448
 #include <wolfssl/wolfcrypt/curve448.h>
 #endif
+#ifdef HAVE_ED448
+#include <wolfssl/wolfcrypt/ed448.h>
+#endif
 #ifdef WOLFSSL_HAVE_SLHDSA
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 #endif
@@ -329,6 +332,76 @@ static int swdev_ed25519_check_key(wc_CryptoInfo* info)
     return ret;
 }
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_ED448
+#ifdef HAVE_ED448_SIGN
+static int swdev_ed448_sign(wc_CryptoInfo* info)
+{
+    return wc_ed448_sign_msg_ex(info->pk.ed448sign.in,
+        info->pk.ed448sign.inLen, info->pk.ed448sign.out,
+        info->pk.ed448sign.outLen, info->pk.ed448sign.key,
+        info->pk.ed448sign.type, info->pk.ed448sign.context,
+        info->pk.ed448sign.contextLen);
+}
+#endif
+
+#ifdef HAVE_ED448_VERIFY
+static int swdev_ed448_verify(wc_CryptoInfo* info)
+{
+    return wc_ed448_verify_msg_ex(info->pk.ed448verify.sig,
+        info->pk.ed448verify.sigLen, info->pk.ed448verify.msg,
+        info->pk.ed448verify.msgLen, info->pk.ed448verify.res,
+        info->pk.ed448verify.key, info->pk.ed448verify.type,
+        info->pk.ed448verify.context, info->pk.ed448verify.contextLen);
+}
+#endif
+
+static int swdev_ed448_make_pub(wc_CryptoInfo* info)
+{
+    if (info->pk.ed448makepub.pubOutSz != ED448_PUB_KEY_SIZE)
+        return BUFFER_E;
+    return wc_ed448_make_public(info->pk.ed448makepub.key,
+        info->pk.ed448makepub.pubOut, info->pk.ed448makepub.pubOutSz);
+}
+
+#ifdef HAVE_ED448_KEY_IMPORT
+/* Validate the public key from its wire bytes alone. */
+static int swdev_ed448_check_wire(wc_CryptoInfo* info)
+{
+    int ret;
+    void* heap = info->pk.ed448checkkey.key->heap;
+    WC_DECLARE_VAR(pubOnly, ed448_key, 1, heap);
+
+    WC_ALLOC_VAR(pubOnly, ed448_key, 1, heap);
+    if (!WC_VAR_OK(pubOnly))
+        return MEMORY_E;
+    ret = wc_ed448_init_ex(pubOnly, heap, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_ed448_import_public_ex(info->pk.ed448checkkey.pubKey,
+            info->pk.ed448checkkey.pubKeySz, pubOnly, 0);
+    }
+    wc_ed448_free(pubOnly);
+    WC_FREE_VAR(pubOnly, heap);
+    return ret;
+}
+#endif
+
+static int swdev_ed448_check_key(wc_CryptoInfo* info)
+{
+    int ret = 0;
+    int validatedFromWire = 0;
+
+#ifdef HAVE_ED448_KEY_IMPORT
+    ret = swdev_ed448_check_wire(info);
+    validatedFromWire = 1;
+#endif
+    if (ret == 0 && (!validatedFromWire ||
+            info->pk.ed448checkkey.checkPriv)) {
+        ret = wc_ed448_check_key(info->pk.ed448checkkey.key);
+    }
+    return ret;
+}
+#endif /* HAVE_ED448 */
 
 #ifdef HAVE_CURVE25519
 static int swdev_curve25519_keygen(wc_CryptoInfo* info)
@@ -1483,7 +1556,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     switch (info->algo_type) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
-    defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_MLKEM)
+    defined(HAVE_ED448) || defined(WOLFSSL_HAVE_SLHDSA) || \
+    defined(WOLFSSL_HAVE_MLKEM)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -1558,6 +1632,20 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_CURVE448_GENERIC:
             return swdev_curve448_generic(info);
     #endif /* HAVE_CURVE448 */
+    #ifdef HAVE_ED448
+        #ifdef HAVE_ED448_SIGN
+        case WC_PK_TYPE_ED448:
+            return swdev_ed448_sign(info);
+        #endif
+        #ifdef HAVE_ED448_VERIFY
+        case WC_PK_TYPE_ED448_VERIFY:
+            return swdev_ed448_verify(info);
+        #endif
+        case WC_PK_TYPE_ED448_MAKE_PUB:
+            return swdev_ed448_make_pub(info);
+        case WC_PK_TYPE_ED448_CHECK_KEY:
+            return swdev_ed448_check_key(info);
+    #endif /* HAVE_ED448 */
     #ifdef WOLFSSL_HAVE_SLHDSA
         #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
         case WC_PK_TYPE_PQC_SIG_KEYGEN:

@@ -536,8 +536,8 @@ typedef struct wc_CryptoInfo {
                 ed25519_key* key;       /* routing, heap, resident/sw priv   */
                 const byte*  pubKey;    /* compressed public key (key->p)    */
                 word32       pubKeySz;  /* ED25519_PUB_KEY_SIZE              */
-                int          checkPriv; /* 1: private key present; also check
-                                         * priv/pub consistency              */
+                int          checkPriv; /* 1: private key set or referenced by
+                                         * id/label; also check priv/pub     */
             } ed25519checkkey;
         #endif
         #ifdef HAVE_CURVE448
@@ -591,6 +591,17 @@ typedef struct wc_CryptoInfo {
                 const byte*  context;
                 byte         contextLen;
             } ed448verify;
+            struct {
+                ed448_key*   key;
+                byte*        pubOut;
+                word32       pubOutSz;
+            } ed448makepub;
+            struct {
+                ed448_key*   key;
+                const byte*  pubKey;
+                word32       pubKeySz;
+                int          checkPriv;
+            } ed448checkkey;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -1341,6 +1352,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed448_key* key, byte type,
     const byte* context, byte contextLen);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey,
+    word32 pubKeySz);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448CheckKey(ed448_key* key);
 #endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)

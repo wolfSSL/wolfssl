@@ -67,6 +67,12 @@
 /* both private and public key */
 #define ED25519_PRV_KEY_SIZE (ED25519_PUB_KEY_SIZE+ED25519_KEY_SIZE)
 
+/* Consumers test ED25519_MAX_ID_LEN: FIPS v6 pins an ed25519.h without it. */
+#ifdef WOLF_PRIVATE_KEY_ID
+#define ED25519_MAX_ID_LEN    32
+#define ED25519_MAX_LABEL_LEN 32
+#endif
+
 
 enum {
     Ed25519    = -1,
@@ -107,6 +113,12 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[ED25519_MAX_ID_LEN];
+    int  idLen;
+    char label[ED25519_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 };
 
@@ -181,6 +193,14 @@ WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_ed25519_init_id(ed25519_key* key, const unsigned char* id, int len,
+                       void* heap, int devId);
+WOLFSSL_API
+int wc_ed25519_init_label(ed25519_key* key, const char* label, void* heap,
+                          int devId);
+#endif
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
 #ifndef WC_NO_CONSTRUCTORS

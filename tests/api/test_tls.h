@@ -75,6 +75,8 @@ int test_tls12_corrupted_finished(void);
 int test_tls12_peerauth_failsafe(void);
 int test_tls12_ecdhe_ecdsa_rsa_client_cert(void);
 int test_tls12_ecdhe_rsa_ecdsa_client_cert(void);
+int test_tls12_ed25519_dev_private_key(void);
+int test_tls12_ed448_dev_private_key(void);
 int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
 int test_record_size_matches_build_message(void);
@@ -139,6 +141,8 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
         TEST_DECL_GROUP("tls", test_tls12_ecdhe_ecdsa_rsa_client_cert),        \
         TEST_DECL_GROUP("tls", test_tls12_ecdhe_rsa_ecdsa_client_cert),        \
+        TEST_DECL_GROUP("tls", test_tls12_ed25519_dev_private_key),            \
+        TEST_DECL_GROUP("tls", test_tls12_ed448_dev_private_key),              \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string),                \
         TEST_DECL_GROUP("tls", test_record_size_matches_build_message),        \

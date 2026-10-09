@@ -89553,6 +89553,8 @@ typedef struct {
 #ifdef HAVE_ED448
     int ed448SignCount;   /* Ed448 sign callback invocations */
     int ed448VerifyCount; /* Ed448 verify callback invocations */
+    int ed448MakePubCount;  /* Ed448 make-public callback invocations */
+    int ed448CheckKeyCount; /* Ed448 check-key callback invocations */
 #endif
 #ifdef HAVE_CURVE448
     int curve448KgCount;  /* Curve448 keygen callback invocations */
@@ -91574,6 +91576,30 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->ed448VerifyCount++;
         }
         #endif
+        if (info->pk.type == WC_PK_TYPE_ED448_MAKE_PUB) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed448makepub.key->devId = INVALID_DEVID;
+
+            ret = wc_ed448_make_public(info->pk.ed448makepub.key,
+                info->pk.ed448makepub.pubOut,
+                info->pk.ed448makepub.pubOutSz);
+
+            /* reset devId */
+            info->pk.ed448makepub.key->devId = devIdArg;
+
+            myCtx->ed448MakePubCount++;
+        }
+        if (info->pk.type == WC_PK_TYPE_ED448_CHECK_KEY) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed448checkkey.key->devId = INVALID_DEVID;
+
+            ret = wc_ed448_check_key(info->pk.ed448checkkey.key);
+
+            /* reset devId */
+            info->pk.ed448checkkey.key->devId = devIdArg;
+
+            myCtx->ed448CheckKeyCount++;
+        }
     #endif /* HAVE_ED448 */
     #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
         if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN) {
@@ -95703,6 +95729,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef HAVE_ED448
     myCtx.ed448SignCount = 0;
     myCtx.ed448VerifyCount = 0;
+    myCtx.ed448MakePubCount = 0;
+    myCtx.ed448CheckKeyCount = 0;
 #endif
 #ifdef HAVE_CURVE448
     myCtx.curve448KgCount = 0;
@@ -97100,6 +97128,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         XMEMSET(ed448Msg, 0x5a, sizeof(ed448Msg));
         myCtx.ed448SignCount = 0;
         myCtx.ed448VerifyCount = 0;
+        myCtx.ed448MakePubCount = 0;
+        myCtx.ed448CheckKeyCount = 0;
 
         if (ret == 0) {
             ret = wc_InitRng_ex(&ed448Rng, HEAP_HINT, devId);
@@ -97118,6 +97148,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             if (ret != 0)
                 ret = WC_TEST_RET_ENC_EC(ret);
         }
+        if (ret == 0 && myCtx.ed448MakePubCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            ret = wc_ed448_check_key(ed448Key);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && myCtx.ed448CheckKeyCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
         if (ret == 0) {
             ret = wc_ed448_sign_msg(ed448Msg, (word32)sizeof(ed448Msg),
                 ed448Sig, &ed448SigLen, ed448Key, NULL, 0);

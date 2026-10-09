@@ -5060,3 +5060,208 @@ int test_tls12_aesgcm_record_nonce_unique(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ECC) && \
+    defined(WOLF_PRIVATE_KEY_ID) && defined(WOLF_CRYPTO_CB) && \
+    !defined(NO_CHECK_PRIVATE_KEY) && !defined(WOLFSSL_BLIND_PRIVATE_KEY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+        defined(HAVE_ED25519_VERIFY) && defined(HAVE_ED25519_KEY_IMPORT) && \
+        defined(ED25519_MAX_ID_LEN)
+        #define TEST_TLS12_ED25519_DEV_KEY
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+        defined(HAVE_ED448_VERIFY) && defined(HAVE_ED448_KEY_IMPORT) && \
+        defined(ED448_MAX_ID_LEN)
+        #define TEST_TLS12_ED448_DEV_KEY
+    #endif
+#endif
+
+#if defined(TEST_TLS12_ED25519_DEV_KEY) || defined(TEST_TLS12_ED448_DEV_KEY)
+#define TEST_TLS12_ED_DEV_DEVID 0x45444b59
+
+static const char testTls12EdDevKeyLabel[] = "ed-device-key";
+
+typedef struct TestTls12EdDevCtx {
+#ifdef TEST_TLS12_ED25519_DEV_KEY
+    ed25519_key ed25519;
+#endif
+#ifdef TEST_TLS12_ED448_DEV_KEY
+    ed448_key ed448;
+#endif
+    int signs;
+    int checks;
+} TestTls12EdDevCtx;
+
+/* Device holding the server private key: signs with it and checks it against
+ * the public key it is handed. */
+static int test_tls12_ed_dev_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    TestTls12EdDevCtx* dev = (TestTls12EdDevCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
+        return ret;
+    }
+#ifdef TEST_TLS12_ED25519_DEV_KEY
+    if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
+        ret = wc_ed25519_sign_msg_ex(info->pk.ed25519sign.in,
+            info->pk.ed25519sign.inLen, info->pk.ed25519sign.out,
+            info->pk.ed25519sign.outLen, &dev->ed25519,
+            info->pk.ed25519sign.type, info->pk.ed25519sign.context,
+            info->pk.ed25519sign.contextLen);
+        dev->signs++;
+    }
+    else if (info->pk.type == WC_PK_TYPE_ED25519_CHECK_KEY) {
+        ret = 0;
+        if ((info->pk.ed25519checkkey.pubKeySz != ED25519_PUB_KEY_SIZE) ||
+                (XMEMCMP(info->pk.ed25519checkkey.pubKey, dev->ed25519.p,
+                    ED25519_PUB_KEY_SIZE) != 0)) {
+            ret = PUBLIC_KEY_E;
+        }
+        dev->checks++;
+    }
+#endif
+#ifdef TEST_TLS12_ED448_DEV_KEY
+    if (info->pk.type == WC_PK_TYPE_ED448) {
+        ret = wc_ed448_sign_msg_ex(info->pk.ed448sign.in,
+            info->pk.ed448sign.inLen, info->pk.ed448sign.out,
+            info->pk.ed448sign.outLen, &dev->ed448, info->pk.ed448sign.type,
+            info->pk.ed448sign.context, info->pk.ed448sign.contextLen);
+        dev->signs++;
+    }
+    else if (info->pk.type == WC_PK_TYPE_ED448_CHECK_KEY) {
+        ret = 0;
+        if ((info->pk.ed448checkkey.pubKeySz != ED448_PUB_KEY_SIZE) ||
+                (XMEMCMP(info->pk.ed448checkkey.pubKey, dev->ed448.p,
+                    ED448_PUB_KEY_SIZE) != 0)) {
+            ret = PUBLIC_KEY_E;
+        }
+        dev->checks++;
+    }
+#endif
+
+    return ret;
+}
+
+/* TLS 1.2 server key exchange signed by a device key named by its label. */
+static int test_tls12_ed_dev_key_round(TestTls12EdDevCtx* dev,
+    const char* caFile, const char* certFile)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS12_ED_DEV_DEVID,
+        test_tls12_ed_dev_cb, dev), 0);
+
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, certFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Label(ctx_s, testTls12EdDevKeyLabel,
+        TEST_TLS12_ED_DEV_DEVID), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(dev->checks, 1);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caFile, NULL),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        NULL, NULL), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+    ExpectIntGE(dev->signs, 1);
+    /* The handshake does not check the pair again. */
+    ExpectIntEQ(dev->checks, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS12_ED_DEV_DEVID);
+
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS12_ED25519_DEV_KEY || TEST_TLS12_ED448_DEV_KEY */
+
+int test_tls12_ed25519_dev_private_key(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS12_ED25519_DEV_KEY
+    TestTls12EdDevCtx dev;
+    byte* der = NULL;
+    size_t derSz = 0;
+    word32 idx = 0;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    ExpectIntEQ(wc_ed25519_init(&dev.ed25519), 0);
+    ExpectIntEQ(load_file("./certs/ed25519/server-ed25519-priv.der", &der,
+        &derSz), 0);
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(der, &idx, &dev.ed25519,
+        (word32)derSz), 0);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    idx = 0;
+    ExpectIntEQ(load_file("./certs/ed25519/server-ed25519-key.der", &der,
+        &derSz), 0);
+    ExpectIntEQ(wc_Ed25519PublicKeyDecode(der, &idx, &dev.ed25519,
+        (word32)derSz), 0);
+
+    ExpectIntEQ(test_tls12_ed_dev_key_round(&dev, caEdCertFile, edCertFile),
+        TEST_SUCCESS);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ed25519_free(&dev.ed25519);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls12_ed448_dev_private_key(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS12_ED448_DEV_KEY
+    TestTls12EdDevCtx dev;
+    byte* der = NULL;
+    size_t derSz = 0;
+    word32 idx = 0;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    ExpectIntEQ(wc_ed448_init(&dev.ed448), 0);
+    ExpectIntEQ(load_file("./certs/ed448/server-ed448-priv.der", &der,
+        &derSz), 0);
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode(der, &idx, &dev.ed448,
+        (word32)derSz), 0);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    idx = 0;
+    ExpectIntEQ(load_file("./certs/ed448/server-ed448-key.der", &der,
+        &derSz), 0);
+    ExpectIntEQ(wc_Ed448PublicKeyDecode(der, &idx, &dev.ed448,
+        (word32)derSz), 0);
+
+    ExpectIntEQ(test_tls12_ed_dev_key_round(&dev, caEd448CertFile,
+        ed448CertFile), TEST_SUCCESS);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ed448_free(&dev.ed448);
+#endif
+    return EXPECT_RESULT();
+}

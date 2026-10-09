@@ -178,6 +178,8 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_ED25519_VERIFY: return "ED25519-Verify";
         case WC_PK_TYPE_ED448: return "ED448-Sign";
         case WC_PK_TYPE_ED448_VERIFY: return "ED448-Verify";
+        case WC_PK_TYPE_ED448_MAKE_PUB: return "ED448 MakePub";
+        case WC_PK_TYPE_ED448_CHECK_KEY: return "ED448 CheckKey";
         case WC_PK_TYPE_CURVE25519: return "CURVE25519";
         case WC_PK_TYPE_RSA_KEYGEN: return "RSA KeyGen";
         case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
@@ -1679,9 +1681,16 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
+    int checkPriv;
 
     if (key == NULL)
         return ret;
+
+    checkPriv = key->privKeySet ? 1 : 0;
+#ifdef ED25519_MAX_ID_LEN
+    if ((key->idLen > 0) || (key->labelLen > 0))
+        checkPriv = 1;
+#endif
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
@@ -1696,7 +1705,7 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key)
          */
         cryptoInfo.pk.ed25519checkkey.pubKey = key->p;
         cryptoInfo.pk.ed25519checkkey.pubKeySz = ED25519_PUB_KEY_SIZE;
-        cryptoInfo.pk.ed25519checkkey.checkPriv = key->privKeySet ? 1 : 0;
+        cryptoInfo.pk.ed25519checkkey.checkPriv = checkPriv;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -1885,6 +1894,64 @@ int wc_CryptoCb_Ed448Verify(const byte* sig, word32 sigLen,
         cryptoInfo.pk.ed448verify.type = type;
         cryptoInfo.pk.ed448verify.context = context;
         cryptoInfo.pk.ed448verify.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey, word32 pubKeySz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL || pubKey == NULL || pubKeySz != ED448_PUB_KEY_SIZE)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448_MAKE_PUB;
+        cryptoInfo.pk.ed448makepub.key = key;
+        cryptoInfo.pk.ed448makepub.pubOut = pubKey;
+        cryptoInfo.pk.ed448makepub.pubOutSz = pubKeySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed448CheckKey(ed448_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+    int checkPriv;
+
+    if (key == NULL)
+        return ret;
+
+    checkPriv = key->privKeySet ? 1 : 0;
+#ifdef ED448_MAX_ID_LEN
+    if ((key->idLen > 0) || (key->labelLen > 0))
+        checkPriv = 1;
+#endif
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448_CHECK_KEY;
+        cryptoInfo.pk.ed448checkkey.key = key;
+        cryptoInfo.pk.ed448checkkey.pubKey = key->p;
+        cryptoInfo.pk.ed448checkkey.pubKeySz = ED448_PUB_KEY_SIZE;
+        cryptoInfo.pk.ed448checkkey.checkPriv = checkPriv;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

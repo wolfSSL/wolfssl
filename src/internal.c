@@ -6880,16 +6880,21 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
 #else /* HAVE_ED25519_KEY_IMPORT */
     ed25519_key* key = (ed25519_key*)ssl->hsKey;
     int ret = 0;
+    int trusted = 0;
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
         const unsigned char* pubKey;
         word32 pubKeySz;
 
+    #ifdef ED25519_MAX_ID_LEN
+        /* A device key pair is checked by wolfSSL_CTX_check_private_key. */
+        trusted = (key->idLen > 0) || (key->labelLen > 0);
+    #endif
         ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
             ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            ret = wc_ed25519_import_public(pubKey, pubKeySz, key);
+            ret = wc_ed25519_import_public_ex(pubKey, pubKeySz, key, trusted);
         }
     }
 
@@ -7210,16 +7215,21 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
 #else /* HAVE_ED448_KEY_IMPORT */
     ed448_key* key = (ed448_key*)ssl->hsKey;
     int ret = 0;
+    int trusted = 0;
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
         const unsigned char* pubKey;
         word32 pubKeySz;
 
+    #ifdef ED448_MAX_ID_LEN
+        /* A device key pair is checked by wolfSSL_CTX_check_private_key. */
+        trusted = (key->idLen > 0) || (key->labelLen > 0);
+    #endif
         ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
             ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            ret = wc_ed448_import_public(pubKey, pubKeySz, key);
+            ret = wc_ed448_import_public_ex(pubKey, pubKeySz, key, trusted);
         }
     }
 
@@ -34185,6 +34195,54 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
         }
 #endif
     }
+    else if (hsType == DYNAMIC_TYPE_ED25519) {
+#if defined(HAVE_ED25519) && defined(ED25519_MAX_ID_LEN)
+        ed25519_key* edKey;
+
+        edKey = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
+                                      DYNAMIC_TYPE_ED25519);
+        if (edKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_ed25519_init_label(edKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_ed25519_init_id(edKey, data, (int)length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)edKey;
+        }
+        else {
+            XFREE(edKey, heap, DYNAMIC_TYPE_ED25519);
+        }
+#endif
+    }
+    else if (hsType == DYNAMIC_TYPE_ED448) {
+#if defined(HAVE_ED448) && defined(ED448_MAX_ID_LEN)
+        ed448_key* edKey;
+
+        edKey = (ed448_key*)XMALLOC(sizeof(ed448_key), heap,
+                                    DYNAMIC_TYPE_ED448);
+        if (edKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_ed448_init_label(edKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_ed448_init_id(edKey, data, (int)length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)edKey;
+        }
+        else {
+            XFREE(edKey, heap, DYNAMIC_TYPE_ED448);
+        }
+#endif
+    }
     else if (hsType == DYNAMIC_TYPE_MLDSA) {
 #if defined(WOLFSSL_HAVE_MLDSA)
         wc_MlDsaKey* mldsaKey;
@@ -34329,6 +34387,10 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
             *hsType = DYNAMIC_TYPE_RSA;
         else if (keyType == ecc_dsa_sa_algo)
             *hsType = DYNAMIC_TYPE_ECC;
+        else if (keyType == ed25519_sa_algo)
+            *hsType = DYNAMIC_TYPE_ED25519;
+        else if (keyType == ed448_sa_algo)
+            *hsType = DYNAMIC_TYPE_ED448;
         else if ((keyType == falcon_level1_sa_algo) ||
                  (keyType == falcon_level5_sa_algo))
             *hsType = DYNAMIC_TYPE_FALCON;
@@ -34381,6 +34443,32 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
 
             /* Return the maximum signature length. */
             *sigLen = (word32)wc_ecc_sig_size_calc(keySz);
+    #else
+            ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else if (*hsType == DYNAMIC_TYPE_ED25519) {
+    #ifdef HAVE_ED25519
+            if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
+                WOLFSSL_MSG("ED25519 key size too small");
+                ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+            }
+
+            /* Return the maximum signature length. */
+            *sigLen = ED25519_SIG_SIZE;
+    #else
+            ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else if (*hsType == DYNAMIC_TYPE_ED448) {
+    #ifdef HAVE_ED448
+            if (ED448_KEY_SIZE < ssl->options.minEccKeySz) {
+                WOLFSSL_MSG("ED448 key size too small");
+                ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+            }
+
+            /* Return the maximum signature length. */
+            *sigLen = ED448_SIG_SIZE;
     #else
             ret = NOT_COMPILED_IN;
     #endif

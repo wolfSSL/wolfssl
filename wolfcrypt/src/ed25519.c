@@ -351,7 +351,11 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     if (key == NULL || pubKey == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
         ret = BAD_FUNC_ARG;
 
-    if ((ret == 0) && (!key->privKeySet)) {
+    if ((ret == 0) && (!key->privKeySet)
+    #ifdef WOLF_PRIVATE_KEY_ID
+        && (key->idLen == 0) && (key->labelLen == 0)
+    #endif
+        ) {
         ret = ECC_PRIV_KEY_E;
     }
 
@@ -385,6 +389,11 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
         ret = 0; /* device declined the offload; fall back */
     }
 #endif
+
+    /* A key named by id or label has no private key for software to use. */
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = ECC_PRIV_KEY_E;
+    }
 
 #ifdef WOLF_CRYPTO_CB_ONLY_ED25519
     /* software derivation is stripped and no device handled the op;
@@ -1394,6 +1403,52 @@ int wc_ed25519_init(ed25519_key* key)
 {
     return wc_ed25519_init_ex(key, NULL, INVALID_DEVID);
 }
+
+#ifdef WOLF_PRIVATE_KEY_ID
+/* initialize key that references a device key by id */
+int wc_ed25519_init_id(ed25519_key* key, const unsigned char* id, int len,
+                       void* heap, int devId)
+{
+    int ret = 0;
+
+    if (key == NULL || (id == NULL && len > 0))
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > ED25519_MAX_ID_LEN))
+        ret = BUFFER_E;
+    if (ret == 0)
+        ret = wc_ed25519_init_ex(key, heap, devId);
+    if (ret == 0 && id != NULL && len != 0) {
+        XMEMCPY(key->id, id, (size_t)len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+
+/* initialize key that references a device key by label */
+int wc_ed25519_init_label(ed25519_key* key, const char* label, void* heap,
+                          int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if (key == NULL || label == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if (labelLen == 0 || labelLen > ED25519_MAX_LABEL_LEN)
+            ret = BUFFER_E;
+    }
+    if (ret == 0)
+        ret = wc_ed25519_init_ex(key, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(key->label, label, (size_t)labelLen);
+        key->labelLen = labelLen;
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 /* clear memory of key */
 void wc_ed25519_free(ed25519_key* key)

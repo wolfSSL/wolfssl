@@ -387,7 +387,11 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && (!key->privKeySet)) {
+    if ((ret == 0) && (!key->privKeySet)
+    #ifdef WOLF_PRIVATE_KEY_ID
+        && (key->idLen == 0) && (key->labelLen == 0)
+    #endif
+        ) {
         ret = ECC_PRIV_KEY_E;
     }
 
@@ -397,6 +401,31 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
          * as well, so pubKeySet below doesn't end up set on a key whose p/k
          * are still empty. */
         storePub = !key->pubKeySet;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed448MakePub(key, pubKey, pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0) {
+                if (storePub)
+                    ed448_store_public(key, pubKey);
+                key->pubKeySet = 1;
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
+
+    /* A key named by id or label has no private key for software to use. */
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = ECC_PRIV_KEY_E;
     }
 
     if (ret == 0)
@@ -1194,6 +1223,77 @@ int wc_ed448_init(ed448_key* key) {
     return wc_ed448_init_ex(key, NULL, INVALID_DEVID);
 }
 
+#ifdef WOLF_PRIVATE_KEY_ID
+/* Initialize an Ed448 key that references a device key by id.
+ *
+ * key   [in]  Ed448 key.
+ * id    [in]  Identifier of the device key.
+ * len   [in]  Length of the identifier in bytes.
+ * heap  [in]  Heap hint.
+ * devId [in]  Device identifier.
+ * returns BAD_FUNC_ARG when key is NULL or id is NULL with a positive len,
+ *         BUFFER_E when len is negative or more than ED448_MAX_ID_LEN,
+ *         0 otherwise.
+ */
+int wc_ed448_init_id(ed448_key* key, const unsigned char* id, int len,
+                     void* heap, int devId)
+{
+    int ret = 0;
+
+    if ((key == NULL) || ((id == NULL) && (len > 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && ((len < 0) || (len > ED448_MAX_ID_LEN))) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        ret = wc_ed448_init_ex(key, heap, devId);
+    }
+    if ((ret == 0) && (id != NULL) && (len != 0)) {
+        XMEMCPY(key->id, id, (size_t)len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+
+/* Initialize an Ed448 key that references a device key by label.
+ *
+ * key   [in]  Ed448 key.
+ * label [in]  NUL terminated label of the device key.
+ * heap  [in]  Heap hint.
+ * devId [in]  Device identifier.
+ * returns BAD_FUNC_ARG when key or label is NULL,
+ *         BUFFER_E when label is empty or longer than ED448_MAX_LABEL_LEN,
+ *         0 otherwise.
+ */
+int wc_ed448_init_label(ed448_key* key, const char* label, void* heap,
+                        int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if ((key == NULL) || (label == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if ((labelLen == 0) || (labelLen > ED448_MAX_LABEL_LEN)) {
+            ret = BUFFER_E;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_ed448_init_ex(key, heap, devId);
+    }
+    if (ret == 0) {
+        XMEMCPY(key->label, label, (size_t)labelLen);
+        key->labelLen = labelLen;
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 /* Clears the ed448 key data
  *
  * key  [in]  Ed448 key.
@@ -1625,6 +1725,20 @@ int wc_ed448_check_key(ed448_key* key)
     if (ret == 0 && !key->pubKeySet) {
         ret = PUBLIC_KEY_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed448CheckKey(key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0;
+    }
+#endif
 
     /* Reject small-order pub key before the priv-vs-pub compare so the
      * diagnostic isn't masked by a "mismatch" error. */
