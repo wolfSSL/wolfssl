@@ -36,15 +36,25 @@ enum {
     CRYPTO_KE_FORMAT_BIN_RSA_PUBLICKEY = 0x06
 };
 
-/* implementation specific structure, for now not used */
+/* implementation specific structure, carried down from CryIf_ConfigType.
+ * The driver applies these to every wolfCrypt context it creates. */
 typedef struct Crypto_ConfigType {
     void* heap;
+    int   devId;
 } Crypto_ConfigType;
 
 WOLFSSL_LOCAL Std_ReturnType Crypto_KeyElementSet(uint32 keyId, uint32 eId,
         const uint8* key, uint32 keySz);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_LOCAL Std_ReturnType Crypto_KeyElementSetId(uint32 keyId, uint32 eId,
+        const uint8* id, uint32 idLen);
+WOLFSSL_LOCAL Std_ReturnType Crypto_KeyElementSetLabel(uint32 keyId,
+        uint32 eId, const char* label);
+#endif
 WOLFSSL_LOCAL void Crypto_Init(const Crypto_ConfigType* config);
 WOLFSSL_LOCAL Std_ReturnType Crypto_ProcessJob(uint32 objectId,
+        Crypto_JobType* job);
+WOLFSSL_LOCAL Std_ReturnType Crypto_CancelJob(uint32 objectId,
         Crypto_JobType* job);
 
 #ifdef __cplusplus

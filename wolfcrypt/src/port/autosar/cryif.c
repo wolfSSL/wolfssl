@@ -43,8 +43,18 @@
 /* initialization function */
 void CryIf_Init(const CryIf_ConfigType* in)
 {
-    (void)in;
-    Crypto_Init(NULL);
+    Crypto_ConfigType cryptoConfig;
+
+    if (in != NULL) {
+        cryptoConfig.heap  = in->heap;
+        cryptoConfig.devId = in->devId;
+    }
+    else {
+        cryptoConfig.heap  = NULL;
+        cryptoConfig.devId = WOLFSSL_AUTOSAR_DEVID;
+    }
+
+    Crypto_Init(&cryptoConfig);
 }
 
 
@@ -78,14 +88,22 @@ Std_ReturnType CryIf_ProcessJob(uint32 id, Crypto_JobType* job)
 }
 
 
-/* not implemented yet since async not supported */
+/* Passes a cancel down to the driver, which releases the job's slot.
+ *
+ * There is nothing queued at this layer to withdraw -- every job is
+ * synchronous, so one is either running in the caller's own thread or has
+ * already returned -- which is why this does not check processingType the way
+ * CryIf_ProcessJob() does.
+ *
+ * returns E_OK when the driver released a slot */
 Std_ReturnType CryIf_CancelJob(uint32 id, Crypto_JobType* job)
 {
-    (void)id;
-    (void)job;
-    WOLFSSL_STUB("CryIf_CancelJob");
+    if (job == NULL) {
+        WOLFSSL_MSG("CryIf_CancelJob called with no job");
+        return E_NOT_OK;
+    }
 
-    return E_NOT_OK;
+    return Crypto_CancelJob(id, job);
 }
 
 
@@ -100,6 +118,34 @@ Std_ReturnType CryIf_KeyElementSet(uint32 keyId, uint32 eId, const uint8* key,
 
     return Crypto_KeyElementSet(keyId, eId, key, keySz);
 }
+
+
+#ifdef WOLF_PRIVATE_KEY_ID
+/* return E_OK on success */
+Std_ReturnType CryIf_KeyElementSetId(uint32 keyId, uint32 eId, const uint8* id,
+        uint32 idLen)
+{
+    if (id == NULL || idLen == 0) {
+        /* report CRYIF_E_PARAM_POINTER to the DET */
+        return E_NOT_OK;
+    }
+
+    return Crypto_KeyElementSetId(keyId, eId, id, idLen);
+}
+
+
+/* return E_OK on success */
+Std_ReturnType CryIf_KeyElementSetLabel(uint32 keyId, uint32 eId,
+        const char* label)
+{
+    if (label == NULL) {
+        /* report CRYIF_E_PARAM_POINTER to the DET */
+        return E_NOT_OK;
+    }
+
+    return Crypto_KeyElementSetLabel(keyId, eId, label);
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
 #endif /* NO_WOLFSSL_AUTOSAR_CRYIF */
 #endif /* WOLFSSL_AUTOSAR */
 

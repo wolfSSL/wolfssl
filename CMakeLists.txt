@@ -4031,8 +4031,48 @@ add_option("WOLFSSL_AUTOSAR"
     "Enable AUTOSAR support (default: disabled)"
     "no" "yes;no")
 if(WOLFSSL_AUTOSAR)
+    # The Crypto driver is built around Aes and the AES APIs, and this option
+    # now compiles csm.c/cryif.c/crypto.c rather than only defining a macro,
+    # so AES is a prerequisite of the port itself and not just of its MAC
+    # services. Without this the build reaches C compilation with Aes
+    # unavailable.
+    if(NOT WOLFSSL_AES)
+        message(FATAL_ERROR "WOLFSSL_AUTOSAR requires AES")
+    endif()
+    # The cipher services are AES-CBC specifically: wc_AesCbcEncrypt() and
+    # wc_AesCbcDecrypt() are compiled out with WOLFSSL_AESCBC=no, so AES alone
+    # is not enough to build the driver.
+    if(NOT WOLFSSL_AESCBC)
+        message(FATAL_ERROR "WOLFSSL_AUTOSAR requires AES-CBC")
+    endif()
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_AUTOSAR"
+        )
+endif()
+
+add_option("WOLFSSL_AUTOSAR_CMAC"
+    "Enable AUTOSAR MAC generate/verify services using AES-CMAC, requires WOLFSSL_AUTOSAR (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_AUTOSAR_CMAC)
+    if(NOT WOLFSSL_AUTOSAR)
+        message(FATAL_ERROR
+            "WOLFSSL_AUTOSAR_CMAC requires WOLFSSL_AUTOSAR")
+    endif()
+    # AES is checked by the WOLFSSL_AUTOSAR block above, which this option
+    # requires, so there is nothing to repeat here.
+    # The driver calls wc_InitCmac()/wc_CmacUpdate()/wc_CmacFinalNoFree().
+    # The WOLFSSL_CMAC block runs earlier in this file, so turning the option
+    # on here also has to add the definitions it would have added --
+    # WOLFSSL_AES_DIRECT included, since cmac.c compiles out its WC_CMAC_AES
+    # case without it and wc_InitCmac() then fails at runtime.
+    if(NOT WOLFSSL_CMAC)
+        override_cache(WOLFSSL_CMAC "yes")
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_CMAC"
+            "-DWOLFSSL_AES_DIRECT")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_AUTOSAR_CMAC"
         )
 endif()
 
