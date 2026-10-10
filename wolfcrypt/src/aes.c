@@ -5298,6 +5298,11 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static int AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
+        /* Reject invalid AES key lengths early (FIPS 197: 128/192/256 only);
+         * wc_AesSetKeyDirect only bounds-checks keylen. */
+        if (userKey == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
+            return BAD_FUNC_ARG;
+        }
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
         defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
         defined(WOLFSSL_AES_CTS)

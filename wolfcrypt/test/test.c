@@ -1299,6 +1299,15 @@ static wc_test_ret_t keyid_test(void);
 /* Not all unexpected conditions are actually errors .*/
 #define WARNING_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 
+/* Success from a caller-seeded PQ service: FIPS v7 returns the
+ * non-approved indicator (same definition as tests/api/api.h). */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define SEED_OK  WC_FIPS_NOT_APPROVED
+#else
+    #define SEED_OK  0
+#endif
+
 void wc_test_render_error_message(const char* msg, wc_test_ret_t es)
 {
     (void)msg;
@@ -64182,7 +64191,7 @@ static wc_test_ret_t mlkem_seed_consistency_test(void)
             goto out_seed;
         }
         ret = wc_MlKemKey_MakeKeyWithRandom(key, seed, (int)sizeof(seed));
-        if (ret == 0)
+        if (ret == SEED_OK)
             ret = wc_MlKemKey_PrivateKeySize(key, &expandedSz);
         if (ret != 0) {
             wc_MlKemKey_Free(key);
@@ -69156,7 +69165,7 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_MlDsaKey_MakeKeyFromSeed(freshKey, mldsa_kat_key_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifdef WOLFSSL_MLDSA_CHECK_KEY
     ret = wc_MlDsaKey_CheckKey(freshKey);
@@ -69167,7 +69176,7 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest)
     ret = wc_MlDsaKey_SignCtxWithSeed(freshKey, NULL, 0, freshSig,
         &freshSigLen, mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg),
         mldsa_kat_sig_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (expDigest != NULL) {
         ret = wc_InitShake256(&shake, HEAP_HINT, INVALID_DEVID);
@@ -69194,12 +69203,12 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest)
 
     /* Fill the caches from another key before regenerating. */
     ret = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_kat_sig_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     sigLen = (word32)sigSz;
     ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen,
         mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), mldsa_kat_sig_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
     ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, mldsa_kat_msg,
@@ -69211,12 +69220,12 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest)
 #endif
 
     ret = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_kat_key_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     sigLen = (word32)sigSz;
     ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen,
         mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), mldsa_kat_sig_seed);
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if ((sigLen != freshSigLen) || (XMEMCMP(sig, freshSig, sigLen) != 0))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
