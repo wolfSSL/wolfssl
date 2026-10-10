@@ -72349,6 +72349,10 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
     word32 sigLen;
+#ifndef WOLFSSL_SLHDSA_PARAM_NO_128F
+    WC_DECLARE_VAR(sig2, byte, WC_SLHDSA_SHAKE128F_SIG_LEN, HEAP_HINT);
+    word32 sig2Len;
+#endif
     byte pk[WC_SLHDSA_MAX_PUB_LEN];
     word32 outLen;
     static const byte msg[] = {
@@ -72363,6 +72367,10 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
+#ifndef WOLFSSL_SLHDSA_PARAM_NO_128F
+    WC_ALLOC_VAR_EX(sig2, byte, WC_SLHDSA_SHAKE128F_SIG_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
+#endif
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
@@ -72444,6 +72452,21 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
+#ifndef WOLFSSL_SLHDSA_PARAM_NO_128F
+        /* (NULL, 0) and a non-NULL message of length 0 give the same
+         * deterministic signature. */
+        sig2Len = WC_SLHDSA_SHAKE128F_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0, msg, 0, sig2,
+            &sig2Len);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        if ((sig2Len != sigLen) || (XMEMCMP(sig, sig2, sigLen) != 0)) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+#endif
     }
 
     /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
@@ -72557,6 +72580,9 @@ out:
         wc_SlhDsaKey_Free(key);
     }
     wc_FreeRng(&rng);
+#ifndef WOLFSSL_SLHDSA_PARAM_NO_128F
+    WC_FREE_VAR_EX(sig2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
