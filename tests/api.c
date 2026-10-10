@@ -30255,7 +30255,8 @@ static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
 #endif
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /* Ensure the cached revoked stack is rebuilt after a newer CRL replaces the
  * entry it was built from. */
 static int test_wolfSSL_X509_CRL_get_REVOKED_after_update(void)
@@ -45029,7 +45030,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     TEST_DECL(test_wolfSSL_X509_CRL_get_REVOKED_after_update),
 #endif
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
