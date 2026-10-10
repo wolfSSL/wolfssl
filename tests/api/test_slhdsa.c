@@ -3345,10 +3345,18 @@ int test_wc_SlhdsaDecisionCoverage(void)
         ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, dummyMsg, 0, NULL,
             sizeof(dummyMsg), dummySig, &tinySigSz, dummyAddRnd),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));    /* msg==NULL */
-        tinySigSz = 1;
-        ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, dummyMsg, 0, NULL,
-            0, dummySig, &tinySigSz, dummyAddRnd),
-            WC_NO_ERR_TRACE(BAD_LENGTH_E));    /* msg==NULL, msgSz==0 */
+        {
+            /* msg==NULL, msgSz==0: passes the argument check and signs. */
+            byte* emptyMsgSig = NULL;
+            word32 emptyMsgSigSz = TEST_SLHDSA_DEFAULT_SIG_LEN;
+
+            ExpectNotNull(emptyMsgSig = (byte*)XMALLOC(
+                TEST_SLHDSA_DEFAULT_SIG_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+            ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, dummyMsg, 0, NULL,
+                0, emptyMsgSig, &emptyMsgSigSz, dummyAddRnd), 0);
+            ExpectIntEQ(emptyMsgSigSz, TEST_SLHDSA_DEFAULT_SIG_LEN);
+            XFREE(emptyMsgSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
         tinySigSz = 1;
         ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, NULL, 0, dummyMsg,
             sizeof(dummyMsg), NULL, &tinySigSz, dummyAddRnd),

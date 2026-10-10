@@ -9316,16 +9316,17 @@ static int slhdsakey_sign_internal_msg(SlhDsaKey* key, const byte* m,
  * @param [in]      key    SLH-DSA key.
  * @param [in]      ctx    Context of signing.
  * @param [in]      ctxSz  Length of context in bytes.
- * @param [in]      msg    Message to sign.
+ * @param [in]      msg    Message to sign. May be NULL if msgSz is 0.
  * @param [in]      msgSz  Length of message in bytes.
  * @param [out]     sig    Buffer to hold signature.
  * @param [in, out] sigSz  On in, length of signature buffer.
  *                         On out, length of signature data.
  * @param [in]      addRnd opt_rand (PK.seed for deterministic, random otherwise).
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, key's parameters, msg, sig, sigSz or addRnd
+ * @return  BAD_FUNC_ARG when key, key's parameters, sig, sigSz or addRnd
  *          is NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
+ * @return  BAD_FUNC_ARG when msg is NULL but msg length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length.
  * @return  MISSING_KEY when private key not set.
  * @return  MEMORY_E on dynamic memory allocation failure.
@@ -9453,7 +9454,7 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @param [in]      key    SLH-DSA key.
  * @param [in]      ctx    Context of signing.
  * @param [in]      ctxSz  Length of context in bytes.
- * @param [in]      msg    Message to sign.
+ * @param [in]      msg    Message to sign. May be NULL if msgSz is 0.
  * @param [in]      msgSz  Length of message in bytes.
  * @param [out]     sig    Buffer to hold signature.
  * @param [in, out] sigSz  On in, length of signature buffer.
@@ -9496,7 +9497,7 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @param [in]      key     SLH-DSA key.
  * @param [in]      ctx     Context of signing.
  * @param [in]      ctxSz   Length of context in bytes.
- * @param [in]      msg     Message to sign.
+ * @param [in]      msg     Message to sign. May be NULL if msgSz is 0.
  * @param [in]      msgSz   Length of message in bytes.
  * @param [out]     sig     Buffer to hold signature.
  * @param [in, out] sigSz   On in, length of signature buffer.
@@ -9582,16 +9583,16 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @param [in]      key     SLH-DSA key.
  * @param [in]      ctx     Context of signing.
  * @param [in]      ctxSz   Length of context in bytes.
- * @param [in]      msg     Message to sign.
+ * @param [in]      msg     Message to sign. May be NULL if msgSz is 0.
  * @param [in]      msgSz   Length of message in bytes.
  * @param [out]     sig     Buffer to hold signature.
  * @param [in, out] sigSz   On in, length of signature buffer.
  *                          On out, length of signature data.
  * @param [in]      rng     Random number generator.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, key's parameters, msg, sig, sigSz or rng is
- *          NULL.
+ * @return  BAD_FUNC_ARG when key, key's parameters, sig, sigSz or rng is NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
+ * @return  BAD_FUNC_ARG when msg is NULL but msg length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length.
  * @return  MISSING_KEY when private key not set.
  * @return  MEMORY_E on dynamic memory allocation failure.
@@ -9863,13 +9864,14 @@ static int slhdsakey_verify(SlhDsaKey* key, byte* md, const byte* sig)
  * @param [in] key    SLH-DSA key.
  * @param [in] ctx    Context of signing.
  * @param [in] ctxSz  Length of context in bytes.
- * @param [in] msg    Message to sign.
+ * @param [in] msg    Message to verify. May be NULL if msgSz is 0.
  * @param [in] msgSz  Length of message in bytes.
  * @param [in] sig    Signature data.
  * @param [in] sigSz  Length of signature in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, key's parameters, msg or sig is NULL.
+ * @return  BAD_FUNC_ARG when key, key's parameters or sig is NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctxSz is greater than 0.
+ * @return  BAD_FUNC_ARG when msg is NULL but msgSz is greater than 0.
  * @return  BAD_LENGTH_E when signature size does not match parameters.
  * @return  MISSING_KEY when public key not set.
  * @return  MEMORY_E on dynamic memory allocation failure.
