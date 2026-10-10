@@ -54,6 +54,7 @@
 
 #ifndef WOLFSSL_SILABS_HOST_TEST
     #include <sl_se_manager_key_handling.h>
+    #include <sl_se_manager_internal_keys.h>
 #endif
 
 /* Wrapped keys are a Secure Vault High feature. On a Vault Mid part the SE has
@@ -138,10 +139,32 @@ static int silabs_key_ecc_type(int curveId, sl_se_key_type_t* type,
 #if !defined(NO_AES) && defined(WOLFSSL_SILABS_WRAPPED_KEYS) && \
     defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER)
 
-int wc_SilabsSe_AesGetWrappedKeySize(int keyBits, word32* outSz)
+/* Describe a wrapped AES key. The SE checks the flags against the ones the
+ * key was wrapped with, so generate, size and bind all build it here. */
+static int silabs_key_aes_wrapped_desc(int keyBits, word32 seKeyFlags,
+    sl_se_key_descriptor_t* desc)
+{
+    sl_se_key_type_t type;
+    int ret;
+
+    ret = silabs_key_aes_type(keyBits, &type);
+    if (ret != 0) {
+        return ret;
+    }
+
+    XMEMSET(desc, 0, sizeof(*desc));
+    desc->type = type;
+    desc->flags = seKeyFlags;
+    desc->size = (uint32_t)(keyBits / 8);
+    desc->storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
+
+    return 0;
+}
+
+int wc_SilabsSe_AesGetWrappedKeySize(int keyBits, word32 seKeyFlags,
+    word32* outSz)
 {
     sl_se_key_descriptor_t desc;
-    sl_se_key_type_t type;
     uint32_t sz = 0;
     int ret;
 
@@ -149,15 +172,10 @@ int wc_SilabsSe_AesGetWrappedKeySize(int keyBits, word32* outSz)
         return BAD_FUNC_ARG;
     }
 
-    ret = silabs_key_aes_type(keyBits, &type);
+    ret = silabs_key_aes_wrapped_desc(keyBits, seKeyFlags, &desc);
     if (ret != 0) {
         return ret;
     }
-
-    XMEMSET(&desc, 0, sizeof(desc));
-    desc.type = type;
-    desc.flags = SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    desc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
 
     ret = silabs_cb_status((int)sl_se_get_storage_size(&desc, &sz));
     if (ret == 0) {
@@ -167,11 +185,11 @@ int wc_SilabsSe_AesGetWrappedKeySize(int keyBits, word32* outSz)
     return ret;
 }
 
-int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, byte* out, word32* outSz)
+int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, word32 seKeyFlags,
+    byte* out, word32* outSz)
 {
     sl_se_command_context_t cmd = SL_SE_COMMAND_CONTEXT_INIT;
     sl_se_key_descriptor_t desc;
-    sl_se_key_type_t type;
     word32 need = 0;
     int ret;
 
@@ -179,7 +197,7 @@ int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, byte* out, word32* outSz)
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_SilabsSe_AesGetWrappedKeySize(keyBits, &need);
+    ret = wc_SilabsSe_AesGetWrappedKeySize(keyBits, seKeyFlags, &need);
     if (ret != 0) {
         return ret;
     }
@@ -188,16 +206,10 @@ int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, byte* out, word32* outSz)
         return BUFFER_E;
     }
 
-    ret = silabs_key_aes_type(keyBits, &type);
+    ret = silabs_key_aes_wrapped_desc(keyBits, seKeyFlags, &desc);
     if (ret != 0) {
         return ret;
     }
-
-    XMEMSET(&desc, 0, sizeof(desc));
-    desc.type = type;
-    desc.flags = SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    desc.size = (uint32_t)(keyBits / 8);
-    desc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
     desc.storage.location.buffer.pointer = out;
     desc.storage.location.buffer.size = need;
 
@@ -210,10 +222,10 @@ int wc_SilabsSe_AesGenerateWrappedKey(int keyBits, byte* out, word32* outSz)
 }
 
 int wc_SilabsSe_AesUseWrappedKey(Aes* aes, const byte* wrapped,
-    word32 wrappedSz, int keyBits)
+    word32 wrappedSz, int keyBits, word32 seKeyFlags)
 {
     sl_se_command_context_t cc = SL_SE_COMMAND_CONTEXT_INIT;
-    sl_se_key_type_t type;
+    sl_se_key_descriptor_t desc;
     word32 need = 0;
     int ret;
 
@@ -221,7 +233,7 @@ int wc_SilabsSe_AesUseWrappedKey(Aes* aes, const byte* wrapped,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_SilabsSe_AesGetWrappedKeySize(keyBits, &need);
+    ret = wc_SilabsSe_AesGetWrappedKeySize(keyBits, seKeyFlags, &need);
     if (ret != 0) {
         return ret;
     }
@@ -229,17 +241,13 @@ int wc_SilabsSe_AesUseWrappedKey(Aes* aes, const byte* wrapped,
         return BAD_LENGTH_E;
     }
 
-    ret = silabs_key_aes_type(keyBits, &type);
+    ret = silabs_key_aes_wrapped_desc(keyBits, seKeyFlags, &desc);
     if (ret != 0) {
         return ret;
     }
 
     aes->ctx.cmd_ctx = cc;
-    XMEMSET(&(aes->ctx.key), 0, sizeof(sl_se_key_descriptor_t));
-    aes->ctx.key.type = type;
-    aes->ctx.key.flags = SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    aes->ctx.key.size = (uint32_t)(keyBits / 8);
-    aes->ctx.key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
+    aes->ctx.key = desc;
     /* The descriptor references the caller's blob, which must outlive the
      * Aes. Nothing is copied: that is the point of a wrapped key. */
     aes->ctx.key.storage.location.buffer.pointer = (uint8_t*)wrapped;
@@ -352,10 +360,33 @@ static int silabs_ecc_bind_pubkey(ecc_key* key, sl_se_key_type_t type,
 }
 
 #ifdef WOLFSSL_SILABS_WRAPPED_KEYS
-int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32* outSz)
+/* Describe a wrapped ECC private key. As for AES, the flags are part of the
+ * wrapped blob; SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY makes it an ECDSA key,
+ * without it the key can only be used for ECDH. */
+static int silabs_key_ecc_wrapped_desc(int curveId, word32 seKeyFlags,
+    sl_se_key_descriptor_t* desc, word32* keySz)
+{
+    sl_se_key_type_t type;
+    int ret;
+
+    ret = silabs_key_ecc_type(curveId, &type, keySz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    XMEMSET(desc, 0, sizeof(*desc));
+    desc->type = type;
+    desc->flags = seKeyFlags | SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY;
+    desc->size = *keySz;
+    desc->storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
+
+    return 0;
+}
+
+int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32 seKeyFlags,
+    word32* outSz)
 {
     sl_se_key_descriptor_t desc;
-    sl_se_key_type_t type;
     word32 keySz = 0;
     uint32_t sz = 0;
     int ret;
@@ -364,17 +395,10 @@ int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32* outSz)
         return BAD_FUNC_ARG;
     }
 
-    ret = silabs_key_ecc_type(curveId, &type, &keySz);
+    ret = silabs_key_ecc_wrapped_desc(curveId, seKeyFlags, &desc, &keySz);
     if (ret != 0) {
         return ret;
     }
-
-    XMEMSET(&desc, 0, sizeof(desc));
-    desc.type = type;
-    desc.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY |
-                 SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    desc.size = keySz;
-    desc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
 
     ret = silabs_cb_status((int)sl_se_get_storage_size(&desc, &sz));
     if (ret == 0) {
@@ -384,13 +408,12 @@ int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32* outSz)
     return ret;
 }
 
-int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
-    word32* wrappedSz, byte* pubOut, word32* pubOutSz)
+int wc_SilabsSe_EccGenerateWrappedKey(int curveId, word32 seKeyFlags,
+    byte* wrapped, word32* wrappedSz, byte* pubOut, word32* pubOutSz)
 {
     sl_se_command_context_t cmd = SL_SE_COMMAND_CONTEXT_INIT;
     sl_se_key_descriptor_t desc;
     sl_se_key_descriptor_t pubDesc;
-    sl_se_key_type_t type;
     word32 keySz = 0;
     word32 need = 0;
     int ret;
@@ -399,11 +422,11 @@ int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
         return BAD_FUNC_ARG;
     }
 
-    ret = silabs_key_ecc_type(curveId, &type, &keySz);
+    ret = silabs_key_ecc_wrapped_desc(curveId, seKeyFlags, &desc, &keySz);
     if (ret != 0) {
         return ret;
     }
-    ret = wc_SilabsSe_EccGetWrappedKeySize(curveId, &need);
+    ret = wc_SilabsSe_EccGetWrappedKeySize(curveId, seKeyFlags, &need);
     if (ret != 0) {
         return ret;
     }
@@ -419,12 +442,6 @@ int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
         return BUFFER_E;
     }
 
-    XMEMSET(&desc, 0, sizeof(desc));
-    desc.type = type;
-    desc.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY |
-                 SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    desc.size = keySz;
-    desc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
     desc.storage.location.buffer.pointer = wrapped;
     desc.storage.location.buffer.size = need;
 
@@ -436,7 +453,7 @@ int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
 
     if (pubOut != NULL) {
         XMEMSET(&pubDesc, 0, sizeof(pubDesc));
-        pubDesc.type = type;
+        pubDesc.type = desc.type;
         pubDesc.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY;
         pubDesc.size = keySz;
         pubDesc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
@@ -454,10 +471,10 @@ int wc_SilabsSe_EccGenerateWrappedKey(int curveId, byte* wrapped,
 }
 
 int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
-    word32 wrappedSz, int curveId)
+    word32 wrappedSz, int curveId, word32 seKeyFlags)
 {
     sl_se_command_context_t cc = SL_SE_COMMAND_CONTEXT_INIT;
-    sl_se_key_type_t type;
+    sl_se_key_descriptor_t desc;
     word32 keySz = 0;
     word32 need = 0;
     int ret;
@@ -466,11 +483,11 @@ int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
         return BAD_FUNC_ARG;
     }
 
-    ret = silabs_key_ecc_type(curveId, &type, &keySz);
+    ret = silabs_key_ecc_wrapped_desc(curveId, seKeyFlags, &desc, &keySz);
     if (ret != 0) {
         return ret;
     }
-    ret = wc_SilabsSe_EccGetWrappedKeySize(curveId, &need);
+    ret = wc_SilabsSe_EccGetWrappedKeySize(curveId, seKeyFlags, &need);
     if (ret != 0) {
         return ret;
     }
@@ -487,12 +504,7 @@ int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
     key->type = ECC_PRIVATEKEY;
 
     key->cmd_ctx = cc;
-    XMEMSET(&(key->key), 0, sizeof(sl_se_key_descriptor_t));
-    key->key.type = type;
-    key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY |
-                     SL_SE_KEY_FLAG_NON_EXPORTABLE;
-    key->key.size = keySz;
-    key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_WRAPPED;
+    key->key = desc;
     key->key.storage.location.buffer.pointer = (uint8_t*)wrapped;
     key->key.storage.location.buffer.size = wrappedSz;
     /* Drop any software key material - the SE holds this key now. The object
@@ -505,7 +517,7 @@ int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
     ecc_forcezero_k(key);
     key->silabsKeySet = 1;
 
-    return silabs_ecc_bind_pubkey(key, type, keySz);
+    return silabs_ecc_bind_pubkey(key, desc.type, keySz);
 }
 #endif /* WOLFSSL_SILABS_WRAPPED_KEYS */
 
@@ -513,6 +525,8 @@ int wc_SilabsSe_EccUseBuiltInKey(ecc_key* key, int slot, int curveId)
 {
     sl_se_command_context_t cc = SL_SE_COMMAND_CONTEXT_INIT;
     sl_se_key_type_t type;
+    word32 flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY |
+                   SL_SE_KEY_FLAG_NON_EXPORTABLE;
     word32 keySz = 0;
     int ret;
 
@@ -524,6 +538,19 @@ int wc_SilabsSe_EccUseBuiltInKey(ecc_key* key, int slot, int curveId)
     if (ret != 0) {
         return ret;
     }
+#if defined(_SILICON_LABS_SECURITY_FEATURE) && \
+    (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
+    if (slot == SL_SE_KEY_SLOT_APPLICATION_ATTESTATION_KEY) {
+        /* The SE refuses this slot unless the descriptor carries its exact
+         * flags (device generated, signing only), which differ between SE
+         * versions, so take them from the SDK's own descriptor. */
+        const sl_se_key_descriptor_t att = SL_SE_APPLICATION_ATTESTATION_KEY;
+        if (att.type != type) {
+            return BAD_FUNC_ARG;
+        }
+        flags = att.flags;
+    }
+#endif
 
     ret = wc_ecc_set_curve(key, (int)keySz, curveId);
     if (ret != 0) {
@@ -534,8 +561,7 @@ int wc_SilabsSe_EccUseBuiltInKey(ecc_key* key, int slot, int curveId)
     key->cmd_ctx = cc;
     XMEMSET(&(key->key), 0, sizeof(sl_se_key_descriptor_t));
     key->key.type = type;
-    key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY |
-                     SL_SE_KEY_FLAG_NON_EXPORTABLE;
+    key->key.flags = flags;
     key->key.size = keySz;
     key->key.storage.method = SL_SE_KEY_STORAGE_INTERNAL_IMMUTABLE;
     key->key.storage.location.slot = (uint32_t)slot;

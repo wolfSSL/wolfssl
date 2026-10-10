@@ -139,9 +139,11 @@ byte   wrapped[64];
 word32 wrappedSz = (word32)sizeof(wrapped);
 Aes    aes;
 
-wc_SilabsSe_AesGenerateWrappedKey(256, wrapped, &wrappedSz);
+wc_SilabsSe_AesGenerateWrappedKey(256, SL_SE_KEY_FLAG_NON_EXPORTABLE,
+    wrapped, &wrappedSz);
 wc_AesInit(&aes, NULL, WOLFSSL_SILABS_DEVID);
-wc_SilabsSe_AesUseWrappedKey(&aes, wrapped, wrappedSz, 256);
+wc_SilabsSe_AesUseWrappedKey(&aes, wrapped, wrappedSz, 256,
+    SL_SE_KEY_FLAG_NON_EXPORTABLE);
 /* wc_AesGcmEncrypt() and friends now run on the SE with that key */
 ```
 
@@ -151,6 +153,18 @@ as X||Y) and `wc_SilabsSe_EccUseWrappedKey()`. Built-in slots bind with
 `wc_SilabsSe_AesUseBuiltInKey()` and `wc_SilabsSe_EccUseBuiltInKey()`, taking a
 slot such as `SL_SE_KEY_SLOT_APPLICATION_ATTESTATION_KEY` or
 `SL_SE_KEY_SLOT_APPLICATION_AES_128_KEY`.
+
+The wrapped-key functions take the SE key flags (`SL_SE_KEY_FLAG_*`) the key is
+wrapped with. The flags are part of the wrapped blob: the SE refuses a key
+described with different flags (an ECC bind fails, an AES key fails on its
+first operation), so pass the same value to the bind as to the generate call,
+or the flags the application used when it wrapped the key itself through the SE
+Manager. For ECC the port adds
+`SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY`, and
+`SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY` decides what the key is for: with it
+the key can only sign (ECDSA), without it the key can only do key agreement
+(ECDH). Leave out `SL_SE_KEY_FLAG_NON_EXPORTABLE` only for a key the
+application must be able to read back.
 
 Two things to keep in mind:
 
