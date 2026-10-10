@@ -238,14 +238,15 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key,
     M' = 0x00 || len(ctx) || ctx || M before signing.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, or sigSz is NULL.
-    \return BUFFER_E if the output buffer is too small.
+    \return BAD_FUNC_ARG if key, sig, or sigSz is NULL, or msg is NULL but
+    msgSz is greater than 0.
+    \return BAD_LENGTH_E if the output buffer is too small.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string for domain separation. May be NULL if
     ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to sign.
+    \param [in] msg Pointer to the message to sign. May be NULL if msgSz is 0.
     \param [in] msgSz Length of the message.
     \param [out] sig Buffer to receive the signature.
     \param [in,out] sigSz On input, size of sig buffer. On output, actual
@@ -279,12 +280,13 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx,
     an explicit opt_rand value.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, sigSz, or addRnd is NULL.
+    \return BAD_FUNC_ARG if key, sig, sigSz, or addRnd is NULL, or msg is
+    NULL but msgSz is greater than 0.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to sign.
+    \param [in] msg Pointer to the message to sign. May be NULL if msgSz is 0.
     \param [in] msgSz Length of the message.
     \param [out] sig Buffer to receive the signature.
     \param [in,out] sigSz On input, size of sig buffer. On output, actual
@@ -321,12 +323,13 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx,
     that uses the WC_RNG for opt_rand.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, sigSz, or rng is NULL.
+    \return BAD_FUNC_ARG if key, sig, sigSz, or rng is NULL, or msg is NULL
+    but msgSz is greater than 0.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to sign.
+    \param [in] msg Pointer to the message to sign. May be NULL if msgSz is 0.
     \param [in] msgSz Length of the message.
     \param [out] sig Buffer to receive the signature.
     \param [in,out] sigSz On input, size of sig buffer. On output, actual
@@ -361,8 +364,8 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     internally as M' = 0x00 || len(ctx) || ctx || M before verification.
 
     \return 0 on success (signature valid).
-    \return BAD_FUNC_ARG if key, msg, or sig is NULL, or ctx is NULL but
-    ctxSz is greater than 0.
+    \return BAD_FUNC_ARG if key or sig is NULL, or ctx is NULL but ctxSz is
+    greater than 0, or msg is NULL but msgSz is greater than 0.
     \return BAD_LENGTH_E if sigSz does not match the parameter set's
     signature length.
     \return MISSING_KEY if the public key has not been set.
@@ -371,7 +374,8 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     \param [in] key Pointer to a public SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to verify.
+    \param [in] msg Pointer to the message to verify. May be NULL if msgSz is
+    0.
     \param [in] msgSz Length of the message.
     \param [in] sig Pointer to the signature to verify.
     \param [in] sigSz Length of the signature.
