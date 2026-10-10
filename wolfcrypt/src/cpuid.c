@@ -230,6 +230,7 @@
 
 #define CPUID_AARCH64_FEAT_AES         ((word64)1 << 4)
 #define CPUID_AARCH64_FEAT_AES_PMULL   ((word64)1 << 5)
+#define CPUID_AARCH64_FEAT_SHA1        ((word64)1 << 8)
 #define CPUID_AARCH64_FEAT_SHA256      ((word64)1 << 12)
 #define CPUID_AARCH64_FEAT_SHA256_512  ((word64)1 << 13)
 #define CPUID_AARCH64_FEAT_RDM         ((word64)1 << 28)
@@ -305,6 +306,8 @@
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
             }
+            if (features & CPUID_AARCH64_FEAT_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -357,6 +360,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (hwcaps & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (hwcaps & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (hwcaps & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -417,6 +424,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & ANDROID_CPU_ARM_FEATURE_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef ANDROID_CPU_ARM_FEATURE_SHA1
+            if (features & ANDROID_CPU_ARM_FEATURE_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & ANDROID_CPU_ARM_FEATURE_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -456,6 +467,8 @@
                 new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
                 new_cpuid_flags |= CPUID_PMULL;
+            if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA1") != 0)
+                new_cpuid_flags |= CPUID_SHA1;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA256") != 0)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -506,6 +519,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (features & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -579,6 +596,7 @@
                     PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_SHA1;
                 new_cpuid_flags |= CPUID_SHA256;
             }
         #endif
@@ -614,6 +632,7 @@
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             new_cpuid_flags |= CPUID_AES;
             new_cpuid_flags |= CPUID_PMULL;
+            new_cpuid_flags |= CPUID_SHA1;
             new_cpuid_flags |= CPUID_SHA256;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512

@@ -343,6 +343,9 @@
 		9D0105A7291CEA5000A854D3 /* armv8-sha512-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D01058F291CEA4F00A854D3 /* armv8-sha512-asm.S */; };
 		9D0105A8291CEA5000A854D3 /* armv8-sha512-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D01058F291CEA4F00A854D3 /* armv8-sha512-asm.S */; };
 		9D0105A9291CEA5000A854D3 /* armv8-sha512-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D01058F291CEA4F00A854D3 /* armv8-sha512-asm.S */; };
+		9D0105F1291CEA5000000001 /* armv8-sha1-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D0105F1291CEA5000000000 /* armv8-sha1-asm.S */; };
+		9D0105F1291CEA5000000002 /* armv8-sha1-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D0105F1291CEA5000000000 /* armv8-sha1-asm.S */; };
+		9D0105F1291CEA5000000003 /* armv8-sha1-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D0105F1291CEA5000000000 /* armv8-sha1-asm.S */; };
 		9D0105AD291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D010591291CEA4F00A854D3 /* armv8-sha256.c */; };
 		9D0105AE291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D010591291CEA4F00A854D3 /* armv8-sha256.c */; };
 		9D0105AF291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D010591291CEA4F00A854D3 /* armv8-sha256.c */; };
@@ -1066,6 +1069,7 @@
 		700F0C892A2FBE8200755BA7 /* ssl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ssl.h; path = ../../wolfssl/openssl/ssl.h; sourceTree = "<group>"; };
 		700F0C8A2A2FBE8200755BA7 /* rsa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rsa.h; path = ../../wolfssl/openssl/rsa.h; sourceTree = "<group>"; };
 		9D01058F291CEA4F00A854D3 /* armv8-sha512-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha512-asm.S"; path = "../../wolfcrypt/src/port/arm/armv8-sha512-asm.S"; sourceTree = "<group>"; };
+		9D0105F1291CEA5000000000 /* armv8-sha1-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha1-asm.S"; path = "../../wolfcrypt/src/port/arm/armv8-sha1-asm.S"; sourceTree = "<group>"; };
 		9D010591291CEA4F00A854D3 /* armv8-sha256-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha256-asm.S"; path = "../../wolfcrypt/src/port/arm/armv8-sha256-asm.S"; sourceTree = "<group>"; };
 		9D010593291CEA4F00A854D3 /* armv8-poly1305-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-poly1305-asm.S"; path = "../../wolfcrypt/src/port/arm/armv8-poly1305-asm.S"; sourceTree = "<group>"; };
 		9D010595291CEA4F00A854D3 /* armv8-sha3-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha3-asm.S"; path = "../../wolfcrypt/src/port/arm/armv8-sha3-asm.S"; sourceTree = "<group>"; };
@@ -1263,6 +1267,7 @@
 				9D010599291CEA4F00A854D3 /* armv8-curve25519.S */,
 				9D010593291CEA4F00A854D3 /* armv8-poly1305-asm.S */,
 				9D010595291CEA4F00A854D3 /* armv8-sha3-asm.S */,
+				9D0105F1291CEA5000000000 /* armv8-sha1-asm.S */,
 				9D010591291CEA4F00A854D3 /* armv8-sha256-asm.S */,
 				9D01058F291CEA4F00A854D3 /* armv8-sha512-asm.S */,
 				A4DAE30C2493F21800CEF51F /* asm.c */,
@@ -1561,6 +1566,7 @@
 				520775AE2239AC2100087711 /* signature.c in Sources */,
 				30B060601C6DDB2B00D46008 /* camellia.c in Sources */,
 				A4DAE31F2493F21900CEF51F /* ed448.c in Sources */,
+				9D0105F1291CEA5000000001 /* armv8-sha1-asm.S in Sources */,
 				9D0105AF291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */,
 				30B060611C6DDB2B00D46008 /* chacha.c in Sources */,
 				30B060621C6DDB2B00D46008 /* coding.c in Sources */,
@@ -1655,6 +1661,7 @@
 				A4DAE31A2493F21900CEF51F /* srp.c in Sources */,
 				521646341A8992CC0062516A /* asn.c in Sources */,
 				521646501A8992CC0062516A /* sha512.c in Sources */,
+				9D0105F1291CEA5000000002 /* armv8-sha1-asm.S in Sources */,
 				9D0105AD291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */,
 				520775AF2239AC2100087711 /* signature.c in Sources */,
 				525BE5341B3869110054BBCD /* hash.c in Sources */,
@@ -1749,6 +1756,7 @@
 				1E8BEB87212F4F010063DCC1 /* fe_low_mem.c in Sources */,
 				1E8BEB86212F4F010063DCC1 /* fe_operations.c in Sources */,
 				A4DAE31E2493F21900CEF51F /* ed448.c in Sources */,
+				9D0105F1291CEA5000000003 /* armv8-sha1-asm.S in Sources */,
 				9D0105AE291CEA5000A854D3 /* armv8-sha256-asm.S in Sources */,
 				1E8BEB83212F4E330063DCC1 /* ge_low_mem.c in Sources */,
 				1E8BEB82212F4E330063DCC1 /* ge_operations.c in Sources */,
