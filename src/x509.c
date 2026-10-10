@@ -1519,7 +1519,8 @@ static int wolfssl_x509_add_ext_key_usage_sk(WOLFSSL_X509* x509,
     for (i = 0; i < num; i++) {
         WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(
             ext->ext_sk, i);
-
+        if (obj == NULL)
+            return WOLFSSL_FAILURE;
         XMEMCPY(der + idx, obj->obj, obj->objSz);
         idx += obj->objSz;
     }
