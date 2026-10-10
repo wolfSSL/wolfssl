@@ -1109,6 +1109,10 @@ enum {
     #define XMEMSET(b,c,l)    memset((b),(c),(l))
     #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
     #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+    /* Searching a buffer for one byte. Code that uses this has to cope with
+     * the macro being absent, as a build supplying its own string functions
+     * through STRING_USER need not provide it. */
+    #define XMEMCHR(b,c,l)    memchr((b),(c),(l))
 
     #define XSTRLEN(s1)       strlen((s1))
     #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
@@ -1347,6 +1351,16 @@ WOLFSSL_API int wc_PackOctets(byte* out, word32 outSz, const byte* in,
 #endif
 #ifdef USE_WOLF_STRSEP
     WOLFSSL_API char* wc_strsep(char **stringp, const char *delim);
+#endif
+
+/* A build naming its own string functions through STRING_USER need not have a
+ * memchr among them, so supply one. Decided here rather than with the other
+ * USE_WOLF_* choices above because the standard definition is made in between
+ * the two. */
+#ifndef XMEMCHR
+    #define USE_WOLF_MEMCHR
+    WOLFSSL_API void* wc_memchr(const void* s, int c, size_t n);
+    #define XMEMCHR(b,c,l) wc_memchr((b),(c),(l))
 #endif
 
 #ifdef USE_WOLF_STRLCPY

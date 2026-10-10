@@ -504,6 +504,16 @@ PKCS7* wolfSSL_PKCS7_sign(WOLFSSL_X509* signer, WOLFSSL_EVP_PKEY* pkey,
         err = 1;
     }
 
+    /* Before the check below, not after it: the encoding is produced on
+     * demand, and pkey.ptr being NULL is the normal state of a key attached
+     * with set1_RSA(), set1_EC_KEY() or set1_DH(). Validating first rejected
+     * exactly those keys. */
+    if ((err == 0) && (pkey != NULL) &&
+            (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS)) {
+        WOLFSSL_MSG("Could not produce the private key encoding");
+        err = 1;
+    }
+
     if ((err == 0) && (pkey == NULL || pkey->pkey.ptr == NULL ||
                        pkey->pkey_sz <= 0)) {
         WOLFSSL_MSG("Bad function arg, pkey is NULL or incomplete");
@@ -1817,6 +1827,10 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
     }
     passSz = (word32)XSTRLEN(pass);
 
+    if (EvpPkeyEnsureDer(pkey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_LEAVE("wolfSSL_PKCS12_create", MEMORY_E);
+        return NULL;
+    }
     keyDer = (byte*)pkey->pkey.ptr;
     keyDerSz = (word32)pkey->pkey_sz;
 

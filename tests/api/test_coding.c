@@ -583,3 +583,106 @@ int test_wc_Utf8_DecodeChar(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * Known-answer vectors for the base64 encoders. The decision-coverage test
+ * above checks which branches run and what they return; this one checks the
+ * bytes that come out, which is what callers actually depend on. Expected
+ * values were produced independently of wolfSSL.
+ *
+ * Lengths 45 to 49 and 96 to 97 straddle the 64-character line boundary, where
+ * the line break is emitted only when input remains.
+ */
+int test_wc_Base64_EncodeKnownAnswer(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
+    static const struct {
+        word32      inLen;
+        byte        in[100];
+        const char* std;    /* Base64_Encode      */
+        const char* esc;    /* Base64_EncodeEsc   */
+        const char* nonl;   /* Base64_Encode_NoNl */
+    } vec[] = {
+        { 1, { 0x66 },
+          "Zg==\n", "Zg%3D%3D%0A", "Zg==" },
+        { 2, { 0x66, 0x6F },
+          "Zm8=\n", "Zm8%3D%0A", "Zm8=" },
+        { 3, { 0x66, 0x6F, 0x6F },
+          "Zm9v\n", "Zm9v%0A", "Zm9v" },
+        { 6, { 0x66, 0x6F, 0x6F, 0x62, 0x61, 0x72 },
+          "Zm9vYmFy\n", "Zm9vYmFy%0A", "Zm9vYmFy" },
+        /* 48 bytes: exactly one full line, so no break is emitted inside. */
+        { 48, { 0x03, 0x0A, 0x11, 0x18, 0x1F, 0x26, 0x2D, 0x34, 0x3B, 0x42,
+                0x49, 0x50, 0x57, 0x5E, 0x65, 0x6C, 0x73, 0x7A, 0x81, 0x88,
+                0x8F, 0x96, 0x9D, 0xA4, 0xAB, 0xB2, 0xB9, 0xC0, 0xC7, 0xCE,
+                0xD5, 0xDC, 0xE3, 0xEA, 0xF1, 0xF8, 0xFF, 0x06, 0x0D, 0x14,
+                0x1B, 0x22, 0x29, 0x30, 0x37, 0x3E, 0x45, 0x4C },
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM\n",
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM"
+          "%0A",
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM" },
+        /* 49 bytes: one byte past the line, so a break then a padded group. */
+        { 49, { 0x03, 0x0A, 0x11, 0x18, 0x1F, 0x26, 0x2D, 0x34, 0x3B, 0x42,
+                0x49, 0x50, 0x57, 0x5E, 0x65, 0x6C, 0x73, 0x7A, 0x81, 0x88,
+                0x8F, 0x96, 0x9D, 0xA4, 0xAB, 0xB2, 0xB9, 0xC0, 0xC7, 0xCE,
+                0xD5, 0xDC, 0xE3, 0xEA, 0xF1, 0xF8, 0xFF, 0x06, 0x0D, 0x14,
+                0x1B, 0x22, 0x29, 0x30, 0x37, 0x3E, 0x45, 0x4C, 0x53 },
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM\n"
+          "Uw==\n",
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM"
+          "%0AUw%3D%3D%0A",
+          "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVM"
+          "Uw==" },
+        /* '+' and '=' appear, which only the escaped encoder rewrites; '/'
+         * is left alone by all three. */
+        { 10, { 0xFB, 0xFF, 0xBF, 0xFF, 0xEF, 0xFF, 0x00, 0x00, 0x00, 0xFF },
+          "+/+//+//AAAA/w==\n",
+          "%2B/%2B//%2B//AAAA/w%3D%3D%0A",
+          "+/+//+//AAAA/w==" }
+    };
+    byte   out[256];
+    word32 outLen;
+    size_t v;
+
+    for (v = 0; v < sizeof(vec) / sizeof(vec[0]); v++) {
+        word32 expSz;
+
+        /* Base64_Encode */
+        expSz = (word32)XSTRLEN(vec[v].std);
+        XMEMSET(out, 0xCC, sizeof(out));
+        outLen = (word32)sizeof(out);
+        ExpectIntEQ(Base64_Encode(vec[v].in, vec[v].inLen, out, &outLen), 0);
+        ExpectIntEQ(outLen, expSz);
+        ExpectIntEQ(XMEMCMP(out, vec[v].std, expSz), 0);
+
+        /* The size query has to agree with what the encode produced. */
+        outLen = 0;
+        ExpectIntEQ(Base64_Encode(vec[v].in, vec[v].inLen, NULL, &outLen),
+            WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntEQ(outLen, expSz);
+
+        /* An output buffer one byte short must be refused. */
+        outLen = expSz - 1;
+        ExpectIntLT(Base64_Encode(vec[v].in, vec[v].inLen, out, &outLen), 0);
+
+        /* Base64_Encode_NoNl */
+        expSz = (word32)XSTRLEN(vec[v].nonl);
+        XMEMSET(out, 0xCC, sizeof(out));
+        outLen = (word32)sizeof(out);
+        ExpectIntEQ(Base64_Encode_NoNl(vec[v].in, vec[v].inLen, out, &outLen),
+            0);
+        ExpectIntEQ(outLen, expSz);
+        ExpectIntEQ(XMEMCMP(out, vec[v].nonl, expSz), 0);
+
+        /* Base64_EncodeEsc */
+        expSz = (word32)XSTRLEN(vec[v].esc);
+        XMEMSET(out, 0xCC, sizeof(out));
+        outLen = (word32)sizeof(out);
+        ExpectIntEQ(Base64_EncodeEsc(vec[v].in, vec[v].inLen, out, &outLen), 0);
+        ExpectIntEQ(outLen, expSz);
+        ExpectIntEQ(XMEMCMP(out, vec[v].esc, expSz), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}

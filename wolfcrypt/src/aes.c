@@ -10077,21 +10077,15 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__aarch64__)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
-#define GMULT(x, m)                                                      \
-    GCM_gmult_NEON(x, (const byte**)m)
 #else
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#define GMULT(x, m)                                                      \
-    GCM_gmult(x, (const byte**)m)
 #endif
 
 /* PPC64 assembly */
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #define GCM_GMULT_LEN(gcm, x, a, len)                                    \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#define GMULT(x, m)                                                      \
-    GCM_gmult(x, (const byte**)m)
 
 #else
 /* remainder = x^7 + x^2 + x^1 + 1 => 0xe1

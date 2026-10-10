@@ -1712,3 +1712,129 @@ int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
     return EXPECT_RESULT();
 }
 
+
+/*
+ * The RNG that blinds RSA private key operations is created on first use rather
+ * than when the key object is created, because seeding it costs far more than
+ * everything else about making the key and public key work never needs it.
+ *
+ * Whichever operation runs first is therefore the one that has to provide it,
+ * and wolfCrypt returns MISSING_RNG_E rather than quietly dropping blinding if
+ * it is absent. Each case below starts from a key nothing has touched, since
+ * sharing one key between them would let the first operation provide the RNG
+ * and hide a missing setup in all the others.
+ */
+int test_wolfSSL_RSA_lazy_blinding_rng(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_KEY_GEN)
+    byte*  der = NULL;
+    size_t derSz = 0;
+    byte   msg[32];
+    byte   digest[32];
+    unsigned int digestSz = 0;
+    int    i;
+    int    which;
+
+    for (i = 0; i < (int)sizeof(msg); i++) {
+        msg[i] = (byte)(i + 1);
+    }
+    ExpectIntEQ(load_file("./certs/client-key.der", &der, &derSz), 0);
+    ExpectIntEQ(wolfSSL_EVP_Digest(msg, (int)sizeof(msg), digest, &digestSz,
+        wolfSSL_EVP_sha256(), NULL), 1);
+
+    /* One operation per freshly decoded key. */
+    for (which = 0; which < 4; which++) {
+        WOLFSSL_RSA*         rsa = NULL;
+        const unsigned char* p = (const unsigned char*)der;
+        byte                 sig[256];
+        unsigned int         sigSz = (unsigned int)sizeof(sig);
+
+        ExpectNotNull(rsa = wolfSSL_d2i_RSAPrivateKey(NULL, &p, (long)derSz));
+
+        switch (which) {
+            case 0:
+                ExpectIntEQ(wolfSSL_RSA_sign(NID_sha256, digest, digestSz, sig,
+                    &sigSz, rsa), 1);
+                break;
+            case 1:
+                ExpectIntGT(wolfSSL_RSA_private_encrypt((int)sizeof(msg), msg,
+                    sig, rsa, RSA_PKCS1_PADDING), 0);
+                break;
+            case 2: {
+                /* Decrypt on a key that has done nothing else. The ciphertext
+                 * comes from a separate key object so that encrypting here
+                 * cannot be what provides the RNG. */
+                WOLFSSL_RSA*         enc = NULL;
+                const unsigned char* q = (const unsigned char*)der;
+                byte                 ct[256];
+                byte                 pt[256];
+                int                  ctLen = 0;
+
+                ExpectNotNull(enc = wolfSSL_d2i_RSAPrivateKey(NULL, &q,
+                    (long)derSz));
+                ExpectIntGT(ctLen = wolfSSL_RSA_public_encrypt(
+                    (int)sizeof(msg), msg, ct, enc, RSA_PKCS1_PADDING), 0);
+                wolfSSL_RSA_free(enc);
+
+                ExpectIntEQ(wolfSSL_RSA_private_decrypt(ctLen, ct, pt, rsa,
+                    RSA_PKCS1_PADDING), (int)sizeof(msg));
+                ExpectBufEQ(pt, msg, sizeof(msg));
+                break;
+            }
+            default: {
+                /* Through EVP, which is a different route to the same key. */
+                WOLFSSL_EVP_PKEY* pkey = NULL;
+                WOLFSSL_EVP_MD_CTX* mdCtx = NULL;
+                size_t sl = sizeof(sig);
+
+                ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+                ExpectIntEQ(wolfSSL_EVP_PKEY_set1_RSA(pkey, rsa), 1);
+                ExpectNotNull(mdCtx = wolfSSL_EVP_MD_CTX_new());
+                ExpectIntEQ(wolfSSL_EVP_DigestSignInit(mdCtx, NULL,
+                    wolfSSL_EVP_sha256(), NULL, pkey), 1);
+                ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(mdCtx, msg,
+                    (unsigned int)sizeof(msg)), 1);
+                ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(mdCtx, sig, &sl), 1);
+                wolfSSL_EVP_MD_CTX_free(mdCtx);
+                wolfSSL_EVP_PKEY_free(pkey);
+                break;
+            }
+        }
+
+        wolfSSL_RSA_free(rsa);
+    }
+
+    /* A key that only ever carries a public key must still work, and must not
+     * need an RNG to verify with. */
+    {
+        WOLFSSL_RSA*         rsa = NULL;
+        WOLFSSL_RSA*         pub = NULL;
+        const unsigned char* p = (const unsigned char*)der;
+        byte                 sig[256];
+        unsigned int         sigSz = (unsigned int)sizeof(sig);
+        byte*                pubDer = NULL;
+        int                  pubSz = 0;
+
+        ExpectNotNull(rsa = wolfSSL_d2i_RSAPrivateKey(NULL, &p, (long)derSz));
+        ExpectIntEQ(wolfSSL_RSA_sign(NID_sha256, digest, digestSz, sig, &sigSz,
+            rsa), 1);
+        ExpectIntGT(pubSz = wolfSSL_i2d_RSAPublicKey(rsa, &pubDer), 0);
+        if (pubDer != NULL) {
+            const unsigned char* q = (const unsigned char*)pubDer;
+            ExpectNotNull(pub = wolfSSL_d2i_RSAPublicKey(NULL, &q,
+                (long)pubSz));
+            ExpectIntEQ(wolfSSL_RSA_verify(NID_sha256, digest, digestSz, sig,
+                sigSz, pub), 1);
+            wolfSSL_RSA_free(pub);
+            XFREE(pubDer, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        wolfSSL_RSA_free(rsa);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

@@ -219,6 +219,151 @@ int test_wolfSSL_EVP_get_digestbynid(void)
     return EXPECT_RESULT();
 }
 
+/* EVP_DigestUpdate() and friends read the hash type from the context, where
+ * EVP_DigestInit() recorded it. The cases that used to be rejected by the
+ * lookup that recovered it - no context, and a context set up for HMAC rather
+ * than a bare digest - still have to be rejected.
+ */
+int test_wolfSSL_EVP_DigestUpdate_bad_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    EVP_MD_CTX* ctx = NULL;
+    byte data[16];
+    byte md[64];
+    unsigned int mdLen = 0;
+    int i;
+
+    for (i = 0; i < (int)sizeof(data); i++) data[i] = (byte)i;
+
+    /* No context at all. */
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(NULL, data, sizeof(data)));
+
+    /* A context that was never given a digest. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+    ExpectIntEQ(0, EVP_DigestFinal(ctx, md, &mdLen));
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Initializing with no digest type succeeds and leaves the context
+     * carrying no hash, so it is the update that has to refuse it. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntEQ(1, EVP_DigestInit(ctx, NULL));
+    ExpectNull(EVP_MD_CTX_md(ctx));
+    ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+    EVP_MD_CTX_free(ctx);
+    ctx = NULL;
+
+#if !defined(NO_HMAC) && !defined(NO_RSA) && defined(HAVE_PKCS8)
+    /* A context set up for HMAC carries a MAC rather than a bare digest, so
+     * the digest entry points do not apply to it. */
+    {
+        EVP_PKEY* pkey = NULL;
+        const byte hmacKey[] = "0123456789012345";
+
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+            hmacKey, (int)XSTRLEN((const char*)hmacKey)));
+        ExpectNotNull(ctx = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL,
+            pkey));
+        ExpectIntEQ(0, wolfSSL_EVP_DigestUpdate(ctx, data, sizeof(data)));
+        EVP_MD_CTX_free(ctx);
+        ctx = NULL;
+        EVP_PKEY_free(pkey);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Every digest the build provides has to hash the same whether it is fed in
+ * one piece or several, and a copied context has to carry on from where the
+ * original stood. Both read the hash type out of the context on every call.
+ */
+int test_wolfSSL_EVP_Digest_chunked(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    const char* names[] = {
+    #ifndef NO_SHA
+        "SHA1",
+    #endif
+    #ifndef NO_SHA256
+        "SHA256",
+    #endif
+    #ifdef WOLFSSL_SHA224
+        "SHA224",
+    #endif
+    #ifdef WOLFSSL_SHA384
+        "SHA384",
+    #endif
+    #ifdef WOLFSSL_SHA512
+        "SHA512",
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+        "SHA3-256",
+    #endif
+    #ifndef NO_MD5
+        "MD5",
+    #endif
+        NULL
+    };
+    byte data[200];
+    int i;
+    int n;
+
+    for (i = 0; i < (int)sizeof(data); i++) data[i] = (byte)(i * 7 + 3);
+
+    for (n = 0; names[n] != NULL; n++) {
+        const EVP_MD* md = NULL;
+        EVP_MD_CTX* whole = NULL;
+        EVP_MD_CTX* parts = NULL;
+        EVP_MD_CTX* copy = NULL;
+        byte mdWhole[64];
+        byte mdParts[64];
+        byte mdCopy[64];
+        unsigned int lenWhole = 0;
+        unsigned int lenParts = 0;
+        unsigned int lenCopy = 0;
+
+        ExpectNotNull(md = EVP_get_digestbyname(names[n]));
+
+        /* In one piece. */
+        ExpectNotNull(whole = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_DigestInit(whole, md));
+        ExpectIntEQ(1, EVP_DigestUpdate(whole, data, sizeof(data)));
+        ExpectIntEQ(1, EVP_DigestFinal(whole, mdWhole, &lenWhole));
+        ExpectIntEQ((unsigned int)EVP_MD_size(md), lenWhole);
+
+        /* In uneven chunks, copying the context part way through. */
+        ExpectNotNull(parts = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_DigestInit(parts, md));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data, 1));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 1, 63));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 64, 0));
+        ExpectNotNull(copy = EVP_MD_CTX_new());
+        ExpectIntEQ(1, EVP_MD_CTX_copy_ex(copy, parts));
+        ExpectIntEQ(1, EVP_DigestUpdate(parts, data + 64, sizeof(data) - 64));
+        ExpectIntEQ(1, EVP_DigestFinal(parts, mdParts, &lenParts));
+
+        /* The copy finishes the same message independently. */
+        ExpectIntEQ(1, EVP_DigestUpdate(copy, data + 64, sizeof(data) - 64));
+        ExpectIntEQ(1, EVP_DigestFinal(copy, mdCopy, &lenCopy));
+
+        ExpectIntEQ(lenWhole, lenParts);
+        ExpectIntEQ(lenWhole, lenCopy);
+        ExpectIntEQ(0, XMEMCMP(mdWhole, mdParts, lenWhole));
+        ExpectIntEQ(0, XMEMCMP(mdWhole, mdCopy, lenWhole));
+
+        EVP_MD_CTX_free(copy);
+        EVP_MD_CTX_free(parts);
+        EVP_MD_CTX_free(whole);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_Digest(void)
 {
     EXPECT_DECLS;

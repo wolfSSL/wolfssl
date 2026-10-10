@@ -56,6 +56,9 @@ int test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_pkcs8(void);
 int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void);
 int test_wolfSSL_EVP_PKEY_get1_EC_KEY_reuse(void);
 int test_wolfSSL_EVP_PKEY_keygen_dh_reuse(void);
+int test_wolfSSL_EVP_PKEY_set1_lazy_der(void);
+int test_wolfSSL_EVP_PKEY_set1_DSA_caller_frees(void);
+int test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_group(void);
 int test_wolfSSL_EVP_SignInit_ex(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_rsa(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void);
@@ -135,6 +138,11 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encoded_public_key),     \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_d2i_PrivateKey_reuse_resets_state),\
     TEST_DECL_GROUP("evp_pkey",                                                \
-        test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate)
+        test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate),                     \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_set1_lazy_der),          \
+    TEST_DECL_GROUP("evp_pkey",                                                \
+        test_wolfSSL_EVP_PKEY_set1_DSA_caller_frees),                          \
+    TEST_DECL_GROUP("evp_pkey",                                                \
+        test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_group)
 
 #endif /* WOLFCRYPT_TEST_EVP_PKEY_H */

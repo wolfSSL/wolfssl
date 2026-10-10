@@ -1450,7 +1450,8 @@ int test_wolfssl_EVP_aes_gcm(void)
     for (i = 0; i < 2; i++) {
         EVP_CIPHER_CTX_init(&en[i]);
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* GCM's default IV length is 96 bits; this branch takes
+             * that default rather than setting one. */
 #ifdef WOLFSSL_AES_128
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_128_gcm(), NULL,
                 key, iv));
@@ -1490,7 +1491,8 @@ int test_wolfssl_EVP_aes_gcm(void)
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* GCM's default IV length is 96 bits; this branch takes
+             * that default rather than setting one. */
 #ifdef WOLFSSL_AES_128
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL,
                 key, iv));
@@ -1532,7 +1534,8 @@ int test_wolfssl_EVP_aes_gcm(void)
 
         /* modify tag*/
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* GCM's default IV length is 96 bits; this branch takes
+             * that default rather than setting one. */
 #ifdef WOLFSSL_AES_128
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL,
                 key, iv));
@@ -1815,7 +1818,8 @@ int test_wolfssl_EVP_aes_ccm(void)
         EVP_CIPHER_CTX_init(&en[i]);
 
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* CCM's default nonce is 7 bytes, as in OpenSSL; this branch
+             * takes it rather than setting one. */
 #ifdef WOLFSSL_AES_128
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_128_ccm(), NULL,
                 key, iv));
@@ -1843,6 +1847,15 @@ int test_wolfssl_EVP_aes_ccm(void)
                 ivSz, NULL));
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], NULL, NULL, key, iv));
         }
+        /* The CCM tag length defaults to 12 bytes, as in OpenSSL, and the
+         * tag is read back below at AES_BLOCK_SIZE, so ask for that length.
+         * Passing a NULL tag sets the length alone, which is the only form
+         * allowed while encrypting. */
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_SET_TAG,
+            AES_BLOCK_SIZE, NULL));
+        /* CCM carries the payload length in its first block, so it has to be
+         * declared - in and out both NULL - before any AAD. */
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, NULL, plaintxtSz));
         ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, aad, aadSz));
         ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], ciphertxt, &len, plaintxt,
               plaintxtSz));
@@ -1856,7 +1869,8 @@ int test_wolfssl_EVP_aes_ccm(void)
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* CCM's default nonce is 7 bytes, as in OpenSSL; this branch
+             * takes it rather than setting one. */
 #ifdef WOLFSSL_AES_128
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_ccm(), NULL,
                 key, iv));
@@ -1885,12 +1899,17 @@ int test_wolfssl_EVP_aes_ccm(void)
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
 
         }
+        /* CCM verifies as it decrypts, inside EVP_DecryptUpdate(), so the
+         * tag has to be set before the ciphertext is passed in - as OpenSSL
+         * documents for this mode. */
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
+            AES_BLOCK_SIZE, tag));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, NULL,
+            ciphertxtSz));
         ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
         ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
             ciphertxtSz));
         decryptedtxtSz = len;
-        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
-            AES_BLOCK_SIZE, tag));
         ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         decryptedtxtSz += len;
         ExpectIntEQ(ciphertxtSz, decryptedtxtSz);
@@ -1898,18 +1917,627 @@ int test_wolfssl_EVP_aes_ccm(void)
 
         /* modify tag*/
         tag[AES_BLOCK_SIZE-1]+=0xBB;
-        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        /* A second message on the same context begins with
+         * EVP_DecryptInit_ex(). That is what clears the length and the AAD
+         * the message above accumulated; declaring the length again does not,
+         * and is refused. */
+        ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
         ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
             AES_BLOCK_SIZE, tag));
-        /* fail due to wrong tag */
-        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, NULL,
             ciphertxtSz));
-        ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        /* Fail due to wrong tag. The update that decrypts reports it, and
+         * returns no plaintext; final has nothing left to check. */
+        ExpectIntEQ(0, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        ExpectIntEQ(0, len);
+        ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         ExpectIntEQ(0, len);
         ret = wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]);
         ExpectIntEQ(ret, 1);
     }
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESCCM */
+    return EXPECT_RESULT();
+}
+
+/* The EVP interface to CCM follows a contract OpenSSL documents in
+ * EVP_EncryptInit(3), and which differs from the other AEAD modes: the payload
+ * length is part of the first block, so it has to be settled before anything
+ * is processed, and there is no streaming. These check each rule that follows
+ * from that, since a context that differs on any of them produces output no
+ * other implementation will accept.
+ */
+/* EVP_CipherInit() on a context that already holds a cipher has to adopt the
+ * new one. The cipher is selected from its name once, up front, so a context
+ * carrying some other cipher cannot divert the call - which is what happened
+ * when each cipher tested for itself and the first match won.
+ */
+int test_wolfssl_EVP_cipher_reinit(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC)
+    byte key[32];
+    byte iv[16];
+    int i;
+    /* Ciphers that share a key schedule or a name prefix, where a stale
+     * cipher type is most likely to be kept by mistake. */
+    struct {
+        const EVP_CIPHER* (*get)(void);
+        int keyLen;
+        int blockSize;
+    } ciphers[] = {
+    #ifdef WOLFSSL_AES_128
+        { EVP_aes_128_cbc, 16, 16 },
+    #endif
+    /* Listed so that an AES-192 only build - the outer guard still takes this
+     * test - does not end up with an empty initializer. */
+    #ifdef WOLFSSL_AES_192
+        { EVP_aes_192_cbc, 24, 16 },
+    #endif
+    #ifdef WOLFSSL_AES_256
+        { EVP_aes_256_cbc, 32, 16 },
+    #endif
+    #ifdef HAVE_AES_ECB
+        #ifdef WOLFSSL_AES_128
+        { EVP_aes_128_ecb, 16, 16 },
+        #endif
+    #endif
+    #ifndef NO_DES3
+        { EVP_des_cbc,      8,  8 },
+        { EVP_des_ede3_cbc, 24, 8 },
+        #ifdef WOLFSSL_DES_ECB
+        { EVP_des_ecb,      8,  8 },
+        { EVP_des_ede3_ecb, 24, 8 },
+        #endif
+    #endif
+    };
+    int n = (int)(sizeof(ciphers) / sizeof(ciphers[0]));
+    int j;
+
+    for (i = 0; i < (int)sizeof(key); i++) key[i] = (byte)i;
+    for (i = 0; i < (int)sizeof(iv);  i++) iv[i]  = (byte)(0x80 + i);
+
+    /* Every ordered pair, so both "later cipher replaces earlier" and the
+     * reverse are covered. */
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            EVP_CIPHER_CTX* ctx = NULL;
+            EVP_CIPHER_CTX* fresh = NULL;
+
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, ciphers[i].get(), NULL, key,
+                iv));
+            ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, ciphers[j].get(), NULL, key,
+                iv));
+
+            /* The re-initialized context has to describe the second cipher,
+             * and describe it the same way a context that only ever held it
+             * does. */
+            ExpectNotNull(fresh = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(1, EVP_EncryptInit_ex(fresh, ciphers[j].get(), NULL,
+                key, iv));
+
+            ExpectIntEQ(ciphers[j].keyLen, EVP_CIPHER_CTX_key_length(ctx));
+            ExpectIntEQ(ciphers[j].blockSize, EVP_CIPHER_CTX_block_size(ctx));
+            ExpectIntEQ(EVP_CIPHER_CTX_key_length(fresh),
+                EVP_CIPHER_CTX_key_length(ctx));
+            ExpectIntEQ(EVP_CIPHER_CTX_block_size(fresh),
+                EVP_CIPHER_CTX_block_size(ctx));
+            ExpectIntEQ(EVP_CIPHER_CTX_nid(fresh), EVP_CIPHER_CTX_nid(ctx));
+
+            EVP_CIPHER_CTX_free(fresh);
+            EVP_CIPHER_CTX_free(ctx);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A cipher is identified by name. The usual case is one of the library's own
+ * name constants, which is settled by comparing pointers, but a caller may
+ * pass a string of its own; both have to reach the same cipher.
+ */
+int test_wolfssl_EVP_cipher_name_copy(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+    char name[32];
+    const EVP_CIPHER* byConst = NULL;
+    const EVP_CIPHER* byCopy = NULL;
+    byte key[16];
+    byte iv[16];
+    int i;
+
+    for (i = 0; i < (int)sizeof(key); i++) key[i] = (byte)i;
+    for (i = 0; i < (int)sizeof(iv);  i++) iv[i]  = (byte)(0x80 + i);
+
+    ExpectNotNull(byConst = EVP_aes_128_cbc());
+    /* A separate copy of the same text, so the pointer cannot match. */
+    XSTRNCPY(name, (const char*)byConst, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+    ExpectNotNull(byCopy = (const EVP_CIPHER*)name);
+    ExpectTrue(byConst != byCopy);
+
+    ExpectIntEQ(EVP_CIPHER_block_size(byConst), EVP_CIPHER_block_size(byCopy));
+    ExpectIntEQ(EVP_CIPHER_key_length(byConst), EVP_CIPHER_key_length(byCopy));
+    ExpectIntEQ(EVP_CIPHER_iv_length(byConst), EVP_CIPHER_iv_length(byCopy));
+    ExpectIntEQ(EVP_CIPHER_nid(byConst), EVP_CIPHER_nid(byCopy));
+
+    /* And it initializes a context the same way. */
+    {
+        EVP_CIPHER_CTX* a = NULL;
+        EVP_CIPHER_CTX* b = NULL;
+
+        ExpectNotNull(a = EVP_CIPHER_CTX_new());
+        ExpectNotNull(b = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(1, EVP_EncryptInit_ex(a, byConst, NULL, key, iv));
+        ExpectIntEQ(1, EVP_EncryptInit_ex(b, byCopy, NULL, key, iv));
+        ExpectIntEQ(EVP_CIPHER_CTX_nid(a), EVP_CIPHER_CTX_nid(b));
+        ExpectIntEQ(EVP_CIPHER_CTX_key_length(a), EVP_CIPHER_CTX_key_length(b));
+        EVP_CIPHER_CTX_free(b);
+        EVP_CIPHER_CTX_free(a);
+    }
+
+    /* A name that is no cipher at all resolves to nothing. */
+    ExpectNull(EVP_get_cipherbyname("definitely-not-a-cipher"));
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    ((!defined(NO_AES) && defined(HAVE_AESCCM)) || defined(WOLFSSL_SM4_CCM))
+static int ccm_openssl_semantics(const EVP_CIPHER* cipher, int keyLen)
+{
+    EXPECT_DECLS;
+    byte key[32];
+    byte iv[13];
+    byte pt[32];
+    byte aad[16];
+    byte out[64];
+    byte tag[16];
+    int i;
+    int len = 0;
+    EVP_CIPHER_CTX* ctx = NULL;
+
+    for (i = 0; i < keyLen; i++) key[i] = (byte)i;
+    for (i = 0; i < (int)sizeof(iv);  i++) iv[i]  = (byte)(0xA0 + i);
+    for (i = 0; i < (int)sizeof(pt);  i++) pt[i]  = (byte)(i * 3 + 1);
+    for (i = 0; i < (int)sizeof(aad); i++) aad[i] = (byte)(i * 5 + 2);
+
+    /* Defaults, taken when neither length is set: a 7 byte nonce (L = 8) and
+     * a 12 byte tag. Both feed the first block, so a context that defaults
+     * differently does not merely produce a different length of tag. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(7, EVP_CIPHER_CTX_iv_length(ctx));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    /* The tag is only readable at the length in force, 12 by default. */
+    ExpectIntEQ(0, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 12, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Tag length: even, 4 through 16. A tag value may only be supplied when
+     * decrypting, since when encrypting the tag is an output. */
+    for (i = 0; i <= 18; i++) {
+        int want = ((i >= 4) && (i <= 16) && ((i & 1) == 0));
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+            NULL));
+        ExpectIntEQ(want, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, i,
+            NULL));
+        /* ... but never with a tag value while encrypting. */
+        ExpectIntEQ(0, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, i, tag));
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, cipher, NULL, NULL,
+            NULL));
+        ExpectIntEQ(want, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, i,
+            tag));
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+    /* Nonce length: 7 through 13, because L = 15 - ivLen has to be 2 to 8. */
+    for (i = 0; i <= 17; i++) {
+        int want = ((i >= 7) && (i <= 13));
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+            NULL));
+        ExpectIntEQ(want, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, i,
+            NULL));
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+    /* A declared length is reported back, the payload comes out of the update
+     * that supplies it, and final produces nothing. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    len = 0;
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ((int)sizeof(pt), len);
+    len = 0;
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ((int)sizeof(aad), len);
+    len = 0;
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ((int)sizeof(pt), len);
+    len = -1;
+    ExpectIntEQ(1, EVP_EncryptFinal_ex(ctx, out + sizeof(pt), &len));
+    ExpectIntEQ(0, len);
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The payload cannot be split: a chunk that does not match the declared
+     * length is refused rather than accumulated. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt) / 2));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Nor can a second payload call extend a message already processed. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* AAD before the length is refused, because the length comes first in the
+     * block the AAD is folded into. A zero length AAD needs nothing known. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, 0));
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* AAD after the payload is refused too: the tag was produced by the
+     * payload call and cannot cover anything handed over later. Reporting
+     * success would say the AAD was authenticated when it was not. A zero
+     * length AAD adds nothing to authenticate, so it still passes. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, 0));
+    /* Keep the tag over that message, to decrypt it below. */
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Same on the decrypt side, where accepting it would mean AAD taken as
+     * authenticated without being verified. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, out, &len, out, (int)sizeof(pt)));
+    ExpectIntEQ(0, EVP_DecryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Declaring the length again does not start a new message: it is refused
+     * after AAD and after a payload. Allowing it after a payload would clear
+     * the one-payload rule above and let a second payload go out under the
+     * same key and nonce, which for CCM repeats the keystream. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    /* Harmless while nothing has been fed in. */
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    /* After AAD, refused. */
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    /* After the payload, refused - and so the second payload stays refused. */
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(0, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Starting a new message clears it, so a context can be reused. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* With no length declared, the first payload call declares it, and the
+     * ciphertext still comes out of that call. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    len = 0;
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ((int)sizeof(pt), len);
+    len = -1;
+    ExpectIntEQ(1, EVP_EncryptFinal_ex(ctx, out + sizeof(pt), &len));
+    ExpectIntEQ(0, len);
+    /* Same ciphertext as the declared-length run above, which used the same
+     * key, nonce and tag length but no AAD. */
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The tag is not readable from a decrypting context, nor before the
+     * operation has produced one. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(0, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, cipher, NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(0, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The EVP interface to CCM follows a contract OpenSSL documents in
+ * EVP_EncryptInit(3), and which differs from the other AEAD modes: the payload
+ * length is part of the first block, so it has to be settled before anything
+ * is processed, and there is no streaming. AES-CCM and SM4-CCM go through the
+ * same code for all of it, so both are checked against it.
+ */
+int test_wolfssl_EVP_aes_ccm_openssl_semantics(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESCCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_AES_128)
+    ExpectIntEQ(TEST_SUCCESS, ccm_openssl_semantics(EVP_aes_128_ccm(), 16));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An EVP_CIPHER_CTX reused for a different cipher has to release the first
+ * cipher's low-level state. Nothing else will: once ctx->cipherType is
+ * replaced, EVP_CIPHER_CTX_cleanup() frees whatever the *new* type names, and
+ * if the two use different members of the cipher union the first one's
+ * allocation is orphaned - a leak the CI leak-sanitizer jobs see as the
+ * 4 byte WC_DEBUG_CIPHER_LIFECYCLE tag. Skipping the release also left the
+ * new cipher uninitialized, because its wc_*Init() is gated on the
+ * LOW_LEVEL_INITED flag the first cipher had already set, so this also checks
+ * that the second cipher produces what a fresh context does. */
+int test_wolfssl_EVP_cipher_switch_reinit(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    byte key[32];
+    byte iv[16];
+    byte pt[32];
+    byte reused[48];
+    byte fresh[48];
+    int reusedLen = 0;
+    int freshLen = 0;
+    EVP_CIPHER_CTX* ctx = NULL;
+
+    XMEMSET(key, 0x41, sizeof(key));
+    XMEMSET(iv, 0x42, sizeof(iv));
+    XMEMSET(pt, 0x43, sizeof(pt));
+
+    /* Use the context for AES-128-CBC first, so it has live AES state. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, reused, &reusedLen, pt,
+        (int)sizeof(pt)));
+    /* Then switch it to a cipher held in another member of the union. */
+    reusedLen = 0;
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
+        iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, reused, &reusedLen, pt,
+        (int)sizeof(pt)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The same cipher on a context that has only ever held it. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
+        iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, fresh, &freshLen, pt,
+        (int)sizeof(pt)));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectIntEQ(reusedLen, freshLen);
+    ExpectIntEQ(0, XMEMCMP(reused, fresh, (size_t)freshLen));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* EVP_CIPHER_CTX_cleanup() frees the ChaCha20-Poly1305 key buffer, which is
+ * always 32 bytes. It used to zero ctx->keyLen bytes of it, and keyLen can be
+ * anything by then: another cipher set on the same context brings its own key
+ * length, and EVP_CIPHER_CTX_set_key_length() stores what it is given without
+ * checking. Both wrote past the end of the buffer. Run under ASAN this catches
+ * a regression; without it the overwrite is silent. */
+int test_wolfssl_EVP_chacha20_poly1305_key_free(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    byte key[64];
+    byte iv[16];
+    EVP_CIPHER_CTX* ctx = NULL;
+
+    XMEMSET(key, 0x41, 32);
+    /* AES-XTS refuses a key whose two halves match. */
+    XMEMSET(key + 32, 0x5a, 32);
+    XMEMSET(iv, 0x42, sizeof(iv));
+
+    /* A key length the caller invented, larger than the buffer. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
+        iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_set_key_length(ctx, 4096));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+#if defined(WOLFSSL_AES_XTS) && defined(WOLFSSL_AES_256) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+    /* The same through a cipher switch, which needs no invented length:
+     * AES-256-XTS's key length is 64. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
+        iv));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_aes_256_xts(), NULL, key, iv));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfssl_EVP_sm4_ccm_openssl_semantics(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    ExpectIntEQ(TEST_SUCCESS, ccm_openssl_semantics(EVP_sm4_ccm(), 16));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* CCM verifies while it decrypts, so a wrong tag is reported by the update
+ * that decrypts rather than by final, and no plaintext is handed back. */
+int test_wolfssl_EVP_aes_ccm_decrypt_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESCCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_AES_128)
+    byte key[16];
+    byte iv[12];
+    byte pt[32];
+    byte aad[16];
+    byte ct[64];
+    byte dec[64];
+    byte tag[16];
+    int i;
+    int len = 0;
+    EVP_CIPHER_CTX* ctx = NULL;
+
+    for (i = 0; i < (int)sizeof(key); i++) key[i] = (byte)i;
+    for (i = 0; i < (int)sizeof(iv);  i++) iv[i]  = (byte)(0xA0 + i);
+    for (i = 0; i < (int)sizeof(pt);  i++) pt[i]  = (byte)(i * 3 + 1);
+    for (i = 0; i < (int)sizeof(aad); i++) aad[i] = (byte)(i * 5 + 2);
+    XMEMSET(ct, 0, sizeof(ct));
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, EVP_aes_128_ccm(), NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL));
+    ExpectIntEQ(1, EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    ExpectIntEQ(1, EVP_EncryptUpdate(ctx, ct, &len, pt, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_EncryptFinal_ex(ctx, ct + len, &len));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The right tag: the update decrypts and hands back the plaintext. */
+    XMEMSET(dec, 0, sizeof(dec));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, EVP_aes_128_ccm(), NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    len = 0;
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, dec, &len, ct, (int)sizeof(pt)));
+    ExpectIntEQ((int)sizeof(pt), len);
+    ExpectIntEQ(0, XMEMCMP(pt, dec, sizeof(pt)));
+    len = -1;
+    ExpectIntEQ(1, EVP_DecryptFinal_ex(ctx, dec + sizeof(pt), &len));
+    ExpectIntEQ(0, len);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* A wrong tag: the update fails, returns nothing, and final still
+     * succeeds because there is nothing left for it to check. */
+    tag[0] ^= 0xFF;
+    XMEMSET(dec, 0, sizeof(dec));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, EVP_aes_128_ccm(), NULL, NULL,
+        NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, NULL, (int)sizeof(pt)));
+    ExpectIntEQ(1, EVP_DecryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)));
+    len = -1;
+    ExpectIntEQ(0, EVP_DecryptUpdate(ctx, dec, &len, ct, (int)sizeof(pt)));
+    ExpectIntEQ(0, len);
+    len = -1;
+    ExpectIntEQ(1, EVP_DecryptFinal_ex(ctx, dec, &len));
+    ExpectIntEQ(0, len);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+#endif
     return EXPECT_RESULT();
 }
 
@@ -1944,6 +2572,8 @@ int test_wolfssl_EVP_aes_ccm_zeroLen(void)
 
     ExpectIntEQ(1, EVP_EncryptInit_ex(en, EVP_aes_256_ccm(), NULL, key, iv));
     ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    /* The tag is read back at 16 bytes below, and the CCM default is 12. */
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_TAG, 16, NULL));
     ExpectIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
                                      plaintxtSz));
     ExpectIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
@@ -1962,6 +2592,20 @@ int test_wolfssl_EVP_aes_ccm_zeroLen(void)
     ExpectIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
     decryptedtxtSz += len;
     ExpectIntEQ(0, decryptedtxtSz);
+
+    /* The tag has to actually be checked. No payload call is made above - a
+     * zero length payload handed over with a NULL output buffer is an AAD
+     * call - so the check falls to EVP_DecryptFinal_ex(), and a wrong tag has
+     * to be refused there. Without that this whole sequence passes on any
+     * tag at all. */
+    tag[15] ^= 0xBB;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_cleanup(de));
+    EVP_CIPHER_CTX_init(de);
+    ExpectIntEQ(1, EVP_DecryptInit_ex(de, EVP_aes_256_ccm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, 0));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_TAG, 16, tag));
+    ExpectIntEQ(0, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
 
     EVP_CIPHER_CTX_free(en);
     EVP_CIPHER_CTX_free(de);
@@ -2186,17 +2830,20 @@ int test_wolfssl_EVP_aria_gcm(void)
         EVP_CIPHER_CTX_init(&en[i]);
         switch (i) {
             case 0:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aria_128_gcm(),
                     NULL, key, iv));
                 break;
             case 1:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aria_192_gcm(),
                     NULL, key, iv));
                 break;
             case 2:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aria_256_gcm(),
                     NULL, key, iv));
                 break;
@@ -2240,17 +2887,20 @@ int test_wolfssl_EVP_aria_gcm(void)
         EVP_CIPHER_CTX_init(&de[i]);
         switch (i) {
             case 0:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aria_128_gcm(),
                     NULL, key, iv));
                 break;
             case 1:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aria_192_gcm(),
                     NULL, key, iv));
                 break;
             case 2:
-                /* Default uses 96-bits IV length */
+                /* GCM's default IV length is 96 bits; this branch takes
+                 * that default rather than setting one. */
                 AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aria_256_gcm(),
                     NULL, key, iv));
                 break;
@@ -2596,7 +3246,8 @@ int test_wolfssl_EVP_sm4_gcm(void)
         EVP_CIPHER_CTX_init(&en[i]);
 
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* GCM's default IV length is 96 bits; this branch takes
+             * that default rather than setting one. */
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_gcm(), NULL, key,
                 iv));
         }
@@ -2620,7 +3271,8 @@ int test_wolfssl_EVP_sm4_gcm(void)
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* GCM's default IV length is 96 bits; this branch takes
+             * that default rather than setting one. */
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_gcm(), NULL, key,
                 iv));
         }
@@ -2693,6 +3345,8 @@ int test_wolfssl_EVP_sm4_ccm_zeroLen(void)
 
     ExpectIntEQ(1, EVP_EncryptInit_ex(en, EVP_sm4_ccm(), NULL, key, iv));
     ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    /* The tag is read back at 16 bytes below, and the CCM default is 12. */
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_TAG, 16, NULL));
     ExpectIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
                                      plaintxtSz));
     ExpectIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
@@ -2711,6 +3365,20 @@ int test_wolfssl_EVP_sm4_ccm_zeroLen(void)
     ExpectIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
     decryptedtxtSz += len;
     ExpectIntEQ(0, decryptedtxtSz);
+
+    /* The tag has to actually be checked. No payload call is made above - a
+     * zero length payload handed over with a NULL output buffer is an AAD
+     * call - so the check falls to EVP_DecryptFinal_ex(), and a wrong tag has
+     * to be refused there. Without that this whole sequence passes on any
+     * tag at all. */
+    tag[15] ^= 0xBB;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_cleanup(de));
+    EVP_CIPHER_CTX_init(de);
+    ExpectIntEQ(1, EVP_DecryptInit_ex(de, EVP_sm4_ccm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, 0));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_TAG, 16, tag));
+    ExpectIntEQ(0, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
 
     EVP_CIPHER_CTX_free(en);
     EVP_CIPHER_CTX_free(de);
@@ -2749,7 +3417,8 @@ int test_wolfssl_EVP_sm4_ccm(void)
         EVP_CIPHER_CTX_init(&en[i]);
 
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* CCM's default nonce is 7 bytes, as in OpenSSL; this branch
+             * takes it rather than setting one. */
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_ccm(), NULL, key,
                 iv));
         }
@@ -2761,6 +3430,14 @@ int test_wolfssl_EVP_sm4_ccm(void)
                 ivSz, NULL));
             ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], NULL, NULL, key, iv));
         }
+        /* The CCM tag length defaults to 12 bytes, as in OpenSSL, and the tag
+         * is read back below at SM4_BLOCK_SIZE. A NULL tag sets the length
+         * alone, which is the only form allowed while encrypting. */
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_SET_TAG,
+            SM4_BLOCK_SIZE, NULL));
+        /* CCM carries the payload length in its first block, so it has to be
+         * declared - in and out both NULL - before any AAD. */
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, NULL, plaintxtSz));
         ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, aad, aadSz));
         ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], ciphertxt, &len, plaintxt,
             plaintxtSz));
@@ -2773,7 +3450,8 @@ int test_wolfssl_EVP_sm4_ccm(void)
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
-            /* Default uses 96-bits IV length */
+            /* CCM's default nonce is 7 bytes, as in OpenSSL; this branch
+             * takes it rather than setting one. */
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_ccm(), NULL, key,
                 iv));
         }
@@ -2786,12 +3464,17 @@ int test_wolfssl_EVP_sm4_ccm(void)
             ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
 
         }
+        /* CCM verifies as it decrypts, inside EVP_DecryptUpdate(), so the tag
+         * has to be set before the ciphertext is passed in - as OpenSSL
+         * documents for this mode. */
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, NULL,
+            ciphertxtSz));
         ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
         ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
             ciphertxtSz));
         decryptedtxtSz = len;
-        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
-            SM4_BLOCK_SIZE, tag));
         ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         decryptedtxtSz += len;
         ExpectIntEQ(ciphertxtSz, decryptedtxtSz);
@@ -2799,13 +3482,22 @@ int test_wolfssl_EVP_sm4_ccm(void)
 
         /* modify tag*/
         tag[SM4_BLOCK_SIZE-1]+=0xBB;
-        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        /* As in the AES-CCM test: a second message on the same context begins
+         * with EVP_DecryptInit_ex(), which is what clears the length and the
+         * AAD the message above accumulated. Declaring the length again does
+         * not, and is refused. */
+        ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
         ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
             SM4_BLOCK_SIZE, tag));
-        /* fail due to wrong tag */
-        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, NULL,
             ciphertxtSz));
-        ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        /* Fail due to wrong tag. The update that decrypts reports it, and
+         * returns no plaintext; final has nothing left to check. */
+        ExpectIntEQ(0, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        ExpectIntEQ(0, len);
+        ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         ExpectIntEQ(0, len);
         ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
     }
@@ -3303,6 +3995,117 @@ int test_evp_cipher_update_no_padding_buffered(void)
     ExpectIntEQ(outSz, AES_BLOCK_SIZE);
     ExpectBufEQ(out, plain, AES_BLOCK_SIZE);
     EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * EVP_get_cipherbyname() looks a name up in the table of cipher names and, for
+ * the spellings that have no entry of their own, in a table of alternatives.
+ * Over half of those alternatives are only a differently cased version of a
+ * name that is already in the first table, so the two are consulted in that
+ * order and the comparison ignores case.
+ *
+ * That makes the casing of the name, and which of the two tables answers,
+ * the things worth pinning down. A NULL name is included because it used to
+ * dereference it.
+ */
+int test_wolfSSL_EVP_get_cipherbyname_names(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES)
+    /* Names that the cipher table holds itself. */
+    static const char* const canonical[] = {
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+        "AES-128-CBC",
+#endif
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+        "AES-256-CBC",
+#endif
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
+        "AES-256-GCM",
+#endif
+        NULL
+    };
+    /* Spellings that only the alternatives table knows. */
+    static const char* const alternates[] = {
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+        "aes128-cbc", "aes128",
+#endif
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
+        "id-aes256-GCM",
+#endif
+        NULL
+    };
+    const char* const* lists[3];
+    int li;
+    char buf[64];
+
+    lists[0] = canonical;
+    lists[1] = alternates;
+    lists[2] = NULL;
+
+    /* Both the names the table holds and the alternative spellings have to
+     * resolve, and to resolve the same way whatever their casing. The casings
+     * matter on both lists: the table's own names are upper case while the
+     * alternatives are mostly lower case, so only trying one of them would
+     * leave half of the case folding unexercised. */
+    for (li = 0; lists[li] != NULL; li++) {
+        const char* const* list = lists[li];
+        int i;
+
+        for (i = 0; list[i] != NULL; i++) {
+            const WOLFSSL_EVP_CIPHER* c = NULL;
+            int mode;
+            size_t n = XSTRLEN(list[i]);
+
+            if (n >= sizeof(buf)) {
+                continue;
+            }
+            ExpectNotNull(c = wolfSSL_EVP_get_cipherbyname(list[i]));
+            /* Whatever answered has to be a usable cipher, not merely
+             * non-NULL: an alternative spelling naming a cipher the build
+             * left out must not resolve. */
+            ExpectIntNE(wolfSSL_EVP_CIPHER_nid(c), 0);
+            ExpectIntGT(wolfSSL_EVP_Cipher_key_length(c), 0);
+
+            /* mode 0 lower cases, mode 1 upper cases, mode 2 alternates. */
+            for (mode = 0; mode < 3; mode++) {
+                const WOLFSSL_EVP_CIPHER* got = NULL;
+                int j;
+
+                for (j = 0; j < (int)n; j++) {
+                    char ch = list[i][j];
+                    int up = (mode == 1) || ((mode == 2) && ((j & 1) == 0));
+
+                    if (up) {
+                        if ((ch >= 'a') && (ch <= 'z')) {
+                            ch = (char)(ch - 'a' + 'A');
+                        }
+                    }
+                    else if ((ch >= 'A') && (ch <= 'Z')) {
+                        ch = (char)(ch - 'A' + 'a');
+                    }
+                    buf[j] = ch;
+                }
+                buf[n] = '\0';
+
+                ExpectNotNull(got = wolfSSL_EVP_get_cipherbyname(buf));
+                ExpectPtrEq(got, c);
+            }
+        }
+    }
+
+    /* Names that are not ciphers, and a NULL name, give NULL rather than
+     * anything worse. */
+    ExpectNull(wolfSSL_EVP_get_cipherbyname(NULL));
+    ExpectNull(wolfSSL_EVP_get_cipherbyname(""));
+    ExpectNull(wolfSSL_EVP_get_cipherbyname("NO-SUCH-CIPHER"));
+    ExpectNull(wolfSSL_EVP_get_cipherbyname("AES-256"));
+    ExpectNull(wolfSSL_EVP_get_cipherbyname("AES-256-GCMM"));
+
+    /* The digest equivalent had the same NULL problem. */
+    ExpectNull(wolfSSL_EVP_get_digestbyname(NULL));
 #endif
     return EXPECT_RESULT();
 }

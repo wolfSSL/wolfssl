@@ -648,6 +648,16 @@ struct WOLFSSL_EVP_PKEY {
     word16 pkcs8HeaderSz;
 
     /* option bits */
+    /* The per-key RNG seeds a DRBG, which costs more than everything else
+     * about creating a key object put together, and only RSA blinding and the
+     * Curve/Ed key generators ever read it. It is set up on first use, and
+     * this records whether that has happened. */
+    WC_BITFIELD rngInited:1;
+    /* The DER encoding of the key is cached in pkey.ptr. A set1_* records the
+     * key and sets this instead of encoding there and then, because most keys
+     * are never asked for their encoding - EvpPkeyEnsureDer() produces it when
+     * something does ask. */
+    WC_BITFIELD derStale:1;
     WC_BITFIELD ownDh:1;  /* if struct owns DH  and should free it */
     WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
     WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */
