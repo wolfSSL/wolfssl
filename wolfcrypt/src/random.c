@@ -274,7 +274,8 @@ This library contains implementation for the random number generator.
         cpuid_get_flags_ex(&intel_flags);
     }
     #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
-    static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
+    static WC_MAYBE_UNUSED int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output,
+        word32 sz);
     #endif
     #ifdef HAVE_INTEL_RDRAND
     static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz);
@@ -7476,7 +7477,8 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
 }
 
 /* return 0 on success */
-static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
+static WC_MAYBE_UNUSED int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output,
+    word32 sz)
 {
     int ret = 0;
     word64 rndTmp;

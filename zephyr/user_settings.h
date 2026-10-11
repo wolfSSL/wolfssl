@@ -161,6 +161,9 @@ extern "C" {
     #if defined(HAVE_FIPS_VERSION) && !defined(HAVE_FIPS_VERSION_MAJOR)
         #define HAVE_FIPS_VERSION_MAJOR HAVE_FIPS_VERSION
     #endif
+    #if defined(CONFIG_WOLFCRYPT_FIPS_V7) || defined(CONFIG_WOLFCRYPT_FIPS_READY)
+        #include "user_settings-fips-v7.h"
+    #endif
 #endif
 
 
@@ -508,6 +511,8 @@ extern "C" {
 #define NO_MD5
 //#define NO_DES3 /* Necessary for pkcs12 tests */
 
+/* FIPS v7 takes its PQC and SHAKE set from user_settings-fips-v7.h. */
+#ifndef WOLFSSL_ZEPHYR_FIPS_V7_H
 /* PQC families -- each independently selectable so a Kconfig-driven build (no
  * user-provided settings file) can include only what a consumer needs and keep
  * the flash footprint down. All default off. */
@@ -569,6 +574,7 @@ extern "C" {
     #define WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE256
 #endif
+#endif /* !WOLFSSL_ZEPHYR_FIPS_V7_H */
 
 
 /* ------------------------------------------------------------------------- */
@@ -580,7 +586,8 @@ extern "C" {
     /* SP has no implementation for the 512-bit size and no path for an
      * arbitrary curve. Neither is a build failure - every operation fails at
      * runtime with WC_KEY_SIZE_E - so move to the generic variant instead. */
-    #if defined(WOLFSSL_CUSTOM_CURVES) || defined(HAVE_ECC512)
+    #if defined(WOLFSSL_CUSTOM_CURVES) || defined(HAVE_ECC512) || \
+        defined(WOLFSSL_SP_MATH_ALL)
         #define WOLFSSL_SP_MATH_ALL
     #else
         #define WOLFSSL_SP_MATH /* no multi-precision math, only single */

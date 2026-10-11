@@ -799,6 +799,15 @@ fi
 if test "$ENABLED_FIPS" != "no"
 then
     REPRODUCIBLE_BUILD_DEFAULT=yes
+    # 32-bit PowerPC gcc puts small const objects in .sdata, outside the hashed
+    # read-only range (GCC manual, RS/6000 and PowerPC Options, -mreadonly-in-sdata).
+    case $host_cpu in
+    *powerpc64*) ;;
+    *powerpc*)
+        AX_CHECK_COMPILE_FLAG([-mno-readonly-in-sdata],
+            [AM_CFLAGS="$AM_CFLAGS -mno-readonly-in-sdata"])
+        ;;
+    esac
 fi
 
 AS_CASE([$FIPS_VERSION],
@@ -13961,7 +13970,7 @@ then
         # hides dladdr or lacks the RTLD flags
         saved_LIBS="$LIBS"
         AC_SEARCH_LIBS([dladdr], [dl])
-        AC_MSG_CHECKING([whether dladdr, dlopen, unnamed semaphores and thread cancellation are available])
+        AC_MSG_CHECKING([whether dladdr, dlopen and unnamed semaphores are available])
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #if defined(__linux__) || defined(__ANDROID__) || \
                 defined(__CYGWIN__) || defined(__MSYS__)
@@ -13979,10 +13988,14 @@ then
             Dl_info info;
             const char* name;
             sem_t s;
-            int old;
             if (sem_init(&s, 0, 1) == 0)
                 (void)sem_post(&s);
-            (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+            #ifdef PTHREAD_CANCEL_DISABLE
+            {
+                int old;
+                (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+            }
+            #endif
             if (dladdr((void*)(uintptr_t)main, &info) != 0) {
                 name = info.dli_fname;
                 if (name != NULL && name[0] != '\0')
@@ -13991,7 +14004,7 @@ then
             ]])],
             [AC_MSG_RESULT([yes])],
             [AC_MSG_RESULT([no])
-             RNG_AUTOFORK_NEEDS="dladdr, dlopen, unnamed semaphores and thread cancellation"])
+             RNG_AUTOFORK_NEEDS="dladdr, dlopen and unnamed semaphores"])
         LIBS="$saved_LIBS"
     fi
     if test -n "$RNG_AUTOFORK_NEEDS"

@@ -72,6 +72,7 @@ config WOLFSSL_HAS_SETTINGS_FILE
 config WOLFCRYPT_FIPS
 	bool "wolfCrypt FIPS support"
 	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
+	select STATIC_INIT_GNU # the power-on self test is a C constructor
 	help
 	  Enable the wolfCrypt FIPS 140-3 module boundary. Requires the wolfSSL
 	  FIPS bundle (fips.c, fips_test.c, wolfcrypt_first.c, wolfcrypt_last.c)
@@ -382,6 +383,7 @@ choice WOLFSSL_AES_GCM_GHASH
   prompt "AES-GCM GHASH implementation"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
   default WOLFSSL_GHASH_SMALL if WOLFCRYPT_FIPS_V2 || WOLFCRYPT_FIPS_V5
+  default WOLFSSL_GHASH_TABLE_4BIT if WOLFCRYPT_FIPS_V7 || WOLFCRYPT_FIPS_READY
   default WOLFSSL_GHASH_CONSTANT_TIME if !WOLFCRYPT_ARM_SYMMETRIC_ASM
   default WOLFSSL_GHASH_TABLE_4BIT
   help
