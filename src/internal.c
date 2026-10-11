@@ -13832,19 +13832,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
             ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE)
 
             WOLFSSL_MSG("Client attempting to connect with different version");
-#ifdef WOLFSSL_TLS13
-        /* RFC 8446 Appendix D.2: the record layer version of the second
-         * ClientHello after a HelloRetryRequest, and of any middlebox
-         * compatibility ChangeCipherSpec before it, MUST be ignored. */
-        else if (ssl->options.side == WOLFSSL_SERVER_END &&
-                 !ssl->options.dtls &&
-                 IsAtLeastTLSv1_3(ssl->version) &&
-                 ssl->options.clientState == CLIENT_HELLO_RETRY &&
-                 (rh->type == handshake ||
-                  rh->type == change_cipher_spec) &&
-                 rh->pvMajor == SSLv3_MAJOR)
-            WOLFSSL_MSG("Ignoring record version before second ClientHello");
-#endif
         else if (ssl->options.side == WOLFSSL_CLIENT_END &&
                                  ssl->options.downgrade &&
                                  ssl->options.connectState < FIRST_REPLY_DONE)

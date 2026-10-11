@@ -8573,10 +8573,11 @@ int test_tls13_hrr_ch2_record_version(void)
     ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR,
         TLSv1_1_MINOR, &serverErr), TEST_SUCCESS);
     ExpectIntEQ(serverErr, 0);
-    /* Not a TLS 1.x record version: still rejected. */
+    /* tls 1.3 receiver must ignore the legacy record version, even when
+     * major byte is not SSLv3_MAJOR. */
     ExpectIntEQ(test_tls13_hrr_ch2_record_version_run(SSLv3_MAJOR + 1,
         TLSv1_2_MINOR, &serverErr), TEST_SUCCESS);
-    ExpectIntEQ(serverErr, WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectIntEQ(serverErr, 0);
 #endif
     return EXPECT_RESULT();
 }
