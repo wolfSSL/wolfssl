@@ -12246,8 +12246,9 @@ static int test_tls_ext_word16_overflow(void)
 
     /* Build an oversized SessionTicket extension directly on the ssl
      * extension list. Going via the public API is not enough here because
-     * wolfSSL_set_SessionTicket clamps to word16 without creating the
-     * TLSX entry; the TLSX path is what exercises the accumulator. */
+     * wolfSSL_set_SessionTicket rejects lengths over 16 bits and does not
+     * create the TLSX entry; the TLSX path is what exercises the
+     * accumulator. */
     if (EXPECT_SUCCESS()) {
         ticket = TLSX_SessionTicket_Create(0, big, bigSz, ssl->heap);
         ExpectNotNull(ticket);

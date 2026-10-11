@@ -57,6 +57,7 @@ int test_wolfSSL_UseALPN_inval_ext(void);
 int test_wolfSSL_ALPN_GetPeerProtocol_inval_ext(void);
 int test_wolfSSL_CTX_set_TicketEncCb_inval_ext(void);
 int test_wolfSSL_SessionTicket_inval_ext(void);
+int test_wolfSSL_SessionTicket_alloc_fail_ext(void);
 int test_wolfSSL_CTX_set_servername_arg_inval_ext(void);
 int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void);
 int test_wolfSSL_dual_alg_cks_parse_ext(void);
@@ -105,6 +106,8 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void);
         TEST_DECL_GROUP("ssl_ext",                                             \
             test_wolfSSL_CTX_set_TicketEncCb_inval_ext),                       \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_SessionTicket_inval_ext),      \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_SessionTicket_alloc_fail_ext),                        \
         TEST_DECL_GROUP("ssl_ext",                                             \
             test_wolfSSL_CTX_set_servername_arg_inval_ext),                    \
         TEST_DECL_GROUP("ssl_ext",                                             \

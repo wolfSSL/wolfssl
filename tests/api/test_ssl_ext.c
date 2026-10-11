@@ -1112,6 +1112,123 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+#define TEST_TICKET_OOM
+
+/* Makes every allocation fail while set. */
+static int ticketOomFailAll = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ticketOomMalloc(size_t size, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ticketOomMalloc(size_t size)
+{
+#endif
+    if (ticketOomFailAll) {
+        return NULL;
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void ticketOomFree(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void ticketOomFree(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* ticketOomRealloc(void* ptr, size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* ticketOomRealloc(void* ptr, size_t size)
+{
+#endif
+    if (ticketOomFailAll) {
+        return NULL;
+    }
+    return realloc(ptr, size);
+}
+#endif /* TEST_TICKET_OOM */
+
+/* Test that a failed wolfSSL_set_SessionTicket() keeps the previous ticket.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TICKET_OOM
+    wolfSSL_Malloc_cb  prevM = NULL;
+    wolfSSL_Free_cb    prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte big[4096];
+    byte out[4096];
+    word32 outSz;
+
+    XMEMSET(big, 0x5a, sizeof(big));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, 3000), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_SetAllocators(ticketOomMalloc, ticketOomFree,
+            ticketOomRealloc), 0);
+        ticketOomFailAll = 1;
+        ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, 4000),
+            WC_NO_ERR_TRACE(MEMORY_ERROR));
+        ticketOomFailAll = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    }
+
+    /* The previous ticket is still there. */
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 3000);
+    ExpectBufEQ(out, big, 3000);
+
+    /* A ticket just over the static buffer size is stored in full. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, SESSION_TICKET_LEN + 1),
+        WOLFSSL_SUCCESS);
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, SESSION_TICKET_LEN + 1);
+    ExpectBufEQ(out, big, SESSION_TICKET_LEN + 1);
+
+    /* Clearing the ticket leaves nothing to read. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+
+    /* A length over 16 bits is rejected before the buffer is read. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, big, WOLFSSL_MAX_16BIT + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_CTX_set_servername_arg() rejects bad arguments.
  *
  * @return  TEST_SUCCESS on success.

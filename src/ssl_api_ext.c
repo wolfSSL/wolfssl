@@ -1611,55 +1611,21 @@ int wolfSSL_get_SessionTicket(WOLFSSL* ssl, byte* buf, word32* bufSz)
  * @param [in] buf    Ticket data, may be NULL when bufSz is 0.
  * @param [in] bufSz  Length of ticket data in bytes.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FUNC_ARG when ssl is NULL or buf is NULL with bufSz > 0.
- * @return  MEMORY_ERROR on allocation failure.
+ * @return  BAD_FUNC_ARG when ssl is NULL, buf is NULL with bufSz > 0 or
+ *          bufSz is larger than 65535.
+ * @return  MEMORY_ERROR on allocation failure. The previous ticket is kept.
  */
 int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                                           word32 bufSz)
 {
     int ret = WOLFSSL_SUCCESS;
 
-    if ((ssl == NULL) || ((buf == NULL) && (bufSz > 0))) {
+    if ((ssl == NULL) || ((buf == NULL) && (bufSz > 0)) ||
+            (bufSz > WOLFSSL_MAX_16BIT)) {
         ret = BAD_FUNC_ARG;
     }
-
-    if ((ret == WOLFSSL_SUCCESS) && (bufSz > 0)) {
-        /* Ticket will fit into static ticket */
-        if (bufSz <= SESSION_TICKET_LEN) {
-            if (ssl->session->ticketLenAlloc > 0) {
-                XFREE(ssl->session->ticket, ssl->session->heap,
-                      DYNAMIC_TYPE_SESSION_TICK);
-                ssl->session->ticketLenAlloc = 0;
-                ssl->session->ticket = ssl->session->staticTicket;
-            }
-        }
-        else { /* Ticket requires dynamic ticket storage */
-            /* is dyn buffer big enough */
-            if (ssl->session->ticketLen < bufSz) {
-                if (ssl->session->ticketLenAlloc > 0) {
-                    XFREE(ssl->session->ticket, ssl->session->heap,
-                          DYNAMIC_TYPE_SESSION_TICK);
-                }
-                ssl->session->ticket = (byte*)XMALLOC(bufSz, ssl->session->heap,
-                        DYNAMIC_TYPE_SESSION_TICK);
-                if (ssl->session->ticket == NULL) {
-                    ssl->session->ticket = ssl->session->staticTicket;
-                    ssl->session->ticketLenAlloc = 0;
-                    ret = MEMORY_ERROR;
-                }
-                else {
-                    ssl->session->ticketLenAlloc = (word16)bufSz;
-                }
-            }
-        }
-
-        if (ret == WOLFSSL_SUCCESS) {
-            XMEMCPY(ssl->session->ticket, buf, bufSz);
-        }
-    }
-
-    if (ret == WOLFSSL_SUCCESS) {
-        ssl->session->ticketLen = (word16)bufSz;
+    else if (SetSessionTicket(ssl->session, buf, (word16)bufSz) != 0) {
+        ret = MEMORY_ERROR;
     }
 
     return ret;
