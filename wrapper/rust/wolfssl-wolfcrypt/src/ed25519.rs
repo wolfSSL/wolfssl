@@ -1427,9 +1427,12 @@ impl Ed25519 {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         // For the prehash variant, the input must have been exactly one
         // prehash. The streaming state is consumed either way.
-        if let Some(len) = self.ph_stream_len.take() && len != Self::PREHASH_SIZE {
-            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        if let Some(len) = self.ph_stream_len {
+            if len != Self::PREHASH_SIZE {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
         }
+        self.ph_stream_len = None;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,

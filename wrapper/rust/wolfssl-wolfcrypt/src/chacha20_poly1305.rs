@@ -571,6 +571,7 @@ impl XChaCha20Poly1305Aead {
                 self.key.as_ptr(), self.key.len() as u32, 1)
         };
         if rc != 0 {
+            unsafe { crate::zeroize_raw(&mut wc_ccp); }
             return Err(aead::Error);
         }
         let mut wc_ccp = unsafe { wc_ccp.assume_init() };
