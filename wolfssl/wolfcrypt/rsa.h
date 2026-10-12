@@ -290,6 +290,9 @@ struct RsaKey {
     byte   dataIsAlloc;
 #endif
 #ifdef WC_RSA_NONBLOCK
+    /* Caller-owned. Detach with wc_RsaSetNonBlock(key, NULL) while this
+     * storage is still live to wipe it before release; FreeRsaKey does not
+     * dereference it. See the setter's lifetime contract below. */
     RsaNb* nb;
 #endif
 #ifdef WOLFSSL_AFALG_XILINX_RSA
@@ -458,6 +461,11 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     WOLFSSL_API int wc_RsaClearRNG(RsaKey* key);
 #endif
 #ifdef WC_RSA_NONBLOCK
+    /* Attaching resets nb; replacing/detaching wipes the previous live nb.
+     * The caller owns both allocations and must serialize access. Detach
+     * before nb expires, on completion or cancellation. After cancelling an
+     * unfinished operation, free/reinitialize the key before starting another.
+     * FreeRsaKey alone does not wipe caller-owned nb storage. */
     WOLFSSL_API int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
     /* maxBlockInst budget lives on the TFM exptModNb_t; only available
      * with USE_FAST_MATH. SP-only WC_RSA_NONBLOCK builds do not expose

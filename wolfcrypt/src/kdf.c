@@ -866,8 +866,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
             ret = _HashFinal(enmhashId, &hash, key);
 
             for (curBlock = 1; (ret == 0) && (curBlock < blocks); curBlock++) {
-                ret = _HashInit(enmhashId, &hash);
-                if (ret != 0) break;
+                /* Final resets the hash for reuse. Reinitializing here would
+                 * lose owned resources such as the cached SHA-256 schedule. */
                 ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
                 if (ret != 0) break;
                 if (kPad)
@@ -886,8 +886,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
 
             if (remainder > 0) {
                 byte lastBlock[WC_MAX_DIGEST_SIZE];
-                if (ret == 0)
-                    ret = _HashInit(enmhashId, &hash);
+                /* Reuse the reset context from the preceding Final. */
                 if (ret == 0)
                     ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
                 if (ret == 0 && kPad)

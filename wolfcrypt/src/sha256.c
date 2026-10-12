@@ -1384,13 +1384,14 @@ static int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     int ret = 0;
 
     while (len >= WC_SHA256_BLOCK_SIZE) {
-        word32 buffer[WC_SHA256_BLOCK_SIZE / sizeof(word32)];
-
-        XMEMCPY(buffer, data, WC_SHA256_BLOCK_SIZE);
+        /* Keep the endian-conversion scratch in the context, where Free
+         * wipes it. Update and Final can already pass this same buffer. */
+        if (data != (const byte*)sha256->buffer)
+            XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWords(buffer, buffer, WC_SHA256_BLOCK_SIZE);
+        ByteReverseWords(sha256->buffer, sha256->buffer, WC_SHA256_BLOCK_SIZE);
     #endif
-        ret = Transform_Sha256(sha256, (const byte*)buffer);
+        ret = Transform_Sha256(sha256, (const byte*)sha256->buffer);
         if (ret != 0)
             break;
         data += WC_SHA256_BLOCK_SIZE;

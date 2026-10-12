@@ -821,7 +821,7 @@ static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
 {
     int ret;
     byte address[SLHDSA_HAC_SZ];
-    byte digest[WC_SHA256_DIGEST_SIZE];
+    byte* digest = key->sha2Digest;
 
     (void)pk_seed;
 
@@ -8820,6 +8820,10 @@ void wc_SlhDsaKey_Free(SlhDsaKey* key)
         }
     }
 
+#ifdef WOLFSSL_SLHDSA_SHA2
+    ForceZero(key->sha2Digest, sizeof(key->sha2Digest));
+#endif
+
 #ifdef WOLF_PRIVATE_KEY_ID
     key->idLen = 0;
     key->labelLen = 0;
@@ -8967,15 +8971,18 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
     }
 #else
     if (ret == 0) {
-        /* Steps 1-5: Generate the 3 random hashes. */
-        ret = wc_RNG_GenerateBlock(rng, key->sk, 3U * key->params->n);
-    }
-    if (ret == 0) {
+        byte seeds[3 * SLHDSA_MAX_N];
         byte n = key->params->n;
 
-        /* Step 7: Make the key with the random  */
-        ret = wc_SlhDsaKey_MakeKeyWithRandom(key, key->sk, n, key->sk + n, n,
-            key->sk + 2 * n, n);
+        /* Steps 1-5: Generate the 3 random hashes. */
+        ret = wc_RNG_GenerateBlock(rng, seeds, 3U * n);
+        if (ret == 0) {
+            /* Stage new seeds separately: an RNG failure preserves the old
+             * key, and MakeKeyWithRandom zeroizes it before replacement. */
+            ret = wc_SlhDsaKey_MakeKeyWithRandom(key, seeds, n, seeds + n, n,
+                seeds + 2 * n, n);
+        }
+        ForceZero(seeds, sizeof(seeds));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -8989,6 +8996,7 @@ static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
 {
 #ifdef WOLFSSL_SLHDSA_SHA2
     if (SLHDSA_IS_SHA2(key->params->param)) {
+        ForceZero(key->sha2Digest, sizeof(key->sha2Digest));
         if (key->hash.sha2.sha256_inited) {
             wc_Sha256Free(&key->hash.sha2.sha256);
             key->hash.sha2.sha256_inited = 0;
@@ -9105,14 +9113,20 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
     else {
         byte n = key->params->n;
+        byte seeds[3 * SLHDSA_MAX_N];
 
-        /* Step 4: Copy the seeds into the key if they didn't come from the key.
-         */
-        if (sk_seed != key->sk) {
-            XMEMCPY(key->sk        , sk_seed, n);
-            XMEMCPY(key->sk +     n, sk_prf , n);
-            XMEMCPY(key->sk + 2 * n, pk_seed, n);
-        }
+        /* Any of the three inputs may alias the key, in any order. Preserve
+         * all of them before destroying the old SSPs (ISO 19790 7.9.7). */
+        XMEMCPY(seeds, sk_seed, n);
+        XMEMCPY(seeds + n, sk_prf, n);
+        XMEMCPY(seeds + 2 * n, pk_seed, n);
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
+        slhdsakey_wipe_secret_hash(key);
+#endif
+        key->flags = 0;
+        ForceZero(key->sk, sizeof(key->sk));
+        XMEMCPY(key->sk, seeds, 3U * n);
+        ForceZero(seeds, sizeof(seeds));
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -9128,9 +9142,14 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
                 WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
                 3U * key->params->n, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-                if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
-                    /* Device owns the key (ISO/IEC 19790:2012 7.9.7). */
+                if ((ret != 0) ||
+                        ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
+                    /* A failed generation or a device-owned key leaves no
+                     * software private key (ISO/IEC 19790:2012 7.9.7). */
                     ForceZero(key->sk, 2U * key->params->n);
+                }
+                if (ret != 0) {
+                    key->flags = 0;
                 }
                 return ret;
             }
@@ -9143,6 +9162,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
 #ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
     if (ret == 0) {
         ret = NO_VALID_DEVID;
+        ForceZero(key->sk, 2U * key->params->n);
     }
 #else
     if (ret == 0) {
@@ -11111,8 +11131,18 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
         ret = BAD_LENGTH_E;
     }
     else {
+        byte encoded[4 * SLHDSA_MAX_N];
+
+        /* Preserve aliased input before destroying the previous key. */
+        XMEMCPY(encoded, priv, privLen);
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
+        slhdsakey_wipe_secret_hash(key);
+#endif
+        key->flags = 0;
+        ForceZero(key->sk, sizeof(key->sk));
         /* Copy private and public key data into SLH-DSA key object. */
-        XMEMCPY(key->sk, priv, 4U * key->params->n);
+        XMEMCPY(key->sk, encoded, privLen);
+        ForceZero(encoded, sizeof(encoded));
 /* Under crypto callback only the device performs every hash, so it derives
  * the SHA2 midstates for the imported PK.seed itself. */
 #if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
@@ -11245,6 +11275,7 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
             ret = WC_KEY_MISMATCH_E;
         }
         ForceZero(root, sizeof(root));
+        slhdsakey_wipe_secret_hash(key);
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 

@@ -671,6 +671,8 @@ struct ecc_key {
     WC_RNG* rng;
 #endif
 #ifdef WC_ECC_NONBLOCK
+    /* Caller-owned. Detach with wc_ecc_set_nonblock(key, NULL) before this
+     * storage expires so it is wiped; wc_ecc_free does not dereference it. */
     ecc_nb_ctx_t* nb_ctx;
 #endif
 #ifdef WOLFSSL_DHUK
@@ -1240,6 +1242,11 @@ int wc_ecc_get_key_id(ecc_key* key, word32* keyId);
 #endif
 
 #ifdef WC_ECC_NONBLOCK
+    /* Attaching resets ctx; replacing/detaching wipes the previous live ctx.
+     * The caller owns its storage and must serialize access. Detach on
+     * completion or cancellation before releasing ctx. After cancelling an
+     * unfinished operation, free/reinitialize the key before starting another.
+     * wc_ecc_free alone does not wipe caller-owned ctx storage. */
     WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
 #endif
 
