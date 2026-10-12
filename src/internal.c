@@ -39312,12 +39312,19 @@ int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
 {
     byte* buf = session->staticTicket;
     word16 allocSz = 0;
+    word16 staticUsed = length;
 
     if (length > sizeof(session->staticTicket)) {
         buf = (byte*)XMALLOC(length, session->heap, DYNAMIC_TYPE_SESSION_TICK);
         if (buf == NULL)
             return MEMORY_ERROR;
         allocSz = length;
+        staticUsed = 0;
+    }
+
+    /* Copy first, ticket may point at the current ticket. */
+    if (length > 0) {
+        XMEMMOVE(buf, ticket, length);
     }
 
     if (session->ticket != session->staticTicket) {
@@ -39327,10 +39334,9 @@ int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
         }
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
     }
-    ForceZero(session->staticTicket, sizeof(session->staticTicket));
+    ForceZero(session->staticTicket + staticUsed,
+        sizeof(session->staticTicket) - staticUsed);
 
-    if (length > 0)
-        XMEMCPY(buf, ticket, length);
     session->ticket = buf;
     session->ticketLen = length;
     session->ticketLenAlloc = allocSz;
