@@ -1499,8 +1499,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->authTag, ctx->authTagSz);
 
                 if (ret == 0) {
-                    if (ctx->enc)
-                        ctx->authIvUsed = ctx->authIncIv ? 0 : 1;
                     ret = WOLFSSL_SUCCESS;
                     *outl = ctx->authBufferLen;
                 }
@@ -1527,7 +1525,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ctx->authIncIv = 0;
                 }
                 else {
-                    /* Clear IV, since IV reuse is not recommended for AES GCM. */
+                    /* Clear IV since ARIA GCM must not reuse an IV. */
                     XMEMSET(ctx->iv, 0, ARIA_BLOCK_SIZE);
                     ctx->authIvUsed = 1;
                 }
