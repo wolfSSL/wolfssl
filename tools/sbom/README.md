@@ -28,16 +28,20 @@ Composition (at least one):
 
 - `--srcs-file PATH` — the source files compiled into the artifact (tier E).
 - `--lib PATH` — the built library to hash (tier R/L/S).
-- `--no-artifact-hash` — record the artifact as-built and do not re-hash. Use it
-  with `--lib` for a FIPS canister or a kernel module. Never substitute a source
-  list for a certified artifact.
+- `--no-artifact-hash` — record a placeholder checksum for an as-built FIPS
+  canister or kernel module. Pass `--lib` or `--srcs-file` so the caller names
+  that artifact. The driver sends only `--no-artifact-hash` to gen-sbom.
+  gen-sbom accepts one checksum source. Never substitute a source list for a
+  certified artifact.
 
 Config (choose one):
 
 - `--cflags="..."` — raw CFLAGS; the driver expands the `-D` tokens through the
   host compiler. Use the `=` form so a leading-dash value is not read as a flag.
 - `--options-h PATH` — a pre-expanded flat `#define` header, used verbatim.
-- `--user-settings PATH` — a `user_settings.h`; the generator captures it.
+- `--user-settings PATH` — path to `wolfssl/wolfcrypt/settings.h`. Also pass
+  `--user-settings-include DIR` (the directory that contains `user_settings.h`)
+  and `--user-settings-define WOLFSSL_USER_SETTINGS`.
 - `--source-only` — no build-config macros (for example a Kconfig-driven build).
 
 Dependency (for linkers and bindings): `--dep-wolfssl`, `--dep-openssl`, and
@@ -47,8 +51,8 @@ The driver captures macros with the host compiler, so the SBOM is reproducible
 across toolchains. It scrubs absolute host paths from the captured macros unless
 you pass `--no-scrub`.
 
-The shared driver is product-neutral and calls the vendored `share/gen-sbom` by
-default. Pass `--gen-sbom` only when you want to override that copy.
+The shared driver is product-neutral and calls the `gen-sbom` file in the same
+directory. Pass `--gen-sbom` only when you want to override that copy.
 
 ## The manifest contract
 

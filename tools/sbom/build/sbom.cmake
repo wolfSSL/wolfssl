@@ -55,17 +55,29 @@
 #   LICENSE_TEXT <path>  Plain-text licence for a LicenseRef-* used in
 #                     LICENSE_OVERRIDE (required by SPDX 2.3).
 #
+#   USER_SETTINGS <path>  Path to wolfssl/wolfcrypt/settings.h. This is the
+#                     generator's pcpp entry point. Also pass
+#                     USER_SETTINGS_INCLUDE and USER_SETTINGS_DEFINE
+#                     WOLFSSL_USER_SETTINGS. A user_settings.h path alone
+#                     records only the literals in that file.
+#   USER_SETTINGS_INCLUDE <dir>...  Directories for that preprocess. One of
+#                     them must contain user_settings.h.
+#   USER_SETTINGS_DEFINE <NAME[=VALUE]>...  Predefines for that preprocess.
+#                     Include WOLFSSL_USER_SETTINGS.
+#
 # These mirror the SBOM_* variables of build/sbom.mk one for one; the two
 # fragments must accept the same product description, or the same product
 # yields two different documents depending on which build system generated it.
 #
-# NOTE: the driver is invoked as a program; on Windows run the target from a
-# shell environment (WSL/MSYS/Git-Bash) or use the Make/autotools path.
+# The helper runs sbom-driver.py with the Python interpreter. A native
+# Windows CMake generator cannot start the extensionless sbom-driver shell
+# wrapper. That wrapper remains the Make and shell entry point.
 
 # The shared driver sits one directory above this fragment.
 set(_WOLFSSL_COMPLIANCE_TOOLING_SBOM_DIR ${CMAKE_CURRENT_LIST_DIR})
 get_filename_component(_WOLFSSL_COMPLIANCE_TOOLING_DRIVER
-    "${_WOLFSSL_COMPLIANCE_TOOLING_SBOM_DIR}/../sbom-driver" ABSOLUTE)
+    "${_WOLFSSL_COMPLIANCE_TOOLING_SBOM_DIR}/../sbom-driver.py" ABSOLUTE)
+find_program(_WOLFSSL_COMPLIANCE_TOOLING_PYTHON NAMES python3 python)
 
 function(wolfssl_compliance_tooling_add_sbom)
     set(_opts NO_ARTIFACT_HASH SOURCE_ONLY)
@@ -74,7 +86,8 @@ function(wolfssl_compliance_tooling_add_sbom)
              DEP_WOLFSSL DEP_WOLFCRYPT DEP_OPENSSL DEP_LIBZ CRYPTO_ONLY
              CDX_OUT SPDX_OUT COMPONENT_TYPE DOCUMENT_NAMESPACE
              LICENSE_OVERRIDE LICENSE_TEXT)
-    set(_multi TARGETS DEFS DEP_VERSION INCLUDE_DIRS)
+    set(_multi TARGETS DEFS DEP_VERSION INCLUDE_DIRS
+             USER_SETTINGS_INCLUDE USER_SETTINGS_DEFINE)
     cmake_parse_arguments(SB "${_opts}" "${_one}" "${_multi}" ${ARGN})
 
     if(NOT SB_NAME)
@@ -123,7 +136,13 @@ function(wolfssl_compliance_tooling_add_sbom)
     endforeach()
     list(REMOVE_DUPLICATES _srcs)
 
+    if(NOT _WOLFSSL_COMPLIANCE_TOOLING_PYTHON)
+        message(FATAL_ERROR
+            "wolfssl_compliance_tooling_add_sbom: python3 was not found")
+    endif()
+
     set(_cmd ${CMAKE_COMMAND} -E env HOSTCC=${SB_HOSTCC}
+             ${_WOLFSSL_COMPLIANCE_TOOLING_PYTHON}
              ${_WOLFSSL_COMPLIANCE_TOOLING_DRIVER}
              --name ${SB_NAME}
              --root ${SB_ROOT}
@@ -148,6 +167,12 @@ function(wolfssl_compliance_tooling_add_sbom)
     # Config: user_settings, a pre-expanded header, source-only, or -D flags.
     if(SB_USER_SETTINGS)
         list(APPEND _cmd --user-settings ${SB_USER_SETTINGS})
+        foreach(_inc IN LISTS SB_USER_SETTINGS_INCLUDE)
+            list(APPEND _cmd --user-settings-include ${_inc})
+        endforeach()
+        foreach(_def IN LISTS SB_USER_SETTINGS_DEFINE)
+            list(APPEND _cmd --user-settings-define ${_def})
+        endforeach()
     elseif(SB_OPTIONS_H)
         list(APPEND _cmd --options-h ${SB_OPTIONS_H})
     elseif(SB_SOURCE_ONLY)
