@@ -7831,6 +7831,9 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_LMS="yes"])
         # LMS: enable SHA-256/192 and SHAKE256 parameter sets for FIPS v7
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_SHA256_192 -DWOLFSSL_LMS_SHAKE256"
+        # SP 800-208 sec 8.1: LMS/XMSS keygen and signing are validated only in
+        # hardware modules; a software module verifies only (sec 8.2).
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY -DWOLFSSL_XMSS_VERIFY_ONLY"
 
         AS_IF([test "$ENABLED_SLHDSA" != "yes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_slhdsa" != "no")],
