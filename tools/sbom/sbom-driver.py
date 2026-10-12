@@ -11,8 +11,10 @@ The driver covers every product tier:
 
   * Library (tier R/L/S): hash the built library with --lib.
   * Source-embedded (tier E, e.g. wolfBoot): hash a source set with --srcs-file.
-  * As-built / FIPS / kernel module: --lib with --no-artifact-hash on the
-    as-built artifact. Never substitute a source list for a certified artifact.
+  * As-built / FIPS / kernel module: pass --lib or --srcs-file so the caller
+    names the artifact, and pass --no-artifact-hash. The driver sends only
+    --no-artifact-hash to gen-sbom. The generator accepts one checksum
+    source. Never substitute a source list for a certified artifact.
   * Linker / binding: record a declared dependency with --dep-wolfssl and
     friends (feature-detected against the generator).
 
@@ -23,7 +25,11 @@ Config (choose one):
                      -D tokens are interpreted by; without it the dump is the
                      -D list alone and every derived macro is missing.
   --options-h PATH   A pre-expanded flat #define header, used verbatim (scrubbed).
-  --user-settings P  A user_settings.h. Passed to the generator, which captures it.
+  --user-settings P  Path to wolfssl/wolfcrypt/settings.h. Also pass
+                     --user-settings-include and
+                     --user-settings-define WOLFSSL_USER_SETTINGS. The
+                     generator walks settings.h; a user_settings.h path
+                     alone records only the literals in that file.
   --source-only      No build-config macros (e.g. a Kconfig-driven build).
 
 The macro capture runs the HOST compiler (never the cross compiler), so the SBOM
@@ -205,6 +211,32 @@ def capture_macros(hostcc, cflags, settings_h="", include_dirs=()):
     return res.stdout
 
 
+def check_user_settings(args):
+    """Require the generator's three settings.h inputs, or none of them.
+
+    gen-sbom --user-settings is wolfssl/wolfcrypt/settings.h. settings.h
+    includes user_settings.h only when WOLFSSL_USER_SETTINGS is defined and
+    the include path can find that header. Forwarding a user_settings.h path
+    by itself records the literals in that file and drops every macro
+    settings.h derives.
+    """
+    if not args.user_settings:
+        if args.user_settings_include or args.user_settings_define:
+            sys.exit("ERROR: --user-settings-include and "
+                     "--user-settings-define require --user-settings.")
+        return
+    if not os.path.isfile(args.user_settings):
+        sys.exit(f"ERROR: --user-settings '{args.user_settings}' "
+                 f"does not exist.")
+    if not args.user_settings_include:
+        sys.exit("ERROR: --user-settings requires --user-settings-include "
+                 "(the directory that contains user_settings.h).")
+    names = [item.split("=", 1)[0] for item in args.user_settings_define]
+    if "WOLFSSL_USER_SETTINGS" not in names:
+        sys.exit("ERROR: --user-settings requires "
+                 "--user-settings-define WOLFSSL_USER_SETTINGS.")
+
+
 def load_srcs(srcs_file, skip_missing):
     """Read the source list; optionally drop paths that do not exist."""
     kept, dropped = [], 0
@@ -236,8 +268,10 @@ def main():
     ap.add_argument("--srcs-file", default="",
                     help="File listing compiled-in sources (tier E).")
     ap.add_argument("--no-artifact-hash", action="store_true",
-                    help="Do not recompute the artifact hash. For as-built FIPS "
-                         "or kernel modules.")
+                    help="Send only this flag to gen-sbom. --lib or "
+                         "--srcs-file still names the as-built artifact, but "
+                         "is not a second checksum source. For a FIPS canister "
+                         "or a kernel module.")
 
     # Config (choose one).
     grp = ap.add_mutually_exclusive_group()
@@ -256,7 +290,19 @@ def main():
     grp.add_argument("--options-h", default="",
                      help="A pre-expanded flat #define header, used verbatim.")
     grp.add_argument("--user-settings", default="",
-                     help="A user_settings.h; passed to the generator.")
+                     help="Path to wolfssl/wolfcrypt/settings.h. Also pass "
+                          "--user-settings-include and "
+                          "--user-settings-define WOLFSSL_USER_SETTINGS.")
+    ap.add_argument("--user-settings-include", action="append", default=[],
+                    metavar="DIR",
+                    help="Include directory for --user-settings (repeatable). "
+                         "Point it at the directory that contains "
+                         "user_settings.h.")
+    ap.add_argument("--user-settings-define", action="append", default=[],
+                    metavar="NAME[=VALUE]",
+                    help="Predefine for --user-settings (repeatable). Pass "
+                         "WOLFSSL_USER_SETTINGS so settings.h includes "
+                         "user_settings.h.")
     grp.add_argument("--source-only", action="store_true",
                      help="Source-inventory SBOM with no build-config macros.")
 
@@ -320,6 +366,7 @@ def main():
         sys.exit(f"ERROR: --srcs-file '{args.srcs_file}' does not exist.")
     if args.lib and not os.path.isfile(args.lib):
         sys.exit(f"ERROR: --lib '{args.lib}' does not exist.")
+    check_user_settings(args)
 
     gen_sbom = find_gen_sbom(args.gen_sbom)
     if not os.path.isfile(gen_sbom):
@@ -339,22 +386,25 @@ def main():
                "--cdx-out", cdx_out,
                "--spdx-out", spdx_out]
 
-        # Composition.
-        if args.srcs_file:
-            srcs = load_srcs(args.srcs_file, args.skip_missing)
-            fd, srcs_path = tempfile.mkstemp(prefix="wolfssl-compliance-tooling-srcs-", suffix=".txt")
-            os.close(fd)
-            tmp_files.append(srcs_path)
-            with open(srcs_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(srcs) + "\n")
-            cmd += ["--srcs-file", srcs_path]
-            src_count = len(srcs)
-        else:
-            src_count = 0
-        if args.lib:
-            cmd += ["--lib", args.lib]
+        # Composition. gen-sbom accepts exactly one checksum source.
+        # --no-artifact-hash is that source. --lib and --srcs-file still
+        # name the as-built artifact for the caller, and are not forwarded.
+        src_count = 0
         if args.no_artifact_hash:
             cmd += ["--no-artifact-hash"]
+        else:
+            if args.srcs_file:
+                srcs = load_srcs(args.srcs_file, args.skip_missing)
+                fd, srcs_path = tempfile.mkstemp(
+                    prefix="wolfssl-compliance-tooling-srcs-", suffix=".txt")
+                os.close(fd)
+                tmp_files.append(srcs_path)
+                with open(srcs_path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(srcs) + "\n")
+                cmd += ["--srcs-file", srcs_path]
+                src_count = len(srcs)
+            if args.lib:
+                cmd += ["--lib", args.lib]
 
         # Config.
         if args.settings_h and not args.cflags:
@@ -364,10 +414,11 @@ def main():
             print("WARNING: --settings-h is only used with --cflags; "
                   "ignoring it here.", file=sys.stderr)
         if args.user_settings:
-            if not os.path.isfile(args.user_settings):
-                sys.exit(f"ERROR: --user-settings '{args.user_settings}' "
-                         f"does not exist.")
             cmd += ["--user-settings", args.user_settings]
+            for inc in args.user_settings_include:
+                cmd += ["--user-settings-include", inc]
+            for define in args.user_settings_define:
+                cmd += ["--user-settings-define", define]
         else:
             if args.source_only:
                 defines_text = ""

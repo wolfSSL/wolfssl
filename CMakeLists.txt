@@ -5657,8 +5657,8 @@ if(WOLFSSL_INSTALL)
             VERSION ${wolfssl_VERSION}
             LIB ${SBOM_LIB}
             OPTIONS_H ${OPTION_FILE}
-            LICENSE ${CMAKE_SOURCE_DIR}/LICENSING
-            ROOT ${CMAKE_SOURCE_DIR}
+            LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSING
+            ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             CDX_OUT ${SBOM_CDX}
             SPDX_OUT ${SBOM_SPDX}
             TARGET_NAME wolfssl-sbom-gen)

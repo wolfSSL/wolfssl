@@ -18,7 +18,16 @@
 #                    The driver keeps the -D tokens and forwards -I/-isystem;
 #                    all other flags are dropped.
 #   SBOM_OPTIONS_H   A pre-expanded flat #define header (verbatim, scrubbed).
-#   SBOM_USER_SETTINGS  A user_settings.h.
+#   SBOM_USER_SETTINGS  Path to wolfssl/wolfcrypt/settings.h. Also set
+#                       SBOM_USER_SETTINGS_INCLUDES and
+#                       SBOM_USER_SETTINGS_DEFINES. A user_settings.h path
+#                       alone records only the literals in that file.
+#   SBOM_USER_SETTINGS_INCLUDES
+#                       Directories for that preprocess, space-separated.
+#                       One of them must contain user_settings.h.
+#   SBOM_USER_SETTINGS_DEFINES
+#                       Predefines for that preprocess, space-separated.
+#                       Include WOLFSSL_USER_SETTINGS.
 #   SBOM_SOURCE_ONLY = 1   Source-inventory SBOM with no build-config macros.
 #
 # Config, strongly recommended alongside SBOM_CFLAGS:
@@ -63,7 +72,10 @@
 #                         in SBOM_LICENSE_OVERRIDE (required by SPDX 2.3).
 #   SBOM_GEN              Path to gen-sbom. Default: driver auto-discovery.
 #   GEN_SBOM              Legacy alias for SBOM_GEN.
-#   SBOM_NO_ARTIFACT_HASH = 1   As-built FIPS/kernel: do not re-hash.
+#   SBOM_NO_ARTIFACT_HASH = 1   As-built FIPS/kernel. The driver still wants
+#                         SBOM_LIB or SBOM_SRCS so the caller names the
+#                         artifact. It sends only --no-artifact-hash to
+#                         gen-sbom, which accepts one checksum source.
 #   SBOM_DEP_WOLFSSL      yes/no - record wolfSSL as a dependency.
 #   SBOM_DEP_WOLFCRYPT    yes/no - record wolfCrypt as a nested component
 #                         (PURL; matching uses the wolfssl CPE).
@@ -179,6 +191,8 @@ $(1): $($(2)PREREQS)
 	    $(foreach d,$($(2)INCLUDE_DIRS),--include-dir "$(d)") \
 	    $(if $($(2)OPTIONS_H),--options-h "$($(2)OPTIONS_H)") \
 	    $(if $($(2)USER_SETTINGS),--user-settings "$($(2)USER_SETTINGS)") \
+	    $(foreach d,$($(2)USER_SETTINGS_INCLUDES),--user-settings-include "$(d)") \
+	    $(foreach d,$($(2)USER_SETTINGS_DEFINES),--user-settings-define "$(d)") \
 	    $(if $($(2)COMPONENT_TYPE),--component-type "$($(2)COMPONENT_TYPE)") \
 	    $(if $($(2)LICENSE_OVERRIDE),--license-override '$($(2)LICENSE_OVERRIDE)') \
 	    $(if $($(2)LICENSE_TEXT),--license-text "$($(2)LICENSE_TEXT)") \
