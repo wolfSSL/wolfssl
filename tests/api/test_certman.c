@@ -2531,6 +2531,20 @@ static time_t test_cm_crl_out_of_date_time_cb(time_t* t)
         *t = test_cm_crl_out_of_date_now;
     return test_cm_crl_out_of_date_now;
 }
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+static int test_cm_crl_error_queued(int err)
+{
+    unsigned long e;
+    int found = 0;
+
+    while ((e = wolfSSL_ERR_get_error()) != 0) {
+        if (e == (unsigned long)-err)
+            found = 1;
+    }
+    return found;
+}
+#endif
 #endif
 
 int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
@@ -2562,8 +2576,15 @@ int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
     /* Forwards, so the CRL has expired too and must not hide behind the
      * waivable date error. */
     test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_AFTER_NEXTUPDATE;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
     ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
         sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)),
+        1);
+#endif
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
         sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
         WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
@@ -2579,8 +2600,14 @@ int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
     ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
     test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
     ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
     ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
         sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(CRL_MISSING)), 1);
+#endif
     wc_SetTimeCb(NULL);
 
     wolfSSL_CertManagerFree(cm);

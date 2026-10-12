@@ -837,7 +837,13 @@ static int cm_check_cert_crl(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert,
     /* A caller may waive the date error, so it may hide only a missing CRL. */
     if ((ret == 0) || ((crlRet != 0) &&
             (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)))) {
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+        }
         ret = crlRet;
+    }
+    else if (crlRet != 0) {
+        WOLFSSL_ERROR(crlRet);
     }
     return ret;
 }
