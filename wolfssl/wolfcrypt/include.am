@@ -129,6 +129,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
+                         wolfssl/wolfcrypt/port/microchip/mpfs_athena.h \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
@@ -168,6 +169,10 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_shim.h
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
+endif
+
+if BUILD_MPFS_ATHENA
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/microchip/mpfs_athena.h
 endif
 
 if BUILD_AFALG

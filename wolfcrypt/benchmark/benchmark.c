@@ -220,6 +220,9 @@
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #ifdef WOLFSSL_MPFS_ATHENA
+        #include <wolfssl/wolfcrypt/port/microchip/mpfs_athena.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5183,6 +5186,16 @@ int benchmark_init(void)
         printf("%swolfCrypt_Init failed %d\n", err_prefix, ret);
         return EXIT_FAILURE;
     }
+
+#ifdef WOLFSSL_MPFS_ATHENA
+    /* WC_USE_DEVID tags the contexts and BENCH_DEVID labels the results "HW",
+     * so the device has to be registered or the figures would be software
+     * reported as hardware. */
+    if ((ret = wc_MpfsAthena_RegisterDevice(WC_MPFS_ATHENA_DEVID)) != 0) {
+        printf("%swc_MpfsAthena_RegisterDevice failed %d\n", err_prefix, ret);
+        return EXIT_FAILURE;
+    }
+#endif
 
 #if defined(HAVE_CPUID) && defined(WOLFSSL_TEST_STATIC_BUILD)
     print_cpu_features();

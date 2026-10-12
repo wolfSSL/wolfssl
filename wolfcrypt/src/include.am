@@ -166,6 +166,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/st/STM32MP13.md \
 			  wolfcrypt/src/port/st/STM32MP25.md \
+              wolfcrypt/src/port/microchip/mpfs_athena.c \
+              wolfcrypt/src/port/microchip/README.md \
               wolfcrypt/src/port/realtek/rtl8735b.c \
               wolfcrypt/src/port/realtek/rtl8735b_shim.h \
               wolfcrypt/src/port/realtek/README.md \
@@ -337,6 +339,10 @@ endif
 
 if BUILD_RTL8735B
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/realtek/rtl8735b.c
+endif
+
+if BUILD_MPFS_ATHENA
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/microchip/mpfs_athena.c
 endif
 
 if BUILD_SILABS_CRYPTOCB
