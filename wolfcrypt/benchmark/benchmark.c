@@ -183,10 +183,10 @@
 #ifdef WOLFSSL_HAVE_FRODOKEM
     #include <wolfssl/wolfcrypt/wc_frodokem.h>
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS)
     #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -1032,10 +1032,31 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #endif
 #endif
 
-#if (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)) || \
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || \
     defined(WOLFSSL_HAVE_SLHDSA)
     #define BENCH_PQ_STATEFUL_HBS
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY)
+    #if (LMS_MAX_HEIGHT >= 10) && !defined(WOLFSSL_NO_LMS_SHA256_256)
+        #define BENCH_LMS_L1_H10_W8_VERIFY
+    #endif
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    #if defined(WC_XMSS_SHA256) && \
+        WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+        WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256 && \
+        WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        #define BENCH_XMSS_SHA2_10_256_VERIFY
+    #endif
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S)
+    #define BENCH_SLHDSA_128S_VERIFY
+#endif
+#if defined(BENCH_LMS_L1_H10_W8_VERIFY) || \
+    defined(BENCH_XMSS_SHA2_10_256_VERIFY) || \
+    defined(BENCH_SLHDSA_128S_VERIFY)
+    #define BENCH_PQ_HBS_VERIFY_ONLY
 #endif
 
 /* Benchmark all compiled in algorithms.
@@ -1376,14 +1397,17 @@ typedef struct bench_pq_hash_sig_alg {
 
 static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-pq_hash_sig", 0xffffffff},
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+    defined(BENCH_LMS_L1_H10_W8_VERIFY)
     { "-lms_hss", BENCH_LMS_HSS},
 #endif
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)) || \
+    defined(BENCH_XMSS_SHA2_10_256_VERIFY)
     { "-xmss_xmssmt",          BENCH_XMSS_XMSSMT},
 #ifdef WC_XMSS_SHA256
     { "-xmss_xmssmt_sha256",   BENCH_XMSS_XMSSMT_SHA256},
 #endif
+#ifndef WOLFSSL_XMSS_VERIFY_ONLY
 #ifdef WC_XMSS_SHA512
 #if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 512 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
     { "-xmss_xmssmt_sha512",   BENCH_XMSS_XMSSMT_SHA512},
@@ -1397,9 +1421,14 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 #ifdef WC_XMSS_SHAKE256
     { "-xmss_xmssmt_shake256", BENCH_XMSS_XMSSMT_SHAKE256},
 #endif
+#endif /* !WOLFSSL_XMSS_VERIFY_ONLY */
 #endif
-#if defined(WOLFSSL_HAVE_SLHDSA)
+#if (defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
+    defined(BENCH_SLHDSA_128S_VERIFY)
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || defined(WOLFSSL_SLHDSA_PARAM_128S)
     { "-slhdsa-shake128s",     BENCH_SLHDSA_SHAKE128S},
+#endif
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     { "-slhdsa-shake128f",     BENCH_SLHDSA_SHAKE128F},
     { "-slhdsa-shake192s",     BENCH_SLHDSA_SHAKE192S},
     { "-slhdsa-shake192f",     BENCH_SLHDSA_SHAKE192F},
@@ -1411,6 +1440,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-slhdsa-sha2-192f",    BENCH_SLHDSA_SHA2_192F},
     { "-slhdsa-sha2-256s",    BENCH_SLHDSA_SHA2_256S},
     { "-slhdsa-sha2-256f",    BENCH_SLHDSA_SHA2_256F},
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
     { "-slhdsa",               BENCH_SLHDSA          },
 #endif
     { NULL, 0}
@@ -2144,14 +2174,21 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
     defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || \
-    defined(WOLFSSL_HAVE_LMS) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_FRODOKEM) || \
+    (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_FRODOKEM) || \
     (defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY))
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)) || \
+    defined(BENCH_PQ_HBS_VERIFY_ONLY) || defined(WC_SRTP_KDF) || \
+    defined(HAVE_ARGON2)
     #define BENCH_ASYM
 #endif
 
-#if !defined(WC_NO_RNG) || defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(BENCH_PQ_HBS_VERIFY_ONLY) || \
+    defined(WC_SRTP_KDF) || defined(HAVE_SCRYPT) || defined(HAVE_ARGON2)
+    #define BENCH_ASYM_STATS_NO_RNG
+#endif
+
+#if !defined(WC_NO_RNG) || defined(BENCH_ASYM_STATS_NO_RNG)
 static const char* bench_result_words2[][6] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", "cycles/op",
@@ -2165,7 +2202,7 @@ static const char* bench_result_words2[][6] = {
       NULL },   /* 1 Japanese */
 #endif
 };
-#endif /* !WC_NO_RNG || WOLFSSL_HAVE_MLKEM */
+#endif /* !WC_NO_RNG || BENCH_ASYM_STATS_NO_RNG */
 #if defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
@@ -3433,13 +3470,14 @@ static void bench_stats_ops_finish(const char* algo, int strength,
 #if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
       defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
       defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-      defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS) || \
+      defined(WOLFSSL_HAVE_MLDSA) || \
+      (defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
       defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_FRODOKEM) || \
       (defined(WOLFSSL_HAVE_SLHDSA) && \
        !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
       (defined(WOLFSSL_HAVE_XMSS) && \
        !defined(WOLFSSL_XMSS_VERIFY_ONLY))) && \
-      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
+      !defined(WC_NO_RNG)) || defined(BENCH_ASYM_STATS_NO_RNG)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
@@ -4723,13 +4761,13 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS)
     if (bench_all || (bench_pq_hash_sig_algs & BENCH_LMS_HSS)) {
         bench_lms();
     }
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
+#endif /* WOLFSSL_HAVE_LMS */
 
-#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_XMSS)
     if (bench_all) {
         bench_pq_hash_sig_algs |= BENCH_XMSS_XMSSMT;
     }
@@ -4753,9 +4791,9 @@ static void* benchmarks_do(void* args)
         bench_xmss(WC_HASH_TYPE_SHAKE256);
     }
 #endif
-#endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
+#endif /* WOLFSSL_HAVE_XMSS */
 
-#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_SLHDSA)
     if (bench_all) {
         bench_pq_hash_sig_algs |= BENCH_SLHDSA;
     }
@@ -13806,6 +13844,74 @@ void bench_lms(void)
 
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY)
+void bench_lms(void)
+{
+#ifdef BENCH_LMS_L1_H10_W8_VERIFY
+    LmsKey       key;
+    int          ret;
+    int          freeKey = 0;
+    int          times = 0;
+    int          count = 0;
+    double       start = 0.0F;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("wc_LmsKey_Init failed: %d\n", ret);
+    }
+    else {
+        freeKey = 1;
+        ret = wc_LmsKey_SetParameters(&key, 1, 10, 8);
+        if (ret != 0) {
+            printf("wc_LmsKey_SetParameters failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_LmsKey_ImportPubRaw(&key, bench_lms_l1_h10_w8_pub,
+                                     sizeof_bench_lms_l1_h10_w8_pub);
+        if (ret != 0) {
+            printf("wc_LmsKey_ImportPubRaw failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < ntimes; ++times) {
+                ret = wc_LmsKey_Verify(&key, bench_lms_l1_h10_w8_sig,
+                                       sizeof_bench_lms_l1_h10_w8_sig,
+                                       bench_lms_l1_h10_w8_msg,
+                                       sizeof_bench_lms_l1_h10_w8_msg);
+                if (ret != 0) {
+                    printf("wc_LmsKey_Verify failed: %d\n", ret);
+                    break;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += times;
+        } while ((ret == 0) && (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           ));
+
+        bench_stats_asym_finish(wc_LmsKey_ParmToStr(WC_LMS_PARM_L1_H10_W8),
+                                (int)sizeof_bench_lms_l1_h10_w8_sig, "verify",
+                                0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+
+    if (freeKey) {
+        wc_LmsKey_Free(&key);
+    }
+#endif
+}
+#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_LMS_VERIFY_ONLY */
+
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 
 static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
@@ -14307,6 +14413,85 @@ void bench_xmss(int hash)
 }
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
+#if defined(WOLFSSL_HAVE_XMSS) && defined(WOLFSSL_XMSS_VERIFY_ONLY)
+#ifdef BENCH_XMSS_SHA2_10_256_VERIFY
+static void bench_xmss_verify(void)
+{
+    XmssKey      key;
+    int          ret;
+    int          freeKey = 0;
+    int          times = 0;
+    int          count = 0;
+    double       start = 0.0F;
+    const char * params = "XMSS-SHA2_10_256";
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    ret = wc_XmssKey_Init(&key, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("wc_XmssKey_Init failed: %d\n", ret);
+    }
+    else {
+        freeKey = 1;
+        ret = wc_XmssKey_SetParamStr(&key, params);
+        if (ret != 0) {
+            printf("wc_XmssKey_SetParamStr failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_ImportPubRaw(&key, bench_xmss_sha2_10_256_pub,
+                                      sizeof_bench_xmss_sha2_10_256_pub);
+        if (ret != 0) {
+            printf("wc_XmssKey_ImportPubRaw failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < ntimes; ++times) {
+                ret = wc_XmssKey_Verify(&key, bench_xmss_sha2_10_256_sig,
+                                        sizeof_bench_xmss_sha2_10_256_sig,
+                                        bench_xmss_sha2_10_256_msg,
+                                        sizeof_bench_xmss_sha2_10_256_msg);
+                if (ret != 0) {
+                    printf("wc_XmssKey_Verify failed: %d\n", ret);
+                    break;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += times;
+        } while ((ret == 0) && (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           ));
+
+        bench_stats_asym_finish(params,
+                                (int)sizeof_bench_xmss_sha2_10_256_sig,
+                                "verify", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+
+    if (freeKey) {
+        wc_XmssKey_Free(&key);
+    }
+}
+#endif /* BENCH_XMSS_SHA2_10_256_VERIFY */
+
+void bench_xmss(int hash)
+{
+#ifdef BENCH_XMSS_SHA2_10_256_VERIFY
+    if (hash == WC_HASH_TYPE_SHA256) {
+        bench_xmss_verify();
+    }
+#endif
+    (void)hash;
+}
+#endif /* WOLFSSL_HAVE_XMSS && WOLFSSL_XMSS_VERIFY_ONLY */
+
 #if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
 void bench_slhdsa(int param)
 {
@@ -14589,6 +14774,79 @@ exit:
     WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
+
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+#ifdef BENCH_SLHDSA_128S_VERIFY
+static void bench_slhdsa_verify(void)
+{
+    int ret = 0;
+    int freeKey = 0;
+    int count = 0;
+    double start = 0.0F;
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+    if (ret == 0) {
+        ret = wc_SlhDsaKey_Init(key, SLHDSA_SHAKE128S, HEAP_HINT,
+            INVALID_DEVID);
+        if (ret != 0) {
+            printf("wc_SlhDsaKey_Init failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        freeKey = 1;
+        ret = wc_SlhDsaKey_ImportPublic(key, bench_slhdsa_shake128s_pub,
+            sizeof_bench_slhdsa_shake128s_pub);
+        if (ret != 0) {
+            printf("wc_SlhDsaKey_ImportPublic failed: %d\n", ret);
+        }
+    }
+    if (ret == 0) {
+        bench_stats_start(&count, &start);
+        do {
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0, bench_slhdsa_shake128s_msg,
+                sizeof_bench_slhdsa_shake128s_msg, bench_slhdsa_shake128s_sig,
+                sizeof_bench_slhdsa_shake128s_sig);
+            if (ret != 0) {
+                printf("wc_SlhDsaKey_Verify failed: %d\n", ret);
+                break;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+
+        bench_stats_asym_finish("SLH-DSA-SHAKE-S", 128, "verify", 0, count,
+            start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+
+    if (freeKey) {
+        wc_SlhDsaKey_Free(key);
+    }
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+}
+#endif /* BENCH_SLHDSA_128S_VERIFY */
+
+void bench_slhdsa(int param)
+{
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
+    if (param == SLHDSA_SHAKE128S) {
+        bench_slhdsa_verify();
+    }
+#endif
+    (void)param;
+}
+#endif /* WOLFSSL_HAVE_SLHDSA && WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 

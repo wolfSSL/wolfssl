@@ -376,6 +376,34 @@ for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
 
 print OUT_FILE "#endif /* WOLFSSL_HAVE_MLDSA */\n\n";
 
+# Hash-based signature verify vectors, used by the verify-only benchmarks
+# The LMS, XMSS and SHAKE-128s ones are KATs from wolfcrypt/test/test.c
+my @hbs_vectors = (
+        [ "WOLFSSL_HAVE_LMS",    "./certs/lms/bench_lms_l1_h10_w8",
+                                 "bench_lms_l1_h10_w8" ],
+        [ "WOLFSSL_HAVE_XMSS",   "./certs/xmss/bench_xmss_sha2_10_256",
+                                 "bench_xmss_sha2_10_256" ],
+        [ "WOLFSSL_HAVE_SLHDSA", "./certs/slhdsa/bench_slhdsa_shake128s",
+                                 "bench_slhdsa_shake128s" ],
+        );
+
+for my $entry (@hbs_vectors) {
+    my ($guard, $fbase, $sbase) = @$entry;
+
+    print OUT_FILE "#if defined($guard)\n\n";
+    for my $part ("pub", "sig", "msg") {
+        my $fname = "${fbase}_${part}.bin";
+        my $sname = "${sbase}_${part}";
+
+        print OUT_FILE "/* $fname */\n";
+        print OUT_FILE "static const unsigned char $sname\[] =\n{\n";
+        file_to_hex($fname);
+        print OUT_FILE "};\n";
+        print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n";
+    }
+    print OUT_FILE "#endif /* $guard */\n\n";
+}
+
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
 for (my $i = 0; $i < $num_ecc; $i++) {

@@ -45,4 +45,7 @@ EXTRA_DIST += \
          certs/slhdsa/server-slhdsa-sha2-128s-priv.pem \
          certs/slhdsa/server-slhdsa-sha2-128s.pem \
          certs/slhdsa/client-slhdsa-sha2-128s-priv.pem \
-         certs/slhdsa/client-slhdsa-sha2-128s.pem
+         certs/slhdsa/client-slhdsa-sha2-128s.pem \
+         certs/slhdsa/bench_slhdsa_shake128s_pub.bin \
+         certs/slhdsa/bench_slhdsa_shake128s_sig.bin \
+         certs/slhdsa/bench_slhdsa_shake128s_msg.bin
