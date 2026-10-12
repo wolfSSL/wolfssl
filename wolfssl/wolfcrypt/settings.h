@@ -6441,6 +6441,13 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_AES_CBC_LENGTH_CHECKS
 #endif
 
+/* SP 800-208 sec 8.1: a software module may only verify LMS and XMSS. */
+#if FIPS_VERSION3_GE(7,0,0) && \
+    ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
+    #error FIPS v7 needs WOLFSSL_LMS_VERIFY_ONLY and WOLFSSL_XMSS_VERIFY_ONLY
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH
