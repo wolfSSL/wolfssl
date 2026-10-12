@@ -50,6 +50,8 @@ int test_wolfSSL_get0_verified_chain(void);
 int test_wolfSSL_CA_list_add(void);
 int test_wolfSSL_CA_list_get(void);
 int test_wolfSSL_load_client_CA_file(void);
+int test_wolfSSL_add_cert_subjects_to_stack(void);
+int test_wolfSSL_CTX_load_verify_file_dir(void);
 int test_wolfSSL_mutual_auth(void);
 int test_wolfSSL_post_handshake_auth(void);
 int test_wolfSSL_verify_cert_store(void);
@@ -94,6 +96,8 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_add),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_get),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_client_CA_file),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_add_cert_subjects_to_stack),  \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_load_verify_file_dir),    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_mutual_auth),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_post_handshake_auth),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_cert_store),           \
