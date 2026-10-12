@@ -33,8 +33,8 @@ extern "C" {
 int nrf51_random_generate(byte* output, word32 sz);
 
 /* The AES functions are not thread safe: without a SoftDevice the ECB
- * peripheral holds a single key shared by every caller. In multithreaded
- * builds define WOLFSSL_CRYPT_HW_MUTEX to 1 so wolfCrypt serializes its own
+ * peripheral holds a single key shared by every caller. WOLFSSL_NRF51_AES
+ * enables WOLFSSL_CRYPT_HW_MUTEX by default so wolfCrypt serializes its own
  * calls; applications calling these directly must provide their own locking.
  * Do not call them from an interrupt handler, since a lock cannot protect
  * against that. */

@@ -1018,12 +1018,13 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 
 
 /* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X,
- * RTL8735B, NXP CASPER or NXP HashCrypt */
+ * RTL8735B, NXP CASPER, NXP HashCrypt or nRF51 AES */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
     defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
     defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_SEC_QORIQ) || \
-    defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)
+    defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT) || \
+    defined(WOLFSSL_NRF51_AES)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -1036,6 +1037,11 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 #if (defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)) && \
     !defined(SINGLE_THREADED) && (WOLFSSL_CRYPT_HW_MUTEX == 0)
     #error "NXP CASPER/HashCrypt require WOLFSSL_CRYPT_HW_MUTEX unless SINGLE_THREADED"
+#endif
+
+#if defined(WOLFSSL_NRF51_AES) && !defined(SINGLE_THREADED) && \
+    (WOLFSSL_CRYPT_HW_MUTEX == 0)
+    #error "nRF51 AES requires WOLFSSL_CRYPT_HW_MUTEX unless SINGLE_THREADED"
 #endif
 
 #if WOLFSSL_CRYPT_HW_MUTEX
