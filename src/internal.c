@@ -39362,12 +39362,6 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     if (length > 0) {
         if (length < ID_LEN)
             sessIdLen = length;
-        if (ssl->session_ticket_cb != NULL) {
-            ssl->session_ticket_cb(ssl,
-                                   ssl->session->ticket,
-                                   ssl->session->ticketLen,
-                                   ssl->session_ticket_ctx);
-        }
         /* Create a fake sessionID based on the ticket, this will
          * supersede the existing session cache info. */
         ssl->options.haveSessionId = 1;
@@ -39395,6 +39389,13 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
                                  ssl->session->ticket + length - sessIdLen,
                                  sessIdLen);
             ssl->arrays->sessionIDSz = ID_LEN;
+        }
+        /* Invoke callback at the end, after ticket is fully processed. */
+        if (ssl->session_ticket_cb != NULL) {
+            ssl->session_ticket_cb(ssl,
+                                   ssl->session->ticket,
+                                   ssl->session->ticketLen,
+                                   ssl->session_ticket_ctx);
         }
     }
 

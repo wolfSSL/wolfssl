@@ -1242,6 +1242,103 @@ int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+#define TEST_TICKET_CB_REPLACE
+
+/* Ticket the client was issued. */
+struct test_ssl_ext_ticket_seen {
+    byte   ticket[SESSION_TICKET_LEN];
+    word32 ticketSz;
+};
+
+/* Save the ticket received, then replace it with a shorter one.
+ *
+ * @param [in] ssl       SSL/TLS object.
+ * @param [in] ticket    Ticket received.
+ * @param [in] ticketSz  Length of ticket in bytes.
+ * @param [in] ctx       Where to save the ticket.
+ * @return  0 always - the caller does not use the return value.
+ */
+static int test_ssl_ext_ticket_replace_cb(WOLFSSL* ssl,
+    const unsigned char* ticket, int ticketSz, void* ctx)
+{
+    struct test_ssl_ext_ticket_seen* seen =
+        (struct test_ssl_ext_ticket_seen*)ctx;
+    static const byte shortTicket[1] = { 0x01 };
+
+    if ((ticketSz > 0) && ((word32)ticketSz <= sizeof(seen->ticket))) {
+        XMEMCPY(seen->ticket, ticket, (size_t)ticketSz);
+        seen->ticketSz = (word32)ticketSz;
+    }
+    (void)wolfSSL_set_SessionTicket(ssl, shortTicket, sizeof(shortTicket));
+
+    return 0;
+}
+#endif /* TEST_TICKET_CB_REPLACE */
+
+/* Test that the session ID is made from the ticket received, even when the
+ * session ticket callback replaces the ticket.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SessionTicket_cb_replace_ext(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TICKET_CB_REPLACE
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        int tls13;
+    } params[] = {
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 1 },
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, 0 },
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        struct test_ssl_ext_ticket_seen seen;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        const byte* id;
+        char buf[64];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&seen, 0, sizeof(seen));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_SessionTicket_cb(ssl_c,
+            test_ssl_ext_ticket_replace_cb, &seen), WOLFSSL_SUCCESS);
+        /* TLS 1.2 keeps the session ID made from the ticket in arrays. */
+        wolfSSL_KeepArrays(ssl_c);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Process a TLS 1.3 NewSessionTicket. */
+        (void)wolfSSL_read(ssl_c, buf, sizeof(buf));
+
+        ExpectIntGE(seen.ticketSz, ID_LEN);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(ssl_c->session->ticketLen, 1);
+            id = params[i].tls13 ? ssl_c->session->sessionID :
+                ssl_c->arrays->sessionID;
+            ExpectBufEQ(id, seen.ticket + seen.ticketSz - ID_LEN, ID_LEN);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_CTX_set_servername_arg() rejects bad arguments.
  *
  * @return  TEST_SUCCESS on success.
