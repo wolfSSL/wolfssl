@@ -166,7 +166,7 @@
 #if defined(WOLFSSL_HAVE_MLDSA)
 
 #if FIPS_VERSION3_GE(7,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$nc")
         #pragma const_seg(".fipsB$nc")
     #endif

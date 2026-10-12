@@ -64,7 +64,7 @@ on the specific device platform.
 #if !defined(NO_SHA256)
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$l")
         #pragma const_seg(".fipsB$l")
     #endif

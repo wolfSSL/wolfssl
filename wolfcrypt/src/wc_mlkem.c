@@ -78,7 +78,7 @@
 #ifdef WOLFSSL_HAVE_MLKEM
 
 #if FIPS_VERSION3_GE(7,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$na")
         #pragma const_seg(".fipsB$na")
     #endif
