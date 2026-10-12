@@ -32,6 +32,93 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_info.h>
 
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
+typedef struct PemStreamState {
+    size_t offset;
+    size_t limit;
+    int readAtLimit;
+} PemStreamState;
+
+static int PemStreamRead(WOLFSSL_BIO* bio, char* out, int len)
+{
+    PemStreamState* state = (PemStreamState*)wolfSSL_BIO_get_data(bio);
+    int count = 0;
+
+    if (state->offset == state->limit) {
+        state->readAtLimit = 1;
+        return 0;
+    }
+
+    while (count < len && state->offset < state->limit) {
+        size_t offset = state->offset++;
+
+        if (offset < sizeof("-----BEGIN ") - 1)
+            out[count] = "-----BEGIN "[offset];
+        else if (offset >= state->limit - 5)
+            out[count] = '-';
+        else
+            out[count] = 'A';
+        count++;
+    }
+
+    return count;
+}
+
+static long PemStreamCtrl(WOLFSSL_BIO* bio, int cmd, long arg, void* ptr)
+{
+    PemStreamState* state = (PemStreamState*)wolfSSL_BIO_get_data(bio);
+
+    (void)arg;
+    (void)ptr;
+    if (cmd == WOLFSSL_BIO_CTRL_FLUSH)
+        return 1;
+    if (state == NULL)
+        return 0;
+    switch (cmd) {
+        case WOLFSSL_BIO_CTRL_EOF:
+            return state->offset == state->limit;
+        case WOLFSSL_BIO_CTRL_PENDING:
+            /* This streaming BIO has no bytes buffered ahead of a read. */
+            return 0;
+        case WOLFSSL_BIO_CTRL_RESET:
+            state->offset = 0;
+            state->readAtLimit = 0;
+            return 1;
+        case WOLFSSL_BIO_CTRL_WPENDING:
+            return 0;
+        default:
+            return 0;
+    }
+}
+#endif
+
+int test_wolfSSL_PEM_X509_INFO_stream_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
+    WOLFSSL_BIO_METHOD* method = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    /* The normal scanner cap is at most 9 KB * 16. */
+    PemStreamState state = {0, (size_t)1024 * 1024, 0};
+
+    ExpectNotNull(method = wolfSSL_BIO_meth_new(WOLFSSL_BIO_UNDEF,
+            "pem_stream_limit"));
+    ExpectIntEQ(wolfSSL_BIO_meth_set_read(method, PemStreamRead),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_BIO_meth_set_ctrl(method, PemStreamCtrl),
+            WOLFSSL_SUCCESS);
+    ExpectNotNull(bio = wolfSSL_BIO_new(method));
+    wolfSSL_BIO_set_data(bio, &state);
+
+    ExpectNull(wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
+    ExpectIntEQ(state.readAtLimit, 0);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_BIO_meth_free(method);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_INFO_multiple_info(void)
 {
     EXPECT_DECLS;
@@ -245,4 +332,3 @@ int test_wolfSSL_PEM_X509_INFO_read(void)
 #endif
     return EXPECT_RESULT();
 }
-
