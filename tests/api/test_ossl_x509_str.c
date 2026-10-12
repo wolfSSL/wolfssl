@@ -385,6 +385,316 @@ int test_wolfSSL_X509_verify_cert_crl_date_override(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static int test_crl_date_cb_waive[2];
+static int test_crl_date_cb_seen[4];
+static int test_crl_date_cb_calls;
+static int test_crl_date_cb_ok_calls;
+
+static int test_crl_date_verify_cb(int ok, X509_STORE_CTX* ctx)
+{
+    int err = X509_STORE_CTX_get_error(ctx);
+
+    if (ok) {
+        test_crl_date_cb_ok_calls++;
+        return ok;
+    }
+    if (test_crl_date_cb_calls < 4)
+        test_crl_date_cb_seen[test_crl_date_cb_calls] = err;
+    test_crl_date_cb_calls++;
+    return (err == test_crl_date_cb_waive[0]) ||
+           (err == test_crl_date_cb_waive[1]);
+}
+
+static int test_crl_date_verify(X509_STORE* store, X509* cert, int waive0,
+    int waive1, int* err)
+{
+    X509_STORE_CTX* storeCtx = X509_STORE_CTX_new();
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+
+    test_crl_date_cb_waive[0] = waive0;
+    test_crl_date_cb_waive[1] = waive1;
+    test_crl_date_cb_calls = 0;
+    test_crl_date_cb_ok_calls = 0;
+    XMEMSET(test_crl_date_cb_seen, 0, sizeof(test_crl_date_cb_seen));
+    if ((storeCtx != NULL) &&
+            (X509_STORE_CTX_init(storeCtx, store, cert, NULL) ==
+             WOLFSSL_SUCCESS)) {
+        if ((waive0 != 0) || (waive1 != 0))
+            X509_STORE_CTX_set_verify_cb(storeCtx, test_crl_date_verify_cb);
+        ret = X509_verify_cert(storeCtx);
+        *err = X509_STORE_CTX_get_error(storeCtx);
+    }
+    X509_STORE_CTX_free(storeCtx);
+    return ret;
+}
+
+#ifdef OPENSSL_ALL
+static int test_crl_date_reject_cb(int ok, X509_STORE_CTX* ctx)
+{
+    (void)ok;
+    (void)ctx;
+    return 0;
+}
+#endif
+
+#if !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+static int test_crl_date_read_crl(STACK_OF(X509_CRL)* sk, const char* file)
+{
+    XFILE fp = XFOPEN(file, "rb");
+    X509_CRL* crl = NULL;
+
+    if (fp != XBADFILE) {
+        crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL, NULL, NULL);
+        XFCLOSE(fp);
+    }
+    if ((crl != NULL) && (sk_X509_CRL_push(sk, crl) > 0))
+        return TEST_SUCCESS;
+    X509_CRL_free(crl);
+    return TEST_FAIL;
+}
+
+static int test_crl_date_cm_cb_waive;
+static int test_crl_date_cm_cb_calls;
+
+static int test_crl_date_cm_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)store;
+    if (preverify)
+        return preverify;
+    test_crl_date_cm_cb_calls++;
+    return test_crl_date_cm_cb_calls <= test_crl_date_cm_cb_waive;
+}
+#endif
+#endif
+
+/* Each verdict reaches the callback once, revocation first, as in OpenSSL. */
+int test_wolfSSL_X509_verify_cert_crl_date_callback(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    X509_STORE* store = NULL;
+    X509_STORE* setStore = NULL;
+#ifdef OPENSSL_ALL
+    X509_STORE* plainStore = NULL;
+#endif
+    X509_STORE_CTX* storeCtx = NULL;
+    STACK_OF(X509_CRL)* crls = NULL;
+    X509* ca = NULL;
+    X509* cert = NULL;
+    X509* revoked = NULL;
+    X509_CRL* crl = NULL;
+    X509_CRL* ctxCrl = NULL;
+    XFILE fp = XBADFILE;
+    int err = 0;
+    const int noCrl = WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL;
+    const int notYet = WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
+    const int revokedErr = WOLFSSL_X509_V_ERR_CERT_REVOKED;
+    /* Waives no verdict the store reports. */
+    const int none = -1;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.pem", SSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        SSL_SUCCESS);
+    ExpectNotNull(setStore = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(setStore, ca), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(setStore, X509_V_FLAG_CRL_CHECK),
+        SSL_SUCCESS);
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(revoked = wolfSSL_X509_load_certificate_file(
+        "./certs/server-revoked-cert.pem", SSL_FILETYPE_PEM));
+
+    /* A rejected missing CRL is reported once and ends the verification. */
+    ExpectIntEQ(test_crl_date_verify(store, cert, notYet, none, &err), 0);
+    ExpectIntEQ(err, noCrl);
+    ExpectIntEQ(test_crl_date_cb_calls, 1);
+
+#ifdef OPENSSL_ALL
+    /* A certificate that verified is passed to the callback once. */
+    ExpectNotNull(plainStore = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(plainStore, ca), SSL_SUCCESS);
+    ExpectIntEQ(test_crl_date_verify(plainStore, cert, none, none, &err), 1);
+    ExpectIntEQ(test_crl_date_cb_ok_calls, 1);
+    ExpectIntEQ(test_crl_date_cb_calls, 0);
+    /* A store callback can still reject it. */
+    if (plainStore != NULL)
+        X509_STORE_set_verify_cb(plainStore, test_crl_date_reject_cb);
+    ExpectIntNE(test_crl_date_verify(plainStore, cert, 0, 0, &err), 1);
+    ExpectIntEQ(err, WOLFSSL_X509_V_ERR_UNSPECIFIED);
+    X509_STORE_free(plainStore);
+    plainStore = NULL;
+#endif
+
+#if !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    {
+        WOLFSSL_CTX* sslCtx = NULL;
+        X509_STORE* ctxStore = NULL;
+
+        /* A CertManager callback on the context's store sees the CRL
+         * verdict. */
+        ExpectNotNull(sslCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(sslCtx,
+            "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectNotNull(ctxStore = wolfSSL_CTX_get_cert_store(sslCtx));
+        ExpectIntEQ(X509_STORE_set_flags(ctxStore, X509_V_FLAG_CRL_CHECK),
+            SSL_SUCCESS);
+        if (sslCtx != NULL) {
+            wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(sslCtx),
+                test_crl_date_cm_verify_cb);
+        }
+
+        test_crl_date_cm_cb_waive = 1;
+        test_crl_date_cm_cb_calls = 0;
+        ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 1);
+        ExpectIntEQ(test_crl_date_cm_cb_calls, 1);
+
+        test_crl_date_cm_cb_waive = 0;
+        test_crl_date_cm_cb_calls = 0;
+        ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 0);
+        ExpectIntEQ(err, noCrl);
+        ExpectIntEQ(test_crl_date_cm_cb_calls, 1);
+
+        /* The context CRLs still apply after it rejected the missing CRL. */
+        ExpectNotNull(crls = sk_X509_CRL_new_null());
+        ExpectIntEQ(test_crl_date_read_crl(crls, "./certs/crl/crl.pem"),
+            TEST_SUCCESS);
+        ExpectNotNull(storeCtx = X509_STORE_CTX_new());
+        ExpectIntEQ(X509_STORE_CTX_init(storeCtx, ctxStore, cert, NULL),
+            SSL_SUCCESS);
+        X509_STORE_CTX_set0_crls(storeCtx, crls);
+        ExpectIntEQ(X509_verify_cert(storeCtx), SSL_SUCCESS);
+        sk_X509_CRL_pop_free(crls, X509_CRL_free);
+        crls = NULL;
+
+        ExpectNotNull(crls = sk_X509_CRL_new_null());
+        ExpectIntEQ(test_crl_date_read_crl(crls, "./certs/crl/crl.revoked"),
+            TEST_SUCCESS);
+        ExpectIntEQ(X509_STORE_CTX_init(storeCtx, ctxStore, revoked, NULL),
+            SSL_SUCCESS);
+        X509_STORE_CTX_set0_crls(storeCtx, crls);
+        X509_STORE_CTX_set_verify_cb(storeCtx, test_crl_date_verify_cb);
+        test_crl_date_cb_waive[0] = noCrl;
+        test_crl_date_cb_waive[1] = none;
+        test_crl_date_cb_calls = 0;
+        ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), revokedErr);
+        X509_STORE_CTX_free(storeCtx);
+        storeCtx = NULL;
+        sk_X509_CRL_pop_free(crls, X509_CRL_free);
+        crls = NULL;
+
+        /* Waiving the date error still leaves the CRL verdict to reject. */
+        ExpectIntEQ(wc_SetTimeCb(test_crl_date_override_time_cb), 0);
+        test_crl_date_cm_cb_waive = 1;
+        test_crl_date_cm_cb_calls = 0;
+        ExpectIntEQ(test_crl_date_verify(ctxStore, cert, 0, 0, &err), 0);
+        ExpectIntEQ(err, noCrl);
+        ExpectIntEQ(test_crl_date_cm_cb_calls, 2);
+        wc_SetTimeCb(NULL);
+
+        wolfSSL_CTX_free(sslCtx);
+    }
+#endif
+
+    /* No CRL is loaded and the certificate is not yet valid. */
+    ExpectIntEQ(wc_SetTimeCb(test_crl_date_override_time_cb), 0);
+
+    ExpectIntEQ(test_crl_date_verify(store, cert, notYet, none, &err), 0);
+    ExpectIntEQ(err, noCrl);
+    ExpectIntEQ(test_crl_date_cb_calls, 1);
+
+    ExpectIntEQ(test_crl_date_verify(store, cert, noCrl, none, &err), 0);
+    ExpectIntEQ(err, notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 2);
+    ExpectIntEQ(test_crl_date_cb_seen[0], noCrl);
+    ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
+
+    ExpectIntEQ(test_crl_date_verify(store, cert, noCrl, notYet, &err), 1);
+    ExpectIntEQ(err, notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 2);
+
+#ifdef OPENSSL_ALL
+    /* The dates are still checked once a missing issuer is waived. */
+    ExpectNotNull(plainStore = X509_STORE_new());
+    ExpectIntEQ(test_crl_date_verify(plainStore, cert,
+        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, none, &err), 0);
+    ExpectIntEQ(err, notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 2);
+    ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
+    X509_STORE_free(plainStore);
+    plainStore = NULL;
+#endif
+
+    /* Waiving the date check does not waive the missing CRL. */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(X509_STORE_get0_param(store),
+        X509_V_FLAG_NO_CHECK_TIME), SSL_SUCCESS);
+    ExpectIntEQ(test_crl_date_verify(store, cert, 0, 0, &err), 0);
+    ExpectIntEQ(err, noCrl);
+    ExpectIntEQ(X509_VERIFY_PARAM_clear_flags(X509_STORE_get0_param(store),
+        X509_V_FLAG_NO_CHECK_TIME), SSL_SUCCESS);
+
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
+
+    ExpectIntEQ(test_crl_date_verify(store, revoked, revokedErr, notYet,
+        &err), 1);
+    ExpectIntEQ(err, notYet);
+    ExpectIntEQ(test_crl_date_cb_calls, 2);
+    ExpectIntEQ(test_crl_date_cb_seen[0], revokedErr);
+    ExpectIntEQ(test_crl_date_cb_seen[1], notYet);
+
+    /* A CRL set on the context is consulted before the dates as well. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.revoked", "rb")) != XBADFILE);
+    ExpectNotNull(ctxCrl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectNotNull(crls = sk_X509_CRL_new_null());
+    if (EXPECT_SUCCESS() && (sk_X509_CRL_push(crls, ctxCrl) > 0))
+        ctxCrl = NULL;
+    ExpectNull(ctxCrl);
+    ExpectNotNull(storeCtx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, setStore, revoked, NULL),
+        SSL_SUCCESS);
+    X509_STORE_CTX_set0_crls(storeCtx, crls);
+    X509_STORE_CTX_set_verify_cb(storeCtx, test_crl_date_verify_cb);
+    test_crl_date_cb_waive[0] = notYet;
+    test_crl_date_cb_waive[1] = none;
+    test_crl_date_cb_calls = 0;
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), revokedErr);
+    ExpectIntEQ(test_crl_date_cb_calls, 1);
+    X509_STORE_CTX_free(storeCtx);
+
+    wc_SetTimeCb(NULL);
+
+    sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    X509_CRL_free(ctxCrl);
+    X509_STORE_free(setStore);
+    X509_STORE_free(store);
+    X509_CRL_free(crl);
+    X509_free(revoked);
+    X509_free(cert);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_get0_store(void)
 {
     EXPECT_DECLS;
