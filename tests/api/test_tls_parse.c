@@ -198,12 +198,111 @@ TEST_TLS_PARSE_UNUSED
 static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 {
     TLSX* extensions = NULL;
+    void* heap;
+
     if (kse == NULL)
         return;
-    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) != 0)
+    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) == 0) {
+        TLSX_FreeAll(extensions, ssl->heap);
         return;
-    TLSX_FreeAll(extensions, ssl->heap);
+    }
+
+    /* TLSX_Push allocates the list node. After the mem-fail count is hit,
+     * that allocation fails and every later one fails too, so FreeAll never
+     * runs. The entry is still ours. */
+    heap = ssl->heap;
+    if (WOLFSSL_NAMED_GROUP_IS_FFDHE(kse->group)) {
+#ifndef NO_DH
+        if (kse->key != NULL) {
+        #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_DH)
+            if (((DhKey*)kse->key)->nb != NULL) {
+                XFREE(((DhKey*)kse->key)->nb, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                ((DhKey*)kse->key)->nb = NULL;
+            }
+        #endif
+            wc_FreeDhKey((DhKey*)kse->key);
+        }
+        if (kse->privKey != NULL && kse->privKeyLen > 0)
+            wc_ForceZero(kse->privKey, kse->privKeyLen);
+#endif
+    }
+    else if (kse->group == WOLFSSL_ECC_X25519) {
+#ifdef HAVE_CURVE25519
+        if (kse->key != NULL) {
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+            if (((curve25519_key*)kse->key)->nb_ctx != NULL) {
+                XFREE(((curve25519_key*)kse->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
+            wc_curve25519_free((curve25519_key*)kse->key);
+        }
+#endif
+    }
+    else if (kse->group == WOLFSSL_ECC_X448) {
+#ifdef HAVE_CURVE448
+        if (kse->key != NULL)
+            wc_curve448_free((curve448_key*)kse->key);
+#endif
+    }
+    /* ECC is the remaining group. A PQC key is not an ecc_key. */
+    else if (!WOLFSSL_NAMED_GROUP_IS_PQC(kse->group) &&
+             !WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
+#ifdef HAVE_ECC
+        if (kse->key != NULL) {
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            if (((ecc_key*)kse->key)->nb_ctx != NULL) {
+                XFREE(((ecc_key*)kse->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
+            wc_ecc_free((ecc_key*)kse->key);
+        }
+#endif
+    }
+    XFREE(kse->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
+    XFREE(kse->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#endif
+    XFREE(kse->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse, heap, DYNAMIC_TYPE_TLSX);
 }
+
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+/* TLSX_Push's first allocation is the list node. Fail that one so the
+ * direct free above runs. Later allocations in this call are allowed. */
+TEST_TLS_PARSE_UNUSED
+static int test_tls_parse_free_kse_push_fail(WOLFSSL* ssl, KeyShareEntry* kse)
+{
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    int ret;
+
+    ret = wolfSSL_GetAllocators(&prevM, &prevF, &prevR);
+    if (ret != 0) {
+        test_tls_parse_free_kse(ssl, kse);
+        return ret;
+    }
+    ret = wolfSSL_SetAllocators(tls_parse_fail_malloc, tls_parse_fail_free,
+            tls_parse_fail_realloc);
+    if (ret != 0) {
+        test_tls_parse_free_kse(ssl, kse);
+        return ret;
+    }
+    tls_parse_alloc_seen = 0;
+    tls_parse_fail_after = 0;
+    test_tls_parse_free_kse(ssl, kse);
+    tls_parse_fail_after = -1;
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    return 0;
+}
+#endif
 #endif /* WOLFSSL_TEST_STATIC_BUILD && WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 /* ---- ALPN --------------------------------------------------------------- */
@@ -741,7 +840,9 @@ int test_TLSX_MFL_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2225,7 +2326,9 @@ int test_TLSX_SupportedGroups_parse(void)
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2535,7 +2638,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(PEER_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 #endif
     return EXPECT_RESULT();
@@ -2657,6 +2762,26 @@ int test_TLSX_KeyShare_gen(void)
             }
         }
 #endif
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_FFDHE_2048;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
     ssl = NULL;
@@ -2700,6 +2825,26 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_X25519;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
     ssl = NULL;
@@ -2738,6 +2883,26 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_X448;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
     ssl = NULL;
@@ -2745,11 +2910,13 @@ int test_TLSX_KeyShare_gen(void)
     ctx = NULL;
 #endif /* HAVE_CURVE448 */
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
     /* TLSX_KeyShare_GenEccKey(): only the "ret == 0" half of "ret == 0 &&
      * pubKey == NULL" is open (the pubKey half already has coverage
      * elsewhere); force it false the same way as the Curve25519/X448
-     * cases above. */
+     * cases above. P-256 is the group this switch arm accepts. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
@@ -2768,10 +2935,34 @@ int test_TLSX_KeyShare_gen(void)
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_SECP256R1;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
-#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
+    ctx = NULL;
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT &&
+        (!NO_ECC256 || HAVE_ALL_CURVES) && !NO_ECC_SECP &&
+        ECC_MIN_KEY_SZ <= 256 */
 #endif
     return EXPECT_RESULT();
 }
@@ -2918,7 +3109,9 @@ int test_TLSX_KeyShare_freesizewrite(void)
         ExpectIntGT(respOff, 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
