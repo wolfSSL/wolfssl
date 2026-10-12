@@ -2982,7 +2982,8 @@ WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm,
                                          const void* mem, int sz);
 WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
-                                     long sz, int format, int prev_err);
+                                     long sz, int format, int prev_err,
+                                     int* crlErr);
 
 
 #ifndef NO_CERTS
