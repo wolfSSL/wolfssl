@@ -269,6 +269,14 @@ int test_wolfSSL_ASN1_INTEGER_BN(void)
     ExpectNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
     ExpectIntEQ(BN_cmp(bn, bn2), 0);
 
+    /* Reuse negative object with positive number - negative flag cleared. */
+    ExpectIntEQ(BN_set_word(bn, 1), 1);
+    ExpectNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    if (ai2 != NULL) {
+        ExpectIntEQ(ai2->negative, 0);
+    }
+    ExpectIntEQ(ASN1_INTEGER_get(ai2), 1);
+
     BN_free(bn2);
     BN_free(bn);
     ASN1_INTEGER_free(ai2);
@@ -371,6 +379,62 @@ int test_wolfSSL_ASN1_INTEGER_get_set(void)
     ExpectIntEQ(ASN1_INTEGER_set(a, val), 1);
     ExpectTrue(ASN1_INTEGER_get(a) == val);
     ASN1_INTEGER_free(a);
+    a = NULL;
+
+    /* long max negative */
+    ExpectNotNull(a = ASN1_INTEGER_new());
+    val = -(long)(((unsigned long)-1) >> 1);
+    ExpectIntEQ(ASN1_INTEGER_set(a, val), 1);
+    ExpectTrue(ASN1_INTEGER_get(a) == val);
+    ASN1_INTEGER_free(a);
+    a = NULL;
+
+    /* long min */
+    ExpectNotNull(a = ASN1_INTEGER_new());
+    val = -(long)(((unsigned long)-1) >> 1) - 1;
+    ExpectIntEQ(ASN1_INTEGER_set(a, val), 1);
+    ExpectTrue(ASN1_INTEGER_get(a) == val);
+    ASN1_INTEGER_free(a);
+    a = NULL;
+
+    /* Values whose magnitude does not fit in a long return -1. */
+    {
+        BIGNUM* zero = NULL;
+        BIGNUM* pos = NULL;
+        BIGNUM* neg = NULL;
+
+        ExpectNotNull(zero = BN_new());
+        ExpectNotNull(pos = BN_new());
+        ExpectNotNull(neg = BN_new());
+
+        /* long max + 1: fits in an unsigned long but not a long. */
+        ExpectIntEQ(BN_set_word(pos, ((unsigned long)-1) >> 1), 1);
+        ExpectIntEQ(BN_add_word(pos, 1), 1);
+        ExpectNotNull(a = BN_to_ASN1_INTEGER(pos, NULL));
+        ExpectTrue(ASN1_INTEGER_get(a) == -1);
+        ASN1_INTEGER_free(a);
+        a = NULL;
+
+        /* unsigned long max + 1: larger than an unsigned long. */
+        ExpectIntEQ(BN_set_word(pos, (unsigned long)-1), 1);
+        ExpectIntEQ(BN_add_word(pos, 1), 1);
+        ExpectNotNull(a = BN_to_ASN1_INTEGER(pos, NULL));
+        ExpectTrue(ASN1_INTEGER_get(a) == -1);
+        ASN1_INTEGER_free(a);
+        a = NULL;
+
+        /* -(unsigned long max + 1): previously returned +1. */
+        ExpectIntEQ(BN_sub(neg, zero, pos), 1);
+        ExpectNotNull(a = BN_to_ASN1_INTEGER(neg, NULL));
+        ExpectIntEQ(a != NULL ? a->negative : 0, 1);
+        ExpectTrue(ASN1_INTEGER_get(a) == -1);
+        ASN1_INTEGER_free(a);
+        a = NULL;
+
+        BN_free(neg);
+        BN_free(pos);
+        BN_free(zero);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -500,9 +564,18 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
 
     for (i = 0; i < NUM_TEST_VECTORS; ++i) {
         p = testVectors[i].der;
+        /* b is reused across iterations: d2i decodes into the existing
+         * object. */
         ExpectNotNull(a = wolfSSL_d2i_ASN1_INTEGER(&b, &p,
             testVectors[i].derSz));
-        ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+        ExpectPtrEq(a, b);
+        /* Compare against a freshly decoded object. */
+        p = testVectors[i].der;
+        ExpectNotNull(c = wolfSSL_d2i_ASN1_INTEGER(NULL, &p,
+            testVectors[i].derSz));
+        ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, c), 0);
+        wolfSSL_ASN1_INTEGER_free(c);
+        c = NULL;
 
         if (testVectors[i].derSz <= sizeof(long)) {
             ExpectNotNull(c = wolfSSL_ASN1_INTEGER_new());
@@ -528,9 +601,30 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
 
         XFREE(reEncoded, NULL, DYNAMIC_TYPE_ASN1);
         reEncoded = NULL;
-        wolfSSL_ASN1_INTEGER_free(a);
         a = NULL;
     }
+    /* Reuse in reverse order to cover dynamic to fixed and dynamic to dynamic
+     * transitions - last vector decoded twice. */
+    for (i = NUM_TEST_VECTORS; i > 0; --i) {
+        p = testVectors[i - 1].der;
+        ExpectNotNull(a = wolfSSL_d2i_ASN1_INTEGER(&b, &p,
+            testVectors[i - 1].derSz));
+        ExpectPtrEq(a, b);
+        p = testVectors[i - 1].der;
+        ExpectNotNull(c = wolfSSL_d2i_ASN1_INTEGER(NULL, &p,
+            testVectors[i - 1].derSz));
+        ExpectIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, c), 0);
+        wolfSSL_ASN1_INTEGER_free(c);
+        c = NULL;
+        ExpectIntEQ(reEncodedSz = wolfSSL_i2d_ASN1_INTEGER(a, &reEncoded),
+            testVectors[i - 1].derSz);
+        ExpectBufEQ(reEncoded, testVectors[i - 1].der, reEncodedSz);
+        XFREE(reEncoded, NULL, DYNAMIC_TYPE_ASN1);
+        reEncoded = NULL;
+        a = NULL;
+    }
+    wolfSSL_ASN1_INTEGER_free(b);
+    b = NULL;
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -1426,6 +1520,9 @@ int test_wolfSSL_ASN1_STRING_print(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 46), 46);
 
     ExpectStrEQ((char*)rbuf, (const char*)expected);
+    /* Printing must not modify the string. */
+    ExpectBufEQ(ASN1_STRING_get0_data(asnStr), unprintableData,
+        sizeof(unprintableData));
 
     BIO_free(bio);
     bio = NULL;
@@ -2131,6 +2228,83 @@ int test_wolfSSL_ASN1_TIME_to_generalizedtime(void)
     ExpectIntEQ(gtime->length, ASN_GENERALIZED_TIME_SIZE);
     ExpectStrEQ((char*)gtime->data, "20050727123456Z");
 
+    /* In place change test */
+    ExpectNotNull(XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE));
+    ExpectNotNull(XMEMSET(out, 0, ASN_GENERALIZED_TIME_SIZE));
+    ExpectNotNull(XMEMSET(data, 0, ASN_GENERALIZED_TIME_SIZE));
+    if (t != NULL) {
+        t->type = ASN_UTC_TIME;
+        t->length = ASN_UTC_TIME_SIZE;
+        XMEMCPY(t->data, "500727123456Z", ASN_UTC_TIME_SIZE);
+    }
+
+    ExpectNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &t));
+    ExpectIntEQ(gtime->type, ASN_GENERALIZED_TIME);
+    ExpectIntEQ(gtime->length, ASN_GENERALIZED_TIME_SIZE);
+    ExpectStrEQ((char*)gtime->data, "19500727123456Z");
+    ExpectPtrEq(gtime, t);
+
+    /* In place Generalized Time test */
+    if (t != NULL) {
+        t->type = ASN_GENERALIZED_TIME;
+        t->length = ASN_GENERALIZED_TIME_SIZE;
+        XMEMCPY(t->data, "20050727123456Z", ASN_GENERALIZED_TIME_SIZE);
+    }
+    ExpectNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &t));
+    ExpectPtrEq(gtime, t);
+    ExpectIntEQ(gtime->type, ASN_GENERALIZED_TIME);
+    ExpectIntEQ(gtime->length, ASN_GENERALIZED_TIME_SIZE);
+    ExpectStrEQ((char*)gtime->data, "20050727123456Z");
+
+    /* Maximum length UTC Time - fills data with two extra year digits. */
+    {
+        WOLFSSL_ASN1_TIME* maxOut = NULL;
+        byte maxData[CTC_DATE_SIZE - 2];
+
+        XMEMSET(maxData, '1', sizeof(maxData));
+        maxData[0] = '5';
+        if (t != NULL) {
+            XMEMSET(t, 0, sizeof(*t));
+            t->type = ASN_UTC_TIME;
+            t->length = CTC_DATE_SIZE - 2;
+            XMEMCPY(t->data, maxData, sizeof(maxData));
+        }
+        /* Into new object. */
+        ExpectNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t,
+            &maxOut));
+        ExpectPtrEq(gtime, maxOut);
+        ExpectIntEQ(gtime->type, ASN_GENERALIZED_TIME);
+        ExpectIntEQ(gtime->length, CTC_DATE_SIZE);
+        ExpectBufEQ(gtime->data, "19", 2);
+        ExpectBufEQ(gtime->data + 2, maxData, sizeof(maxData));
+        wolfSSL_ASN1_TIME_free(maxOut);
+        maxOut = NULL;
+        gtime = NULL;
+
+        /* In place. */
+        ExpectNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &t));
+        ExpectPtrEq(gtime, t);
+        ExpectIntEQ(gtime->type, ASN_GENERALIZED_TIME);
+        ExpectIntEQ(gtime->length, CTC_DATE_SIZE);
+        ExpectBufEQ(gtime->data, "19", 2);
+        ExpectBufEQ(gtime->data + 2, maxData, sizeof(maxData));
+
+        /* Too long to fit two extra year digits. */
+        if (t != NULL) {
+            XMEMSET(t, 0, sizeof(*t));
+            t->type = ASN_UTC_TIME;
+            t->length = CTC_DATE_SIZE - 1;
+            XMEMCPY(t->data, maxData, sizeof(maxData));
+        }
+        ExpectNull(wolfSSL_ASN1_TIME_to_generalizedtime(t, &maxOut));
+        ExpectNull(maxOut);
+        if (t != NULL) {
+            t->length = -1;
+        }
+        ExpectNull(wolfSSL_ASN1_TIME_to_generalizedtime(t, &maxOut));
+        ExpectNull(maxOut);
+    }
+
     /* UTC Time to Generalized Time 1900's test */
     ExpectNotNull(XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE));
     ExpectNotNull(XMEMSET(out, 0, ASN_GENERALIZED_TIME_SIZE));
@@ -2769,6 +2943,28 @@ int test_wolfSSL_i2d_ASN1_TYPE(void)
     ExpectIntEQ(i2d_ASN1_TYPE(asn1type, NULL), sizeof(str_bin));
     ExpectIntEQ(i2d_ASN1_TYPE(asn1type, &der), sizeof(str_bin));
     ExpectBufEQ(der, str_bin, sizeof(str_bin));
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+    der = NULL;
+    ASN1_TYPE_free(asn1type);
+    asn1type = NULL;
+
+    /* Test NULL works */
+    ExpectNotNull(asn1type = ASN1_TYPE_new());
+    if (asn1type != NULL) {
+        ASN1_TYPE_set(asn1type, V_ASN1_NULL, NULL);
+    }
+    ExpectIntEQ(i2d_ASN1_TYPE(asn1type, NULL), 2);
+    ExpectIntEQ(i2d_ASN1_TYPE(asn1type, &der), 2);
+    ExpectBufEQ(der, "\x05\x00", 2);
+    /* Encode into caller's buffer - pointer moved past encoding. */
+    {
+        unsigned char nullBuf[3] = { 0xff, 0xff, 0xff };
+        unsigned char* p = nullBuf;
+
+        ExpectIntEQ(i2d_ASN1_TYPE(asn1type, &p), 2);
+        ExpectPtrEq(p, nullBuf + 2);
+        ExpectBufEQ(nullBuf, "\x05\x00\xff", 3);
+    }
 
     ASN1_TYPE_free(asn1type);
     XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
