@@ -231,5 +231,27 @@ gen_slhdsa_leaf client sha2  128f SLH-DSA-SHA2-128f  client_ecc 04
 gen_slhdsa_leaf server sha2  128s SLH-DSA-SHA2-128s  server_ecc 05
 gen_slhdsa_leaf client sha2  128s SLH-DSA-SHA2-128s  client_ecc 06
 
+# RFC 9814 SignedData interop vectors, verified by pkcs7signed_slhdsa_test()
+# in wolfcrypt/test/test.c. One per hash family, covering both the
+# signed-attributes and the no-signed-attributes form. OpenSSL picks the
+# RFC 9814 digestAlgorithm for the parameter set.
+printf 'RFC 9814 SLH-DSA SignedData from OpenSSL' > cms-content.tmp
+openssl cms -sign -binary -nodetach -outform DER -in cms-content.tmp \
+    -signer root-slhdsa-shake-128s.pem -inkey root-slhdsa-shake-128s-priv.pem \
+    -out cms-slhdsa-shake-128s.der
+check_result $? "Sign SLH-DSA-SHAKE-128s SignedData"
+openssl cms -sign -binary -nodetach -noattr -outform DER -in cms-content.tmp \
+    -signer root-slhdsa-sha2-128s.pem -inkey root-slhdsa-sha2-128s-priv.pem \
+    -out cms-slhdsa-sha2-128s-noattr.der
+check_result $? "Sign SLH-DSA-SHA2-128s SignedData without attributes"
+# Negative vector: SHA-224 is shorter than RFC 9814 allows for 128-bit
+# parameter sets when signed attributes are present. Must fail to verify.
+openssl cms -sign -binary -nodetach -md sha224 -outform DER \
+    -in cms-content.tmp -signer root-slhdsa-shake-128s.pem \
+    -inkey root-slhdsa-shake-128s-priv.pem \
+    -out cms-slhdsa-shake-128s-sha224.der
+check_result $? "Sign SLH-DSA-SHAKE-128s SignedData with SHA-224"
+rm -f cms-content.tmp
+
 echo
 echo "All SLH-DSA / ML-DSA-44 test certificates regenerated."
