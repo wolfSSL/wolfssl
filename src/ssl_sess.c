@@ -182,6 +182,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 /* session is a private struct, return if it is setup or not */
 int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
 {
+    session = ClientSessionToSession(session);
     if (session != NULL)
         return session->isSetup;
     return 0;
@@ -3872,6 +3873,7 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 #ifdef WOLFSSL_EARLY_DATA
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *session)
 {
+    session = ClientSessionToSession(session);
     if (session == NULL) {
         return BAD_FUNC_ARG;
     }
