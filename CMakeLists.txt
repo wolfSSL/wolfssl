@@ -4452,10 +4452,14 @@ if(WOLFSSL_RNG_AUTOFORK)
                 Dl_info info;
                 const char* name;
                 sem_t s;
-                int old;
                 if (sem_init(&s, 0, 1) == 0)
                     (void)sem_post(&s);
-                (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+            #ifdef PTHREAD_CANCEL_DISABLE
+                {
+                    int old;
+                    (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
+                }
+            #endif
                 if (dladdr((void*)(uintptr_t)main, &info) != 0) {
                     name = info.dli_fname;
                     if (name != NULL && name[0] != 0)
@@ -4468,7 +4472,7 @@ if(WOLFSSL_RNG_AUTOFORK)
         if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
             set(RNG_AUTOFORK_NEEDS "pthread_atfork")
         elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
-            set(RNG_AUTOFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
+            set(RNG_AUTOFORK_NEEDS "dladdr, dlopen and unnamed semaphores")
         endif()
     endif()
     if(RNG_AUTOFORK_NEEDS)

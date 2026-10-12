@@ -558,15 +558,14 @@ static int forkOnceRet = 0;
 static int ForkSemWait(sem_t* s)
 {
     int ret = 0;
-    int old = PTHREAD_CANCEL_ENABLE;
-    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    int old = wc_CancelDisable();
     while (sem_wait(s) != 0) {
         if (errno != EINTR) {
             ret = BAD_MUTEX_E;
             break;
         }
     }
-    (void)pthread_setcancelstate(old, NULL);
+    wc_CancelRestore(old);
     return ret;
 }
 
@@ -717,22 +716,22 @@ WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock)
  * a cancellation point, and a cancelled holder would strand every fork(). */
 WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
 {
-    int old = PTHREAD_CANCEL_ENABLE;
+    int old;
     int ret;
     if (lock == NULL)
         return 0;
     if (WOLFSSL_ATOMIC_LOAD(lock->broken))
         return BAD_MUTEX_E;
-    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    old = wc_CancelDisable();
     ret = ForkSemWait(&lock->sem);
     if (ret != 0) {
-        (void)pthread_setcancelstate(old, NULL);
+        wc_CancelRestore(old);
     }
     else if (!ForkMineAdd(lock)) {
         /* Unrecorded means prepare would wait on a lock this thread holds,
          * so refuse it here rather than hand back a fork() that hangs. */
         (void)sem_post(&lock->sem);
-        (void)pthread_setcancelstate(old, NULL);
+        wc_CancelRestore(old);
         ret = BAD_MUTEX_E;
     }
     else {
@@ -749,7 +748,7 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock)
     old = lock->cancel;
     ForkMineDrop(lock);
     (void)sem_post(&lock->sem);
-    (void)pthread_setcancelstate(old, NULL);
+    wc_CancelRestore(old);
 }
 
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)

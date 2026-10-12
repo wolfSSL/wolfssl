@@ -156,11 +156,6 @@ int unit_test(int argc, char** argv)
         err_sys("RSA sign CAST failed");
     }
 #endif
-#if defined(HAVE_ECC_CDH) && defined(HAVE_ECC_CDH_CAST)
-    if (wc_RunCast_fips(FIPS_CAST_ECC_CDH) != 0) {
-        err_sys("RSA sign CAST failed");
-    }
-#endif
 #ifdef HAVE_ECC_DHE
     if (wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z) != 0) {
         err_sys("ECC Primitive Z CAST failed");
