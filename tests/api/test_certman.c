@@ -2615,6 +2615,113 @@ int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+static int test_cm_crl_date_cb_waive;
+static int test_cm_crl_date_cb_seen[2];
+static int test_cm_crl_date_cb_calls;
+
+static int test_cm_crl_date_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if (preverify)
+        return preverify;
+    if (test_cm_crl_date_cb_calls < 2)
+        test_cm_crl_date_cb_seen[test_cm_crl_date_cb_calls] = store->error;
+    test_cm_crl_date_cb_calls++;
+    return test_cm_crl_date_cb_calls <= test_cm_crl_date_cb_waive;
+}
+#endif
+
+int test_wolfSSL_CertManagerVerify_crl_date_callback(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL),
+        1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    wolfSSL_CertManagerSetVerify(cm, test_cm_crl_date_verify_cb);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+
+    /* Waiving the date error leaves the missing CRL for the callback. */
+    test_cm_crl_date_cb_waive = 1;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    ExpectIntEQ(test_cm_crl_date_cb_seen[0],
+        WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+    ExpectIntEQ(test_cm_crl_date_cb_seen[1], WC_NO_ERR_TRACE(CRL_MISSING));
+#endif
+
+    test_cm_crl_date_cb_waive = 2;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+
+    /* Rejecting the date error returns the revocation, as without a
+     * callback. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, "./certs/crl/crl.revoked",
+        WOLFSSL_FILETYPE_PEM), 1);
+    test_cm_crl_date_cb_waive = 0;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+    wolfSSL_CertManagerSetVerify(cm, NULL);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    wc_SetTimeCb(NULL);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    {
+        WOLFSSL_CTX* ctx = NULL;
+
+        /* A certificate whose load error the callback waives is not
+         * checked against a CRL, like any other certificate load. */
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 4096), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+        if (ctx != NULL) {
+            wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx),
+                test_cm_crl_date_verify_cb);
+        }
+        test_cm_crl_date_cb_waive = 1;
+        test_cm_crl_date_cb_calls = 0;
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_reason_extensions_cleanup(void)
 {
     EXPECT_DECLS;
