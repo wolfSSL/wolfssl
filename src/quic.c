@@ -531,8 +531,11 @@ int wolfSSL_quic_add_transport_extensions(WOLFSSL* ssl, int msg_type)
         /* client hello */
         if (ssl->quic.transport_version == 0) {
             /* not being set to a particular id, we send both draft+v1 */
-            ret = TLSX_QuicTP_Use(ssl, TLSX_KEY_QUIC_TP_PARAMS, is_resp)
-                || TLSX_QuicTP_Use(ssl, TLSX_KEY_QUIC_TP_PARAMS_DRAFT, is_resp);
+            ret = TLSX_QuicTP_Use(ssl, TLSX_KEY_QUIC_TP_PARAMS, is_resp);
+            if (ret == 0) {
+                ret = TLSX_QuicTP_Use(ssl, TLSX_KEY_QUIC_TP_PARAMS_DRAFT,
+                        is_resp);
+            }
         }
         else {
             /* otherwise, send the version configured */
@@ -1223,7 +1226,6 @@ const WOLFSSL_EVP_MD* wolfSSL_quic_get_md(WOLFSSL* ssl)
 {
     /* a copy from the handshake md setup */
     switch(ssl->specs.mac_algorithm) {
-        case no_mac:
     #ifndef NO_MD5
         case md5_mac:
             return wolfSSL_EVP_md5();
@@ -1246,6 +1248,7 @@ const WOLFSSL_EVP_MD* wolfSSL_quic_get_md(WOLFSSL* ssl)
         case sha512_mac:
             return wolfSSL_EVP_sha512();
     #endif
+        case no_mac:
         case rmd_mac:
         case blake2b_mac:
             WOLFSSL_MSG("no suitable EVP_MD");
@@ -1268,11 +1271,18 @@ int wolfSSL_quic_hkdf_extract(uint8_t* dest, const WOLFSSL_EVP_MD* md,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_extract");
 
+    /* check that cast in block below won't overflow on cast */
+    if (saltlen > INT_MAX || secretlen > INT_MAX) {
+        ret = WOLFSSL_FAILURE;
+        goto cleanup;
+    }
+
     pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
     }
+
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
