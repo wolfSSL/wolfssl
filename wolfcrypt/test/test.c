@@ -97370,7 +97370,7 @@ static wc_test_ret_t cryptocb_nested_register_test(void)
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256) && \
     !defined(WOLFSSL_NOSHA3_512) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0)) && \
-    !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+    !defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && !defined(HAVE_FIPS)
 #define SHA3_VARIANT_CB_TEST
 #define SHA3_VARIANT_CB_TEST_DEVID 0x53484133 /* 'SHA3' */
 
@@ -97615,7 +97615,8 @@ static int pqcHashDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM) && \
+    !defined(HAVE_FIPS)
 /* Encapsulates with the same randomness on both keys and compares. */
 static wc_test_ret_t cryptocb_pqc_mlkem_encap(MlKemKey* sw, MlKemKey* hw,
     byte* ctSw, byte* ctHw, word32 ctSz)
@@ -97767,7 +97768,7 @@ static wc_test_ret_t cryptocb_pqc_mlkem_test(PqcHashDev* dev)
 
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-    defined(WC_MLDSA_HAVE_NATIVE)
+    defined(WC_MLDSA_HAVE_NATIVE) && !defined(HAVE_FIPS)
 static wc_test_ret_t cryptocb_pqc_mldsa_test(PqcHashDev* dev)
 {
     wc_test_ret_t ret = 0;
@@ -97900,13 +97901,14 @@ static wc_test_ret_t cryptocb_pqc_shake_test(void)
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
+    !defined(WOLF_CRYPTO_CB_ONLY_MLKEM) && \
+    !defined(HAVE_FIPS)
     if (ret == 0)
         ret = cryptocb_pqc_mlkem_test(dev);
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-    defined(WC_MLDSA_HAVE_NATIVE)
+    defined(WC_MLDSA_HAVE_NATIVE) && !defined(HAVE_FIPS)
     if (ret == 0)
         ret = cryptocb_pqc_mldsa_test(dev);
 #endif
@@ -99316,7 +99318,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-    !defined(WC_NO_RNG) && defined(MLDSA_CB_ONLY_LEVEL)
+    !defined(WC_NO_RNG) && defined(MLDSA_CB_ONLY_LEVEL) && \
+    !defined(HAVE_FIPS)
+
     /* Drive key generation, seeded generation, signing, verifying and the
      * private-key check through a registered device and confirm the results
      * came back. Runs in native builds too, so the seeded dispatch is covered
@@ -99852,7 +99856,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = nist_sp80056c_twostep_cmac();
 #endif /* HAVE_CMAC_KDF */
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(HAVE_FIPS)
     #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
