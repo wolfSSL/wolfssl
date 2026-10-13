@@ -307,6 +307,12 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
+    const char badHost[] = "example.com\0.attacker.example";
+    const char leadingNul[] = {'\0', 'x'};
+    const char doubleNul[] = {'a', '\0', '\0'};
+    const char unterminatedHost[] = {'a', 'b', 'c'};
+    char longHost[WOLFSSL_HOST_NAME_MAX + 8];
+    char savedHost[WOLFSSL_HOST_NAME_MAX];
     const char host[] = "www.example.com";
     WOLFSSL_X509_VERIFY_PARAM* pParam = NULL;
 
@@ -318,9 +324,57 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
         ExpectIntEQ(X509_VERIFY_PARAM_set1_host(NULL, host, sizeof(host)),
             WOLFSSL_FAILURE);
 
-        X509_VERIFY_PARAM_set1_host(pParam, host, sizeof(host));
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, sizeof(host)),
+            WOLFSSL_SUCCESS);
 
         ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+
+        /* Invalid input must leave the existing hostname policy intact. */
+        XMEMCPY(savedHost, pParam->hostName, sizeof(savedHost));
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, badHost,
+            (unsigned int)(sizeof(badHost) - 1)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, badHost,
+            (unsigned int)sizeof(badHost)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, leadingNul,
+            (unsigned int)sizeof(leadingNul)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, doubleNul,
+            (unsigned int)sizeof(doubleNul)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+
+        /* Validate the full input before truncating an oversized name. */
+        XMEMSET(longHost, 'a', sizeof(longHost));
+        longHost[WOLFSSL_HOST_NAME_MAX + 2] = '\0';
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, longHost,
+            (unsigned int)sizeof(longHost)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+
+        /* Both explicit lengths and the C-string mode remain supported. */
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host,
+            (unsigned int)(sizeof(host) - 1)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, unterminatedHost,
+            (unsigned int)sizeof(unterminatedHost)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, "abc", sizeof("abc")), 0);
+
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, "", 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(pParam->hostName[0], '\0');
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, NULL, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(pParam->hostName[0], '\0');
 
         XMEMSET(pParam, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 
