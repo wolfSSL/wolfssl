@@ -1314,7 +1314,7 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
 
 #ifdef HAVE_EXT_CACHE
     if (!internalOnly && ssl->ctx->get_sess_cb != NULL) {
-        int copy = 0;
+        int copy = 1;
         int found = 0;
         WOLFSSL_SESSION* extSess;
         /* Attempt to retrieve the session from the external cache. */
@@ -1338,7 +1338,6 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
                 ssl->session->sessionIDSz = bogusIDSz;
             }
         }
-        /* If copy not set then free immediately */
         if (extSess != NULL && !copy)
             wolfSSL_FreeSession(ssl->ctx, extSess);
         if (found)
