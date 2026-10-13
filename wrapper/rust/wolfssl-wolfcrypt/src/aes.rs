@@ -27,15 +27,16 @@ Encryption Standard (AES) functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[cfg(feature = "aead")]
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
 
-#[cfg(feature = "aead")]
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use aead::generic_array::typenum::{U0, U12, U16, U24, U32};
 
-#[cfg(all(feature = "cipher", not(feature = "aead")))]
+#[cfg(all(feature = "cipher", not(all(feature = "aead", any(aes_ccm, aes_gcm)))))]
 use cipher::typenum::consts::{U16, U24, U32};
 
 #[cfg(feature = "cipher")]
