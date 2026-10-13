@@ -50,6 +50,30 @@ define the following symbol:
 
 NOTE: Both can be defined with no problem.
 
+### LPC55S69 Hardware PUF
+
+To enable the hardware PUF (SRAM PUF) port, define the following symbol and
+build `wolfcrypt/src/port/nxp/hwpuf_port.c` along with the MCUXpresso
+`fsl_puf.c` driver:
+
+**`WOLFSSL_NXP_HWPUF`**
+
+This is not enabled by `WOLFSSL_NXP_LPC55S6X`. The API is declared in
+`wolfssl/wolfcrypt/port/nxp/hwpuf_port.h`:
+
+- Provisioning (once per device):
+  `nxp_hwpuf_Init` -> `nxp_hwpuf_Enroll` (store the activation code) ->
+  `nxp_hwpuf_Deinit` -> `nxp_hwpuf_Init` -> `nxp_hwpuf_Start` ->
+  `nxp_hwpuf_GenerateKey` (store the key code(s))
+- Normal boot:
+  `nxp_hwpuf_Init` -> `nxp_hwpuf_Start` -> `nxp_hwpuf_GetKey`
+- `nxp_hwpuf_Zeroize` wipes PUF state and deinitializes the PUF; call
+  `nxp_hwpuf_Init` before further use (no separate `nxp_hwpuf_Deinit` needed).
+
+Key index 0, which the PUF delivers only over the hardware bus to the AES
+engine, is not supported: `nxp_hwpuf_GenerateKey()` and `nxp_hwpuf_GetKey()`
+reject it. Use key indices 1 to 15.
+
 ## NXP SE050
 
 For details on wolfSSL integration with NXP SE050,
