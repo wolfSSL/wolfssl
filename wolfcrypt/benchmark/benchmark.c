@@ -1050,7 +1050,8 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
-    defined(WOLFSSL_SLHDSA_PARAM_128S)
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
     #define BENCH_SLHDSA_128S_VERIFY
 #endif
 #if defined(BENCH_LMS_L1_H10_W8_VERIFY) || \
@@ -1434,7 +1435,12 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-slhdsa-shake192f",     BENCH_SLHDSA_SHAKE192F},
     { "-slhdsa-shake256s",     BENCH_SLHDSA_SHAKE256S},
     { "-slhdsa-shake256f",     BENCH_SLHDSA_SHAKE256F},
+#endif
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
     { "-slhdsa-sha2-128s",    BENCH_SLHDSA_SHA2_128S},
+#endif
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     { "-slhdsa-sha2-128f",    BENCH_SLHDSA_SHA2_128F},
     { "-slhdsa-sha2-192s",    BENCH_SLHDSA_SHA2_192S},
     { "-slhdsa-sha2-192f",    BENCH_SLHDSA_SHA2_192F},
@@ -14777,7 +14783,9 @@ exit:
 
 #if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
 #ifdef BENCH_SLHDSA_128S_VERIFY
-static void bench_slhdsa_verify(void)
+static void bench_slhdsa_verify(enum SlhDsaParam param, const char* name,
+    const byte* pub, word32 pubSz, const byte* sig, word32 sigSz,
+    const byte* msg, word32 msgSz)
 {
     int ret = 0;
     int freeKey = 0;
@@ -14791,16 +14799,14 @@ static void bench_slhdsa_verify(void)
     WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
         ret = MEMORY_E);
     if (ret == 0) {
-        ret = wc_SlhDsaKey_Init(key, SLHDSA_SHAKE128S, HEAP_HINT,
-            INVALID_DEVID);
+        ret = wc_SlhDsaKey_Init(key, param, HEAP_HINT, INVALID_DEVID);
         if (ret != 0) {
             printf("wc_SlhDsaKey_Init failed: %d\n", ret);
         }
     }
     if (ret == 0) {
         freeKey = 1;
-        ret = wc_SlhDsaKey_ImportPublic(key, bench_slhdsa_shake128s_pub,
-            sizeof_bench_slhdsa_shake128s_pub);
+        ret = wc_SlhDsaKey_ImportPublic(key, pub, pubSz);
         if (ret != 0) {
             printf("wc_SlhDsaKey_ImportPublic failed: %d\n", ret);
         }
@@ -14808,9 +14814,7 @@ static void bench_slhdsa_verify(void)
     if (ret == 0) {
         bench_stats_start(&count, &start);
         do {
-            ret = wc_SlhDsaKey_Verify(key, NULL, 0, bench_slhdsa_shake128s_msg,
-                sizeof_bench_slhdsa_shake128s_msg, bench_slhdsa_shake128s_sig,
-                sizeof_bench_slhdsa_shake128s_sig);
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0, msg, msgSz, sig, sigSz);
             if (ret != 0) {
                 printf("wc_SlhDsaKey_Verify failed: %d\n", ret);
                 break;
@@ -14823,8 +14827,8 @@ static void bench_slhdsa_verify(void)
 #endif
            );
 
-        bench_stats_asym_finish("SLH-DSA-SHAKE-S", 128, "verify", 0, count,
-            start, ret);
+        bench_stats_asym_finish(name, (int)(pubSz / 2 * 8), "verify", 0,
+                                count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
         bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -14841,7 +14845,18 @@ void bench_slhdsa(int param)
 {
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     if (param == SLHDSA_SHAKE128S) {
-        bench_slhdsa_verify();
+        bench_slhdsa_verify(SLHDSA_SHAKE128S, "SLH-DSA-SHAKE-S",
+            bench_slhdsa_shake128s_pub, sizeof_bench_slhdsa_shake128s_pub,
+            bench_slhdsa_shake128s_sig, sizeof_bench_slhdsa_shake128s_sig,
+            bench_slhdsa_shake128s_msg, sizeof_bench_slhdsa_shake128s_msg);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
+    if (param == SLHDSA_SHA2_128S) {
+        bench_slhdsa_verify(SLHDSA_SHA2_128S, "SLH-DSA-SHA2-S",
+            bench_slhdsa_sha2_128s_pub, sizeof_bench_slhdsa_sha2_128s_pub,
+            bench_slhdsa_sha2_128s_sig, sizeof_bench_slhdsa_sha2_128s_sig,
+            bench_slhdsa_sha2_128s_msg, sizeof_bench_slhdsa_sha2_128s_msg);
     }
 #endif
     (void)param;

@@ -385,6 +385,8 @@ my @hbs_vectors = (
                                  "bench_xmss_sha2_10_256" ],
         [ "WOLFSSL_HAVE_SLHDSA", "./certs/slhdsa/bench_slhdsa_shake128s",
                                  "bench_slhdsa_shake128s" ],
+        [ "WOLFSSL_HAVE_SLHDSA", "./certs/slhdsa/bench_slhdsa_sha2_128s",
+                                 "bench_slhdsa_sha2_128s" ],
         );
 
 for my $entry (@hbs_vectors) {
