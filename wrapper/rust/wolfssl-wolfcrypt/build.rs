@@ -434,6 +434,7 @@ fn setup_wolfssl_link() -> Result<()> {
                 let target = env::var("TARGET").unwrap();
                 if !target.ends_with("-none-elf") {
                     println!("cargo::rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+                    println!("cargo::metadata=LIBDIRS={}", lib_dir);
                 }
             }
             // The DLL is found through PATH at run time, so there is no rpath

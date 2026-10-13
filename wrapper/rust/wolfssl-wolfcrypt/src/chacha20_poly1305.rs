@@ -27,6 +27,7 @@ ChaCha20-Poly1305 functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+#[cfg(feature = "aead")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct ChaCha20Poly1305 {
