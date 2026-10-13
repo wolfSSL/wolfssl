@@ -15685,8 +15685,9 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                 case ML_DSA_65k:
                 case ML_DSA_87k:
                     /* Raw key size does not distinguish draft from final, so
-                     * encode with the certificate's key OID */
-                    x509->key.pkey = wolfSSL_X509_get_pubkey(x509);
+                     * encode with the certificate's key OID. This fills
+                     * the x509->key.pkey cache without a new reference. */
+                    (void)wolfSSL_X509_get0_pubkey(x509);
                     break;
             #endif
                 default:
