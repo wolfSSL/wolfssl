@@ -62,7 +62,7 @@ SECTIONS {
 // data/read/write segment (i.e., it must come before the BSS sections).
     .datachecksum                                   :
 
-// No intitialized data sections should be placed after these bss sections
+// No initialized data sections should be placed after these bss sections
 // unless the first such data section has been aligned to a page boundary.
 // Failure to do so will cause all of bss to be pulled into the previous data
 // segment, thereby increasing the size of the dynamic download image that

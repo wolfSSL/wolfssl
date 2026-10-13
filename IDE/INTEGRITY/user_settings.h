@@ -137,7 +137,6 @@ int integrity_rand_generate_seed(unsigned char* output, unsigned int sz);
 #define NO_PWDBASED
 
 #define HAVE_AES_ECB
-#define WOLFSSL_SHA512_HASHTYPE
 
 /* The benchmark's AArch64 cycle count reads the per-core virtual timer,
  * which differs widely between this board's two A53 cores; derive it from

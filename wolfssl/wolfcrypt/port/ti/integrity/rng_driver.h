@@ -34,6 +34,7 @@ void rng_driver_set_base(volatile void *TrngBase, volatile void *CpAceBase);
 /* Returns 0 on success */
 int rng_driver_init(void);
 
+/* Returns 0 on success, -1 on failure (base not set or timeout) */
 int rng_driver_read(unsigned char* output, unsigned int sz);
 
 #ifdef __cplusplus
