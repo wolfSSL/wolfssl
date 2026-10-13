@@ -1223,6 +1223,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(WOLFSSL_ARMASM)
+/* aes->key holds the Arm key schedule only when this backend is selected. */
+#define WC_AES_USE_ARMASM
+
 /* WOLFSSL_ARM32_AES_DISPATCH - run-time selection between the base and the
  * crypto-extension AES on 32-bit Arm - is defined at the top of this file.  See
  * WOLFSSL_ARM32_AES_HW_FLAGS in aes.h for how the two relate. */
@@ -8430,7 +8433,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif
 
     #ifdef NEED_AES_CTR_SOFT
-        #ifndef WOLFSSL_ARMASM
+        #ifndef WC_AES_USE_ARMASM
         /* Increment AES counter */
         static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
         {
@@ -8449,11 +8452,11 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         /* Software AES - CTR Encrypt */
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-    #if !(!defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    #if !(!defined(__aarch64__) && defined(WC_AES_USE_ARMASM) && \
           !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
             byte scratch[WC_AES_BLOCK_SIZE];
     #endif
-    #if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+    #if !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
             int ret = 0;
     #endif
             word32 processed;
@@ -8461,7 +8464,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             int did_prefetches = 0;
 #endif
 
-    #if !(!defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    #if !(!defined(__aarch64__) && defined(WC_AES_USE_ARMASM) && \
           !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
             XMEMSET(scratch, 0, sizeof(scratch));
     #endif
@@ -8494,7 +8497,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 return MISSING_KEY;
             }
 
-    #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    #if defined(WC_AES_USE_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
         defined(__aarch64__)
             /* Claimed before the drain below: failing after it would return an
              * error with aes->left already decremented and output written. */
@@ -8502,7 +8505,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 SAVE_VECTOR_REGISTERS(return _svr_ret;);
             }
     #endif
-    #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    #if defined(WC_AES_USE_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
         !defined(__aarch64__)
             /* Same reason: the 32-bit Arm wrapper claims after the drain. */
         #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -8533,7 +8536,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return 0;
     #endif
 
-    #if defined(WOLFSSL_ARMASM)
+    #if defined(WC_AES_USE_ARMASM)
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             #ifndef __aarch64__
               #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -8933,7 +8936,7 @@ int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
 #else /* software + AESNI implementation */
 
 #if !defined(FREESCALE_LTC_AES_GCM)
-#if (!(defined(__aarch64__) && defined(WOLFSSL_ARMASM))) || \
+#if (!(defined(__aarch64__) && defined(WC_AES_USE_ARMASM))) || \
     defined(WOLFSSL_AESGCM_STREAM)
 static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
@@ -9257,13 +9260,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return ret;
     #endif /* WOLFSSL_RENESAS_RSIP && WOLFSSL_RENESAS_FSPSM_CRYPTONLY*/
 
-/* GCM setup needs one AES block encrypt of the all-zero IV to generate
- * the hash subkey H. STM32_CRYPTO stores only the raw key (no expanded
- * key schedule), so the ARMASM AES_ECB_encrypt helpers used here cannot
- * be used. Excluding STM32_CRYPTO from this block falls back to the
- * non-ARMASM wc_AesEncrypt implementation, which on STM32 routes to
- * CRYP. */
-#if defined(WOLFSSL_ARMASM) && !defined(STM32_CRYPTO)
+#if defined(WC_AES_USE_ARMASM)
     if (ret == 0) {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
@@ -11699,7 +11696,7 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
@@ -12112,7 +12109,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_PUSH;
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WC_AES_USE_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
   #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -12548,7 +12545,7 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+#if !defined(WC_AES_USE_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
@@ -12983,7 +12980,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_PUSH;
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WC_AES_USE_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #ifndef __aarch64__
   #ifdef WOLFSSL_ARM32_AES_DISPATCH
@@ -17158,7 +17155,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 
 #if defined(WOLFSSL_RISCV_ASM)
     AES_encrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
-#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif !defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
 #ifdef WOLFSSL_ARM32_AES_DISPATCH
     if (aes->use_aes_hw_crypto) {
         ret = AES_encrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key,
@@ -17176,7 +17173,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 #else
     AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
 #endif
-#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
         AES_encrypt_blocks_AARCH64(in, out, sz, (byte*)aes->key,
@@ -17277,7 +17274,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 
 #if defined(WOLFSSL_RISCV_ASM)
     AES_decrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
-#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif !defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
 #ifdef WOLFSSL_ARM32_AES_DISPATCH
     if (aes->use_aes_hw_crypto) {
         ret = AES_decrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key,
@@ -17295,7 +17292,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #else
     AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
 #endif
-#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
         AES_decrypt_blocks_AARCH64(in, out, sz, (byte*)aes->key,
@@ -19190,7 +19187,7 @@ void AES_XTS_decrypt_update_avx512(const unsigned char *in, unsigned char *out, 
 #endif
 
 #ifdef HAVE_AES_ECB
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+#if (!defined(WC_AES_USE_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
 /* helper function for encrypting / decrypting full buffer at once */
@@ -19254,7 +19251,7 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
  */
 /* Software AES - XTS Encrypt  */
 
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+#if (!defined(WC_AES_USE_ARMASM) || (!defined(__aarch64__) && \
      defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
      defined(WOLFSSL_ARM32_AES_DISPATCH)) && !defined(WOLFSSL_PPC64_ASM)
 static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
@@ -19301,11 +19298,11 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 /* aarch64 parts with the AES crypto extensions run the same asm as the
  * one-shot entry; NEON and table parts have no streaming asm yet. */
 #if defined(WOLFSSL_AESXTS_STREAM) && defined(__aarch64__) && \
-    defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    defined(WC_AES_USE_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #define WC_AES_XTS_STREAM_AARCH64
 #endif
 
-#if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+#if !defined(WC_AES_USE_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
@@ -19467,7 +19464,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_encrypt_RISCV64(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, (int)xaes->aes.rounds);
     ret = 0;
-#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+#elif !defined(__aarch64__) && defined(WC_AES_USE_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* The base 32-bit AES assembly has no XTS variant, so the run-time
      * fallback is the software XTS (which dispatches per-block via
@@ -19541,7 +19538,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     else {
         ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
     }
-#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
     /* One claim for the whole aarch64 section below. */
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
@@ -19862,7 +19859,7 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  */
 /* Software AES - XTS Decrypt */
 
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+#if (!defined(WC_AES_USE_ARMASM) || (!defined(__aarch64__) && \
      defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
      defined(WOLFSSL_ARM32_AES_DISPATCH)) && !defined(WOLFSSL_PPC64_ASM)
 static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
@@ -19887,7 +19884,7 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #endif /* !WOLFSSL_RISCV_ASM */
 #endif
 
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+#if (!defined(WC_AES_USE_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
@@ -20092,7 +20089,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_decrypt_RISCV64(in, out, sz, i, (byte*)aes->key,
         (byte*)xaes->tweak.key, (byte*)aes->tmp, (int)aes->rounds);
     ret = 0;
-#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+#elif !defined(__aarch64__) && defined(WC_AES_USE_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* The base 32-bit AES assembly has no XTS variant, so the run-time
      * fallback is the software XTS (which dispatches per-block via
@@ -20154,7 +20151,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     else {
         ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
     }
-#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#elif defined(__aarch64__) && defined(WC_AES_USE_ARMASM)
     /* One claim for the whole aarch64 section below. */
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
