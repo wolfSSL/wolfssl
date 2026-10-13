@@ -10601,8 +10601,8 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     }
 
     if (ret == 0 && crl->crlList->crlNumberSet) {
-        /* Each octet needs under 2.5 decimal digits, plus the NUL. */
-        char dec_string[CRL_MAX_NUM_SZ * 5 / 2 + 1];
+        /* Each octet needs at most 3 decimal digits, plus the NUL. */
+        char dec_string[CRL_MAX_NUM_SZ * 3 + 1];
         int freeMp = 0;
     #ifdef WOLFSSL_SMALL_STACK
         mp_int* dec_num = (mp_int*)XMALLOC(sizeof(*dec_num), NULL,
