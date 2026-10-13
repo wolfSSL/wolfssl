@@ -44,6 +44,7 @@ int test_wolfSSL_shutdown_flush_no_notify(void);
 int test_wolfSSL_shutdown_quic_alert_refused(void);
 int test_wolfSSL_SendUserCanceled_paths(void);
 int test_wolfSSL_write_dup_err(void);
+int test_wolfSSL_write_dup_max_fragment(void);
 
 #define TEST_SSL_RW_DECLS                                                      \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_send),                          \
@@ -68,6 +69,7 @@ int test_wolfSSL_write_dup_err(void);
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_shutdown_flush_no_notify),      \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_shutdown_quic_alert_refused),   \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_SendUserCanceled_paths),        \
-        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_dup_err)
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_dup_err),                 \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_dup_max_fragment)
 
 #endif /* TESTS_API_SSL_RW_H */
