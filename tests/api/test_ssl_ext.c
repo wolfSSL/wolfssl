@@ -1195,6 +1195,11 @@ int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
     const word32 lens[] = { SESSION_TICKET_LEN + 1, SESSION_TICKET_LEN };
     int i;
 
+    /* A static buffer this size holds every ticket, none are allocated. */
+    if (SESSION_TICKET_LEN + 2 > WOLFSSL_MAX_16BIT) {
+        return TEST_SKIPPED;
+    }
+
     XMEMSET(big, 0x5a, sizeof(big));
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
