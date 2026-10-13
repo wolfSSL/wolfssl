@@ -41,6 +41,11 @@
 
 #define TRNG_STATUS_READY_MASK   0x1u
 
+/* Polling budget for one 128-bit TRNG result */
+#ifndef RNG_POLL_LIMIT
+    #define RNG_POLL_LIMIT 10000000u
+#endif
+
 static volatile uint8_t *gTrngBase = NULL;
 
 #define TRNG_REG32(off)  (*(volatile uint32_t *)(gTrngBase + (off)))
@@ -63,11 +68,17 @@ int rng_driver_init(void)
     return 0;
 }
 
-static void sa2ul_rng_read128(uint32_t *w0, uint32_t *w1, uint32_t *w2,
+/* Returns 0 on success, -1 if no result became ready within RNG_POLL_LIMIT */
+static int sa2ul_rng_read128(uint32_t *w0, uint32_t *w1, uint32_t *w2,
         uint32_t *w3)
 {
-    while (!(TRNG_REG32(TRNG_STATUS) & TRNG_STATUS_READY_MASK)) {
-        /* wait for a result */
+    uint32_t polls;
+
+    for (polls = 0; !(TRNG_REG32(TRNG_STATUS) & TRNG_STATUS_READY_MASK);
+            polls++) {
+        if (polls >= RNG_POLL_LIMIT) {
+            return -1;
+        }
     }
 
     *w0 = TRNG_REG32(TRNG_INPUT_0);
@@ -77,6 +88,8 @@ static void sa2ul_rng_read128(uint32_t *w0, uint32_t *w1, uint32_t *w2,
 
     /* ack read complete */
     TRNG_REG32(TRNG_INTACK) = TRNG_STATUS_READY_MASK;
+
+    return 0;
 }
 
 
@@ -122,8 +135,17 @@ int rng_driver_read(unsigned char *output, unsigned int sz)
 
     for (i = 0; i < sz; i++) {
         if (fifo_pos == 0) {
-            sa2ul_rng_read128(&fifo.val[0], &fifo.val[1], &fifo.val[2],
-                    &fifo.val[3]);
+            if (sa2ul_rng_read128(&fifo.val[0], &fifo.val[1], &fifo.val[2],
+                    &fifo.val[3]) != 0) {
+                /* TRNG timed out: don't hand back a partial buffer */
+                volatile unsigned char *p = output;
+                unsigned int j;
+                for (j = 0; j < i; j++) {
+                    p[j] = 0;
+                }
+                ret = -1;
+                goto out;
+            }
         }
         output[i] = fifo.byte[fifo_pos++];
         fifo_pos %= 16u;

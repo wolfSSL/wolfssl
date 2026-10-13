@@ -301,6 +301,7 @@ static int ti_sa2ul_AesRun(Aes *aes, struct Sa2ulCtrl *Ctrl, const byte *In,
 static byte gSa2ulHashAccum[SA2UL_MAX_BUF];
 static word32 gSa2ulHashAccumLen = 0;
 static const void *gSa2ulHashOwner = NULL;
+#define SA2UL_HASH_OWNED ((void*)gSa2ulHashAccum)
 
 #endif /* WOLFSSL_SA2UL_DRIVER */
 
@@ -553,10 +554,20 @@ static int ti_sa2ul_HashSwUpdate(int type, void* obj, const byte* in,
     return BAD_FUNC_ARG;
 }
 
+/* Called with gSa2ulMutex held: give the accumulator up. */
+static void ti_sa2ul_HashRelease(void** devCtx)
+{
+    ForceZero(gSa2ulHashAccum, gSa2ulHashAccumLen);
+    gSa2ulHashAccumLen = 0;
+    gSa2ulHashOwner = NULL;
+    *devCtx = NULL;
+}
+
 /* Called with gSa2ulMutex held and obj owning the accumulator; returns
  * with it released. The accumulator stays owned during the replay so no
  * other hash can take it while unlocked. */
-static int ti_sa2ul_HashSpill(int type, void* obj, word32* flags)
+static int ti_sa2ul_HashSpill(int type, void* obj, word32* flags,
+        void** devCtx)
 {
     int ret;
 
@@ -564,21 +575,20 @@ static int ti_sa2ul_HashSpill(int type, void* obj, word32* flags)
     ti_sa2ul_unlock();
     ret = ti_sa2ul_HashSwUpdate(type, obj, gSa2ulHashAccum, gSa2ulHashAccumLen);
     if (ti_sa2ul_lock() == 0) {
-        ForceZero(gSa2ulHashAccum, gSa2ulHashAccumLen);
-        gSa2ulHashAccumLen = 0;
-        gSa2ulHashOwner = NULL;
+        ti_sa2ul_HashRelease(devCtx);
         ti_sa2ul_unlock();
     }
     return ret;
 }
 #endif /* WOLFSSL_SA2UL_DRIVER */
 
-static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
-        word32 inSz, byte* digest, word32 digestSz)
+static int ti_sa2ul_Hash(int type, void* obj, word32* flags, void** devCtx,
+        const byte* in, word32 inSz, byte* digest, word32 digestSz)
 {
 #ifdef WOLFSSL_SA2UL_DRIVER
     struct Sa2ulCtrl ctrl;
     int ret;
+    int owned;
 
     if (in == NULL && digest == NULL) {
         return BAD_FUNC_ARG;
@@ -586,9 +596,9 @@ static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
     if ((*flags & WC_HASH_FLAG_ISCOPY) != 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    /* Lock-free fast paths. Only this object's own (single) thread ever
-     * sets gSa2ulHashOwner to obj, so a racy read can't wrongly see obj. */
-    if (gSa2ulHashOwner != obj) {
+    /* Lock-free fast paths */
+    owned = (*devCtx == SA2UL_HASH_OWNED);
+    if (!owned) {
         if (in == NULL) {
             /* Final for a message that never claimed the accumulator */
             return CRYPTOCB_UNAVAILABLE;
@@ -606,19 +616,32 @@ static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
         return CRYPTOCB_UNAVAILABLE;
     }
 
+    if (owned && gSa2ulHashOwner != obj) {
+        *devCtx = NULL;
+        ti_sa2ul_unlock();
+        return BAD_STATE_E;
+    }
+
     if (in != NULL) {
         /* Update */
-        if (gSa2ulHashOwner != NULL && gSa2ulHashOwner != obj) {
-            *flags |= WC_HASH_FLAG_ISCOPY;
-            ti_sa2ul_unlock();
-            return CRYPTOCB_UNAVAILABLE;
-        }
-        if (gSa2ulHashOwner == NULL) {
+        if (!owned) {
+            if (gSa2ulHashOwner == obj) {
+                /* Stale claim from this object's previous life (it was
+                 * re-initialized, which cleared devCtx) */
+                ti_sa2ul_HashRelease(devCtx);
+            }
+            if (gSa2ulHashOwner != NULL) {
+                /* engine busy with another hash: fall back to sw */
+                *flags |= WC_HASH_FLAG_ISCOPY;
+                ti_sa2ul_unlock();
+                return CRYPTOCB_UNAVAILABLE;
+            }
             gSa2ulHashOwner = obj;
             gSa2ulHashAccumLen = 0;
+            *devCtx = SA2UL_HASH_OWNED;
         }
         if ((word64)gSa2ulHashAccumLen + inSz > sizeof(gSa2ulHashAccum)) {
-            ret = ti_sa2ul_HashSpill(type, obj, flags);
+            ret = ti_sa2ul_HashSpill(type, obj, flags, devCtx);
             if (ret == 0) {
                 ret = ti_sa2ul_HashSwUpdate(type, obj, in, inSz);
             }
@@ -630,22 +653,18 @@ static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
         return 0;
     }
 
-    /* Final */
-    if (gSa2ulHashOwner != obj) {
-        ti_sa2ul_unlock();
-        return CRYPTOCB_UNAVAILABLE;
-    }
+    /* Final: only reached when this object owns the accumulator */
     if (gSa2ulHashAccumLen == 0u) {
         /* empty message (SA2UL rejects zero length): software, and give
          * the accumulator back */
-        gSa2ulHashOwner = NULL;
+        ti_sa2ul_HashRelease(devCtx);
         ti_sa2ul_unlock();
         return CRYPTOCB_UNAVAILABLE;
     }
     if (gSa2ulHashAccumLen < WOLFSSL_SA2UL_HASH_MIN_SZ) {
         /* too short to be worth an IODevice round trip (e.g. Hash_DRBG's
          * many small SHA-256 calls): finish in software */
-        ret = ti_sa2ul_HashSpill(type, obj, flags);
+        ret = ti_sa2ul_HashSpill(type, obj, flags, devCtx);
         return (ret == 0) ? CRYPTOCB_UNAVAILABLE : ret;
     }
 
@@ -662,19 +681,17 @@ static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
             NULL, 0);
     if (ret != 0 || ctrl.ret != SA2UL_DRIVER_OK) {
         /* finish in software instead */
-        ret = ti_sa2ul_HashSpill(type, obj, flags);
+        ret = ti_sa2ul_HashSpill(type, obj, flags, devCtx);
         return (ret == 0) ? CRYPTOCB_UNAVAILABLE : ret;
     }
 
-    ForceZero(gSa2ulHashAccum, gSa2ulHashAccumLen);
-    gSa2ulHashAccumLen = 0;
-    gSa2ulHashOwner = NULL;
+    ti_sa2ul_HashRelease(devCtx);
     ti_sa2ul_unlock();
 
     XMEMCPY(digest, ctrl.digestOut, digestSz);
     return 0;
 #else
-    (void)type; (void)obj; (void)flags; (void)in; (void)inSz;
+    (void)type; (void)obj; (void)flags; (void)devCtx; (void)in; (void)inSz;
     (void)digest; (void)digestSz;
     return CRYPTOCB_UNAVAILABLE;
 #endif
@@ -683,45 +700,49 @@ static int ti_sa2ul_Hash(int type, void* obj, word32* flags, const byte* in,
 #ifdef WOLF_CRYPTO_CB_COPY
 /* wc_Sha*Copy(): make sure src's software state holds everything before
  * wolfCrypt memcpy()s it, then let the normal copy happen. */
-static int ti_sa2ul_HashCopy(int type, void* src, word32* srcFlags)
+static int ti_sa2ul_HashCopy(int type, void* src, word32* srcFlags,
+        void** srcDevCtx)
 {
 #ifdef WOLFSSL_SA2UL_DRIVER
-    if (gSa2ulHashOwner != src) {
-        /* nothing buffered for src (lock-free, see ti_sa2ul_Hash()) */
+    if (*srcDevCtx != SA2UL_HASH_OWNED) {
+        /* nothing buffered for src (its own state, see SA2UL_HASH_OWNED) */
         return CRYPTOCB_UNAVAILABLE;
     }
     if (ti_sa2ul_lock() != 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
     if (gSa2ulHashOwner == src) {
-        int ret = ti_sa2ul_HashSpill(type, src, srcFlags);
+        /* clears src's mark too, so the memcpy() into dst doesn't copy it */
+        int ret = ti_sa2ul_HashSpill(type, src, srcFlags, srcDevCtx);
         if (ret != 0) {
             return ret;
         }
     }
     else {
+        *srcDevCtx = NULL;
         ti_sa2ul_unlock();
     }
 #else
-    (void)type; (void)src; (void)srcFlags;
+    (void)type; (void)src; (void)srcFlags; (void)srcDevCtx;
 #endif
     return CRYPTOCB_UNAVAILABLE;
 }
 #endif /* WOLF_CRYPTO_CB_COPY */
 
-static int ti_sa2ul_HashTeardown(void* obj)
+static int ti_sa2ul_HashTeardown(void* obj, void** devCtx)
 {
 #ifdef WOLFSSL_SA2UL_DRIVER
-    if (gSa2ulHashOwner == obj && ti_sa2ul_lock() == 0) {
+    if (*devCtx == SA2UL_HASH_OWNED && ti_sa2ul_lock() == 0) {
         if (gSa2ulHashOwner == obj) {
-            ForceZero(gSa2ulHashAccum, gSa2ulHashAccumLen);
-            gSa2ulHashOwner = NULL;
-            gSa2ulHashAccumLen = 0;
+            ti_sa2ul_HashRelease(devCtx);
+        }
+        else {
+            *devCtx = NULL;
         }
         ti_sa2ul_unlock();
     }
 #else
-    (void)obj;
+    (void)obj; (void)devCtx;
 #endif
     /* let wolfCrypt's own free run too */
     return CRYPTOCB_UNAVAILABLE;
@@ -850,7 +871,7 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
         else if (info->hash.type == WC_HASH_TYPE_SHA256) {
             wc_Sha256* sha256 = info->hash.sha256;
             ret = ti_sa2ul_Hash(WC_HASH_TYPE_SHA256, sha256, &sha256->flags,
-                                info->hash.in, info->hash.inSz,
+                                &sha256->devCtx, info->hash.in, info->hash.inSz,
                                 info->hash.digest, WC_SHA256_DIGEST_SIZE);
         }
 # endif /* !NO_SHA256 */
@@ -858,7 +879,7 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
         else if (info->hash.type == WC_HASH_TYPE_SHA224) {
             wc_Sha224* sha224 = info->hash.sha224;
             ret = ti_sa2ul_Hash(WC_HASH_TYPE_SHA224, sha224, &sha224->flags,
-                                info->hash.in, info->hash.inSz,
+                                &sha224->devCtx, info->hash.in, info->hash.inSz,
                                 info->hash.digest, WC_SHA224_DIGEST_SIZE);
         }
 # endif /* !NO_SHA256 && WOLFSSL_SHA224 */
@@ -866,7 +887,7 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
         else if (info->hash.type == WC_HASH_TYPE_SHA384) {
             wc_Sha384* sha384 = info->hash.sha384;
             ret = ti_sa2ul_Hash(WC_HASH_TYPE_SHA384, sha384, &sha384->flags,
-                                info->hash.in, info->hash.inSz,
+                                &sha384->devCtx, info->hash.in, info->hash.inSz,
                                 info->hash.digest, WC_SHA384_DIGEST_SIZE);
         }
 # endif /* WOLFSSL_SHA384 */
@@ -876,7 +897,8 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
             /* SHA-384/512-224/512-256 share wc_Sha512 but not this path */
             if (sha512->hashType == WC_HASH_TYPE_SHA512) {
                 ret = ti_sa2ul_Hash(WC_HASH_TYPE_SHA512, sha512,
-                                    &sha512->flags, info->hash.in,
+                                    &sha512->flags, &sha512->devCtx,
+                                    info->hash.in,
                                     info->hash.inSz, info->hash.digest,
                                     WC_SHA512_DIGEST_SIZE);
             }
@@ -892,25 +914,29 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 #  ifndef NO_SHA256
             if (info->copy.type == WC_HASH_TYPE_SHA256) {
                 wc_Sha256* src = (wc_Sha256*)info->copy.src;
-                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA256, src, &src->flags);
+                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA256, src, &src->flags,
+                                        &src->devCtx);
             }
 #  endif
 #  if defined(WOLFSSL_SHA224)
             if (info->copy.type == WC_HASH_TYPE_SHA224) {
                 wc_Sha224* src = (wc_Sha224*)info->copy.src;
-                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA224, src, &src->flags);
+                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA224, src, &src->flags,
+                                        &src->devCtx);
             }
 #  endif
 #  ifdef WOLFSSL_SHA384
             if (info->copy.type == WC_HASH_TYPE_SHA384) {
                 wc_Sha384* src = (wc_Sha384*)info->copy.src;
-                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA384, src, &src->flags);
+                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA384, src, &src->flags,
+                                        &src->devCtx);
             }
 #  endif
 #  ifdef WOLFSSL_SHA512
             if (info->copy.type == WC_HASH_TYPE_SHA512) {
                 wc_Sha512* src = (wc_Sha512*)info->copy.src;
-                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA512, src, &src->flags);
+                ret = ti_sa2ul_HashCopy(WC_HASH_TYPE_SHA512, src, &src->flags,
+                                        &src->devCtx);
             }
 #  endif
         }
@@ -921,12 +947,24 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
     else if (info->algo_type == WC_ALGO_TYPE_FREE)
     {
 # if !defined(WOLFSSL_TI_AM64X_A53_INTEGRITY_NO_SHA) && (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))
-        if (info->free.algo == WC_ALGO_TYPE_HASH &&
-                (info->free.type == WC_HASH_TYPE_SHA224 ||
-                 info->free.type == WC_HASH_TYPE_SHA256 ||
-                 info->free.type == WC_HASH_TYPE_SHA384 ||
-                 info->free.type == WC_HASH_TYPE_SHA512)) {
-            ret = ti_sa2ul_HashTeardown(info->free.obj);
+        if (info->free.algo == WC_ALGO_TYPE_HASH) {
+            if (0) {
+                /* nothing */
+            }
+#  ifndef NO_SHA256
+            else if (info->free.type == WC_HASH_TYPE_SHA224 ||
+                     info->free.type == WC_HASH_TYPE_SHA256) {
+                wc_Sha256* sha = (wc_Sha256*)info->free.obj;
+                ret = ti_sa2ul_HashTeardown(sha, &sha->devCtx);
+            }
+#  endif
+#  ifdef WOLFSSL_SHA512
+            else if (info->free.type == WC_HASH_TYPE_SHA384 ||
+                     info->free.type == WC_HASH_TYPE_SHA512) {
+                wc_Sha512* sha = (wc_Sha512*)info->free.obj;
+                ret = ti_sa2ul_HashTeardown(sha, &sha->devCtx);
+            }
+#  endif
         }
 # endif
 # if defined(WOLFSSL_SA2UL_DRIVER) && !defined(NO_AES) && \
