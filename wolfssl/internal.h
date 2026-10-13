@@ -2606,19 +2606,11 @@ WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);
 #endif /* WOLFSSL_DTLS_EXPORT_TYPES */
 
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#define MAX_DESCRIPTION_SZ 255
-#endif
+/* A cipher suite and the version reported for it. */
 struct WOLFSSL_CIPHER {
     byte cipherSuite0;
     byte cipherSuite;
-    const WOLFSSL* ssl;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    char description[MAX_DESCRIPTION_SZ];
-    unsigned long offset;
-    unsigned int in_stack; /* TRUE if added to stack in wolfSSL_get_ciphers_compat */
-    int bits;
-#endif
+    ProtocolVersion pv;     /* version reported */
 };
 
 
@@ -7816,10 +7808,9 @@ WOLFSSL_TEST_VIS int GetCipherNamesSize(void);
 WOLFSSL_LOCAL int GetCipherNamesIdx(byte cipherSuite0, byte cipherSuite);
 WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-/* used in wolfSSL_sk_CIPHER_description */
+/* used by the SSL_CIPHER NID accessors */
 #define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
-WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher);
 WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher,
                                            char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherProtocol(byte minor);
@@ -7827,7 +7818,6 @@ WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
-WOLFSSL_LOCAL int SetCipherBits(const char* enc);
 WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);

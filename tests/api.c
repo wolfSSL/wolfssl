@@ -15028,10 +15028,24 @@ static int test_wolfSSL_certs(void)
     ExpectNotNull(skid = (WOLFSSL_STACK*)X509_get_ext_d2i(x509ext,
         NID_subject_key_identifier, &crit, NULL));
 #ifdef OPENSSL_ALL
-    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_key_identifier, crit,
-        skid));
-    X509_EXTENSION_free(ext);
-    ext = NULL;
+    /* X509V3_EXT_i2d() takes the key identifier as an ASN1_STRING. */
+    {
+        WOLFSSL_ASN1_OBJECT* skidObj = NULL;
+
+        ExpectNotNull(skidObj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(skid,
+            0));
+        ExpectNotNull(asn1_str = ASN1_STRING_new());
+        ExpectIntEQ(ASN1_STRING_set(asn1_str, skidObj->obj,
+            (int)skidObj->objSz), 1);
+        ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_key_identifier, crit,
+            asn1_str));
+        ExpectIntEQ(wolfSSL_ASN1_STRING_length(
+            wolfSSL_X509_EXTENSION_get_data(ext)), (int)skidObj->objSz);
+        X509_EXTENSION_free(ext);
+        ext = NULL;
+        ASN1_STRING_free(asn1_str);
+        asn1_str = NULL;
+    }
 #endif
     wolfSSL_sk_ASN1_OBJECT_pop_free(skid, wolfSSL_ASN1_OBJECT_free);
     skid = NULL;
@@ -20002,13 +20016,14 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
                 ExpectIntEQ(found->cipherSuite,  absentId[1]);
             }
 
-#ifdef OPENSSL_ALL
             /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the
              * suite that was looked up. Nothing has been negotiated, so a
              * description taken from the session state would be empty. */
             if ((found != NULL) && (absent != NULL)) {
-                char descFind[MAX_DESCRIPTION_SZ];
-                char descStack[MAX_DESCRIPTION_SZ];
+                char descFind[256];
+                char descStack[256];
+                int bitsFind = -1;
+                int bitsStack = -2;
 
                 XMEMSET(descFind, 0, sizeof(descFind));
                 XMEMSET(descStack, 0, sizeof(descStack));
@@ -20018,12 +20033,19 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
                     (int)sizeof(descFind)));
                 ExpectStrEQ(descFind, descStack);
                 ExpectNull(XSTRSTR(descFind, "unknown"));
+                /* Version and bits of the suite, not of the session. */
+                ExpectNotNull(wolfSSL_CIPHER_get_version(found));
+                ExpectStrEQ(wolfSSL_CIPHER_get_version(found),
+                    wolfSSL_CIPHER_get_version(absent));
+                ExpectIntEQ(wolfSSL_CIPHER_get_bits(found, &bitsFind),
+                    wolfSSL_CIPHER_get_bits(absent, &bitsStack));
+                ExpectIntEQ(bitsFind, bitsStack);
             }
             /* SSL_get_current_cipher() reuses that object. It must describe
              * the session again, not the suite looked up above. */
             if ((found != NULL) && (absent != NULL)) {
-                char descFind[MAX_DESCRIPTION_SZ];
-                char descCur[MAX_DESCRIPTION_SZ];
+                char descFind[256];
+                char descCur[256];
 
                 XMEMSET(descFind, 0, sizeof(descFind));
                 XMEMSET(descCur, 0, sizeof(descCur));
@@ -20033,8 +20055,10 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
                     SSL_get_current_cipher(sslLtd), descCur,
                     (int)sizeof(descCur)));
                 ExpectStrNE(descCur, descFind);
+                ExpectStrEQ(wolfSSL_CIPHER_get_version(
+                    SSL_get_current_cipher(sslLtd)),
+                    wolfSSL_get_version(sslLtd));
             }
-#endif
         }
 
         wolfSSL_free(sslLtd);
@@ -24672,19 +24696,14 @@ static int test_wolfSSL_sk_CIPHER_description(void)
                 WOLFSSL_SUCCESS);
 
     ExpectNotNull(ssl = SSL_new(ctx));
-    /* SSL_get_ciphers returns a stack of all configured ciphers
-     * A flag, getCipherAtOffset, is set to later have SSL_CIPHER_description
-     */
+    /* SSL_get_ciphers returns a stack of all configured ciphers. */
     ExpectNotNull(supportedCiphers = SSL_get_ciphers(ssl));
 
     /* loop through the amount of supportedCiphers */
     numCiphers = sk_num(supportedCiphers);
     for (i = 0; i < numCiphers; ++i) {
         int j;
-        /* sk_value increments "sk->data.cipher->cipherOffset".
-         * wolfSSL_sk_CIPHER_description sets the description for
-         * the cipher based on the provided offset.
-         */
+        /* Each entry describes its own suite. */
         if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
             SSL_CIPHER_description(cipher, buf, sizeof(buf));
         }
@@ -34178,7 +34197,12 @@ static int test_SSL_CIPHER_get_xxx(void)
     (void)testKeyFile;
 
 #if defined(WOLFSSL_TLS13)
+    /* Descriptions name TLS 1.3 suites as OpenSSL does. */
+#ifndef NO_ERROR_STRINGS
+    cipher_id = "TLS_AES_128_GCM_SHA256";
+#else
     cipher_id = "TLS13-AES128-GCM-SHA256";
+#endif
     expect_nid1 = NID_auth_any;
     expect_nid2 = NID_aes_128_gcm;
     expect_nid3 = NID_sha256;
@@ -34194,7 +34218,11 @@ static int test_SSL_CIPHER_get_xxx(void)
     expect_nid25 = 1;
     #endif
 
+#ifndef NO_ERROR_STRINGS
+    cipher_id3 = "TLS_CHACHA20_POLY1305_SHA256";
+#else
     cipher_id3 = "TLS13-CHACHA20-POLY1305-SHA256";
+#endif
     expect_nid31 = NID_auth_any;
     expect_nid32 = NID_chacha20_poly1305;
     expect_nid33 = NID_sha256;
@@ -34306,8 +34334,7 @@ static int test_SSL_CIPHER_get_xxx(void)
 }
 
 /* Cipher property helpers must report the negotiated cipher when it is
- * obtained via SSL_get_current_cipher(), which does not populate
- * cipher->offset. */
+ * obtained via SSL_get_current_cipher(). */
 static int test_SSL_CIPHER_get_current_kx(void)
 {
     EXPECT_DECLS;

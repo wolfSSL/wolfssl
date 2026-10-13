@@ -8847,8 +8847,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.saveArrays = 1;
 #endif
 
-    ssl->cipher.ssl = ssl;
-
 #ifdef HAVE_EXTENDED_MASTER
     ssl->options.haveEMS = ctx->haveEMS;
     ssl->options.disableEMS = ctx->disableEMS;
@@ -31097,7 +31095,8 @@ void SetErrorString(int error, char* str)
 
 #ifdef NO_CIPHER_SUITE_ALIASES
     #ifndef NO_ERROR_STRINGS
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
+            defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
             #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
@@ -31105,7 +31104,8 @@ void SetErrorString(int error, char* str)
             #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #endif
     #else
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
+            defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
             #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
@@ -31698,21 +31698,17 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
 {
     int i,j,k;
     int strLen;
-    unsigned long offset;
     const char* name;
 
     /* sanity check */
     if (cipher == NULL || n == NULL)
         return NULL;
 
-    /* Resolve from the suite bytes, which every cipher has. */
     i = GetCipherNamesIdx(cipher->cipherSuite0, cipher->cipherSuite);
-    offset = (i >= 0) ? (unsigned long)i : cipher->offset;
-
-    if (offset >= (unsigned long)GetCipherNamesSize())
+    if (i < 0)
         return NULL;
 
-    name = cipher_names[offset].name;
+    name = cipher_names[i].name;
 
     if (name == NULL)
         return NULL;
@@ -31957,30 +31953,6 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
     return macStr;
 }
 
-/* Returns the number of bits based on the cipher enc string, or 0 on failure */
-int SetCipherBits(const char* enc) {
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-
-    if ((XSTRCMP(enc,"AESGCM(256)") == 0) ||
-        (XSTRCMP(enc,"AES(256)") == 0) ||
-        (XSTRCMP(enc,"CAMELLIA(256)") == 0) ||
-        (XSTRCMP(enc,"CHACHA20/POLY1305(256)") == 0))
-            ret = 256;
-    else if
-        ((XSTRCMP(enc,"3DES") == 0))
-            ret = 168;
-    else if
-        ((XSTRCMP(enc,"AESGCM(128)") == 0) ||
-         (XSTRCMP(enc,"AES(128)") == 0) ||
-         (XSTRCMP(enc,"CAMELLIA(128)") == 0) ||
-         (XSTRCMP(enc,"RC4") == 0))
-            ret = 128;
-   else if
-        ((XSTRCMP(enc,"DES") == 0))
-            ret = 56;
-
-    return ret;
-}
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite)
