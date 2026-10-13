@@ -93,13 +93,6 @@
             }                                                           \
             SP_FREE_VAR(NAME, HEAP, DT);                                \
         } while (0)
-    #define SP_ZEROFREE_VAR_ALT(TYPE, NAME, FZ_NAME, CNT, HEAP, DT)     \
-        do {                                                            \
-            if ((FZ_NAME) != NULL) {                                    \
-                ForceZero(FZ_NAME, sizeof(TYPE) * (CNT));               \
-            }                                                           \
-            SP_FREE_VAR(NAME, HEAP, DT);                                \
-        } while (0)
 #else
     #define SP_DECL_VAR(TYPE, NAME, CNT)                                \
         TYPE NAME[CNT]
@@ -112,12 +105,6 @@
         do {                                                            \
             if ((NAME) != NULL) {                                       \
                 ForceZero(NAME, sizeof(TYPE) * (CNT));                  \
-            }                                                           \
-        } while (0)
-    #define SP_ZEROFREE_VAR_ALT(TYPE, NAME, FZ_NAME, CNT, HEAP, DT)     \
-        do {                                                            \
-            if ((FZ_NAME) != NULL) {                                    \
-                ForceZero(FZ_NAME, sizeof(TYPE) * (CNT));               \
             }                                                           \
         } while (0)
 #endif
@@ -638,7 +625,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_8(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -10167,7 +10153,6 @@ SP_NOINLINE static void sp_2048_mul_16(sp_digit* r, const sp_digit* a,
     u += sp_2048_add_16(r + 8, r + 8, z1);
     (void)sp_2048_add_word_8(r + 24, r + 24, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -10998,7 +10983,6 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
     u += sp_2048_add_32(r + 16, r + 16, z1);
     (void)sp_2048_add_word_16(r + 48, r + 48, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -12517,7 +12501,6 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
     u += sp_2048_add_64(r + 32, r + 32, z1);
     (void)sp_2048_add_word_32(r + 96, r + 96, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -19594,7 +19577,6 @@ SP_NOINLINE static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
     u += sp_2048_sub_in_place_16(r + 8, z1);
     sp_2048_add_word_8(r + 24, r + 24, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -19791,7 +19773,6 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
     u += sp_2048_sub_in_place_32(r + 16, z1);
     sp_2048_add_word_16(r + 48, r + 48, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -20124,7 +20105,6 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
     u += sp_2048_sub_in_place_64(r + 32, z1);
     sp_2048_add_word_32(r + 96, r + 96, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -20548,7 +20528,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_64(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -21419,7 +21398,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_32(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -24285,11 +24263,9 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (16 + 1) * 64);
-    const word32 tdCount = (16 + 1) * 64;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 16 * 64);
-    const word32 tdCount = 16 * 64;
 #endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
@@ -24424,7 +24400,11 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_32(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (16 + 1) * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 16 * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -24478,11 +24458,9 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (32 + 1) * 64);
-    const word32 tdCount = (32 + 1) * 64;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 32 * 64);
-    const word32 tdCount = 32 * 64;
 #endif
     sp_digit* t[32];
     sp_digit* norm = NULL;
@@ -24634,7 +24612,11 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_32(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (32 + 1) * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 32 * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -27978,11 +27960,9 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (8 + 1) * 128);
-    const word32 tdCount = (8 + 1) * 128;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 8 * 128);
-    const word32 tdCount = 8 * 128;
 #endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
@@ -28108,7 +28088,11 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_64(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (8 + 1) * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 8 * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -28162,11 +28146,9 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (16 + 1) * 128);
-    const word32 tdCount = (16 + 1) * 128;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 16 * 128);
-    const word32 tdCount = 16 * 128;
 #endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
@@ -28301,7 +28283,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_64(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (16 + 1) * 128, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 16 * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -31091,7 +31078,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mul_12(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -52056,7 +52042,6 @@ SP_NOINLINE static void sp_3072_mul_24(sp_digit* r, const sp_digit* a,
     u += sp_3072_add_24(r + 12, r + 12, z1);
     (void)sp_3072_add_word_12(r + 36, r + 36, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -53231,7 +53216,6 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
     u += sp_3072_add_48(r + 24, r + 24, z1);
     (void)sp_3072_add_word_24(r + 72, r + 72, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -55438,7 +55422,6 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
     u += sp_3072_add_96(r + 48, r + 48, z1);
     (void)sp_3072_add_word_48(r + 144, r + 144, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -70805,7 +70788,6 @@ SP_NOINLINE static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
     u += sp_3072_sub_in_place_24(r + 12, z1);
     sp_3072_add_word_12(r + 36, r + 36, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -71070,7 +71052,6 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
     u += sp_3072_sub_in_place_48(r + 24, z1);
     sp_3072_add_word_24(r + 72, r + 72, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -71539,7 +71520,6 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
     u += sp_3072_sub_in_place_96(r + 48, z1);
     sp_3072_add_word_48(r + 144, r + 144, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -71973,7 +71953,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mul_96(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -72864,7 +72843,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mul_48(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -76012,11 +75990,9 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (16 + 1) * 96);
-    const word32 tdCount = (16 + 1) * 96;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 16 * 96);
-    const word32 tdCount = 16 * 96;
 #endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
@@ -76151,7 +76127,11 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_48(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (16 + 1) * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 16 * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -76205,11 +76185,9 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (32 + 1) * 96);
-    const word32 tdCount = (32 + 1) * 96;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 32 * 96);
-    const word32 tdCount = 32 * 96;
 #endif
     sp_digit* t[32];
     sp_digit* norm = NULL;
@@ -76361,7 +76339,11 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_48(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (32 + 1) * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 32 * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -80536,11 +80518,9 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (8 + 1) * 192);
-    const word32 tdCount = (8 + 1) * 192;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 8 * 192);
-    const word32 tdCount = 8 * 192;
 #endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
@@ -80666,7 +80646,11 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_96(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (8 + 1) * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 8 * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -80720,11 +80704,9 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (16 + 1) * 192);
-    const word32 tdCount = (16 + 1) * 192;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 16 * 192);
-    const word32 tdCount = 16 * 192;
 #endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
@@ -80859,7 +80841,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_96(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (16 + 1) * 192, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 16 * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -87059,7 +87046,6 @@ SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
     u += sp_4096_add_128(r + 64, r + 64, z1);
     (void)sp_4096_add_word_64(r + 192, r + 192, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
     ForceZero(a1, sizeof(a1));
     ForceZero(b1, sizeof(b1));
@@ -87099,7 +87085,6 @@ SP_NOINLINE static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
     u += sp_4096_sub_in_place_128(r + 64, z1);
     sp_4096_add_word_64(r + 192, r + 192, u);
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(z1, sizeof(z1));
 }
 
@@ -87533,7 +87518,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mul_128(sp_digit* r,
 
     XMEMCPY(r, t, sizeof(t));
 
-    /* Discard private-operation multiplication scratch. */
     ForceZero(t, sizeof(t));
 }
 
@@ -93199,11 +93183,9 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (8 + 1) * 256);
-    const word32 tdCount = (8 + 1) * 256;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 8 * 256);
-    const word32 tdCount = 8 * 256;
 #endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
@@ -93329,7 +93311,11 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         sp_4096_cond_sub_128(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (8 + 1) * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 8 * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -93383,11 +93369,9 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 {
 #ifndef WC_NO_CACHE_RESISTANT
     SP_DECL_VAR(sp_digit, td, (16 + 1) * 256);
-    const word32 tdCount = (16 + 1) * 256;
     sp_digit* rt = NULL;
 #else
     SP_DECL_VAR(sp_digit, td, 16 * 256);
-    const word32 tdCount = 16 * 256;
 #endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
@@ -93522,7 +93506,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         sp_4096_cond_sub_128(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, tdCount, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ZEROFREE_VAR(sp_digit, td, (16 + 1) * 256, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    SP_ZEROFREE_VAR(sp_digit, td, 16 * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !WC_NO_CACHE_RESISTANT */
 
     return err;
 }
@@ -104829,7 +104818,6 @@ static int sp_256_ecc_gen_k_8(WC_RNG* rng, sp_digit* k)
     }
     while (err == 0);
 
-    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
     ForceZero(buf, sizeof(buf));
 
     return err;
@@ -115787,7 +115775,6 @@ static int sp_384_ecc_gen_k_12(WC_RNG* rng, sp_digit* k)
     }
     while (err == 0);
 
-    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
     ForceZero(buf, sizeof(buf));
 
     return err;
@@ -130096,7 +130083,6 @@ static int sp_521_ecc_gen_k_17(WC_RNG* rng, sp_digit* k)
     }
     while (err == 0);
 
-    /* buf held the raw scalar (ISO/IEC 19790 7.9.7). */
     ForceZero(buf, sizeof(buf));
 
     return err;
