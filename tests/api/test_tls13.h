@@ -81,6 +81,7 @@ int test_tls13_hrr_recognized_ext_downgrade(void);
 int test_tls13_cert_req_sigalgs(void);
 int test_tls13_sha1_cert_chain(void);
 int test_tls13_derive_keys_no_key(void);
+int test_tls13_resumption_psk_long_nonce(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_pqc_hybrid_malformed_ecdh(void);
 int test_tls13_empty_record_limit(void);
@@ -271,6 +272,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
     TEST_DECL_GROUP("tls13", test_tls13_sha1_cert_chain),        \
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
+    TEST_DECL_GROUP("tls13", test_tls13_resumption_psk_long_nonce), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_malformed_ecdh), \
     TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \

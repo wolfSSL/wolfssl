@@ -116,7 +116,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-dtls --enable-dtlscid
+          configure: --enable-dtls --enable-dtlscid --enable-session-ticket
           install: false
           check: false
 
