@@ -869,7 +869,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                 /* Perform TX and RX of bytes */
                 xfer_bytes = 0;
                 while (throughput > xfer_bytes) {
-                    int len, rx_pos, select_ret;
+                    int len, rx_pos, select_ret, tries;
 
                     /* Determine packet size */
                     len = (int)min((word32)block, (word32)(throughput - xfer_bytes));
@@ -888,7 +888,10 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     tx_time += current_time(0) - start;
 
                     /* Perform RX */
-                    select_ret = tcp_select(sockfd, DEFAULT_TIMEOUT_SEC);
+                    tries = 0;
+                    do {
+                        select_ret = tcp_select(sockfd, DEFAULT_TIMEOUT_SEC);
+                    } while (select_ret == TEST_TIMEOUT && ++tries < 5);
                     if (select_ret == TEST_RECV_READY) {
                         start = current_time(1);
                         rx_pos = 0;
@@ -915,6 +918,15 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                             }
                         }
                         rx_time += current_time(0) - start;
+                    }
+                    else {
+                        XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        tx_buffer = NULL;
+                        XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        rx_buffer = NULL;
+                        err_sys(select_ret == TEST_TIMEOUT ?
+                                "SSL_read bench timeout" :
+                                "SSL_read bench select failed");
                     }
 
                     /* Compare TX and RX buffers */
