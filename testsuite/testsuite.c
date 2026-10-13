@@ -756,8 +756,7 @@ static void simple_test(func_args* args)
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
-    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
-                                     !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         XSTRLCPY(argvs[svrArgs.argc++], "-p", sizeof(argvs[svrArgs.argc]));
         XSTRLCPY(argvs[svrArgs.argc++], "0", sizeof(argvs[svrArgs.argc]));
     #endif

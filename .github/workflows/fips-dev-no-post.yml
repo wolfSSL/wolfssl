@@ -57,8 +57,14 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential linux-headers-$(uname -r)
+          packages: autoconf automake libtool build-essential bubblewrap linux-headers-$(uname -r)
           ghcr-debs-tag: ubuntu-24.04-linuxkm
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: Set up ccache
         uses: ./.github/actions/ccache-setup

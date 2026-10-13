@@ -7938,8 +7938,8 @@ THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #if defined(USE_WINDOWS_API)
     port = opts->signal->port;
-#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_MDK_SHELL) && \
+     !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
     port = 0;
 #else
@@ -8223,8 +8223,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
 
 #if defined(USE_WINDOWS_API)
     port = opts->signal->port;
-#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_MDK_SHELL) && \
+     !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
     port = 0;
 #else
@@ -8905,8 +8905,8 @@ THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 
 #if defined(USE_WINDOWS_API)
     port = ((func_args*)args)->signal->port;
-#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_MDK_SHELL) && \
+     !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
     port = 0;
 #else
@@ -10121,8 +10121,8 @@ static THREAD_RETURN WOLFSSL_THREAD tls_export_server(void* args)
 
 #if defined(USE_WINDOWS_API)
     port = ((func_args*)args)->signal->port;
-#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_MDK_SHELL) && \
+     !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
     port = 0;
 #else
