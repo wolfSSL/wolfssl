@@ -571,5 +571,8 @@
   "--disable-dh", "--disable-mlkem",
   "CPPFLAGS=-DWOLFSSL_DRBG_SHA512 -DUSE_CERT_BUFFERS_256 -DWOLFSSL_NOSHA3_256"],
  "check": false,
- "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "postauth-no-compat",
+ "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]}
 ]
