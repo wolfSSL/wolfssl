@@ -83,7 +83,10 @@
  * TLS 1.3 Session Tickets:
  * WOLFSSL_TICKET_HAVE_ID:   Session tickets include ID            default: off
  *                            Forced on when WOLFSSL_EARLY_DATA is set.
- * WOLFSSL_TICKET_NONCE_MALLOC: Dynamically allocate ticket nonce  default: off
+ * WOLFSSL_TICKET_NONCE_MALLOC: Allocate nonces longer than       default: on
+ *                            TLS13_TICKET_NONCE_STATIC_SZ. Off for FIPS,
+ *                            selftest, MAXQ10xx and WOLFSSL_NO_MALLOC
+ *                            builds, or with WOLFSSL_NO_TICKET_NONCE_MALLOC.
  * WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES: Withhold NewSessionTicket default: off
  *                            when the ClientHello advertised no usable
  *                            psk_key_exchange_modes, as RFC 9846 Sections
@@ -1635,18 +1638,22 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
 
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_Tls13_HKDF_Expand_Label_Alloc(secret, ssl->specs.hash_size,
-        ssl->session->masterSecret, ssl->specs.hash_size, protocol, protocolLen,
-        resumptionLabel, RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg,
-        ssl->heap);
-    PRIVATE_KEY_LOCK();
-#else
+    /* Only a nonce too long for the fixed HKDF label buffer needs the heap */
+    if (OPAQUE16_LEN + OPAQUE8_LEN + protocolLen + RESUMPTION_LABEL_SZ +
+            OPAQUE8_LEN + nonceLen > MAX_TLS13_HKDF_LABEL_SZ) {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_Tls13_HKDF_Expand_Label_Alloc(secret, ssl->specs.hash_size,
+            ssl->session->masterSecret, ssl->specs.hash_size, protocol,
+            protocolLen, resumptionLabel, RESUMPTION_LABEL_SZ, nonce, nonceLen,
+            digestAlg, ssl->heap);
+        PRIVATE_KEY_LOCK();
+        return ret;
+    }
+#endif /* WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3) */
     ret = Tls13HKDFExpandLabel(ssl, secret, ssl->specs.hash_size,
                                ssl->session->masterSecret, ssl->specs.hash_size,
                                protocol, protocolLen, resumptionLabel,
                                RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
-#endif /* !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3) */
     return ret;
 }
 #endif /* HAVE_SESSION_TICKET */

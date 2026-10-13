@@ -387,10 +387,6 @@ if(WOLFSSL_ALL)
         "-DWOLFSSL_CERT_NAME_ALL" "-DWOLFSSL_VERBOSE_ERRORS"
         "-DWOLFSSL_HAVE_CERT_SERVICE" "-DHAVE_OCSP_RESPONDER"
         "-DWOLFSSL_TLS_OCSP_MULTI")
-
-    # configure.ac derives this from session tickets under TLS 1.3; CMake's
-    # option is explicit, so name it.
-    default_option(WOLFSSL_TICKET_NONCE_MALLOC "yes")
 endif()
 
 add_option(WOLFSSL_ALL_CRYPTO
@@ -2902,12 +2898,17 @@ if(NOT WOLFSSL_TLSV12)
 endif()
 
 add_option("WOLFSSL_TICKET_NONCE_MALLOC"
-    "Enable dynamic allocation of ticket nonces (default: disabled)"
-    "no" "yes;no")
+    "Enable dynamic allocation of ticket nonces (default: undefined, settings.h enables it for eligible TLS 1.3 clients)"
+    "undefined" "yes;no;undefined")
 
-if(WOLFSSL_TICKET_NONCE_MALLOC)
+if("${WOLFSSL_TICKET_NONCE_MALLOC}" STREQUAL "yes")
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_TICKET_NONCE_MALLOC")
+elseif("${WOLFSSL_TICKET_NONCE_MALLOC}" STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_NO_TICKET_NONCE_MALLOC")
+else()
+    set(WOLFSSL_TICKET_NONCE_MALLOC OFF)   # keeps options.h to settings.h
 endif()
 
 # Extended master secret extension
