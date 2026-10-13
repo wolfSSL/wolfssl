@@ -761,8 +761,8 @@ static void wb_sanity_check_msgs(void)
  * parameters do not decode is by construction not something a certificate
  * generator emits.
  *
- * A certificate that does not parse is reported as not self signed
- * (IsSelfSignedCert()), so a placeholder tbsCertificate still takes the
+ * A certificate that does not parse is reported as not self issued
+ * (IsSelfIssuedCert()), so a placeholder tbsCertificate still takes the
  * MATCH_SUITE_ERROR arm the rule is there to produce.
  * ------------------------------------------------------------------------- */
 #if defined(WB_HAVE_SSL_FIXTURE) && !defined(NO_CERTS) && \
@@ -973,7 +973,7 @@ static void wb_cert_chain_sigalgo(void)
         printf("  [wb] SHA-1 leaf not rejected: %d\n", ret);
 
     /* (T,T): the only other value the check produces is MEMORY_E, from the
-     * decoder IsSelfSignedCert() cannot allocate. Every allocation is failed
+     * decoder IsSelfIssuedCert() cannot allocate. Every allocation is failed
      * rather than a chosen one, so this does not depend on how many the call
      * makes before reaching the decoder. */
     mcdc_fa_install();
@@ -982,7 +982,7 @@ static void wb_cert_chain_sigalgo(void)
     mcdc_fa_disarm();
     mcdc_fa_restore();
     if (ret != WC_NO_ERR_TRACE(MEMORY_E))
-        printf("  [wb] allocation failure did not reach IsSelfSignedCert: "
+        printf("  [wb] allocation failure did not reach IsSelfIssuedCert: "
                "%d\n", ret);
 
     ssl->options.side         = savedSide;

@@ -85,7 +85,7 @@ echo "   Self-signed non-CA cert serial number:"
 openssl x509 -in selfsigned_nonca_serial0.pem -noout -serial
 
 # 5. Create intermediate CA cert with serial 0, signed by root_serial0
-#    (CA:TRUE but issuer != subject, so cert->selfSigned will be 0).
+#    (CA:TRUE but issuer != subject, so cert->selfIssued will be 0).
 echo ""
 echo "[5/5] Creating intermediate CA certificate with serial number 0..."
 openssl req -newkey rsa:2048 -keyout intermediate_serial0_key.tmp \

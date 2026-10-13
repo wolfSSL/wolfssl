@@ -3441,7 +3441,7 @@ int test_SerialNumber0_RootCA(void)
     }
 
     /* Test 5: Intermediate CA (CA:TRUE but issuer != subject) with serial 0
-     * must be rejected when loaded as CA_TYPE. Exercises the selfSigned
+     * must be rejected when loaded as CA_TYPE. Exercises the selfIssued
      * half of the ParseCertRelative exemption predicate. */
     {
         const char* intermediateSerial0File =
