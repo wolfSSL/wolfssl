@@ -494,6 +494,10 @@
     #include <wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h>
 #endif
 
+#if defined(WOLFSSL_TI_AM64X_A53_INTEGRITY) && !defined(WOLFSSL_SHA512_HASHTYPE)
+    #define WOLFSSL_SHA512_HASHTYPE
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
