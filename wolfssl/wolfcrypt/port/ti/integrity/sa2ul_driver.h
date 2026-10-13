@@ -23,8 +23,10 @@
 #define SA2UL_DRIVER_H
 
 #include <stdint.h>
-#include <INTEGRITY.h>
 
+#ifdef INTEGRITY
+
+#include <INTEGRITY.h>
 #include <driver/soc/jacinto7/j7_dma.h>
 
 #include <wolfssl/wolfcrypt/port/ti/integrity/sa2ul_iodevice.h>
@@ -45,4 +47,5 @@ int sa2ul_driver_sha(struct Sa2ulCtrl *Ctrl, struct Sa2ulData *Data);
 }
 #endif
 
+#endif /* INTEGRITY */
 #endif /* SA2UL_DRIVER_H */

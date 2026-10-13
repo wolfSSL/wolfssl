@@ -9,7 +9,7 @@
 // chapter of the INTEGRITY BSP User's Guide.
 //
 // Per-CPU linker directives files included here are located in the common
-// library directory corresponding to the BSP. For more infromation refer to
+// library directory corresponding to the BSP. For more information refer to
 // the "Common Library Directories" section of the INTEGRITY Development
 // Guide.
 

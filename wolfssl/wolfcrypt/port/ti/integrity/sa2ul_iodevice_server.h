@@ -22,6 +22,8 @@
 #ifndef SA2UL_IODEVICE_SERVER_H
 #define SA2UL_IODEVICE_SERVER_H
 
+#ifdef INTEGRITY
+
 #include <INTEGRITY.h>
 
 #ifdef __cplusplus
@@ -35,4 +37,5 @@ void sa2ul_iodevice_attach_shared_pages(void *Ctrl, Address CtrlLen,
 }
 #endif
 
+#endif /* INTEGRITY */
 #endif /* SA2UL_IODEVICE_SERVER_H */
