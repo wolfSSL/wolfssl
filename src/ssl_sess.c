@@ -1641,6 +1641,10 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
+    /* A new session replaced the old one. Only resume it once it passes the
+     * checks below. */
+    ssl->options.resuming = 0;
+
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* check for application context id */
     if (ssl->sessionCtxSz > 0) {
