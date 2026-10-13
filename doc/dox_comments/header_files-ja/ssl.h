@@ -6514,6 +6514,52 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
      WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
 
 /*!
+    \ingroup openSSL
+
+    \brief wolfSSL_PKCS12_create(PKCS12_create)は、秘密鍵、その証明書、および任意の追加証明書のスタックから、新しいWC_PKCS12構造体を作成します。鍵と証明書はそれぞれ独自のContentInfoに配置され、keyNIDとcertNIDの指定に従ってパスワードで暗号化されます。macIttが-1でない限り、その結果に対してMACが計算されます。返された構造体はwolfSSL_i2d_PKCS12_bio()またはwc_i2d_PKCS12()で書き出すことができ、wc_PKCS12_free()で解放する必要があります。
+
+    \return WC_PKCS12 成功時に、新しいWC_PKCS12構造体へのポインタを返します。
+    \return NULL pass、pkey、certのいずれかがNULLの場合、macIttが-1より小さい場合、keyNIDまたはcertNIDがサポートされていない場合、あるいはメモリ割り当てまたはエンコードに失敗した場合に返されます。
+
+    \param pass 暗号化とMACに使用するNUL終端のパスワード。
+    \param name 設定するfriendlyName。現在は使用されていません。
+    \param pkey バンドルに格納する秘密鍵。
+    \param cert バンドルに格納する証明書。
+    \param ca 任意。バンドルに含める追加証明書のスタック。不要な場合はNULLを指定します。
+    \param keyNID 秘密鍵に適用する暗号化。NID_pbe_WithSHA1And128BitRC4、NID_pbe_WithSHA1AndDES_CBC、NID_pbe_WithSHA1And3_Key_TripleDES_CBC、PBE_AES128_CBC、PBE_AES256_CBCのいずれかを指定します。暗号化しない場合は-1を指定します。指定する暗号はビルドで有効になっている必要があります。
+    \param certNID 証明書に適用する暗号化。keyNIDと同じ値を指定します。
+    \param itt 暗号化に使用する反復回数。0以下の値を指定するとWC_PKCS12_ITT_DEFAULTが選択されます。
+    \param macItt MACの作成に使用する反復回数。0を指定するとWC_PKCS12_ITT_DEFAULTが選択され、-1を指定するとMACは作成されません。-1より小さい値はエラーになります。
+    \param keytype 署名鍵、暗号化鍵、またはその両方を示すフラグ。現在は使用されていません。
+
+    _Example_
+    \code
+    WC_PKCS12* pkcs12;
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_X509* cert;
+    WOLFSSL_BIO* bio;
+    // pkeyとcertは読み込み済み、bioは出力用に作成済みとする
+    pkcs12 = wolfSSL_PKCS12_create("a password", NULL, pkey, cert, NULL,
+            PBE_AES256_CBC, PBE_AES256_CBC,
+            PKCS12_DEFAULT_ITER, PKCS12_DEFAULT_ITER, 0);
+    if (pkcs12 == NULL) {
+        // PKCS12バンドルの作成エラー
+    }
+    wolfSSL_i2d_PKCS12_bio(bio, pkcs12);
+    wc_PKCS12_free(pkcs12);
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+    \sa wolfSSL_i2d_PKCS12_bio
+    \sa wc_PKCS12_create
+    \sa wc_PKCS12_free
+*/
+WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keytype);
+
+/*!
     \ingroup CertsKeys
 
     \brief サーバDiffie-Hellmanエフェメラルパラメータの設定。この関数は、サーバがDHEを使用する暗号スイートをネゴシエートする場合に使用されるグループパラメータを設定します。

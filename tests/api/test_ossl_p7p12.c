@@ -1870,3 +1870,57 @@ int test_wolfSSL_PKCS12(void)
     return EXPECT_RESULT();
 }
 
+/* PKCS12_create() mac_iter: 0 selects the default count, -1 omits the MAC,
+ * and below -1 fails */
+int test_wolfSSL_PKCS12_create_mac(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_PKCS12) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED) && !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && \
+    defined(USE_CERT_BUFFERS_2048) && \
+    (!defined(NO_SHA256) || !defined(NO_SHA) || defined(WOLFSSL_SHA384) || \
+     defined(WOLFSSL_SHA512))
+    char pass[] = "test_PKCS12_create_mac";
+    int passSz = (int)XSTRLEN(pass);
+    const unsigned char* p;
+    EVP_PKEY* pkey = NULL;
+    X509* cert = NULL;
+    PKCS12* pkcs12 = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    /* MacData iterations is the last field of the PFX: INTEGER 2048 */
+    const byte defaultItt[] = { ASN_INTEGER, 2,
+        (byte)(WC_PKCS12_ITT_DEFAULT >> 8), (byte)WC_PKCS12_ITT_DEFAULT };
+
+    p = server_key_der_2048;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
+            sizeof_server_key_der_2048));
+    p = server_cert_der_2048;
+    ExpectNotNull(cert = d2i_X509(NULL, &p, sizeof_server_cert_der_2048));
+
+    ExpectNotNull(pkcs12 = PKCS12_create(pass, NULL, pkey, cert, NULL,
+            -1, -1, 0, 0, 0));
+    ExpectIntEQ(PKCS12_verify_mac(pkcs12, pass, passSz), WOLFSSL_SUCCESS);
+    ExpectIntGE(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL),
+            (int)sizeof(defaultItt));
+    ExpectBufEQ(der + derSz - (int)sizeof(defaultItt), defaultItt,
+            sizeof(defaultItt));
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    der = NULL;
+    PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    ExpectNotNull(pkcs12 = PKCS12_create(pass, NULL, pkey, cert, NULL,
+            -1, -1, 0, -1, 0));
+    ExpectIntEQ(PKCS12_verify_mac(pkcs12, pass, passSz), WOLFSSL_FAILURE);
+    PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    ExpectNull(PKCS12_create(pass, NULL, pkey, cert, NULL, -1, -1, 0, -2, 0));
+
+    X509_free(cert);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
