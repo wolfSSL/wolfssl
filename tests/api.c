@@ -38199,6 +38199,36 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
     return EXPECT_RESULT();
 }
 
+#if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+static int test_ticket_nonce_cache_restore(WOLFSSL *ssl_s, WOLFSSL *ssl_c,
+    byte len)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION *cached = NULL;
+    byte *mem = NULL;
+    int memSz = 0;
+
+    ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, len), TEST_SUCCESS);
+    ExpectIntGT(memSz = wolfSSL_get_session_cache_memsize(), 0);
+    ExpectNotNull(mem = (byte*)XMALLOC((size_t)memSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_memsave_session_cache(mem, memSz), WOLFSSL_SUCCESS);
+    /* Frees the heap nonces that the saved image still points to */
+    wolfSSL_CTX_flush_sessions(ssl_c->ctx, 0x7FFFFFFFL);
+    ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, memSz), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cached = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_GetSessionFromCache(ssl_c, cached), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cached->ticketNonce.len, 0);
+    ExpectIntEQ(cached->ticketLen, 0);
+
+    wolfSSL_SESSION_free(cached);
+    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 static int test_ticket_nonce_malloc(void)
 {
     EXPECT_DECLS;
@@ -38238,7 +38268,7 @@ static int test_ticket_nonce_malloc(void)
     medium = 255;
 #endif
 #if TLS13_TICKET_NONCE_STATIC_SZ + 20 + 20 <= 255
-    big = small + 20;
+    big = small + 40;
 #else
     big = 255;
 #endif
@@ -38255,6 +38285,10 @@ static int test_ticket_nonce_malloc(void)
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, small), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, medium), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, big), TEST_SUCCESS);
+#if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+    ExpectIntEQ(test_ticket_nonce_cache_restore(ssl_s, ssl_c, big),
+        TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, medium), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, small), TEST_SUCCESS);
 

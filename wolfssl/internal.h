@@ -1507,7 +1507,15 @@ enum {
 #endif
 
 #ifndef TLS13_TICKET_NONCE_STATIC_SZ
+#if !defined(WOLFSSL_TLS13) || !defined(HAVE_SESSION_TICKET) ||               \
+    defined(NO_WOLFSSL_CLIENT) ||                                              \
+    (defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))))
 #define TLS13_TICKET_NONCE_STATIC_SZ 8
+#else
+/* Fits the 32 byte nonces Mbed TLS servers send */
+#define TLS13_TICKET_NONCE_STATIC_SZ 32
+#endif
 #endif
 
 #if TLS13_TICKET_NONCE_STATIC_SZ > TLS13_TICKET_NONCE_MAX_SZ
@@ -1616,6 +1624,11 @@ enum Misc {
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
     MAX_TICKET_NONCE_STATIC_SZ = TLS13_TICKET_NONCE_STATIC_SZ,
                                /* maximum ticket nonce static size */
+#if TLS13_TICKET_NONCE_STATIC_SZ < 8
+    INTERNAL_TICKET_NONCE_SZ = TLS13_TICKET_NONCE_STATIC_SZ,
+#else
+    INTERNAL_TICKET_NONCE_SZ = 8, /* nonce field in tickets we issue */
+#endif
 #endif /* WOLFSSL_TLS13 || !NO_PSK */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
 
@@ -2238,7 +2251,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #endif
 
 #ifndef PREALLOC_SESSION_TICKET_NONCE_LEN
-    #define PREALLOC_SESSION_TICKET_NONCE_LEN 32
+    #define PREALLOC_SESSION_TICKET_NONCE_LEN TLS13_TICKET_NONCE_MAX_SZ
 #endif
 
 #ifndef SESSION_TICKET_HINT_DEFAULT
@@ -3982,7 +3995,7 @@ typedef struct InternalTicket {
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
     byte            ticketNonceLen;
-    byte            ticketNonce[MAX_TICKET_NONCE_STATIC_SZ];
+    byte            ticketNonce[INTERNAL_TICKET_NONCE_SZ];
 #ifdef WOLFSSL_EARLY_DATA
     byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
                                                          * early data */
