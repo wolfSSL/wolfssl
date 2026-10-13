@@ -538,7 +538,11 @@ enum {
     /* Note, don't use this to dynamically initialize structs on the stack.
      * On some targets/toolchains/configs, that pattern is an implicit
      * memset reference that is unmaskable. */
-    #define WC_STATIC_STRUCT_INITIALIZER {0}
+    #ifdef __cplusplus
+        #define WC_STATIC_STRUCT_INITIALIZER {}
+    #else
+        #define WC_STATIC_STRUCT_INITIALIZER {0}
+    #endif
 #endif
 
 #ifndef WC_DO_NOTHING
