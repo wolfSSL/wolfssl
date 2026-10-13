@@ -1160,14 +1160,11 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
     if (hash == NULL || (data == NULL && dataSz > 0))
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
-        WOLFSSL_MSG("Hash update type mismatch!");
-        return BAD_FUNC_ARG;
-    }
-#endif
+    /* The type argument is deprecated and unused: always dispatch on the type
+     * recorded by wc_HashInit_ex() so that the correct union member is used. */
+    (void)type;
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5Update(&hash->alg.md5, data, dataSz);
@@ -1309,14 +1306,11 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
     if (hash == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
-        WOLFSSL_MSG("Hash final type mismatch!");
-        return BAD_FUNC_ARG;
-    }
-#endif
+    /* The type argument is deprecated and unused: always dispatch on the type
+     * recorded by wc_HashInit_ex() so that the correct union member is used. */
+    (void)type;
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5Final(&hash->alg.md5, out);
@@ -1460,14 +1454,11 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
-        WOLFSSL_MSG("Hash free type mismatch!");
-        return BAD_FUNC_ARG;
-    }
-#endif
+    /* The type argument is deprecated and unused: always dispatch on the type
+     * recorded by wc_HashInit_ex() so that the correct union member is used. */
+    (void)type;
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             wc_Md5Free(&hash->alg.md5);
@@ -1625,7 +1616,11 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-    switch (type) {
+    /* The type argument is deprecated and unused: always dispatch on the type
+     * recorded by wc_HashInit_ex() so that the correct union member is used. */
+    (void)type;
+
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5SetFlags(&hash->alg.md5, flags);
@@ -1742,7 +1737,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-    switch (type) {
+    /* The type argument is deprecated and unused: always dispatch on the type
+     * recorded by wc_HashInit_ex() so that the correct union member is used. */
+    (void)type;
+
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5GetFlags(&hash->alg.md5, flags);

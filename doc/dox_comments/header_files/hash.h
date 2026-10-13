@@ -86,6 +86,209 @@ int wc_Hash(enum wc_HashType hash_type,
     byte* hash, word32 hash_len);
 
 /*!
+    \ingroup wolfCrypt
+
+    \brief This function updates the hash in a wc_HashAlg object with the
+    provided data. The hash algorithm used is the one stored in the
+    wc_HashAlg object when it was initialized with wc_HashInit() or
+    wc_HashInit_ex().
+
+    \return 0 Success.
+    \return BAD_FUNC_ARG hash is NULL, data is NULL while dataSz is greater
+    than 0, or the hash object was not initialized with a valid hash type.
+    \return HASH_TYPE_E the hash type stored in the hash object is not
+    supported or not compiled in.
+    \return Other negative error codes may be returned by the underlying
+    hash algorithm's update function.
+
+    \param hash Pointer to the wc_HashAlg object, previously initialized with
+    wc_HashInit() or wc_HashInit_ex().
+    \param type Deprecated and unused. The hash type stored in the hash
+    object during initialization is always used instead. This parameter is
+    retained only for API compatibility.
+    \param data Pointer to buffer containing the data to hash. May be NULL
+    only if dataSz is 0.
+    \param dataSz Length of the data buffer in bytes.
+
+    _Example_
+    \code
+    wc_HashAlg hash;
+    byte digest[WC_SHA256_DIGEST_SIZE];
+    byte data[] = { 0x61, 0x62, 0x63 };
+    int ret;
+
+    ret = wc_HashInit(&hash, WC_HASH_TYPE_SHA256);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, WC_HASH_TYPE_SHA256, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, WC_HASH_TYPE_SHA256, digest);
+        }
+        wc_HashFree(&hash, WC_HASH_TYPE_SHA256);
+    }
+    \endcode
+
+    \sa wc_HashFinal
+    \sa wc_HashFree
+*/
+int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
+    word32 dataSz);
+
+/*!
+    \ingroup wolfCrypt
+
+    \brief This function finalizes the hash in a wc_HashAlg object and
+    writes the resulting digest to out. The hash algorithm used is the one
+    stored in the wc_HashAlg object when it was initialized with
+    wc_HashInit() or wc_HashInit_ex().
+
+    \return 0 Success.
+    \return BAD_FUNC_ARG hash or out is NULL, or the hash object was not
+    initialized with a valid hash type.
+    \return HASH_TYPE_E the hash type stored in the hash object is not
+    supported or not compiled in.
+    \return Other negative error codes may be returned by the underlying
+    hash algorithm's final function.
+
+    \param hash Pointer to the wc_HashAlg object, previously initialized with
+    wc_HashInit() or wc_HashInit_ex().
+    \param type Deprecated and unused. The hash type stored in the hash
+    object during initialization is always used instead. This parameter is
+    retained only for API compatibility.
+    \param out Pointer to the buffer to receive the digest. It must be at
+    least as large as the digest size of the hash type the object was
+    initialized with (see wc_HashGetDigestSize()).
+
+    _Example_
+    \code
+    wc_HashAlg hash;
+    byte digest[WC_SHA256_DIGEST_SIZE];
+    byte data[] = { 0x61, 0x62, 0x63 };
+    int ret;
+
+    ret = wc_HashInit(&hash, WC_HASH_TYPE_SHA256);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, WC_HASH_TYPE_SHA256, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, WC_HASH_TYPE_SHA256, digest);
+        }
+        wc_HashFree(&hash, WC_HASH_TYPE_SHA256);
+    }
+    \endcode
+
+    \sa wc_HashUpdate
+    \sa wc_HashFree
+    \sa wc_HashGetDigestSize
+*/
+int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out);
+
+/*!
+    \ingroup wolfCrypt
+
+    \brief This function frees any resources held by a wc_HashAlg object.
+    The hash algorithm used is the one stored in the wc_HashAlg object when
+    it was initialized with wc_HashInit() or wc_HashInit_ex(). The
+    wc_HashAlg object itself is not freed.
+
+    \return 0 Success.
+    \return BAD_FUNC_ARG hash is NULL, or the hash object was not
+    initialized with a valid hash type.
+    \return HASH_TYPE_E the hash type stored in the hash object is not
+    supported or not compiled in.
+
+    \param hash Pointer to the wc_HashAlg object, previously initialized with
+    wc_HashInit() or wc_HashInit_ex().
+    \param type Deprecated and unused. The hash type stored in the hash
+    object during initialization is always used instead. This parameter is
+    retained only for API compatibility.
+
+    _Example_
+    \code
+    wc_HashAlg hash;
+
+    if (wc_HashInit(&hash, WC_HASH_TYPE_SHA256) == 0) {
+        // use hash
+        wc_HashFree(&hash, WC_HASH_TYPE_SHA256);
+    }
+    \endcode
+
+    \sa wc_HashUpdate
+    \sa wc_HashFinal
+*/
+int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
+
+/*!
+    \ingroup wolfCrypt
+
+    \brief This function sets the flags of the underlying hash object in a
+    wc_HashAlg object. The hash algorithm used is the one stored in the
+    wc_HashAlg object when it was initialized with wc_HashInit() or
+    wc_HashInit_ex(). Available when WOLFSSL_HASH_FLAGS is defined.
+
+    \return 0 Success.
+    \return BAD_FUNC_ARG hash is NULL, or the hash object was not
+    initialized with a valid hash type.
+    \return HASH_TYPE_E the hash type stored in the hash object is not
+    supported or not compiled in.
+
+    \param hash Pointer to the wc_HashAlg object, previously initialized with
+    wc_HashInit() or wc_HashInit_ex().
+    \param type Deprecated and unused. The hash type stored in the hash
+    object during initialization is always used instead. This parameter is
+    retained only for API compatibility.
+    \param flags Flags to set (for example WC_HASH_FLAG_ISCOPY).
+
+    _Example_
+    \code
+    wc_HashAlg hash;
+
+    if (wc_HashInit(&hash, WC_HASH_TYPE_SHA256) == 0) {
+        wc_HashSetFlags(&hash, WC_HASH_TYPE_SHA256, WC_HASH_FLAG_NONE);
+        wc_HashFree(&hash, WC_HASH_TYPE_SHA256);
+    }
+    \endcode
+
+    \sa wc_HashGetFlags
+*/
+int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags);
+
+/*!
+    \ingroup wolfCrypt
+
+    \brief This function gets the flags of the underlying hash object in a
+    wc_HashAlg object. The hash algorithm used is the one stored in the
+    wc_HashAlg object when it was initialized with wc_HashInit() or
+    wc_HashInit_ex(). Available when WOLFSSL_HASH_FLAGS is defined.
+
+    \return 0 Success.
+    \return BAD_FUNC_ARG hash is NULL, or the hash object was not
+    initialized with a valid hash type.
+    \return HASH_TYPE_E the hash type stored in the hash object is not
+    supported or not compiled in.
+
+    \param hash Pointer to the wc_HashAlg object, previously initialized with
+    wc_HashInit() or wc_HashInit_ex().
+    \param type Deprecated and unused. The hash type stored in the hash
+    object during initialization is always used instead. This parameter is
+    retained only for API compatibility.
+    \param flags Pointer to receive the current flags. If NULL, no flags are
+    returned.
+
+    _Example_
+    \code
+    wc_HashAlg hash;
+    word32 flags = 0;
+
+    if (wc_HashInit(&hash, WC_HASH_TYPE_SHA256) == 0) {
+        wc_HashGetFlags(&hash, WC_HASH_TYPE_SHA256, &flags);
+        wc_HashFree(&hash, WC_HASH_TYPE_SHA256);
+    }
+    \endcode
+
+    \sa wc_HashSetFlags
+*/
+int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags);
+
+/*!
     \ingroup MD5
 
     \brief Convenience function, handles all the hashing and places the
