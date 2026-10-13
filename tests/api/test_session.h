@@ -75,8 +75,8 @@ int test_wolfSSL_client_cache_max_early_data(void);
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_restore),            \
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_client_geometry),    \
     TEST_DECL_GROUP("session", test_wolfSSL_get_session_default_ref),          \
-    TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume),         \
-    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),      \
+    TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume),               \
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),            \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_max_early_data)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */
