@@ -130,9 +130,8 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     doPSK = 0;
 #endif
 
-#if defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS) && \
-     !defined(USE_WINDOWS_API)
+#if defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_MDK_SHELL) && \
+     !defined(WOLFSSL_TIRTOS) && !defined(USE_WINDOWS_API)
     /* Let tcp_listen assign port */
     port = 0;
 #else
