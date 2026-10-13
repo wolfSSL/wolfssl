@@ -203,7 +203,7 @@ jobs:
           # kernel alone the gate would pin the published package set in place
           # until the kernel next rolls (~monthly), so a package added here
           # would never ship. The pkgset label closes that.
-          PKGS="build-essential autoconf automake libtool ccache"
+          PKGS="build-essential autoconf automake libtool bubblewrap ccache"
           PKGSET=$(printf '%s\n' "$PKGS" "linux-headers-$K" | sha256sum | cut -c1-12)
           echo "kernel=$K" >> "$GITHUB_OUTPUT"
           echo "pkgs=$PKGS" >> "$GITHUB_OUTPUT"
