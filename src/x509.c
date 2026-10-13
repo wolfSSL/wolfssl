@@ -11378,9 +11378,15 @@ int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
 
 /******************************************************************************
 * wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
-* hostnames is cleared if name is NULL or empty.
+* Hostname is cleared if name is NULL or empty.
+*
+* If nameSz is zero, name must be NUL-terminated.
+* Otherwise, nameSz specifies the input length and may include one
+* trailing NUL. Embedded NULs are rejected without changing the
+* previously configured hostname.
 *
 * RETURNS:
+* WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on invalid input.
 *
 */
 int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
