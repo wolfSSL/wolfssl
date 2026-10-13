@@ -20,6 +20,7 @@ fn main() {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn run_build() -> Result<()> {
     generate_bindings()?;
+    check_unsupported_config()?;
     generate_fips_aliases()?;
     setup_wolfssl_link()?;
     scan_cfg()?;
@@ -343,6 +344,26 @@ fn generate_bindings() -> Result<()> {
         .map_err(|e| {
             io::Error::other(format!("Couldn't write bindings: {}", e))
         })
+}
+
+/// Fail the build if the wolfSSL C library was built with a configuration
+/// that this crate does not support.
+///
+/// Returns `Ok(())` if the configuration is supported, or an error otherwise.
+fn check_unsupported_config() -> Result<()> {
+    let binding = read_file(bindings_path())?;
+
+    // The wrapper does not support asynchronous crypto operations.
+    if has_symbol(&binding, "WOLFSSL_RUST_HAVE_ASYNC_CRYPT") {
+        return Err(io::Error::other(
+            "wolfSSL was built with asynchronous crypto support \
+             (WOLFSSL_ASYNC_CRYPT), which the Rust wrapper does not support. \
+             Rebuild wolfSSL without --enable-asynccrypt, \
+             --enable-asynccrypt-sw, or the curve25519/rsa/dh \"nonblock\" \
+             options that enable it."));
+    }
+
+    Ok(())
 }
 
 /// Mappings between the standard wolfCrypt name and the FIPS name, for the
