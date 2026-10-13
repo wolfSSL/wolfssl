@@ -65777,7 +65777,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
 #if !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV))
     /* ASN.1 key encode/decode is exercised when it has not been disabled. */
 #if !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
@@ -66010,7 +66010,7 @@ out:
 #endif
 #endif /* !WC_NO_RNG */
 
-#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && !defined(WOLFSSL_SWDEV) && \
     defined(FRODOKEM_TEST_TYPE) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
@@ -66201,7 +66201,7 @@ out:
         XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* WOLF_CRYPTO_CB_ONLY_FRODOKEM && FRODOKEM_TEST_TYPE */
+#endif /* CB_ONLY_FRODOKEM && !WOLFSSL_SWDEV && FRODOKEM_TEST_TYPE */
 
     return ret;
 }
@@ -92891,6 +92891,7 @@ exit_onlycb:
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 
 #if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) \
+    && !defined(WOLFSSL_SWDEV) \
     && defined(FRODOKEM_TEST_TYPE) && !defined(WC_NO_RNG) \
     && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) \
     && !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) \
@@ -93022,7 +93023,7 @@ static wc_test_ret_t frodokem_onlycb_test(myCryptoDevCtx* ctx)
 
     return ret;
 }
-#endif /* FRODOKEM && CB_ONLY_FRODOKEM && TEST_TYPE && !WC_NO_RNG */
+#endif /* FRODOKEM && CB_ONLY_FRODOKEM && !SWDEV && TEST_TYPE && !WC_NO_RNG */
 
 #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448) && !defined(WOLFSSL_SWDEV)
 /* Is every byte of buf the marker value v? */
@@ -94815,12 +94816,11 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* WOLFSSL_HAVE_MLKEM && !WC_MLKEM_HAVE_NATIVE */
     #if defined(WOLFSSL_HAVE_FRODOKEM)
-        /* exampleVar counts the branches taken so cryptocb_test can confirm
-         * FrodoKEM really went through the callback. Under CB_ONLY the stub
-         * cannot delegate to the public API, so exampleVar 99 makes it answer
-         * with deterministic material and anything else lets the call fall
-         * through to the API, which has no software left and reports
-         * NO_VALID_DEVID. */
+        /* Under CB_ONLY the stub cannot delegate to the public API, so
+         * exampleVar 99 makes it answer with deterministic material and
+         * anything else lets the call fall through to the API, which reports
+         * NO_VALID_DEVID unless swdev serves it. */
+    #ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
@@ -94839,11 +94839,12 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             #endif
                 ret = wc_FrodoKemKey_MakeKey(key, info->pk.pqc_kem_kg.rng);
                 key->devId = devIdArg;
-                myCtx->exampleVar++;
                 myCtx->frodoKgCount++;
             }
         }
-        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
+    #endif /* !WOLFSSL_FRODOKEM_NO_MAKE_KEY */
+    #ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
             if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
                 (info->pk.pqc_encaps.key != NULL)) {
                 FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_encaps.key;
@@ -94866,11 +94867,12 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->pk.pqc_encaps.sharedSecret,
                     info->pk.pqc_encaps.rng);
                 key->devId = devIdArg;
-                myCtx->exampleVar++;
                 myCtx->frodoEncapsCount++;
             }
         }
-        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
+    #endif /* !WOLFSSL_FRODOKEM_NO_ENCAPSULATE */
+    #ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
             if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
                 (info->pk.pqc_decaps.key != NULL)) {
                 FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_decaps.key;
@@ -94891,10 +94893,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->pk.pqc_decaps.ciphertext,
                     info->pk.pqc_decaps.ciphertextLen);
                 key->devId = devIdArg;
-                myCtx->exampleVar++;
                 myCtx->frodoDecapsCount++;
             }
         }
+    #endif /* !WOLFSSL_FRODOKEM_NO_DECAPSULATE */
     #endif /* WOLFSSL_HAVE_FRODOKEM */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
@@ -99471,6 +99473,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif /* callback-only ML-KEM dispatch */
 #endif
 #if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) \
+    && !defined(WOLFSSL_SWDEV) \
     && defined(FRODOKEM_TEST_TYPE) && !defined(WC_NO_RNG) \
     && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) \
     && !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) \
@@ -99478,7 +99481,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = frodokem_onlycb_test(&myCtx);
 #endif
-#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
+#if defined(WOLFSSL_HAVE_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV))
     if (ret == 0) {
         /* Route FrodoKEM through the crypto callback (global devId is set) and
          * confirm the cb path was actually exercised, so a silent software
@@ -99486,21 +99490,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
          * on its own: a shared counter would let keygen alone stand in for a
          * broken encapsulate or decapsulate. frodokem_test builds every key
          * with the test devId, so all three reach the callback. */
-        int baseline = myCtx.exampleVar;
         ret = frodokem_test();
-#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
+#if !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
         if ((ret == 0) && (myCtx.frodoKgCount == 0))
             ret = WC_TEST_RET_ENC_NC;
-#endif
-#ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
         if ((ret == 0) && (myCtx.frodoEncapsCount == 0))
             ret = WC_TEST_RET_ENC_NC;
-#endif
-#ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
         if ((ret == 0) && (myCtx.frodoDecapsCount == 0))
             ret = WC_TEST_RET_ENC_NC;
 #endif
-        myCtx.exampleVar = baseline;
     }
 #if defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_SWDEV) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
@@ -99511,7 +99511,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0) {
         FrodoKemKey* key = (FrodoKemKey*)XMALLOC(sizeof(*key), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-        int baseline = myCtx.exampleVar;
         int kgBase = myCtx.frodoKgCount;
         int key_inited = 0;
         WC_RNG rng;
@@ -99595,7 +99594,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         }
 #endif
-        myCtx.exampleVar = baseline;
         if (key_inited)
             wc_FrodoKemKey_Free(key);
         if (rngInit)
