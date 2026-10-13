@@ -2405,6 +2405,9 @@ int test_wolfSSL_client_cache_is_setup(void)
 
     wolfSSL_CTX_flush_sessions(ctx_c, (long)-1);
 
+    /* The entry the locator named is gone, so it reports not set up. */
+    ExpectIntEQ(wolfSSL_SessionIsSetup(handle), 0);
+
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
@@ -2421,7 +2424,8 @@ int test_wolfSSL_client_cache_max_early_data(void)
 #if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
     !defined(NO_SESSION_CACHE_REF) && !defined(NO_TLS) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
-    defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(OPENSSL_EXTRA) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX* ctx_c = NULL;
@@ -2438,7 +2442,8 @@ int test_wolfSSL_client_cache_max_early_data(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ),
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* Carry the NewSessionTicket that states the limit to the client. */
@@ -2459,6 +2464,9 @@ int test_wolfSSL_client_cache_max_early_data(void)
         MAX_EARLY_DATA_SZ);
 
     wolfSSL_CTX_flush_sessions(ctx_c, (long)-1);
+
+    /* The entry the locator named is gone, so no early data is permitted. */
+    ExpectIntEQ(wolfSSL_SESSION_get_max_early_data(handle), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
