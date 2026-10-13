@@ -14641,6 +14641,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 #endif
     const byte* nonce;
     byte        nonceLength;
+    int         storeTicket = 1;
+#ifdef WOLFSSL_EARLY_DATA
+    word32      maxEarlyDataSz;
+#endif
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_DO);
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
@@ -14674,14 +14678,13 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     if ((*inOutIdx - begin) + 1 > size)
         return BUFFER_ERROR;
     nonceLength = input[*inOutIdx];
-#if !defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+#if !defined(WOLFSSL_TICKET_NONCE_MALLOC) || (defined(HAVE_FIPS) &&           \
+    !(defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
-        WOLFSSL_MSG("Nonce length not supported");
-        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-        return INVALID_PARAMETER;
+        WOLFSSL_MSG("Ticket nonce too long to store, ignoring ticket");
+        storeTicket = 0;
     }
-#endif /* WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3) */
+#endif /* !WOLFSSL_TICKET_NONCE_MALLOC || !FIPS_VERSION_GE(5,3) */
     *inOutIdx += 1;
     if ((*inOutIdx - begin) + nonceLength > size)
         return BUFFER_ERROR;
@@ -14700,40 +14703,42 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     if (length == 0)
         return BUFFER_ERROR;
 
-    if ((ret = SetTicket(ssl, input + *inOutIdx, length)) != 0)
-        return ret;
-    *inOutIdx += length;
+    if (storeTicket) {
+        if ((ret = SetTicket(ssl, input + *inOutIdx, length)) != 0)
+            return ret;
 
-    now = TimeNowInMilliseconds();
-    if (now == 0)
-        return GETTIME_ERROR;
-    /* Copy in ticket data (server identity). */
-    ssl->timeout                  = lifetime;
-    ssl->session->timeout         = lifetime;
-    ssl->session->cipherSuite0    = ssl->options.cipherSuite0;
-    ssl->session->cipherSuite     = ssl->options.cipherSuite;
-    ssl->session->ticketSeen      = now;
-    ssl->session->ticketAdd       = ageAdd;
-    #ifdef WOLFSSL_EARLY_DATA
-    ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;
-    #endif
+        now = TimeNowInMilliseconds();
+        if (now == 0)
+            return GETTIME_ERROR;
+        /* Copy in ticket data (server identity). */
+        ssl->timeout                  = lifetime;
+        ssl->session->timeout         = lifetime;
+        ssl->session->cipherSuite0    = ssl->options.cipherSuite0;
+        ssl->session->cipherSuite     = ssl->options.cipherSuite;
+        ssl->session->ticketSeen      = now;
+        ssl->session->ticketAdd       = ageAdd;
+        #ifdef WOLFSSL_EARLY_DATA
+        ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;
+        #endif
 
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-    ret = SessionTicketNoncePopulate(ssl->session, nonce, nonceLength);
-    if (ret != 0)
-        return ret;
+        ret = SessionTicketNoncePopulate(ssl->session, nonce, nonceLength);
+        if (ret != 0)
+            return ret;
 #else
-    ssl->session->ticketNonce.len = nonceLength;
-    if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
-        ret = BUFFER_ERROR;
-        return ret;
-    }
-    if (nonceLength > 0)
-        XMEMCPY(ssl->session->ticketNonce.data, nonce, nonceLength);
+        if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
+            ret = BUFFER_ERROR;
+            return ret;
+        }
+        ssl->session->ticketNonce.len = nonceLength;
+        if (nonceLength > 0)
+            XMEMCPY(ssl->session->ticketNonce.data, nonce, nonceLength);
 #endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
 
-    ssl->session->namedGroup      = ssl->namedGroup;
+        ssl->session->namedGroup      = ssl->namedGroup;
+    }
+    *inOutIdx += length;
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)
         return BUFFER_ERROR;
@@ -14744,15 +14749,27 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     /* RFC 9846 Section 4.7.1: the extensions are Section 4.3 Extension TLVs.
      * Malformed framing is a syntax error even when no extension in the list
      * is one we act on. */
+#ifdef WOLFSSL_EARLY_DATA
+    if (!storeTicket && !HaveUniqueSessionObj(ssl))
+        return MEMORY_ERROR;
+    maxEarlyDataSz = ssl->session->maxEarlyDataSz;
+#endif
     ret = TLSX_Parse(ssl, input + *inOutIdx, length, session_ticket, NULL);
+#ifdef WOLFSSL_EARLY_DATA
+    /* Undo the early_data update to the session of the kept ticket. */
+    if (!storeTicket)
+        ssl->session->maxEarlyDataSz = maxEarlyDataSz;
+#endif
     if (ret != 0)
         return ret;
     *inOutIdx += length;
 
-    SetupSession(ssl);
+    if (storeTicket) {
+        SetupSession(ssl);
     #ifndef NO_SESSION_CACHE
         AddSession(ssl);
     #endif
+    }
 
     ssl->expect_session_ticket = 0;
 #else
