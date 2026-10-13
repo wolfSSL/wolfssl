@@ -12310,7 +12310,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    defined(WOLFCRYPT_HAVE_ECCSI) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
     (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || defined(OPENSSL_ALL)
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *

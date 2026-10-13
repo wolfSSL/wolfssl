@@ -173,6 +173,8 @@ WOLFSSL_API int wc_MakeSakkePublicKey(SakkeKey* key, ecc_point* pub);
 
 WOLFSSL_API int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* rsk);
+WOLFSSL_API int wc_MakeSakkeRsk_ex(SakkeKey* key, const byte* id,
+        word16 idSz, ecc_point* rsk, WC_RNG* rng);
 WOLFSSL_API int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
         ecc_point* rsk, int* valid);
 

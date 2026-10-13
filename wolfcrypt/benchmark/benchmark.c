@@ -16566,9 +16566,9 @@ void bench_sakkeRskGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            ret = wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
+            ret = wc_MakeSakkeRsk_ex(genKey, id, sizeof(id), rsk, &gRng);
             if (ret != 0) {
-                printf("wc_MakeSakkeRsk failed: %d\n", ret);
+                printf("wc_MakeSakkeRsk_ex failed: %d\n", ret);
                 goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
@@ -16614,7 +16614,7 @@ void bench_sakkeValidate(void)
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
-    (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
+    (void)wc_MakeSakkeRsk_ex(genKey, id, sizeof(id), rsk, &gRng);
     (void)wc_ValidateSakkeRsk(genKey, id, sizeof(id), rsk, &valid);
 
     /* Validation of RSK */
@@ -16678,7 +16678,7 @@ void bench_sakke(void)
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
-    (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
+    (void)wc_MakeSakkeRsk_ex(genKey, id, sizeof(id), rsk, &gRng);
     (void)wc_SetSakkeRsk(genKey, rsk, NULL, 0);
     (void)wc_SetSakkeIdentity(genKey, id, sizeof(id));
 
