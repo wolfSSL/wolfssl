@@ -38,6 +38,14 @@ int test_wolfssl_sk_SSL_COMP(void);
 int test_wolfSSL_sk_CIPHER(void);
 int test_wolfssl_sk_WOLFSSL_STRING(void);
 int test_wolfssl_lh_retrieve(void);
+int test_wolfSSL_CTX_get_ciphers_default(void);
+int test_wolfSSL_CTX_get_ciphers_set_list(void);
+int test_wolfSSL_CTX_get_ciphers_versions(void);
+int test_wolfSSL_CTX_get_ciphers_describe(void);
+int test_wolfSSL_CIPHER_find_lib_suites(void);
+int test_wolfSSL_CIPHER_description_bits(void);
+int test_wolfSSL_CIPHER_outlives_ssl(void);
+int test_wolfSSL_CIPHER_current(void);
 
 #define TEST_SSL_SK_DECLS                                       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_new_free_node),  \
@@ -53,7 +61,23 @@ int test_wolfssl_lh_retrieve(void);
     TEST_DECL_GROUP("ossl_sk", test_wolfssl_sk_SSL_COMP),       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_CIPHER),         \
     TEST_DECL_GROUP("ossl_sk", test_wolfssl_sk_WOLFSSL_STRING), \
-    TEST_DECL_GROUP("ossl_sk", test_wolfssl_lh_retrieve)
+    TEST_DECL_GROUP("ossl_sk", test_wolfssl_lh_retrieve),       \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_default),                  \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_set_list),                 \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_versions),                 \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CTX_get_ciphers_describe),                 \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CIPHER_find_lib_suites),                   \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CIPHER_description_bits),                  \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CIPHER_outlives_ssl),                      \
+    TEST_DECL_GROUP("ossl_sk_cipher",                           \
+        test_wolfSSL_CIPHER_current)
 
 #endif /* WOLFCRYPT_TEST_SSL_SK_H */
 

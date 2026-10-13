@@ -2312,7 +2312,12 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     int i;
     WOLFSSL_SESSION* lsess;
     char buf[256];
+    /* Descriptions name TLS 1.3 suites as OpenSSL does. */
+#ifndef NO_ERROR_STRINGS
+    const char* cipher_id = "TLS_AES_128_GCM_SHA256";
+#else
     const char* cipher_id = "TLS13-AES128-GCM-SHA256";
+#endif
     const SSL_CIPHER* cipher = NULL;
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     int numCiphers = 0;

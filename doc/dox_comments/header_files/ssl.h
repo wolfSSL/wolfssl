@@ -4790,7 +4790,8 @@ int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
     \ingroup IO
 
     \brief This function returns a pointer to the current cipher in the
-    ssl session.
+    ssl session. The cipher is filled in from the session on each call, so
+    call it again after the session changes, e.g. after the handshake.
 
     \return The function returns the address of the cipher member of the
     WOLFSSL struct. This is a pointer to the WOLFSSL_CIPHER structure.

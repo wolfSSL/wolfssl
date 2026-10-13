@@ -1412,6 +1412,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
 #define SSL_get_ciphers(x)              wolfSSL_get_ciphers_compat(x)
+#define SSL_CTX_get_ciphers(x)          wolfSSL_CTX_get_ciphers_compat(x)
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_get_cipher_bits(s,np)       \
                           wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
