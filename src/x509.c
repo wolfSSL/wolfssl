@@ -11387,6 +11387,8 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                          const char* name,
                                          unsigned int nameSz)
 {
+    unsigned int i;
+
     WOLFSSL_ENTER("wolfSSL_X509_VERIFY_PARAM_set1_host");
 
     if (pParam == NULL)
@@ -11405,6 +11407,13 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
 
     if (nameSz > 0 && name[nameSz - 1] == '\0')
         nameSz--;
+
+    /* Reject embedded NULs before changing the hostname policy. */
+    for (i = 0; i < nameSz; i++) {
+        if (name[i] == '\0') {
+            return WOLFSSL_FAILURE;
+        }
+    }
 
     if (nameSz > WOLFSSL_HOST_NAME_MAX-1) {
         WOLFSSL_MSG("Truncating name");
