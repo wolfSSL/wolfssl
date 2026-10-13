@@ -625,10 +625,12 @@
         /* Acquire-ordered load via idempotent RMW: OR-with-0 leaves the value
          * unchanged but provides atomicity + acquire ordering. On cl.exe this
          * is a locked RMW; LLVM (clang-cl) may lower it to a plain acquire
-         * load.
+         * load.  The ternary construct is a C90-compatible trick to make the
+         * type of the expression follow the type of the operand (only the false
+         * arm of the expression is evaluated).
          */
-        #define WOLFSSL_ATOMIC_LOAD(x) \
-            InterlockedOrAcquire((volatile long *)&(x), 0)
+        #define WOLFSSL_ATOMIC_LOAD(x) ( 0 ? (x) : \
+            InterlockedOrAcquire((volatile long *)&(x), 0))
         #define WOLFSSL_ATOMIC_STORE(x, val) \
             (void)InterlockedExchange((volatile long *)&(x), (long)(val))
         #define WOLFSSL_ATOMIC_OPS
