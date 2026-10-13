@@ -1115,7 +1115,6 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-#define TEST_TICKET_OOM
 
 /* Makes every allocation fail while set. */
 static int ticketOomFailAll = 0;
@@ -1176,7 +1175,7 @@ static int test_SessionTicket_check(WOLFSSL* ssl, const byte* expected,
     ExpectBufEQ(out, expected, sz);
     return EXPECT_RESULT();
 }
-#endif /* TEST_TICKET_OOM */
+#endif
 
 /* Test that a failed wolfSSL_set_SessionTicket() keeps the previous ticket.
  *
@@ -1185,7 +1184,9 @@ static int test_SessionTicket_check(WOLFSSL* ssl, const byte* expected,
 int test_wolfSSL_SessionTicket_alloc_fail_ext(void)
 {
     EXPECT_DECLS;
-#ifdef TEST_TICKET_OOM
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
     wolfSSL_Malloc_cb  prevM = NULL;
     wolfSSL_Free_cb    prevF = NULL;
     wolfSSL_Realloc_cb prevR = NULL;
