@@ -34,7 +34,7 @@
 #if defined(WOLFSSL_CMAC)
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$c")
         #pragma const_seg(".fipsB$c")
     #endif

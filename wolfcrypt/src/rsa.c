@@ -35,7 +35,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifndef NO_RSA
 
 #if FIPS_VERSION3_GE(2,0,0)
-       #ifdef USE_WINDOWS_API
+       #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
                #pragma code_seg(".fipsA$j")
                #pragma const_seg(".fipsB$j")
        #endif

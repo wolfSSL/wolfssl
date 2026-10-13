@@ -35,7 +35,7 @@
 
 #ifdef HAVE_ED25519
 #if FIPS_VERSION3_GE(6,0,0)
-       #ifdef USE_WINDOWS_API
+       #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
                #pragma code_seg(".fipsA$f")
                #pragma const_seg(".fipsB$f")
        #endif

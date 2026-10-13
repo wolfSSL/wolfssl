@@ -133,7 +133,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
 #if FIPS_VERSION3_GE(2,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$b")
         #pragma const_seg(".fipsB$b")
     #endif

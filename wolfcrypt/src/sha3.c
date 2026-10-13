@@ -69,7 +69,7 @@
    !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
 #if FIPS_VERSION3_GE(2,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$n")
         #pragma const_seg(".fipsB$n")
     #endif

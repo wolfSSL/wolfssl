@@ -28,7 +28,7 @@
 
 #if FIPS_VERSION3_GE(7,0,0)
     /* the letter d is skipped, codespell rejects it; do not reuse it */
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$ne")
         #pragma const_seg(".fipsB$ne")
     #endif
