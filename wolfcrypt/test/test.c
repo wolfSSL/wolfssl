@@ -57329,6 +57329,83 @@ static wc_test_ret_t ecc_ssdd_overflow_test(void)
 #endif /* WOLFSSL_CUSTOM_CURVES && WOLFSSL_ASN_TEMPLATE && HAVE_ECC_KEY_IMPORT
         * && !WOLFSSL_NO_MALLOC && !WOLFSSL_SMALL_STACK */
 
+#if defined(WOLFSSL_PUBLIC_MP) && defined(HAVE_ECC_SIGN) && \
+    defined(HAVE_ECC_VERIFY) && !defined(NO_ECC256) && ECC_MIN_KEY_SZ <= 256 && \
+    !defined(NO_ECC_SECP) && !defined(NO_SHA256) && \
+    ((!defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_SP_MATH)) || \
+     defined(WOLFSSL_SP_INT_NEGATIVE)) && \
+    (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY)) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ASYNC_CRYPT)
+#define ECC_TEST_NEG_RS
+/* FIPS 186-5 sec 6.4.2: s - n has the same residue as s but is out of range,
+ * so verify must refuse it. */
+static wc_test_ret_t ecc_test_neg_rs(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(key, ecc_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(rsn, mp_int, 3, HEAP_HINT);
+    mp_int* r = NULL;
+    mp_int* s = NULL;
+    mp_int* n = NULL;
+    int key_inited = 0;
+    int mp_inited = 0;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    int verify = 0;
+
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    WC_ALLOC_VAR_EX(key, ecc_key, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        return WC_TEST_RET_ENC_EC(MEMORY_E));
+    WC_ALLOC_VAR_EX(rsn, mp_int, 3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done));
+    r = &rsn[0];
+    s = &rsn[1];
+    n = &rsn[2];
+    ret = mp_init_multi(r, s, n, NULL, NULL, NULL);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    mp_inited = 1;
+
+    ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    key_inited = 1;
+    ret = wc_ecc_make_key_ex(rng, 32, key, ECC_SECP256R1);
+    if (ret == 0)
+        ret = wc_ecc_sign_hash_ex(hash, sizeof(hash), rng, key, r, s);
+    if (ret == 0)
+        ret = wc_ecc_verify_hash_ex(r, s, hash, sizeof(hash), &verify, key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (verify != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    ret = mp_read_radix(n, key->dp->order, MP_RADIX_HEX);
+    if (ret == MP_OKAY)
+        ret = mp_sub(s, n, s);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    verify = 0;
+    ret = wc_ecc_verify_hash_ex(r, s, hash, sizeof(hash), &verify, key);
+    if ((ret == 0) || (verify != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    ret = 0;
+
+done:
+    if (mp_inited) {
+        mp_clear(r);
+        mp_clear(s);
+        mp_clear(n);
+    }
+    if (key_inited)
+        wc_ecc_free(key);
+    WC_FREE_VAR_EX(rsn, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
     wc_test_ret_t ret;
@@ -57428,6 +57505,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     ret = ecc_test_sign_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_sign_vectors failed!\n");
+        goto done;
+    }
+#endif
+#ifdef ECC_TEST_NEG_RS
+    ret = ecc_test_neg_rs(&rng);
+    if (ret != 0) {
+        printf("ecc_test_neg_rs failed!\n");
         goto done;
     }
 #endif
