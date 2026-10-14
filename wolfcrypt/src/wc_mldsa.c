@@ -12648,8 +12648,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
                 zt += MLDSA_N;
             }
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            for (e = 0; e < MLDSA_N; e++) {
-                w[e] = mldsa_mont_red(t64[e]);
+            if (ret == 0) {
+                for (e = 0; e < MLDSA_N; e++) {
+                    w[e] = mldsa_mont_red(t64[e]);
+                }
             }
         #else
             /* Sum of l + 1 Montgomery products reaches (l + 1)*Q; bring it
@@ -12673,10 +12675,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 
         #ifndef WOLFSSL_NO_ML_DSA_44
             if (params->gamma2 == MLDSA_Q_LOW_88) {
-                /* Step 11: Use hint to give full w1. */
-                mldsa_use_hint_88(w, h, r, &o);
-                /* Step 12: Encode w1. */
                 if (ret == 0) {
+                    /* Step 11: Use hint to give full w1. */
+                    mldsa_use_hint_88(w, h, r, &o);
+                    /* Step 12: Encode w1. */
                     ret = mldsa_encode_w1_88(w, encW1);
                 }
                 encW1 += MLDSA_Q_HI_88_ENC_BITS * 2 * MLDSA_N / 16;
@@ -12685,10 +12687,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         #endif
         #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
             if (params->gamma2 == MLDSA_Q_LOW_32) {
-                /* Step 11: Use hint to give full w1. */
-                mldsa_use_hint_32(w, h, params->omega, r, &o);
-                /* Step 12: Encode w1. */
                 if (ret == 0) {
+                    /* Step 11: Use hint to give full w1. */
+                    mldsa_use_hint_32(w, h, params->omega, r, &o);
+                    /* Step 12: Encode w1. */
                     ret = mldsa_encode_w1_32(w, encW1);
                 }
                 encW1 += MLDSA_Q_HI_32_ENC_BITS * 2 * MLDSA_N / 16;
