@@ -2054,8 +2054,19 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
              * expires, and an atomic-context caller returns at once with
              * the member still out of service -- checkout diverts, and
              * whatever detected the need for this reinit detects the need
-             * for the next one. */
+             * for the next one.
+             *
+             * Without the lock facility there is no waiting on the root at
+             * all: this transition holds the inst-op gate, and the root's
+             * recovery (wc_rng_bank_root_rng_reinit()) needs that same gate,
+             * so a wait here would be for an event this hold forecloses.
+             * Leave through the cleanup below, gate released, member out of
+             * service, verdict retryable. */
             ret = wc_RNG_Status(&bank->root_rng);
+  #ifndef WC_RNG_HAVE_LOCK
+            if (ret != 0)
+                goto out;
+  #endif
             if (ret == 0) {
   #ifdef WC_RNG_HAVE_LOCK
                 ret = wc_RNG_lock_get(&bank->root_rng, 0);

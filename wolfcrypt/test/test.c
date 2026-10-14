@@ -36648,6 +36648,99 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         if (api_ret != 0)
             return WC_TEST_RET_ENC_EC(api_ret);
     }
+
+#ifdef WC_RNG_HAVE_RBGC
+    /* Member reinstantiation in a lock-less RBG-chain bank whose root is out
+     * of service: the member's reinit holds the inst-op gate, and the root's
+     * recovery needs that gate, so the member's reinit must not wait on the
+     * root -- a _CAN_WAIT caller gets the root's verdict at once rather than
+     * at timeout (or never, with no timeout).  Once the root is recovered the
+     * same call succeeds and the member is a chain child again. */
+    {
+        WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+        struct wc_rng_bank_inst *inst = NULL;
+        WC_RNG *root = NULL;
+        WC_RNG *member;
+        int bank_inited = 0;
+
+        WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER,
+                         return WC_TEST_RET_ENC_EC(MEMORY_E));
+        api_ret = wc_rng_bank_init(bank, 2,
+                                   WC_RNG_BANK_FLAG_RBGC |
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_QUIET,
+                                   10, HEAP_HINT, devId);
+        if (api_ret == 0)
+            bank_inited = 1;
+        root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
+        if ((api_ret == 0) && (root == NULL))
+            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+
+        /* take member 0 out of service, then the root */
+        if (api_ret == 0) {
+            api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
+                                           WC_RNG_BANK_FLAG_NONE);
+            if (api_ret == 0) {
+                api_ret = wc_FreeRng(WC_RNG_BANK_INST_TO_RNG(inst));
+                {
+                    int ci_ret = wc_rng_bank_inst_checkin(&inst);
+                    if ((api_ret == 0) && (ci_ret != 0))
+                        api_ret = ci_ret;
+                }
+            }
+        }
+        if (api_ret == 0)
+            api_ret = wc_FreeRng(root);
+        if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_NOT_INIT))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+
+        /* the root's verdict, promptly: well inside the 3 s timeout */
+        if (api_ret == 0) {
+            time_t ts1 = XTIME(0);
+            api_ret = wc_rng_bank_recover_inst(bank, 0, 3,
+                                               WC_RNG_BANK_FLAG_CAN_WAIT);
+            if (api_ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
+                if (XTIME(0) - ts1 >= 3)
+                    api_ret = WC_NO_ERR_TRACE(WC_TIMEOUT_E);
+                else
+                    api_ret = 0;
+            }
+            else if (api_ret == 0) {
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            }
+        }
+        if ((api_ret == 0) &&
+            (wc_RNG_GetStatus(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0)) !=
+             WC_DRBG_NOT_INIT))
+        {
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+
+        /* root recovered (the gate is free), then the member */
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_recover_inst(bank, 0, 3,
+                                               WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (api_ret == 0) {
+            member = WC_RNG_BANK_OFFSET_TO_RNG(bank, 0);
+            if ((wc_RNG_GetStatus(member) != WC_DRBG_OK) ||
+                (wc_RNG_DRBG_GetRBGCStratum(member) != 1))
+            {
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            }
+        }
+        if (bank_inited) {
+            int fini_ret = wc_rng_bank_fini(bank);
+            if ((api_ret == 0) && (fini_ret != 0))
+                api_ret = fini_ret;
+        }
+        WC_FREE_VAR(bank, HEAP_HINT);
+        if (api_ret != 0)
+            return WC_TEST_RET_ENC_EC(api_ret);
+    }
+#endif /* WC_RNG_HAVE_RBGC */
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && !LOCK */
 
 #if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_LOCK_FULL_MUTEX)
