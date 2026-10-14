@@ -11203,7 +11203,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
         ret = MISSING_KEY;
     }
     /* Check private key buffer length. */
-    else if (*privLen < key->params->n * 4) {
+    else if (*privLen < (word32)key->params->n * 4U) {
         ret = BAD_LENGTH_E;
     }
     else {
@@ -11243,7 +11243,7 @@ int wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* pub, word32* pubLen)
         ret = MISSING_KEY;
     }
     /* Check public key buffer length. */
-    else if (*pubLen < key->params->n * 2) {
+    else if (*pubLen < (word32)key->params->n * 2U) {
         ret = BAD_LENGTH_E;
     }
     else {
