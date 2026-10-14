@@ -11394,6 +11394,11 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
         msg->encrypted = encrypted;
     }
 
+    if (fragSz == 0 && msg->sz != 0) {
+        /* Nothing to store. Don't let it take up a bucket. */
+        return 0;
+    }
+
     if (msg->fragBucketList == NULL) {
         /* Clean list. Create first fragment. */
         msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
