@@ -695,13 +695,8 @@ int wc_FreeRsaKey(RsaKey* key)
                                WC_PK_TYPE_RSA, 0, key);
         /* If callback wants standard free, it returns CRYPTOCB_UNAVAILABLE.
          * Otherwise assume the callback handled cleanup. */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            wc_RsaCleanup(key);
-        #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-            RsaForceZeroPriv(key);
-        #endif
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
-        }
         /* fall-through to software cleanup */
         ret = 0;
     }
@@ -6343,11 +6338,8 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    if (nb != NULL) {
-        ForceZero(nb, sizeof(RsaNb));
-    }
-    if ((key->nb != NULL) && (key->nb != nb)) {
-        ForceZero(key->nb, sizeof(RsaNb));
+    if (nb) {
+        XMEMSET(nb, 0, sizeof(RsaNb));
     }
 
     /* Allow nb == NULL to clear non-block mode */
