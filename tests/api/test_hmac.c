@@ -1128,8 +1128,8 @@ int test_wc_HmacFree_CryptoCb(void)
 /* Set to make the mock decline SetKey, so software keeps the key. */
 static int test_hmac_nosw_decline = 0;
 
-/* Mock device that keeps the key in hardware: SetKey succeeds and no key is
- * left in software. Every HMAC request is declined. */
+/* Mock device that keeps the key in hardware: SetKey succeeds and marks the
+ * key HW stored. Every HMAC request is declined. */
 static int test_hmac_nosw_cb(int cbDevId, wc_CryptoInfo* info, void* ctx)
 {
     (void)ctx;
@@ -1137,7 +1137,7 @@ static int test_hmac_nosw_cb(int cbDevId, wc_CryptoInfo* info, void* ctx)
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
             info->setkey.type == WC_SETKEY_HMAC && !test_hmac_nosw_decline) {
-        return 0;
+        return wc_CryptoCb_SetKeyLocation(info, WC_KEY_HW_STORED);
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }

@@ -4579,6 +4579,10 @@ int wc_CryptoCb_SetKeyLocation(wc_CryptoInfo* info, int location)
         case WC_SETKEY_AES:
             return wc_AesSetKeyLocation((Aes*)info->setkey.obj, location);
     #endif
+    #ifdef WC_HMAC_HAVE_KEY_LOCATION
+        case WC_SETKEY_HMAC:
+            return wc_HmacSetKeyLocation((Hmac*)info->setkey.obj, location);
+    #endif
         default:
             return NOT_COMPILED_IN;
     }
