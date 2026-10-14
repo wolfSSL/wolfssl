@@ -4,8 +4,8 @@
 #
 # OpenVPN handshakes that check how the peer cert is verified: with
 # --peer-fingerprint and no CA (wolfSSL/wolfssl#11698), and with a CA and
-# --crl-verify. Both ends run on localhost with --dev null, so no root or tun
-# device is needed.
+# --crl-verify or --verify-hash. Both ends run on localhost with --dev null, so
+# no root or tun device is needed.
 #
 # Usage:
 #   openvpn-cert-verify.sh <openvpn binary>
@@ -95,6 +95,10 @@ cert chain leaf_ext int
 cert chain-client leaf_ext int
 cat chain.crt int.crt > chain-full.crt
 cat chain-client.crt int.crt > chain-client-full.crt
+# A cert issued by the root itself, and another root.
+cert direct leaf_ext root
+cert root2 ca_ext
+cat root.crt root2.crt > roots.crt
 
 for ca in root int; do
     : > "$ca.db"
@@ -213,6 +217,17 @@ case $("$OPENVPN" --version | awk 'NR == 1 { print $2 }') in
     *) expect='VERIFY X509NAME ERROR' ;;
 esac
 run ca-crl-missing-wrong-name "$expect"
+
+# --verify-hash checks the CA that signed the peer cert. Here that is a trust
+# anchor, which the peer does not send.
+srv=(--ca root.crt --cert direct.crt --key direct.key)
+cli=(--ca roots.crt --cert chain-client-full.crt --key chain-client.key
+     --verify-hash "$(fp root.crt)" SHA256)
+run verify-hash connect
+
+cli=(--ca roots.crt --cert chain-client-full.crt --key chain-client.key
+     --verify-hash "$(fp root2.crt)" SHA256)
+run verify-hash-other-ca 'certificate hash verification failed'
 
 cd /
 rm -rf "$WORK"
