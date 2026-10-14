@@ -9508,6 +9508,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(HAVE_RTP_SYS) || defined(EBSNET)
 
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "HAVE_RTP_SYS/EBSNET seed source (clock-seeded PRNG) is weak, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
+
 #include "rtprand.h"   /* rtp_rand () */
 
 #if (defined(HAVE_RTP_SYS) || (defined(RTPLATFORM) && (RTPLATFORM != 0)))
@@ -9624,6 +9632,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #else  /* WOLFSSL_PIC32MZ_RNG */
+        #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #   error "MICROCHIP_PIC32 (non-MZ) seed source (core-timer-seeded "
+                  "rand()) is weak, never for production. Use "
+                  "WOLFSSL_PIC32MZ_RNG, define CUSTOM_RAND_GENERATE_SEED / "
+                  "CUSTOM_RAND_GENERATE_BLOCK, or if the weak seed is "
+                  "intentional (dev/test only), define "
+                  "WOLFSSL_ACCEPT_WEAK_ENTROPY."
+        #endif
         /* uses the core timer, in nanoseconds to seed srand */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -10145,6 +10161,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* WOLFSSL_STM32_CUBEMX */
 
 #elif defined(WOLFSSL_TIRTOS)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "WOLFSSL_TIRTOS seed source (clock-seeded rand()) is weak, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
     #warning "potential for not enough entropy, currently being used for testing"
     #include <xdc/runtime/Timestamp.h>
     #include <stdlib.h>
@@ -10190,6 +10213,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_NUCLEUS)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "WOLFSSL_NUCLEUS seed source (clock-seeded rand()) is weak, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
 #include "nucleus.h"
 #include "kernel/plus_common.h"
 
@@ -10209,6 +10239,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 #elif defined(WOLFSSL_DEOS) && !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "WOLFSSL_DEOS seed source (clock-seeded rand_r()) is weak, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
     #include "stdlib.h"
 
     #warning "potential for not enough entropy, currently being used for testing Deos"
@@ -10258,6 +10295,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 #elif defined(WOLFSSL_VXWORKS)
     #ifdef WOLFSSL_VXWORKS_6_x
+        #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #   error "WOLFSSL_VXWORKS 6.x seed source (tick-seeded rand_r()) is "
+                  "weak, never for production. Provide a real entropy source: "
+                  "define CUSTOM_RAND_GENERATE_SEED / "
+                  "CUSTOM_RAND_GENERATE_BLOCK, or use a platform TRNG macro. "
+                  "If the weak seed is intentional (dev/test only), define "
+                  "WOLFSSL_ACCEPT_WEAK_ENTROPY."
+        #endif
         #include "stdlib.h"
         #warning "potential for not enough entropy, currently being used for testing"
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -10389,6 +10434,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         len = 4;
     #else
         /* v5 and older */
+        #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #   error "INTIME_RTOS v5 and older seed source (time-seeded rand()) "
+                  "is weak, never for production. Provide a real entropy "
+                  "source: define CUSTOM_RAND_GENERATE_SEED / "
+                  "CUSTOM_RAND_GENERATE_BLOCK, or if the weak seed is "
+                  "intentional (dev/test only), define "
+                  "WOLFSSL_ACCEPT_WEAK_ENTROPY."
+        #endif
         #define INTIME_RAND_FUNC rand
         srand(time(0));
         len = 2; /* don't use all 31 returned bits */
@@ -10879,8 +10932,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      * cryptographic-quality seed material instead of the general-purpose
      * sys_rand_get(). A dead source returns an error, which makes wc_InitRng()
      * fail (RNG_FAILURE_E) rather than yield weak output. Boards that set
-     * CONFIG_ENTROPY_HAS_DRIVER without a chosen entropy node fall back to
-     * sys_rand_get() rather than failing the build. */
+     * CONFIG_ENTROPY_HAS_DRIVER without a chosen entropy node are a
+     * misconfiguration and fail the build; boards with no entropy driver
+     * need WOLFSSL_ACCEPT_WEAK_ENTROPY to use the sys_rand_get() fallback. */
     #if defined(CONFIG_ENTROPY_HAS_DRIVER) && DT_HAS_CHOSEN(zephyr_entropy)
         const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
         word32 off = 0;
@@ -10903,6 +10957,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return 0;
     #else
+        #if defined(CONFIG_ENTROPY_HAS_DRIVER)
+        #   error "CONFIG_ENTROPY_HAS_DRIVER is set but there is no "
+                  "zephyr,entropy chosen node: add zephyr,entropy to the "
+                  "board devicetree, or clear CONFIG_ENTROPY_HAS_DRIVER"
+        #else
+        #   ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #   error "WOLFSSL_ZEPHYR has no entropy driver: sys_rand_get() is a "
+                  "clock-seeded PRNG, weak, never for production. Select a "
+                  "board with an entropy driver, define "
+                  "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, "
+                  "or if the weak seed is intentional (dev/test only), "
+                  "define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+        #   endif
+        #endif
         (void)os;
         sys_rand_get(output, sz);
         return 0;
@@ -10911,6 +10979,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_TELIT_M2MB)
 
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "WOLFSSL_TELIT_M2MB seed source (RTC-seeded rand()) is weak, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
         #include "stdlib.h"
         static long get_timestamp(void) {
             long myTime = 0;
@@ -11195,6 +11270,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
 
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "DOLPHIN_EMULATOR/WOLFSSL_NDS seed source (time-seeded rand()) "
+              "is weak, never for production. Provide a real entropy source: "
+              "define CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, "
+              "or if the weak seed is intentional (dev/test only), define "
+              "WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             word32 i;
@@ -11576,6 +11658,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef USE_TEST_GENSEED
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #   error "USE_TEST_GENSEED produces a deterministic zero-entropy seed, "
+              "never for production. Provide a real entropy source: define "
+              "CUSTOM_RAND_GENERATE_SEED / CUSTOM_RAND_GENERATE_BLOCK, or "
+              "use a platform TRNG macro. If the weak seed is intentional "
+              "(dev/test only), define WOLFSSL_ACCEPT_WEAK_ENTROPY."
+    #endif
     #if !defined(_MSC_VER) && !defined(__TASKING__)
         #warning "write a real random seed!!!!, just for testing now"
     #else

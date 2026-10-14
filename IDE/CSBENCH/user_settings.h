@@ -14,6 +14,8 @@
 #define HAVE_ECC
 #define ECC_TIMING_RESISTANT
 #define WOLFSSL_NUCLEUS
+/* Sample config: accept the weak/test entropy seed (see random.c) */
+#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 
 /* wolfSSH settings */
 #define WOLFSSH_SFTP

@@ -226,11 +226,17 @@ extern "C" {
     #define WOLFSSL_STM32F1
     #define HAL_CONSOLE_UART huart4
     #define NO_STM32_RNG
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2

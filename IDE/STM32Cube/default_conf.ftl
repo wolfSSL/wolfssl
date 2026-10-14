@@ -186,10 +186,14 @@ extern ${variable.value} ${variable.name};
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
     #define NO_STM32_RNG
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart4
     #endif
 #elif defined(STM32F401xE)
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #define WOLFSSL_STM32F4
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
@@ -200,6 +204,8 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32G0
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif

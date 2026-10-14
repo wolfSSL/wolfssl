@@ -27,6 +27,8 @@
 #if defined(WOLFSSL_SCE_NO_TRNG)
     /* use unsafe test seed if TRNG not used (not for production) */
     #define WOLFSSL_GENSEED_FORTEST
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #endif
 
 #define HAVE_ECC

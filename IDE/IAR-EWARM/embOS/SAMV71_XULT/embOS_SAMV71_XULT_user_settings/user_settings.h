@@ -3,6 +3,8 @@
 
     #undef WOLFSSL_EMBOS
     #define WOLFSSL_EMBOS
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 
     #undef WOLFCRYPT_ONLY
     #define WOLFCRYPT_ONLY

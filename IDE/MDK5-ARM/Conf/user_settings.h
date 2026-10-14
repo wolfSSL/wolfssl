@@ -365,6 +365,8 @@
 #if MDK_CONF_RNDSEED == 1
 #define WOLFSSL_GENSEED_FORTEST
 #endif
+/* Sample config: accept the weak/test entropy seed (see random.c) */
+#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 //  </e>
 
 //  <h>Hardware Crypt (See document for usage)

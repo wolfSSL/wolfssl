@@ -12,6 +12,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 #undef  INTIME_RTOS
 #define INTIME_RTOS
+/* Sample config: accept the weak/test entropy seed (see random.c) */
+#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 
 #undef  WOLF_EXAMPLES_STACK
 #define WOLF_EXAMPLES_STACK         (1<<17)

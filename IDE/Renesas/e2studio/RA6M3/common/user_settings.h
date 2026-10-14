@@ -24,6 +24,8 @@
 
 /* Temporary defines. Not suitable for production. */
 #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+/* Sample config: accept the weak/test entropy seed (see random.c) */
+#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 /* End temporary defines */
 
 /* TLS 1.3 */

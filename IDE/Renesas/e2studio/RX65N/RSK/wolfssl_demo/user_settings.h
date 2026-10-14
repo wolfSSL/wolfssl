@@ -258,6 +258,8 @@
 #else
     #define OPENSSL_EXTRA
     #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
 #endif
 
 

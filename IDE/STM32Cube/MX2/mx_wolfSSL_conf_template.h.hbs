@@ -474,15 +474,21 @@
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
     #define NO_STM32_RNG
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart4
     #endif
 #elif defined(STM32F401xE)
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #define WOLFSSL_STM32F4
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
+    /* Sample config: accept the weak/test entropy seed (see random.c) */
+    #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #endif
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
@@ -544,6 +550,8 @@
         #define WOLFSSL_STM32_BARE
         #define WOLFSSL_STM32_PKA
         #define NO_STM32_HMAC
+        /* Sample config: accept the weak/test entropy seed (see random.c) */
+        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
     #else
@@ -560,6 +568,8 @@
     #if defined(WOLF_CONF_HW_CRYPTO) && WOLF_CONF_HW_CRYPTO == 1
         #define WOLFSSL_STM32_BARE
         #define WOLFSSL_STM32_PKA
+        /* Sample config: accept the weak/test entropy seed (see random.c) */
+        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
         #define WOLFSSL_STM32_USE_SAES
         #define NO_STM32_HMAC
         #undef  NO_STM32_HASH
@@ -602,6 +612,8 @@
  * above enable what each part supports; turning the toggle off forces the
  * software paths regardless of family. */
 #if defined(WOLF_CONF_HW_CRYPTO) && WOLF_CONF_HW_CRYPTO == 0
+        /* Sample config: accept the weak/test entropy seed (see random.c) */
+        #define WOLFSSL_ACCEPT_WEAK_ENTROPY
     #undef  WOLFSSL_STM32_PKA
     #undef  WOLFSSL_STM32_BARE
     #ifndef NO_STM32_HASH

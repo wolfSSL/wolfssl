@@ -41,6 +41,8 @@
 #define BENCH_EMBEDDED
 #define NO_WOLFSSL_MEMORY
 #define WOLFSSL_GENSEED_FORTEST     /* dev-only seed; no TRNG on this part */
+/* Sample config: accept the weak/test entropy seed (see random.c) */
+#define WOLFSSL_ACCEPT_WEAK_ENTROPY
 
 /* Hashes (SHA-1 is on by default - NO_SHA is not set) */
 #define WOLFSSL_SHA512
