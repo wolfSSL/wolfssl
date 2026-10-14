@@ -5017,10 +5017,12 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
  * Update a digest for RSA and ECC keys, or HMAC for HMAC key.
  */
 static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
-                                        const void *d, unsigned int cnt)
+                                        const void *d, size_t cnt)
 {
     if (ctx->isHMAC) {
-        if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
+        if (cnt > (word32)-1)
+            return WOLFSSL_FAILURE;
+        if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, (word32)cnt) != 0)
             return WOLFSSL_FAILURE;
 
         return WOLFSSL_SUCCESS;
@@ -5171,7 +5173,7 @@ int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
 
 
 int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *d,
-                                 unsigned int cnt)
+                                 size_t cnt)
 {
     WOLFSSL_ENTER("EVP_DigestSignUpdate");
 
@@ -5327,7 +5329,7 @@ int wolfSSL_EVP_DigestVerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *d,
     if (ctx == NULL || d == NULL)
         return WOLFSSL_FAILURE;
 
-    return wolfssl_evp_digest_pk_update(ctx, d, (unsigned int)cnt);
+    return wolfssl_evp_digest_pk_update(ctx, d, cnt);
 }
 
 

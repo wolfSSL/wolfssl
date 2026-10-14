@@ -3839,3 +3839,82 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * Regression test: EVP_DigestSignUpdate and EVP_DigestVerifyUpdate must both
+ * accept size_t for the byte count.
+ *
+ * Before the fix:
+ *   - DigestSignUpdate declared unsigned int (not size_t), breaking FFI parity.
+ *   - DigestVerifyUpdate declared size_t but immediately cast to unsigned int
+ *     internally, silently truncating any count > (word32)-1.
+ *
+ * Test vector: RFC 4231 Section 4.2 test case 1, HMAC-SHA256 (independent
+ * oracle). Test case 2's 4-byte key "Jefe" is below HMAC_FIPS_MIN_KEY, so
+ * FIPS builds reject it.
+ *   Key  : 0x0b repeated 20 times
+ *   Data : "Hi There" (8 bytes)
+ *   HMAC : b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
+ */
+int test_wolfSSL_EVP_DigestSign_size_t_cnt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC) && !defined(NO_SHA256)
+    static const byte kKey[] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
+    };
+    static const byte kMsg[] = "Hi There";
+    static const byte kExpected[] = {
+        0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53,
+        0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b, 0xf1, 0x2b,
+        0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7,
+        0x26, 0xe9, 0x37, 0x6c, 0x2e, 0x32, 0xcf, 0xf7
+    };
+    WOLFSSL_EVP_PKEY  *key = NULL;
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    unsigned char      sig[WC_MAX_DIGEST_SIZE];
+    size_t             sigSz = sizeof(sig);
+    /* Deliberately size_t -- not unsigned int -- to verify both APIs accept it
+     * without a cast.  This was the type mismatch caught by ZD-21734. */
+    size_t             msgSz = sizeof(kMsg) - 1;
+
+    ExpectNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                                     kKey,
+                                                     (int)sizeof(kKey)));
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    /* Sign: passes size_t count directly -- regression for unsigned int decl */
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, EVP_sha256(),
+                                           NULL, key), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, kMsg, msgSz), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, sig, &sigSz), 1);
+    ExpectIntEQ((int)sigSz, (int)sizeof(kExpected));
+    ExpectIntEQ(XMEMCMP(sig, kExpected, sizeof(kExpected)), 0);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Verify: passes size_t count directly -- regression for silent truncation */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, EVP_sha256(),
+                                             NULL, key), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, kMsg, msgSz), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, kExpected,
+                                              sizeof(kExpected)), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Overflow guard: cnt > (word32)-1 must fail, not silently truncate.
+     * Only reachable on 64-bit platforms where size_t exceeds word32. */
+    if (sizeof(size_t) > sizeof(word32)) {
+        size_t oversized = (size_t)(word32)-1 + 1; /* (word32)-1 + 1 */
+        wolfSSL_EVP_MD_CTX_init(&mdCtx);
+        ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, EVP_sha256(),
+                                               NULL, key), 1);
+        ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, kMsg, oversized),
+                    WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+    }
+
+    wolfSSL_EVP_PKEY_free(key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wolfSSL_EVP_DigestSign_size_t_cnt */
