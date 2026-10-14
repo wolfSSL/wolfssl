@@ -30606,7 +30606,7 @@ static int sp_256_div_5(const sp_digit* a, const sp_digit* d,
         sp_256_rshift_5(r, t1, 4);
     }
 
-    SP_FREE_VAR(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, t1, 4 * 5 + 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -37993,7 +37993,7 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d,
         sp_384_rshift_7(r, t1, 1);
     }
 
-    SP_FREE_VAR(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, t1, 4 * 7 + 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -45345,7 +45345,7 @@ static int sp_521_div_9(const sp_digit* a, const sp_digit* d,
         sp_521_rshift_9(r, t1, 1);
     }
 
-    SP_FREE_VAR(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, t1, 4 * 9 + 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }

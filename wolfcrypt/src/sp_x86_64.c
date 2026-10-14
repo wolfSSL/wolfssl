@@ -24745,6 +24745,9 @@ static WC_INLINE int sp_256_div_4(const sp_digit* a, const sp_digit* d, sp_digit
 #endif
         sp_256_cond_sub_4(r, t1, d, (sp_digit)0 - r1);
 
+    ForceZero(t1, sizeof(t1));
+    ForceZero(t2, sizeof(t2));
+
     return MP_OKAY;
 }
 
@@ -49461,6 +49464,9 @@ static WC_INLINE int sp_384_div_6(const sp_digit* a, const sp_digit* d, sp_digit
     else
 #endif
         sp_384_cond_sub_6(r, t1, d, (sp_digit)0 - r1);
+
+    ForceZero(t1, sizeof(t1));
+    ForceZero(t2, sizeof(t2));
 
     return MP_OKAY;
 }
@@ -90302,6 +90308,10 @@ static WC_INLINE int sp_521_div_9(const sp_digit* a, const sp_digit* d, sp_digit
 #endif
         sp_521_cond_sub_9(r, t1, sd, (sp_digit)0 - r1);
     sp_521_rshift_9(r, r, 55);
+
+    ForceZero(t1, sizeof(t1));
+    ForceZero(t2, sizeof(t2));
+    ForceZero(sd, sizeof(sd));
 
     return MP_OKAY;
 }
