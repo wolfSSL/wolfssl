@@ -123,9 +123,14 @@ static int ti_sa2ul_iodevice_open(void)
     return 0;
 }
 
-/* Caller holds gSa2ulMutex. Returns 0 if the request reached the driver;
- * the driver's own status is then in Ctrl->ret. Out is only written when
- * Ctrl->ret == SA2UL_DRIVER_OK. */
+/* Caller holds gSa2ulMutex (which serializes this AddressSpace only).
+ * Returns 0 if the request reached the driver; the driver's own status is
+ * then in Ctrl->ret. Out is only written when Ctrl->ret == SA2UL_DRIVER_OK.
+ *
+ * The ctrl/data pages are shared by every AddressSpace that uses the port,
+ * so they are claimed from the kernel for the whole transaction (see
+ * SA2UL_IODEVICE_STATUS_ACQUIRE); if another caller holds them this returns
+ * CRYPTOCB_UNAVAILABLE and the operation runs in software. */
 static int ti_sa2ul_IodeviceCall(struct Sa2ulCtrl *Ctrl, const byte *In,
         word32 InSz, byte *Out, word32 OutSz)
 {
@@ -136,6 +141,10 @@ static int ti_sa2ul_IodeviceCall(struct Sa2ulCtrl *Ctrl, const byte *In,
         return CRYPTOCB_UNAVAILABLE;
     }
     if (InSz > SA2UL_MAX_BUF || OutSz > SA2UL_MAX_BUF) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (ReadIODeviceStatus(gSa2ulDev, SA2UL_IODEVICE_STATUS_ACQUIRE,
+            &dummy, 1) != Success) {
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -158,8 +167,7 @@ static int ti_sa2ul_IodeviceCall(struct Sa2ulCtrl *Ctrl, const byte *In,
         ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    /* read back even on failure: the driver zeroes the key in the page */
-    if (CopyFromMemoryRegionWithFlags(gSa2ulCtrlMr,
+    if (ret == 0 && CopyFromMemoryRegionWithFlags(gSa2ulCtrlMr,
             (ExtendedAddress)(uintptr_t)gSa2ulCtrl, Ctrl, sizeof(*Ctrl),
             ACCESS_SRC_COHERENT) != Success) {
         ret = CRYPTOCB_UNAVAILABLE;
@@ -173,9 +181,18 @@ static int ti_sa2ul_IodeviceCall(struct Sa2ulCtrl *Ctrl, const byte *In,
         }
     }
 
+    /* Whatever happened above, don't leave the key (or GCM hash subkey) in
+     * the shared ctrl page: the driver only clears it if it ran. Written
+     * through this AddressSpace's own mapping, so it can't fail. */
+    ForceZero((void *)gSa2ulCtrl, sizeof(*gSa2ulCtrl));
+
+    (void)ReadIODeviceStatus(gSa2ulDev, SA2UL_IODEVICE_STATUS_RELEASE,
+            &dummy, 1);
+
     return ret;
 }
 
+#if !defined(NO_AES) && !defined(WOLFSSL_TI_AM64X_A53_INTEGRITY_NO_AES)
 #ifndef SA2UL_AES_KEY_CACHE_SIZE
 #define SA2UL_AES_KEY_CACHE_SIZE 4
 #endif
@@ -196,6 +213,7 @@ struct Sa2ulAesKeyCacheEntry {
 static struct Sa2ulAesKeyCacheEntry gSa2ulAesKeyCache[SA2UL_AES_KEY_CACHE_SIZE];
 static unsigned int gSa2ulAesKeyCacheNext = 0;
 
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
 /* caller holds gSa2ulMutex */
 static void ti_sa2ul_AesCacheKey(const Aes *aes, const byte *key, word32 keySz)
 {
@@ -219,6 +237,7 @@ static void ti_sa2ul_AesCacheKey(const Aes *aes, const byte *key, word32 keySz)
     XMEMCPY(gSa2ulAesKeyCache[i].key, key, keySz);
     gSa2ulAesKeyCache[i].keySz = keySz;
 }
+#endif /* WOLF_CRYPTO_CB_AES_SETKEY */
 
 /* caller holds gSa2ulMutex. Returns aes's cache entry, or NULL. */
 static struct Sa2ulAesKeyCacheEntry *ti_sa2ul_AesLookupKey(const Aes *aes)
@@ -233,6 +252,7 @@ static struct Sa2ulAesKeyCacheEntry *ti_sa2ul_AesLookupKey(const Aes *aes)
     return NULL;
 }
 
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
 static int ti_sa2ul_AesSetKey(Aes *aes, const byte *key, word32 keySz)
 {
     if (ti_sa2ul_lock() == 0) {
@@ -243,7 +263,9 @@ static int ti_sa2ul_AesSetKey(Aes *aes, const byte *key, word32 keySz)
      * never reach the callback */
     return CRYPTOCB_UNAVAILABLE;
 }
+#endif /* WOLF_CRYPTO_CB_AES_SETKEY */
 
+#ifdef WOLF_CRYPTO_CB_FREE
 static void ti_sa2ul_AesForgetKey(const Aes *aes)
 {
     unsigned int i;
@@ -258,6 +280,7 @@ static void ti_sa2ul_AesForgetKey(const Aes *aes)
     }
     ti_sa2ul_unlock();
 }
+#endif /* WOLF_CRYPTO_CB_FREE */
 
 /* Look up the key, fill Ctrl, run it. Returns 0 if the driver ran (status
  * in Ctrl->ret), CRYPTOCB_UNAVAILABLE otherwise. Wipes key material. */
@@ -297,6 +320,7 @@ static int ti_sa2ul_AesRun(Aes *aes, struct Sa2ulCtrl *Ctrl, const byte *In,
     ForceZero(Ctrl->ghash, sizeof(Ctrl->ghash));
     return ret;
 }
+#endif /* !NO_AES && !WOLFSSL_TI_AM64X_A53_INTEGRITY_NO_AES */
 
 static byte gSa2ulHashAccum[SA2UL_MAX_BUF];
 static word32 gSa2ulHashAccumLen = 0;

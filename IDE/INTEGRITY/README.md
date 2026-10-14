@@ -82,9 +82,9 @@ wolfCrypt test, then the benchmark, and prints `wolfcrypt_test PASSED` and
 
 ### Enabling it
 
-It is controlled by `macro WOLFSSL_SA2UL_DRIVER=1` in `default.gpj`: leave
-that line in to enable it, comment it out to disable it, then rebuild. That
-one switch:
+It is off in the shipped `default.gpj`. To enable it, uncomment the
+`macro WOLFSSL_SA2UL_DRIVER=1` line in `default.gpj` and rebuild (comment it
+out again to disable it). That one switch:
 
 - builds the kernel-side drivers (`sa2ul_driver.c`, `sa2ul_devtree_driver.c`,
   `sa2ul_iodevice_server.c`) into the kernel,
@@ -117,7 +117,10 @@ IODevice named `Sa2ulDev`:
   (`myproject_kernel.c`) attaches them to the IODevice at boot. Any other
   AddressSpace that uses the port needs the same two MemoryRegions (same
   names), because `sa2ul_port.c` includes the generated
-  `myproject_integrate.h` to find them.
+  `myproject_integrate.h` to find them. The pages are one pair shared by all
+  of those AddressSpaces: each request claims them from the kernel for its
+  whole duration, and a request that finds them in use runs in software
+  instead of waiting.
 - **Fallback:** if the driver is unavailable or an operation fails, wolfCrypt
   falls back to software for that operation.
 
