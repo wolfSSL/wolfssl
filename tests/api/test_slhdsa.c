@@ -954,7 +954,7 @@ int test_wc_slhdsa_sign_vfy(void)
     byte* sig = NULL;
     word32 sigLen;
     byte ctx[10];
-#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128F
+#if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
     const byte zeroDigest[WC_SHA256_DIGEST_SIZE] = {0};
 #endif
 
