@@ -401,7 +401,16 @@ extern "C" {
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
 /* Non-blocking ECC operation context. */
 typedef struct sp_ecc_ctx {
+    #ifndef WOLFSSL_SP_SMALL
+    /* Large implementation: verify keeps a table of 33 points. */
     #ifdef WOLFSSL_SP_521
+    XALIGNED(4) byte data[66*340]; /* stack data */
+    #elif defined(WOLFSSL_SP_384)
+    XALIGNED(4) byte data[48*330]; /* stack data */
+    #else
+    XALIGNED(4) byte data[32*340]; /* stack data */
+    #endif
+    #elif defined(WOLFSSL_SP_521)
     XALIGNED(4) byte data[66*80]; /* stack data */
     #elif defined(WOLFSSL_SP_384)
     XALIGNED(4) byte data[48*80]; /* stack data */

@@ -1130,7 +1130,7 @@ fi
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation, comma separated options include small, smallstack, nomalloc, nonblock and notransposedtable (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation, comma separated options include small, smallstack, nomalloc, nonblock, nonblocklarge and notransposedtable (default: disabled)])],
     [ ENABLED_SP=$enableval ],
     [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
@@ -11763,6 +11763,14 @@ do
     ENABLED_SP_SMALL=yes
     ;;
 
+  nonblocklarge)
+    # Non-blocking ECC with the large implementation's tables and windowing.
+    # Requires no malloc.  Small is still forced below when RSA/DH non-blocking
+    # is requested on the C implementation.
+    ENABLED_SP_NONBLOCK=yes
+    ENABLED_SP_NO_MALLOC=yes
+    ;;
+
   asm)
     ENABLED_SP_ASM=yes
     ;;
@@ -12003,6 +12011,17 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     esac
     ;;
   esac
+fi
+
+# Non-blocking RSA/DH mod_exp only exists in the small variant of the C
+# implementation.  Checked here, after the host checks that can still
+# turn the assembly off.
+if test "$ENABLED_SP_NONBLOCK" = "yes" && test "$ENABLED_SP_ASM" != "yes" && \
+   test "$ENABLED_SP_SMALL" != "yes" && \
+   { test "$enable_rsa" = "nonblock" || test "$enable_dh" = "nonblock"; }; then
+    ENABLED_SP_SMALL=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
 fi
 
 if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
