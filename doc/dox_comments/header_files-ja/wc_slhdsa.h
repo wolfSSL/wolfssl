@@ -203,13 +203,13 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key,
     \brief SLH-DSAの外部(pure)インターフェースを使用し、決定的な乱数でメッセージに署名します。これはopt_randをPK.seedに設定したFIPS 205のアルゴリズム22に相当します。メッセージMは署名前に内部でM' = 0x00 || len(ctx) || ctx || Mとしてラップされます。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG key、msg、sig、sigSzのいずれかがNULLの場合に返されます。
-    \return BUFFER_E 出力バッファが小さすぎる場合に返されます。
+    \return BAD_FUNC_ARG key、sig、sigSzのいずれかがNULLの場合、またはmsgがNULLでmsgSzが0より大きい場合に返されます。
+    \return BAD_LENGTH_E 出力バッファが小さすぎる場合に返されます。
 
     \param [in] key 秘密鍵を保持するSlhDsaKeyへのポインタ。
     \param [in] ctx ドメイン分離のためのコンテキスト文字列。ctxSzが0の場合はNULLでも構いません。
     \param [in] ctxSz コンテキスト文字列の長さ(0〜255)。
-    \param [in] msg 署名するメッセージへのポインタ。
+    \param [in] msg 署名するメッセージへのポインタ。msgSzが0の場合はNULLでも構いません。
     \param [in] msgSz メッセージの長さ。
     \param [out] sig 署名を受け取るバッファ。
     \param [in,out] sigSz 入力時はsigバッファのサイズ。出力時は実際の署名長。
@@ -240,12 +240,12 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx,
     \brief SLH-DSAの外部(pure)インターフェースを使用し、呼び出し側が提供した追加の乱数でメッセージに署名します。これはopt_rand値を明示的に指定したFIPS 205のアルゴリズム22に相当します。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG key、msg、sig、sigSz、addRndのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG key、sig、sigSz、addRndのいずれかがNULLの場合、またはmsgがNULLでmsgSzが0より大きい場合に返されます。
 
     \param [in] key 秘密鍵を保持するSlhDsaKeyへのポインタ。
     \param [in] ctx コンテキスト文字列。ctxSzが0の場合はNULLでも構いません。
     \param [in] ctxSz コンテキスト文字列の長さ(0〜255)。
-    \param [in] msg 署名するメッセージへのポインタ。
+    \param [in] msg 署名するメッセージへのポインタ。msgSzが0の場合はNULLでも構いません。
     \param [in] msgSz メッセージの長さ。
     \param [out] sig 署名を受け取るバッファ。
     \param [in,out] sigSz 入力時はsigバッファのサイズ。出力時は実際の署名長。
@@ -278,12 +278,12 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx,
     \brief SLH-DSAの外部(pure)インターフェースを使用し、RNGが提供する乱数でメッセージに署名します。これはopt_randにWC_RNGを使用する汎用の署名関数です。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG key、msg、sig、sigSz、rngのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG key、sig、sigSz、rngのいずれかがNULLの場合、またはmsgがNULLでmsgSzが0より大きい場合に返されます。
 
     \param [in] key 秘密鍵を保持するSlhDsaKeyへのポインタ。
     \param [in] ctx コンテキスト文字列。ctxSzが0の場合はNULLでも構いません。
     \param [in] ctxSz コンテキスト文字列の長さ(0〜255)。
-    \param [in] msg 署名するメッセージへのポインタ。
+    \param [in] msg 署名するメッセージへのポインタ。msgSzが0の場合はNULLでも構いません。
     \param [in] msgSz メッセージの長さ。
     \param [out] sig 署名を受け取るバッファ。
     \param [in,out] sigSz 入力時はsigバッファのサイズ。出力時は実際の署名長。
@@ -315,7 +315,7 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     \brief 外部(pure)インターフェースを使用して、メッセージに対するSLH-DSA署名を検証します。これはFIPS 205のアルゴリズム24に相当します。メッセージは検証前に内部でM' = 0x00 || len(ctx) || ctx || Mとしてラップされます。
 
     \return 0 成功した場合(署名が有効)に返されます。
-    \return BAD_FUNC_ARG key、msg、sigのいずれかがNULLの場合、またはctxがNULLでctxSzが0より大きい場合に返されます。
+    \return BAD_FUNC_ARG keyまたはsigがNULLの場合、ctxがNULLでctxSzが0より大きい場合、あるいはmsgがNULLでmsgSzが0より大きい場合に返されます。
     \return BAD_LENGTH_E sigSzがパラメータセットの署名長と一致しない場合に返されます。
     \return MISSING_KEY 公開鍵が設定されていない場合に返されます。
     \return SIG_VERIFY_E 署名が無効な場合に返されます。
@@ -323,7 +323,7 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     \param [in] key 公開鍵を保持するSlhDsaKeyへのポインタ。
     \param [in] ctx コンテキスト文字列。ctxSzが0の場合はNULLでも構いません。
     \param [in] ctxSz コンテキスト文字列の長さ(0〜255)。
-    \param [in] msg 検証するメッセージへのポインタ。
+    \param [in] msg 検証するメッセージへのポインタ。msgSzが0の場合はNULLでも構いません。
     \param [in] msgSz メッセージの長さ。
     \param [in] sig 検証する署名へのポインタ。
     \param [in] sigSz 署名の長さ。
