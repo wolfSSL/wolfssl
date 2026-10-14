@@ -6042,7 +6042,7 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
     for (i = 0; i < sz; i++) {
         r |= a[i] ^ b[i];
     }
-    return (int)(0 - ((-(word32)r) >> 31));
+    return (int)(0 - ((0U - (word32)r) >> 31));
 }
 #endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
