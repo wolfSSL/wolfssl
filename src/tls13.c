@@ -7137,6 +7137,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
                 goto cleanup;
             }
+            /* The resumed ticket's nonce has derived its PSK. The tickets of
+             * this connection get PSKs from a new resumption master secret,
+             * so their nonces count from 0 again (RFC 8446 Section 4.6.1). */
+            ssl->session->ticketNonce.len = 0;
 
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
