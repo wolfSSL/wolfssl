@@ -93,6 +93,12 @@ jobs:
         working-directory: ./socat-${{ matrix.socat_version }}
         run: |
           patch -p1 < ../osp/socat/${{ matrix.socat_version }}/socat-${{ matrix.socat_version }}.patch
+          if [ "${{ matrix.socat_version }}" = "1.8.0.0" ]; then
+            # Backport the omitted-interface initialization from socat 1.8.0.3.
+            old='/*0 opt->value3.u_string = NULL; / * is NULL from init */'
+            grep -Fq "$old" xio-ip.c
+            sed -i 's|/\*0 opt->value3\.u_string = NULL; / \* is NULL from init \*/|opt->value3.u_string = NULL;|' xio-ip.c
+          fi
           autoreconf -vfi
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
           make -j
