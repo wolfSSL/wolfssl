@@ -35,7 +35,9 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifndef __ghs__
 .arch_extension crypto
+#endif /* __ghs__ */
 #ifndef __APPLE__
 .text
 .globl	AES_set_key_AARCH64
@@ -14911,7 +14913,9 @@ L_aes_gcm_decrypt_arm64_crypto_done:
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+#ifndef __ghs__
 .arch_extension sha3
+#endif /* __ghs__ */
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_AARCH64_EOR3
@@ -32808,7 +32812,9 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded:
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+#ifndef __ghs__
 .arch_extension sha3
+#endif /* __ghs__ */
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_AARCH64_EOR3

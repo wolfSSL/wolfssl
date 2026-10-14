@@ -41,7 +41,9 @@
 void AES_set_key_AARCH64(const byte* userKey, int keylen, byte* key, int dir)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "cmp	%x[keylen], #24\n\t"
         "b.lt	L_aes_set_key_arm64_crypto_start_128_%=\n\t"
         "b.gt	L_aes_set_key_arm64_crypto_start_256_%=\n\t"
@@ -592,7 +594,9 @@ void AES_set_key_AARCH64(const byte* userKey, int keylen, byte* key, int dir)
 void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v0.16b}, [%x[inBlock]]\n\t"
         "ld1	{v1.2d, v2.2d, v3.2d, v4.2d}, [%x[key]], #0x40\n\t"
         "aese	v0.16b, v1.16b\n\t"
@@ -650,7 +654,9 @@ void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
 void AES_decrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v0.16b}, [%x[inBlock]]\n\t"
         "ld1	{v1.2d, v2.2d, v3.2d, v4.2d}, [%x[key]], #0x40\n\t"
         "aesd	v0.16b, v1.16b\n\t"
@@ -707,7 +713,9 @@ void AES_encrypt_blocks_AARCH64(const byte* in, byte* out, word32 sz, byte* key,
     int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v24.2d, v25.2d, v26.2d}, [%x[key]], #48\n\t"
@@ -1929,7 +1937,9 @@ void AES_decrypt_blocks_AARCH64(const byte* in, byte* out, word32 sz, byte* key,
     int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v24.2d, v25.2d, v26.2d}, [%x[key]], #48\n\t"
@@ -3153,7 +3163,9 @@ void AES_CBC_encrypt_AARCH64(const byte* in, byte* out, word32 sz, byte* reg,
     byte* key, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v0.2d}, [%x[reg]]\n\t"
@@ -3292,7 +3304,9 @@ void AES_CBC_decrypt_AARCH64(const byte* in, byte* out, word32 sz, byte* reg,
     byte* key, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v0.2d}, [%x[reg]]\n\t"
@@ -3551,7 +3565,9 @@ void AES_CTR_encrypt_AARCH64(const byte* in, byte* out, word32 sz, byte* reg,
     byte* key, byte* tmp, word32* left, word32 nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [%x[key]], #0x40\n\t"
         "ld1	{v15.2d}, [%x[reg]]\n\t"
@@ -5219,7 +5235,9 @@ void AES_GCM_set_key_AARCH64(const byte* nonce, const byte* key, byte* gcm_h,
     int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v0.16b}, [%x[nonce]]\n\t"
         "ld1	{v1.2d, v2.2d, v3.2d, v4.2d}, [%x[key]], #0x40\n\t"
         "aese	v0.16b, v1.16b\n\t"
@@ -5274,7 +5292,9 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
     word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -10150,7 +10170,9 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -15079,8 +15101,12 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -19850,8 +19876,12 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -24671,7 +24701,9 @@ void AES_GCM_init_AARCH64(byte* key, int nr, const byte* nonce, word32 nonceSz,
     byte* gcm_h, byte* counter, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
         "ushr	v6.2d, v6.2d, #56\n\t"
@@ -24849,7 +24881,9 @@ void AES_GCM_init_AARCH64(byte* key, int nr, const byte* nonce, word32 nonceSz,
 void AES_GCM_ghash_block_AARCH64(const byte* data, byte* tag, byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v6.2d}, [%x[tag]]\n\t"
         "movi	v7.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
@@ -24884,7 +24918,9 @@ void AES_GCM_aad_update_AARCH64(const byte* aadt, word32 abytes, byte* tag,
     byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v20.2d}, [%x[tag]]\n\t"
         "movi	v21.16b, #0x87\n\t"
         "ld1	{v12.2d}, [%x[gcm_h]]\n\t"
@@ -25231,7 +25267,9 @@ void AES_GCM_encrypt_block_AARCH64(const byte* key, int nr, byte* out,
     const byte* in, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[counter]]\n\t"
         "ld1	{v4.2d}, [%x[in]]\n\t"
         "mov	w5, v5.s[3]\n\t"
@@ -25292,7 +25330,9 @@ void AES_GCM_encrypt_update_AARCH64(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -29120,7 +29160,9 @@ void AES_GCM_encrypt_final_AARCH64(byte* tag, byte* authTag, word32 tbytes,
     word32 nbytes, word32 abytes, byte* h, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
@@ -29201,7 +29243,9 @@ void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -33031,7 +33075,9 @@ void AES_GCM_decrypt_final_AARCH64(byte* tag, const byte* authTag,
     int* res)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
@@ -33138,8 +33184,12 @@ void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
     word32 nonceSz, byte* gcm_h, byte* counter, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
         "ushr	v6.2d, v6.2d, #56\n\t"
@@ -33314,8 +33364,12 @@ void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
 void AES_GCM_ghash_block_AARCH64_EOR3(const byte* data, byte* tag, byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v6.2d}, [%x[tag]]\n\t"
         "movi	v7.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
@@ -33349,8 +33403,12 @@ void AES_GCM_aad_update_AARCH64_EOR3(const byte* aadt, word32 abytes, byte* tag,
     byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v20.2d}, [%x[tag]]\n\t"
         "movi	v21.16b, #0x87\n\t"
         "ld1	{v12.2d}, [%x[gcm_h]]\n\t"
@@ -33679,8 +33737,12 @@ void AES_GCM_encrypt_block_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[counter]]\n\t"
         "ld1	{v4.2d}, [%x[in]]\n\t"
         "mov	w5, v5.s[3]\n\t"
@@ -33741,8 +33803,12 @@ void AES_GCM_encrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -37486,8 +37552,12 @@ void AES_GCM_encrypt_final_AARCH64_EOR3(byte* tag, byte* authTag, word32 tbytes,
     word32 nbytes, word32 abytes, byte* h, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
@@ -37567,8 +37637,12 @@ void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -41314,8 +41388,12 @@ void AES_GCM_decrypt_final_AARCH64_EOR3(byte* tag, const byte* authTag,
     int* res)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
+#ifndef __ghs__
     ".arch_extension sha3\n\t"
+#endif /* __ghs__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
@@ -41425,7 +41503,9 @@ void AES_XTS_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key2]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key2]], #0x40\n\t"
         "ld1	{v4.16b}, [%x[i]]\n\t"
@@ -42450,7 +42530,9 @@ void AES_XTS_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [%x[key2]], #0x40\n\t"
         "ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [%x[key2]], #0x40\n\t"
         "ld1	{v4.16b}, [%x[i]]\n\t"
@@ -43571,7 +43653,9 @@ void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out, word32 sz,
     byte* key, byte* tweak, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v4.16b}, [%x[tweak]]\n\t"
         "mov	x9, v4.d[0]\n\t"
         "mov	x10, v4.d[1]\n\t"
@@ -44515,7 +44599,9 @@ void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out, word32 sz,
     byte* key, byte* tweak, byte* tmp, int nr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v4.16b}, [%x[tweak]]\n\t"
         "mov	x9, v4.d[0]\n\t"
         "mov	x10, v4.d[1]\n\t"
@@ -45557,7 +45643,9 @@ void AES_GCMSIV_polyval_pmull(unsigned char* s, const unsigned char* h,
     const unsigned char* data, unsigned int blocks)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "movi	v2.16b, #0\n\t"
         "ld1	{v1.16b}, [%x[h]]\n\t"
         "ld1	{v0.16b}, [%x[s]]\n\t"
@@ -46088,7 +46176,9 @@ void AES_GCMSIV_ctr_aarch64(const unsigned char* in, unsigned char* out,
     unsigned long length, const unsigned char* KS, int nr, unsigned char* ctr)
 {
     __asm__ __volatile__ (
+#ifndef __ghs__
     ".arch_extension crypto\n\t"
+#endif /* __ghs__ */
         "ld1	{v15.2d}, [%x[ctr]]\n\t"
         "mov	w7, v15.s[0]\n\t"
         "lsr	x6, %x[length], #4\n\t"
