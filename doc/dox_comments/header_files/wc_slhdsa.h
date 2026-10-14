@@ -11,7 +11,9 @@
     f = fast signing).
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or param is invalid.
+    \return BAD_FUNC_ARG if key is NULL.
+    \return NOT_COMPILED_IN if param is not a parameter set built in. The key
+    is zeroed first, so wc_SlhDsaKey_Free() is safe after any failure.
 
     \param [in,out] key Pointer to the SlhDsaKey to initialize.
     \param [in] param Parameter set to use. One of: SLHDSA_SHAKE128S,

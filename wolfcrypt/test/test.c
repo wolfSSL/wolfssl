@@ -77312,6 +77312,26 @@ static wc_test_ret_t slhdsa_id_label_test(void)
 }
 #endif /* WOLF_PRIVATE_KEY_ID && (SHAKE128S|F || SHA2_128S|F) */
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#define SLHDSA_TEST_INIT_FAIL_FREE
+/* Free must be safe after Init fails on uninitialized memory. */
+static wc_test_ret_t slhdsa_init_fail_free_test(void)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        return WC_TEST_RET_ENC_EC(MEMORY_E));
+    XMEMSET(key, 0xA5, sizeof(SlhDsaKey));
+    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)0x7f, HEAP_HINT, devId);
+    wc_SlhDsaKey_Free(key);
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return WC_TEST_RET_ENC_EC(ret);
+    return 0;
+}
+#endif
+
 wc_test_ret_t slhdsa_test(void)
 {
     int ret = 0;
@@ -79215,6 +79235,11 @@ out:
     WC_FREE_VAR_EX(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #endif /* WOLFSSL_SLHDSA_PARAM_128S */
+
+#ifdef SLHDSA_TEST_INIT_FAIL_FREE
+    if (ret == 0)
+        ret = (int)slhdsa_init_fail_free_test();
+#endif
 
     return ret;
 }
