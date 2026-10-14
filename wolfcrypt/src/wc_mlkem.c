@@ -1503,9 +1503,6 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 #endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
 #endif
 
-#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
-    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
-#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
 static int wc_mlkemkey_check_h(MlKemKey* key)
 {
     int ret = 0;
@@ -1547,8 +1544,6 @@ static int wc_mlkemkey_check_h(MlKemKey* key)
 
     return ret;
 }
-#endif /* !WOLF_CRYPTO_CB_ONLY_MLKEM */
-#endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
 /**
@@ -2542,6 +2537,7 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     word32 pubLen = 0;
     unsigned int k = 0;
     const unsigned char* p = in;
+    byte h[WC_ML_KEM_SYM_SZ];
 
     if ((key == NULL) || (in == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -2600,11 +2596,34 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     if ((ret == 0) && (len != pubLen)) {
         ret = BUFFER_E;
     }
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PRIV_SET) != 0)) {
+        /* Make sure key->h is H(ek) of the private key's own public key. */
+        ret = wc_mlkemkey_check_h(key);
+    }
     if (ret == 0) {
+        ret = MLKEM_HASH_H(&key->hash, in, len, h);
+    }
+    if (ret == 0) {
+        /* Wipe a private key that does not match the new public key. */
+        if (((key->flags & MLKEM_FLAG_PRIV_SET) != 0) &&
+                (XMEMCMP(h, key->h, WC_ML_KEM_SYM_SZ) != 0)) {
+        #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+            if (key->priv != NULL) {
+                ForceZero(key->priv, key->privAllocSz);
+            }
+        #else
+            ForceZero(key->priv, sizeof(key->priv));
+        #endif
+            ForceZero(key->z, WC_ML_KEM_SYM_SZ);
+            key->flags &= ~MLKEM_FLAG_PRIV_SET;
+        }
         /* Forget the old public key and its cached matrix before they are
          * replaced, so a failure from here on leaves no public key. */
-        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET |
-                        MLKEM_FLAG_A_SET);
+        key->flags &= ~(MLKEM_FLAG_PUB_SET | MLKEM_FLAG_A_SET);
+        /* A kept private key still matches key->h, so a retry can compare. */
+        if ((key->flags & MLKEM_FLAG_PRIV_SET) == 0) {
+            key->flags &= ~MLKEM_FLAG_H_SET;
+        }
     }
 
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
@@ -2620,10 +2639,7 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
         ret = mlkem_check_reduced(key->pub, (int)k);
     }
     if (ret == 0) {
-        /* Calculate public hash. */
-        ret = MLKEM_HASH_H(&key->hash, in, len, key->h);
-    }
-    if (ret == 0) {
+        XMEMCPY(key->h, h, WC_ML_KEM_SYM_SZ);
         /* Record public key and public hash set. */
         key->flags |= MLKEM_FLAG_PUB_SET | MLKEM_FLAG_H_SET;
     }
