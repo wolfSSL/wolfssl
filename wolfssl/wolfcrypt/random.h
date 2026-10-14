@@ -1009,8 +1009,8 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
 #endif
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
-    /* DRBG state mutex init/free, called from wolfCrypt_Init/Cleanup.
-     * Only in v7+ or non-FIPS/non-selftest; older modules lack these. */
+    /* DRBG state mutex init/free: Init runs from wolfCrypt_Init and on first
+     * DRBG use, Free from wolfCrypt_Cleanup.  v7+ or non-FIPS, no selftest. */
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_LOCAL int wc_DrbgState_MutexInit(void);
