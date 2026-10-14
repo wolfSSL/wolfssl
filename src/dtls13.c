@@ -527,7 +527,7 @@ int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
 }
 
 /* Handshake header DTLS only fields are not included in the transcript hash */
-int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
+int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word32 length)
 {
     int ret;
 
@@ -546,7 +546,7 @@ int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
     input += OPAQUE64_LEN;
     length -= OPAQUE64_LEN;
 
-    return HashRaw(ssl, input, length);
+    return HashRaw(ssl, input, (int)length);
 }
 
 static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
