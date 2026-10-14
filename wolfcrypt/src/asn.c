@@ -25098,7 +25098,8 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+int ParseCertEx(DecodedCert* cert, int type, int verify,
+                WOLFSSL_CERT_MANAGER* cm, Signer* extraCa)
 {
     int   ret;
 #if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
@@ -25106,7 +25107,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
     char* ptr;
 #endif
 
-    ret = ParseCertRelative(cert, type, verify, cm, NULL);
+    ret = ParseCertRelative(cert, type, verify, cm, extraCa);
     if (ret < 0)
         return ret;
 
@@ -25147,6 +25148,11 @@ int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
 #endif
 
     return ret;
+}
+
+int ParseCert(DecodedCert* cert, int type, int verify, WOLFSSL_CERT_MANAGER* cm)
+{
+    return ParseCertEx(cert, type, verify, cm, NULL);
 }
 
 int wc_ParseCert(DecodedCert* cert, int type, int verify,
