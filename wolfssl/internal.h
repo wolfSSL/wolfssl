@@ -2986,6 +2986,10 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 
 
 #ifndef NO_CERTS
+WOLFSSL_LOCAL Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base,
+        Signer** pTail);
+WOLFSSL_LOCAL void SslWaivedCAsSplit(Signer* tail);
+
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 typedef struct ProcPeerCertArgs {
     buffer*      certs;
@@ -3017,11 +3021,6 @@ typedef struct ProcPeerCertArgs {
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);
-#ifndef NO_CERTS
-WOLFSSL_LOCAL Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base,
-        Signer** pTail);
-WOLFSSL_LOCAL void SslWaivedCAsSplit(Signer* tail);
-#endif
 WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         ProcPeerCertArgs* args, int* outRet);
 

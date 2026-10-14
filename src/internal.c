@@ -16484,6 +16484,29 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+/* Join the connection's accepted CAs onto base for one lookup. */
+Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base, Signer** pTail)
+{
+    Signer* tail = NULL;
+
+    if (ssl != NULL && ssl->waivedCAs != NULL) {
+        tail = ssl->waivedCAs;
+        while (tail->next != NULL)
+            tail = tail->next;
+        tail->next = base;
+        base = ssl->waivedCAs;
+    }
+    *pTail = tail;
+
+    return base;
+}
+
+void SslWaivedCAsSplit(Signer* tail)
+{
+    if (tail != NULL)
+        tail->next = NULL;
+}
+
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
@@ -16890,31 +16913,6 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 #endif
 }
 #endif
-
-#ifndef NO_CERTS
-/* Join the connection's accepted CAs onto base for one lookup. */
-Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base, Signer** pTail)
-{
-    Signer* tail = NULL;
-
-    if (ssl != NULL && ssl->waivedCAs != NULL) {
-        tail = ssl->waivedCAs;
-        while (tail->next != NULL)
-            tail = tail->next;
-        tail->next = base;
-        base = ssl->waivedCAs;
-    }
-    *pTail = tail;
-
-    return base;
-}
-
-void SslWaivedCAsSplit(Signer* tail)
-{
-    if (tail != NULL)
-        tail->next = NULL;
-}
-#endif /* !NO_CERTS */
 
 #ifndef NO_ASN
 /* Parse a chain certificate as a CA and return it as a filled signer. */
