@@ -65407,6 +65407,107 @@ static wc_test_ret_t mlkem_certgen_test(void)
 }
 #endif /* ML-KEM certificate generation test */
 
+#if defined(WC_MLKEM_HAVE_NATIVE) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#define MLKEM_TEST_DECODE_PUB
+/* Decoding a key's own public key keeps its private key; another key's public
+ * key drops it. */
+static wc_test_ret_t mlkem_decode_pub_test(void)
+{
+    wc_test_ret_t ret;
+    WC_RNG rng;
+    int rng_inited = 0;
+    MlKemKey* a = NULL;
+    MlKemKey* b = NULL;
+    byte* pub = NULL;
+    byte* ct = NULL;
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte ssA[WC_ML_KEM_SS_SZ];
+    byte rnd[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    word32 pubSz = 0;
+    word32 ctSz = 0;
+
+    a = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    b = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (byte*)XMALLOC(WC_ML_KEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ct = (byte*)XMALLOC(WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((a == NULL) || (b == NULL) || (pub == NULL) || (ct == NULL))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+    XMEMSET(a, 0, sizeof(MlKemKey));
+    XMEMSET(b, 0, sizeof(MlKemKey));
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rng_inited = 1;
+
+    ret = wc_MlKemKey_Init(a, WC_ML_KEM_768, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0)
+        ret = wc_MlKemKey_Init(b, WC_ML_KEM_768, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(&rng, rnd, sizeof(rnd));
+    /* Same key twice; a's public key hash is not computed yet. */
+    if (ret == 0)
+        ret = wc_MlKemKey_MakeKeyWithRandom(a, rnd, sizeof(rnd));
+    if (ret == 0)
+        ret = wc_MlKemKey_MakeKeyWithRandom(b, rnd, sizeof(rnd));
+    if (ret == 0)
+        ret = wc_MlKemKey_PublicKeySize(b, &pubSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_CipherTextSize(b, &ctSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_EncodePublicKey(b, pub, pubSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_Encapsulate(b, ct, ss, &rng);
+    if (ret == 0)
+        ret = wc_MlKemKey_DecodePublicKey(a, pub, pubSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_Decapsulate(a, ssA, ct, ctSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ss, ssA, sizeof(ss)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = wc_MlKemKey_MakeKey(b, &rng);
+    if (ret == 0)
+        ret = wc_MlKemKey_EncodePublicKey(b, pub, pubSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_Encapsulate(b, ct, ss, &rng);
+    if (ret == 0)
+        ret = wc_MlKemKey_DecodePublicKey(a, pub, pubSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_Decapsulate(a, ssA, ct, ctSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = 0;
+
+out:
+    if (a != NULL)
+        wc_MlKemKey_Free(a);
+    if (b != NULL)
+        wc_MlKemKey_Free(b);
+    XFREE(a, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rng_inited)
+        wc_FreeRng(&rng);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
     wc_test_ret_t ret;
@@ -65691,6 +65792,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     if (ret != 0)
         goto out;
     ret = mlkem_seed_consistency_test();
+    if (ret != 0)
+        goto out;
+#endif
+
+#ifdef MLKEM_TEST_DECODE_PUB
+    ret = mlkem_decode_pub_test();
     if (ret != 0)
         goto out;
 #endif

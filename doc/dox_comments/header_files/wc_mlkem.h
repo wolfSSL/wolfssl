@@ -378,7 +378,8 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
 
     \brief Decodes a raw ML-KEM public key into key. The variant must
     already be selected on the key and len must match the public key
-    size for that variant.
+    size for that variant. A private key held by key that does not match
+    the new public key is zeroized and dropped.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL or len does
