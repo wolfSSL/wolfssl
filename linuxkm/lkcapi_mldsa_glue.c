@@ -1028,7 +1028,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating sig algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -1087,7 +1087,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     sig_copy[0] ^= 1U;
 
     ret = crypto_sig_verify(tfm, sig_copy, sig_len, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify returned %d, expected %d\n",
                ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
@@ -1098,7 +1098,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     /* a wrong-size signature must also fail with -EBADMSG (as
      * in-tree). */
     ret = crypto_sig_verify(tfm, sig_copy, sig_len - 1, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (short sig) returned %d, "
                "expected %d\n", ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
@@ -1110,7 +1110,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
      * (matching the in-tree ML-DSA), which is itself checked. */
     ret = crypto_sig_set_privkey(tfm, seed, seed_len);
     if (! expect_sign) {
-        if (ret != -EOPNOTSUPP) {
+        if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
             pr_err("error: crypto_sig_set_privkey returned %d, "
                    "expected %d\n", ret, -EOPNOTSUPP);
             test_rc = BAD_FUNC_ARG;
@@ -1157,7 +1157,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
 
         sig_out[0] ^= 1U;
         ret = crypto_sig_verify(tfm, sig_out, sig_len, msg, msg_len);
-        if (ret != -EBADMSG) {
+        if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
             pr_err("error: crypto_sig_verify of corrupted own "
                    "signature returned %d, expected %d\n",
                    ret, -EBADMSG);
@@ -1169,7 +1169,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         /* a short dst must be rejected with -EOVERFLOW. */
         ret = crypto_sig_sign(tfm, msg, msg_len, sig_out, sig_len - 1);
         free(sig_out);
-        if (ret != -EOVERFLOW) {
+        if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
             pr_err("error: crypto_sig_sign returned %d, expected %d\n",
                    ret, -EOVERFLOW);
             test_rc = BAD_FUNC_ARG;
@@ -1188,7 +1188,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
             goto test_mldsa_end;
         }
         ret = crypto_sig_sign(tfm, msg, msg_len, sig_copy, sig_len);
-        if (ret != -EINVAL) {
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
             pr_err("error: crypto_sig_sign after set_pubkey rekey "
                    "returned %d, expected %d\n", ret, -EINVAL);
             test_rc = BAD_FUNC_ARG;
@@ -1228,14 +1228,14 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         /* a rejected set_pub_key must leave the transform keyless -- no
          * verification against the previously installed key. */
         ret = crypto_sig_set_pubkey(tfm, pub, pub_len - 1);
-        if (ret != -EINVAL) {
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
             pr_err("error: crypto_sig_set_pubkey (short) returned %d, "
                    "expected %d\n", ret, -EINVAL);
             test_rc = BAD_FUNC_ARG;
             goto test_mldsa_end;
         }
         ret = crypto_sig_verify(tfm, sig_copy, sig_len, NULL, 0);
-        if (ret != -EINVAL) {
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
             pr_err("error: crypto_sig_verify after rejected set_pubkey "
                    "returned %d, expected %d\n", ret, -EINVAL);
             test_rc = BAD_FUNC_ARG;
@@ -1304,7 +1304,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating akcipher algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -1379,7 +1379,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
 
     /* it should fail */
     ret = crypto_akcipher_verify(req);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify returned %d, expected %d\n",
                ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
@@ -1391,7 +1391,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
      * (matching the in-tree ML-DSA), which is itself checked. */
     ret = crypto_akcipher_set_priv_key(tfm, seed, seed_len);
     if (! expect_sign) {
-        if (ret != -EOPNOTSUPP) {
+        if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
             pr_err("error: crypto_akcipher_set_priv_key returned %d, "
                    "expected %d\n", ret, -EOPNOTSUPP);
             test_rc = BAD_FUNC_ARG;
@@ -1432,7 +1432,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
          * through verify instead (the seed-derived public key equals
          * the KAT public key set above). */
         ret = crypto_akcipher_sign(req);
-        if (ret == -ENOSYS) {
+        if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
             /* RHEL akcipher crippled sign ops */
             pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
             test_rc = 0;
@@ -1467,7 +1467,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         akcipher_request_set_crypt(req, rt_src, NULL, sig_len, msg_len);
 
         ret = crypto_akcipher_verify(req);
-        if (ret != -EBADMSG) {
+        if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
             pr_err("error: crypto_akcipher_verify of corrupted own "
                    "signature returned %d, expected %d\n",
                    ret, -EBADMSG);
@@ -1487,7 +1487,7 @@ static int linuxkm_test_mldsa_driver(const char * driver,
                                    sig_len - 1);
         ret = crypto_akcipher_sign(req);
         free(sig_out);
-        if ((ret != -EOVERFLOW) || (req->dst_len != sig_len)) {
+        if ((ret != -WC_NO_ERR_TRACE(EOVERFLOW)) || (req->dst_len != sig_len)) {
             pr_err("error: crypto_akcipher_sign returned %d, "
                    "dst_len %u, expected %d, %u\n",
                    ret, req->dst_len, -EOVERFLOW, sig_len);

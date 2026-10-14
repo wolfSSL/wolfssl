@@ -2407,7 +2407,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     ret = crypto_akcipher_decrypt(req);
    #if defined(RHEL_RELEASE_CODE) && \
               (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_rsa_end;
@@ -2796,7 +2796,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_sign(req);
     #if defined(RHEL_RELEASE_CODE) && \
                (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_sign (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_pkcs1_end;
@@ -2930,7 +2930,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_decrypt(req);
     #if defined(RHEL_RELEASE_CODE) && \
                (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_pkcs1_end;

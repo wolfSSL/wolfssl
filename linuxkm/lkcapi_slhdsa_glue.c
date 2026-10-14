@@ -1993,7 +1993,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating sig algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -2061,7 +2061,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
 
     /* insufficient dst space must fail with -EOVERFLOW. */
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len - 1);
-    if (ret != -EOVERFLOW) {
+    if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
         pr_err("error: crypto_sig_sign (short dst) returned %d, "
                "expected %d\n", ret, -EOVERFLOW);
         test_rc = BAD_FUNC_ARG;
@@ -2109,14 +2109,14 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
 
     /* sign-side stubs must report -EOPNOTSUPP. */
     ret = crypto_sig_set_privkey(tfm, pub, pub_len);
-    if (ret != -EOPNOTSUPP) {
+    if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
         pr_err("error: crypto_sig_set_privkey returned %d, "
                "expected %d\n", ret, -EOPNOTSUPP);
         test_rc = BAD_FUNC_ARG;
         goto test_slhdsa_end;
     }
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len);
-    if (ret != -EOPNOTSUPP) {
+    if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
         pr_err("error: crypto_sig_sign returned %d, expected %d\n",
                ret, -EOPNOTSUPP);
         test_rc = BAD_FUNC_ARG;
@@ -2129,7 +2129,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
      * computation. */
     sig_buf[sig_len / 2] ^= 1U;
     ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify returned %d, expected %d\n",
                ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
@@ -2138,7 +2138,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
 
     /* a wrong-size signature must also fail with -EBADMSG. */
     ret = crypto_sig_verify(tfm, sig_buf, sig_len - 1, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (short sig) returned %d, "
                "expected %d\n", ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
@@ -2234,7 +2234,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating akcipher algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -2283,7 +2283,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
                                sig_len);
 
     ret = crypto_akcipher_sign(req);
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         /* RHEL akcipher crippled sign ops */
         pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
         test_rc = 0;
@@ -2322,7 +2322,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     akcipher_request_set_crypt(req, &src_tab[0], &dst_sg, msg_len,
                                sig_len - 1);
     ret = crypto_akcipher_sign(req);
-    if (ret != -EOVERFLOW) {
+    if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
         pr_err("error: crypto_akcipher_sign (short dst) returned %d, "
                "expected %d\n", ret, -EOVERFLOW);
         test_rc = BAD_FUNC_ARG;
@@ -2346,7 +2346,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
 
     /* sign-side stubs must report -EOPNOTSUPP. */
     ret = crypto_akcipher_set_priv_key(tfm, pub, pub_len);
-    if (ret != -EOPNOTSUPP) {
+    if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
         pr_err("error: crypto_akcipher_set_priv_key returned %d, "
                "expected %d\n", ret, -EOPNOTSUPP);
         test_rc = BAD_FUNC_ARG;
@@ -2357,7 +2357,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     akcipher_request_set_crypt(req, &src_tab[0], &dst_sg, msg_len,
                                sig_len);
     ret = crypto_akcipher_sign(req);
-    if (ret != -EOPNOTSUPP) {
+    if (ret != -WC_NO_ERR_TRACE(EOPNOTSUPP)) {
         pr_err("error: crypto_akcipher_sign returned %d, expected %d\n",
                ret, -EOPNOTSUPP);
         test_rc = BAD_FUNC_ARG;
@@ -2374,7 +2374,7 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
     akcipher_request_set_crypt(req, src_tab, NULL, sig_len, msg_len);
 
     ret = crypto_akcipher_verify(req);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify returned %d, expected "
                "%d\n", ret, -EBADMSG);
         test_rc = BAD_FUNC_ARG;
