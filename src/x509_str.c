@@ -669,6 +669,32 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     return ret;
 }
 
+/* In the handshake, report the trust anchor above the peer's chain to the
+ * verify callback, like OpenSSL. The certs the peer sent are reported when
+ * X509_verify_cert() runs for each of them. */
+static int X509StoreVerifyAnchor(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509* anchor, WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
+{
+    WOLFSSL_X509* cur = ctx->current_cert;
+    int err = ctx->error;
+    int errDepth = ctx->error_depth;
+    int depth = ctx->peerCertDepth + wolfSSL_sk_X509_num(ctx->chain) - 1;
+
+    if (verifyCb == NULL || ctx->totalCerts == 0 ||
+            depth < ctx->totalCerts || wolfSSL_X509_cmp(anchor, cur) == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    ctx->current_cert = anchor;
+    ctx->error = WOLFSSL_X509_V_OK;
+    ctx->error_depth = depth;
+    if (verifyCb(1, ctx) != 1)
+        return WOLFSSL_FAILURE;
+    ctx->current_cert = cur;
+    ctx->error = err;
+    ctx->error_depth = errDepth;
+    return WOLFSSL_SUCCESS;
+}
+
 static int addAllButSelfSigned(WOLF_STACK_OF(WOLFSSL_X509)*to,
                                WOLF_STACK_OF(WOLFSSL_X509)*from, int *numAdded)
 {
@@ -1210,6 +1236,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     #endif
             if (issuer != NULL) {
                 X509StoreChainPush(ctx->chain, issuer);
+                if (X509StoreVerifyAnchor(ctx, issuer, verifyCb) !=
+                        WOLFSSL_SUCCESS) {
+                    ret = WOLFSSL_FAILURE;
+                    goto exit;
+                }
             }
 
             done = 1;

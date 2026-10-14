@@ -16860,6 +16860,7 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 /* Callback is issued for certificate presented in TLS Certificate (11) packet.
  * The intermediates are done first then peer leaf cert last. Use the
  * store->error_depth member to determine index (0=peer, >1 intermediates)
+ * The trust anchor above them is reported first, see DoVerifyCallbackAnchor().
  */
 
 int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
@@ -17020,6 +17021,88 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
 
     return ret;
 }
+
+#if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+/* Report the trust anchor that signed the last cert of the peer's chain to the
+ * verify callback first, at the depth after that cert, like OpenSSL. parseRet
+ * is the result of verifying that cert. With a cert verify callback,
+ * X509_verify_cert() reports the anchor instead. */
+static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
+    int parseRet)
+{
+    int ret;
+    int verifyFail = 0;
+    int x509Free = 0;
+    int certIdx = args->certIdx;
+    DecodedCert* dCert = args->dCert;
+    Signer* ca;
+    WOLFSSL_X509_STORE_CTX* store = NULL;
+    WC_DECLARE_VAR(anchor, DecodedCert, 1, 0);
+
+    if (args->anchorReported || certIdx != args->totalCerts - 1 ||
+            ssl->options.verifyNone || UsingChainVerifyCb(ssl) ||
+            dCert == NULL || !args->dCertInit ||
+            (parseRet != 0 &&
+             parseRet != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
+             parseRet != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
+        return 0;
+    }
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    if (args->haveTrustPeer)
+        return 0;
+#endif
+#ifdef OPENSSL_ALL
+    if (ssl->ctx->verifyCertCb != NULL)
+        return 0;
+#endif
+    ca = dCert->ca;
+    if (ca == NULL || ca->derCert == NULL || dCert->selfSigned)
+        return 0;
+    if (ssl->verifyCallback == NULL
+#if defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
+            && (SSL_STORE(ssl) == NULL || SSL_STORE(ssl)->verify_cb == NULL)
+#endif
+            ) {
+        return 0;
+    }
+    args->anchorReported = 1;
+
+    WC_ALLOC_VAR_EX(anchor, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
+    InitDecodedCert(anchor, ca->derCert->buffer, ca->derCert->length,
+        ssl->heap);
+    ret = ParseCert(anchor, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+    if (ret == 0) {
+        args->dCert = anchor;
+        args->certIdx = certIdx + 1;
+        ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
+            ssl->heap, &x509Free);
+        args->dCert = dCert;
+        args->certIdx = certIdx;
+    }
+    if (ret == 0) {
+        if (ssl->verifyCallback != NULL && !ssl->verifyCallback(1, store))
+            verifyFail = 1;
+#if defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
+        if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL &&
+                !SSL_STORE(ssl)->verify_cb(1, store)) {
+            verifyFail = 1;
+        }
+#endif
+        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
+        if (verifyFail) {
+            WOLFSSL_MSG("Verify callback rejected trust anchor");
+            ret = VERIFY_CERT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        }
+    }
+    FreeDecodedCert(anchor);
+    WC_FREE_VAR_EX(anchor, ssl->heap, DYNAMIC_TYPE_DCERT);
+    return ret;
+}
+#endif
 
 #ifdef HAVE_CRL
 void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -19234,6 +19317,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                         goto exit_ppc;
                 #endif
+                #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+                    {
+                        int anchorRet = DoVerifyCallbackAnchor(ssl, args, ret);
+                        if (anchorRet != 0) {
+                            ret = anchorRet;
+                            DoCertFatalAlert(ssl, ret);
+                            goto exit_ppc;
+                        }
+                    }
+                #endif
                     if (ret == 0 || ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN)) {
                         ret = ProcessPeerCertCheckKey(ssl, args);
                     }
@@ -19686,6 +19779,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;
+            #endif
+            #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+                {
+                    int anchorRet = DoVerifyCallbackAnchor(ssl, args, ret);
+                    if (anchorRet != 0) {
+                        ret = anchorRet;
+                        args->fatal = 1;
+                        DoCertFatalAlert(ssl, ret);
+                        goto exit_ppc;
+                    }
+                }
             #endif
 
                 if (ret == 0) {

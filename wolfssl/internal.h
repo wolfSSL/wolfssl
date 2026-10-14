@@ -3020,6 +3020,9 @@ typedef struct ProcPeerCertArgs {
 #ifdef OPENSSL_ALL
     word16 peerCertVerified:1; /* cert verify callback accepted peer cert */
 #endif
+#ifdef OPENSSL_EXTRA
+    word16 anchorReported:1; /* trust anchor reported to verify callback */
+#endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);

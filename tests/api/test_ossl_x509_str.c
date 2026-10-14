@@ -4348,9 +4348,16 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
 }
 
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL)
-#define TEST_CVCB_DEPTHS 3
+#define TEST_CVCB_DEPTHS 4
 static X509* test_cvcb_peer;          /* peer cert the verify cb expects */
-static X509* test_cvcb_chain[TEST_CVCB_DEPTHS]; /* expected intermediates */
+static X509* test_cvcb_chain[TEST_CVCB_DEPTHS]; /* expected CA certs */
+/* Files of the CA certs expected above the peer cert of server-chain.pem */
+static const char* test_cvcb_int_chain[TEST_CVCB_DEPTHS] = {
+    NULL, "./certs/intermediate/ca-int2-cert.pem",
+    "./certs/intermediate/ca-int-cert.pem", "./certs/ca-cert.pem"
+};
+static const char* const* test_cvcb_chain_files = test_cvcb_int_chain;
+static int test_cvcb_pin;             /* reject unexpected CA certs */
 static const char* test_cvcb_host;    /* host name to verify */
 static const char* test_cvcb_ip;      /* IP address to verify */
 static int test_cvcb_verify_ret;      /* verify cb result for the peer cert:
@@ -4361,6 +4368,8 @@ static int test_cvcb_cert_verify_calls;
 static int test_cvcb_leaf_calls;      /* verify cb calls for the peer cert */
 static int test_cvcb_leaf_outside;    /* those outside the cert verify cb */
 static int test_cvcb_depths;          /* depths seen by the verify cb */
+static int test_cvcb_depth_calls[TEST_CVCB_DEPTHS]; /* calls per depth */
+static int test_cvcb_first_depth;     /* depth of the first call */
 static int test_cvcb_bad_depth;       /* certs seen at the wrong depth */
 
 /* Like OpenVPN's cert_verify_callback, which returns X509_verify_cert(). */
@@ -4389,12 +4398,18 @@ static int test_cvcb_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
         test_cvcb_bad_depth++;
         return 0;
     }
+    if (test_cvcb_depths == 0)
+        test_cvcb_first_depth = depth;
     test_cvcb_depths |= 1 << depth;
+    test_cvcb_depth_calls[depth]++;
     if (depth > 0) {
-        /* Each intermediate is reported at its depth in the peer's chain. */
+        /* Each CA cert is reported at its depth in the peer's chain. Like
+         * OpenVPN's --verify-hash, a pin rejects an unexpected one. */
         if (test_cvcb_chain[depth] == NULL ||
                 X509_cmp(cert, test_cvcb_chain[depth]) != 0) {
             test_cvcb_bad_depth++;
+            if (test_cvcb_pin)
+                return 0;
         }
         return (test_cvcb_verify_ret == -2) ? preverify_ok : 1;
     }
@@ -4472,6 +4487,7 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
     int verifyRet, int certVerifyRet)
 {
     int ret;
+    int i;
     test_ssl_cbf client_cbs;
     test_ssl_cbf server_cbs;
 
@@ -4485,10 +4501,14 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
 
     test_cvcb_peer = wolfSSL_X509_load_certificate_file(peerFile,
         WOLFSSL_FILETYPE_PEM);
-    test_cvcb_chain[1] = wolfSSL_X509_load_certificate_file(
-        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM);
-    test_cvcb_chain[2] = wolfSSL_X509_load_certificate_file(
-        "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM);
+    for (i = 1; i < TEST_CVCB_DEPTHS; i++) {
+        test_cvcb_chain[i] = (test_cvcb_chain_files[i] == NULL) ? NULL :
+            wolfSSL_X509_load_certificate_file(test_cvcb_chain_files[i],
+                WOLFSSL_FILETYPE_PEM);
+        test_cvcb_depth_calls[i] = 0;
+    }
+    test_cvcb_depth_calls[0] = 0;
+    test_cvcb_first_depth = -1;
     test_cvcb_verify_ret = verifyRet;
     test_cvcb_cert_verify_ret = certVerifyRet;
     test_cvcb_in_cert_verify = 0;
@@ -4499,10 +4519,10 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
     test_cvcb_bad_depth = 0;
     ret = test_wolfSSL_client_server_nofail_memio(&client_cbs, &server_cbs,
         NULL);
-    X509_free(test_cvcb_chain[2]);
-    test_cvcb_chain[2] = NULL;
-    X509_free(test_cvcb_chain[1]);
-    test_cvcb_chain[1] = NULL;
+    for (i = 1; i < TEST_CVCB_DEPTHS; i++) {
+        X509_free(test_cvcb_chain[i]);
+        test_cvcb_chain[i] = NULL;
+    }
     X509_free(test_cvcb_peer);
     test_cvcb_peer = NULL;
     return ret;
@@ -4621,7 +4641,7 @@ int test_wolfSSL_CTX_set_cert_verify_callback_host(void)
         "./certs/intermediate/server-chain.pem", svrKeyFile,
         "./certs/intermediate/server-int-cert.pem", -2, -1), TEST_SUCCESS);
     ExpectIntEQ(test_cvcb_cert_verify_calls, 3);
-    ExpectIntEQ(test_cvcb_depths, 0x7);
+    ExpectIntEQ(test_cvcb_depths, 0xf);
     ExpectIntEQ(test_cvcb_bad_depth, 0);
 
     test_cvcb_host = "wolfSSL Intermediate2 CA";
@@ -4679,6 +4699,86 @@ int test_wolfSSL_CTX_set_cert_verify_callback_no_peer_cert(void)
     ExpectIntEQ(test_cvcb_no_peer_cert(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method), TEST_SUCCESS);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_SIGNER_DER_CERT)
+/* The verify callback without a cert verify callback */
+static int test_cvcb_ctx_ready_verify(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, test_cvcb_verify_cb);
+    return TEST_SUCCESS;
+}
+#endif
+
+/* The verify callback sees the trust anchor that signed the last cert the peer
+ * sent, at the depth after it, like in OpenSSL. OpenVPN's --verify-hash checks
+ * the CA that signed the peer cert there. Without a cert verify callback, and
+ * with one that calls X509_verify_cert(). */
+int test_wolfSSL_verify_cb_trust_anchor(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_SIGNER_DER_CERT)
+    static const char* eccCa[TEST_CVCB_DEPTHS] = {
+        NULL, "./certs/ca-ecc-cert.pem", NULL, NULL
+    };
+    static const char* rsaCa[TEST_CVCB_DEPTHS] = {
+        NULL, "./certs/ca-cert.pem", NULL, NULL
+    };
+    ctx_cb ready[2];
+    int i;
+
+    ready[0] = test_cvcb_ctx_ready_verify;
+    ready[1] = test_cvcb_ctx_ready;
+    for (i = 0; i < 2; i++) {
+    #ifdef HAVE_ECC
+        /* The peer sends no chain. The anchor is reported first. */
+        test_cvcb_chain_files = eccCa;
+        ExpectIntEQ(test_cvcb_run(ready[i], "./certs/ca-ecc-cert.pem",
+            "./certs/server-ecc.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc.pem", 1, -1), TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depths, 0x3);
+        ExpectIntEQ(test_cvcb_depth_calls[1], 1);
+        ExpectIntEQ(test_cvcb_bad_depth, 0);
+        if (i == 0) {
+            ExpectIntEQ(test_cvcb_first_depth, 1);
+        }
+
+        /* Pinned to another CA, like --verify-hash */
+        test_cvcb_chain_files = rsaCa;
+        test_cvcb_pin = 1;
+        ExpectIntEQ(test_cvcb_run(ready[i], "./certs/ca-ecc-cert.pem",
+            "./certs/server-ecc.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc.pem", 1, -1), -1001);
+        test_cvcb_pin = 0;
+        test_cvcb_chain_files = test_cvcb_int_chain;
+    #endif
+    #ifndef NO_RSA
+        /* Above the chain the peer sends */
+        ExpectIntEQ(test_cvcb_run(ready[i], NULL,
+            "./certs/intermediate/server-chain.pem", svrKeyFile,
+            "./certs/intermediate/server-int-cert.pem", 1, -1),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depths, 0xf);
+        ExpectIntEQ(test_cvcb_depth_calls[3], 1);
+        ExpectIntEQ(test_cvcb_bad_depth, 0);
+        if (i == 0) {
+            ExpectIntEQ(test_cvcb_first_depth, 3);
+        }
+
+        /* Reported once when the peer sends it too */
+        test_cvcb_chain_files = rsaCa;
+        ExpectIntEQ(test_cvcb_run(ready[i], NULL, NULL, NULL, svrCertFile, 1,
+            -1), TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depths, 0x3);
+        ExpectIntEQ(test_cvcb_depth_calls[1], 1);
+        ExpectIntEQ(test_cvcb_bad_depth, 0);
+        test_cvcb_chain_files = test_cvcb_int_chain;
+    #endif
+    }
 #endif
     return EXPECT_RESULT();
 }
