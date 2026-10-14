@@ -4641,7 +4641,12 @@ int test_wolfSSL_CTX_set_cert_verify_callback_host(void)
         "./certs/intermediate/server-chain.pem", svrKeyFile,
         "./certs/intermediate/server-int-cert.pem", -2, -1), TEST_SUCCESS);
     ExpectIntEQ(test_cvcb_cert_verify_calls, 3);
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    /* The trust anchor too */
     ExpectIntEQ(test_cvcb_depths, 0xf);
+#else
+    ExpectIntEQ(test_cvcb_depths, 0x7);
+#endif
     ExpectIntEQ(test_cvcb_bad_depth, 0);
 
     test_cvcb_host = "wolfSSL Intermediate2 CA";
@@ -4722,9 +4727,11 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
     EXPECT_DECLS;
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
     defined(WOLFSSL_SIGNER_DER_CERT)
+#ifdef HAVE_ECC
     static const char* eccCa[TEST_CVCB_DEPTHS] = {
         NULL, "./certs/ca-ecc-cert.pem", NULL, NULL
     };
+#endif
     static const char* rsaCa[TEST_CVCB_DEPTHS] = {
         NULL, "./certs/ca-cert.pem", NULL, NULL
     };
