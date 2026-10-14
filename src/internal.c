@@ -11368,8 +11368,10 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
     WOLFSSL_ENTER("DtlsMsgSet");
 
-    if (msg == NULL || data == NULL || msg->sz != totalLen ||
-            fragOffsetEnd > totalLen) {
+    /* no_shake marks an unpopulated msg so it is not a valid wire type. */
+    if (msg == NULL || data == NULL || type == no_shake ||
+            msg->sz != totalLen || fragSz > totalLen ||
+            fragOffset > totalLen - fragSz) {
         WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
