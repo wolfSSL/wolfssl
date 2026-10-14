@@ -11318,7 +11318,7 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
     return newBucket;
 }
 
-static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
+static int DtlsMsgAssembleCompleteMessage(DtlsMsg* msg, void* heap)
 {
     DtlsHandShakeHeader* dtls;
 
@@ -11326,7 +11326,16 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
     if (msg->fragBucketListCount != 1 || msg->fragBucketList->m.m.offset != 0 ||
             msg->fragBucketList->m.m.sz != msg->sz) {
         WOLFSSL_MSG("Major error in fragment assembly logic");
-        return;
+        /* Drop the buckets so a retransmission can rebuild the message. */
+        while (msg->fragBucketList != NULL) {
+            DtlsFragBucket* next = msg->fragBucketList->m.m.next;
+            DtlsMsgDestroyFragBucket(msg->fragBucketList, heap);
+            msg->fragBucketList = next;
+        }
+        msg->fragBucketListCount = 0;
+        msg->bytesReceived = 0;
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
     }
 
     /* Re-cycle the DtlsFragBucket as the buffer that holds the complete
@@ -11358,6 +11367,8 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
     c16toa((word16)msg->seq, dtls->message_seq);
     c32to24(0, dtls->fragment_offset);
     c32to24(msg->sz, dtls->fragment_length);
+
+    return 0;
 }
 
 int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
@@ -11487,7 +11498,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
     }
 
     if (msg->bytesReceived == msg->sz)
-        DtlsMsgAssembleCompleteMessage(msg);
+        return DtlsMsgAssembleCompleteMessage(msg, heap);
 
     return 0;
 }
