@@ -36472,6 +36472,184 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK && PRESERVE_LOCK */
 
+#if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG) && \
+    defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_HAVE_LOCK) && \
+    defined(WC_RNG_RBGC_REFCOUNT)
+    /* Bank teardown against retained references to the root: an external
+     * (caller-spawned) child of the root pins it past the member frees, and
+     * the bank must stay intact -- refcount, free hook, members, root, and
+     * above all the allocation the child's RBGC_parent names -- until the
+     * child is gone.  Likewise a held root, and a root already torn down
+     * (NOT_INIT, as a failed reinit leaves it) that is still pinned. */
+    {
+        WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+        struct wc_rng_bank_inst *inst = NULL;
+        WC_RNG *root = NULL;
+        WC_RNG child;
+        int bank_inited = 0;
+        int child_inited = 0;
+
+        XMEMSET(&child, 0, sizeof(child));
+
+        WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER,
+                         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+        api_ret = wc_rng_bank_init(bank, 2,
+                                   WC_RNG_BANK_FLAG_RBGC |
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_QUIET,
+                                   10, HEAP_HINT, devId);
+        if (api_ret == 0)
+            bank_inited = 1;
+        root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
+        if ((api_ret == 0) && (root == NULL))
+            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+
+        /* spawn under the caller-held root lease: the child pins the root
+         * alongside the two members' pins. */
+        if (api_ret == 0) {
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                api_ret = wc_InitRngNonceRBGC(&child, root, NULL, 0, NULL, 0,
+                                              0);
+                if (api_ret == 0)
+                    child_inited = 1;
+                {
+                    int put_ret = wc_RNG_lock_put(root, 0);
+                    if ((api_ret == 0) && (put_ret != 0))
+                        api_ret = put_ret;
+                }
+            }
+        }
+        if ((api_ret == 0) && (child.RBGC_parent != root))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+
+        /* refused with the bank intact: root alive, members in service */
+        if (api_ret == 0) {
+            api_ret = wc_rng_bank_fini(bank);
+            if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
+                api_ret = 0;
+            else if (api_ret == 0)
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        if ((api_ret == 0) &&
+            ((wc_rng_bank_root_rng_get(bank) != root) ||
+             (wc_RNG_GetStatus(root) != WC_DRBG_OK)))
+        {
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        if (api_ret == 0) {
+            api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10,
+                                           WC_RNG_BANK_FLAG_NONE);
+            if (api_ret == 0) {
+                api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(inst),
+                                               block, (word32)sizeof(block));
+                {
+                    int ci_ret = wc_rng_bank_inst_checkin(&inst);
+                    if ((api_ret == 0) && (ci_ret != 0))
+                        api_ret = ci_ret;
+                }
+            }
+        }
+
+        /* a held root is BUSY_E, likewise with no side effects */
+        if (api_ret == 0) {
+            api_ret = wc_RNG_lock_get(root, 0);
+            if (api_ret == 0) {
+                int fini_ret = wc_rng_bank_fini(bank);
+                int put_ret = wc_RNG_lock_put(root, 0);
+                if (fini_ret != WC_NO_ERR_TRACE(BUSY_E))
+                    api_ret = (fini_ret == 0) ?
+                        WC_NO_ERR_TRACE(UNEXPECTED_STATE_E) : fini_ret;
+                else
+                    api_ret = put_ret;
+            }
+        }
+
+        /* a torn-down root (NOT_INIT, CSPs wiped, shell pinned by the
+         * child and the members) is still a retained reference. */
+        if (api_ret == 0) {
+            api_ret = wc_FreeRng(root);
+            if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
+                api_ret = 0;
+            else if (api_ret == 0)
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_NOT_INIT))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        if (api_ret == 0) {
+            api_ret = wc_rng_bank_fini(bank);
+            if (api_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E))
+                api_ret = 0;
+            else if (api_ret == 0)
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        /* intact: the members are still in service */
+        if ((api_ret == 0) &&
+            (wc_RNG_GetStatus(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0)) !=
+             WC_DRBG_OK))
+        {
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+
+        /* the child's release unpins the root; teardown then converges. */
+        if (child_inited) {
+            int free_ret = wc_FreeRng(&child);
+            if ((api_ret == 0) && (free_ret != 0))
+                api_ret = free_ret;
+            child_inited = 0;
+        }
+        if (bank_inited) {
+            int fini_ret = wc_rng_bank_fini(bank);
+            if ((api_ret == 0) && (fini_ret != 0))
+                api_ret = fini_ret;
+        }
+        WC_FREE_VAR(bank, HEAP_HINT);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    }
+#endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK && RBGC_REFCOUNT */
+
+#if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG) && \
+    !defined(WC_RNG_HAVE_LOCK)
+    /* Root reinstantiation in a bank without the lock facility: the cycle is
+     * excluded by the inst-op gate, and asks _InitRng() for nothing the
+     * build refuses (WC_RNG_INIT_FLAG_PRESERVE_LOCK is NOT_COMPILED_IN
+     * here). */
+    {
+        WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+        WC_RNG *root = NULL;
+        int bank_inited = 0;
+
+        WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER,
+                         return WC_TEST_RET_ENC_EC(MEMORY_E));
+        api_ret = wc_rng_bank_init(bank, 2,
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_QUIET,
+                                   10, HEAP_HINT, devId);
+        if (api_ret == 0)
+            bank_inited = 1;
+        root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
+        if ((api_ret == 0) && (root == NULL))
+            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
+        if ((api_ret == 0) && (wc_RNG_GetStatus(root) != WC_DRBG_OK))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        if (api_ret == 0)
+            api_ret = wc_RNG_GenerateBlock(root, block, (word32)sizeof(block));
+        if (bank_inited) {
+            int fini_ret = wc_rng_bank_fini(bank);
+            if ((api_ret == 0) && (fini_ret != 0))
+                api_ret = fini_ret;
+        }
+        WC_FREE_VAR(bank, HEAP_HINT);
+        if (api_ret != 0)
+            return WC_TEST_RET_ENC_EC(api_ret);
+    }
+#endif /* HAVE_WC_RNG_BANK && ROOT_RNG && !LOCK */
+
 #if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_LOCK_FULL_MUTEX)
 out_l:
 #endif

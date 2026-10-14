@@ -416,6 +416,42 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         }
     }
 
+#ifdef WC_RNG_BANK_HAVE_ROOT_RNG
+    /* The root, whatever its status: a root torn down by an earlier failed
+     * reinit is WC_DRBG_NOT_INIT with its lock word live, and can still be
+     * held and still be pinned.  Member pins on the root are released by the
+     * member frees below and are not counted; any pin beyond those is an
+     * external (caller-spawned) child of the root, whose RBGC_parent would
+     * dangle if this bank were deallocated.  Both refusals leave the bank
+     * fully intact. */
+    {
+#ifdef WC_RNG_HAVE_LOCK
+        WC_RNG_lock_arg_t root_lock_state = 0;
+        if ((wc_RNG_lock_read(&ctx->root_rng, &root_lock_state) == 0) &&
+            (root_lock_state & WC_RNG_LOCK_HELD))
+        {
+            return BUSY_E;
+        }
+#endif
+#ifdef WC_RNG_RBGC_REFCOUNT
+        {
+            WC_ATOMIC_UINT_ARG member_pins = 0;
+#ifndef WC_RNG_BANK_STATIC
+            if (ctx->rngs)
+#endif
+            {
+                for (i = 0; i < ctx->n_rngs; ++i) {
+                    if (ctx->rngs[i].rng.RBGC_parent == &ctx->root_rng)
+                        ++member_pins;
+                }
+            }
+            if (WC_RNG_RBGC_REFCOUNT(&ctx->root_rng) > member_pins)
+                return STILL_REFERENCED_E;
+        }
+#endif
+    }
+#endif /* WC_RNG_BANK_HAVE_ROOT_RNG */
+
     wolfSSL_RefDec_IfEquals(&ctx->refcount, 1, &new_refcount, &ret);
     if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
@@ -507,7 +543,8 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
          * member's teardown releases its pin -- freeing the root first would
          * report STILL_REFERENCED_E against pins the member frees are about to
          * release anyway.  A STILL_REFERENCED_E here is therefore an external
-         * (caller-spawned) child of the root, and the report is honest. */
+         * (caller-spawned) child of the root that arrived after the pre-commit
+         * check above, and the report is honest. */
         if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
             int free_ret = wc_FreeRng(&ctx->root_rng);
             if (free_ret != 0) {
@@ -516,6 +553,19 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
                     "wc_rng_bank_fini(): wc_FreeRng() on root_rng returned "
                     "error %d.\n", free_ret);
 #endif
+                /* As for a member: a refusal restores the refcount and keeps
+                 * the bank -- rngs and all -- allocated for the retry.  The
+                 * root's zeroized shell stays pinned until the external child
+                 * releases it; a retry before that is refused by the
+                 * pre-commit check, bank intact. */
+                if ((free_ret == WC_NO_ERR_TRACE(BUSY_E)) ||
+                    (free_ret == WC_NO_ERR_TRACE(STILL_REFERENCED_E)))
+                {
+                    wolfSSL_RefInc2(&ctx->refcount, &new_refcount, &ret);
+                    (void)new_refcount;
+                    (void)ret;
+                    return free_ret;
+                }
                 ++rng_free_failed;
             }
         }
@@ -1448,19 +1498,22 @@ int wc_rng_bank_reinit_rng(struct wc_rng_bank *bank,
     }
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#ifdef WC_RNG_HAVE_LOCK
+    /* The lease taken at entry is held across the cycle.  Only where the
+     * lock exists: _InitRng() refuses the flag with NOT_COMPILED_IN
+     * otherwise, and the inst-op gate is the exclusion in that arm. */
+    flags |= WC_RNG_INIT_FLAG_PRESERVE_LOCK;
+#endif
 #ifdef WC_RNG_HAVE_RBGC
     if (seedRng != NULL) {
         ret = wc_InitRngNonceRBGC(rng, seedRng, nonce, nonceSz, perso, persoSz,
-                                  flags
-                                  | WC_RNG_INIT_FLAG_PRESERVE_LOCK);
+                                  flags);
     }
     else
 #endif /* WC_RNG_HAVE_RBGC */
     {
         ret = wc_InitRngNonce_ex2(rng, nonce, nonceSz, perso, persoSz,
-                                  bank->heap, bank->devId,
-                                  flags
-                                  | WC_RNG_INIT_FLAG_PRESERVE_LOCK);
+                                  bank->heap, bank->devId, flags);
     }
 #else
     (void)perso;

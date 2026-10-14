@@ -763,6 +763,16 @@
         /* for local_clock() */
         #include <linux/sched/clock.h>
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+        /* in_task() arrived in 4.10 (include/linux/preempt.h); the masks it
+         * is built from reach here through <linux/sched.h> (preempt_mask.h
+         * before 3.17). */
+        #ifndef in_task
+            #define in_task()                                   \
+                (!(preempt_count() &                            \
+                   (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
+        #endif
+    #endif
     #include <linux/random.h>
 
     #if !defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_HAVE_KPROBES)

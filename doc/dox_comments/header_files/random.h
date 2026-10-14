@@ -1243,11 +1243,13 @@ int wc_RNG_global_fallback_free(void);
     believes is user-seeded, and the DRBG's share must be whole.  Builds
     without WC_RNG_HAVE_RBGC refuse with
     NOT_COMPILED_IN -- the stratum bookkeeping that quarantines user
-    provenance lives in the RBG-chain apparatus.  On instantiations that
-    bypass the DRBG (HAVE_INTEL_RDRAND without HAVE_HASHDRBG), the seed,
-    nonce, and personalization pass the shape and sizing checks and are
-    then silently unused; gate on wc_RNG_DRBG_Present() where that
-    matters.
+    provenance lives in the RBG-chain apparatus.  A host whose
+    instantiations bypass the DRBG (HAVE_INTEL_RDRAND on an RDRAND-capable
+    CPU, where generation reads the instruction directly) refuses with
+    WRONG_TYPE_OBJECT_E, the instance left uninstantiated: there is no
+    DRBG for the material to feed, and a stratum-0 RDRAND instance must
+    not be minted under a user-seeded name.  wc_InitRng() and the other
+    primary-seeded constructors remain available on such a host.
 
     The exact instantiation input, for KAT harnesses: the Hash_DRBG
     entropy_input is seed truncated, or zero-padded, to WC_DRBG_SEED_SZ
@@ -1273,6 +1275,9 @@ int wc_RNG_global_fallback_free(void);
     block is excluded).
     \return ENTROPY_RT_E / ENTROPY_APT_E WC_RNG_INIT_FLAG_TEST_USER_SEED,
     and the seed failed the repetition count / adaptive proportion test.
+    \return WRONG_TYPE_OBJECT_E The host bypasses the DRBG (RDRAND et
+    al.), so there is nothing for the seed to feed; nothing is
+    instantiated.
     \return NOT_COMPILED_IN The build lacks WC_RNG_HAVE_RBGC, or a
     requested flag is not compiled in.
 

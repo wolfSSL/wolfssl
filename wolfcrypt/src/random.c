@@ -3660,6 +3660,13 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and bypass DRBG init */
     if (IS_INTEL_RDRAND(intel_flags)) {
+        /* No DRBG, so nothing for caller-supplied seed material to feed:
+         * generation would come from RDRAND with the seed silently dropped,
+         * minting a primary-class (stratum-0) instance the caller believes
+         * is user-seeded.  Refused with the no-DRBG verdict, the instance
+         * left uninstantiated. */
+        if (userSeedSz > 0)
+            return WRONG_TYPE_OBJECT_E;
 #ifdef WC_RNG_HAVE_RBGC
         /* undo stratum, if any */
         rng->RBGCStratum = 0;
@@ -4281,11 +4288,12 @@ int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
 
     ret = _InitRng(rng, NULL, 0, NULL, 0, seed, seedSz, NULL, INVALID_DEVID,
                    NULL, WC_RNG_INIT_FLAG_TEST_USER_SEED);
-    /* Some builds, RDRAND for one, return 0 with no DRBG and would then
-     * generate without the seed. */
+    /* Backstop: an RDRAND host is refused by _InitRng() itself, but a build
+     * with another DRBG-less source (CUSTOM_RAND_GENERATE_BLOCK) returns 0
+     * with no DRBG and would then generate without the seed. */
     if ((ret == 0) && !wc_RNG_DRBG_Present(rng)) {
         (void)wc_FreeRng(rng);
-        ret = BAD_STATE_E;
+        ret = WRONG_TYPE_OBJECT_E;
     }
 
     return ret;

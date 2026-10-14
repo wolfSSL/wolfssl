@@ -640,7 +640,11 @@ time_t wc_linuxkm_time_epoch_secs(time_t *tp) {
     else {
         unsigned long rj, rs, rf;
         wc_linuxkm_time_read_latch(&rj, &rs, &rf);
-        s = rs + (now_jiffies - rj) / HZ;
+        /* jiffies is read after the latch: a calibration published by
+         * another CPU between the entry-time snapshot and the latch read can
+         * carry a later tick than the snapshot, and the unsigned difference
+         * would wrap. */
+        s = rs + (jiffies - rj) / HZ;
     }
     if (tp)
         *tp = (time_t)s;
@@ -684,8 +688,9 @@ long long wc_linuxkm_time_epoch_msecs(void) {
     else {
         unsigned long rj, rs, rf;
         wc_linuxkm_time_read_latch(&rj, &rs, &rf);
+        /* jiffies read after the latch, as in the seconds accessor. */
         return (long long)rs * MSEC_PER_SEC + (long long)rf
-            + (long long)div_u64((u64)(now_jiffies - rj) * MSEC_PER_SEC, HZ);
+            + (long long)div_u64((u64)(jiffies - rj) * MSEC_PER_SEC, HZ);
     }
 #endif
 }
