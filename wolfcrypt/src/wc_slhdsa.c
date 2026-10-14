@@ -8584,6 +8584,10 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Zeroize key first so wc_SlhDsaKey_Free() is safe on any failure. */
+        XMEMSET(key, 0, sizeof(SlhDsaKey));
+    }
     if (ret == 0) {
         int i;
 
@@ -8600,9 +8604,6 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         }
     }
     if (ret == 0) {
-        /* Zeroize key. */
-        XMEMSET(key, 0, sizeof(SlhDsaKey));
-
         /* Set the parameters into key early so SLHDSA_IS_SHA2 works. */
         key->params = &SlhDsaParams[idx];
         /* Set heap hint to use with all allocations. */
