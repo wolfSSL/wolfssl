@@ -26,8 +26,15 @@
 
 #define SA2UL_IODEVICE_NAME "Sa2ulDev"
 
-/* non-zero status number (arbitrary) */
-#define SA2UL_IODEVICE_STATUS_NUMBER 1
+/* ReadIODeviceStatus() status numbers. The ctrl/data pages are one global
+ * kernel pair that every AddressSpace using the port maps, so a Task first
+ * claims them (ACQUIRE: Success, or ResourceNotAvailable if another caller
+ * holds them -- the Task then uses software), writes its request, rings
+ * the doorbell (STATUS_NUMBER), reads the result back, wipes its key from
+ * the ctrl page, and releases them (RELEASE). */
+#define SA2UL_IODEVICE_STATUS_NUMBER  1   /* process the request in the pages */
+#define SA2UL_IODEVICE_STATUS_ACQUIRE 2
+#define SA2UL_IODEVICE_STATUS_RELEASE 3
 
 /* Largest single buffer this driver moves through SA2UL per call */
 #define SA2UL_MAX_BUF 4096u

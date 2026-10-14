@@ -14498,9 +14498,10 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
             (ret) = BUFFER_E;                                       \
         }                                                           \
         else {                                                      \
-            if ((int)KEYID_SIZE > (int)(digestSz)) {                \
-                XMEMSET((hash) + (digestSz), 0,                     \
-                    (size_t)((int)KEYID_SIZE - (int)(digestSz)));   \
+            size_t padSz_ = (size_t)((int)KEYID_SIZE -              \
+                (int)(digestSz));                                   \
+            if (padSz_ > 0) {                                       \
+                XMEMSET((hash) + (digestSz), 0, padSz_);            \
             }                                                       \
             (ret) = 0;                                              \
         }                                                           \
