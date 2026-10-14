@@ -678,7 +678,8 @@ int wc_MlKemKey_Free(MlKemKey* key)
     (!defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
      !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
      !defined(WOLFSSL_MLKEM_NO_DECAPSULATE))
-/* Wipe a SHA-3 object that a failed step left mid-operation. */
+/* Destroy operation intermediates without losing the reusable hash object
+ * configuration (FIPS 203 section 3.3). */
 static void mlkemkey_hash_wipe(wc_Sha3* h)
 {
 #ifndef PSOC6_HASH_SHA3
@@ -1062,8 +1063,6 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         ForceZero(key->priv, sizeof(key->priv));
 #endif
         ForceZero(key->z, sizeof(key->z));
-        mlkemkey_hash_wipe(&key->hash);
-        mlkemkey_hash_wipe(&key->prf);
     }
 
     /* Zeroize the secret seed material in rho||sigma (sigma) before return. */
@@ -1184,6 +1183,11 @@ key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
         }
     }
 #endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */
+
+    if ((key != NULL) && (k != 0)) {
+        mlkemkey_hash_wipe(&key->hash);
+        mlkemkey_hash_wipe(&key->prf);
+    }
 
     return ret;
 #endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
@@ -1896,7 +1900,7 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
         /* FIPS 203 3.3: a failed encapsulation leaves no ciphertext. */
         ForceZero(ct, ctSz);
     }
-    if ((ret != 0) && (key != NULL)) {
+    if (key != NULL) {
         mlkemkey_hash_wipe(&key->hash);
         mlkemkey_hash_wipe(&key->prf);
     }
@@ -2351,7 +2355,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     wc_MemZero_Check(msg, sizeof(msg));
     wc_MemZero_Check(kr, sizeof(kr));
 #endif
-    if ((ret != 0) && (key != NULL)) {
+    if (key != NULL) {
         mlkemkey_hash_wipe(&key->hash);
         mlkemkey_hash_wipe(&key->prf);
     }

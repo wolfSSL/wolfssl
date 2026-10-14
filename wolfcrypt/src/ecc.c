@@ -25,6 +25,12 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_ECC_NO_SMALL_STACK
+/* Shared contexts must retain the library-wide allocation configuration. */
+#include <wolfssl/wolfcrypt/hash.h>
+#include <wolfssl/wolfcrypt/random.h>
+#ifdef HAVE_ECC_ENCRYPT
+#include <wolfssl/wolfcrypt/aes.h>
+#endif
 #undef WOLFSSL_SMALL_STACK
 #undef WOLFSSL_SMALL_STACK_CACHE
 #endif
@@ -3314,13 +3320,16 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     /* First bit always 1 (fix at end) and swap equals first bit */
     int      swap = 1;
     WC_DECLARE_VAR(tmp, mp_int, 1, 0);
+    int      tmpInit = 0;
 #endif
     int      infinity;
 
 #ifndef WC_NO_CACHE_RESISTANT
     WC_ALLOC_VAR_EX(tmp, mp_int, 1, NULL, DYNAMIC_TYPE_ECC, err=MEMORY_E);
-    if (err == MP_OKAY)
+    if (err == MP_OKAY) {
         err = mp_init(tmp);
+        tmpInit = (err == MP_OKAY);
+    }
 #endif
 
     /* Step 1: R[0] = P; R[1] = P */
@@ -3457,8 +3466,6 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
             err = mp_cond_swap_ct_ex(R[0]->z, R[1]->z, (int)modulus->used,
                 (int)b, tmp);
         }
-        /* tmp holds a scalar bit (ISO/IEC 19790:2012 7.9.7). */
-        mp_forcezero(tmp);
 #endif
     }
 
@@ -3472,6 +3479,11 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 
     /* kt holds a copy of the scalar (ISO/IEC 19790:2012 7.9.7). */
     mp_forcezero(kt);
+#ifndef WC_NO_CACHE_RESISTANT
+    /* tmp can hold scalar-dependent coordinates even after a ladder error. */
+    if (tmpInit)
+        mp_forcezero(tmp);
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_CACHE_RESISTANT)
     XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
@@ -12587,8 +12599,11 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         key->type = ECC_PRIVATEKEY_ONLY;
     }
 
-    if (ret != 0)
+    if (ret != 0) {
+        ecc_forcezero_k(key);
+        key->type = 0;
         return ret;
+    }
 
 #ifdef WOLFSSL_CRYPTOCELL
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
@@ -12715,11 +12730,8 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
     if (ret != 0) {
         /* Rejected scalar must not stay in the key
          * (ISO/IEC 19790:2012 7.9.7). */
-        mp_forcezero(key->k);
-    #ifdef WOLFSSL_ECC_BLIND_K
-        mp_forcezero(key->kb);
-        mp_forcezero(key->ku);
-    #endif
+        ecc_forcezero_k(key);
+        key->type = (pub != NULL) ? ECC_PUBLICKEY : 0;
     }
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
