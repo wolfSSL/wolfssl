@@ -39590,6 +39590,22 @@ exit_rsa_export:
 }
 #endif /* !HAVE_FIPS && !NO_ASN && !WOLFSSL_RSA_VERIFY_ONLY */
 
+/* hash.c has SHA-512/224 and SHA-512/256 from FIPS v7 on; these RSA ports
+ * do not support them. */
+#if defined(WOLFSSL_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(HAVE_CAVIUM)
+    #ifndef WOLFSSL_NOSHA512_224
+        #define RSA_TEST_SHA512_224
+        #define RSA_TEST_SHA512_T
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
+        #define RSA_TEST_SHA512_256
+        #define RSA_TEST_SHA512_T
+    #endif
+#endif
+
 #if !defined(NO_SIG_WRAPPER) && !defined(NO_SHA256)
 static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
@@ -40356,7 +40372,13 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                                  WC_MGF1SHA384,
 #endif
 #ifdef WOLFSSL_SHA512
-                                 WC_MGF1SHA512
+                                 WC_MGF1SHA512,
+#endif
+#ifdef RSA_TEST_SHA512_224
+                                 WC_MGF1SHA512_224,
+#endif
+#ifdef RSA_TEST_SHA512_256
+                                 WC_MGF1SHA512_256,
 #endif
                                };
     enum wc_HashType hash[]  = {
@@ -40374,6 +40396,12 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
 #ifdef WOLFSSL_SHA512
                                  WC_HASH_TYPE_SHA512,
+#endif
+#ifdef RSA_TEST_SHA512_224
+                                 WC_HASH_TYPE_SHA512_224,
+#endif
+#ifdef RSA_TEST_SHA512_256
+                                 WC_HASH_TYPE_SHA512_256,
 #endif
                                };
 #endif /* WOLFSSL_MICROCHIP_TA100 */
@@ -40481,7 +40509,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
             for (k = 0; k < (int)(sizeof(mgf)/sizeof(*mgf)); k++) {
                 for (l = 0; l < (int)(sizeof(hash)/sizeof(*hash)); l++) {
-                    if (i == k && j == l)
+                    /* Same MGF and digest size unpads identically. */
+                    if (i == k && wc_HashGetDigestSize(hash[j]) ==
+                                  wc_HashGetDigestSize(hash[l]))
                         continue;
 
                     XMEMCPY(sig, out, outSz);
@@ -42099,6 +42129,116 @@ exit_rsa:
 #endif
 #endif
 
+#if defined(RSA_TEST_SHA512_T) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WC_NO_RSA_OAEP) && \
+    !defined(WC_NO_RNG) && !defined(NO_ASN) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
+#define RSA_TEST_SHA512_T_RUN
+/* PKCS#1 v1.5 signature and OAEP with SHA-512/224 and SHA-512/256. */
+static wc_test_ret_t rsa_sha512t_test(RsaKey* key, WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    const enum wc_HashType hash[] = {
+    #ifdef RSA_TEST_SHA512_224
+        WC_HASH_TYPE_SHA512_224,
+    #endif
+    #ifdef RSA_TEST_SHA512_256
+        WC_HASH_TYPE_SHA512_256,
+    #endif
+    };
+    const int mgf[] = {
+    #ifdef RSA_TEST_SHA512_224
+        WC_MGF1SHA512_224,
+    #endif
+    #ifdef RSA_TEST_SHA512_256
+        WC_MGF1SHA512_256,
+    #endif
+    };
+    const char inStr[] = TEST_STRING;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    byte digest[WC_SHA512_DIGEST_SIZE];
+    byte enc[MAX_DER_DIGEST_SZ];
+    word32 encSz;
+    int sigSz;
+    int i;
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (out == NULL || plain == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa_sha512t);
+#endif
+
+    for (i = 0; i < (int)(sizeof(hash) / sizeof(*hash)); i++) {
+        /* PKCS#1 v1.5 sign and verify of a DigestInfo. */
+        ret = wc_Hash(hash[i], (const byte*)inStr, inLen, digest,
+                      sizeof(digest));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sha512t);
+        encSz = wc_EncodeSignature(enc, digest,
+                    (word32)wc_HashGetDigestSize(hash[i]),
+                    wc_HashGetOID(hash[i]));
+        if (encSz == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sha512t);
+
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_RsaSSL_Sign(enc, encSz, out, RSA_TEST_BYTES, key, rng));
+        if (ret <= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sha512t);
+        sigSz = (int)ret;
+
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_RsaSSL_Verify(out, (word32)sigSz, plain, RSA_TEST_BYTES, key));
+        if (ret != (int)encSz || XMEMCMP(plain, enc, encSz) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sha512t);
+
+        /* A corrupted signature must not verify. */
+        out[sigSz / 2] ^= 0x01;
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_RsaSSL_Verify(out, (word32)sigSz, plain, RSA_TEST_BYTES, key));
+        if (ret >= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sha512t);
+        ret = 0;
+
+        /* OAEP encrypt and decrypt. */
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_RsaPublicEncrypt_ex((const byte*)inStr, inLen, out,
+                RSA_TEST_BYTES, key, rng, WC_RSA_OAEP_PAD, hash[i], mgf[i],
+                NULL, 0));
+        if (ret <= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sha512t);
+        sigSz = (int)ret;
+
+        XMEMSET(plain, 0, RSA_TEST_BYTES);
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_RsaPrivateDecrypt_ex(out, (word32)sigSz, plain, RSA_TEST_BYTES,
+                key, WC_RSA_OAEP_PAD, hash[i], mgf[i], NULL, 0));
+        if (ret != (int)inLen || XMEMCMP(plain, inStr, inLen) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sha512t);
+
+        /* Must not decrypt under plain SHA-512, when the key fits it. */
+        if (wc_RsaEncryptSize(key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
+            WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+                wc_RsaPrivateDecrypt_ex(out, (word32)sigSz, plain,
+                    RSA_TEST_BYTES, key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512,
+                    WC_MGF1SHA512, NULL, 0));
+            if (ret >= 0)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_sha512t);
+        }
+        ret = 0;
+        TEST_SLEEP();
+    }
+
+exit_rsa_sha512t:
+    WC_FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
+    return ret;
+}
+#endif
+
 static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
     const byte* in, word32 inLen, byte* out, word32 outSz,
     byte* plain, word32 plainSz, const byte* tmp, word32 bytes)
@@ -43033,6 +43173,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     #endif /* !HAVE_FIPS */
     #endif /* WC_NO_RSA_OAEP && !WC_NO_RNG */
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
+
+#ifdef RSA_TEST_SHA512_T_RUN
+    ret = rsa_sha512t_test(key, &rng);
+    if (ret != 0)
+        goto exit_rsa;
+#endif
 
 #if !defined(HAVE_FIPS) && !defined(NO_ASN) \
     && !defined(WOLFSSL_RSA_VERIFY_ONLY) \
