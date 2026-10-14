@@ -14212,7 +14212,8 @@ int test_wc_AesGcm_PrimitiveFailureCleanup(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
-    defined(WOLFSSL_NO_ASM) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    defined(WOLFSSL_NO_ASM) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !defined(HAVE_SELFTEST)
     Aes aes;
     const byte key[16] = {0};
     const byte iv[12] = {0};
