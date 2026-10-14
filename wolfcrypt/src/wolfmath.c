@@ -30,6 +30,10 @@
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -418,6 +422,148 @@ int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)
     return err;
 }
 #endif /* HAVE_WOLF_BIGINT */
+
+#ifdef HAVE_ECC
+#if defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(HAVE_SELFTEST) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION_LT(5,0)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    #define ECC_DERIVE_PUB_LOCAL_RNG
+
+/* Whether deriving this key's point takes an RNG. The SP curves use a
+ * fixed-base multiply that takes none; this mirrors ecc_make_pub_sw(). */
+static int ecc_derive_pub_uses_rng(const ecc_key* key)
+{
+    int sp = 0;
+
+#ifdef WOLFSSL_HAVE_SP_ECC
+    if ((key->idx != ECC_CUSTOM_IDX) && (key->dp != NULL)) {
+        int id = key->dp->id;
+    #ifndef WOLFSSL_SP_NO_256
+        sp |= (id == ECC_SECP256R1);
+    #endif
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
+        sp |= (id == ECC_SM2P256V1);
+    #endif
+    #ifdef WOLFSSL_SP_384
+        sp |= (id == ECC_SECP384R1);
+    #endif
+    #ifdef WOLFSSL_SP_521
+        sp |= (id == ECC_SECP521R1);
+    #endif
+        (void)id;
+    }
+#else
+    (void)key;
+#endif
+
+    return !sp;
+}
+#endif
+
+/* Derive and cache the public point of a key that lacks one.
+ *
+ * SEC1/RFC 5915 makes the publicKey field optional, so
+ * wc_EccPrivateKeyDecode() can leave key->type == ECC_PRIVATEKEY_ONLY. The
+ * compatibility layer can also mark a key ECC_PRIVATEKEY with an all-zero
+ * point when only the private key was set.
+ * Lives here rather than in ecc.c so FIPS builds, which swap ecc.c for a
+ * tagged copy, have it too.
+ *
+ * key  private key to complete, cannot be NULL
+ * rng  RNG for a timing-resistant multiply, may be NULL: key->rng or a local
+ *      RNG is used instead
+ *
+ * returns 0 when the key holds a public point, or when the build or device
+ *         has no derivation and the key was left private-only. Callers that
+ *         need the point check key->type.
+ */
+int wc_ecc_derive_pub_if_needed(ecc_key* key, WC_RNG* rng)
+{
+    int ret = 0;
+#ifdef ECC_DERIVE_PUB_LOCAL_RNG
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, NULL);
+    int initTmpRng = 0;
+#endif
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if ((key->type != ECC_PRIVATEKEY_ONLY) &&
+            !((key->type == ECC_PRIVATEKEY) && mp_iszero(key->pubkey.x) &&
+              mp_iszero(key->pubkey.y))) {
+        return 0;
+    }
+#ifdef WOLFSSL_CAAM
+    /* A black key holds an encrypted blob, not a scalar. */
+    if (key->blackKey != 0) {
+        return 0;
+    }
+#endif
+
+#ifdef ECC_DERIVE_PUB_LOCAL_RNG
+    /* The multi-precision multiply is only blinded when given an RNG. */
+    if (rng == NULL) {
+        rng = key->rng;
+    }
+    if ((rng == NULL) && ecc_derive_pub_uses_rng(key)) {
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, key->heap, DYNAMIC_TYPE_RNG,
+            ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_InitRng_ex(tmpRng, key->heap, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            initTmpRng = 1;
+            rng = tmpRng;
+        }
+    }
+#endif
+
+    if (ret == 0) {
+#if defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS) && FIPS_VERSION_LT(5,0))
+        (void)rng;
+        ret = wc_ecc_make_pub(key, NULL);
+#else
+        ret = wc_ecc_make_pub_ex(key, NULL, rng);
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* Callers read key->type and key->pubkey as soon as this returns. */
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    }
+
+    if (ret != 0) {
+        /* FIPS copies of ecc.c promote the key even when make-pub fails, a
+         * pending derivation is promoted before the device has a point, and
+         * a key with an all-zero point is still ECC_PRIVATEKEY if the local
+         * RNG could not be set up. */
+        key->type = ECC_PRIVATEKEY_ONLY;
+    }
+    /* No derivation in this build or device. WC_KEY_SIZE_E is an SP-only
+     * build without this curve. */
+    if ((ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) ||
+            (ret == WC_NO_ERR_TRACE(NO_VALID_DEVID)) ||
+            (ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E))) {
+        ret = 0;
+    }
+
+#ifdef ECC_DERIVE_PUB_LOCAL_RNG
+    if (initTmpRng) {
+        wc_FreeRng(tmpRng);
+    }
+    WC_FREE_VAR_EX(tmpRng, key->heap, DYNAMIC_TYPE_RNG);
+#endif
+
+    return ret;
+}
+#undef ECC_DERIVE_PUB_LOCAL_RNG
+#endif /* HAVE_ECC */
 
 #endif /* !NO_BIG_INT || WOLFSSL_SP_MATH */
 
