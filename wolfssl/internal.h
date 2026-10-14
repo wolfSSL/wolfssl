@@ -3037,6 +3037,9 @@ typedef struct ProcPeerCertArgs {
 #ifdef KEEP_PEER_CERT
     word16 peerCertSet:1; /* leaf already copied into ssl->peerCert */
 #endif
+#ifdef OPENSSL_ALL
+    word16 peerCertVerified:1; /* cert verify callback accepted peer cert */
+#endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);
