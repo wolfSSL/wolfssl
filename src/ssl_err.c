@@ -149,6 +149,7 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
         const char* reason = NULL;
         int ret;
         int line = 0;
+        /* Two bounded strings, plus 64 for the fixed text and two ints. */
         char buf[WOLFSSL_MAX_ERROR_SZ * 2 + 64];
 
         WOLFSSL_ENTER("wolfSSL_ERR_print_errors");

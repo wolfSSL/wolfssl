@@ -1784,6 +1784,7 @@ void WOLFSSL_ERROR(int error)
             #endif
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */
+            /* XSNPRINTF ignores the size under WOLF_C89. */
             len = XSNPRINTF(buffer, sizeof(buffer),
                     "wolfSSL error occurred, error = %d line:%u file:",
                     error, line);

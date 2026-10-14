@@ -862,7 +862,10 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
         /* Check if there was room -- if not, print the current line, not
          * including the newest octet.
          */
-        if (len_wanted >= (int)sizeof(line) - li) {
+        if (len_wanted < 0) {
+            ret = 0;
+        }
+        else if (len_wanted >= (int)sizeof(line) - li) {
             /* bump current octet to the next line. */
             --i;
             /* More bytes coming so add a line break. */

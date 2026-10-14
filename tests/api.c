@@ -33223,11 +33223,32 @@ static int test_wolfSSL_X509_CRL_print(void)
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
     ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
         NULL, NULL));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+
+    X509_CRL_free(crl);
+    crl = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* 20-octet CRL number with 49 decimal digits. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/extra-crls/large_crlnum.pem", "rb"))
+        != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
+        NULL, NULL));
     if (fp != XBADFILE)
         XFCLOSE(fp);
 
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(X509_CRL_print(bio, crl), SSL_SUCCESS);
+    ExpectIntGT(test_bio_mem_to_str(bio, buf, (int)sizeof(buf)), 0);
+    ExpectNotNull(XSTRSTR(buf,
+        "1237059764480051268899939608338028104732671851124\n"));
     BIO_free(bio);
     bio = NULL;
 
