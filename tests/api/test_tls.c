@@ -3790,10 +3790,9 @@ int test_tls_set_session_min_downgrade(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
-    defined(HAVE_SNI) && defined(HAVE_SESSION_TICKET) && \
-    !defined(NO_SESSION_CACHE)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_SNI) && \
+    !defined(NO_SESSION_CACHE) && (!defined(WOLFSSL_NO_TLS12) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)))
 /* Accept-all SNI callback. */
 static int accept_any_sni_cb(WOLFSSL* ssl, int* ret, void* arg)
 {
@@ -3809,7 +3808,7 @@ int test_tls12_session_id_resumption_sni_mismatch(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
-    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+    !defined(NO_SESSION_CACHE)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess = NULL;
@@ -3826,8 +3825,10 @@ int test_tls12_session_id_resumption_sni_mismatch(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     wolfSSL_CTX_set_servername_callback(ctx_s, accept_any_sni_cb);
+#ifdef HAVE_SESSION_TICKET
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
                     sniA, (word16)XSTRLEN(sniA)), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -3850,8 +3851,10 @@ int test_tls12_session_id_resumption_sni_mismatch(void)
     ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
     wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
     wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+#ifdef HAVE_SESSION_TICKET
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
                     sniB, (word16)XSTRLEN(sniB)), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
@@ -4022,7 +4025,7 @@ int test_tls12_session_id_resumption_alpn_mismatch(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ALPN) && \
-    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+    !defined(NO_SESSION_CACHE)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess = NULL;
@@ -4038,8 +4041,10 @@ int test_tls12_session_id_resumption_alpn_mismatch(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#ifdef HAVE_SESSION_TICKET
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnA, (word32)XSTRLEN(alpnA),
                     WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnA, (word32)XSTRLEN(alpnA),
@@ -4066,8 +4071,10 @@ int test_tls12_session_id_resumption_alpn_mismatch(void)
     ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
     wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
     wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+#ifdef HAVE_SESSION_TICKET
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnB, (word32)XSTRLEN(alpnB),
                     WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnB, (word32)XSTRLEN(alpnB),

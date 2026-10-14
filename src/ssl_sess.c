@@ -2930,6 +2930,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef HAVE_SESSION_TICKET
     /* ticket len | ticket */
     size += OPAQUE16_LEN + sess->ticketLen;
+#endif
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
     /* sniHash */
@@ -2940,7 +2941,6 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     size += TICKET_BINDING_HASH_SZ;
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
-#endif
 
     if (p != NULL) {
         unsigned char *data;
@@ -3025,6 +3025,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
         XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
         idx += sess->ticketLen;
+#endif
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
         XMEMCPY(data + idx, sess->sniHash, TICKET_BINDING_HASH_SZ);
@@ -3035,7 +3036,6 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         idx += TICKET_BINDING_HASH_SZ;
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
-#endif
     }
 #endif
 
@@ -3321,6 +3321,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     XMEMCPY(s->ticket, data + idx, s->ticketLen); idx += s->ticketLen;
+#endif
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_SNI
     /* sniHash - SNI binding for stateful resumption (RFC 6066 section 3) */
@@ -3341,7 +3342,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     idx += TICKET_BINDING_HASH_SZ;
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
-#endif
     (void)idx;
 
     if (sess != NULL) {
@@ -3924,8 +3924,7 @@ void SetupSession(WOLFSSL* ssl)
         session->sessionCtxSz = ssl->sessionCtxSz;
     }
 #endif
-#if defined(HAVE_SESSION_TICKET) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     /* Bind the current SNI/ALPN to the session to verify on later resumption */
 #ifdef HAVE_SNI
     (void)TicketSniHash(ssl, session->sniHash);
@@ -3933,7 +3932,7 @@ void SetupSession(WOLFSSL* ssl)
 #ifdef HAVE_ALPN
     (void)TicketAlpnHash(ssl, session->alpnHash);
 #endif
-#endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER && !NO_TLS */
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
     session->timeout = ssl->timeout;
 #ifndef NO_ASN_TIME
     session->bornOn  = LowResTimer();

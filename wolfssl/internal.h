@@ -3851,13 +3851,8 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-#ifdef HAVE_SESSION_TICKET
-/* Max peer cert size for ticket: 2KB is reasonable for most RSA/ECC certs */
-#ifndef MAX_TICKET_PEER_CERT_SZ
-#define MAX_TICKET_PEER_CERT_SZ 2048
-#endif
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
-/* Hash algorithm used for SNI/ALPN binding in session tickets.
+/* Hash algorithm used for SNI/ALPN binding in sessions and tickets.
  * Pick the best available at compile time. */
 #ifndef TICKET_BINDING_HASH_TYPE
     #if !defined(NO_SHA256)
@@ -3873,6 +3868,12 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
         #error "No hash algorithm available for ticket binding"
     #endif
 #endif
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+/* Max peer cert size for ticket: 2KB is reasonable for most RSA/ECC certs */
+#ifndef MAX_TICKET_PEER_CERT_SZ
+#define MAX_TICKET_PEER_CERT_SZ 2048
 #endif
 
 /* Our ticket format. All members need to be a byte or array of byte to
@@ -5249,13 +5250,13 @@ struct WOLFSSL_SESSION {
     byte*              ticket;
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */
+#endif /* HAVE_SESSION_TICKET */
 #ifdef HAVE_SNI
     byte               sniHash[TICKET_BINDING_HASH_SZ];  /* SNI at issue */
 #endif /* HAVE_SNI */
-    #ifdef HAVE_ALPN
+#ifdef HAVE_ALPN
     byte               alpnHash[TICKET_BINDING_HASH_SZ]; /* ALPN at issue */
-    #endif /* HAVE_ALPN */
-#endif /* HAVE_SESSION_TICKET */
+#endif /* HAVE_ALPN */
 
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;             /* peer cert chain, static  */
@@ -7557,6 +7558,7 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 #endif
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
+#endif /* HAVE_SESSION_TICKET */
 /* TicketSniHash, TicketAlpnHash, and VerifyTicketBinding are defined in
  * internal.c only when !NO_WOLFSSL_SERVER && !NO_TLS - gate the
  * declarations to match so client-only or no-TLS builds don't compile in
@@ -7568,11 +7570,10 @@ WOLFSSL_LOCAL int TicketSniHash(WOLFSSL* ssl, byte* dst);
 #ifdef HAVE_ALPN
 WOLFSSL_LOCAL int TicketAlpnHash(WOLFSSL* ssl, byte* dst);
 #endif
-#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+#if defined(HAVE_SESSION_TICKET) && (defined(HAVE_SNI) || defined(HAVE_ALPN))
 WOLFSSL_LOCAL int VerifyTicketBinding(WOLFSSL* ssl);
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
-#endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, size_t sz);
 #ifdef WOLFSSL_THREADED_CRYPT
 WOLFSSL_LOCAL int SendAsyncData(WOLFSSL* ssl);
