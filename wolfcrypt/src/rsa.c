@@ -1873,10 +1873,10 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
                  pkcsBlockLen - hLen - 1, tmp, hLen, heap);
     if (ret != 0) {
-        ForceZero(tmp, hLen);
+        ForceZero(tmp, pkcsBlockLen);
 #if defined(WOLFSSL_CHECK_MEM_ZERO) && \
     (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
-        wc_MemZero_Check(tmp, hLen);
+        wc_MemZero_Check(tmp, pkcsBlockLen);
 #endif
         WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
@@ -1888,12 +1888,12 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* get dbMask value */
     ret = RsaMGF(mgf, tmp, hLen, tmp + hLen, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0) {
-        ForceZero(tmp, hLen);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-        wc_MemZero_Check(tmp, hLen);
+        ForceZero(tmp, pkcsBlockLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+        wc_MemZero_Check(tmp, pkcsBlockLen);
 #endif
+        WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -1901,12 +1901,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     xorbuf(pkcsBlock + hLen + 1, tmp + hLen, pkcsBlockLen - hLen - 1);
 
     ForceZero(tmp, pkcsBlockLen);
-#ifdef WOLFSSL_SMALL_STACK
-    /* done with use of tmp buffer */
-    XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
     wc_MemZero_Check(tmp, pkcsBlockLen);
 #endif
+    WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 
     /* advance idx to index of PS and msg separator, account for PS size of 0*/
     idx = hLen + 1 + hLen;

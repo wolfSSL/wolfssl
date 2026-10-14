@@ -702,7 +702,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #else
         /* On failure the absorbed prefix must not stay in the key's hash. */
         if (ret != 0)
-            (void)ed25519_hash_reset(key);
+            ed25519_hash_free(key, sha);
 #endif
     }
 

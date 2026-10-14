@@ -1157,8 +1157,11 @@ static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
                                       &rng->nextStirLen, cur,
                                       WC_DRBG_NEXT_SEED_CONSUMING, ret);
     } WC_CAS_WITH_RETRY_END;
-    if (ret != 0)
+    if (ret != 0) {
+        /* No claim, so no wipe; still drop the material as before. */
+        WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
         return;
+    }
     ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
     WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
 }
