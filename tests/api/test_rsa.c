@@ -2657,7 +2657,8 @@ int test_wc_RsaOaep_EncryptFailureWipe(void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && \
     !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
     !defined(NO_SHA256) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FIPS)
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
     RsaKey key;
     WC_RNG rng;
     byte out[TEST_RSA_BYTES + 8];
