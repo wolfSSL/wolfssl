@@ -42698,6 +42698,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 ssl->options.resuming = 0;
                 ssl->options.peerAuthGood = 0;
             }
+        #if defined(HAVE_SNI) || defined(HAVE_ALPN)
+            else if (VerifyTicketBinding(ssl) != 0) {
+                WOLFSSL_MSG("Resumed session binding mismatch, full handshake");
+                ssl->options.resuming = 0;
+            }
+        #endif
             else {
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
@@ -42848,33 +42854,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             return ret;
         }
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
-        /* Do not resume session if sniHash/alpnHash do not match. */
-    #ifdef HAVE_SESSION_TICKET
-        if (!ssl->options.useTicket)
-    #endif
-        {
-            byte curHash[TICKET_BINDING_HASH_SZ];
-#ifdef HAVE_SNI
-            if (TicketSniHash(ssl, curHash) != 0 ||
-                    XMEMCMP(curHash, session->sniHash,
-                            TICKET_BINDING_HASH_SZ) != 0) {
-                WOLFSSL_MSG("Resumed session SNI mismatch, full handshake");
-                ssl->options.resuming = 0;
-                return ret;
-            }
-#endif
-#ifdef HAVE_ALPN
-            if (ssl->options.resuming &&
-                    (TicketAlpnHash(ssl, curHash) != 0 ||
-                     XMEMCMP(curHash, session->alpnHash,
-                             TICKET_BINDING_HASH_SZ) != 0)) {
-                WOLFSSL_MSG("Resumed session ALPN mismatch, full handshake");
-                ssl->options.resuming = 0;
-                return ret;
-            }
-#endif
+        if (VerifyTicketBinding(ssl) != 0) {
+            WOLFSSL_MSG("Resumed session binding mismatch, full handshake");
+            ssl->options.resuming = 0;
+            return ret;
         }
-#endif /* HAVE_SNI || HAVE_ALPN */
+#endif
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
@@ -44377,6 +44362,35 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 #endif
 
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+    /* Returns 0 when SNI/ALPN match ssl->session. Call after ALPN_Select. */
+    int VerifyTicketBinding(WOLFSSL* ssl)
+    {
+        byte curHash[TICKET_BINDING_HASH_SZ];
+
+        if (!ssl->options.resuming)
+            return 0;
+
+#ifdef HAVE_SNI
+        if (TicketSniHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->sniHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Resumed session SNI mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
+#ifdef HAVE_ALPN
+        if (TicketAlpnHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->alpnHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Resumed session ALPN mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
+        return 0;
+    }
+#endif
+
 #ifdef HAVE_SESSION_TICKET
 
 #ifdef WOLFSSL_TICKET_HAVE_ID
@@ -44440,53 +44454,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
         return ret;
     }
-
-#if defined(HAVE_SNI) || defined(HAVE_ALPN)
-    /* Server-side TLS 1.2 ticket-resumption binding check. Confirms the
-     * SNI/ALPN bound to the resumed session matches what was negotiated
-     * for the current connection. Must be called after extension
-     * parsing and ALPN_Select so the negotiated values are available,
-     * and only once DoClientTicketFinalize has populated
-     * ssl->session->sniHash/alpnHash from the decrypted ticket.
-     *
-     * Other resumption paths handle the same check themselves and do
-     * not use this function:
-     *   - TLS 1.2 session-ID (stateful): HandleTlsResumption compares
-     *     against the cached session at lookup time.
-     *   - TLS 1.3 PSK: DoPreSharedKeys compares against each candidate
-     *     ticket's bound hashes before committing, allowing the server
-     *     to skip mismatching PSKs and pick the next one.
-     *
-     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. The caller
-     * is responsible for the policy on mismatch -- RFC 6066 Section 3
-     * mandates declining the resumption and proceeding with a full
-     * handshake rather than aborting. */
-    int VerifyTicketBinding(WOLFSSL* ssl)
-    {
-        byte curHash[TICKET_BINDING_HASH_SZ];
-
-        if (!ssl->options.resuming)
-            return 0;
-
-#ifdef HAVE_SNI
-        if (TicketSniHash(ssl, curHash) != 0 ||
-                XMEMCMP(curHash, ssl->session->sniHash,
-                        TICKET_BINDING_HASH_SZ) != 0) {
-            WOLFSSL_MSG("Ticket SNI mismatch");
-            return WOLFSSL_FATAL_ERROR;
-        }
-#endif
-#ifdef HAVE_ALPN
-        if (TicketAlpnHash(ssl, curHash) != 0 ||
-                XMEMCMP(curHash, ssl->session->alpnHash,
-                        TICKET_BINDING_HASH_SZ) != 0) {
-            WOLFSSL_MSG("Ticket ALPN mismatch");
-            return WOLFSSL_FATAL_ERROR;
-        }
-#endif
-        return 0;
-    }
-#endif
 
     /* Returns 1 when the default ticket encryption callback is in use with a
      * hint of at least half the key lifetime. */
