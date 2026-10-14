@@ -1247,6 +1247,9 @@ enum {
 #ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
     #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
 #endif
+#if WOLFSSL_DTLS_FRAG_POOL_SZ > 255
+    #error "WOLFSSL_DTLS_FRAG_POOL_SZ must be at most 255"
+#endif
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
