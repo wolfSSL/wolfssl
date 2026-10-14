@@ -42847,10 +42847,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ssl->options.peerAuthGood = 0;
             return ret;
         }
-#if defined(HAVE_SESSION_TICKET) && \
-    (defined(HAVE_SNI) || defined(HAVE_ALPN))
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
         /* Do not resume session if sniHash/alpnHash do not match. */
-        if (!ssl->options.useTicket) {
+    #ifdef HAVE_SESSION_TICKET
+        if (!ssl->options.useTicket)
+    #endif
+        {
             byte curHash[TICKET_BINDING_HASH_SZ];
 #ifdef HAVE_SNI
             if (TicketSniHash(ssl, curHash) != 0 ||
@@ -42872,7 +42874,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
 #endif
         }
-#endif /* HAVE_SESSION_TICKET && (HAVE_SNI || HAVE_ALPN) */
+#endif /* HAVE_SNI || HAVE_ALPN */
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
@@ -44330,6 +44332,51 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
+#ifdef HAVE_SNI
+    /* Hash server-selected SNI; zeros dst when none. */
+    int TicketSniHash(WOLFSSL* ssl, byte* dst)
+    {
+        char* name = NULL;
+        word16 nameLen;
+
+        nameLen = TLSX_SNI_GetRequest(ssl->extensions,
+                                      WOLFSSL_SNI_HOST_NAME,
+                                      (void**)&name, 0);
+        if (name != NULL && nameLen > 0) {
+            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)name,
+                           nameLen, dst, TICKET_BINDING_HASH_SZ);
+        }
+
+        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
+        return 0;
+    }
+#endif
+
+#ifdef HAVE_ALPN
+    /* Hash negotiated ALPN; zeros dst when none. */
+    int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
+    {
+        TLSX* extension;
+        ALPN* alpn;
+
+        extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        if (extension != NULL) {
+            alpn = (ALPN*)extension->data;
+            if (alpn != NULL && alpn->negotiated == 1) {
+                word32 protoLen = (word32)alpn->protocol_nameSz;
+                if (protoLen > 0) {
+                    return wc_Hash(TICKET_BINDING_HASH_TYPE,
+                                   (const byte*)alpn->protocol_name,
+                                   protoLen, dst, TICKET_BINDING_HASH_SZ);
+                }
+            }
+        }
+
+        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
+        return 0;
+    }
+#endif
+
 #ifdef HAVE_SESSION_TICKET
 
 #ifdef WOLFSSL_TICKET_HAVE_ID
@@ -44393,51 +44440,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
         return ret;
     }
-
-#ifdef HAVE_SNI
-    /* Hash server-selected SNI; zeros dst when none. */
-    int TicketSniHash(WOLFSSL* ssl, byte* dst)
-    {
-        char* name = NULL;
-        word16 nameLen;
-
-        nameLen = TLSX_SNI_GetRequest(ssl->extensions,
-                                      WOLFSSL_SNI_HOST_NAME,
-                                      (void**)&name, 0);
-        if (name != NULL && nameLen > 0) {
-            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)name,
-                           nameLen, dst, TICKET_BINDING_HASH_SZ);
-        }
-
-        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
-        return 0;
-    }
-#endif
-
-#ifdef HAVE_ALPN
-    /* Hash negotiated ALPN; zeros dst when none. */
-    int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
-    {
-        TLSX* extension;
-        ALPN* alpn;
-
-        extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
-        if (extension != NULL) {
-            alpn = (ALPN*)extension->data;
-            if (alpn != NULL && alpn->negotiated == 1) {
-                word32 protoLen = (word32)alpn->protocol_nameSz;
-                if (protoLen > 0) {
-                    return wc_Hash(TICKET_BINDING_HASH_TYPE,
-                                   (const byte*)alpn->protocol_name,
-                                   protoLen, dst, TICKET_BINDING_HASH_SZ);
-                }
-            }
-        }
-
-        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
-        return 0;
-    }
-#endif
 
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
     /* Server-side TLS 1.2 ticket-resumption binding check. Confirms the
