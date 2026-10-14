@@ -5311,3 +5311,140 @@ int test_SetCertificatePolicies_no_empty_qualifiers(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if !defined(NO_ASN) && defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP) && defined(USE_CERT_BUFFERS_256)
+    #define TEST_ECC_MAKE_PUB_FROM_DER
+#endif
+/* Selftest and FIPS v2 copies of ecc.c predate wc_ecc_make_pub_ex(). */
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION_LT(5,0))
+    #define TEST_ECC_MAKE_PUB(key, rng) wc_ecc_make_pub((key), NULL)
+#else
+    #define TEST_ECC_MAKE_PUB(key, rng) wc_ecc_make_pub_ex((key), NULL, (rng))
+#endif
+
+/* Decoding SEC1 without a public point leaves it ECC_PRIVATEKEY_ONLY. */
+int test_wc_EccPrivateKeyDecode_priv_only(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MAKE_PUB_FROM_DER
+    ecc_key fullKey;
+    ecc_key privOnlyKey;
+    WC_RNG  rng;
+    word32  idx;
+    byte    privOnlyDer[256];
+    int     privOnlyDerSz = 0;
+    byte    fullPub[256];
+    word32  fullPubSz = sizeof(fullPub);
+    byte    derivedPub[256];
+    word32  derivedPubSz = sizeof(derivedPub);
+    int     canDerive = test_ecc_can_derive_pub();
+
+    if (canDerive == 0) {
+        return TEST_SKIPPED;
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    XMEMSET(&fullKey, 0, sizeof(fullKey));
+    XMEMSET(&privOnlyKey, 0, sizeof(privOnlyKey));
+    /* rng must be safe to free. */
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ecc_init(&fullKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &fullKey,
+        (word32)sizeof_ecc_clikey_der_256), 0);
+    ExpectIntEQ(fullKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&fullKey, fullPub, &fullPubSz), 0);
+    PRIVATE_KEY_LOCK();
+
+    /* Re-encode as private-key-only SEC1 DER. */
+    ExpectIntGT(privOnlyDerSz = wc_EccPrivateKeyToDer(&fullKey, privOnlyDer,
+        (word32)sizeof(privOnlyDer)), 0);
+
+    /* Decoding succeeds without deriving the point. */
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY_ONLY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E));
+    PRIVATE_KEY_LOCK();
+
+    /* Deriving is the caller's explicit step. The RNG blinds the scalar
+     * multiply on the builds that consult it. */
+    ExpectIntEQ(TEST_ECC_MAKE_PUB(&privOnlyKey, &rng), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    derivedPubSz = sizeof(derivedPub);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(derivedPubSz, fullPubSz);
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+    /* Re-deriving on a full key recomputes the same point. */
+    ExpectIntEQ(TEST_ECC_MAKE_PUB(&privOnlyKey, &rng), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    derivedPubSz = sizeof(derivedPub);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+    wc_ecc_free(&privOnlyKey);
+
+    /* wc_ecc_make_pub() is the same call with no RNG - the form the
+     * compatibility layer and downstream projects use. */
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(wc_ecc_make_pub(&privOnlyKey, NULL), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    derivedPubSz = sizeof(derivedPub);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+    wc_ecc_free(&privOnlyKey);
+
+    /* A failed derivation must not leave the key claiming a public point it
+     * does not have. A zero private scalar is out of range for the base point
+     * multiply, so the derivation fails and the key stays private-only.
+     * mp_zero() is only linkable with WOLFSSL_PUBLIC_MP; the MC/DC build
+     * (--enable-all) defines it, so the row stays covered there. FIPS copies
+     * of ecc.c still promote a key whose derivation failed. */
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+    mp_zero(privOnlyKey.k);
+#ifdef WOLFSSL_ECC_BLIND_K
+    mp_zero(privOnlyKey.kb);
+#endif
+    ExpectIntEQ(wc_ecc_make_pub_ex(&privOnlyKey, NULL, &rng),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY_ONLY);
+    derivedPubSz = sizeof(derivedPub);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E));
+    PRIVATE_KEY_LOCK();
+    wc_ecc_free(&privOnlyKey);
+#endif /* WOLFSSL_PUBLIC_MP && !HAVE_FIPS && !HAVE_SELFTEST */
+
+    wc_ecc_free(&fullKey);
+    wc_FreeRng(&rng);
+#endif /* TEST_ECC_MAKE_PUB_FROM_DER */
+    return EXPECT_RESULT();
+}
