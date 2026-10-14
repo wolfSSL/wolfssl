@@ -12468,8 +12468,8 @@ int test_wc_CryptoCb_AesDirect(void)
 static int test_CryptoCb_AesNoSw_Decline = 0;
 
 /* Mock device that keeps the key in hardware: the generic SetKey succeeds and
- * no key is left in software. Every other request is declined, including the
- * AES-specific SetKey, so the generic one is used. */
+ * marks the key HW stored. Every other request is declined,
+ * including the AES-specific SetKey, so the generic one is used. */
 static int test_CryptoCb_AesNoSw_Cb(int devId, wc_CryptoInfo* info,
     void* ctx)
 {
@@ -12479,7 +12479,7 @@ static int test_CryptoCb_AesNoSw_Cb(int devId, wc_CryptoInfo* info,
     if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
             info->setkey.type == WC_SETKEY_AES &&
             !test_CryptoCb_AesNoSw_Decline) {
-        return 0;
+        return wc_CryptoCb_SetKeyLocation(info, WC_KEY_HW_STORED);
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
@@ -12488,6 +12488,7 @@ int test_wc_CryptoCb_AesNoSwKey(void)
 {
     EXPECT_DECLS;
     Aes aes;
+    wc_CryptoInfo info;
     WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
@@ -12498,6 +12499,21 @@ int test_wc_CryptoCb_AesNoSwKey(void)
 
     XMEMSET(iv, 0, sizeof(iv));
     XMEMSET(in, 0, sizeof(in));
+
+    /* Bad arguments to the key location API */
+    XMEMSET(&info, 0, sizeof(info));
+    info.setkey.type = WC_SETKEY_AES;
+    info.setkey.obj = &aes;
+    ExpectIntEQ(wc_CryptoCb_SetKeyLocation(NULL, WC_KEY_HW_STORED),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CryptoCb_SetKeyLocation(&info, WC_KEY_HW_STORED),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.algo_type = WC_ALGO_TYPE_SETKEY;
+    ExpectIntEQ(wc_CryptoCb_SetKeyLocation(&info, 2),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.setkey.type = WC_SETKEY_NONE;
+    ExpectIntEQ(wc_CryptoCb_SetKeyLocation(&info, WC_KEY_HW_STORED),
+                WC_NO_ERR_TRACE(NOT_COMPILED_IN));
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_NOSW_DEVID,
                     test_CryptoCb_AesNoSw_Cb, NULL), 0);
