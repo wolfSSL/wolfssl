@@ -211,6 +211,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 #ifdef HAVE_CRL
         ctx->crls = NULL;
 #endif
+        ctx->peerCertDepth = 0;
         if (ctx->chain != NULL) {
             wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
             ctx->chain = NULL;
@@ -374,7 +375,9 @@ static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
         return;
 
     wolfSSL_X509_STORE_CTX_set_error(ctx, error);
-    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+    /* Report the depth in the peer's chain when verifying one of its certs
+     * in the handshake. */
+    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth + ctx->peerCertDepth);
 }
 
 static void SetupStoreCtxError(WOLFSSL_X509_STORE_CTX* ctx, int ret)
@@ -574,6 +577,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int accepted = 0; /* callback accepted a cert that verified */
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
@@ -615,6 +619,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
             int preCbError = ctx->error;
 
             if (verifyCb(ret >= 0 ? 1 : 0, ctx) == 1) {
+                accepted = (ret >= 0);
                 ret = WOLFSSL_SUCCESS;
             }
             else if (ret >= 0 && ctx->verify_cb != NULL) {
@@ -645,18 +650,22 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         * as it skips date validation when other errors are present.
         */
         ret = X509StoreVerifyCertDate(ctx, ret);
-        SetupStoreCtxError(ctx, ret);
-        ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
-        if (verifyCb != NULL) {
-            if (verifyCb(ret, ctx) == 1) {
-                ret = WOLFSSL_SUCCESS;
-            }
-            else {
-                ret = -1;
+        /* Like OpenSSL, report a cert that verified only once. */
+        if (!accepted || ret != WOLFSSL_SUCCESS) {
+            SetupStoreCtxError(ctx, ret);
+            ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
+            if (verifyCb != NULL) {
+                if (verifyCb(ret, ctx) == 1) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                else {
+                    ret = -1;
+                }
             }
         }
     }
 #endif
+    (void)accepted;
     return ret;
 }
 
@@ -1281,8 +1290,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * OpenSSL's check_id_error() does: record error, error_depth and
      * current_cert, then call it with ok=0, and let a return of 1 override.
      * Without that call a callback installed to inspect or override
-     * verification errors never sees a hostname or IP mismatch. */
-    if (ctx->param != NULL) {
+     * verification errors never sees a hostname or IP mismatch.
+     *
+     * Skipped for an intermediate of the peer's chain: the name is the
+     * peer cert's. */
+    if (ctx->param != NULL && ctx->peerCertDepth == 0) {
         if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
             if (wolfSSL_X509_check_host(orig,
                     ctx->param->hostName,

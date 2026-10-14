@@ -737,6 +737,8 @@ struct WOLFSSL_X509_STORE_CTX {
                                             * X509_STORE_CTX_set0_crls.
                                             * Not owned by this ctx. */
 #endif
+    int   peerCertDepth;         /* depth of current_cert in the peer's chain,
+                                  * set by the handshake */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 };
 

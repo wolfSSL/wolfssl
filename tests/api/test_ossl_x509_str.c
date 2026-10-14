@@ -4181,6 +4181,7 @@ int test_wolfSSL_X509_STORE_add_crl_oom(void)
 static STACK_OF(X509_CRL)* test_set0_crls_stack;
 static int test_set0_crls_preverify; /* preverify_ok seen at depth 0 */
 static int test_set0_crls_error;     /* error seen when preverify_ok == 0 */
+static int test_set0_crls_reject_peer; /* verify cb rejects the peer cert */
 
 /* Mimics OpenVPN's cert_verify_callback. */
 static int test_set0_crls_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
@@ -4193,8 +4194,11 @@ static int test_set0_crls_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
 /* Mimics OpenVPN's verify_callback. */
 static int test_set0_crls_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
 {
-    if (X509_STORE_CTX_get_error_depth(ctx) == 0)
+    if (X509_STORE_CTX_get_error_depth(ctx) == 0) {
         test_set0_crls_preverify = preverify_ok;
+        if (test_set0_crls_reject_peer)
+            return 0;
+    }
     if (!preverify_ok) {
         test_set0_crls_error = X509_STORE_CTX_get_error(ctx);
         return 0;
@@ -4213,6 +4217,20 @@ static int test_set0_crls_ctx_ready(WOLFSSL_CTX* ctx)
     ExpectIntEQ(X509_STORE_set_flags(store,
         X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL), SSL_SUCCESS);
     return EXPECT_RESULT();
+}
+
+static int test_set0_crls_chain_cached; /* chain CAs kept in the store */
+
+static int test_set0_crls_ctx_cleanup(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
+
+    /* The peer cert only verifies when the chain CAs were kept. */
+    (void)wolfSSL_CertManagerDisableCRL(cm);
+    test_set0_crls_chain_cached = (wolfSSL_CertManagerVerify(cm,
+        "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM) ==
+        WOLFSSL_SUCCESS);
+    return TEST_SUCCESS;
 }
 #endif
 
@@ -4243,6 +4261,24 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
     sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
     test_set0_crls_stack = NULL;
 
+    /* The verify callback rejects the peer cert, like OpenVPN does for a
+     * wrong --verify-x509-name. The handshake has to fail. */
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set0_crls_ctx_ready;
+    ExpectNotNull(test_set0_crls_stack = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.pem"), TEST_SUCCESS);
+    test_set0_crls_preverify = -1;
+    test_set0_crls_error = 0;
+    test_set0_crls_reject_peer = 1;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), -1001);
+    ExpectIntEQ(test_set0_crls_preverify, 1);
+    test_set0_crls_reject_peer = 0;
+    sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
+    test_set0_crls_stack = NULL;
+
     /* The server presents a revoked cert. The handshake has to fail. */
     XMEMSET(&client_cbs, 0, sizeof(client_cbs));
     XMEMSET(&server_cbs, 0, sizeof(server_cbs));
@@ -4261,6 +4297,449 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
     ExpectIntEQ(test_set0_crls_error, WOLFSSL_X509_V_ERR_CERT_REVOKED);
     sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
     test_set0_crls_stack = NULL;
+
+    /* The server presents intermediates. Their CRLs are only in the stack. The
+     * handshake succeeds and the chain CAs are kept. */
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set0_crls_ctx_ready;
+    client_cbs.on_ctx_cleanup = test_set0_crls_ctx_cleanup;
+    server_cbs.certPemFile = "./certs/intermediate/server-chain.pem";
+    ExpectNotNull(test_set0_crls_stack = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.pem"), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/ca-int.pem"), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/ca-int2.pem"), TEST_SUCCESS);
+    test_set0_crls_preverify = -1;
+    test_set0_crls_error = 0;
+    test_set0_crls_chain_cached = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_preverify, 1);
+    ExpectIntEQ(test_set0_crls_chain_cached, 1);
+    sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
+    test_set0_crls_stack = NULL;
+
+    /* The CRL issued by the first intermediate is missing. The handshake has
+     * to fail and the second intermediate must not be added to the store. */
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set0_crls_ctx_ready;
+    client_cbs.on_ctx_cleanup = test_set0_crls_ctx_cleanup;
+    server_cbs.certPemFile = "./certs/intermediate/server-chain.pem";
+    ExpectNotNull(test_set0_crls_stack = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.pem"), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/ca-int2.pem"), TEST_SUCCESS);
+    test_set0_crls_preverify = -1;
+    test_set0_crls_error = 0;
+    test_set0_crls_chain_cached = 1;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), -1001);
+    ExpectIntEQ(test_set0_crls_error, WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL);
+    ExpectIntEQ(test_set0_crls_chain_cached, 0);
+    sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
+    test_set0_crls_stack = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL)
+#define TEST_CVCB_DEPTHS 3
+static X509* test_cvcb_peer;          /* peer cert the verify cb expects */
+static X509* test_cvcb_chain[TEST_CVCB_DEPTHS]; /* expected intermediates */
+static const char* test_cvcb_host;    /* host name to verify */
+static const char* test_cvcb_ip;      /* IP address to verify */
+static int test_cvcb_verify_ret;      /* verify cb result for the peer cert:
+                                       * -1 check it, -2 preverify_ok */
+static int test_cvcb_cert_verify_ret; /* cert verify cb result, -1: verify */
+static int test_cvcb_in_cert_verify;
+static int test_cvcb_cert_verify_calls;
+static int test_cvcb_leaf_calls;      /* verify cb calls for the peer cert */
+static int test_cvcb_leaf_outside;    /* those outside the cert verify cb */
+static int test_cvcb_depths;          /* depths seen by the verify cb */
+static int test_cvcb_bad_depth;       /* certs seen at the wrong depth */
+
+/* Like OpenVPN's cert_verify_callback, which returns X509_verify_cert(). */
+static int test_cvcb_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
+{
+    int ret = test_cvcb_cert_verify_ret;
+
+    (void)arg;
+    test_cvcb_cert_verify_calls++;
+    if (ret < 0) {
+        test_cvcb_in_cert_verify = 1;
+        ret = X509_verify_cert(ctx);
+        test_cvcb_in_cert_verify = 0;
+    }
+    return ret;
+}
+
+/* Like OpenVPN's verify_callback with --peer-fingerprint and no CA. Chain
+ * errors are ignored and the peer cert has to be the expected one. */
+static int test_cvcb_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    int depth = X509_STORE_CTX_get_error_depth(ctx);
+    X509* cert = X509_STORE_CTX_get_current_cert(ctx);
+
+    if (depth < 0 || depth >= TEST_CVCB_DEPTHS) {
+        test_cvcb_bad_depth++;
+        return 0;
+    }
+    test_cvcb_depths |= 1 << depth;
+    if (depth > 0) {
+        /* Each intermediate is reported at its depth in the peer's chain. */
+        if (test_cvcb_chain[depth] == NULL ||
+                X509_cmp(cert, test_cvcb_chain[depth]) != 0) {
+            test_cvcb_bad_depth++;
+        }
+        return (test_cvcb_verify_ret == -2) ? preverify_ok : 1;
+    }
+    test_cvcb_leaf_calls++;
+    if (!test_cvcb_in_cert_verify)
+        test_cvcb_leaf_outside++;
+    if (test_cvcb_verify_ret == -2)
+        return preverify_ok;
+    if (test_cvcb_verify_ret >= 0)
+        return test_cvcb_verify_ret;
+    return X509_cmp(cert, test_cvcb_peer) == 0;
+}
+
+static int test_cvcb_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, test_cvcb_verify_cb);
+    SSL_CTX_set_cert_verify_callback(ctx, test_cvcb_cert_verify_cb, NULL);
+    return TEST_SUCCESS;
+}
+
+#ifdef HAVE_ECC
+static int test_cvcb_ctx_ready_none(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, test_cvcb_verify_cb);
+    SSL_CTX_set_cert_verify_callback(ctx, test_cvcb_cert_verify_cb, NULL);
+    return TEST_SUCCESS;
+}
+
+/* The verify callback is set on the store, not on the SSL. */
+static int test_cvcb_ctx_ready_store(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+    X509_STORE_set_verify_cb(SSL_CTX_get_cert_store(ctx),
+        test_cvcb_verify_cb);
+    SSL_CTX_set_cert_verify_callback(ctx, test_cvcb_cert_verify_cb, NULL);
+    return TEST_SUCCESS;
+}
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+static int test_cvcb_cm_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    (void)preverify_ok;
+    (void)ctx;
+    return 1;
+}
+
+/* A CertManager verify callback overrides all errors. */
+static int test_cvcb_ctx_ready_cm(WOLFSSL_CTX* ctx)
+{
+    (void)test_cvcb_ctx_ready(ctx);
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx),
+        test_cvcb_cm_verify_cb);
+    return TEST_SUCCESS;
+}
+#endif
+#endif
+
+static int test_cvcb_ssl_ready(WOLFSSL* ssl)
+{
+    if (test_cvcb_host != NULL && X509_VERIFY_PARAM_set1_host(
+            SSL_get0_param(ssl), test_cvcb_host, 0) != 1) {
+        return TEST_FAIL;
+    }
+    if (test_cvcb_ip != NULL && X509_VERIFY_PARAM_set1_ip_asc(
+            SSL_get0_param(ssl), test_cvcb_ip) != 1) {
+        return TEST_FAIL;
+    }
+    return TEST_SUCCESS;
+}
+
+/* Handshake with the callbacks above set on the client. caFile is NULL for
+ * the default CA and "" for none. */
+static int test_cvcb_run(ctx_cb ready, const char* caFile,
+    const char* certFile, const char* keyFile, const char* peerFile,
+    int verifyRet, int certVerifyRet)
+{
+    int ret;
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = ready;
+    client_cbs.ssl_ready = test_cvcb_ssl_ready;
+    client_cbs.caPemFile = caFile;
+    server_cbs.certPemFile = certFile;
+    server_cbs.keyPemFile = keyFile;
+
+    test_cvcb_peer = wolfSSL_X509_load_certificate_file(peerFile,
+        WOLFSSL_FILETYPE_PEM);
+    test_cvcb_chain[1] = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM);
+    test_cvcb_chain[2] = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM);
+    test_cvcb_verify_ret = verifyRet;
+    test_cvcb_cert_verify_ret = certVerifyRet;
+    test_cvcb_in_cert_verify = 0;
+    test_cvcb_cert_verify_calls = 0;
+    test_cvcb_leaf_calls = 0;
+    test_cvcb_leaf_outside = 0;
+    test_cvcb_depths = 0;
+    test_cvcb_bad_depth = 0;
+    ret = test_wolfSSL_client_server_nofail_memio(&client_cbs, &server_cbs,
+        NULL);
+    X509_free(test_cvcb_chain[2]);
+    test_cvcb_chain[2] = NULL;
+    X509_free(test_cvcb_chain[1]);
+    test_cvcb_chain[1] = NULL;
+    X509_free(test_cvcb_peer);
+    test_cvcb_peer = NULL;
+    return ret;
+}
+#endif
+
+/* OpenVPN with --peer-fingerprint and no CA. Its verify callback accepts the
+ * expected peer cert despite the chain errors. It is only called from
+ * X509_verify_cert() in the cert verify callback. */
+int test_wolfSSL_CTX_set_cert_verify_callback_fingerprint(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL)
+#ifdef HAVE_ECC
+    /* Self-signed peer cert */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "",
+        "./certs/server-ecc-self.pem", "./certs/ecc-key.pem",
+        "./certs/server-ecc-self.pem", -1, -1), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    ExpectIntGT(test_cvcb_leaf_calls, 0);
+    ExpectIntEQ(test_cvcb_leaf_outside, 0);
+
+    /* Another peer cert is expected */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "",
+        "./certs/server-ecc-self.pem", "./certs/ecc-key.pem", svrCertFile,
+        -1, -1), -1001);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    ExpectIntEQ(test_cvcb_leaf_outside, 0);
+#endif
+#ifndef NO_RSA
+    /* Peer cert with intermediates. The cert verify callback is called for
+     * each cert. */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "",
+        "./certs/intermediate/server-chain.pem", svrKeyFile,
+        "./certs/intermediate/server-int-cert.pem", -1, -1), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 3);
+    ExpectIntGT(test_cvcb_leaf_calls, 0);
+    ExpectIntEQ(test_cvcb_leaf_outside, 0);
+    ExpectIntEQ(test_cvcb_depths, 0x7);
+    ExpectIntEQ(test_cvcb_bad_depth, 0);
+
+    /* An intermediate is not the peer cert */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "",
+        "./certs/intermediate/server-chain.pem", svrKeyFile,
+        "./certs/intermediate/ca-int2-cert.pem", -1, -1), -1001);
+    ExpectIntEQ(test_cvcb_leaf_outside, 0);
+    ExpectIntEQ(test_cvcb_bad_depth, 0);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The cert verify callback replaces the chain verification. Its result is
+ * final, and ignored with SSL_VERIFY_NONE. */
+int test_wolfSSL_CTX_set_cert_verify_callback_result(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    defined(HAVE_ECC)
+    /* Rejects a peer cert that verifies. The verify callback is not used. */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "./certs/ca-ecc-cert.pem",
+        "./certs/server-ecc.pem", "./certs/ecc-key.pem",
+        "./certs/server-ecc.pem", 1, 0), -1001);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    ExpectIntEQ(test_cvcb_leaf_calls, 0);
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+    /* Rejects, also when a CertManager verify callback overrides the host
+     * name error. */
+    test_cvcb_host = "wrong.example.com";
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_cm,
+        "./certs/ca-ecc-cert.pem", "./certs/server-ecc.pem",
+        "./certs/ecc-key.pem", "./certs/server-ecc.pem", 1, 0), -1001);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    test_cvcb_host = NULL;
+#endif
+
+    /* X509_verify_cert() uses the verify callback of the store when the SSL
+     * has none. Its rejection is final. */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_store,
+        "./certs/ca-ecc-cert.pem", "./certs/server-ecc.pem",
+        "./certs/ecc-key.pem", "./certs/server-ecc.pem", 0, -1), -1001);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    ExpectIntEQ(test_cvcb_leaf_calls, 1);
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_store,
+        "./certs/ca-ecc-cert.pem", "./certs/server-ecc.pem",
+        "./certs/ecc-key.pem", "./certs/server-ecc.pem", 1, -1),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_leaf_calls, 1);
+
+    /* Accepts without X509_verify_cert(). The verify callback is not used. */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, "",
+        "./certs/server-ecc-self.pem", "./certs/ecc-key.pem",
+        "./certs/server-ecc-self.pem", 0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+    ExpectIntEQ(test_cvcb_leaf_calls, 0);
+
+    /* Rejects with SSL_VERIFY_NONE */
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_none, "",
+        "./certs/server-ecc-self.pem", "./certs/ecc-key.pem",
+        "./certs/server-ecc-self.pem", 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 1);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The host name and IP address set on the SSL are checked against the peer
+ * cert only, also when X509_verify_cert() runs for an intermediate. */
+int test_wolfSSL_CTX_set_cert_verify_callback_host(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    !defined(NO_RSA)
+    test_cvcb_host = "wolfSSL Server Chain";
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, NULL,
+        "./certs/intermediate/server-chain.pem", svrKeyFile,
+        "./certs/intermediate/server-int-cert.pem", -2, -1), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 3);
+    ExpectIntEQ(test_cvcb_depths, 0x7);
+    ExpectIntEQ(test_cvcb_bad_depth, 0);
+
+    test_cvcb_host = "wolfSSL Intermediate2 CA";
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, NULL,
+        "./certs/intermediate/server-chain.pem", svrKeyFile,
+        "./certs/intermediate/server-int-cert.pem", -2, -1), -1001);
+    test_cvcb_host = NULL;
+
+    /* Same for the IP address. */
+    test_cvcb_ip = "127.0.0.1";
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, NULL, NULL, NULL,
+        svrCertFile, -2, -1), TEST_SUCCESS);
+    test_cvcb_ip = "1.2.3.4";
+    ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready, NULL, NULL, NULL,
+        svrCertFile, -2, -1), -1001);
+    test_cvcb_ip = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL)
+static int test_cvcb_no_peer_cert(method_provider cm, method_provider sm)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.method = cm;
+    client_cbs.certPemFile = "";
+    client_cbs.keyPemFile = "";
+    server_cbs.method = sm;
+    server_cbs.ctx_ready = test_cvcb_ctx_ready;
+    test_cvcb_verify_ret = 1;
+    test_cvcb_cert_verify_ret = -1;
+    test_cvcb_cert_verify_calls = 0;
+    test_cvcb_leaf_calls = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_cvcb_cert_verify_calls, 0);
+    ExpectIntEQ(test_cvcb_leaf_calls, 0);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The client sends no cert and the server does not require one. Like in
+ * OpenSSL, no callback is called and the handshake succeeds. */
+int test_wolfSSL_CTX_set_cert_verify_callback_no_peer_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL)
+    ExpectIntEQ(test_cvcb_no_peer_cert(NULL, NULL), TEST_SUCCESS);
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_cvcb_no_peer_cert(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static int test_verify_cert_cb_calls[3];
+
+static int test_verify_cert_cb(int ok, X509_STORE_CTX* ctx)
+{
+    int depth = X509_STORE_CTX_get_error_depth(ctx);
+
+    if (depth >= 0 && depth < 3)
+        test_verify_cert_cb_calls[depth]++;
+    return ok;
+}
+#endif
+
+/* X509_verify_cert() reports a cert that verified once to the verify
+ * callback, like OpenSSL. */
+int test_wolfSSL_X509_verify_cert_cb_calls(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509* ca = NULL;
+    X509* int1 = NULL;
+    X509* int2 = NULL;
+    X509* leaf = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(int1 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(int2 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, int2), 0);
+    ExpectIntGT(sk_X509_push(untrusted, int1), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted),
+        WOLFSSL_SUCCESS);
+    X509_STORE_CTX_set_verify_cb(ctx, test_verify_cert_cb);
+    XMEMSET(test_verify_cert_cb_calls, 0, sizeof(test_verify_cert_cb_calls));
+    ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_verify_cert_cb_calls[0], 1);
+    ExpectIntEQ(test_verify_cert_cb_calls[1], 1);
+    ExpectIntEQ(test_verify_cert_cb_calls[2], 1);
+
+    X509_STORE_CTX_free(ctx);
+    sk_X509_free(untrusted);
+    X509_STORE_free(store);
+    X509_free(leaf);
+    X509_free(int2);
+    X509_free(int1);
+    X509_free(ca);
 #endif
     return EXPECT_RESULT();
 }

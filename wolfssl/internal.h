@@ -3017,6 +3017,9 @@ typedef struct ProcPeerCertArgs {
 #ifdef WOLFSSL_TRUST_PEER_CERT
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
 #endif
+#ifdef OPENSSL_ALL
+    word16 peerCertVerified:1; /* cert verify callback accepted peer cert */
+#endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);

@@ -16723,6 +16723,9 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     store->error = GetX509Error(cert_err);
 #endif
     store->error_depth = args->certIdx;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    store->peerCertDepth = args->certIdx;
+#endif
     store->discardSessionCerts = 0;
     store->domain = domain;
     if (ssl != NULL) {
@@ -16770,6 +16773,11 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
             if (ssl->param->hostName[0])
                 XMEMCPY(store->param->hostName, ssl->param->hostName,
                         WOLFSSL_HOST_NAME_MAX);
+            if (ssl->param->ipasc[0])
+                XMEMCPY(store->param->ipasc, ssl->param->ipasc,
+                        WOLFSSL_MAX_IPSTR);
+            if (ssl->param->hostFlags)
+                store->param->hostFlags = ssl->param->hostFlags;
 
         }
 #endif /* defined(OPENSSL_EXTRA) */
@@ -16929,29 +16937,46 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     #endif
 
         if (ssl != NULL) {
+            int callVerifyCb = 1;
     #ifdef OPENSSL_ALL
-            /* non-zero return code indicates failure override */
             if (ssl->ctx->verifyCertCb) {
-                if (ssl->ctx->verifyCertCb(store, ssl->ctx->verifyCertCbArg)) {
-                    if (cert_err != 0) {
-                        WOLFSSL_MSG("Verify Cert callback overriding error!");
-                        ret = 0;
-                        /* The app's cert verify callback replaces chain
-                         * verification in OpenSSL. Pass its good result on to
-                         * the following verify callbacks. */
-                        verify_ok = 1;
-                    }
+                /* Like in OpenSSL, the cert verify callback replaces the
+                 * verification and its result is final. The verify callback
+                 * is reached through X509_verify_cert(). Neither is called
+                 * when the client sent no cert. */
+                callVerifyCb = 0;
+                if (args->totalCerts == 0 &&
+                        ssl->options.side == WOLFSSL_SERVER_END) {
+                    WOLFSSL_MSG("No client cert for cert verify callback");
+                }
+                else if (args->certIdx == 0 && cert_err == 0 &&
+                        args->peerCertVerified) {
+                    WOLFSSL_MSG("Cert verify callback accepted peer cert");
                 }
                 else {
-                    verifyFail = 1;
-                    /* Pass the failure on to the following verify
-                     * callbacks. */
-                    verify_ok = 0;
+                    /* Like OpenSSL, use the store's verify callback when the
+                     * SSL has none. */
+                    store->verify_cb = ssl->verifyCallback;
+                    if (store->verify_cb == NULL && store->store != NULL)
+                        store->verify_cb = store->store->verify_cb;
+                    if (ssl->ctx->verifyCertCb(store,
+                            ssl->ctx->verifyCertCbArg) > 0) {
+                        if (cert_err != 0) {
+                            WOLFSSL_MSG("Verify Cert callback overriding "
+                                        "error!");
+                            ret = 0;
+                        }
+                        if (args->certIdx == 0)
+                            args->peerCertVerified = 1;
+                    }
+                    else if (!ssl->options.verifyNone) {
+                        verifyFail = 1;
+                    }
                 }
             }
     #endif
             /* non-zero return code indicates failure override */
-            if (ssl->verifyCallback) {
+            if (callVerifyCb && ssl->verifyCallback) {
                 if (ssl->verifyCallback(verify_ok, store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Verify callback overriding error!");
@@ -16964,7 +16989,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             }
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
-            if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL) {
+            if (callVerifyCb && SSL_STORE(ssl) != NULL &&
+                    SSL_STORE(ssl)->verify_cb != NULL) {
                 if (SSL_STORE(ssl)->verify_cb(verify_ok, store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Store Verify callback overriding error!");
@@ -16979,11 +17005,10 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         }
 
         if (verifyFail) {
-            /* induce error if one not present */
-            if (cert_err == 0) {
-                ret = VERIFY_CERT_ERROR;
-                WOLFSSL_ERROR_VERBOSE(ret);
-            }
+            /* induce error if one not present. Another callback overriding
+             * the error does not undo the rejection. */
+            ret = (cert_err != 0) ? cert_err : VERIFY_CERT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
 
             /* mark as verify error */
             args->verifyErr = 1;
