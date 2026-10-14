@@ -202,6 +202,17 @@ int test_wc_CryptoCb_AesDirect(void);
 #define TEST_CRYPTOCB_AES_DIRECT_DECL
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_128) && !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED) && \
+    !defined(WOLFSSL_NO_AES_KEY_LOCATION)
+int test_wc_CryptoCb_AesNoSwKey(void);
+#define TEST_CRYPTOCB_AES_NOSW_KEY_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesNoSwKey)
+#else
+#define TEST_CRYPTOCB_AES_NOSW_KEY_DECL
+#endif
+
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
@@ -280,6 +291,7 @@ int test_wc_CryptoCb_AesDirect(void);
     TEST_CRYPTOCB_AES_SETKEY_DECL                         \
     TEST_CRYPTOCB_AES_KEYWRAP_DECL                        \
     TEST_CRYPTOCB_AES_DIRECT_DECL                         \
+    TEST_CRYPTOCB_AES_NOSW_KEY_DECL                       \
     TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL                     \
     TEST_CRYPTOCB_AESCFB_DECL                             \
     TEST_CRYPTOCB_AESOFB_DECL

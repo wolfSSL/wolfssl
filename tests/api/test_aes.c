@@ -12452,6 +12452,94 @@ int test_wc_CryptoCb_AesDirect(void)
 #endif /* WC_AES_DIRECT_CRYPTO_CB && WOLFSSL_AES_128 && HAVE_AES_DECRYPT */
 
 /*----------------------------------------------------------------------------*
+ | CryptoCB AES SetKey: device-only key
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_128) && !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED) && \
+    !defined(WOLFSSL_NO_AES_KEY_LOCATION)
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_AES_NOSW_DEVID 16
+
+/* Set to make the mock decline SetKey, so software keeps the key. */
+static int test_CryptoCb_AesNoSw_Decline = 0;
+
+/* Mock device that keeps the key in hardware: the generic SetKey succeeds and
+ * no key is left in software. Every other request is declined, including the
+ * AES-specific SetKey, so the generic one is used. */
+static int test_CryptoCb_AesNoSw_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+    if (devId != TEST_CRYPTOCB_AES_NOSW_DEVID || info == NULL)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES &&
+            !test_CryptoCb_AesNoSw_Decline) {
+        return 0;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int test_wc_CryptoCb_AesNoSwKey(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte in[WC_AES_BLOCK_SIZE];
+    byte out[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(in, 0, sizeof(in));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_NOSW_DEVID,
+                    test_CryptoCb_AesNoSw_Cb, NULL), 0);
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_NOSW_DEVID), 0);
+
+    /* The device took the key; software has none to fall back on */
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                             AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                             AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(&aes, out, in, sizeof(in)),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+    /* Streaming GCM has no device path, so a HW-stored key must not pass */
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
+
+    /* A new key the device declines is kept in software and must work */
+    test_CryptoCb_AesNoSw_Decline = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                             AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)), 0);
+    test_CryptoCb_AesNoSw_Decline = 0;
+
+    wc_AesFree(&aes);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_NOSW_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY && HAVE_AES_CBC &&
+        * HAVE_AES_DECRYPT && WOLFSSL_AES_128 &&
+        * !WC_AES_KEY_SET_CHECK_UNSUPPORTED && !WOLFSSL_NO_AES_KEY_LOCATION */
+
+/*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test
  *----------------------------------------------------------------------------*/
 
