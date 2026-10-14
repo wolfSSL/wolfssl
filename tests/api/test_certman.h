@@ -25,7 +25,6 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_CertManagerAPI(void);
-int test_wolfSSL_trust_peer_cert_expired(void);
 int test_wolfSSL_CertManagerLoadCABuffer(void);
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
@@ -64,6 +63,7 @@ int test_wolfSSL_CertManagerRejectRPK(void);
 int test_wolfSSL_X509_V_ERR_strings(void);
 int test_wolfSSL_CertManagerNameConstraint_valid_chain(void);
 int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
+int test_wolfSSL_trust_peer_cert_dates(void);
 
 #define TEST_CERTMAN_DECLS                                                  \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerAPI),                \
@@ -113,6 +113,6 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_skid_disambiguates),         \
-    TEST_DECL_GROUP("certman", test_wolfSSL_trust_peer_cert_expired)
+    TEST_DECL_GROUP("certman", test_wolfSSL_trust_peer_cert_dates)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */

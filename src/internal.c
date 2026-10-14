@@ -17303,35 +17303,37 @@ static int GetPeerCertType(const WOLFSSL* ssl)
 }
 #endif /* HAVE_RPK */
 
-#ifdef WOLFSSL_TRUST_PEER_CERT
-/* Helper function to check peer certificate dates since the standard
- * checks and parsing are skipped for trusted peer certificates. */
-static int CheckTrustedPeerDates(DecodedCert* cert)
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK)
+/* Trusted peer certs skip the date checks done when parsing a chain */
+static int CheckTrustedPeerDates(const DecodedCert* cert)
 {
+    int ret = 0;
+
     if (cert == NULL)
         return BAD_FUNC_ARG;
 
-#ifndef NO_ASN_TIME
     if (wc_AsnGetSkipDateCheck())
         return 0;
 
     if ((cert->beforeDate != NULL) && (cert->beforeDateLen > 2) &&
-            (wc_ValidateDate(&cert->beforeDate[2], cert->beforeDate[0],
-                ASN_BEFORE, cert->beforeDate[1]) == 0)) {
+            !XVALIDATE_DATE(&cert->beforeDate[2], cert->beforeDate[0],
+                ASN_BEFORE, cert->beforeDate[1])) {
         WOLFSSL_MSG("Trusted peer cert is not yet valid");
-        return ASN_BEFORE_DATE_E;
+        ret = ASN_BEFORE_DATE_E;
+    }
+    else if ((cert->afterDate != NULL) && (cert->afterDateLen > 2) &&
+            !XVALIDATE_DATE(&cert->afterDate[2], cert->afterDate[0],
+                ASN_AFTER, cert->afterDate[1])) {
+        WOLFSSL_MSG("Trusted peer cert has expired");
+        ret = ASN_AFTER_DATE_E;
     }
 
-    if ((cert->afterDate != NULL) && (cert->afterDateLen > 2) &&
-            (wc_ValidateDate(&cert->afterDate[2], cert->afterDate[0],
-                ASN_AFTER, cert->afterDate[1]) == 0)) {
-        WOLFSSL_MSG("Trusted peer cert has expired");
-        return ASN_AFTER_DATE_E;
-    }
-#endif
-    return 0;
+    if (ret != 0)
+        WOLFSSL_ERROR_VERBOSE(ret);
+
+    return ret;
 }
-#endif /* WOLFSSL_TRUST_PEER_CERT */
+#endif /* WOLFSSL_TRUST_PEER_CERT && !NO_ASN_TIME_CHECK */
 
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
@@ -19176,27 +19178,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     if (tp) {
                         WOLFSSL_MSG("Found matching trusted peer cert");
-                        ret = CheckTrustedPeerDates(args->dCert);
-                        if (ret != 0) {
-                        #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
-                            /* report as the chain path would have */
-                            if (ssl->peerVerifyRet == 0) {
-                                if (ret ==
-                                        WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) {
-                                    ssl->peerVerifyRet = (unsigned long)
-                                        WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
-                                }
-                                else if (ret ==
-                                        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
-                                    ssl->peerVerifyRet = (unsigned long)
-                                        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
-                                }
-                            }
-                        #endif
-                            WOLFSSL_ERROR_VERBOSE(ret);
-                            goto exit_ppc;
-                        }
                         args->haveTrustPeer = 1;
                     }
                     else {
@@ -19708,6 +19689,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  * from it - the key - can still fail below. */
                 if (UsingChainVerifyCb(ssl) && IsCertContentErr(ret))
                     ret = 0;
+            #endif
+            #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK)
+                if (ret == 0 && args->haveTrustPeer &&
+                        !ssl->options.verifyNone) {
+                    ret = CheckTrustedPeerDates(args->dCert);
+                }
             #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))

@@ -4710,56 +4710,94 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
     return EXPECT_RESULT();
 }
 
-/* A certificate loaded as a trusted peer must still be subject to its own
- * validity period. The trusted peer match skips chain processing, so the
- * date check that the chain would have applied has to be made on that path
- * as well; without it an expired pinned certificate is accepted. */
-int test_wolfSSL_trust_peer_cert_expired(void)
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Before the validity period of certs/test/expired/expired-cert.pem */
+static time_t test_trust_peer_early_time(time_t* t)
+{
+    time_t early = (time_t)1514764800; /* 2018-01-01 00:00:00 UTC */
+
+    if (t != NULL)
+        *t = early;
+
+    return early;
+}
+
+static int test_trust_peer_date_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    if (store->error == WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED)
+#else
+    if (store->error == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))
+#endif
+        return 1;
+
+    return preverify;
+}
+#endif
+
+/* The validity period of a trusted peer cert is checked in the handshake */
+int test_wolfSSL_trust_peer_cert_dates(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME) && \
-    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
-    test_ssl_cbf client_cb;
-    test_ssl_cbf server_cb;
+    static const char* expiredCert = "certs/test/expired/expired-cert.pem";
+    static const struct {
+        int mode;
+        VerifyCallback verifyCb;
+        wc_time_cb timeCb;
+        int err;
+    } cases[] = {
+        { WOLFSSL_VERIFY_PEER, NULL, NULL,
+          WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) },
+        { WOLFSSL_VERIFY_PEER, NULL, test_trust_peer_early_time,
+          WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) },
+        { WOLFSSL_VERIFY_NONE, NULL, NULL, 0 },
+        { WOLFSSL_VERIFY_PEER, test_trust_peer_date_cb, NULL, 0 },
+    };
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    size_t i;
     int ret;
 
-    XMEMSET(&client_cb, 0, sizeof(client_cb));
-    XMEMSET(&server_cb, 0, sizeof(server_cb));
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&h, 0, sizeof(h));
+        ret = TEST_FAIL;
 
-    /* the server presents a certificate that expired in 2018 */
-    server_cb.certPemFile = "certs/test/expired/expired-cert.pem";
-    server_cb.keyPemFile  = "certs/server-key.pem";
+        /* the client loads no CA, only the pinned cert */
+        test_ctx.c_cb.caPemFile = "";
+        test_ctx.s_cb.certPemFile = expiredCert;
+        test_ctx.s_cb.keyPemFile = "certs/server-key.pem";
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
-    client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    ExpectNotNull(client_cb.ctx);
-    client_cb.isSharedCtx = 1;
+        /* VERIFY_NONE so the load does not reject the cert dates */
+        wolfSSL_CTX_set_verify(test_ctx.c_ctx, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_CTX_trust_peer_cert(test_ctx.c_ctx, expiredCert,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(test_ctx.c_ssl, cases[i].mode, cases[i].verifyCb);
 
-    /* The client pins that same expired certificate and loads no CA, so a
-     * trusted peer match is the only way the handshake could succeed.
-     *
-     * Whether the certificate can be loaded at all depends on the build:
-     * where WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS carries
-     * WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY the store takes it and the date has
-     * to be applied during the handshake, which is what this covers.
-     * Elsewhere the load itself refuses it, which is an equally good
-     * refusal. Either way the expired certificate must not authenticate a
-     * peer. */
-    ret = wolfSSL_CTX_trust_peer_cert(client_cb.ctx,
-        "certs/test/expired/expired-cert.pem", WOLFSSL_FILETYPE_PEM);
-    if (ret == WOLFSSL_SUCCESS) {
-        wolfSSL_CTX_set_verify(client_cb.ctx, WOLFSSL_VERIFY_PEER, NULL);
+        if (EXPECT_SUCCESS()) {
+            (void)wc_SetTimeCb(cases[i].timeCb);
+            ret = test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
+            (void)wc_SetTimeCb(NULL);
+        }
 
-        /* the pin must not revive an expired certificate */
-        ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cb,
-            &server_cb, NULL), TEST_SUCCESS);
-        ExpectIntEQ(client_cb.last_err, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+        if (cases[i].err == 0) {
+            ExpectIntEQ(ret, TEST_SUCCESS);
+        }
+        else {
+            ExpectIntNE(ret, TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0), cases[i].err);
+            ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.code, certificate_expired);
+        }
+
+        test_ssl_memio_cleanup(&test_ctx);
     }
-    else {
-        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
-    }
-
-    wolfSSL_CTX_free(client_cb.ctx);
 #endif
     return EXPECT_RESULT();
 }
