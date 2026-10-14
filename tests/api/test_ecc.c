@@ -1419,6 +1419,19 @@ int test_wc_ecc_import_private_key(void)
         x963KeySz, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_import_private_key(NULL, privKeySz, x963Key, x963KeySz,
         &keyImp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* Rejecting a private scalar must also revoke private-key capability. */
+    XMEMSET(privKey, 0, privKeySz);
+    ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, x963Key,
+        x963KeySz, &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(keyImp.type, ECC_PUBLICKEY);
+    ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, NULL, 0,
+        &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(keyImp.type, 0);
+#endif
     PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
