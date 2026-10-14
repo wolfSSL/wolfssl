@@ -6046,14 +6046,17 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
             }
 #else
             (void)injectFail;
+            (void)failed;
 #endif
             ret = DtlsMsgStore(ssl, 0, 1, pattern + off, len, certificate,
                     off, fsz, NULL);
 #ifdef DFBR_ALLOC_FAIL
             if (failed) {
                 /* Either an allocation failed or none was needed */
-                ExpectTrue(ret == 0 || ret == WC_NO_ERR_TRACE(MEMORY_ERROR));
-                ExpectIntEQ(dfbr_fail, ret == 0 ? 1 : 0);
+                ExpectTrue(ret == 0 || ret == WC_NO_ERR_TRACE(MEMORY_ERROR) ||
+                        ret == WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+                ExpectIntEQ(dfbr_fail,
+                        ret == WC_NO_ERR_TRACE(MEMORY_ERROR) ? 0 : 1);
                 dfbr_fail = 0;
             }
             else
@@ -6080,82 +6083,12 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
     return EXPECT_RESULT();
 }
 
-int test_wolfSSL_DTLS_fragment_buckets_random(void)
+#ifdef DFBR_ALLOC_FAIL
+/* Every allocation site fails once and leaves the message consistent. */
+static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
 {
     EXPECT_DECLS;
-    WOLFSSL ssl[1];
-    static byte pattern[DFBR_MAX_LEN];
     DtlsMsg* msg = NULL;
-    word32 i;
-#ifdef DFBR_ALLOC_FAIL
-    wolfSSL_Malloc_cb mf = NULL;
-    wolfSSL_Free_cb ff = NULL;
-    wolfSSL_Realloc_cb rf = NULL;
-#endif
-
-    XMEMSET(ssl, 0, sizeof(*ssl));
-    for (i = 0; i < DFBR_MAX_LEN; i++)
-        pattern[i] = (byte)(i * 7 + 3);
-    dfbr_rand_state = 0x12345678;
-
-    /* no_shake is the "unpopulated" marker, never a valid wire type */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, no_shake, 0, 5, NULL),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectNull(ssl->dtls_rx_msg_list);
-    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
-
-    /* A zero-length fragment is accepted but does not take a bucket */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, certificate, 5, 0,
-            NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
-    ExpectNull(msg->fragBucketList);
-    ExpectIntEQ(msg->fragBucketListCount, 0);
-    ExpectIntEQ(msg->bytesReceived, 0);
-    ExpectIntEQ(msg->type, certificate);
-    ExpectIntEQ(msg->ready, 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 10,
-            NULL), 0);
-    ExpectIntEQ(msg->ready, 1);
-    /* An empty message assembles from its single empty fragment */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern, 0, server_hello_done, 0, 0,
-            NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
-    ExpectIntEQ(msg->ready, 1);
-    ExpectIntEQ(msg->sz, 0);
-    dfbr_free_list(ssl);
-
-    /* Bucket limit, then a bridging fragment reclaims the slots */
-    if (2 * DTLS_FRAG_POOL_SZ + 2 <= DFBR_MAX_LEN) {
-        word32 len = 2 * (word32)DTLS_FRAG_POOL_SZ + 2;
-        word32 k;
-
-        for (k = 0; EXPECT_SUCCESS() && k < (word32)DTLS_FRAG_POOL_SZ; k++) {
-            ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 2 * k, len,
-                    certificate, 2 * k, 1, NULL), 0);
-        }
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
-                certificate, len - 2, 1, NULL),
-                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
-        ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
-        ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
-        ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0,
-                len - 2, NULL), 0);
-        ExpectIntEQ(msg->fragBucketListCount, 1);
-        ExpectIntEQ(msg->bytesReceived, len - 2);
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
-                certificate, len - 2, 2, NULL), 0);
-        ExpectIntEQ(msg->ready, 1);
-        ExpectBufEQ(msg->fullMsg, pattern, len);
-        dfbr_free_list(ssl);
-    }
-
-#ifdef DFBR_ALLOC_FAIL
-    wolfSSL_GetAllocators(&mf, &ff, &rf);
-    ExpectIntEQ(wolfSSL_SetAllocators(dfbr_malloc, dfbr_free, dfbr_realloc),
-            0);
-    dfbr_skip = 0;
-    dfbr_fail = 0;
 
     /* Failed combine leaves both buckets intact */
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 10,
@@ -6244,9 +6177,124 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 5));
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
     dfbr_free_list(ssl);
+    return EXPECT_RESULT();
+}
+#endif
 
-    /* Random pass with injected allocation failures */
-    EXPECT_TEST(dfbr_random_pass(ssl, pattern, 1));
+int test_wolfSSL_DTLS_fragment_buckets_random(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL ssl[1];
+    static byte pattern[DFBR_MAX_LEN];
+    DtlsMsg* msg = NULL;
+    word32 i;
+#ifdef DFBR_ALLOC_FAIL
+    wolfSSL_Malloc_cb mf = NULL;
+    wolfSSL_Free_cb ff = NULL;
+    wolfSSL_Realloc_cb rf = NULL;
+    byte* p = NULL;
+    int injectOk = 1;
+#endif
+
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    for (i = 0; i < DFBR_MAX_LEN; i++)
+        pattern[i] = (byte)(i * 7 + 3);
+    dfbr_rand_state = 0x12345678;
+
+    /* no_shake is the "unpopulated" marker, never a valid wire type */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, no_shake, 0, 5, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectNull(ssl->dtls_rx_msg_list);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
+
+    /* A zero-length fragment is accepted but does not take a bucket */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, certificate, 5, 0,
+            NULL), 0);
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNull(msg->fragBucketList);
+    ExpectIntEQ(msg->fragBucketListCount, 0);
+    ExpectIntEQ(msg->bytesReceived, 0);
+    ExpectIntEQ(msg->type, certificate);
+    ExpectIntEQ(msg->ready, 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 10,
+            NULL), 0);
+    ExpectIntEQ(msg->ready, 1);
+    /* An empty message assembles from its single empty fragment */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern, 0, server_hello_done, 0, 0,
+            NULL), 0);
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
+    ExpectIntEQ(msg->ready, 1);
+    ExpectIntEQ(msg->sz, 0);
+    dfbr_free_list(ssl);
+
+    /* Inconsistent bookkeeping at completion drops the buckets and fails */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 10,
+            NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 20, 30, certificate, 20, 10,
+            NULL), 0);
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(msg->bytesReceived, 20);
+    /* Corrupt the count so the next fragment appears to complete the msg */
+    if (msg != NULL)
+        msg->bytesReceived = 25;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 10, 30, certificate, 10, 5,
+            NULL), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectNull(msg->fragBucketList);
+    ExpectIntEQ(msg->fragBucketListCount, 0);
+    ExpectIntEQ(msg->bytesReceived, 0);
+    ExpectIntEQ(msg->ready, 0);
+    ExpectNull(msg->raw);
+    /* A retransmission rebuilds the message */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 30,
+            NULL), 0);
+    ExpectIntEQ(msg->ready, 1);
+    ExpectBufEQ(msg->fullMsg, pattern, 30);
+    dfbr_free_list(ssl);
+
+    /* Bucket limit, then a bridging fragment reclaims the slots */
+    if (2 * DTLS_FRAG_POOL_SZ + 2 <= DFBR_MAX_LEN) {
+        word32 len = 2 * (word32)DTLS_FRAG_POOL_SZ + 2;
+        word32 k;
+
+        for (k = 0; EXPECT_SUCCESS() && k < (word32)DTLS_FRAG_POOL_SZ; k++) {
+            ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 2 * k, len,
+                    certificate, 2 * k, 1, NULL), 0);
+        }
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
+                certificate, len - 2, 1, NULL),
+                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+        ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+        ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
+        ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0,
+                len - 2, NULL), 0);
+        ExpectIntEQ(msg->fragBucketListCount, 1);
+        ExpectIntEQ(msg->bytesReceived, len - 2);
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
+                certificate, len - 2, 2, NULL), 0);
+        ExpectIntEQ(msg->ready, 1);
+        ExpectBufEQ(msg->fullMsg, pattern, len);
+        dfbr_free_list(ssl);
+    }
+
+#ifdef DFBR_ALLOC_FAIL
+    wolfSSL_GetAllocators(&mf, &ff, &rf);
+    ExpectIntEQ(wolfSSL_SetAllocators(dfbr_malloc, dfbr_free, dfbr_realloc),
+            0);
+    /* Some ports route XMALLOC past wolfSSL_Malloc. Check injection works. */
+    dfbr_skip = 0;
+    dfbr_fail = 1;
+    p = (byte*)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p != NULL) {
+        XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        injectOk = 0;
+    }
+    dfbr_fail = 0;
+    if (injectOk) {
+        EXPECT_TEST(dfbr_alloc_fail_cases(ssl, pattern));
+        /* Random pass with injected allocation failures */
+        EXPECT_TEST(dfbr_random_pass(ssl, pattern, 1));
+    }
 
     dfbr_skip = 0;
     dfbr_fail = 0;
