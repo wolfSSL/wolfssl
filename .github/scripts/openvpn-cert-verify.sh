@@ -99,6 +99,7 @@ cat chain-client.crt int.crt > chain-client-full.crt
 cert direct leaf_ext root
 cert root2 ca_ext
 cat root.crt root2.crt > roots.crt
+cat direct.crt root2.crt > direct-root2.crt
 
 for ca in root int; do
     : > "$ca.db"
@@ -228,6 +229,10 @@ run verify-hash connect
 cli=(--ca roots.crt --cert chain-client-full.crt --key chain-client.key
      --verify-hash "$(fp root2.crt)" SHA256)
 run verify-hash-other-ca 'certificate hash verification failed'
+
+# The peer sends the pinned CA as if it signed its cert.
+srv=(--ca root.crt --cert direct-root2.crt --key direct.key)
+run verify-hash-sent-other-ca 'certificate hash verification failed'
 
 cd /
 rm -rf "$WORK"

@@ -669,22 +669,29 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     return ret;
 }
 
-/* In the handshake, report the trust anchor above the peer's chain to the
- * verify callback, like OpenSSL. The certs the peer sent are reported when
- * X509_verify_cert() runs for each of them. */
-static int X509StoreVerifyAnchor(WOLFSSL_X509_STORE_CTX* ctx,
-        WOLFSSL_X509* anchor, WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
+/* In the handshake, report the CA from the CertManager that signed the current
+ * cert to the verify callback before that cert, like OpenSSL. Skipped when the
+ * peer sent that CA at its depth, which is reported for itself. */
+static int X509StoreVerifyIssuer(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509* issuer, WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     WOLFSSL_X509* cur = ctx->current_cert;
     int err = ctx->error;
     int errDepth = ctx->error_depth;
-    int depth = ctx->peerCertDepth + wolfSSL_sk_X509_num(ctx->chain) - 1;
+    /* The current cert is not on the chain yet. */
+    int depth = ctx->peerCertDepth + wolfSSL_sk_X509_num(ctx->chain) + 1;
 
-    if (verifyCb == NULL || ctx->totalCerts == 0 ||
-            depth < ctx->totalCerts || wolfSSL_X509_cmp(anchor, cur) == 0) {
+    if (verifyCb == NULL || ctx->totalCerts == 0 || issuer->derCert == NULL ||
+            wolfSSL_X509_cmp(issuer, cur) == 0) {
         return WOLFSSL_SUCCESS;
     }
-    ctx->current_cert = anchor;
+    if (depth < ctx->totalCerts && ctx->certs != NULL &&
+            ctx->certs[depth].length == issuer->derCert->length &&
+            XMEMCMP(ctx->certs[depth].buffer, issuer->derCert->buffer,
+                issuer->derCert->length) == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    ctx->current_cert = issuer;
     ctx->error = WOLFSSL_X509_V_OK;
     ctx->error_depth = depth;
     if (verifyCb(1, ctx) != 1)
@@ -1174,6 +1181,35 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
+            issuer = NULL;
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+            x509GetIssuerFromCM(&issuer, ctx->store->cm, ctx->current_cert);
+            if (issuer != NULL && ctx->owned != NULL) {
+                wolfSSL_sk_X509_push(ctx->owned, issuer);
+            }
+    #else
+            /* A candidate that already failed verification (moved to
+             * failedCerts by the retry path) must not terminate the reported
+             * chain.  setTrustedSk / store->trusted are searched by name+AKID,
+             * not by signature, and setTrustedSk is no longer pruned during
+             * chain building, so a same-subject cert that was tried and
+             * rejected can match here.  Skip those entries and keep scanning so
+             * a genuine anchor further down the stack is still found. */
+            if (ctx->setTrustedSk == NULL) {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->store->trusted, ctx->current_cert, failedCerts);
+            }
+            else {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->setTrustedSk, ctx->current_cert, failedCerts);
+            }
+    #endif
+            if (issuer != NULL &&
+                    X509StoreVerifyIssuer(ctx, issuer, verifyCb) !=
+                    WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
             ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
             if (cbRejected) {
                 /* An application veto is final.  The partial-chain fallback
@@ -1211,36 +1247,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* Cert verified, finish building the chain */
             X509StoreChainPush(ctx->chain, ctx->current_cert);
-            issuer = NULL;
-    #ifdef WOLFSSL_SIGNER_DER_CERT
-            x509GetIssuerFromCM(&issuer, ctx->store->cm, ctx->current_cert);
-            if (issuer != NULL && ctx->owned != NULL) {
-                wolfSSL_sk_X509_push(ctx->owned, issuer);
-            }
-    #else
-            /* A candidate that already failed verification (moved to
-             * failedCerts by the retry path) must not terminate the reported
-             * chain.  setTrustedSk / store->trusted are searched by name+AKID,
-             * not by signature, and setTrustedSk is no longer pruned during
-             * chain building, so a same-subject cert that was tried and
-             * rejected can match here.  Skip those entries and keep scanning so
-             * a genuine anchor further down the stack is still found. */
-            if (ctx->setTrustedSk == NULL) {
-                X509StoreGetIssuerSkip(&issuer,
-                    ctx->store->trusted, ctx->current_cert, failedCerts);
-            }
-            else {
-                X509StoreGetIssuerSkip(&issuer,
-                    ctx->setTrustedSk, ctx->current_cert, failedCerts);
-            }
-    #endif
             if (issuer != NULL) {
                 X509StoreChainPush(ctx->chain, issuer);
-                if (X509StoreVerifyAnchor(ctx, issuer, verifyCb) !=
-                        WOLFSSL_SUCCESS) {
-                    ret = WOLFSSL_FAILURE;
-                    goto exit;
-                }
             }
 
             done = 1;

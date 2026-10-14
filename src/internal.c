@@ -16860,7 +16860,8 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 /* Callback is issued for certificate presented in TLS Certificate (11) packet.
  * The intermediates are done first then peer leaf cert last. Use the
  * store->error_depth member to determine index (0=peer, >1 intermediates)
- * The trust anchor above them is reported first, see DoVerifyCallbackAnchor().
+ * The CA that signed a cert is reported before it when the peer did not send
+ * that CA next, see DoVerifyCallbackIssuer().
  */
 
 int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
@@ -17023,11 +17024,14 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
 }
 
 #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
-/* Report the trust anchor that signed the last cert of the peer's chain to the
- * verify callback first, at the depth after that cert, like OpenSSL. parseRet
- * is the result of verifying that cert. With a cert verify callback,
- * X509_verify_cert() reports the anchor instead. */
-static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
+/* Report the CA that signed the current cert of the peer's chain to the verify
+ * callback first, at the next depth, like OpenSSL. Skipped when the peer sent
+ * that CA as its next cert, which is reported for itself. So the trust anchor
+ * above the chain is reported, and so is the real issuer when the peer lists
+ * another cert in its place. parseRet is the result of verifying the current
+ * cert. With a cert verify callback, X509_verify_cert() reports the issuer
+ * instead. */
+static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int parseRet)
 {
     int ret;
@@ -17036,12 +17040,12 @@ static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certIdx = args->certIdx;
     DecodedCert* dCert = args->dCert;
     Signer* ca;
+    buffer* next;
     WOLFSSL_X509_STORE_CTX* store = NULL;
-    WC_DECLARE_VAR(anchor, DecodedCert, 1, 0);
+    WC_DECLARE_VAR(issuer, DecodedCert, 1, 0);
 
-    if (args->anchorReported || certIdx != args->totalCerts - 1 ||
-            ssl->options.verifyNone || UsingChainVerifyCb(ssl) ||
-            dCert == NULL || !args->dCertInit ||
+    if (args->issuerReported == certIdx + 1 || ssl->options.verifyNone ||
+            UsingChainVerifyCb(ssl) || dCert == NULL || !args->dCertInit ||
             (parseRet != 0 &&
              parseRet != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
              parseRet != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
@@ -17058,6 +17062,12 @@ static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
     ca = dCert->ca;
     if (ca == NULL || ca->derCert == NULL || dCert->selfSigned)
         return 0;
+    if (certIdx + 1 < args->totalCerts) {
+        next = &args->certs[certIdx + 1];
+        if (next->length == ca->derCert->length &&
+                XMEMCMP(next->buffer, ca->derCert->buffer, next->length) == 0)
+            return 0;
+    }
     if (ssl->verifyCallback == NULL
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
@@ -17066,15 +17076,20 @@ static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
             ) {
         return 0;
     }
-    args->anchorReported = 1;
+    args->issuerReported = (byte)(certIdx + 1);
 
-    WC_ALLOC_VAR_EX(anchor, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+    WC_ALLOC_VAR_EX(issuer, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
         return MEMORY_E);
-    InitDecodedCert(anchor, ca->derCert->buffer, ca->derCert->length,
+    InitDecodedCert(issuer, ca->derCert->buffer, ca->derCert->length,
         ssl->heap);
-    ret = ParseCert(anchor, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Parse it like AddCA() did. */
+    if (SSL_CM(ssl)->unknownExtCallback != NULL)
+        wc_SetUnknownExtCallback(issuer, SSL_CM(ssl)->unknownExtCallback);
+#endif
+    ret = ParseCert(issuer, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
     if (ret == 0) {
-        args->dCert = anchor;
+        args->dCert = issuer;
         args->certIdx = certIdx + 1;
         ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
             ssl->heap, &x509Free);
@@ -17093,13 +17108,13 @@ static int DoVerifyCallbackAnchor(WOLFSSL* ssl, ProcPeerCertArgs* args,
 #endif
         CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
         if (verifyFail) {
-            WOLFSSL_MSG("Verify callback rejected trust anchor");
+            WOLFSSL_MSG("Verify callback rejected issuer");
             ret = VERIFY_CERT_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
-    FreeDecodedCert(anchor);
-    WC_FREE_VAR_EX(anchor, ssl->heap, DYNAMIC_TYPE_DCERT);
+    FreeDecodedCert(issuer);
+    WC_FREE_VAR_EX(issuer, ssl->heap, DYNAMIC_TYPE_DCERT);
     return ret;
 }
 #endif
@@ -19319,9 +19334,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
                 #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
                     {
-                        int anchorRet = DoVerifyCallbackAnchor(ssl, args, ret);
-                        if (anchorRet != 0) {
-                            ret = anchorRet;
+                        int issuerRet = DoVerifyCallbackIssuer(ssl, args, ret);
+                        if (issuerRet != 0) {
+                            ret = issuerRet;
                             DoCertFatalAlert(ssl, ret);
                             goto exit_ppc;
                         }
@@ -19782,9 +19797,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
             #if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
                 {
-                    int anchorRet = DoVerifyCallbackAnchor(ssl, args, ret);
-                    if (anchorRet != 0) {
-                        ret = anchorRet;
+                    int issuerRet = DoVerifyCallbackIssuer(ssl, args, ret);
+                    if (issuerRet != 0) {
+                        ret = issuerRet;
                         args->fatal = 1;
                         DoCertFatalAlert(ssl, ret);
                         goto exit_ppc;

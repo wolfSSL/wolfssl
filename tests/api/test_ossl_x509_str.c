@@ -4358,6 +4358,9 @@ static const char* test_cvcb_int_chain[TEST_CVCB_DEPTHS] = {
 };
 static const char* const* test_cvcb_chain_files = test_cvcb_int_chain;
 static int test_cvcb_pin;             /* reject unexpected CA certs */
+static ctx_cb test_cvcb_ready;        /* client ctx setup */
+static const char* test_cvcb_extra_ca;   /* another CA the client trusts */
+static const char* test_cvcb_extra_cert; /* cert the server adds to its chain */
 static const char* test_cvcb_host;    /* host name to verify */
 static const char* test_cvcb_ip;      /* IP address to verify */
 static int test_cvcb_verify_ret;      /* verify cb result for the peer cert:
@@ -4480,6 +4483,31 @@ static int test_cvcb_ssl_ready(WOLFSSL* ssl)
     return TEST_SUCCESS;
 }
 
+static int test_cvcb_client_ready(WOLFSSL_CTX* ctx)
+{
+    if (test_cvcb_ready(ctx) != TEST_SUCCESS)
+        return TEST_FAIL;
+    if (test_cvcb_extra_ca != NULL && wolfSSL_CTX_load_verify_locations(ctx,
+            test_cvcb_extra_ca, NULL) != WOLFSSL_SUCCESS) {
+        return TEST_FAIL;
+    }
+    return TEST_SUCCESS;
+}
+
+static int test_cvcb_server_ready(WOLFSSL_CTX* ctx)
+{
+    int ret = TEST_FAIL;
+    X509* x509 = wolfSSL_X509_load_certificate_file(test_cvcb_extra_cert,
+        WOLFSSL_FILETYPE_PEM);
+
+    if (x509 != NULL && wolfSSL_CTX_add1_chain_cert(ctx, x509) ==
+            WOLFSSL_SUCCESS) {
+        ret = TEST_SUCCESS;
+    }
+    X509_free(x509);
+    return ret;
+}
+
 /* Handshake with the callbacks above set on the client. caFile is NULL for
  * the default CA and "" for none. */
 static int test_cvcb_run(ctx_cb ready, const char* caFile,
@@ -4493,11 +4521,14 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
 
     XMEMSET(&client_cbs, 0, sizeof(client_cbs));
     XMEMSET(&server_cbs, 0, sizeof(server_cbs));
-    client_cbs.ctx_ready = ready;
+    test_cvcb_ready = ready;
+    client_cbs.ctx_ready = test_cvcb_client_ready;
     client_cbs.ssl_ready = test_cvcb_ssl_ready;
     client_cbs.caPemFile = caFile;
     server_cbs.certPemFile = certFile;
     server_cbs.keyPemFile = keyFile;
+    if (test_cvcb_extra_cert != NULL)
+        server_cbs.ctx_ready = test_cvcb_server_ready;
 
     test_cvcb_peer = wolfSSL_X509_load_certificate_file(peerFile,
         WOLFSSL_FILETYPE_PEM);
@@ -4718,10 +4749,11 @@ static int test_cvcb_ctx_ready_verify(WOLFSSL_CTX* ctx)
 }
 #endif
 
-/* The verify callback sees the trust anchor that signed the last cert the peer
- * sent, at the depth after it, like in OpenSSL. OpenVPN's --verify-hash checks
- * the CA that signed the peer cert there. Without a cert verify callback, and
- * with one that calls X509_verify_cert(). */
+/* The verify callback sees the CA that signed each cert at the depth after it,
+ * like in OpenSSL, also when the peer did not send it: the trust anchor, or the
+ * real issuer when the peer sends another cert in its place. OpenVPN's
+ * --verify-hash checks the CA that signed the peer cert there. Without a cert
+ * verify callback, and with one that calls X509_verify_cert(). */
 int test_wolfSSL_verify_cb_trust_anchor(void)
 {
     EXPECT_DECLS;
@@ -4750,9 +4782,7 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
         ExpectIntEQ(test_cvcb_depths, 0x3);
         ExpectIntEQ(test_cvcb_depth_calls[1], 1);
         ExpectIntEQ(test_cvcb_bad_depth, 0);
-        if (i == 0) {
-            ExpectIntEQ(test_cvcb_first_depth, 1);
-        }
+        ExpectIntEQ(test_cvcb_first_depth, 1);
 
         /* Pinned to another CA, like --verify-hash */
         test_cvcb_chain_files = rsaCa;
@@ -4763,6 +4793,26 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
         test_cvcb_pin = 0;
         test_cvcb_chain_files = test_cvcb_int_chain;
     #endif
+    #if defined(HAVE_ECC) && !defined(NO_RSA)
+        /* The peer sends another trusted CA as if it signed its cert. The real
+         * issuer is reported at that depth too, so a pin on the other CA
+         * rejects it. */
+        test_cvcb_extra_ca = caCertFile;
+        test_cvcb_extra_cert = caCertFile;
+        test_cvcb_chain_files = rsaCa;
+        ExpectIntEQ(test_cvcb_run(ready[i], "./certs/ca-ecc-cert.pem",
+            "./certs/server-ecc.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc.pem", 1, -1), TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depth_calls[1], 2);
+        test_cvcb_pin = 1;
+        ExpectIntEQ(test_cvcb_run(ready[i], "./certs/ca-ecc-cert.pem",
+            "./certs/server-ecc.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc.pem", 1, -1), -1001);
+        test_cvcb_pin = 0;
+        test_cvcb_chain_files = test_cvcb_int_chain;
+        test_cvcb_extra_cert = NULL;
+        test_cvcb_extra_ca = NULL;
+    #endif
     #ifndef NO_RSA
         /* Above the chain the peer sends */
         ExpectIntEQ(test_cvcb_run(ready[i], NULL,
@@ -4772,9 +4822,7 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
         ExpectIntEQ(test_cvcb_depths, 0xf);
         ExpectIntEQ(test_cvcb_depth_calls[3], 1);
         ExpectIntEQ(test_cvcb_bad_depth, 0);
-        if (i == 0) {
-            ExpectIntEQ(test_cvcb_first_depth, 3);
-        }
+        ExpectIntEQ(test_cvcb_first_depth, 3);
 
         /* Reported once when the peer sends it too */
         test_cvcb_chain_files = rsaCa;
