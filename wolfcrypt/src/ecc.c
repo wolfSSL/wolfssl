@@ -9578,10 +9578,11 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
     if (mp_iszero(r) || mp_iszero(s)) {
         err = MP_ZERO_E;
     }
-    if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) {
+    /* FIPS 186-5 sec 6.4.2 step 1: r and s must be in [1, n-1]. */
+    if ((err == 0) && (mp_isneg(r) || (mp_cmp(r, curve->order) != MP_LT))) {
         err = MP_VAL;
     }
-    if ((err == 0) && (mp_cmp(s, curve->order) != MP_LT)) {
+    if ((err == 0) && (mp_isneg(s) || (mp_cmp(s, curve->order) != MP_LT))) {
         err = MP_VAL;
     }
 
