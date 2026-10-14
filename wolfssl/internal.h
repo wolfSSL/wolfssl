@@ -2994,7 +2994,6 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifndef NO_ASN
     DecodedCert* dCert;
-    Signer* waivedCAs; /* chain CAs the verify callback waived */
 #endif
     word32 idx;
     word32 begin;
@@ -3018,6 +3017,11 @@ typedef struct ProcPeerCertArgs {
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int cert_err, ProcPeerCertArgs* args);
+#ifndef NO_CERTS
+WOLFSSL_LOCAL Signer* SslWaivedCAsJoin(WOLFSSL* ssl, Signer* base,
+        Signer** pTail);
+WOLFSSL_LOCAL void SslWaivedCAsSplit(Signer* tail);
+#endif
 WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         ProcPeerCertArgs* args, int* outRet);
 
@@ -7143,6 +7147,9 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
+#ifndef NO_CERTS
+    Signer*         waivedCAs;          /* callback-accepted chain CAs */
 #endif
 #ifdef KEEP_PEER_CERT
     /* TODO put this on the heap so we can properly use the
