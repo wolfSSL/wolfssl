@@ -568,6 +568,63 @@ move the crossover down toward small-record sizes.
   GCM including a corrupted-tag rejection, RNG4, and ECDSA/ECDH cross-checked
   against the software implementation.
 
+## NXP EdgeLock Secure Enclave (ELE)
+
+For i.MX 8ULP / 93 / 95, where NXP replaced CAAM with the EdgeLock Secure
+Enclave. Implemented as a crypto callback device; TRNG only so far.
+
+```sh
+./configure --enable-ele
+cmake -B build -DWOLFSSL_ELE=yes
+```
+
+Either defines `WOLFSSL_NXP_ELE` and turns on crypto callbacks. Register the
+device before use:
+
+```c
+wolfCrypt_Init();
+wc_EleCryptoCb_RegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+wc_InitRng_ex(&rng, NULL, WOLFSSL_NXP_ELE_DEVID);
+```
+
+Registration is left to the application rather than done in `wolfCrypt_Init()`:
+the hwrng node is root-only by default, so registering unconditionally would
+fail every RNG call in an unprivileged process instead of using software. The
+enclave id is not made the default `WC_USE_DEVID` either, since that id also
+steers the one-shot hashes, curve25519 and `wc_rng_new()`;
+`WOLFSSL_NXP_ELE_USE_DEVID` opts in, and only maps the id - nothing registers
+the device on the application's behalf.
+
+| Macro | Default | Purpose |
+|---|---|---|
+| `WOLFSSL_NXP_ELE` | off | Enable the port |
+| `WOLFSSL_NXP_ELE_DEVID` | `0x454C45` | Crypto callback device id |
+| `WOLFSSL_NXP_ELE_TRNG_DEVICE` | `/dev/hwrng` | Enclave TRNG character device |
+| `WOLFSSL_NXP_ELE_TRNG_CURRENT` | `/sys/.../rng_current` | Where the active hwrng provider is named |
+| `WOLFSSL_NXP_ELE_TRNG_NAME` | `ele-trng` | Provider name required of that node |
+| `WOLFSSL_NXP_ELE_TRNG` | on | Build the TRNG support |
+| `WOLFSSL_NXP_ELE_NO_TRNG` | off | Do not build the TRNG support |
+| `WOLFSSL_NXP_ELE_NO_TRNG_CHECK` | off | Do not verify the active hwrng provider |
+| `WOLFSSL_NXP_ELE_USE_DEVID` | off | Also make the enclave id the default `WC_USE_DEVID` |
+
+Anything unimplemented returns `CRYPTOCB_UNAVAILABLE`, so wolfCrypt falls back
+to software. The TRNG arrives through the Linux hwrng framework, so no NXP
+userspace library is needed, but that node serves whichever provider
+`rng_current` names: registration and every read require that name to be
+`ele-trng` and return `WC_HW_E` otherwise, which
+`WOLFSSL_NXP_ELE_NO_TRNG_CHECK` skips for a custom node. Registration also
+opens the device, so an unprivileged process is refused up front rather than
+handed a device whose every seed request fails. The TRNG needs a filesystem
+and is left out under `NO_FILESYSTEM`. A host without the enclave can still
+exercise the read path by building with `WOLFSSL_NXP_ELE_NO_TRNG_CHECK` and
+`WOLFSSL_NXP_ELE_TRNG_DEVICE` pointed at a readable entropy source.
+
+Hash, AES, HMAC/CMAC and public key need the enclave HSM interface
+(`/dev/hsm0_ch0`), which requires NXP's `imx-secure-enclave` library and a
+kernel carrying NXP's downstream `ele_mu` driver; the upstream `fsl-se` driver
+rejects userspace SAB writes with `EINVAL`. The enclave exposes no post-quantum
+algorithms, so ML-KEM and ML-DSA stay on the CPU.
+
 ## Support
 
 For questions please email support@wolfssl.com
