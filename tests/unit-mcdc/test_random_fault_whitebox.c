@@ -163,6 +163,7 @@ static int wb_fail = 0;
 static void wb_hash_drbg_init_df_chain(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     word32 i;
@@ -177,7 +178,7 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (T, T): unarmed instantiate, in the SAME binary as the two
      * rejection vectors below. */
     mcdc_fh_disarm();
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash_DRBG_Instantiate failed; df-chain skipped");
@@ -204,7 +205,7 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (F, -): the first Hash_df fails on its very first primitive
      * call, so the && short-circuits and never calls the second one. */
     mcdc_fh_arm(1);
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret == DRBG_SUCCESS) {
         WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
@@ -216,7 +217,7 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (T, F): the first Hash_df's n1 primitive calls all succeed;
      * every call from n1+1 on -- the whole second Hash_df -- fails. */
     mcdc_fh_arm(n1 + 1);
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret == DRBG_SUCCESS) {
         WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
@@ -242,6 +243,7 @@ static void wb_hash_drbg_init_df_chain(void)
 static void wb_hash512_drbg_init_df_chain(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     word32 i;
@@ -255,7 +257,7 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (T, T). */
     mcdc_fh_disarm();
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash512_DRBG_Instantiate failed; df-chain skipped");
@@ -278,7 +280,7 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (F, -). */
     mcdc_fh_arm(1);
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret == DRBG_SUCCESS) {
         WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
@@ -289,7 +291,7 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (T, F). */
     mcdc_fh_arm(n1 + 1);
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret == DRBG_SUCCESS) {
         WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
@@ -320,6 +322,7 @@ static void wb_hash512_drbg_init_df_chain(void)
 static void wb_hash_drbg_reseed_df_chain(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     byte   seed2[48];
@@ -340,7 +343,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
         seed2[i] = (byte)((i * 23u) + 7u);
 
     mcdc_fh_disarm();
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash_DRBG_Instantiate failed; reseed chain skipped");
@@ -350,7 +353,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
 
     XMEMCPY(v0, drbg.V, sizeof(v0));
     XMEMCPY(c0, drbg.C, sizeof(c0));
-    rctr0 = (unsigned long long)drbg.reseedCtr;
+    rctr0 = (unsigned long long)drbg_ctr;
 
     /* Size the FIRST Hash_df of Hash256_DRBG_Reseed: same out size, same
      * type byte (drbgReseed), same present/absent operands as the reseed
@@ -369,7 +372,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
 
     /* Vector (F, -): the newV derivation fails on its first primitive. */
     mcdc_fh_arm(1);
-    ret = Hash256_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
         WB_NOTE("armed reseed (F,-) did not return DRBG_FAILURE");
@@ -377,7 +380,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
     }
     if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)drbg.reseedCtr != rctr0)) {
+        ((unsigned long long)drbg_ctr != rctr0)) {
         WB_NOTE("reseed (F,-) mutated DRBG state");
         wb_fail = 1;
     }
@@ -385,7 +388,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
     /* Vector (T, F): the newV derivation's n1 calls all succeed and the newC
      * derivation fails -- the seam case. */
     mcdc_fh_arm(n1 + 1);
-    ret = Hash256_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
         WB_NOTE("armed reseed (T,F) did not return DRBG_FAILURE");
@@ -393,20 +396,20 @@ static void wb_hash_drbg_reseed_df_chain(void)
     }
     if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)drbg.reseedCtr != rctr0)) {
+        ((unsigned long long)drbg_ctr != rctr0)) {
         WB_NOTE("reseed (T,F) mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Retryability: the same reseed, disarmed, succeeds in place, and the
      * instance is operational. */
-    ret = Hash256_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
-    if ((ret != DRBG_SUCCESS) || (drbg.reseedCtr != 1)) {
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    if ((ret != DRBG_SUCCESS) || (drbg_ctr != 1)) {
         WB_NOTE("disarmed reseed retry did not succeed cleanly");
         wb_fail = 1;
     }
     else {
-        ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+        ret = Hash_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
         if (ret != DRBG_SUCCESS) {
             WB_NOTE("generate after retried reseed failed");
             wb_fail = 1;
@@ -430,6 +433,7 @@ static void wb_hash_drbg_reseed_df_chain(void)
 static void wb_hash512_drbg_reseed_df_chain(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     byte   seed2[48];
@@ -450,7 +454,7 @@ static void wb_hash512_drbg_reseed_df_chain(void)
         seed2[i] = (byte)((i * 47u) + 13u);
 
     mcdc_fh_disarm();
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash512_DRBG_Instantiate failed; "
@@ -461,7 +465,7 @@ static void wb_hash512_drbg_reseed_df_chain(void)
 
     XMEMCPY(v0, drbg.V, sizeof(v0));
     XMEMCPY(c0, drbg.C, sizeof(c0));
-    rctr0 = (unsigned long long)drbg.reseedCtr;
+    rctr0 = (unsigned long long)drbg_ctr;
 
     /* Size the first Hash512_df of Hash512_DRBG_Reseed. */
     mcdc_fh_disarm();
@@ -479,7 +483,7 @@ static void wb_hash512_drbg_reseed_df_chain(void)
 
     /* Vector (F, -). */
     mcdc_fh_arm(1);
-    ret = Hash512_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
         WB_NOTE("armed 512 reseed (F,-) did not return DRBG_FAILURE");
@@ -487,14 +491,14 @@ static void wb_hash512_drbg_reseed_df_chain(void)
     }
     if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)drbg.reseedCtr != rctr0)) {
+        ((unsigned long long)drbg_ctr != rctr0)) {
         WB_NOTE("512 reseed (F,-) mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Vector (T, F): the seam case. */
     mcdc_fh_arm(n1 + 1);
-    ret = Hash512_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
         WB_NOTE("armed 512 reseed (T,F) did not return DRBG_FAILURE");
@@ -502,19 +506,19 @@ static void wb_hash512_drbg_reseed_df_chain(void)
     }
     if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)drbg.reseedCtr != rctr0)) {
+        ((unsigned long long)drbg_ctr != rctr0)) {
         WB_NOTE("512 reseed (T,F) mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Retryability. */
-    ret = Hash512_DRBG_Reseed(&drbg, seed2, (word32)sizeof(seed2), NULL, 0);
-    if ((ret != DRBG_SUCCESS) || (drbg.reseedCtr != 1)) {
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    if ((ret != DRBG_SUCCESS) || (drbg_ctr != 1)) {
         WB_NOTE("disarmed 512 reseed retry did not succeed cleanly");
         wb_fail = 1;
     }
     else {
-        ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+        ret = Hash512_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
         if (ret != DRBG_SUCCESS) {
             WB_NOTE("generate after retried 512 reseed failed");
             wb_fail = 1;
@@ -568,7 +572,9 @@ static void wb_hash512_drbg_reseed_df_chain(void)
 static void wb_hash_drbg_generate_atomicity(void)
 {
     DRBG_internal ctrl;
+    wc_drbg_reseed_ctr_t ctrl_ctr = 0;
     DRBG_internal probe;
+    wc_drbg_reseed_ctr_t probe_ctr = 0;
     wc_Sha256 addsha[1];
     byte   seed[48];
     byte   nonce[16];
@@ -596,7 +602,7 @@ static void wb_hash_drbg_generate_atomicity(void)
     /* Control: one disarmed generate; its output is the expected block for
      * every retry below, and its end state the expected end state. */
     mcdc_fh_disarm();
-    ret = Hash_DRBG_Instantiate(&ctrl, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&ctrl, &ctrl_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("control Hash_DRBG_Instantiate failed; atomicity skipped");
@@ -604,7 +610,7 @@ static void wb_hash_drbg_generate_atomicity(void)
         return;
     }
     mcdc_fh_disarm();
-    ret = Hash_DRBG_Generate(&ctrl, exp1, (word32)sizeof(exp1),
+    ret = Hash_DRBG_Generate(&ctrl, &ctrl_ctr, exp1, (word32)sizeof(exp1),
                              add, (word32)sizeof(add));
     t_add = mcdc_fh_seen();
     if (ret != DRBG_SUCCESS || t_add <= 0) {
@@ -615,7 +621,7 @@ static void wb_hash_drbg_generate_atomicity(void)
     }
 
     /* Probe: identical instantiation, so identical state. */
-    ret = Hash_DRBG_Instantiate(&probe, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&probe, &probe_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("probe Hash_DRBG_Instantiate failed; atomicity skipped");
@@ -625,7 +631,7 @@ static void wb_hash_drbg_generate_atomicity(void)
     }
     XMEMCPY(v0, probe.V, sizeof(v0));
     XMEMCPY(c0, probe.C, sizeof(c0));
-    rctr0 = (unsigned long long)probe.reseedCtr;
+    rctr0 = (unsigned long long)probe_ctr;
 
     /* n_a: the additional-input hash is Update(type) + Update(V) +
      * Update(additional) + Final; sizes do not change the call count. */
@@ -665,7 +671,7 @@ static void wb_hash_drbg_generate_atomicity(void)
 
     /* Pre-Hash_gen fault: first primitive of the additional-input hash. */
     mcdc_fh_arm(1);
-    ret = Hash_DRBG_Generate(&probe, out, (word32)sizeof(out),
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
                              add, (word32)sizeof(add));
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
@@ -674,14 +680,14 @@ static void wb_hash_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)probe.reseedCtr != rctr0)) {
+        ((unsigned long long)probe_ctr != rctr0)) {
         WB_NOTE("pre-Hash_gen fault mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Post-Hash_gen fault: first primitive after Hash_gen's last. */
     mcdc_fh_arm(n_a + n_gen + 1);
-    ret = Hash_DRBG_Generate(&probe, out, (word32)sizeof(out),
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
                              add, (word32)sizeof(add));
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
@@ -690,13 +696,13 @@ static void wb_hash_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)probe.reseedCtr != rctr0)) {
+        ((unsigned long long)probe_ctr != rctr0)) {
         WB_NOTE("post-Hash_gen fault mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Retry: byte-identical output, end state equal to the control's. */
-    ret = Hash_DRBG_Generate(&probe, out2, (word32)sizeof(out2),
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out2, (word32)sizeof(out2),
                              add, (word32)sizeof(add));
     if ((ret != DRBG_SUCCESS) ||
         (XMEMCMP(out2, exp1, sizeof(exp1)) != 0)) {
@@ -705,7 +711,7 @@ static void wb_hash_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, ctrl.V, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, ctrl.C, sizeof(c0)) != 0) ||
-        (probe.reseedCtr != ctrl.reseedCtr)) {
+        (probe_ctr != ctrl_ctr)) {
         WB_NOTE("retried generate end-state differs from control");
         wb_fail = 1;
     }
@@ -731,7 +737,9 @@ static void wb_hash_drbg_generate_atomicity(void)
 static void wb_hash512_drbg_generate_atomicity(void)
 {
     DRBG_SHA512_internal ctrl;
+    wc_drbg_reseed_ctr_t ctrl_ctr = 0;
     DRBG_SHA512_internal probe;
+    wc_drbg_reseed_ctr_t probe_ctr = 0;
     wc_Sha512 addsha[1];
     byte   seed[48];
     byte   nonce[16];
@@ -758,7 +766,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
 
     /* Control. */
     mcdc_fh_disarm();
-    ret = Hash512_DRBG_Instantiate(&ctrl, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&ctrl, &ctrl_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("control Hash512_DRBG_Instantiate failed; "
@@ -767,7 +775,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
         return;
     }
     mcdc_fh_disarm();
-    ret = Hash512_DRBG_Generate(&ctrl, exp1, (word32)sizeof(exp1),
+    ret = Hash512_DRBG_Generate(&ctrl, &ctrl_ctr, exp1, (word32)sizeof(exp1),
                                 add, (word32)sizeof(add));
     t_add = mcdc_fh_seen();
     if (ret != DRBG_SUCCESS || t_add <= 0) {
@@ -778,7 +786,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
     }
 
     /* Probe. */
-    ret = Hash512_DRBG_Instantiate(&probe, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&probe, &probe_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("probe Hash512_DRBG_Instantiate failed; atomicity skipped");
@@ -788,7 +796,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
     }
     XMEMCPY(v0, probe.V, sizeof(v0));
     XMEMCPY(c0, probe.C, sizeof(c0));
-    rctr0 = (unsigned long long)probe.reseedCtr;
+    rctr0 = (unsigned long long)probe_ctr;
 
     /* n_a. */
     ret = wc_InitSha512(addsha);
@@ -828,7 +836,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
 
     /* Pre-Hash512_gen fault. */
     mcdc_fh_arm(1);
-    ret = Hash512_DRBG_Generate(&probe, out, (word32)sizeof(out),
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
                                 add, (word32)sizeof(add));
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
@@ -837,14 +845,14 @@ static void wb_hash512_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)probe.reseedCtr != rctr0)) {
+        ((unsigned long long)probe_ctr != rctr0)) {
         WB_NOTE("pre-Hash512_gen fault mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Post-Hash512_gen fault. */
     mcdc_fh_arm(n_a + n_gen + 1);
-    ret = Hash512_DRBG_Generate(&probe, out, (word32)sizeof(out),
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
                                 add, (word32)sizeof(add));
     mcdc_fh_disarm();
     if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
@@ -853,13 +861,13 @@ static void wb_hash512_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
-        ((unsigned long long)probe.reseedCtr != rctr0)) {
+        ((unsigned long long)probe_ctr != rctr0)) {
         WB_NOTE("post-Hash512_gen fault mutated DRBG state");
         wb_fail = 1;
     }
 
     /* Retry. */
-    ret = Hash512_DRBG_Generate(&probe, out2, (word32)sizeof(out2),
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out2, (word32)sizeof(out2),
                                 add, (word32)sizeof(add));
     if ((ret != DRBG_SUCCESS) ||
         (XMEMCMP(out2, exp1, sizeof(exp1)) != 0)) {
@@ -868,7 +876,7 @@ static void wb_hash512_drbg_generate_atomicity(void)
     }
     if ((XMEMCMP(probe.V, ctrl.V, sizeof(v0)) != 0) ||
         (XMEMCMP(probe.C, ctrl.C, sizeof(c0)) != 0) ||
-        (probe.reseedCtr != ctrl.reseedCtr)) {
+        (probe_ctr != ctrl_ctr)) {
         WB_NOTE("retried 512 generate end-state differs from control");
         wb_fail = 1;
     }

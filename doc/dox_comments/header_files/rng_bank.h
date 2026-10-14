@@ -261,8 +261,13 @@ int wc_rng_bank_default_clear(struct wc_rng_bank *bank);
     wc_rng_bank_inst_checkin().  WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED consumes
     a ready banked next seed in an immediate source-free credited reseed
     before returning; WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (per-call,
-    requires _CAN_WAIT) freshly credited-reseeds the lease before the
-    caller's first draw.
+    requires _CAN_WAIT) freshly credited-reseeds the lease from the
+    primary source (wc_RNG_DRBG_Reseed_Now_Primary()) before the caller's
+    first draw.  On a bank whose members are RBG-chain children of a root
+    (WC_RNG_BANK_FLAG_RBGC) in a WC_RNG_RBGC_STRATUM_IMMUTABLE build, that
+    reseed is conformant but the lease's output carries no SP 800-90C
+    prediction-resistance claim -- a chain member is not a DRBG with direct
+    access to its entropy source (see wc_RNG_DRBG_Reseed_Now_Primary()).
 
     \details Out-of-service instances: a targeted (non-failover) checkout
     admits them; failover checkouts divert around them.
@@ -420,10 +425,11 @@ int wc_rng_bank_get_inst_id(struct wc_rng_bank_inst *rng_inst);
     The caller must hold a bank reference (e.g. per the daemon association)
     for the duration of the call.  Return taxonomy for a banking rotation:
     BUSY_E, the gate is held by a reinit -- skip this turn; ALREADY_E,
-    sleep until the bank is consumed; MISSING_RNG_E, the instance has no
-    DRBG (RDRAND et al.) and can be retired from the rotation permanently;
-    other errors are transient gather or health-test failures -- skip the
-    turn, and alarm if persistent.
+    sleep until the bank is consumed; WRONG_TYPE_OBJECT_E, the instance has
+    no DRBG -- permanently (RDRAND et al.), retire it from the rotation, or
+    because it is out of service pending reinstantiation; the other
+    transient codes (WC_RNG_ERR_IS_TRANSIENT()) are gather or health-test
+    failures -- skip the turn, and alarm if persistent.
 
 */
 int wc_rng_bank_next_seed_generate(struct wc_rng_bank *bank, int inst_offset,
@@ -658,17 +664,30 @@ int wc_rng_bank_seed_range(struct wc_rng_bank *bank, int first_inst,
 /*!
     \ingroup Random
 
-    \brief Reseed every instance from the module's seed source.
+    \brief Reseed every instance from the module's seed source.  Same
+    contract as wc_rng_bank_reseed_range() over the whole bank.
 
-    \return 0 Success
-    \return BAD_FUNC_ARG bank is null.
-    \return RNG_FAILURE_E An instance could not be reseeded within
-    timeout_secs.
+    \return 0 Every instance was reseeded, or -- waiting not being allowed
+    -- marked due for reseed on its next generate.
+    \return BAD_FUNC_ARG bank is null, or flags selects instance choice
+    (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST et al.), which a walk cannot honor.
+    \return BAD_STATE_E The bank is not initialized, or an instance is out
+    of service.
+    \return NOT_READY_E WC_RNG_BANK_FLAG_RBGC with the root not in service.
+    \return WC_TIMEOUT_E The reseed retries exceeded timeout_secs; the walk
+    stopped there.
+    \return INTERRUPTED_E A signal arrived while waiting; the walk stopped
+    there.
+    \return other A negative code from wc_rng_bank_checkout(), which
+    stopped the walk; or, the walk having completed, the first
+    per-instance reseed failure it carried on past (see
+    wc_rng_bank_reseed_range()).
 
     \param bank The bank to reseed.
     \param nonce Optional per-instance nonce material (may be null).
     \param nonceSz Length of nonce in bytes.
-    \param timeout_secs Wait budget per instance.
+    \param timeout_secs Wait budget: per instance for the checkout, and
+    across the whole walk for reseed retries (WC_RNG_BANK_FLAG_CAN_WAIT).
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* flags.
 
     \sa wc_rng_bank_reseed_range
@@ -681,22 +700,44 @@ int wc_rng_bank_reseed(struct wc_rng_bank *bank,
 /*!
     \ingroup Random
 
-    \brief The range form of wc_rng_bank_reseed().
+    \brief The range form of wc_rng_bank_reseed().  A failed reseed does
+    not stop the walk: the instance is marked due for reseed, the next
+    entropy-capable generate on it retries in-boundary, and the walk
+    carries on to the remaining instances -- but the first such failure is
+    the return value, so the caller knows the range was not reseeded here
+    and now.  A code that stops the walk (WC_TIMEOUT_E, INTERRUPTED_E, a
+    checkout failure) outranks it: the instances past that point were not
+    visited and are not marked due.  A transient per-instance code
+    (WC_RNG_ERR_IS_TRANSIENT()) means that instance's reseed is a pass
+    away from resolving on its own; for the rest, see
+    wc_RNG_DRBG_Reseed_Now().
 
-    \return 0 Success
-    \return BAD_FUNC_ARG bank is null, or the range is out of bounds.
-    \return RNG_FAILURE_E An instance could not be reseeded within
-    timeout_secs.
+    \return 0 Every instance in range was reseeded, or -- waiting not being
+    allowed -- marked due for reseed on its next generate.
+    \return BAD_FUNC_ARG bank is null, or flags selects instance choice
+    (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST et al.), which a walk cannot honor.
     \return BAD_INDEX_E The instance range is invalid.
-    \return BAD_STATE_E The bank is not initialized.
-    \return WC_TIMEOUT_E The walk exceeded timeout_secs.
+    \return BAD_STATE_E The bank is not initialized, or an instance in
+    range is out of service.
+    \return NOT_READY_E WC_RNG_BANK_FLAG_RBGC with the root not in service.
+    \return WC_TIMEOUT_E The reseed retries exceeded timeout_secs; the walk
+    stopped there.
+    \return INTERRUPTED_E A signal arrived while waiting; the walk stopped
+    there.
+    \return other A negative code from wc_rng_bank_checkout(), which
+    stopped the walk; or, the walk having completed, the first
+    per-instance reseed failure it carried on past, as
+    wc_RNG_DRBG_Reseed_Now() (or wc_RNG_DRBG_ReseedRBGC() under
+    WC_RNG_BANK_FLAG_RBGC) returned it.
 
     \param bank The bank to reseed.
     \param nonce Optional per-instance nonce material (may be null).
     \param nonceSz Length of nonce in bytes.
     \param first_inst The first instance offset.
-    \param last_inst The last instance offset.
-    \param timeout_secs Wait budget per instance.
+    \param last_inst The last instance offset, or -1 for the last in the
+    bank.
+    \param timeout_secs Wait budget: per instance for the checkout, and
+    across the whole walk for reseed retries (WC_RNG_BANK_FLAG_CAN_WAIT).
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* flags.
 
     \sa wc_rng_bank_reseed
@@ -868,12 +909,16 @@ WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
     \brief Retire and reinstantiate the bank's root RNG as one serialized
     transition, excluding concurrent entropy-invalidation walks and
     whole-instance operations for its span.  The recovery path of last
-    resort for a condemned root.  Task context only: acquisition of the
-    serializing gate spin-waits, and reinstantiation performs a full seed
-    acquisition.
+    resort for a condemned root.  With WC_RNG_HAVE_LOCK the root's lease is
+    taken by try-lock and held across the cycle, so a held root yields
+    BUSY_E (retry later); without it, acquisition of the serializing gate
+    spin-waits, so task context only.  Either way reinstantiation performs
+    a full seed acquisition.
 
     \return 0 Success
     \return BAD_FUNC_ARG bank is null.
+    \return BUSY_E The root's lease is held (WC_RNG_HAVE_LOCK); nothing was
+    touched, retry later.
     \return negative wc_FreeRng() or reinstantiation failure; the root is
     left out of service (WC_DRBG_NOT_INIT) and a later reinit may be
     attempted.

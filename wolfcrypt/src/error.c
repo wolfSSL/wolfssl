@@ -769,6 +769,9 @@ const char* wc_GetErrorString(int error)
     case STILL_REFERENCED_E:
         return "Object is still referenced (unsafe to deallocate)";
 
+    case OBJECT_ORPHANED_E:
+        return "Object orphaned (can be adopted)";
+
     case HWPUF_INIT_E:
         return "HWPUF initialization failed";
 

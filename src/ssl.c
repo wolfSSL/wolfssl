@@ -11270,9 +11270,7 @@ int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
-    #if ((!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
-         !defined(HAVE_SELFTEST)) || \
-        defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    #ifdef WC_RNG_HAVE_RESEED_NOW
         /* OpenSSL FIPS_drbg_reseed semantics: reseed from the module's
          * source with adin as additional input.  (A credited user-class
          * reseed of a conformant instance is refused with
