@@ -32,6 +32,33 @@ static struct IODeviceVectorStruct Sa2ulDeviceVector;
 static struct Sa2ulCtrl *volatile gCtrl = NULL;
 static struct Sa2ulData *volatile gData = NULL;
 
+/* Non-zero while a caller owns the shared pages (SA2UL_IODEVICE_STATUS_
+ * ACQUIRE .. _RELEASE). Callbacks can run on any core concurrently, so it is
+ * claimed with an exclusive load/store pair. The callback can't identify
+ * its caller, so this serializes cooperating AddressSpaces rather than
+ * enforcing ownership. */
+static volatile unsigned int gPagesBusy = 0u;
+
+static Error Sa2ulPagesAcquire(void)
+{
+    for (;;) {
+        if (__LDXR32((unsigned int *)&gPagesBusy) != 0u) {
+            return ResourceNotAvailable;
+        }
+        if (__STXR32(1u, (unsigned int *)&gPagesBusy) == 0) {
+            break;
+        }
+    }
+    __DMB();
+    return Success;
+}
+
+static void Sa2ulPagesRelease(void)
+{
+    __DMB();
+    gPagesBusy = 0u;
+}
+
 static Error Sa2ulDeviceCreate(IODeviceVector TheIODeviceVector)
 {
     (void)TheIODeviceVector;
@@ -46,12 +73,27 @@ static Error Sa2ulDeviceReadStatus(IODeviceVector TheIODeviceVector,
     struct Sa2ulData *data = gData;
 
     (void)TheIODeviceVector;
-    (void)StatusNumber;
     (void)Buffer;
     (void)Length;
 
     if (ctrl == NULL || data == NULL) {
         /* not attached yet: the Task will fall back to software */
+        return Failure;
+    }
+
+    switch (StatusNumber) {
+    case SA2UL_IODEVICE_STATUS_ACQUIRE:
+        return Sa2ulPagesAcquire();
+    case SA2UL_IODEVICE_STATUS_RELEASE:
+        Sa2ulPagesRelease();
+        return Success;
+    case SA2UL_IODEVICE_STATUS_NUMBER:
+        break;
+    default:
+        return IllegalStatusNumber;
+    }
+    if (gPagesBusy == 0u) {
+        /* the pages weren't claimed for this request */
         return Failure;
     }
 
