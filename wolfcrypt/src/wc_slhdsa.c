@@ -9240,22 +9240,11 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         {
             /* The seeds are now staged in the key as the contiguous
              * SK.seed || SK.prf || PK.seed the callback expects. */
-            key->flags &= ~((int)WC_SLHDSA_FLAG_BOTH_KEYS);
             ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
                 WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
                 3U * key->params->n, key);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-                if ((ret != 0) ||
-                        ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
-                    /* A failed generation or a device-owned key leaves no
-                     * software private key (ISO/IEC 19790:2012 7.9.7). */
-                    ForceZero(key->sk, 2U * key->params->n);
-                }
-                if (ret != 0) {
-                    key->flags = 0;
-                }
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
-            }
             /* fall-through when unavailable */
             ret = 0;
         }
@@ -9265,7 +9254,6 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
 #ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
     if (ret == 0) {
         ret = NO_VALID_DEVID;
-        ForceZero(key->sk, 2U * key->params->n);
     }
 #else
     if (ret == 0) {

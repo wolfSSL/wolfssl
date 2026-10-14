@@ -1140,18 +1140,8 @@ void wc_ShaFree(wc_Sha* sha)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            /* Release heap state first; the wipe drops its pointers. */
-            #ifdef WOLFSSL_HASH_KEEP
-            if (sha->msg != NULL) {
-                ForceZero(sha->msg, sha->len);
-                XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                sha->msg = NULL;
-            }
-            #endif
-            ForceZero(sha, sizeof(*sha));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 

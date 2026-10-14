@@ -148,7 +148,6 @@ void sc448_reduce(byte* b)
     }
     b[i] = t[i] & 0xff;
     b[i+1] = 0;
-    ForceZero(t, sizeof(t));
 }
 
 /* Multiply a by b and add d. r = (a * b + d) mod order
@@ -228,7 +227,6 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     for (i = 0; i < 56; i++) {
         u += r[i] - (ed448_order[i] & o); r[i] = u & 0xff; u >>= 8;
     }
-    ForceZero(t, sizeof(t));
 }
 
 /* Double the point on the Twisted Edwards curve. r = 2.p
@@ -364,8 +362,6 @@ static void ge448_scalarmult(ge448_p2* h, const ge448_p2* p, const byte* a)
     }
 
     XMEMCPY(h, &r, sizeof(r));
-    ForceZero(&r, sizeof(r));
-    ForceZero(&s, sizeof(s));
 }
 
 /* Perform a scalar multiplication of the base point. r = a * base
@@ -792,8 +788,6 @@ void sc448_reduce(byte* b)
     b[55] = (byte)(d[7 ] >> 48);
     b[56] = 0;
 #endif /* WOLFSSL_ED448_NO_LARGE_CODE */
-    ForceZero(d, sizeof(d));
-    ForceZero(t, sizeof(t));
 }
 
 /* Multiply a by b and add d. r = (a * b + d) mod order
@@ -1301,11 +1295,6 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     r[55] = (byte)(rd[7 ] >> 48);
     r[56] = 0;
 #endif /* WOLFSSL_ED448_NO_LARGE_CODE */
-    ForceZero(ad, sizeof(ad));
-    ForceZero(bd, sizeof(bd));
-    ForceZero(dd, sizeof(dd));
-    ForceZero(rd, sizeof(rd));
-    ForceZero(t, sizeof(t));
 }
 
 /* Precomputed multiples of the base point. */
@@ -5777,8 +5766,6 @@ void sc448_reduce(byte* b)
     b[55] = (byte)(d[15] >> 20);
     b[56] = 0;
 #endif /* WOLFSSL_ED448_NO_LARGE_CODE */
-    ForceZero(d, sizeof(d));
-    ForceZero(t, sizeof(t));
 }
 
 /* Multiply a by b and add d. r = (a * b + d) mod order
@@ -6690,11 +6677,6 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     r[55] = (byte)(rd[15] >> 20);
     r[56] = 0;
 #endif /* WOLFSSL_ED448_NO_LARGE_CODE */
-    ForceZero(ad, sizeof(ad));
-    ForceZero(bd, sizeof(bd));
-    ForceZero(dd, sizeof(dd));
-    ForceZero(rd, sizeof(rd));
-    ForceZero(t, sizeof(t));
 }
 
 /* Precomputed multiples of the base point. */
@@ -10992,7 +10974,6 @@ static void ge448_select(ge448_precomp* r, int pos, byte b)
     cmov(r, &base[pos][7], babs, 8);
     fe448_neg(minusx, r->x);
     fe448_cmov(r->x, minusx, bnegative);
-    ForceZero(minusx, sizeof(minusx));
 }
 
 /* Perform a scalar multiplication of the base point. r = a * base
@@ -11059,9 +11040,6 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
         ge448_madd(r, r, t);
     }
 
-    /* e is the scalar in radix 16 and t the selected table entry. */
-    ForceZero(e, 113);
-    ForceZero(t, sizeof(*t));
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);

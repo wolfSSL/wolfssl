@@ -304,11 +304,7 @@
     }
     void wc_Sha512Free(wc_Sha512* sha512)
     {
-        if (sha512 == NULL) {
-            return;
-        }
         se050_hash_free(&sha512->se050Ctx);
-        ForceZero(sha512, sizeof(*sha512));
     }
 #elif defined(STM32_HASH_SHA512)
 
@@ -511,10 +507,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            ForceZero(sha512, sizeof(*sha512));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 
@@ -541,8 +535,6 @@ int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
         ret = wc_Sha512Final(tmpSha512, hash);
         wc_Sha512Free(tmpSha512);
     }
-
-    ForceZero(tmpSha512, sizeof(*tmpSha512));
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -657,8 +649,6 @@ int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
         wc_Sha512_224Free(tmpSha512);
     }
 
-    ForceZero(tmpSha512, sizeof(*tmpSha512));
-
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -738,8 +728,6 @@ int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash)
         ret = wc_Sha512_256Final(tmpSha512, hash);
         wc_Sha512_256Free(tmpSha512);
     }
-
-    ForceZero(tmpSha512, sizeof(*tmpSha512));
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -841,10 +829,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            ForceZero(sha384, sizeof(*sha384));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 
@@ -871,8 +857,6 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         ret = wc_Sha384Final(tmpSha384, hash);
         wc_Sha384Free(tmpSha384);
     }
-
-    ForceZero(tmpSha384, sizeof(*tmpSha384));
 
     WC_FREE_VAR_EX(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -2727,26 +2711,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            /* Release heap state first; the wipe drops its pointers. */
-            #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (sha512->W != NULL) {
-                ForceZero(sha512->W,
-                    (sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE);
-                XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_DIGEST);
-                sha512->W = NULL;
-            }
-            #endif
-            #ifdef WOLFSSL_HASH_KEEP
-            if (sha512->msg != NULL) {
-                ForceZero(sha512->msg, sha512->len);
-                XFREE(sha512->msg, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                sha512->msg = NULL;
-            }
-            #endif
-            ForceZero(sha512, sizeof(*sha512));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 
@@ -3242,26 +3208,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            /* Release heap state first; the wipe drops its pointers. */
-            #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (sha384->W != NULL) {
-                ForceZero(sha384->W,
-                    (sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE);
-                XFREE(sha384->W, sha384->heap, DYNAMIC_TYPE_DIGEST);
-                sha384->W = NULL;
-            }
-            #endif
-            #ifdef WOLFSSL_HASH_KEEP
-            if (sha384->msg != NULL) {
-                ForceZero(sha384->msg, sha384->len);
-                XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                sha384->msg = NULL;
-            }
-            #endif
-            ForceZero(sha384, sizeof(*sha384));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 

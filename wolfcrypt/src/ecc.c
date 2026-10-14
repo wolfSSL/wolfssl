@@ -16592,8 +16592,6 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                         ret = HASH_TYPE_E;
                         WOLFSSL_MSG("ECC Decrypt HMAC Check failed!");
                     }
-                    /* On a mismatch this is a valid tag for the input. */
-                    ForceZero(verify, sizeof(verify));
 
                     wc_HmacFree(hmac);
                 }
@@ -17455,12 +17453,6 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         remaining -= copySz;
         outIdx += copySz;
     }
-    /* Derived key material, including the unused tail of the last block. */
-    ForceZero(tmp, sizeof(tmp));
-    if (ret != 0) {
-        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
-        ForceZero(out, outSz);
-    }
 
     wc_HashFree(hash, type);
 
@@ -17518,10 +17510,10 @@ int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx)
     /* If a different context is already set, clear it before replacing.
      * The caller is responsible for freeing any heap-allocated context. */
     if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
-        ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
+        XMEMSET(key->nb_ctx, 0, sizeof(ecc_nb_ctx_t));
     }
     if (ctx != NULL) {
-        ForceZero(ctx, sizeof(ecc_nb_ctx_t));
+        XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));
     }
     key->nb_ctx = ctx;
     return 0;

@@ -1729,10 +1729,8 @@ static void wc_Sha3Free(wc_Sha3* sha3)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            wc_Sha3Wipe(sha3);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 
