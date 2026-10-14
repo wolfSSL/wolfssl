@@ -1422,8 +1422,11 @@ int test_wc_ecc_import_private_key(void)
 #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(WOLFSSL_SE050) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
-    /* Rejecting a private scalar must also revoke private-key capability. */
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !(defined(WOLF_CRYPTO_CB_SETKEY) && defined(WOLF_CRYPTO_CB_FIND))
+    /* Rejecting a private scalar must also revoke private-key capability.
+     * The device set-key path imports into a temporary key first, so a
+     * rejected scalar never touches this key and the old one stays valid. */
     XMEMSET(privKey, 0, privKeySz);
     ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, x963Key,
         x963KeySz, &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
