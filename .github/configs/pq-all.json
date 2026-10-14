@@ -360,5 +360,15 @@
 {"name": "mldsa-small-check-w0-only", "minutes": 2,
  "comment": "Small memory signing with the w0 check but not the y check, which decides whether the vector range check helper is reachable",
  "configure": ["--enable-cryptonly", "--enable-mldsa",
-  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_W0"]}
+  "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_CHECK_W0"]},
+{"name": "hbs-verify-only-bench",
+ "comment": "Verify-only LMS, XMSS and SLH-DSA with no other asymmetric algorithm. The benchmark verifies the baked bench_* vectors and exits 0 on failure, so the run asserts a verify row per vector.",
+ "check": false,
+ "extra_cflags": "-Werror=unused-function",
+ "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-ecc",
+  "--disable-dh", "--disable-curve25519", "--disable-ed25519",
+  "--disable-mlkem", "--disable-mldsa", "--enable-lms=yes,verify-only",
+  "--enable-xmss=yes,verify-only",
+  "--enable-slhdsa=yes,sha2,verify-only"],
+ "run": [["sh", "-c", "out=$(./wolfcrypt/benchmark/benchmark -lms_hss -xmss_xmssmt -slhdsa 2>&1) || exit 1; printf '%s\\n' \"$out\"; if printf '%s\\n' \"$out\" | grep -qE 'wc_(Lms|Xmss|SlhDsa)Key_Verify failed|Benchmark .* failed:'; then echo 'HBS benchmark failed' >&2; exit 1; fi; for row in 'LMS/HSS_L1_H10_W8 +[0-9]+' 'XMSS-SHA2_10_256 +[0-9]+' 'SLH-DSA-SHAKE-S +128' 'SLH-DSA-SHA2-S +128'; do printf '%s\\n' \"$out\" | grep -qE \"^$row +verify\" || { echo \"no $row verify row reported\" >&2; exit 1; }; done"]]}
 ]

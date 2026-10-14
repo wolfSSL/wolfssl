@@ -231,5 +231,17 @@ gen_slhdsa_leaf client sha2  128f SLH-DSA-SHA2-128f  client_ecc 04
 gen_slhdsa_leaf server sha2  128s SLH-DSA-SHA2-128s  server_ecc 05
 gen_slhdsa_leaf client sha2  128s SLH-DSA-SHA2-128s  client_ecc 06
 
+# Verify-only benchmark vector for certs_test.h (deterministic signature)
+BENCH=bench_slhdsa_sha2_128s
+printf 'Hello World!' > "${BENCH}_msg.bin"
+openssl pkeyutl -sign -rawin -keyform DER -inkey "${BENCH}_key.der" \
+    -pkeyopt deterministic:1 -in "${BENCH}_msg.bin" -out "${BENCH}_sig.bin"
+check_result $? "Sign ${BENCH} benchmark vector"
+openssl pkey -inform DER -in "${BENCH}_key.der" -pubout -outform DER \
+    -out "${BENCH}_pub.der"
+check_result $? "Export ${BENCH} public key"
+tail -c 32 "${BENCH}_pub.der" > "${BENCH}_pub.bin"
+rm -f "${BENCH}_pub.der"
+
 echo
 echo "All SLH-DSA / ML-DSA-44 test certificates regenerated."

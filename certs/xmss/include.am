@@ -1,0 +1,8 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         certs/xmss/bench_xmss_sha2_10_256_pub.bin \
+         certs/xmss/bench_xmss_sha2_10_256_sig.bin \
+         certs/xmss/bench_xmss_sha2_10_256_msg.bin
