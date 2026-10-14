@@ -801,6 +801,15 @@ int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha3_224)
 {
     /* Ensure WOLFSSL_SHA3_224_CTX is big enough for wolfCrypt wc_Sha3. */
     WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_224_CTX, wc_Sha3);
+    /* And no bigger than it needs to be. The holder is an array of pointers,
+     * so a size in bytes used as the element count inflates it eightfold -
+     * which nothing else notices, because it is still big enough. This
+     * context is the largest member of the union in WOLFSSL_EVP_MD_CTX, so
+     * the cost lands on every digest context in the compatibility layer.
+     * Measured on the holder rather than the context, because ALIGN16 rounds
+     * the context's size up and that tail padding is not waste to report. */
+    wc_static_assert(sizeof(((WOLFSSL_SHA3_224_CTX*)0)->holder) <
+        sizeof(wc_Sha3) + sizeof(void*));
 
     WOLFSSL_ENTER("SHA3_224_Init");
 

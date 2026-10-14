@@ -926,9 +926,11 @@ int test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY(void)
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, NULL),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-    /* Should fail since ecKey is empty */
-    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey),
-        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    /* An empty ecKey is accepted: set1 only takes a reference, as OpenSSL's
+     * does, and the DER encoding is built on demand. The empty key is caught
+     * at the point something actually asks for the encoding. */
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+    ExpectIntLE(wolfSSL_i2d_PrivateKey(pkey, NULL), 0);
     ExpectIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
     ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
 
@@ -3836,6 +3838,168 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_CTX_free(ctx);
     wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * The DER encoding behind an EVP_PKEY is built on demand, so whichever call
+ * asks for it first is the one that has to trigger the encode. Testing several
+ * consumers against one pkey hides a missing trigger in all but the first,
+ * which is why each case below starts from a freshly populated key.
+ */
+int test_wolfSSL_EVP_PKEY_set1_lazy_der(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+    byte*  buf = NULL;
+    size_t bufSz = 0;
+    int    i;
+
+    ExpectIntEQ(load_file("./certs/client-key.der", &buf, &bufSz), 0);
+
+    /* Each iteration builds the pkey again and then makes exactly one call,
+     * so that call is the first reader of the encoding. */
+    for (i = 0; i < 5; i++) {
+        WOLFSSL_RSA*      rsa  = NULL;
+        WOLFSSL_EVP_PKEY* pkey = NULL;
+        const unsigned char* p = (const unsigned char*)buf;
+
+        ExpectNotNull(rsa = wolfSSL_d2i_RSAPrivateKey(NULL, &p, (long)bufSz));
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+        ExpectIntEQ(wolfSSL_EVP_PKEY_set1_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+
+        switch (i) {
+            case 0:
+                ExpectIntGT(wolfSSL_i2d_PrivateKey(pkey, NULL), 0);
+                break;
+            case 1:
+                ExpectIntGT(wolfSSL_i2d_PUBKEY(pkey, NULL), 0);
+                break;
+            case 2: {
+            /* Either method reads the encoding; a build with only one of them
+             * still covers this consumer. WOLFSSL_KEY_GEN because
+             * CTX_use_PrivateKey() only handles an RSA EVP_PKEY where the
+             * key-to-DER encoders it needs are compiled. */
+            #if !defined(NO_TLS) && defined(WOLFSSL_KEY_TO_DER) && \
+                (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+                /* Loading into a CTX reads the encoding. */
+                WOLFSSL_CTX* ctx = NULL;
+
+                #ifndef NO_WOLFSSL_CLIENT
+                ExpectNotNull(ctx =
+                    wolfSSL_CTX_new(wolfSSLv23_client_method()));
+                #else
+                ExpectNotNull(ctx =
+                    wolfSSL_CTX_new(wolfSSLv23_server_method()));
+                #endif
+                ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey),
+                    WOLFSSL_SUCCESS);
+                wolfSSL_CTX_free(ctx);
+            #endif
+                break;
+            }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)
+            case 3: {
+                WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = NULL;
+
+                /* A newly decoded key object, which this owns. */
+                ExpectNotNull(p8 = wolfSSL_EVP_PKEY2PKCS8(pkey));
+                wolfSSL_EVP_PKEY_free((WOLFSSL_EVP_PKEY*)p8);
+                break;
+            }
+        #endif
+            default: {
+                WOLFSSL_RSA* got = NULL;
+
+                /* get1 hands back a reference of its own. */
+                ExpectNotNull(got = wolfSSL_EVP_PKEY_get1_RSA(pkey));
+                wolfSSL_RSA_free(got);
+                break;
+            }
+        }
+
+        wolfSSL_RSA_free(rsa);
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * EVP_PKEY_set1_DSA() stores the caller's key without taking a reference,
+ * because WOLFSSL_DSA is not reference counted. The pkey therefore cannot
+ * defer anything that reads that key: the caller is entitled to free it as
+ * soon as set1 returns. Freeing it here and then asking for the encoding
+ * catches a deferred encode reading a released DsaKey.
+ */
+/*
+ * EVP_PKEY_set1_EC_KEY() records the key without encoding it, so unlike
+ * before it accepts an EC_KEY that cannot be encoded at all - one with no
+ * group. The readers of the key then have to cope with that: pkcs8_encode()
+ * reached pkey->ecc->group->curve_oid and dereferenced NULL. They must fail
+ * instead, and the process must survive.
+ */
+int test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_group(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_ECC) && !defined(NO_BIO) && \
+    !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    WOLFSSL_EC_KEY*   ec = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_BIO*      bio = NULL;
+
+    ExpectNotNull(ec = wolfSSL_EC_KEY_new());
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    /* Accepted: nothing is encoded here any more. */
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ec), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    /* Refused, not a crash. */
+    ExpectIntEQ(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    ExpectIntEQ(wolfSSL_PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    /* And the encoding cannot be handed out either. */
+    ExpectIntLE(wolfSSL_i2d_PrivateKey(pkey, NULL), 0);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_EC_KEY_free(ec);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_set1_DSA_caller_frees(void)
+{
+    EXPECT_DECLS;
+/* WOLFSSL_KEY_GEN because that, with the two below, is what guards
+ * EVP_PKEY_set1_DSA() itself - OPENSSL_ALL does not imply it. */
+#if defined(OPENSSL_ALL) && !defined(NO_DSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+    byte*             buf = NULL;
+    size_t            bufSz = 0;
+    WOLFSSL_DSA*      dsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int               derSz = 0;
+
+    ExpectIntEQ(load_file("./certs/dsa2048.der", &buf, &bufSz), 0);
+    ExpectNotNull(dsa = wolfSSL_DSA_new());
+    ExpectIntEQ(wolfSSL_DSA_LoadDer(dsa, buf, (int)bufSz), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+
+    /* The caller is done with its key; the pkey must not depend on it. */
+    wolfSSL_DSA_free(dsa);
+    dsa = NULL;
+
+    ExpectIntGT(derSz = wolfSSL_i2d_PrivateKey(pkey, NULL), 0);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

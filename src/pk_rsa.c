@@ -236,6 +236,130 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
  * @return  RSA key on success.
  * @return  NULL on failure.
  */
+#if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+/* Serialises the one time set up of a key's blinding RNG, so that two threads
+ * arriving at a private key operation together cannot both create one and
+ * leave the loser's leaked. */
+static wolfSSL_Mutex rsaRngMutex
+    WOLFSSL_MUTEX_INITIALIZER_CLAUSE(rsaRngMutex);
+#ifdef WOLFSSL_HAVE_RSA_RNG_MUTEX
+static int rsaRngMutexValid = 0;
+
+/* Create the lock serialising blinding RNG set up.
+ *
+ * Called from wolfSSL_Init(), which is already serialised against itself, so
+ * that no caller has to create the mutex on first use. */
+int wolfssl_rsa_rng_mutex_init(void)
+{
+    if (rsaRngMutexValid == 0) {
+        if (wc_InitMutex(&rsaRngMutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex rsa rng");
+            return BAD_MUTEX_E;
+        }
+        rsaRngMutexValid = 1;
+    }
+    return 0;
+}
+
+/* Destroy the lock serialising blinding RNG set up. Called from
+ * wolfSSL_Cleanup(). */
+void wolfssl_rsa_rng_mutex_free(void)
+{
+    if (rsaRngMutexValid == 1) {
+        (void)wc_FreeMutex(&rsaRngMutex);
+        rsaRngMutexValid = 0;
+    }
+}
+#endif /* WOLFSSL_HAVE_RSA_RNG_MUTEX */
+#endif /* !HAVE_FIPS && WC_RSA_BLINDING */
+
+/* Provide the RNG that blinds private key operations, creating it if this is
+ * the first time it has been needed.
+ *
+ * Deferred rather than done in wolfSSL_RSA_new_ex() because seeding a DRBG
+ * costs more than everything else about creating the key put together, and
+ * public key work - verifying a signature, carrying a certificate's public
+ * key - never reaches this.
+ *
+ * @param [in, out] rsa  RSA key.
+ * @return  The RNG set on the wolfCrypt key on success.
+ * @return  NULL when no RNG could be provided.
+ */
+WC_RNG* wolfssl_rsa_ensure_rng(WOLFSSL_RSA* rsa)
+{
+#if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+    WC_RNG* rng;
+    int haveMutex;
+
+    if ((rsa == NULL) || (rsa->internal == NULL)) {
+        return NULL;
+    }
+
+    /* rngInited is read under the lock, not before it: an unlocked read would
+     * race with another thread publishing the flag, and it shares a storage
+     * unit with the other bits of the key. Taking the lock on the already set
+     * up path costs nothing beside the private key operation that follows. */
+#ifdef WOLFSSL_HAVE_RSA_RNG_MUTEX
+    /* wolfSSL_Init() creates it; without that there is nothing to lock, and
+     * the same single threaded assumption applies as to the global RNG. */
+    haveMutex = (rsaRngMutexValid == 1);
+#else
+    haveMutex = 1;
+#endif
+    if (haveMutex && (wc_LockMutex(&rsaRngMutex) != 0)) {
+        WOLFSSL_MSG("Bad Lock Mutex rsa rng");
+        return NULL;
+    }
+
+    /* Already provided; hand back what the wolfCrypt key is holding. */
+    if (rsa->rngInited) {
+        rng = ((RsaKey*)rsa->internal)->rng;
+        if (haveMutex) {
+            wc_UnLockMutex(&rsaRngMutex);
+        }
+        return rng;
+    }
+
+    /* Create a local RNG. */
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), rsa->heap, DYNAMIC_TYPE_RNG);
+    if ((rng != NULL) && (wc_InitRng_ex(rng, rsa->heap, rsa->devId) != 0)) {
+        WOLFSSL_MSG("InitRng failure, attempting to use global RNG");
+        XFREE(rng, rsa->heap, DYNAMIC_TYPE_RNG);
+        rng = NULL;
+    }
+
+    rsa->ownRng = 1;
+    if (rng == NULL) {
+        /* Get the wolfSSL global RNG - not thread safe. */
+        rng = wolfssl_get_global_rng();
+        rsa->ownRng = 0;
+    }
+    if (rng == NULL) {
+        /* Couldn't create global either. */
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA no WC_RNG for blinding");
+        if (haveMutex) {
+            wc_UnLockMutex(&rsaRngMutex);
+        }
+        return NULL;
+    }
+
+    /* Set the local or global RNG into the wolfCrypt RSA key. */
+    (void)wc_RsaSetRNG((RsaKey*)rsa->internal, rng);
+    /* Won't fail as key and rng are not NULL. */
+    rsa->rngInited = 1;
+
+    if (haveMutex) {
+        wc_UnLockMutex(&rsaRngMutex);
+    }
+
+    return rng;
+#else
+    (void)rsa;
+    return NULL;
+#endif /* !HAVE_FIPS && WC_RSA_BLINDING */
+}
+
+
 WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
 {
     WOLFSSL_RSA* rsa = NULL;
@@ -285,37 +409,14 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
             rsaKeyInited = 1;
         }
     }
-    #if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     if (!err) {
-        WC_RNG* rng;
+        /* The RNG used to blind private key operations is not set up here.
+         * Seeding it dominates the cost of creating an RSA object, and a key
+         * that is only ever used to verify a signature or to carry a public
+         * key never needs it. wolfssl_rsa_ensure_rng() provides it on the
+         * first private key operation instead. */
+        rsa->devId = devId;
 
-        /* Create a local RNG. */
-        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
-        if ((rng != NULL) && (wc_InitRng_ex(rng, heap, devId) != 0)) {
-            WOLFSSL_MSG("InitRng failure, attempting to use global RNG");
-            XFREE(rng, heap, DYNAMIC_TYPE_RNG);
-            rng = NULL;
-        }
-
-        rsa->ownRng = 1;
-        if (rng == NULL) {
-            /* Get the wolfSSL global RNG - not thread safe. */
-            rng = wolfssl_get_global_rng();
-            rsa->ownRng = 0;
-        }
-        if (rng == NULL) {
-            /* Couldn't create global either. */
-            WOLFSSL_ERROR_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
-            err = 1;
-        }
-        else {
-            /* Set the local or global RNG into the wolfCrypt RSA key. */
-            (void)wc_RsaSetRNG(key, rng);
-            /* Won't fail as key and rng are not NULL. */
-        }
-    }
-    #endif /* !HAVE_FIPS && WC_RSA_BLINDING */
-    if (!err) {
         /* Set wolfCrypt RSA key into RSA key. */
         rsa->internal = key;
         /* Data from external RSA key has not been set into internal one. */
@@ -2419,8 +2520,9 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA* rsa, WC_RNG** tmpRng, int* initTmpRng)
         *initTmpRng = 0;
 
     #if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
-        /* Use wolfCrypt RSA key's RNG if available/set. */
-        rng = ((RsaKey*)rsa->internal)->rng;
+        /* Use wolfCrypt RSA key's RNG, setting it up if this is its first
+         * use. */
+        rng = wolfssl_rsa_ensure_rng(rsa);
     #endif
     }
     if ((!err) && (rng == NULL) && (tmpRng != NULL)) {
@@ -3637,6 +3739,15 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+
+    /* This takes the RNG off the wolfCrypt key rather than being passed one,
+     * so the key's blinding RNG has to be in place before the call. */
+#if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+    if ((ret == 0) && (wolfssl_rsa_ensure_rng(rsa) == NULL)) {
+        WOLFSSL_ERROR_MSG("No RNG for RSA blinding");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+#endif
 
     if (ret == 0) {
         /* Use wolfCrypt to private-decrypt with RSA key.
