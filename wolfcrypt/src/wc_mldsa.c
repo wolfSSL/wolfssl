@@ -9314,11 +9314,218 @@ static int mldsa_vec_make_pos(sword32* a, byte l)
 }
 #endif
 
+#if (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+    defined(WOLFSSL_MLDSA_CHECK_KEY)
+/* Calculate t = NTT-1(A o NTT(s1)) + s2.
+ *
+ * FIPS 204 Section 6.1, Algorithm 6 ML-DSA.KeyGen_internal(xi)
+ *   5: t <- NTT-1(A_circum o NTT(s1)) + s2
+ *
+ * t is not made positive as callers decompose it differently.
+ *
+ * @param [out]     t   Vector t (k polynomials).
+ * @param [in]      a   Matrix A in NTT form (k x l polynomials).
+ * @param [in, out] s1  Vector s1 (l polynomials). Transformed to NTT form.
+ * @param [in]      s2  Vector s2 (k polynomials).
+ * @param [in]      k   Number of rows of A.
+ * @param [in]      l   Number of columns of A.
+ * @return  0 on success.
+ * @return  Negative when an error occurs.
+ */
+static int mldsa_calc_t(sword32* t, const sword32* a, sword32* s1,
+    const sword32* s2, byte k, byte l)
+{
+    int ret;
+
+    ret = mldsa_vec_ntt_small_full(s1, l);
+    if (ret == 0) {
+        ret = mldsa_matrix_mul(t, a, s1, k, l);
+    }
+#ifdef WOLFSSL_MLDSA_SMALL
+    if (ret == 0) {
+        ret = mldsa_vec_red(t, k);
+    }
+#endif
+    if (ret == 0) {
+        ret = mldsa_vec_invntt_full(t, k);
+    }
+    if (ret == 0) {
+        ret = mldsa_vec_add(t, s2, k);
+    }
+
+    return ret;
+}
+#endif
+
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
 
 /******************************************************************************/
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+
+#ifdef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+/* Calculate row r of t = NTT-1(A o NTT(s1)) + s2 and make it positive.
+ *
+ * Matrix A is expanded a polynomial at a time and the row of s2 is decoded
+ * from its encoding, so only single polynomial scratch is needed.
+ *
+ * @param [in, out] shake  SHAKE-128 object to expand A with.
+ * @param [in, out] aseed  Public seed followed by space for column and row.
+ * @param [in]      r      Row of t to calculate.
+ * @param [in]      s1     Vector s1 in NTT form (l polynomials).
+ * @param [in]      l      Number of columns of A.
+ * @param [in]      s2p    Encoding of row r of s2.
+ * @param [in]      eta    Range of s2 coefficients.
+ * @param [out]     tt     Row r of t, made positive.
+ * @param [out]     s2t    Scratch polynomial for row r of s2.
+ * @param [out]     a      Scratch polynomial for an element of A.
+ * @param [out]     h      Rejection sampling scratch.
+ * @param [out]     t64    Accumulator polynomial. Only used with
+ *                         WOLFSSL_MLDSA_SMALL_MEM_POLY64.
+ * @return  0 on success.
+ * @return  Negative when an error occurs.
+ */
+static int mldsa_calc_t_row(wc_Shake* shake, byte* aseed, byte r,
+    const sword32* s1, byte l, const byte* s2p, byte eta, sword32* tt,
+    sword32* s2t, sword32* a, byte* h, sword64* t64)
+{
+    int ret = 0;
+    const sword32* s1t = s1;
+    unsigned int s;
+    unsigned int e;
+
+#ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+    (void)t64;
+#endif
+
+    /* Put r/i into buffer to be hashed. */
+    aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
+    for (s = 0; s < l; s++) {
+        /* Put s into buffer to be hashed. */
+        aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
+        /* Step 3: Expand public seed into a matrix of polynomials. */
+        ret = mldsa_rej_ntt_poly_ex(shake, aseed, a, h);
+        if (ret != 0) {
+            break;
+        }
+        /* Matrix multiply. */
+    #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+        if (s == 0) {
+        #ifdef WOLFSSL_MLDSA_SMALL
+            for (e = 0; e < MLDSA_N; e++) {
+                tt[e] = mldsa_mont_red((sword64)a[e] * s1t[e]);
+            }
+        #else
+            for (e = 0; e < MLDSA_N; e += 8) {
+                tt[e+0] = mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
+                tt[e+1] = mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
+                tt[e+2] = mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
+                tt[e+3] = mldsa_mont_red((sword64)a[e+3]*s1t[e+3]);
+                tt[e+4] = mldsa_mont_red((sword64)a[e+4]*s1t[e+4]);
+                tt[e+5] = mldsa_mont_red((sword64)a[e+5]*s1t[e+5]);
+                tt[e+6] = mldsa_mont_red((sword64)a[e+6]*s1t[e+6]);
+                tt[e+7] = mldsa_mont_red((sword64)a[e+7]*s1t[e+7]);
+            }
+        #endif
+        }
+        else {
+        #ifdef WOLFSSL_MLDSA_SMALL
+            for (e = 0; e < MLDSA_N; e++) {
+                tt[e] += mldsa_mont_red((sword64)a[e] * s1t[e]);
+            }
+        #else
+            for (e = 0; e < MLDSA_N; e += 8) {
+                tt[e+0] += mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
+                tt[e+1] += mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
+                tt[e+2] += mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
+                tt[e+3] += mldsa_mont_red((sword64)a[e+3]*s1t[e+3]);
+                tt[e+4] += mldsa_mont_red((sword64)a[e+4]*s1t[e+4]);
+                tt[e+5] += mldsa_mont_red((sword64)a[e+5]*s1t[e+5]);
+                tt[e+6] += mldsa_mont_red((sword64)a[e+6]*s1t[e+6]);
+                tt[e+7] += mldsa_mont_red((sword64)a[e+7]*s1t[e+7]);
+            }
+        #endif
+        }
+    #else
+        if (s == 0) {
+        #ifdef WOLFSSL_MLDSA_SMALL
+            for (e = 0; e < MLDSA_N; e++) {
+                t64[e] = (sword64)a[e] * s1t[e];
+            }
+        #else
+            for (e = 0; e < MLDSA_N; e += 8) {
+                t64[e+0] = (sword64)a[e+0] * s1t[e+0];
+                t64[e+1] = (sword64)a[e+1] * s1t[e+1];
+                t64[e+2] = (sword64)a[e+2] * s1t[e+2];
+                t64[e+3] = (sword64)a[e+3] * s1t[e+3];
+                t64[e+4] = (sword64)a[e+4] * s1t[e+4];
+                t64[e+5] = (sword64)a[e+5] * s1t[e+5];
+                t64[e+6] = (sword64)a[e+6] * s1t[e+6];
+                t64[e+7] = (sword64)a[e+7] * s1t[e+7];
+            }
+        #endif
+        }
+        else {
+        #ifdef WOLFSSL_MLDSA_SMALL
+            for (e = 0; e < MLDSA_N; e++) {
+                t64[e] += (sword64)a[e] * s1t[e];
+            }
+        #else
+            for (e = 0; e < MLDSA_N; e += 8) {
+                t64[e+0] += (sword64)a[e+0] * s1t[e+0];
+                t64[e+1] += (sword64)a[e+1] * s1t[e+1];
+                t64[e+2] += (sword64)a[e+2] * s1t[e+2];
+                t64[e+3] += (sword64)a[e+3] * s1t[e+3];
+                t64[e+4] += (sword64)a[e+4] * s1t[e+4];
+                t64[e+5] += (sword64)a[e+5] * s1t[e+5];
+                t64[e+6] += (sword64)a[e+6] * s1t[e+6];
+                t64[e+7] += (sword64)a[e+7] * s1t[e+7];
+            }
+        #endif
+        }
+    #endif
+        /* Next polynomial. */
+        s1t += MLDSA_N;
+    }
+#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+    /* A failed row's accumulator was never fully written. */
+    if (ret == 0) {
+        for (e = 0; e < MLDSA_N; e++) {
+            tt[e] = mldsa_mont_red(t64[e]);
+        }
+    }
+#else
+    /* Sum of l Montgomery products reaches l*Q; bring it back
+     * inside |x| < Q, where mldsa_invntt_full() cannot overflow. */
+    if (ret == 0) {
+        ret = mldsa_poly_red(tt);
+    }
+#endif
+#ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
+    /* Out-of-range input would overflow the inverse NTT. */
+    if (ret == 0) {
+        ret = mldsa_check_invntt_bound(tt);
+    }
+#endif
+    if (ret == 0) {
+        ret = mldsa_invntt_full(tt);
+    }
+    /* Decode the row of s2 as the vector is not kept by the callers. */
+    if (ret == 0) {
+        ret = mldsa_vec_decode_eta_bits(s2p, eta, s2t, 1);
+    }
+    if (ret == 0) {
+        ret = mldsa_add(tt, s2t);
+    }
+    /* Make positive for decomposing. */
+    if (ret == 0) {
+        ret = mldsa_make_pos(tt);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
 
 /* Make a key from a random seed.
  *
@@ -9501,21 +9708,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
         /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
         if (ret == 0) {
-            ret = mldsa_vec_ntt_small_full(s1, params->l);
-        }
-        if (ret == 0) {
-            ret = mldsa_matrix_mul(t, a, s1, params->k, params->l);
-        }
-    #ifdef WOLFSSL_MLDSA_SMALL
-        if (ret == 0) {
-            ret = mldsa_vec_red(t, params->k);
-        }
-    #endif
-        if (ret == 0) {
-            ret = mldsa_vec_invntt_full(t, params->k);
-        }
-        if (ret == 0) {
-            ret = mldsa_vec_add(t, s2, params->k);
+            ret = mldsa_calc_t(t, a, s1, s2, params->k, params->l);
         }
 
         /* Make positive for decomposing. */
@@ -9569,13 +9762,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     sword32* s1 = NULL;
     sword32* s2 = NULL;
     sword32* t = NULL;
-#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
     sword64* t64 = NULL;
-#endif
     byte* h = NULL;
     byte* pub_seed = NULL;
     unsigned int r;
-    unsigned int s;
     byte kl[2];
     unsigned int allocSz = 0;
 
@@ -9683,134 +9873,8 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
         XMEMCPY(aseed, pub_seed, MLDSA_PUB_SEED_SZ);
         for (r = 0; (ret == 0) && (r < params->k); r++) {
-            sword32* s1t = s1;
-            unsigned int e;
-
-            /* Put r/i into buffer to be hashed. */
-            aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
-            for (s = 0; s < params->l; s++) {
-                /* Put s into buffer to be hashed. */
-                aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
-                /* Step 3: Expand public seed into a matrix of polynomials. */
-                ret = mldsa_rej_ntt_poly_ex(&key->shake, aseed, a, h);
-                if (ret != 0) {
-                    break;
-                }
-                /* Matrix multiply. */
-            #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-                if (s == 0) {
-                #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < MLDSA_N; e++) {
-                        tt[e] = mldsa_mont_red((sword64)a[e] * s1t[e]);
-                    }
-                #else
-                    for (e = 0; e < MLDSA_N; e += 8) {
-                        tt[e+0] = mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
-                        tt[e+1] = mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
-                        tt[e+2] = mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
-                        tt[e+3] = mldsa_mont_red((sword64)a[e+3]*s1t[e+3]);
-                        tt[e+4] = mldsa_mont_red((sword64)a[e+4]*s1t[e+4]);
-                        tt[e+5] = mldsa_mont_red((sword64)a[e+5]*s1t[e+5]);
-                        tt[e+6] = mldsa_mont_red((sword64)a[e+6]*s1t[e+6]);
-                        tt[e+7] = mldsa_mont_red((sword64)a[e+7]*s1t[e+7]);
-                    }
-                #endif
-                }
-                else {
-                #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < MLDSA_N; e++) {
-                        tt[e] += mldsa_mont_red((sword64)a[e] * s1t[e]);
-                    }
-                #else
-                    for (e = 0; e < MLDSA_N; e += 8) {
-                        tt[e+0] += mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
-                        tt[e+1] += mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
-                        tt[e+2] += mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
-                        tt[e+3] += mldsa_mont_red((sword64)a[e+3]*s1t[e+3]);
-                        tt[e+4] += mldsa_mont_red((sword64)a[e+4]*s1t[e+4]);
-                        tt[e+5] += mldsa_mont_red((sword64)a[e+5]*s1t[e+5]);
-                        tt[e+6] += mldsa_mont_red((sword64)a[e+6]*s1t[e+6]);
-                        tt[e+7] += mldsa_mont_red((sword64)a[e+7]*s1t[e+7]);
-                    }
-                #endif
-                }
-            #else
-                if (s == 0) {
-                #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < MLDSA_N; e++) {
-                        t64[e] = (sword64)a[e] * s1t[e];
-                    }
-                #else
-                    for (e = 0; e < MLDSA_N; e += 8) {
-                        t64[e+0] = (sword64)a[e+0] * s1t[e+0];
-                        t64[e+1] = (sword64)a[e+1] * s1t[e+1];
-                        t64[e+2] = (sword64)a[e+2] * s1t[e+2];
-                        t64[e+3] = (sword64)a[e+3] * s1t[e+3];
-                        t64[e+4] = (sword64)a[e+4] * s1t[e+4];
-                        t64[e+5] = (sword64)a[e+5] * s1t[e+5];
-                        t64[e+6] = (sword64)a[e+6] * s1t[e+6];
-                        t64[e+7] = (sword64)a[e+7] * s1t[e+7];
-                    }
-                #endif
-                }
-                else {
-                #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < MLDSA_N; e++) {
-                        t64[e] += (sword64)a[e] * s1t[e];
-                    }
-                #else
-                    for (e = 0; e < MLDSA_N; e += 8) {
-                        t64[e+0] += (sword64)a[e+0] * s1t[e+0];
-                        t64[e+1] += (sword64)a[e+1] * s1t[e+1];
-                        t64[e+2] += (sword64)a[e+2] * s1t[e+2];
-                        t64[e+3] += (sword64)a[e+3] * s1t[e+3];
-                        t64[e+4] += (sword64)a[e+4] * s1t[e+4];
-                        t64[e+5] += (sword64)a[e+5] * s1t[e+5];
-                        t64[e+6] += (sword64)a[e+6] * s1t[e+6];
-                        t64[e+7] += (sword64)a[e+7] * s1t[e+7];
-                    }
-                #endif
-                }
-            #endif
-                /* Next polynomial. */
-                s1t += MLDSA_N;
-            }
-            /* A failed row's accumulator was never fully written. */
-            if (ret != 0) {
-                break;
-            }
-        #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            for (e = 0; e < MLDSA_N; e++) {
-                tt[e] = mldsa_mont_red(t64[e]);
-            }
-        #else
-            /* Sum of l Montgomery products reaches l*Q; bring it back
-             * inside |x| < Q, where mldsa_invntt_full() cannot overflow. */
-            if (ret == 0) {
-                ret = mldsa_poly_red(tt);
-            }
-        #endif
-        #ifdef WOLFSSL_MLDSA_CHECK_INVNTT_BOUND
-            /* Out-of-range input would overflow the inverse NTT. */
-            if (ret == 0) {
-                ret = mldsa_check_invntt_bound(tt);
-            }
-        #endif
-            if (ret == 0) {
-                ret = mldsa_invntt_full(tt);
-            }
-            /* s2 was overwritten by t, so recover this polynomial from the
-             * copy already encoded into the private key. */
-            if (ret == 0) {
-                ret = mldsa_vec_decode_eta_bits(s2pt, params->eta, s2t, 1);
-            }
-            if (ret == 0) {
-                ret = mldsa_add(tt, s2t);
-            }
-            /* Make positive for decomposing. */
-            if (ret == 0) {
-                ret = mldsa_make_pos(tt);
-            }
+            ret = mldsa_calc_t_row(&key->shake, aseed, (byte)r, s1,
+                params->l, s2pt, params->eta, tt, s2t, a, h, t64);
 
             /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
              * Decompose t in t0 and t1 and encode into public and private
@@ -14461,21 +14525,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 
             /* Calculate t = NTT-1(A o NTT(s1)) + s2 */
             if (ret == 0) {
-                ret = mldsa_vec_ntt_small_full(s1, params->l);
-            }
-            if (ret == 0) {
-                ret = mldsa_matrix_mul(t, a, s1, params->k, params->l);
-            }
-        #ifdef WOLFSSL_MLDSA_SMALL
-            if (ret == 0) {
-                ret = mldsa_vec_red(t, params->k);
-            }
-        #endif
-            if (ret == 0) {
-                ret = mldsa_vec_invntt_full(t, params->k);
-            }
-            if (ret == 0) {
-                ret = mldsa_vec_add(t, s2, params->k);
+                ret = mldsa_calc_t(t, a, s1, s2, params->k, params->l);
             }
             /* Subtract t0 from t. */
             if (ret == 0) {
