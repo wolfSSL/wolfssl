@@ -6865,9 +6865,11 @@ int test_wc_AesXtsStream_CounterOverflow(void)
     ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, sizeof(tweak), &xs), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf, WC_AES_BLOCK_SIZE,
         &xs), 0);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* One block is counted, so this size overflows a 32-bit total. */
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf,
         0xFFFFFFF0U, &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* The refused request did not touch the counter: a block still fits. */
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf, WC_AES_BLOCK_SIZE,
