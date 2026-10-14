@@ -17863,9 +17863,55 @@ WOLFSSL_STACK *wolfSSL_get0_peer_CA_list(const WOLFSSL *ssl);
 
     \sa wolfSSL_get_ciphersuite_info
     \sa wolfSSL_get_sigalg_info
+    \sa wolfSSL_get_client_sigalgs_cert
 */
 int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
+        const byte** hashSigAlgo, word16* hashSigAlgoSz);
+
+/*!
+    \ingroup TLS
+
+    \brief This function returns the raw list of signature algorithms the
+    client accepts on certificates. This is the client's
+    signature_algorithms_cert list when it sent one, and its
+    signature_algorithms list otherwise (RFC 8446 Section 4.2.3). Like
+    wolfSSL_get_client_suites_sigalgs(), it is only available on a server
+    inside a callback setup with wolfSSL_CTX_set_cert_cb(). Use it to pick a
+    certificate chain whose signatures the client can verify, and use the list
+    from wolfSSL_get_client_suites_sigalgs() to pick the key that signs the
+    handshake.
+
+    \param [in] ssl The WOLFSSL object to extract the list from.
+    \param [out] hashSigAlgo Raw and unfiltered list of signature algorithms
+                        accepted on certificates. May be NULL if the client
+                        sent neither list.
+    \param [out] hashSigAlgoSz Size of hashSigAlgo in bytes.
+    \return WOLFSSL_SUCCESS when the client's lists are available
+    \return WOLFSSL_FAILURE when ssl, hashSigAlgo or hashSigAlgoSz is NULL, or
+                        the client's lists are not available
+
+    _Example_
+    \code
+    int certCB(WOLFSSL* ssl, void* arg)
+    {
+        const byte* certSigAlgo = NULL;
+        word16 certSigAlgoSz = 0;
+
+        wolfSSL_get_client_sigalgs_cert(ssl, &certSigAlgo, &certSigAlgoSz);
+
+        // Choose a certificate chain signed with an algorithm in certSigAlgo
+    }
+
+    WOLFSSL* ctx;
+    ctx  = wolfSSL_CTX_new(wolfTLSv1_3_method_ex(NULL));
+    wolfSSL_CTX_set_cert_cb(ctx, certCB, NULL);
+    \endcode
+
+    \sa wolfSSL_get_client_suites_sigalgs
+    \sa wolfSSL_get_sigalg_info
+*/
+int wolfSSL_get_client_sigalgs_cert(const WOLFSSL* ssl,
         const byte** hashSigAlgo, word16* hashSigAlgoSz);
 
 /*!

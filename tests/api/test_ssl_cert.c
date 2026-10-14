@@ -660,6 +660,136 @@ int test_wolfSSL_cert_setup_cb_ret(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_CERT_SETUP_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_TLS) && defined(HAVE_ECC) && \
+    !defined(NO_RSA) && !defined(NO_SHA256) && defined(KEEP_PEER_CERT) && \
+    !defined(WOLFSSL_NO_SIGALG) && defined(OPENSSL_EXTRA)
+/* Leaf with the server's ECC key, signed by the RSA CA in caCertFile. */
+#define TEST_SIGALGS_CERT_RSA_SIGNED  "./certs/server-ecc-rsa.pem"
+
+/* Certificate setup callback choosing between two chains for the same ECC key.
+ *
+ * Sends the ECDSA-signed chain when the client accepts ECDSA certificate
+ * signatures, and the RSA-signed chain otherwise.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] arg  Context passed when the callback was set. Unused.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+static int test_sigalgs_cert_setup_cb(WOLFSSL* ssl, void* arg)
+{
+    const byte* hashSigAlgo = NULL;
+    word16 hashSigAlgoSz = 0;
+    word16 idx;
+    int ecdsaOk = 0;
+    const char* certFile;
+
+    (void)arg;
+
+    if (wolfSSL_get_client_sigalgs_cert(ssl, &hashSigAlgo, &hashSigAlgoSz)
+            != WOLFSSL_SUCCESS) {
+        return 0;
+    }
+    for (idx = 0; idx + 1 < hashSigAlgoSz; idx += 2) {
+        if (hashSigAlgo[idx + 1] == ecc_dsa_sa_algo) {
+            ecdsaOk = 1;
+            break;
+        }
+    }
+
+    certFile = ecdsaOk ? eccCertFile : TEST_SIGALGS_CERT_RSA_SIGNED;
+    if (wolfSSL_use_certificate_file(ssl, certFile, WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS) {
+        return 0;
+    }
+    if (wolfSSL_use_PrivateKey_file(ssl, eccKeyFile, WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS) {
+        return 0;
+    }
+    return 1;
+}
+#endif
+
+/* Test the client's certificate signature algorithms seen by the server.
+ *
+ * The server has an RSA-signed and an ECDSA-signed chain for the same key and
+ * picks one with wolfSSL_get_client_sigalgs_cert(). A client that accepts
+ * ECDSA for CertificateVerify but only RSA+SHA256 on certificates must get the
+ * RSA-signed chain (RFC 8446 4.4.2.2). Without signature_algorithms_cert, the
+ * getter falls back to signature_algorithms and the ECDSA-signed chain is
+ * sent.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_cert_setup_cb_sigalgs_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_SETUP_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_TLS) && defined(HAVE_ECC) && \
+    !defined(NO_RSA) && !defined(NO_SHA256) && defined(KEEP_PEER_CERT) && \
+    !defined(WOLFSSL_NO_SIGALG) && defined(OPENSSL_EXTRA)
+    static const struct {
+        int sendCertList;
+        int expSigType;
+    } cases[] = {
+        { 1, CTC_SHA256wRSA },
+        { 0, CTC_SHA256wECDSA }
+    };
+    const byte* hashSigAlgo = NULL;
+    word16 hashSigAlgoSz = 0;
+    int i;
+
+    ExpectIntEQ(wolfSSL_get_client_sigalgs_cert(NULL, &hashSigAlgo,
+        &hashSigAlgoSz), WOLFSSL_FAILURE);
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        WOLFSSL_X509* peer = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+        /* Nothing has been received from the client yet. */
+        ExpectIntEQ(wolfSSL_get_client_sigalgs_cert(ssl_s, &hashSigAlgo,
+            &hashSigAlgoSz), WOLFSSL_FAILURE);
+        ExpectIntEQ(wolfSSL_get_client_sigalgs_cert(ssl_s, NULL,
+            &hashSigAlgoSz), WOLFSSL_FAILURE);
+
+        /* Trust both issuers so the handshake does not fail on either
+         * chain. */
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile,
+            NULL), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_set_cert_cb(ctx_s, test_sigalgs_cert_setup_cb, NULL);
+
+        if (cases[i].sendCertList) {
+            ExpectIntEQ(wolfSSL_set1_sigalgs_cert_list(ssl_c, "RSA+SHA256"),
+                WOLFSSL_SUCCESS);
+        }
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_c));
+        ExpectIntEQ(wolfSSL_X509_get_signature_type(peer),
+            cases[i].expSigType);
+
+        wolfSSL_X509_free(peer);
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test getting the stack of the peer's certificates.
  *
  * @return  TEST_SUCCESS on success.

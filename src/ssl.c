@@ -4447,6 +4447,36 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_FAILURE;
     }
 
+    int wolfSSL_get_client_sigalgs_cert(const WOLFSSL* ssl,
+            const byte** hashSigAlgo, word16* hashSigAlgoSz)
+    {
+        WOLFSSL_ENTER("wolfSSL_get_client_sigalgs_cert");
+
+        if (hashSigAlgo != NULL)
+            *hashSigAlgo = NULL;
+        if (hashSigAlgoSz != NULL)
+            *hashSigAlgoSz = 0;
+
+        if (ssl == NULL || ssl->clSuites == NULL || hashSigAlgo == NULL ||
+                hashSigAlgoSz == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+    #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && \
+        !defined(WOLFSSL_NO_SIGALG)
+        if (ssl->certHashSigAlgo != NULL && ssl->certHashSigAlgoSz > 0) {
+            *hashSigAlgo = ssl->certHashSigAlgo;
+            *hashSigAlgoSz = ssl->certHashSigAlgoSz;
+            return WOLFSSL_SUCCESS;
+        }
+    #endif
+        /* Without signature_algorithms_cert, signature_algorithms covers
+         * certificates too (RFC 8446 Section 4.2.3). */
+        *hashSigAlgo = ssl->clSuites->hashSigAlgo;
+        *hashSigAlgoSz = ssl->clSuites->hashSigAlgoSz;
+        return WOLFSSL_SUCCESS;
+    }
+
 #ifndef NO_TLS
     WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
             byte second)

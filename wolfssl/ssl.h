@@ -2039,6 +2039,8 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
 WOLFSSL_API int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
         const byte** hashSigAlgo, word16* hashSigAlgoSz);
+WOLFSSL_API int wolfSSL_get_client_sigalgs_cert(const WOLFSSL* ssl,
+        const byte** hashSigAlgo, word16* hashSigAlgoSz);
 typedef struct WOLFSSL_CIPHERSUITE_INFO {
     WC_BITFIELD rsaAuth:1;
     WC_BITFIELD eccAuth:1;
