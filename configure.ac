@@ -9382,11 +9382,19 @@ then
       thread)
         AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_THREAD"
         ;;
+      amd-aperf)
+        if (test "$host_cpu" != "x86_64" && test "$host_cpu" != "amd64") ||
+           test "$KERNEL_MODE_DEFAULTS" = "yes"
+        then
+            AC_MSG_ERROR([--enable-wolfEntropy=amd-aperf needs an x86_64 user-space build.])
+        fi
+        AM_CFLAGS="$AM_CFLAGS -DWC_ENTROPY_TIMER_AMD_APERF"
+        ;;
       nofallback)
         AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_FORCE_FAILURE"
         ;;
       *)
-        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
+        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, amd-aperf, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
         break;;
       esac
     done
