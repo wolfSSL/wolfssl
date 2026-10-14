@@ -1116,9 +1116,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             /* update key length */
             hmac->keyLen = (word16)length;
 
-            /* A failure falls through to the key cleanup below. */
-            if (ret == 0)
-                return ret;
+            return ret;
         }
         /* no need to pad below */
     #endif
@@ -1774,7 +1772,7 @@ void wc_HmacFree(Hmac* hmac)
         byte finalHash[WC_HMAC_BLOCK_SIZE];
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
         (void)ret; /* must ignore return code here */
-        ForceZero(finalHash, sizeof(finalHash));
+        (void)finalHash;
     }
 #endif
 

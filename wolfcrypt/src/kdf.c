@@ -284,13 +284,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
             xorbuf(digest, sha_result, digLen);
             ForceZero(sha_result, digLen);
         }
-        else {
-            /* digest holds the unmasked MD5 half (ISO/IEC 19790 7.9.7). */
-            ForceZero(digest, digLen);
-        }
     }
 
-    ForceZero(sha_result, MAX_PRF_DIG);
 #if defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif

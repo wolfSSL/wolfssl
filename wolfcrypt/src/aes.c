@@ -5953,17 +5953,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             aes->keyInstalled = 1;
         }
         else {
-            /* A failed setup keeps no copy of the key. */
+            /* Erase the software key schedule after a failed setup. */
             ForceZero(aes->key, sizeof(aes->key));
-        #ifdef WC_C_DYNAMIC_FALLBACK
-            ForceZero(aes->key_C_fallback, sizeof(aes->key_C_fallback));
-        #endif
-        #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
-            (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
-            (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
-            defined(WOLFSSL_KCAPI_AES) || defined(WOLFSSL_NXP_HASHCRYPT_AES)
-            ForceZero(aes->devKey, sizeof(aes->devKey));
-        #endif
         }
 
 /* A new key drops the old one's tag length. Built out entirely unless a mode
@@ -17014,19 +17005,8 @@ void wc_AesFree(Aes* aes)
         aes->keyInstalled = 0;
         /* If callback wants standard free, it can set devId to INVALID_DEVID.
          * Otherwise assume the callback handled cleanup. */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            /* Release heap state first; the wipe drops its pointers. */
-        #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
-            !defined(WOLFSSL_AESNI)
-            if (aes->streamData != NULL) {
-                ForceZero(aes->streamData, aes->streamData_sz);
-                XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
-                aes->streamData = NULL;
-            }
-        #endif
-            ForceZero(aes, sizeof(Aes));
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return;
-        }
         /* fall-through when unavailable */
     }
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */

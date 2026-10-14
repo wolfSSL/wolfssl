@@ -16568,9 +16568,7 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    ForceZero(e, sizeof(e));
-    ForceZero(b, sizeof(b));
-    ForceZero(m, sizeof(m));
+    XMEMSET(e, 0, sizeof(e));
 
     return err;
 }
@@ -16625,9 +16623,7 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
         mp_clamp(res);
     }
 
-    ForceZero(e, sizeof(e));
-    ForceZero(b, sizeof(b));
-    ForceZero(m, sizeof(m));
+    XMEMSET(e, 0, sizeof(e));
 
     return err;
 }
@@ -28988,9 +28984,7 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    ForceZero(e, sizeof(e));
-    ForceZero(b, sizeof(b));
-    ForceZero(m, sizeof(m));
+    XMEMSET(e, 0, sizeof(e));
 
     return err;
 }
@@ -36870,9 +36864,7 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
     }
 
-    ForceZero(e, sizeof(e));
-    ForceZero(b, sizeof(b));
-    ForceZero(m, sizeof(m));
+    XMEMSET(e, 0, sizeof(e));
 
     return err;
 }
@@ -43268,7 +43260,7 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_256_ctx));
     }
 
     return err;
@@ -43404,7 +43396,7 @@ int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_256_ctx));
     }
 
     return err;
@@ -44221,7 +44213,11 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 4U);
     }
 
     return err;
@@ -53582,7 +53578,7 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_384_ctx));
     }
 
     return err;
@@ -53718,7 +53714,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_384_ctx));
     }
 
     return err;
@@ -54536,7 +54532,11 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 6U);
     }
 
     return err;
@@ -64411,7 +64411,7 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
     }
 
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_key_gen_521_ctx));
     }
 
     return err;
@@ -64549,7 +64549,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx, 0, sizeof(sp_ecc_sec_gen_521_ctx));
     }
 
     return err;
@@ -65109,7 +65109,11 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         err = FP_WOULDBLOCK;
     }
     if (err != FP_WOULDBLOCK) {
-        ForceZero(ctx, sizeof(*ctx));
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 9U);
     }
 
     return err;
@@ -76024,7 +76028,7 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_1024_point_to_ecc_point_16(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -79644,7 +79648,7 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_1024_point_to_ecc_point_16(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -79703,7 +79707,7 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
         err = sp_1024_point_to_ecc_point_16(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 16 + 16 * 2 * 37, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -79834,7 +79838,7 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
     }
 
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -83241,7 +83245,7 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     }
 
     SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, priv, 16, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
