@@ -1547,9 +1547,9 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
             ret = MEMORY_E;
         }
         if (ret == 0) {
-            PRIVATE_KEY_LOCK();
-            ret = wc_ecc_export_private_only(private_key, priv, &privLen);
             PRIVATE_KEY_UNLOCK();
+            ret = wc_ecc_export_private_only(private_key, priv, &privLen);
+            PRIVATE_KEY_LOCK();
         }
         if (ret == 0) {
             keyTemplate[4].pValue     = priv;
