@@ -9850,8 +9850,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         case DYNAMIC_TYPE_SLHDSA:
             /* SLH-DSA requires the parameter set at init; use an always-present
              * placeholder here and re-init with the real one once known.
-             * wc_SlhDsaKey_Init can fail before it zeroes the object, so clear
-             * it first, or the caller's FreeKey would run over raw memory. */
+             * Clear it first so the caller's FreeKey is well defined whatever
+             * wc_SlhDsaKey_Init returns. */
             XMEMSET(*pKey, 0, sizeof(SlhDsaKey));
             ret = wc_SlhDsaKey_Init((SlhDsaKey*)*pKey, WC_SLHDSA_DEFAULT_PARAM,
                                     ssl->heap, ssl->devId);

@@ -1097,8 +1097,8 @@ static int ProcessBufferTryDecodeSlhDsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    /* wc_SlhDsaKey_Init returns NOT_COMPILED_IN before it zeroes the key, so
-     * clear it here to keep the unconditional Free below well defined. */
+    /* Clear the key so the unconditional Free below is well defined whatever
+     * wc_SlhDsaKey_Init returns. */
     XMEMSET(key, 0, sizeof(SlhDsaKey));
 
     /* Initialise with an always-present placeholder parameter set;
