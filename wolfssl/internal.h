@@ -7570,7 +7570,7 @@ WOLFSSL_LOCAL int TicketSniHash(WOLFSSL* ssl, byte* dst);
 #ifdef HAVE_ALPN
 WOLFSSL_LOCAL int TicketAlpnHash(WOLFSSL* ssl, byte* dst);
 #endif
-#if defined(HAVE_SESSION_TICKET) && (defined(HAVE_SNI) || defined(HAVE_ALPN))
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
 WOLFSSL_LOCAL int VerifyTicketBinding(WOLFSSL* ssl);
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */

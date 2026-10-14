@@ -4097,6 +4097,106 @@ int test_tls12_session_id_resumption_alpn_mismatch(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OLD_HELLO_ALLOWED) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SNI) && defined(HAVE_ALPN) && !defined(NO_SESSION_CACHE)
+/* Resume a TLS 1.2 session ID with an SSLv2 ClientHello (no extensions). */
+static int test_tls12_old_hello_resume(int useSni, int useAlpn)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sni = "public.example";
+    const char alpn[] = "h2";
+    byte hello[2 + 9 + 3 + ID_LEN + RAN_LEN];
+    /* SSLv2 header, ClientHello, TLS 1.2, suite/ID/random lengths */
+    const byte hdr[] = {
+        0x80, (byte)(sizeof(hello) - 2), OLD_HELLO_ID,
+        SSLv3_MAJOR, TLSv1_2_MINOR, 0, 3, 0, ID_LEN, 0, RAN_LEN
+    };
+    int idx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, accept_any_sni_cb);
+#ifdef HAVE_SESSION_TICKET
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_EXTENDED_MASTER
+    /* An SSLv2 ClientHello cannot request EMS. */
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+#endif
+    if (useSni) {
+        ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, sni,
+                        (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    }
+    if (useAlpn) {
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpn, (word32)XSTRLEN(alpn),
+                        WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpn, (word32)XSTRLEN(alpn),
+                        WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->sessionIDSz, ID_LEN);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(hello, hdr, sizeof(hdr));
+        idx = (int)sizeof(hdr);
+        hello[idx++] = 0; /* TLS suite in SSLv2 three byte form */
+        hello[idx++] = ssl_c->options.cipherSuite0;
+        hello[idx++] = ssl_c->options.cipherSuite;
+        XMEMCPY(hello + idx, ssl_c->session->sessionID, ID_LEN);
+        idx += ID_LEN;
+        XMEMSET(hello + idx, 0x5a, RAN_LEN);
+    }
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    if (useAlpn) {
+        ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpn, (word32)XSTRLEN(alpn),
+                        WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)hello,
+                    (int)sizeof(hello)), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), !useSni && !useAlpn);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* SSLv2 ClientHello resumption must not bypass the SNI/ALPN binding. */
+int test_tls12_old_hello_resumption_binding(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OLD_HELLO_ALLOWED) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SNI) && defined(HAVE_ALPN) && !defined(NO_SESSION_CACHE)
+    /* { useSni, useAlpn } */
+    static const byte cases[][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 } };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ExpectIntEQ(test_tls12_old_hello_resume(cases[i][0], cases[i][1]),
+                    TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* TLS 1.3 PSK resumption must fall back to a full handshake if the ALPN
  * protocol negotiated for the resumed connection does not match the ALPN
  * bound to the original session. Mirrors
