@@ -977,8 +977,11 @@ static WC_MAYBE_UNUSED void NextStirPurge(WC_RNG* rng)
                                       &rng->nextStirLen, cur,
                                       WC_DRBG_NEXT_SEED_CONSUMING, ret);
     } WC_CAS_WITH_RETRY_END;
-    if (ret != 0)
+    if (ret != 0) {
+        /* No claim, so no wipe; still drop the material as before. */
+        WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
         return;
+    }
     ForceZero(rng->nextStir, (word32)sizeof(rng->nextStir));
     WOLFSSL_ATOMIC_STORE(rng->nextStirLen, WC_DRBG_NEXT_SEED_EMPTY);
 }
@@ -5889,8 +5892,8 @@ int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce, word32 nonceSz)
  * reset, WC_RNG_LOCK_ENTROPY_INVALIDATED is not cleared, and RBGCStratum
  * is unchanged -- a stir must never masquerade as recovery or promotion.
  * Use-once: the material is consumed (accumulation reopens) whether or not
- * the reseed succeeds.  The buffer is never zeroized (racy against
- * depositors, and zeroing is always a net entropy loss). */
+ * the reseed succeeds.  The consumer wipes the buffer before releasing
+ * its claim; a racing uncredited deposit may be lost to that wipe. */
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextStirNow_local(WC_RNG* rng)
 {
     WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;

@@ -9444,6 +9444,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     wc_MemZero_Check(local, sizeof(local));
 #endif
 #endif
+    if (ret != 0) {
+        /* A failed H derivation must not leave the previous key's GHASH
+         * state usable with the newly installed AES key. */
+        WC_AES_GCM_UNKEY(aes);
+        aes->keyInstalled = 0;
+        ForceZero(&aes->gcm, sizeof(aes->gcm));
+    }
     return ret;
 }
 
@@ -11906,8 +11913,11 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
         GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = AesEncrypt_preFetchOpt(aes, initialCounter, scratch,
                                         &did_prefetches);
-        if (ret != 0)
+        if (ret != 0) {
+            /* authTag still contains the secret, unmasked GHASH result. */
+            ForceZero(authTag, authTagSz);
             goto done;
+        }
         xorbuf(authTag, scratch, authTagSz);
 #ifdef OPENSSL_EXTRA
         if (!in && !sz)
@@ -12710,7 +12720,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     GHASH(&aes->gcm, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
     ret = wc_AesEncrypt(aes, counter, EKY0);
     if (ret != 0)
-        goto done;
+        goto error;
     xorbuf(Tprime, EKY0, sizeof(Tprime));
 #ifdef WC_AES_GCM_DEC_AUTH_EARLY
     /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
@@ -12744,7 +12754,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
             out, in, (blocks * WC_AES_BLOCK_SIZE),
             PIC32_DECRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_AES_GCM);
         if (ret != 0)
-            goto done;
+            goto error;
     }
     /* process remainder using partial handling */
 #endif
@@ -12764,8 +12774,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
 
         ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
         if (ret != 0) {
-            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
-            goto done;
+            goto error;
         }
         xorbuf(out, c, WC_AES_BLOCK_SIZE * blocks);
         c += WC_AES_BLOCK_SIZE * blocks;
@@ -12778,7 +12787,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         #if !defined(WOLFSSL_PIC32MZ_CRYPT)
             ret = wc_AesEncrypt(aes, counter, scratch);
             if (ret != 0)
-                goto done;
+                goto error;
             xorbufout(p, scratch, c, WC_AES_BLOCK_SIZE);
         #endif
             p += WC_AES_BLOCK_SIZE;
@@ -12790,7 +12799,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         IncrementGcmCounter(counter);
         ret = wc_AesEncrypt(aes, counter, scratch);
         if (ret != 0)
-            goto done;
+            goto error;
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
@@ -12819,6 +12828,12 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         out[i] &= (byte)~mask;
     }
 #endif
+    goto done;
+error:
+    /* No unauthenticated plaintext or generated counter/keystream may escape
+     * after a primitive failure, including an in-place operation. */
+    if (out != NULL)
+        ForceZero(out, sz);
 done:
     /* Tag mask E(J0), the last keystream block and the expected tag. */
     ForceZero(EKY0, WC_AES_BLOCK_SIZE);
@@ -13349,7 +13364,7 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
         ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
         if (ret != 0) {
             ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
-            return ret;
+            goto error;
         }
         /* XOR in plaintext. */
         xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
@@ -13368,7 +13383,7 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
             ret = wc_AesEncrypt(aes, AES_COUNTER(aes), scratch);
             if (ret != 0) {
                 ForceZero(scratch, sizeof(scratch));
-                return ret;
+                goto error;
             }
             /* XOR plain text into encrypted counter into cipher text buffer. */
             xorbufout(out, scratch, in, WC_AES_BLOCK_SIZE);
@@ -13385,7 +13400,7 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
         /* Encrypt counter into cache. */
         ret = wc_AesEncrypt(aes, AES_COUNTER(aes), AES_LASTBLOCK(aes));
         if (ret != 0)
-            return ret;
+            goto error;
         /* XOR plain text into encrypted counter into cipher text buffer. */
         xorbufout(out, AES_LASTBLOCK(aes), in, partial);
         /* Keep amount of encrypted block used. */
@@ -13393,6 +13408,16 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
     }
 
     return 0;
+
+error:
+    /* The counter may already have advanced and earlier output may have been
+     * produced. This stream cannot be resumed after a primitive failure. */
+    ForceZero(aes->streamData, AES_STREAM_DATA_SZ);
+    aes->nonceSet = 0;
+    aes->over = 0;
+    aes->aOver = 0;
+    aes->cOver = 0;
+    return ret;
 }
 
 /* Calculates authentication tag for AES GCM. C implementation.
