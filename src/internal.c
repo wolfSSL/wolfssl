@@ -12409,7 +12409,7 @@ int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 
 #ifdef WOLFSSL_DTLS13
         if (IsAtLeastTLSv1_3(ssl->version))
-            return Dtls13HashHandshake(ssl, adj, (word16)sz);
+            return Dtls13HashHandshake(ssl, adj, (word32)sz);
 #endif /* WOLFSSL_DTLS13 */
 
     }
