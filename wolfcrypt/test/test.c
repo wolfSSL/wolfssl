@@ -40055,6 +40055,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                             (byte**)&plain, hash[l], mgf[k], -1, key));
                     if (ret >= 0)
                         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+                    ret = 0;
                 }
             }
 #endif
