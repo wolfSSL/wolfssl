@@ -185,6 +185,26 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     ExpectTrue(paramTo->check_time == 22);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME, 0);
 
+    /* hostFlags are inherited even when the host name is not */
+    if ((paramTo != NULL) && (paramFrom != NULL)) {
+        XMEMSET(paramTo, 0, sizeof(X509_VERIFY_PARAM));
+        XMEMSET(paramFrom, 0, sizeof(X509_VERIFY_PARAM));
+    }
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+        (int)XSTRLEN(testhostName2)), 1);
+    X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
+    ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x01, paramTo->hostFlags);
+    ExpectIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2,
+        (int)XSTRLEN(testhostName2)));
+
+    /* Set hostFlags are only replaced with default or overwrite */
+    X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x04);
+    ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x01, paramTo->hostFlags);
+    ExpectIntEQ(X509_VERIFY_PARAM_set1(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x04, paramTo->hostFlags);
+
     /* test for incorrect parameters */
     ExpectIntEQ(X509_VERIFY_PARAM_set_flags(NULL, X509_V_FLAG_CRL_CHECK_ALL),
         0);
