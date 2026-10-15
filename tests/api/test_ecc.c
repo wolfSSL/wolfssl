@@ -1426,7 +1426,10 @@ int test_wc_ecc_import_private_key(void)
     !(defined(WOLF_CRYPTO_CB_SETKEY) && defined(WOLF_CRYPTO_CB_FIND))
     /* Rejecting a private scalar must also revoke private-key capability.
      * The device set-key path imports into a temporary key first, so a
-     * rejected scalar never touches this key and the old one stays valid. */
+     * rejected scalar never touches this key and its type stays as it was.
+     * Use a fresh key: importing over a live one is not a supported path. */
+    wc_ecc_free(&keyImp);
+    ExpectIntEQ(wc_ecc_init(&keyImp), 0);
     XMEMSET(privKey, 0, privKeySz);
     ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, x963Key,
         x963KeySz, &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
