@@ -17053,6 +17053,7 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_X509* x509 = NULL;
     struct test_memio_ctx test_ctx;
     const char* p521Cert = "./certs/p521/server-p521.pem";
     const char* p521Key  = "./certs/p521/server-p521-priv.pem";
@@ -17082,6 +17083,41 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     ExpectIntEQ(ssl_c->suites->hashSigAlgoSz, 2);
     ExpectIntEQ(ssl_c->suites->hashSigAlgo[0], sha256_mac);
     ExpectIntEQ(ssl_c->suites->hashSigAlgo[1], ecc_dsa_sa_algo);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
+    ExpectIntEQ(ssl_c->options.peerHashAlgo, sha256_mac);
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Sanity: the same certificate set on the context from an X509 object,
+     * the way nginx and haproxy load theirs. The SSL object is made after
+     * the certificate is set, as it copies the context's curve. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(eccCertFile,
+        CERT_FILETYPE));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate(ctx_s, x509), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, eccKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx_s->pkCurveOID, ECC_SECP256R1_OID);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    }
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
     ExpectIntEQ(ssl_c->options.peerHashAlgo, sha256_mac);
