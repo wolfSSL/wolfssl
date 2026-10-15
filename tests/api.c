@@ -38255,6 +38255,70 @@ static int test_wolfSSL_CTX_StaticMemory(void)
     return EXPECT_RESULT();
 }
 
+/* An SSL may only switch to a CTX with the same static-memory heap. */
+static int test_wolfSSL_set_SSL_CTX_static_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    byte memA[TEST_TLS_STATIC_MEMSZ];
+    byte memB[TEST_TLS_STATIC_MEMSZ];
+    WOLFSSL_HEAP_HINT* heapA = NULL;
+    WOLFSSL_HEAP_HINT* heapB = NULL;
+    WOLFSSL_CTX* ctxA = NULL;
+    WOLFSSL_CTX* ctxA2 = NULL;
+    WOLFSSL_CTX* ctxB = NULL;
+#ifndef WOLFSSL_NO_MALLOC
+    WOLFSSL_CTX* ctxNoHeap = NULL;
+#endif
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(wc_LoadStaticMemory(&heapA, memA, sizeof(memA), 0, 1), 0);
+    ExpectIntEQ(wc_LoadStaticMemory(&heapB, memB, sizeof(memB), 0, 1), 0);
+    ExpectNotNull(ctxA = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heapA),
+        heapA));
+    ExpectNotNull(ctxA2 = wolfSSL_CTX_new_ex(
+        wolfSSLv23_client_method_ex(heapA), heapA));
+    ExpectNotNull(ctxB = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heapB),
+        heapB));
+
+    ExpectNotNull(ssl = wolfSSL_new(ctxA));
+    ExpectNull(wolfSSL_set_SSL_CTX(ssl, ctxB));
+    ExpectPtrEq(wolfSSL_get_SSL_CTX(ssl), ctxA);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+#ifndef WOLFSSL_NO_MALLOC
+    ExpectNotNull(ctxNoHeap = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctxA));
+    ExpectNull(wolfSSL_set_SSL_CTX(ssl, ctxNoHeap));
+    ExpectPtrEq(wolfSSL_get_SSL_CTX(ssl), ctxA);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectNotNull(ssl = wolfSSL_new(ctxNoHeap));
+    ExpectNull(wolfSSL_set_SSL_CTX(ssl, ctxA));
+    ExpectPtrEq(wolfSSL_get_SSL_CTX(ssl), ctxNoHeap);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctxNoHeap);
+#endif
+
+    ExpectNotNull(ssl = wolfSSL_new(ctxA));
+    ExpectPtrEq(wolfSSL_set_SSL_CTX(ssl, ctxA2), ctxA2);
+    ExpectPtrEq(wolfSSL_get_SSL_CTX(ssl), ctxA2);
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctxA);
+    wolfSSL_CTX_free(ctxA2);
+    wolfSSL_CTX_free(ctxB);
+    wc_UnloadStaticMemory(heapA);
+    wc_UnloadStaticMemory(heapB);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_openssl_FIPS_drbg(void)
 {
     EXPECT_DECLS;
@@ -45798,6 +45862,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_CryptoCb_Hmac_Find),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
+    TEST_DECL(test_wolfSSL_set_SSL_CTX_static_heap),
 #if !defined(NO_FILESYSTEM) &&                                                 \
      defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)

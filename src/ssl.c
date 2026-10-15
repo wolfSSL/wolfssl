@@ -800,11 +800,15 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 WOLFSSL_ABI
 void wolfSSL_free(WOLFSSL* ssl)
 {
+    void *heap = NULL;
     WOLFSSL_ENTER("wolfSSL_free");
 
     if (ssl) {
         WOLFSSL_MSG_EX("Free SSL: %p", (wc_ptr_t)ssl);
-        FreeSSL(ssl, ssl->heap);
+        if (ssl->ctx != NULL) {
+            heap = ssl->ctx->heap;
+        }
+        FreeSSL(ssl, heap);
     }
     else {
         WOLFSSL_MSG("Free SSL: wolfSSL_free already null");
@@ -8996,6 +9000,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return NULL;
     if (ssl->ctx == ctx)
         return ssl->ctx;
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* the SSL and its heap hint are freed through ssl->ctx->heap */
+    if (ssl->ctx != NULL && ssl->ctx->heap != ctx->heap) {
+        WOLFSSL_MSG("Cannot switch to a CTX with a different heap");
+        return NULL;
+    }
+#endif
 
     /* suites, allocated and derived under the CTX mutex as this CTX may be
      * shared with other threads. Done before taking a reference below so that
