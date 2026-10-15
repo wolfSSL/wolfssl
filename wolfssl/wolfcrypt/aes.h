@@ -233,11 +233,12 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #define WC_AES_KEY_NOT_INSTALLED    0
 #define WC_AES_KEY_INSTALLED        1
 
-/* Aes.keyLocation exists for the generic SetKey crypto callback, which sets
- * it with wc_CryptoCb_SetKeyLocation() (WC_KEY_* values in cryptocb.h).
- * Define WOLFSSL_NO_AES_KEY_LOCATION to compile it out. */
+/* Aes.keyLocation is set by SetKey callbacks with wc_CryptoCb_SetKeyLocation()
+ * (WC_KEY_* in cryptocb.h). It needs the key-set check, so it is compiled out
+ * by WOLFSSL_NO_AES_KEY_SET_CHECK as well as WOLFSSL_NO_AES_KEY_LOCATION. */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
-    !defined(WOLFSSL_NO_AES_KEY_LOCATION)
+    !defined(WOLFSSL_NO_AES_KEY_LOCATION) && \
+    !defined(WOLFSSL_NO_AES_KEY_SET_CHECK)
     #define WC_AES_HAVE_KEY_LOCATION
 #endif
 

@@ -12545,6 +12545,16 @@ int test_wc_CryptoCb_AesNoSwKey(void)
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0),
                 WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* A HW-stored rekey must also stop a streaming GCM started in software */
+    test_CryptoCb_AesNoSw_Decline = 1;
+    ExpectIntEQ(wc_AesGcmInit(&aes, key, (word32)sizeof(key), iv,
+                              GCM_NONCE_MID_SZ), 0);
+    test_CryptoCb_AesNoSw_Decline = 0;
+    ExpectIntEQ(wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                             AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, out, sizeof(out)),
+                WC_NO_ERR_TRACE(MISSING_KEY));
 #endif
 
     /* A new key the device declines is kept in software and must work */
@@ -12578,6 +12588,33 @@ int test_wc_CryptoCb_AesNoSwKey(void)
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY && HAVE_AES_CBC &&
         * HAVE_AES_DECRYPT && WOLFSSL_AES_128 &&
         * WOLFSSL_AES_REQUIRE_KEY_SET && !WOLFSSL_NO_AES_KEY_LOCATION */
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(NO_AES) && defined(WOLFSSL_NO_AES_KEY_SET_CHECK)
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+/* With the key-set check off, software would run a HW-stored key's stale
+ * schedule, so key location is compiled out and a callback is told so. */
+int test_wc_CryptoCb_AesKeyLocationOff(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    wc_CryptoInfo info;
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(&info, 0, sizeof(info));
+    info.algo_type = WC_ALGO_TYPE_SETKEY;
+    info.setkey.type = WC_SETKEY_AES;
+    info.setkey.obj = &aes;
+    ExpectIntEQ(wc_CryptoCb_SetKeyLocation(&info, WC_KEY_HW_STORED),
+                WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY && !NO_AES &&
+        * WOLFSSL_NO_AES_KEY_SET_CHECK */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test

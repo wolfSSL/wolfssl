@@ -221,7 +221,7 @@ static WC_MAYBE_UNUSED int AesMarkKeyInstalled(Aes* aes)
 
 #ifdef WC_AES_HAVE_KEY_LOCATION
 /* Records where the key is kept, for wc_CryptoCb_SetKeyLocation().
- * WC_KEY_HW_STORED clears keyInstalled and rounds, so software paths fail.
+ * WC_KEY_HW_STORED clears keyInstalled, rounds and the GCM key flag.
  * Returns 0, or BAD_FUNC_ARG for an unknown location. */
 int wc_AesSetKeyLocation(Aes* aes, int location)
 {
@@ -232,6 +232,7 @@ int wc_AesSetKeyLocation(Aes* aes, int location)
         aes->keyLocation = WC_KEY_HW_STORED;
         aes->keyInstalled = WC_AES_KEY_NOT_INSTALLED;
         aes->rounds = 0;
+        WC_AES_GCM_UNKEY(aes);
     }
     else {
         return BAD_FUNC_ARG;
