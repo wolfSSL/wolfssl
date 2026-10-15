@@ -164,6 +164,21 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 256
+        #define TLSX_HAVE_SECP256R1
+    #endif
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 384
+        #define TLSX_HAVE_SECP384R1
+    #endif
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 521
+        #define TLSX_HAVE_SECP521R1
+    #endif
+#endif
+
 /* Digest enable checks */
 #ifdef NO_OLD_TLS /* TLS 1.2 only */
     #if defined(NO_SHA256) && !defined(WOLFSSL_SHA384) && \
@@ -4789,6 +4804,7 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
         case WOLFSSL_FFDHE_8192:
             break;
     #endif
+    #ifdef HAVE_ECC
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
         #ifdef HAVE_ECC_KOBLITZ
         case WOLFSSL_ECC_SECP256K1:
@@ -4808,6 +4824,7 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
             break;
         #endif /* WOLFSSL_SM2 */
     #endif
+    #endif /* HAVE_ECC */
     #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
         case WOLFSSL_ECC_X25519:
             break;
@@ -4816,6 +4833,7 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
         case WOLFSSL_ECC_X448:
             break;
     #endif
+    #ifdef HAVE_ECC
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP384R1:
@@ -4874,19 +4892,20 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
             break;
         #endif
     #endif
+    #endif /* HAVE_ECC */
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM
         #ifndef WOLFSSL_NO_ML_KEM_512
             #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
             case WOLFSSL_ML_KEM_512:
-                return TLSX_IsMlKemGroupSupported(side);
             #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
             #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+            #ifdef TLSX_HAVE_SECP256R1
             case WOLFSSL_SECP256R1MLKEM512:
+            #endif
             #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519MLKEM512:
             #endif /* HAVE_CURVE25519 */
-                return TLSX_IsMlKemGroupSupported(side);
             #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
         #endif /* WOLFSSL_NO_ML_KEM_512 */
         #ifndef WOLFSSL_NO_ML_KEM_768
@@ -4894,51 +4913,68 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
             case WOLFSSL_ML_KEM_768:
             #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
             #ifdef WOLFSSL_PQC_HYBRIDS
+            #ifdef TLSX_HAVE_SECP256R1
             case WOLFSSL_SECP256R1MLKEM768:
+            #endif
             #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519MLKEM768:
             #endif /* HAVE_CURVE25519 */
             #endif /* WOLFSSL_PQC_HYBRIDS */
             #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+            #ifdef TLSX_HAVE_SECP384R1
             case WOLFSSL_SECP384R1MLKEM768:
+            #endif
             #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
             case WOLFSSL_X448MLKEM768:
             #endif /* HAVE_CURVE448 */
             #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
-                return TLSX_IsMlKemGroupSupported(side);
         #endif /* WOLFSSL_NO_ML_KEM_768 */
         #ifndef WOLFSSL_NO_ML_KEM_1024
             #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
             case WOLFSSL_ML_KEM_1024:
             #endif /* !WOLFSSL_TLS_NO_MLKEM_STANDALONE */
             #ifdef WOLFSSL_PQC_HYBRIDS
+            #ifdef TLSX_HAVE_SECP384R1
             case WOLFSSL_SECP384R1MLKEM1024:
+            #endif
             #endif /* WOLFSSL_PQC_HYBRIDS */
             #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
+            #ifdef TLSX_HAVE_SECP521R1
             case WOLFSSL_SECP521R1MLKEM1024:
+            #endif
             #endif /* WOLFSSL_EXTRA_PQC_HYBRIDS */
-                return TLSX_IsMlKemGroupSupported(side);
         #endif
         #if defined(WOLFSSL_ML_KEM_USE_OLD_IDS) && \
                                              defined (WOLFSSL_EXTRA_PQC_HYBRIDS)
+            #ifdef TLSX_HAVE_SECP256R1
             case WOLFSSL_P256_ML_KEM_512_OLD:
+            #endif
+            #ifdef TLSX_HAVE_SECP384R1
             case WOLFSSL_P384_ML_KEM_768_OLD:
+            #endif
+            #ifdef TLSX_HAVE_SECP521R1
             case WOLFSSL_P521_ML_KEM_1024_OLD:
-                return TLSX_IsMlKemGroupSupported(side);
+            #endif
         #endif /* WOLFSSL_ML_KEM_USE_OLD_IDS && WOLFSSL_EXTRA_PQC_HYBRIDS */
 #endif /* WOLFSSL_NO_ML_KEM */
 #ifdef WOLFSSL_MLKEM_KYBER
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
+            #ifdef TLSX_HAVE_SECP256R1
             case WOLFSSL_P256_KYBER_LEVEL1:
+            #endif
         #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519_KYBER_LEVEL1:
         #endif
         #endif
         #ifdef WOLFSSL_KYBER768
             case WOLFSSL_KYBER_LEVEL3:
+            #ifdef TLSX_HAVE_SECP384R1
             case WOLFSSL_P384_KYBER_LEVEL3:
+            #endif
+            #ifdef TLSX_HAVE_SECP256R1
             case WOLFSSL_P256_KYBER_LEVEL3:
+            #endif
         #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_X25519_KYBER_LEVEL3:
         #endif
@@ -4948,10 +4984,12 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
         #endif
         #ifdef WOLFSSL_KYBER1024
             case WOLFSSL_KYBER_LEVEL5:
+            #ifdef TLSX_HAVE_SECP521R1
             case WOLFSSL_P521_KYBER_LEVEL5:
+            #endif
         #endif
-                return TLSX_IsMlKemGroupSupported(side);
 #endif
+                return TLSX_IsMlKemGroupSupported(side);
 #endif /* WOLFSSL_HAVE_MLKEM */
         default:
             return 0;
@@ -11661,14 +11699,10 @@ static const word16 preferredGroup[] = {
         ECC_MIN_KEY_SZ <= 256
     WOLFSSL_X25519MLKEM768,
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 384
+    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(TLSX_HAVE_SECP384R1)
     WOLFSSL_SECP384R1MLKEM1024,
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 256
+    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(TLSX_HAVE_SECP256R1)
     WOLFSSL_SECP256R1MLKEM768,
     #endif
 #endif /* WOLFSSL_TLS13 && WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM &&
@@ -11778,23 +11812,17 @@ static const word16 preferredGroup[] = {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
-    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-        (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 521
+    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(TLSX_HAVE_SECP521R1)
     WOLFSSL_SECP521R1MLKEM1024,
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 384
+    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(TLSX_HAVE_SECP384R1)
     WOLFSSL_SECP384R1MLKEM768,
     #endif
     #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448) && \
         ECC_MIN_KEY_SZ <= 448
     WOLFSSL_X448MLKEM768,
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC) && \
-        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 256
+    #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(TLSX_HAVE_SECP256R1)
     WOLFSSL_SECP256R1MLKEM512,
     #endif
     #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519) && \
@@ -11807,19 +11835,16 @@ static const word16 preferredGroup[] = {
     defined(WOLFSSL_MLKEM_KYBER)
     #ifdef WOLFSSL_KYBER1024
     WOLFSSL_KYBER_LEVEL5,
-    #if defined(HAVE_ECC) && (defined(HAVE_ECC521) || \
-        defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    #ifdef TLSX_HAVE_SECP521R1
     WOLFSSL_P521_KYBER_LEVEL5,
     #endif
     #endif
     #ifdef WOLFSSL_KYBER768
     WOLFSSL_KYBER_LEVEL3,
-    #if defined(HAVE_ECC) && (defined(HAVE_ECC384) || \
-        defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    #ifdef TLSX_HAVE_SECP384R1
     WOLFSSL_P384_KYBER_LEVEL3,
     #endif
-    #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
-        defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    #ifdef TLSX_HAVE_SECP256R1
     WOLFSSL_P256_KYBER_LEVEL3,
     #endif
     #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
@@ -11831,8 +11856,7 @@ static const word16 preferredGroup[] = {
     #endif
     #ifdef WOLFSSL_KYBER512
     WOLFSSL_KYBER_LEVEL1,
-    #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
-        defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    #ifdef TLSX_HAVE_SECP256R1
     WOLFSSL_P256_KYBER_LEVEL1,
     #endif
     #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
@@ -11882,15 +11906,11 @@ static const word16 preferredGroup[] = {
     #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_X25519MLKEM768
 #elif defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT) && \
       !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
-      !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-      (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-      ECC_MIN_KEY_SZ <= 256
+      !defined(WOLFSSL_NO_ML_KEM_768) && defined(TLSX_HAVE_SECP256R1)
     #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_SECP256R1MLKEM768
 #elif defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT) && \
       !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
-      !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-      (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-      ECC_MIN_KEY_SZ <= 384
+      !defined(WOLFSSL_NO_ML_KEM_1024) && defined(TLSX_HAVE_SECP384R1)
     #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_SECP384R1MLKEM1024
 #elif defined(HAVE_ECC) && (!defined(NO_ECC256) || \
       defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256 && \
@@ -16351,16 +16371,12 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
             ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 384
+    #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(TLSX_HAVE_SECP384R1)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SECP384R1MLKEM1024,
             ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
     #endif
-    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 256
+    #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(TLSX_HAVE_SECP256R1)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SECP256R1MLKEM768,
             ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16629,14 +16645,12 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
     if (IsAtLeastTLSv1_3(ssl->version) &&
             TLSX_IsMlKemGroupSupported(ssl->options.side)) {
-#if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+#if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(TLSX_HAVE_SECP521R1)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SECP521R1MLKEM1024,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
 #endif
-#if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+#if !defined(WOLFSSL_NO_ML_KEM_768) && defined(TLSX_HAVE_SECP384R1)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SECP384R1MLKEM768,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16647,8 +16661,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
 #endif
-#if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC) && \
-    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+#if !defined(WOLFSSL_NO_ML_KEM_512) && defined(TLSX_HAVE_SECP256R1)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SECP256R1MLKEM512,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16670,8 +16683,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
-#if defined(HAVE_ECC) && (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 521
+#ifdef TLSX_HAVE_SECP521R1
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16681,14 +16693,12 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
-#if defined(HAVE_ECC) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 384
+#ifdef TLSX_HAVE_SECP384R1
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_LEVEL3,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
 #endif
-#if defined(HAVE_ECC) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 256
+#ifdef TLSX_HAVE_SECP256R1
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_LEVEL3,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16708,8 +16718,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
-#if defined(HAVE_ECC) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
-    ECC_MIN_KEY_SZ <= 256
+#ifdef TLSX_HAVE_SECP256R1
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_LEVEL1,
                                      ssl->heap, ssl->options.side);
         if (ret != WOLFSSL_SUCCESS) return ret;
