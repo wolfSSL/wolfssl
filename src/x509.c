@@ -11378,15 +11378,23 @@ int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
 
 /******************************************************************************
 * wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
-* hostnames is cleared if name is NULL or empty.
+* Hostname is cleared if name is NULL or empty.
+*
+* If nameSz is zero, name must be NUL-terminated.
+* Otherwise, nameSz specifies the input length and may include one
+* trailing NUL. Embedded NULs are rejected without changing the
+* previously configured hostname.
 *
 * RETURNS:
+* WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on invalid input.
 *
 */
 int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                          const char* name,
                                          unsigned int nameSz)
 {
+    unsigned int i;
+
     WOLFSSL_ENTER("wolfSSL_X509_VERIFY_PARAM_set1_host");
 
     if (pParam == NULL)
@@ -11405,6 +11413,13 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
 
     if (nameSz > 0 && name[nameSz - 1] == '\0')
         nameSz--;
+
+    /* Reject embedded NULs before changing the hostname policy. */
+    for (i = 0; i < nameSz; i++) {
+        if (name[i] == '\0') {
+            return WOLFSSL_FAILURE;
+        }
+    }
 
     if (nameSz > WOLFSSL_HOST_NAME_MAX-1) {
         WOLFSSL_MSG("Truncating name");
