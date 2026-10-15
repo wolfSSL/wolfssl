@@ -17306,6 +17306,38 @@ static int GetPeerCertType(const WOLFSSL* ssl)
 }
 #endif /* HAVE_RPK */
 
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK)
+/* Trusted peer certs skip the date checks done when parsing a chain */
+static int CheckTrustedPeerDates(const DecodedCert* cert)
+{
+    int ret = 0;
+
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
+
+    if (wc_AsnGetSkipDateCheck())
+        return 0;
+
+    if ((cert->beforeDate != NULL) && (cert->beforeDateLen > 2) &&
+            !XVALIDATE_DATE(&cert->beforeDate[2], cert->beforeDate[0],
+                ASN_BEFORE, cert->beforeDate[1])) {
+        WOLFSSL_MSG("Trusted peer cert is not yet valid");
+        ret = ASN_BEFORE_DATE_E;
+    }
+    else if ((cert->afterDate != NULL) && (cert->afterDateLen > 2) &&
+            !XVALIDATE_DATE(&cert->afterDate[2], cert->afterDate[0],
+                ASN_AFTER, cert->afterDate[1])) {
+        WOLFSSL_MSG("Trusted peer cert has expired");
+        ret = ASN_AFTER_DATE_E;
+    }
+
+    if (ret != 0)
+        WOLFSSL_ERROR_VERBOSE(ret);
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT && !NO_ASN_TIME_CHECK */
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -19660,6 +19692,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  * from it - the key - can still fail below. */
                 if (UsingChainVerifyCb(ssl) && IsCertContentErr(ret))
                     ret = 0;
+            #endif
+            #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK)
+                if (ret == 0 && args->haveTrustPeer &&
+                        !ssl->options.verifyNone) {
+                    ret = CheckTrustedPeerDates(args->dCert);
+                }
             #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
