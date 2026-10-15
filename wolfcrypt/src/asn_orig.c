@@ -8318,7 +8318,9 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     else {
         prvidx += SetOctetString(privSz, &prv[prvidx]);
     }
+    PRIVATE_KEY_UNLOCK();
     ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
+    PRIVATE_KEY_LOCK();
     if (ret < 0) {
     #ifndef WOLFSSL_NO_MALLOC
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);

@@ -9800,8 +9800,10 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 privKeySz)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
 
-            if ((ret = wc_ecc_export_private_only(key_pair, privDer, &privSz))
-                                                                         == 0) {
+            PRIVATE_KEY_UNLOCK();
+            ret = wc_ecc_export_private_only(key_pair, privDer, &privSz);
+            PRIVATE_KEY_LOCK();
+            if (ret == 0) {
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 wc_MemZero_Add("wc_CheckPrivateKey privDer", privDer, privSz);
             #endif
@@ -35316,12 +35318,14 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
         }
         if (ret == 0) {
             /* Export the private value into the buffer. */
+            PRIVATE_KEY_UNLOCK();
             /* safe cast -- the pointer is actually inside the output buffer. */
             ret = wc_ecc_export_private_only(
                 key,
                 (byte*)(wc_ptr_t)
                     dataASN[ECCKEYASN_IDX_PKEY].data.buffer.data,
                 &privSz);
+            PRIVATE_KEY_LOCK();
         }
         if ((ret == 0) && pubIn) {
             /* Export the public point into the buffer. */
