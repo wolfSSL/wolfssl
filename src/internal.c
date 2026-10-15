@@ -11219,7 +11219,8 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
 
     newSz = newOffsetEnd - newOffset;
 
-    /* Expand the larger bucket if data bridges the gap between cur and next */
+    /* Expand the larger bucket if data bridges the gap between cur and
+     * next */
     if (!combineNext || cur->m.m.sz >= next->m.m.sz) {
         chosenBucket = &cur;
         otherBucket = next;
@@ -11230,16 +11231,17 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
     }
 
     {
-#ifdef XREALLOC
-        DtlsFragBucket* tmp = (DtlsFragBucket*)XREALLOC(*chosenBucket,
+        DtlsFragBucket* tmp;
+#ifndef WOLFSSL_NO_REALLOC
+        tmp = (DtlsFragBucket*)XREALLOC(*chosenBucket,
                 sizeof(DtlsFragBucket) + newSz, heap, DYNAMIC_TYPE_DTLS_FRAG);
-#else
-        DtlsFragBucket* tmp = (DtlsFragBucket*)XMALLOC(
-                sizeof(DtlsFragBucket) + newSz, heap, DYNAMIC_TYPE_DTLS_FRAG);
-#endif
         if (tmp == NULL)
             return NULL;
-#ifndef XREALLOC
+#else
+        tmp = (DtlsFragBucket*)XMALLOC(sizeof(DtlsFragBucket) + newSz, heap,
+                DYNAMIC_TYPE_DTLS_FRAG);
+        if (tmp == NULL)
+            return NULL;
         XMEMCPY(tmp, *chosenBucket, sizeof(DtlsFragBucket) +
                 (*chosenBucket)->m.m.sz);
 #endif
@@ -11250,7 +11252,7 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
                 beforeNext = beforeNext->m.m.next;
             beforeNext->m.m.next = tmp;
         }
-#ifndef XREALLOC
+#ifdef WOLFSSL_NO_REALLOC
         XFREE(*chosenBucket, heap, DYNAMIC_TYPE_DTLS_FRAG);
 #endif
         newBucket = *chosenBucket = tmp;
@@ -11412,7 +11414,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
     if (msg->fragBucketList == NULL) {
         /* Clean list. Create first fragment. */
-        msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
+        msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz,
+                heap);
         if (msg->fragBucketList != NULL) {
             msg->bytesReceived = fragSz;
             msg->fragBucketListCount++;
@@ -11448,8 +11451,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
                     return DTLS_TOO_MANY_FRAGMENTS_E;
                 }
-                prev->m.m.next =
-                        DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
+                prev->m.m.next = DtlsMsgCreateFragBucket(fragOffset, data,
+                        fragSz, heap);
                 if (prev->m.m.next == NULL)
                     return MEMORY_ERROR;
                 msg->bytesReceived += fragSz;
