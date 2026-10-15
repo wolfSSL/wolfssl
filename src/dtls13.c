@@ -358,6 +358,8 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
     }
 }
 
+static void Dtls13SaveOrFlushClientHello(WOLFSSL* ssl);
+
 int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
     DtlsMsg* msg;
@@ -379,6 +381,10 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
             break;
         }
 #endif
+
+        /* A complete ServerHello acknowledges the ClientHello */
+        if (msg->type == server_hello)
+            Dtls13SaveOrFlushClientHello(ssl);
 
         /* We may have DTLS <=1.2 msgs stored from before we knew which version
          * we were going to use. Interpret correctly. */
@@ -946,9 +952,6 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
     if (!ssl->options.handShakeDone &&
         ssl->keys.dtls_peer_handshake_number >=
             ssl->keys.dtls_expected_peer_handshake_number) {
-
-        if (hs == server_hello)
-            Dtls13SaveOrFlushClientHello(ssl);
 
         /* In the handshake, receiving part of the next flight, acknowledge the
          * sent flight. */
@@ -2050,6 +2053,11 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
         return 0;
     }
+
+    /* A complete ServerHello in order acknowledges the ClientHello. A
+     * fragment that may never complete does not. */
+    if (handshakeType == server_hello)
+        Dtls13SaveOrFlushClientHello(ssl);
 
     ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
         messageLength, size);
