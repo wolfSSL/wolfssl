@@ -4321,6 +4321,7 @@ static int test_tls13_nonblock_ocsp_mfl_io_cb(void* ioCtx, const char* url,
 static int test_tls13_nonblock_ocsp_mfl_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx,
                     WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
         WOLFSSL_SUCCESS);
