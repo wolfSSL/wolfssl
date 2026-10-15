@@ -565,6 +565,18 @@ MODULE_PARM_DESC(rodata_dump_path,
     static unsigned long wc_real_offset_s = 0;
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
+    /* READ_ONCE()/WRITE_ONCE() arrived in 3.19 (include/linux/compiler.h);
+     * the 3.17 and 3.18 composition of the accessors below is spelled with
+     * them, so ACCESS_ONCE() stands in. */
+    #ifndef READ_ONCE
+        #define READ_ONCE(x) ACCESS_ONCE(x)
+    #endif
+    #ifndef WRITE_ONCE
+        #define WRITE_ONCE(x, val) (ACCESS_ONCE(x) = (val))
+    #endif
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 static void wc_linuxkm_time_recalibrate(unsigned long now_jiffies,
                                         unsigned long secs,
