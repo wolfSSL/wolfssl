@@ -672,14 +672,15 @@ if [ "$DOCONFIGURE" = "yes" ]; then
     fi
 
     if [ -s wolfcrypt/src/fips_test.c ]; then
-        # Take the hash exactly as long as reported: the in core digest is
-        # SHA-256 (64 hex) up to FIPS v6.0.0 and SHA-512 (128 hex) from v7.0.0.
-        NEWHASH=$(./wolfcrypt/test/testwolfcrypt | \
-                  sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
-        if [ -n "$NEWHASH" ]; then
-            cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
-            sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak > \
-                                                    wolfcrypt/src/fips_test.c
+        # fips-hash.sh matches the reported hash to the in core digest that
+        # fips_test.c expects (SHA-256 up to FIPS v6.0.0, SHA-512 from v7.0.0)
+        # and refuses to write one of the wrong length.
+        OLDHASH=$(grep '^".*";' wolfcrypt/src/fips_test.c)
+        if ! ./fips-hash.sh; then
+            echo 'fips-check: Hash update failed. Debris left for analysis.'
+            exit 3
+        fi
+        if [ "$OLDHASH" != "$(grep '^".*";' wolfcrypt/src/fips_test.c)" ]; then
             make clean
         fi
     fi
