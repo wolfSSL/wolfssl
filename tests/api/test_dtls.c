@@ -6445,6 +6445,57 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
 }
 
 
+int test_wolfSSL_DTLS_msg_list_order(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_DTLS
+    WOLFSSL ssl[1];
+    static byte msg[100];
+    DtlsMsg* cur = NULL;
+
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    XMEMSET(msg, 7, sizeof(msg));
+
+    /* Ordered by sequence number across epochs */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 50, msg, 100, server_hello, 0, 100,
+            NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 2, 2, msg, 100, certificate, 0, 100, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 2, 7, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
+    ExpectNotNull(cur = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(cur->seq, 2);
+    ExpectIntEQ(cur->epoch, 0);
+    ExpectNotNull(cur = cur->next);
+    ExpectIntEQ(cur->seq, 2);
+    ExpectIntEQ(cur->epoch, 2);
+    ExpectNotNull(cur = cur->next);
+    ExpectIntEQ(cur->seq, 7);
+    ExpectNotNull(cur = cur->next);
+    ExpectIntEQ(cur->seq, 50);
+    ExpectNull(cur->next);
+
+    /* The complete expected message is found behind a partial one with the
+     * same number from another epoch */
+    ssl->keys.dtls_expected_peer_handshake_number = 2;
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectIntEQ(cur->epoch, 2);
+    ExpectIntEQ(cur->ready, 1);
+    ssl->keys.dtls_expected_peer_handshake_number = 7;
+    ExpectNull(DtlsMsgListNextReady(ssl));
+    ssl->keys.dtls_expected_peer_handshake_number = 50;
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectIntEQ(cur->seq, 50);
+
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_DTLS_plaintext_msg_replace(void)
 {
     EXPECT_DECLS;
@@ -6507,7 +6558,7 @@ int test_wolfSSL_DTLS_plaintext_msg_replace(void)
 /* A complete in-order message is processed from the record buffer. A partial
  * copy of it stored earlier must not block the list behind it. */
 static int test_dtls_stale_partial_head(method_provider method_c,
-        method_provider method_s, word32 shSeq, int fill)
+        method_provider method_s, word32 shSeq, int fill, int highSeq)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -6532,7 +6583,13 @@ static int test_dtls_stale_partial_head(method_provider method_c,
         ExpectIntEQ(DtlsMsgStore(ssl_c, 0, 100 + i, junk, sizeof(junk),
                 server_hello, 0, 50, NULL), 0);
     }
-    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, fill ? DTLS_POOL_SZ + 1 : 1);
+    /* Unauthenticated complete entry far ahead */
+    if (highSeq) {
+        ExpectIntEQ(DtlsMsgStore(ssl_c, 0, 50, junk, sizeof(junk),
+                server_hello, 0, sizeof(junk), NULL), 0);
+    }
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz,
+            1 + (fill ? DTLS_POOL_SZ : 0) + (highSeq ? 1 : 0));
 
     /* The MTU also caps what the server reads. Make sure the ClientHello
      * fits with room for a cookie. */
@@ -6542,8 +6599,8 @@ static int test_dtls_stale_partial_head(method_provider method_c,
     ExpectIntLE(test_ctx.s_len + 128, mtu);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectNull(ssl_c->dtls_rx_msg_list);
-    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+    /* Only the entry far ahead may remain */
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, highSeq ? 1 : 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -6560,14 +6617,17 @@ int test_wolfSSL_DTLS_stale_partial_head(void)
 #ifndef WOLFSSL_NO_TLS12
     /* ServerHello is seq 1 after the HelloVerifyRequest */
     EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_2_client_method,
-            wolfDTLSv1_2_server_method, 1, 0));
+            wolfDTLSv1_2_server_method, 1, 0, 0));
 #endif
 #ifdef WOLFSSL_DTLS13
     EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
-            wolfDTLSv1_3_server_method, 0, 0));
+            wolfDTLSv1_3_server_method, 0, 0, 0));
     /* Authenticated fragments evict unauthenticated entries */
     EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
-            wolfDTLSv1_3_server_method, 0, 1));
+            wolfDTLSv1_3_server_method, 0, 1, 0));
+    /* An entry far ahead must not hide the messages behind it */
+    EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
+            wolfDTLSv1_3_server_method, 0, 0, 1));
 #endif
 #endif
     return EXPECT_RESULT();

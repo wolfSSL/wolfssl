@@ -367,19 +367,10 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     DtlsMsgListPurge(ssl, 0);
-    msg = ssl->dtls_rx_msg_list;
 
-    while (msg != NULL) {
+    while ((msg = DtlsMsgListNextReady(ssl)) != NULL) {
         int downgraded = 0;
         idx = 0;
-
-        /* message not in order */
-        if (ssl->keys.dtls_expected_peer_handshake_number != msg->seq)
-            break;
-
-        /* message not complete */
-        if (!msg->ready)
-            break;
 
 #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
         ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
@@ -424,10 +415,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                  * incremented. */
                 ssl->keys.dtls_expected_peer_handshake_number++;
 
-            ssl->dtls_rx_msg_list = msg->next;
-            DtlsMsgDelete(msg, ssl->heap);
-            msg = ssl->dtls_rx_msg_list;
-            ssl->dtls_rx_msg_list_sz--;
+            DtlsMsgListRemove(ssl, msg);
+            DtlsMsgListPurge(ssl, 0);
         }
 
         if (ret != 0)
@@ -442,10 +431,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
     DtlsMsgListPurge(ssl, 0);
-    return ssl->dtls_rx_msg_list != NULL &&
-           ssl->dtls_rx_msg_list->ready &&
-           ssl->dtls_rx_msg_list->seq ==
-               ssl->keys.dtls_expected_peer_handshake_number;
+    return DtlsMsgListNextReady(ssl) != NULL;
 }
 
 static WC_INLINE int FragIsInOutputBuffer(WOLFSSL* ssl, const byte* frag)
