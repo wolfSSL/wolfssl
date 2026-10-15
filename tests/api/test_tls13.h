@@ -145,6 +145,9 @@ int test_tls13_AEAD_limit_KU_aes128_gcm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes256_gcm_sha384(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
+int test_tls13_seq_wrap_KU_chacha20_poly1305_sha256(void);
+int test_tls13_seq_wrap_KU_aes128_gcm_sha256(void);
+int test_tls13_seq_wrap_hard_stop(void);
 int test_tls13_KeyUpdate_sender_limit(void);
 int test_tls13_KeyUpdate_limit_ignores_update_requested(void);
 int test_tls13_KeyUpdate_limit_writedup(void);
@@ -303,6 +306,9 @@ int test_tls13_chain_verify_cb_rpk(void);
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes256_gcm_sha384), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_seq_wrap_KU_chacha20_poly1305_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_seq_wrap_KU_aes128_gcm_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_seq_wrap_hard_stop), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_sender_limit), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_ignores_update_requested), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_writedup), \

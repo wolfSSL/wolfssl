@@ -3691,6 +3691,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 return BUFFER_E;
             }
 
+            /* Fail instead of wrapping the sequence number */
+            if (!ssl->options.dtls &&
+                    ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
+                    ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
+                WOLFSSL_MSG("TLS 1.3 sequence number would wrap");
+                WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+                return SEQUENCE_NUMBER_E;
+            }
+
             /* Record data length. */
             args->size = (word16)(args->sz - args->headerSz);
             /* Write/update the record header with the new size.
@@ -14236,6 +14245,24 @@ int Tls13KeyUpdateLimitReached(WOLFSSL* ssl)
     return w64GTE(ssl->keys.keyUpdateCount,
                   w64From32(TLS13_KEY_UPDATE_MAX_HI32,
                             TLS13_KEY_UPDATE_MAX_LO32));
+}
+
+/* Check if our sequence number has reached the rekey threshold
+ *
+ * The space between the threshold and 2^64 - 1 leaves room for records when a
+ * KeyUpdate cannot be immediately sent out
+ *
+ * ssl  The SSL/TLS object.
+ * returns 1 when a KeyUpdate is due, 0 otherwise.
+ */
+int Tls13SeqWrapPending(WOLFSSL* ssl)
+{
+    if (ssl->options.dtls)
+        return 0;
+
+    return w64GTE(w64From32(ssl->keys.sequence_number_hi,
+                            ssl->keys.sequence_number_lo),
+                  w64From32(TLS13_SEQ_REKEY_HI32, TLS13_SEQ_REKEY_LO32));
 }
 
 /* handle generation TLS v1.3 key_update (24) */
