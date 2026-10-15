@@ -1167,6 +1167,17 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
     byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed);
 
+/* Client entries sit one row over so both sides of a connection never share
+ * a row. */
+static word32 SessionCacheRow(const byte* id, int side, int* error)
+{
+    word32 row = HashObject(id, ID_LEN, error) % SESSION_ROWS;
+
+    if (side == WOLFSSL_CLIENT_END)
+        row = (row + 1) % SESSION_ROWS;
+    return row;
+}
+
 void TlsSessionCacheUnlockRow(word32 row)
 {
     SessionRow* sessRow;
@@ -1189,7 +1200,7 @@ static int TlsSessionCacheGetAndLock(const byte *id,
     int idx;
 
     *sess = NULL;
-    row = HashObject(id, ID_LEN, &error) % SESSION_ROWS;
+    row = SessionCacheRow(id, side, &error);
     if (error != 0)
         return error;
     sessRow = &SessionCache[row];
@@ -1985,7 +1996,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
     /* Find a position for the new session in cache and use that */
     /* Use the session object in the cache for external cache if required */
-    row = (int)(HashObject(id, ID_LEN, &ret) % SESSION_ROWS);
+    row = (int)SessionCacheRow(id, side, &ret);
     if (ret != 0) {
         WOLFSSL_MSG("Hash session failed");
     #ifdef HAVE_SESSION_TICKET
@@ -3466,7 +3477,7 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
         return;
     }
 
-    row = (int)(HashObject(id, ID_LEN, &error) % SESSION_ROWS);
+    row = (int)SessionCacheRow(id, session->side, &error);
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return;

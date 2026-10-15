@@ -31,6 +31,7 @@
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
 #include <wolfssl/internal.h>
+#include <wolfssl/ssl_sess.h>
 #include <wolfssl/ssl.h>
 
 
@@ -3670,6 +3671,96 @@ int test_tls12_empty_ticket_keeps_cached(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(MICRO_SESSION_CACHE) && defined(SESSIONS_PER_ROW) && \
+    SESSIONS_PER_ROW <= 3 && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Full TLS 1.2 handshake on session IDs; row is where the ID hashes. */
+static int test_tls12_cache_row_conn(WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
+    WOLFSSL_SESSION** sess, word32* row)
+{
+    EXPECT_DECLS;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int error = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, ctx_c, ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#ifdef HAVE_SESSION_TICKET
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        *row = HashObject(ssl_s->session->sessionID, ID_LEN, &error) %
+            SESSION_ROWS;
+        ExpectIntEQ(error, 0);
+    }
+    if (sess != NULL)
+        ExpectNotNull(*sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* With client and server in one process, a later connection whose session ID
+ * hashes to the same cache row must not evict the server's entry. */
+int test_tls12_session_cache_shared_row(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(MICRO_SESSION_CACHE) && defined(SESSIONS_PER_ROW) && \
+    SESSIONS_PER_ROW <= 3 && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    word32 row1 = 0;
+    word32 row2 = 1;
+    int skip = 0;
+    int i;
+
+    for (i = 0; i < 64 && row1 != row2 && EXPECT_SUCCESS(); i++) {
+        wolfSSL_SESSION_free(sess);
+        sess = NULL;
+        ExpectIntEQ(test_tls12_cache_row_conn(&ctx_c, &ctx_s, &sess, &row1),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_tls12_cache_row_conn(&ctx_c, &ctx_s, NULL, &row2),
+            TEST_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS() && row1 != row2)
+        skip = 1;
+
+    if (!skip) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method),
+            0);
+    #ifdef HAVE_SESSION_TICKET
+        ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    #endif
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    if (skip)
+        return TEST_SKIPPED;
 #endif
     return EXPECT_RESULT();
 }
