@@ -1030,9 +1030,20 @@ int test_wolfSSL_mutual_auth(void)
 
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(ctx, 1), 0);
     ExpectIntEQ(wolfSSL_mutual_auth(ssl, 1), 0);
+    /* Requiring the certificate asks for it and sets nothing else. */
+    ExpectIntEQ(ctx->mutualAuth, 1);
+    ExpectIntEQ(ctx->verifyPeer, 1);
+    ExpectIntEQ(ctx->verifyNone, 0);
+    ExpectIntEQ(ctx->failNoCert, 0);
+    ExpectIntEQ(ssl->options.mutualAuth, 1);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+    ExpectIntEQ(ssl->options.failNoCert, 0);
     /* The setting can be turned back off. */
     ExpectIntEQ(wolfSSL_CTX_mutual_auth(ctx, 0), 0);
     ExpectIntEQ(wolfSSL_mutual_auth(ssl, 0), 0);
+    ExpectIntEQ(ctx->mutualAuth, 0);
+    ExpectIntEQ(ssl->options.mutualAuth, 0);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
