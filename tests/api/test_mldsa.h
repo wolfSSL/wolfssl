@@ -23,6 +23,16 @@
 #define WOLFCRYPT_TEST_MLDSA_H
 
 #include <tests/api/api_decl.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
+
+/* Native core, or swdev (which declines sign/verify under NO_CTX). */
+#if defined(WC_MLDSA_HAVE_NATIVE) || \
+    (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_SWDEV) && \
+     !defined(WOLFSSL_MLDSA_NO_CTX))
+    #define TEST_MLDSA_HAVE_IMPL
+#endif
 
 /* Canonical ML-DSA tests defined in tests/api/test_mldsa.c.
  * These exercise the wc_MlDsaKey / wc_MlDsaKey_* / WC_MLDSA_* API surface
