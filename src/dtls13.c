@@ -421,6 +421,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                  * incremented. */
                 ssl->keys.dtls_expected_peer_handshake_number++;
 
+            ssl->keys.dtls_peer_hs_epoch = msg->epoch;
             DtlsMsgListRemove(ssl, msg);
             DtlsMsgListPurge(ssl, 0);
         }
@@ -2069,6 +2070,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         Dtls13RtxAddAckForCurRecord(ssl);
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
+    ssl->keys.dtls_peer_hs_epoch = (word16)w64GetLow32(ssl->keys.curEpoch64);
 
     /* check if we have buffered some message */
     if (Dtls13NextMessageComplete(ssl))

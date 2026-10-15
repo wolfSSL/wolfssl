@@ -11154,14 +11154,16 @@ static DtlsMsg* DtlsMsgListUnlink(DtlsMsg* head, DtlsMsg* item)
     return head;
 }
 
-/* First complete message with the expected sequence number. Entries with
- * that number from another epoch are skipped. */
+/* First complete message with the expected sequence number. Epochs only go
+ * up within a handshake, so an entry from an epoch below the last processed
+ * message is stale and not returned. */
 DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl)
 {
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     while (cur != NULL && !(cur->ready &&
-            cur->seq == ssl->keys.dtls_expected_peer_handshake_number)) {
+            cur->seq == ssl->keys.dtls_expected_peer_handshake_number &&
+            cur->epoch >= ssl->keys.dtls_peer_hs_epoch)) {
         cur = cur->next;
     }
     return cur;
@@ -11175,19 +11177,20 @@ void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item)
     ssl->dtls_rx_msg_list_sz--;
 }
 
-/* Drop stored messages the handshake already moved past. Plaintext entries
- * can be spoofed. dropUnencrypted 1 drops all of them, 2 drops those that
- * are not the next message in order. */
+/* Drop stored messages the handshake already moved past, by sequence number
+ * or by epoch. Plaintext entries can be spoofed. dropUnencrypted 1 drops all
+ * of them, 2 drops those that are not the next message in order. */
 void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted)
 {
     word32 expected = ssl->keys.dtls_expected_peer_handshake_number;
+    word16 epoch = ssl->keys.dtls_peer_hs_epoch;
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     WOLFSSL_ENTER("DtlsMsgListPurge");
     while (cur != NULL) {
         DtlsMsg* next = cur->next;
-        if (cur->seq < expected ||
+        if (cur->seq < expected || cur->epoch < epoch ||
                 (dropUnencrypted == 1 && !cur->encrypted) ||
                 (dropUnencrypted == 2 && !cur->encrypted &&
                  cur->seq != expected)) {
@@ -20784,6 +20787,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             DtlsMsgPoolReset(ssl);
             ssl->keys.dtls_handshake_number = 0;
             ssl->keys.dtls_expected_peer_handshake_number = 0;
+            ssl->keys.dtls_peer_hs_epoch = 0;
         }
     }
 #endif
@@ -22463,6 +22467,7 @@ int DtlsMsgDrain(WOLFSSL* ssl)
                                       item->sz, item->sz);
     #endif
         if (ret == 0) {
+            ssl->keys.dtls_peer_hs_epoch = item->epoch;
             DtlsTxMsgListClean(ssl);
         }
         else if (!IsAtLeastTLSv1_3(ssl->version)) {
@@ -22700,6 +22705,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
 #endif
             if (ret == 0) {
+                ssl->keys.dtls_peer_hs_epoch = ssl->keys.curEpoch;
                 DtlsTxMsgListClean(ssl);
                 if (ssl->dtls_rx_msg_list != NULL) {
                     ret = DtlsMsgDrain(ssl);
@@ -28717,6 +28723,7 @@ int SendFinished(WOLFSSL* ssl)
             ssl->options.side == WOLFSSL_CLIENT_END)) {
         ssl->keys.dtls_handshake_number = 0;
         ssl->keys.dtls_expected_peer_handshake_number = 0;
+        ssl->keys.dtls_peer_hs_epoch = 0;
     }
 #endif
 

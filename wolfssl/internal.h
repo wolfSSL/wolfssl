@@ -3288,6 +3288,7 @@ typedef struct Keys {
 
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
+    word16 dtls_peer_hs_epoch; /* Epoch of the last processed peer message */
 
     word16 dtls_epoch;                          /* Current epoch    */
     word16 dtls_sequence_number_hi;             /* Current epoch */
