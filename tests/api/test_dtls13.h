@@ -46,6 +46,7 @@ int test_dtls13_finished_send_error_propagation(void);
 int test_dtls13_basic_connection_id(void);
 int test_dtls13_hrr_want_write(void);
 int test_dtls13_every_write_want_write(void);
+int test_dtls13_key_update_want_write(void);
 int test_dtls13_epochs(void);
 int test_dtls13_alert_with_pending_output(void);
 int test_dtls13_ack_order(void);
@@ -87,6 +88,7 @@ int test_dtls13_ech_rejected_ticket_consumed(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_rtx_timeout_want_write),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_rtx_timeout_want_write_read),        \
     TEST_DECL_GROUP("dtls13", test_dtls13_every_write_want_write),             \
+    TEST_DECL_GROUP("dtls13", test_dtls13_key_update_want_write),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_epochs),                             \
     TEST_DECL_GROUP("dtls13", test_dtls13_alert_with_pending_output),          \
     TEST_DECL_GROUP("dtls13", test_dtls13_ack_order),                          \
