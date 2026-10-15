@@ -15523,6 +15523,10 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
      * drops everything from a NUL on and lets the rest of the name follow it,
      * so two different names can read the same.
      *
+     * A backslash is written as "\\" so the escape is reversible: otherwise a
+     * value holding the four characters "\x00" and a value holding a NUL would
+     * both come out as "\x00".
+     *
      * out   - buffer for the value, NULL to only get the length
      * outSz - space available in out, ignored when out is NULL
      *
@@ -15537,17 +15541,26 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         int sz = 0;
 
         for (i = 0; (val != NULL) && (i < valSz); i++) {
-            int need = (val[i] == '\0') ? NAME_NUL_ESC_SZ : 1;
+            int need = 1;
+
+            if (val[i] == '\0')
+                need = NAME_NUL_ESC_SZ;
+            else if (val[i] == '\\')
+                need = 2;
 
             if (need > INT_MAX - sz)
                 return BUFFER_E;
             if (out != NULL) {
                 if (need > outSz - sz)
                     return BUFFER_E;
-                if (need == 1)
-                    out[sz] = (char)val[i];
-                else
+                if (need == NAME_NUL_ESC_SZ) {
                     XMEMCPY(out + sz, "\\x00", NAME_NUL_ESC_SZ);
+                }
+                else {
+                    if (need == 2)
+                        out[sz] = '\\';
+                    out[sz + need - 1] = (char)val[i];
+                }
             }
             sz += need;
         }
