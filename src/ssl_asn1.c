@@ -2872,16 +2872,17 @@ int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
  * @return  -1 when no data to return.
  * @return  -1 dynamic memory allocation fails.
  */
-int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *asn1)
+int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out,
+    const WOLFSSL_ASN1_STRING *asn1)
 {
     unsigned char* buf = NULL;
-    unsigned char* data = NULL;
+    const unsigned char* data = NULL;
     int len = -1;
 
     /* Validate parameters. */
     if ((out != NULL) && (asn1 != NULL)) {
         /* Get data and length. */
-        data = wolfSSL_ASN1_STRING_data(asn1);
+        data = wolfSSL_ASN1_STRING_get0_data(asn1);
         len = wolfSSL_ASN1_STRING_length(asn1);
         /* Check data and length are usable. */
         if ((data == NULL) || (len < 0)) {

@@ -4697,7 +4697,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* returns the number of entries in the WOLFSSL_X509_NAME */
-int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
+int wolfSSL_X509_NAME_entry_count(const WOLFSSL_X509_NAME* name)
 {
     int count = 0;
 
@@ -7277,7 +7277,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 
     WOLFSSL_ASN1_STRING*  wolfSSL_X509_NAME_ENTRY_get_data(
-                                                    WOLFSSL_X509_NAME_ENTRY* in)
+                                              const WOLFSSL_X509_NAME_ENTRY* in)
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_data");
         if (in == NULL)
@@ -15466,7 +15466,7 @@ err:
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
-    WOLFSSL_X509_NAME_ENTRY *ne)
+    const WOLFSSL_X509_NAME_ENTRY *ne)
 {
     WOLFSSL_ASN1_OBJECT* object = NULL;
 
@@ -15476,8 +15476,8 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         /* Create object from nid - reuse existing object if possible. */
         object = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
         if (object != NULL) {
-            /* Set the object when no error. */
-            ne->object = object;
+            /* Cache the object in the entry. */
+            ((WOLFSSL_X509_NAME_ENTRY*)ne)->object = object;
         }
     }
 
