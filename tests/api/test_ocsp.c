@@ -2317,6 +2317,172 @@ int test_tls13_nonblock_ocsp_low_mfl(void)
 }
 #endif
 
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_MTU) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
+static int test_dtls12_nonblock_ocsp_cb_cnt;
+static int test_dtls12_nonblock_ocsp_connect_cnt;
+static int test_dtls12_nonblock_ocsp_cb_connect;
+static int test_dtls12_nonblock_ocsp_spin;
+static int test_dtls12_nonblock_ocsp_group;
+
+/* OCSP IO callback: a non-blocking responder that answers on the sixth
+ * call. A call after WANT_READ must come from a new wolfSSL_connect. */
+static int test_dtls12_nonblock_ocsp_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)req;
+    (void)reqSz;
+
+    if (test_dtls12_nonblock_ocsp_cb_cnt > 0 &&
+            test_dtls12_nonblock_ocsp_cb_cnt <= 5 &&
+            test_dtls12_nonblock_ocsp_cb_connect ==
+                test_dtls12_nonblock_ocsp_connect_cnt) {
+        test_dtls12_nonblock_ocsp_spin = 1;
+    }
+    test_dtls12_nonblock_ocsp_cb_connect = test_dtls12_nonblock_ocsp_connect_cnt;
+
+    if (test_dtls12_nonblock_ocsp_cb_cnt++ < 5)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+
+    *respBuf = (unsigned char*)resp_server1_cert;
+    return (int)sizeof(resp_server1_cert);
+}
+
+static int test_dtls12_nonblock_ocsp_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+                    "./certs/ocsp/intermediate1-ca-cert.pem", NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx,
+                    WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://example.com"),
+        WOLFSSL_SUCCESS);
+    /* NULL free-callback: resp points to static array, must not be freed. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_dtls12_nonblock_ocsp_io_cb,
+                    NULL, NULL), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* Server SSL-ready callback: fragment the certificate message and, when
+ * asked, pack the flight into as few datagrams as the MTU allows. */
+static int test_dtls12_nonblock_ocsp_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl, 1000), WOLFSSL_SUCCESS);
+    if (test_dtls12_nonblock_ocsp_group)
+        ExpectIntEQ(wolfSSL_set_group_messages(ssl), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+/* Server CTX-ready callback: send the leaf certificate alone. */
+static int test_dtls12_nonblock_ocsp_leaf_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+                    "./certs/ocsp/server1-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_dtls12_nonblock_ocsp_case(int fragmented, int grouped)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+    int hsC = 0;
+    int hsS = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_dtls12_nonblock_ocsp_cb_cnt = 0;
+    test_dtls12_nonblock_ocsp_connect_cnt = 0;
+    test_dtls12_nonblock_ocsp_cb_connect = 0;
+    test_dtls12_nonblock_ocsp_spin = 0;
+    test_dtls12_nonblock_ocsp_group = grouped;
+
+    /* The chain needs more than one record at MTU 1000. The leaf alone fits
+     * in one record at the default MTU. */
+    if (fragmented) {
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+        test_ctx.s_cb.ssl_ready   = test_dtls12_nonblock_ocsp_ssl_ready;
+    }
+    else {
+        test_ctx.s_cb.certPemFile = "";
+        test_ctx.s_cb.ctx_ready   = test_dtls12_nonblock_ocsp_leaf_ctx_ready;
+    }
+    test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+    test_ctx.s_cb.method     = wolfDTLSv1_2_server_method;
+
+    test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+    test_ctx.c_cb.method    = wolfDTLSv1_2_client_method;
+    test_ctx.c_cb.ctx_ready = test_dtls12_nonblock_ocsp_ctx_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    for (i = 0; i < 40 && EXPECT_SUCCESS() && (!hsC || !hsS); i++) {
+        int ret;
+        int err;
+
+        if (!hsC) {
+            test_dtls12_nonblock_ocsp_connect_cnt++;
+            ret = wolfSSL_connect(test_ctx.c_ssl);
+            if (ret == WOLFSSL_SUCCESS) {
+                hsC = 1;
+            }
+            else {
+                err = wolfSSL_get_error(test_ctx.c_ssl, ret);
+                ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
+                           err == WOLFSSL_ERROR_WANT_WRITE ||
+                           err == WC_NO_ERR_TRACE(OCSP_WANT_READ));
+            }
+        }
+        if (!hsS) {
+            ret = wolfSSL_accept(test_ctx.s_ssl);
+            if (ret == WOLFSSL_SUCCESS) {
+                hsS = 1;
+            }
+            else {
+                err = wolfSSL_get_error(test_ctx.s_ssl, ret);
+                ExpectTrue(err == WOLFSSL_ERROR_WANT_READ ||
+                           err == WOLFSSL_ERROR_WANT_WRITE);
+            }
+        }
+    }
+    ExpectIntEQ(hsC, 1);
+    ExpectIntEQ(hsS, 1);
+    /* The responder was retried until it answered. */
+    ExpectIntGT(test_dtls12_nonblock_ocsp_cb_cnt, 5);
+    ExpectIntEQ(test_dtls12_nonblock_ocsp_spin, 0);
+
+    test_ssl_memio_cleanup(&test_ctx);
+    return EXPECT_RESULT();
+}
+
+/* A certificate that suspends the handshake on the OCSP lookup is processed
+ * again on resume: from the rx list when it was reassembled from fragments,
+ * also with more records behind it in the datagram, and from the record when
+ * it arrived whole. */
+int test_dtls12_nonblock_ocsp(void)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(test_dtls12_nonblock_ocsp_case(1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls12_nonblock_ocsp_case(1, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls12_nonblock_ocsp_case(0, 0), TEST_SUCCESS);
+    return EXPECT_RESULT();
+}
+#else
+int test_dtls12_nonblock_ocsp(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own copy of
  * the CTX certificate, which sets ssl->buffers.weOwnCert and takes the CTX
  * request cache out of play entirely - there is nothing to test in that

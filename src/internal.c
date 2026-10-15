@@ -22470,8 +22470,9 @@ int DtlsMsgDrain(WOLFSSL* ssl)
                 ret = SOCKET_ERROR_E;
             }
         }
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        if (IsHsSuspendErr(ret)) {
+            /* Keep the message. It is processed again on resume. */
             break;
         }
     #endif
@@ -26454,8 +26455,9 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     }
 #endif
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
-    /* process any pending DTLS messages - this flow can happen with async */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_HAVE_HS_SUSPEND)
+    /* Process any pending DTLS messages. A message that suspended the
+     * handshake stays in the list and is processed again here. */
     if (ssl->dtls_rx_msg_list != NULL) {
         word32 pendingMsg = ssl->dtls_rx_msg_list_sz;
         if(IsAtLeastTLSv1_3(ssl->version)) {
@@ -27235,12 +27237,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                              * processing so let's move on. */
                         && (!ssl->options.dtls
                             || ret != WC_NO_ERR_TRACE(WANT_WRITE))
-#ifdef WOLFSSL_ASYNC_CRYPT
-                    /* In async case, on pending, move onto next message.
-                     * Current message should have been DtlsMsgStore'ed and
-                     * should be processed with DtlsMsgDrain */
-                            && (!ssl->options.dtls
-                                || ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+                    /* A suspended DTLS message is processed again on the next
+                     * call: from the rx list when it was buffered there, else
+                     * from the record. Finish the record bookkeeping first. */
+                            && (!ssl->options.dtls || !IsHsSuspendErr(ret))
 #endif
                     ) {
                         WOLFSSL_ERROR(ret);
@@ -27366,6 +27367,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
              * (probably WC_PENDING_E) so return that so it can be handled
              * by higher layers. */
             if (ret != 0)
+                return ret;
+#elif defined(WOLFSSL_DTLS) && defined(WOLFSSL_HAVE_HS_SUSPEND)
+            /* The caller stores a suspend error in ssl->error, which stops the
+             * message from being hashed again when it is processed again. */
+            if (IsHsSuspendErr(ret))
                 return ret;
 #endif
 #if defined(WOLFSSL_DTLS13) || defined(HAVE_SECURE_RENEGOTIATION)
