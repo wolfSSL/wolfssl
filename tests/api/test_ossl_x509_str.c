@@ -4177,7 +4177,8 @@ int test_wolfSSL_X509_STORE_add_crl_oom(void)
 }
 
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
-    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_FILESYSTEM)
 static STACK_OF(X509_CRL)* test_set0_crls_stack;
 static int test_set0_crls_preverify; /* preverify_ok seen at depth 0 */
 static int test_set0_crls_error;     /* error seen when preverify_ok == 0 */
@@ -4241,7 +4242,8 @@ int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
-    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_FILESYSTEM)
     test_ssl_cbf client_cbs;
     test_ssl_cbf server_cbs;
 
