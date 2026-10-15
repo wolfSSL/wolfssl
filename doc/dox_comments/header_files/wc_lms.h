@@ -467,13 +467,14 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 /*!
     \ingroup LMS
 
-    \brief Returns the number of one-time signatures still available
-    from this key. When the count reaches zero the key can no longer
-    sign and should be retired.
+    \brief Reports whether this key can create another signature. It
+    does not return a count. A key whose one-time keys are used up
+    returns 0 and should be retired.
 
-    \return Non-negative number of remaining signatures on success.
-    \return Negative error code on failure (e.g. BAD_FUNC_ARG if key
-    is NULL).
+    \return 1 if at least one signature remains.
+    \return 0 if the one-time keys are exhausted, if key is NULL, has no
+    parameters set or is verify-only, or if a crypto callback device
+    returns an error.
 
     \param [in,out] key Pointer to an LmsKey in state WC_LMS_STATE_OK.
 

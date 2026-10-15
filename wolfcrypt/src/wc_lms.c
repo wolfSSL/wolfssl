@@ -1611,14 +1611,17 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
  * @param [in]  key  LMS key.
  *
  * @return  1 if there are signatures remaining.
- * @return  0 if available signatures are exhausted.
+ * @return  0 if available signatures are exhausted, or the key is NULL, has
+ *          no parameters set or is verify-only.
  */
 int wc_LmsKey_SigsLeft(LmsKey* key)
 {
     int ret = 0;
 
-    /* NULL keys have no signatures remaining. */
-    if (key != NULL) {
+    /* NULL keys, keys without parameters (not yet set, or freed) and
+     * verify-only keys have no signatures remaining. */
+    if ((key != NULL) && (key->params != NULL) &&
+            (key->state != WC_LMS_STATE_VERIFYONLY)) {
     #ifdef WOLF_CRYPTO_CB
         if (key->devId != INVALID_DEVID) {
             word32 sigsLeft = 0;

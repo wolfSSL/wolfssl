@@ -379,13 +379,15 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigSz, const byte* msg,
 /*!
     \ingroup XMSS
 
-    \brief Returns the number of one-time signatures still available
-    from this key. When the count reaches zero the key can no longer
-    sign and should be retired.
+    \brief Reports whether this key can create another signature. It
+    does not return a count. A key whose one-time keys are used up
+    returns 0 and should be retired.
 
-    \return Non-negative number of remaining signatures on success.
-    \return Negative error code on failure (e.g. BAD_FUNC_ARG if key
-    is NULL).
+    \return 1 if at least one signature remains.
+    \return 0 if the one-time keys are exhausted, if key is NULL or not
+    in state WC_XMSS_STATE_OK, if the read callback cannot load the
+    private key, or if a crypto callback device returns an error. A key
+    bound to a device that handles the request gets the device's answer.
 
     \param [in,out] key Pointer to an XmssKey in state
     WC_XMSS_STATE_OK.

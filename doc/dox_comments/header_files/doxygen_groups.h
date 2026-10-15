@@ -97,7 +97,7 @@
     one-time key destroys the security of the scheme.
 
     The number of signatures available from a key is bounded by the
-    parameter set; query the remaining count with
+    parameter set; check whether any remain with
     wc_LmsKey_SigsLeft().
 
     \defgroup XMSS Algorithms - XMSS / XMSS^MT (RFC 8391)
@@ -110,7 +110,7 @@
     one-time key destroys the security of the scheme.
 
     The number of signatures available from a key is bounded by the
-    parameter set; query the remaining count with
+    parameter set; check whether any remain with
     wc_XmssKey_SigsLeft().
 
     \defgroup ECCSI_Overview Overview of ECCSI
