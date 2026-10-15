@@ -6610,6 +6610,85 @@ static int test_dtls_stale_partial_head(method_provider method_c,
 }
 #endif
 
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+/* A ServerHello fragment that never completes must not count as the
+ * acknowledgment of the ClientHello. */
+int test_wolfSSL_DTLS13_sh_fragment_keeps_ch(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte rec[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + 100];
+    Dtls13RtxRecord* r = NULL;
+    int found = 0;
+    word32 i = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Send the ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+    /* Plaintext record with the first 100 bytes of a 200 byte ServerHello */
+    XMEMSET(rec, 0x5a, sizeof(rec));
+    rec[i++] = handshake;
+    rec[i++] = DTLS_MAJOR;
+    rec[i++] = DTLSv1_2_MINOR;
+    rec[i++] = 0; /* epoch */
+    rec[i++] = 0;
+    XMEMSET(rec + i, 0, 5); /* sequence number 7 */
+    i += 5;
+    rec[i++] = 7;
+    rec[i++] = 0; /* length */
+    rec[i++] = DTLS_HANDSHAKE_HEADER_SZ + 100;
+    rec[i++] = server_hello;
+    rec[i++] = 0; /* message length 200 */
+    rec[i++] = 0;
+    rec[i++] = 200;
+    rec[i++] = 0; /* message sequence */
+    rec[i++] = 0;
+    rec[i++] = 0; /* fragment offset */
+    rec[i++] = 0;
+    rec[i++] = 0;
+    rec[i++] = 0; /* fragment length */
+    rec[i++] = 0;
+    rec[i++] = 100;
+    ExpectIntEQ(i, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+            (int)sizeof(rec)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+    /* The ClientHello is still queued for retransmission */
+    for (r = ssl_c != NULL ? ssl_c->dtls13Rtx.rtxRecords : NULL; r != NULL;
+            r = r->next) {
+        if (r->handshakeType == client_hello)
+            found = 1;
+    }
+    ExpectIntEQ(found, 1);
+
+    /* The real handshake still completes */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfSSL_DTLS13_sh_fragment_keeps_ch(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 int test_wolfSSL_DTLS_stale_partial_head(void)
 {
     EXPECT_DECLS;
