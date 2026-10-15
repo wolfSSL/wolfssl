@@ -65459,9 +65459,9 @@ static wc_test_ret_t mlkem_decode_pub_test(void)
     /* Same key twice; a's public key hash is not computed yet. */
     if (ret == 0)
         ret = wc_MlKemKey_MakeKeyWithRandom(a, rnd, sizeof(rnd));
-    if (ret == 0)
+    if (ret == SEED_OK)
         ret = wc_MlKemKey_MakeKeyWithRandom(b, rnd, sizeof(rnd));
-    if (ret == 0)
+    if (ret == SEED_OK)
         ret = wc_MlKemKey_PublicKeySize(b, &pubSz);
     if (ret == 0)
         ret = wc_MlKemKey_CipherTextSize(b, &ctSz);
