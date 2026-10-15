@@ -2247,7 +2247,8 @@ WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*
 WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_pop_free(
                 WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
                 void (*f)(WOLFSSL_ASN1_OBJECT*));
-WOLFSSL_API int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in);
+WOLFSSL_API int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out,
+    const WOLFSSL_ASN1_STRING *in);
 WOLFSSL_API int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s);
 WOLFSSL_API int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_sk_X509_EXTENSION_value(
@@ -2543,13 +2544,14 @@ WOLFSSL_API int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
 WOLFSSL_API int wolfSSL_X509_sign_ctx(WOLFSSL_X509 *x509, WOLFSSL_EVP_MD_CTX *ctx);
 
 
-WOLFSSL_API int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name);
+WOLFSSL_API int wolfSSL_X509_NAME_entry_count(const WOLFSSL_X509_NAME* name);
 WOLFSSL_API int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name);
 WOLFSSL_API int wolfSSL_X509_NAME_get_text_by_NID(
                                             WOLFSSL_X509_NAME* name, int nid, char* buf, int len);
 WOLFSSL_API int wolfSSL_X509_NAME_get_index_by_NID(
                                            WOLFSSL_X509_NAME* name, int nid, int pos);
-WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_NAME_ENTRY_get_data(WOLFSSL_X509_NAME_ENTRY* in);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_NAME_ENTRY_get_data(
+    const WOLFSSL_X509_NAME_ENTRY* in);
 
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void);
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_dup(WOLFSSL_ASN1_STRING* asn1);
@@ -5811,7 +5813,8 @@ WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
 /* These are to be merged shortly */
 WOLFSSL_API void wolfSSL_set_verify_depth(WOLFSSL *ssl,int depth);
 WOLFSSL_API int wolfSSL_set_app_data(WOLFSSL *ssl, void *arg);
-WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne);
+WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
+    const WOLFSSL_X509_NAME_ENTRY *ne);
 WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md);
 WOLFSSL_API unsigned char *wolfSSL_SHA224(const unsigned char *d, size_t n, unsigned char *md);
 WOLFSSL_API unsigned char *wolfSSL_SHA256(const unsigned char *d, size_t n, unsigned char *md);
