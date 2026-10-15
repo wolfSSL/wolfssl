@@ -221,7 +221,7 @@ static WC_MAYBE_UNUSED int AesMarkKeyInstalled(Aes* aes)
 
 #ifdef WC_AES_HAVE_KEY_LOCATION
 /* Records where the key is kept, for wc_CryptoCb_SetKeyLocation().
- * WC_KEY_HW_STORED leaves keyInstalled clear, so software paths fail.
+ * WC_KEY_HW_STORED clears keyInstalled and rounds, so software paths fail.
  * Returns 0, or BAD_FUNC_ARG for an unknown location. */
 int wc_AesSetKeyLocation(Aes* aes, int location)
 {
@@ -231,6 +231,7 @@ int wc_AesSetKeyLocation(Aes* aes, int location)
     else if (location == WC_KEY_HW_STORED) {
         aes->keyLocation = WC_KEY_HW_STORED;
         aes->keyInstalled = WC_AES_KEY_NOT_INSTALLED;
+        aes->rounds = 0;
     }
     else {
         return BAD_FUNC_ARG;
@@ -5418,6 +5419,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
     #ifdef WOLF_CRYPTO_CB
+        #ifdef WC_AES_HAVE_KEY_LOCATION
+        /* Before both hooks, so neither keeps an old key's location */
+        aes->keyLocation = WC_KEY_SW_STORED;
+        #endif
         if (aes->devId != INVALID_DEVID) {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
@@ -5438,9 +5443,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             /* CRYPTOCB_UNAVAILABLE: continue to software setup */
         #endif
         #ifdef WOLF_CRYPTO_CB_SETKEY
-            #ifdef WC_AES_HAVE_KEY_LOCATION
-            aes->keyLocation = WC_KEY_SW_STORED;
-            #endif
             cbRet = wc_CryptoCb_SetKey(aes->devId,
                 WC_SETKEY_AES, aes, (void*)userKey, keylen,
                 (void*)iv,

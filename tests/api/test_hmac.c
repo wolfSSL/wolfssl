@@ -1122,7 +1122,8 @@ int test_wc_HmacFree_CryptoCb(void)
 } /* END test_wc_HmacFree_CryptoCb */
 
 #if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_CRYPTO_CB_SETKEY) && !defined(WOLFSSL_NO_HMAC_KEY_LOCATION)
+    defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_HMAC_KEY_LOCATION) && !defined(WOLFSSL_KCAPI_HMAC)
 #define TEST_HMAC_NOSW_DEVID 0x484d4b48 /* "HMKH" */
 
 /* Set to make the mock decline SetKey, so software keeps the key. */
@@ -1150,7 +1151,8 @@ int test_wc_HmacNoSwKey_CryptoCb(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_CRYPTO_CB_SETKEY) && !defined(WOLFSSL_NO_HMAC_KEY_LOCATION)
+    defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_HMAC_KEY_LOCATION) && !defined(WOLFSSL_KCAPI_HMAC)
     Hmac hmac;
     byte msg[16];
     byte out[WC_SHA256_DIGEST_SIZE];

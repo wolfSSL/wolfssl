@@ -204,7 +204,7 @@ int test_wc_CryptoCb_AesDirect(void);
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
     defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
-    defined(WOLFSSL_AES_128) && !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED) && \
+    defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
     !defined(WOLFSSL_NO_AES_KEY_LOCATION)
 int test_wc_CryptoCb_AesNoSwKey(void);
 #define TEST_CRYPTOCB_AES_NOSW_KEY_DECL \

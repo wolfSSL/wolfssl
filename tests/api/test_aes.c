@@ -12457,7 +12457,7 @@ int test_wc_CryptoCb_AesDirect(void)
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
     defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
-    defined(WOLFSSL_AES_128) && !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED) && \
+    defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
     !defined(WOLFSSL_NO_AES_KEY_LOCATION)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -12496,6 +12496,15 @@ int test_wc_CryptoCb_AesNoSwKey(void)
     byte iv[WC_AES_BLOCK_SIZE];
     byte in[WC_AES_BLOCK_SIZE];
     byte out[WC_AES_BLOCK_SIZE];
+#ifdef WOLFSSL_AES_XTS
+    XtsAes xts;
+    WOLFSSL_SMALL_STACK_STATIC const byte xtsKey[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+#endif
 
     XMEMSET(iv, 0, sizeof(iv));
     XMEMSET(in, 0, sizeof(in));
@@ -12545,6 +12554,21 @@ int test_wc_CryptoCb_AesNoSwKey(void)
     ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)), 0);
     test_CryptoCb_AesNoSw_Decline = 0;
 
+#ifdef WOLFSSL_AES_XTS
+    /* A HW-stored key replacing a software one must not leave the old
+     * schedule usable: XTS only checks rounds */
+    ExpectIntEQ(wc_AesXtsInit(&xts, NULL, TEST_CRYPTOCB_AES_NOSW_DEVID), 0);
+    test_CryptoCb_AesNoSw_Decline = 1;
+    ExpectIntEQ(wc_AesXtsSetKeyNoInit(&xts, xtsKey, (word32)sizeof(xtsKey),
+                                      AES_ENCRYPTION), 0);
+    test_CryptoCb_AesNoSw_Decline = 0;
+    ExpectIntEQ(wc_AesXtsSetKeyNoInit(&xts, xtsKey, (word32)sizeof(xtsKey),
+                                      AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesXtsEncrypt(&xts, out, in, sizeof(in), iv, sizeof(iv)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesXtsFree(&xts);
+#endif
+
     wc_AesFree(&aes);
     wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_NOSW_DEVID);
 
@@ -12553,7 +12577,7 @@ int test_wc_CryptoCb_AesNoSwKey(void)
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY && HAVE_AES_CBC &&
         * HAVE_AES_DECRYPT && WOLFSSL_AES_128 &&
-        * !WC_AES_KEY_SET_CHECK_UNSUPPORTED && !WOLFSSL_NO_AES_KEY_LOCATION */
+        * WOLFSSL_AES_REQUIRE_KEY_SET && !WOLFSSL_NO_AES_KEY_LOCATION */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test
