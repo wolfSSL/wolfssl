@@ -9979,6 +9979,14 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
                 return wolfSSL_AsyncPush(ssl, &key->asyncDev);
             }
         #endif
+            /* RFC 9846 Section 7.4.2 requires aborting on an all-zero
+             * shared secret, which a small-order peer point gives. Report it
+             * as a bad peer key so that an illegal_parameter alert is sent,
+             * as RFC 10024 Section 4.3 requires for the hybrid groups. */
+            if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) {
+                ret = ECC_PEERKEY_ERROR;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
         }
         /* On CALL_AGAIN re-entry (lastRet == PENDING): the block above
          * is skipped entirely, so wc_curve25519_shared_secret_ex is not

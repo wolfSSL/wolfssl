@@ -5787,12 +5787,14 @@ static void test_tls13_adjust_len16(byte* p, int diff)
 /* Edit the first key_share entry of the hello record at the start of the
  * memio buffer and fix every enclosing length. A negative diff removes bytes
  * at key_exchange offset at, a positive diff inserts zero bytes there, and an
- * at of -1 edits the end of key_exchange. When poke is non-negative the two
- * bytes at that key_exchange offset are set to 0xff, which makes an ML-KEM
- * coefficient 4095 >= q. */
+ * at of -1 edits the end of key_exchange. When poke is non-negative the
+ * pokeSz bytes of pokeData are written at that key_exchange offset. A NULL
+ * pokeData writes two 0xff bytes, which makes an ML-KEM coefficient
+ * 4095 >= q. */
 static int test_tls13_tamper_key_share(struct test_memio_ctx* ctx, int client,
-    int at, int diff, int poke)
+    int at, int diff, int poke, const byte* pokeData, int pokeSz)
 {
+    static const byte badCoeff[2] = { 0xff, 0xff };
     byte* buf = client ? ctx->c_buff : ctx->s_buff;
     int* len = client ? &ctx->c_len : &ctx->s_len;
     int* msgSz = client ? &ctx->c_msg_sizes[0] : &ctx->s_msg_sizes[0];
@@ -5856,10 +5858,13 @@ static int test_tls13_tamper_key_share(struct test_memio_ctx* ctx, int client,
     }
 
     if (poke >= 0) {
-        if (poke + 2 > keLen)
+        if (pokeData == NULL) {
+            pokeData = badCoeff;
+            pokeSz = (int)sizeof(badCoeff);
+        }
+        if (poke + pokeSz > keLen)
             return -1;
-        buf[keIdx + poke] = 0xff;
-        buf[keIdx + poke + 1] = 0xff;
+        XMEMCPY(buf + keIdx + poke, pokeData, (size_t)pokeSz);
     }
     if (diff == 0)
         return 0;
@@ -5885,8 +5890,8 @@ static int test_tls13_tamper_key_share(struct test_memio_ctx* ctx, int client,
 
 /* Tamper with the ClientHello (serverSide) or ServerHello key share and
  * check the receiver fails with expErr and a fatal illegal_parameter alert. */
-static int test_tls13_mlkem_bad_key_share_once(int group, int serverSide,
-    int at, int diff, int poke, int expErr)
+static int test_tls13_mlkem_bad_key_share_once_ex(int group, int serverSide,
+    int at, int diff, int poke, const byte* pokeData, int pokeSz, int expErr)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -5919,7 +5924,7 @@ static int test_tls13_mlkem_bad_key_share_once(int group, int serverSide,
     }
 
     ExpectIntEQ(test_tls13_tamper_key_share(&test_ctx, !serverSide, at, diff,
-        poke), 0);
+        poke, pokeData, pokeSz), 0);
     ExpectIntEQ(wolfSSL_negotiate(ssl_rx), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_rx, WOLFSSL_FATAL_ERROR), expErr);
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_rx, &h), WOLFSSL_SUCCESS);
@@ -5931,6 +5936,13 @@ static int test_tls13_mlkem_bad_key_share_once(int group, int serverSide,
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
+}
+
+static int test_tls13_mlkem_bad_key_share_once(int group, int serverSide,
+    int at, int diff, int poke, int expErr)
+{
+    return test_tls13_mlkem_bad_key_share_once_ex(group, serverSide, at, diff,
+        poke, NULL, 0, expErr);
 }
 
 /* kemOff: where the ML-KEM part starts in both key shares.
@@ -5982,6 +5994,32 @@ int test_tls13_mlkem_bad_key_share(void)
 #ifdef TEST_TLS13_BAD_KS_X25519MLKEM768
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_X25519MLKEM768, 0,
         CURVE25519_KEYSIZE), TEST_SUCCESS);
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+    {
+        /* An X25519 point of order 8 gives an all-zero shared secret, which
+         * RFC 10024 Section 4.3 answers with illegal_parameter. */
+        static const byte lowOrder[CURVE25519_KEYSIZE] = {
+            0xe0, 0xeb, 0x7a, 0x7c, 0x3b, 0x41, 0xb8, 0xae,
+            0x16, 0x56, 0xe3, 0xfa, 0xf1, 0x9f, 0xc4, 0x6a,
+            0xda, 0x09, 0x8d, 0xeb, 0x9c, 0x32, 0xb1, 0xfd,
+            0x86, 0x62, 0x05, 0x16, 0x5f, 0x49, 0xb8, 0x00
+        };
+        int bad = WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR);
+
+        /* The X25519 part follows the 1184 byte ML-KEM-768 encapsulation key
+         * in the ClientHello and the 1088 byte ciphertext in the
+         * ServerHello. */
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(
+            WOLFSSL_X25519MLKEM768, 1, -1, 0, 1184, lowOrder,
+            (int)sizeof(lowOrder), bad), TEST_SUCCESS);
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(
+            WOLFSSL_X25519MLKEM768, 0, -1, 0, 1088, lowOrder,
+            (int)sizeof(lowOrder), bad), TEST_SUCCESS);
+        /* A plain X25519 ServerHello takes the same path. */
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_ECC_X25519,
+            0, -1, 0, 0, lowOrder, (int)sizeof(lowOrder), bad), TEST_SUCCESS);
+    }
+#endif
 #endif
 #ifdef TEST_TLS13_BAD_KS_SECP256R1MLKEM768
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_SECP256R1MLKEM768,
