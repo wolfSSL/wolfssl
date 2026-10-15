@@ -6438,6 +6438,17 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectNotNull(cur = ssl->dtls_rx_msg_list);
     ExpectIntEQ(cur->seq, 4);
     ExpectNull(cur->next);
+    /* Entries from an epoch below the last processed one go too */
+    ExpectIntEQ(DtlsMsgStore(ssl, 1, 6, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    ssl->keys.dtls_peer_hs_epoch = 1;
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(cur->epoch, 1);
+    ExpectIntEQ(cur->seq, 6);
+    ssl->keys.dtls_peer_hs_epoch = 0;
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     ssl->dtls_rx_msg_list = NULL;
 #endif
@@ -6487,6 +6498,12 @@ int test_wolfSSL_DTLS_msg_list_order(void)
     ssl->keys.dtls_expected_peer_handshake_number = 7;
     ExpectNull(DtlsMsgListNextReady(ssl));
     ssl->keys.dtls_expected_peer_handshake_number = 50;
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectIntEQ(cur->seq, 50);
+    /* A ready entry from an epoch below the last processed one is stale */
+    ssl->keys.dtls_peer_hs_epoch = 2;
+    ExpectNull(DtlsMsgListNextReady(ssl));
+    ssl->keys.dtls_peer_hs_epoch = 0;
     ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
     ExpectIntEQ(cur->seq, 50);
 
@@ -6599,8 +6616,9 @@ static int test_dtls_stale_partial_head(method_provider method_c,
     ExpectIntLE(test_ctx.s_len + 128, mtu);
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    /* Only the entry far ahead may remain */
-    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, highSeq ? 1 : 0);
+    /* The entry far ahead is from epoch 0 and goes once the handshake has
+     * moved to a later epoch. */
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
