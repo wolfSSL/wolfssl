@@ -104,6 +104,11 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
     The id is copied into the key object; the caller may free its
     buffer immediately after this call returns.
 
+    The key is given the highest parameter set compiled in
+    (WC_ML_DSA_87 unless it was disabled at build time), as the
+    parameter set of the key held on the device is not known here. Call
+    wc_MlDsaKey_SetParams() to select a different one.
+
     \return 0 on success.
     \return BAD_FUNC_ARG if key is NULL, or if id is NULL and len is
     positive.
@@ -137,6 +142,8 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
 
     The label length is taken via XSTRLEN, so embedded NUL bytes
     terminate the label.
+
+    The parameter set is chosen as in wc_MlDsaKey_InitId().
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key or label is NULL.

@@ -84,8 +84,10 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
 
     idは鍵オブジェクトへコピーされます。呼び出し側はこの関数から戻った直後に自身のバッファを解放して構いません。
 
+    デバイス上に保持されている鍵のパラメータセットはここでは不明なため、鍵にはビルド時に有効化されている中で最もセキュリティレベルの高いパラメータセット(無効化されていなければWC_ML_DSA_87)が設定されます。別のパラメータセットを使用する場合はwc_MlDsaKey_SetParams()で選択してください。
+
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG keyがNULLの場合に返されます。
+    \return BAD_FUNC_ARG keyがNULLの場合、またはidがNULLでlenが0より大きい場合に返されます。
     \return BUFFER_E lenが負の場合、またはMLDSA_MAX_ID_LENを超える場合に返されます。
 
     \param [in,out] key 初期化するwc_MlDsaKeyへのポインタ。
@@ -107,6 +109,8 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     \brief デバイス側の鍵ラベルを指定してwc_MlDsaKeyを初期化します。wc_MlDsaKey_Init()と同等ですが、暗号コールバックがデバイス上の実際の鍵素材を特定するために使用できるラベル文字列も保存します。wolfSSLがWOLF_PRIVATE_KEY_IDを有効にしてビルドされている場合にのみ利用できます。
 
     ラベルの長さはXSTRLENで取得されるため、途中にNULバイトが含まれるとそこでラベルが終端します。
+
+    パラメータセットはwc_MlDsaKey_InitId()と同様に設定されます。
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG keyまたはlabelがNULLの場合に返されます。

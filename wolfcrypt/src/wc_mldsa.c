@@ -13735,10 +13735,20 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
 }
 
 #ifdef WOLF_PRIVATE_KEY_ID
+/* Level set on a key held by a device: the highest this build has, as the
+ * level of the device key is not known here. */
+#ifndef WOLFSSL_NO_ML_DSA_87
+    #define MLDSA_DEV_KEY_LEVEL     WC_ML_DSA_87
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    #define MLDSA_DEV_KEY_LEVEL     WC_ML_DSA_65
+#else
+    #define MLDSA_DEV_KEY_LEVEL     WC_ML_DSA_44
+#endif
+
 /* Initialize the ML-DSA key and set the id of the device key.
  *
- * The security level is set to the maximum, WC_ML_DSA_87, as the level of the
- * key held by the device is not known here.
+ * The security level is set to the highest one compiled in, as the level of
+ * the key held by the device is not known here.
  *
  * @param [out] key    ML-DSA key.
  * @param [in]  id     Identifier of key on device.
@@ -13769,16 +13779,19 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
         key->idLen = len;
     }
 
-    /* Set the maximum level here */
-    wc_MlDsaKey_SetParams(key, WC_ML_DSA_87);
+    /* Set the highest level this build has. Only when the key was
+     * initialized: on an argument error the caller's object is untouched. */
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(key, MLDSA_DEV_KEY_LEVEL);
+    }
 
     return ret;
 }
 
 /* Initialize the ML-DSA key and set the label of the device key.
  *
- * The security level is set to the maximum, WC_ML_DSA_87, as the level of the
- * key held by the device is not known here.
+ * The security level is set to the highest one compiled in, as the level of
+ * the key held by the device is not known here.
  *
  * @param [out] key    ML-DSA key.
  * @param [in]  label  Label of key on device. NUL terminated.
@@ -13812,8 +13825,10 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
         key->labelLen = labelLen;
     }
 
-    /* Set the maximum level here */
-    wc_MlDsaKey_SetParams(key, WC_ML_DSA_87);
+    /* Set the highest level this build has; see wc_MlDsaKey_InitId. */
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(key, MLDSA_DEV_KEY_LEVEL);
+    }
 
     return ret;
 }
