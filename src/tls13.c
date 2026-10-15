@@ -222,6 +222,31 @@ static int Tls13KdfAsyncInit(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_ASYNC_REINVOKE */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+/* Pop the pending operation of a ClientHello or ServerHello. An X25519 shared
+ * secret that completed asynchronously reports an all-zero result as
+ * ECC_OUT_OF_RANGE_E without passing the conversion in
+ * TLSX_KeyShare_ProcessX25519_ex(), so convert it here to send the same
+ * illegal_parameter alert. */
+static int Tls13HelloAsyncPop(WOLFSSL* ssl, byte* state)
+{
+#ifdef HAVE_CURVE25519
+    /* Read before the pop, which clears ssl->asyncDev. */
+    int x25519 = (ssl->asyncDev != NULL) &&
+        (ssl->asyncDev->marker == WOLFSSL_ASYNC_MARKER_X25519);
+#endif
+    int ret = wolfSSL_AsyncPop(ssl, state);
+
+#ifdef HAVE_CURVE25519
+    if (x25519 && (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))) {
+        ret = ECC_PEERKEY_ERROR;
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+#endif
+    return ret;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 /* Cap on re-invoking a callback for a record the caller cannot resume
  * (alerts, asyncOkay = 0 senders); bounds the otherwise unbounded spin. */
 #ifndef WOLFSSL_ASYNC_MAX_REINVOKE
@@ -5790,7 +5815,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     args = (Dsh13Args*)ssl->async->args;
 
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
+    ret = Tls13HelloAsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NO_ERR_TRACE(WC_NO_PENDING_E)) {
         /* Check for error */
         if (ret < 0) {
@@ -8139,7 +8164,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     args = (Dch13Args*)ssl->async->args;
 
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
+    ret = Tls13HelloAsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NO_ERR_TRACE(WC_NO_PENDING_E)) {
         /* Check for error */
         if (ret < 0) {
