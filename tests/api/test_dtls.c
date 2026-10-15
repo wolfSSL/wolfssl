@@ -5894,8 +5894,10 @@ static int dfbr_should_fail(void)
     }
     return 0;
 }
+static int dfbr_allocs;
 static void* dfbr_malloc(size_t sz)
 {
+    dfbr_allocs++;
     return dfbr_should_fail() ? NULL : malloc(sz);
 }
 static void dfbr_free(void* p)
@@ -5904,6 +5906,7 @@ static void dfbr_free(void* p)
 }
 static void* dfbr_realloc(void* p, size_t sz)
 {
+    dfbr_allocs++;
     return dfbr_should_fail() ? NULL : realloc(p, sz);
 }
 #endif
@@ -6084,6 +6087,33 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
 }
 
 #ifdef DFBR_ALLOC_FAIL
+/* A bucket holds only the bytes received: one allocation per message and
+ * bucket, one growth per combined fragment. */
+static int dfbr_alloc_count_cases(WOLFSSL* ssl, const byte* pattern)
+{
+    EXPECT_DECLS;
+    DtlsMsg* msg = NULL;
+
+    ssl->keys.decryptedCur = 1;
+    dfbr_allocs = 0;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 90, certificate, 0, 30,
+            NULL), 0);
+    /* The message and its bucket */
+    ExpectIntEQ(dfbr_allocs, 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 30, 90, certificate, 30, 30,
+            NULL), 0);
+    ExpectIntEQ(dfbr_allocs, 3);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 60, 90, certificate, 60, 30,
+            NULL), 0);
+    ExpectIntEQ(dfbr_allocs, 4);
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(msg->ready, 1);
+    ExpectBufEQ(msg->fullMsg, pattern, 90);
+
+    dfbr_free_list(ssl);
+    return EXPECT_RESULT();
+}
+
 /* Every allocation site fails once and leaves the message consistent. */
 static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
 {
@@ -6315,9 +6345,13 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     }
     dfbr_fail = 0;
     if (injectOk) {
+        EXPECT_TEST(dfbr_alloc_count_cases(ssl, pattern));
         EXPECT_TEST(dfbr_alloc_fail_cases(ssl, pattern));
-        /* Random pass with injected allocation failures */
+        /* Random passes with injected allocation failures */
         EXPECT_TEST(dfbr_random_pass(ssl, pattern, 1));
+        ssl->keys.decryptedCur = 1;
+        EXPECT_TEST(dfbr_random_pass(ssl, pattern, 1));
+        ssl->keys.decryptedCur = 0;
     }
 
     dfbr_skip = 0;
@@ -6326,8 +6360,11 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     wolfSSL_SetAllocators(mf, ff, rf);
 #endif
 
-    /* Random pass without failures */
+    /* Random passes without failures, plaintext and authenticated */
     EXPECT_TEST(dfbr_random_pass(ssl, pattern, 0));
+    ssl->keys.decryptedCur = 1;
+    EXPECT_TEST(dfbr_random_pass(ssl, pattern, 0));
+    ssl->keys.decryptedCur = 0;
     dfbr_free_list(ssl);
 
     return EXPECT_RESULT();
