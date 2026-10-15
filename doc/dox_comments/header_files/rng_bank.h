@@ -870,10 +870,16 @@ int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
     \ingroup RNGBank
 
     \brief Initialize the bank's root RNG -- the primary-sourced parent
-    that seeds and recovers the bank's instances.
+    that seeds and recovers the bank's instances.  The root is
+    WC_RNG_INIT_FLAG_LOCK_REQUIRED (implied) and is operated by the bank
+    through lock-word operations alone, so WC_RNG_INIT_FLAG_USE_FULL_MUTEX
+    is refused: a full-mutex root would be bypassed by the daemon, by
+    reinit-in-place, and by the invalidation walk.
 
     \return 0 Success
-    \return BAD_FUNC_ARG bank is null.
+    \return BAD_FUNC_ARG bank is null, or flags includes
+    WC_RNG_INIT_FLAG_USE_FULL_MUTEX.
+    \return ALREADY_E The root is already initialized.
 
     \param bank The bank whose root to initialize.
     \param nonce Optional instantiation nonce (may be null).

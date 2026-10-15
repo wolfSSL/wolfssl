@@ -1487,6 +1487,14 @@ int wc_rng_bank_reinit_rng(struct wc_rng_bank *bank,
 #endif
 
 #ifdef WC_RNG_HAVE_LOCK
+  #if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX) && defined(WC_RNG_FLAG_FULL_MUTEX)
+    /* The lease below is the lock word alone; a full-mutex instance's
+     * teardown would release a mutex this cycle never took.  The bank's
+     * constructors never produce one (wc_rng_bank_root_rng_init() refuses
+     * the flag), so this is a tripwire. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        return WRONG_TYPE_OBJECT_E;
+  #endif
     ret = wc_RNG_lock_get_unconditional(rng);
     if (ret != 0)
         return ret;
@@ -1568,6 +1576,16 @@ WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
 
     if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT)
         return ALREADY_E;
+
+    /* The root is driven by lock-word operations alone -- the daemon's
+     * claims, reinit-in-place (wc_rng_bank_reinit_rng()), the invalidation
+     * walk -- none of which take the outer mutex, so a full-mutex root would
+     * be bypassed by every one of them, and its teardown would release a
+     * mutex the bank never took. */
+#ifdef WC_RNG_INIT_FLAG_USE_FULL_MUTEX
+    if (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
+        return BAD_FUNC_ARG;
+#endif
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     return wc_InitRngNonce_ex2(&bank->root_rng,

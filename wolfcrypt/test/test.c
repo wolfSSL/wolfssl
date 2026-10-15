@@ -36218,6 +36218,57 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     }
+
+#if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG)
+    /* A bank's root cannot be a full-mutex instance: the bank operates it
+     * through lock-word operations alone, so the constructor refuses the
+     * flag, and the root is still instantiable without it. */
+    {
+        WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+        WC_RNG *root = NULL;
+        int bank_inited = 0;
+
+        WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER,
+                         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+        api_ret = wc_rng_bank_init(bank, 1,
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_QUIET,
+                                   10, HEAP_HINT, devId);
+        if (api_ret == 0)
+            bank_inited = 1;
+        root = (api_ret == 0) ? wc_rng_bank_root_rng_get(bank) : NULL;
+        if ((api_ret == 0) && (root == NULL))
+            api_ret = WC_NO_ERR_TRACE(MISSING_RNG_E);
+        /* vacate the root so the constructor can be tried on it */
+        if (api_ret == 0)
+            api_ret = wc_FreeRng(root);
+        if (api_ret == 0) {
+            api_ret = wc_rng_bank_root_rng_init(
+                bank, NULL, 0, NULL, 0, WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+            if (api_ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                api_ret = 0;
+            else if (api_ret == 0)
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        if ((api_ret == 0) && (wc_rng_bank_root_rng_get(bank) != NULL))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_root_rng_init(bank, NULL, 0, NULL, 0, 0);
+        if ((api_ret == 0) && (wc_rng_bank_root_rng_get(bank) != root))
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_root_rng_reinit(bank, NULL, 0, NULL, 0, 0);
+        if (bank_inited) {
+            int fini_ret = wc_rng_bank_fini(bank);
+            if ((api_ret == 0) && (fini_ret != 0))
+                api_ret = fini_ret;
+        }
+        WC_FREE_VAR(bank, HEAP_HINT);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    }
+#endif /* HAVE_WC_RNG_BANK && WC_RNG_BANK_HAVE_ROOT_RNG */
 #endif /* WC_RNG_HAVE_LOCK_FULL_MUTEX */
 
 #if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG) && \
