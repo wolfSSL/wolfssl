@@ -2812,7 +2812,9 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                     break;
                 if (timeout_secs > 0) {
                     ts2 = XTIME(0);
-                    if (ts2 - ts1 > timeout_secs) {
+                    if ((ts2 - ts1 > timeout_secs) &&
+                        !((flags | bank->flags) & WC_RNG_BANK_FLAG_QUIET))
+                    {
 #ifdef WC_VERBOSE_RNG
                         WOLFSSL_DEBUG_PRINTF(
                             "ERROR: timeout trying wc_RNG_DRBG_Reseed_Now() "
@@ -2837,7 +2839,8 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
             /* transient codes are one pass away from resolving on their own
              * -- the instance is marked due below -- so they're not errors. */
             if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_TIMEOUT_E)) &&
-                !WC_RNG_ERR_IS_TRANSIENT(ret))
+                !WC_RNG_ERR_IS_TRANSIENT(ret) &&
+                !((flags | bank->flags) & WC_RNG_BANK_FLAG_QUIET))
             {
                 WOLFSSL_DEBUG_PRINTF(
                     "ERROR: wc_rng_bank_reseed() wc_RNG_DRBG_Reseed_Now() "
