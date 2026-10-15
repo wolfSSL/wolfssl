@@ -9417,6 +9417,7 @@ int test_dtls12_export_import_v6(void)
         c16toa((word16)(totalLen - WOLFSSL_EXPORT_LEN),
                session + WOLFSSL_EXPORT_LEN);
         sessionSz -= WOLFSSL_EXPORT_LEN;
+        test_export_options_v6(session, &sessionSz);
     }
     /* no CID was negotiated, so only an empty section was cut off */
     ExpectIntEQ(cidLen, 0);
@@ -10711,6 +10712,7 @@ int test_dtls13_export_malformed(void)
     unsigned char* session = NULL;
     unsigned char* mutated = NULL;
     unsigned int sessionSz = 0;
+    unsigned int mutatedSz = 0;
     unsigned int secAt = 0, fieldsAt = 0, secretsAt = 0;
     const char msg[] = "hello wolfssl dtls13";
     unsigned char reply[64];
@@ -10743,8 +10745,9 @@ int test_dtls13_export_malformed(void)
         /* a session serialized before version 7 has neither the secrets nor
          * the state section */
         XMEMCPY(mutated, session, sessionSz);
-        mutated[1] = (byte)((mutated[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
-        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+        mutatedSz = sessionSz;
+        test_export_options_v6(mutated, &mutatedSz);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, mutatedSz,
                     WC_NO_ERR_TRACE(VERSION_ERROR)), TEST_SUCCESS);
 
         /* the sending epoch field, the one field every blob has to carry */

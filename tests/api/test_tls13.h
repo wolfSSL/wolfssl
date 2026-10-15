@@ -156,6 +156,10 @@ int test_tls13_user_canceled_fatal_level(void);
 int test_tls13_user_canceled_encrypted(void);
 int test_tls12_fatal_alert_closes_and_evicts(void);
 int test_tls13_no_app_data_after_fatal_alert(void);
+int test_tls13_warning_error_alert_is_fatal(void);
+int test_tls13_cert_failure_sets_fatal_alert(void);
+int test_tls13_write_after_transport_close(void);
+int test_tls13_no_write_after_close_notify(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
@@ -180,6 +184,9 @@ int test_tls13_export_server_ticket_after_import(void);
 int test_tls13_export_client_ticket_after_import(void);
 int test_tls13_export_server_key_update(void);
 int test_tls13_export_client_key_update(void);
+int test_tls13_export_keeps_fatal_alert(void);
+int test_tls13_export_keeps_transport_close(void);
+int test_tls12_export_v6_closed_refuses_write(void);
 int test_tls13_chain_verify_cb_rpk(void);
 int test_tls13_cks_hrr_reparse(void);
 
@@ -317,6 +324,10 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_user_canceled_encrypted), \
     TEST_DECL_GROUP("tls13", test_tls12_fatal_alert_closes_and_evicts), \
     TEST_DECL_GROUP("tls13", test_tls13_no_app_data_after_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_warning_error_alert_is_fatal), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_failure_sets_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_write_after_transport_close), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_write_after_close_notify), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
@@ -341,6 +352,9 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_export_client_ticket_after_import), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_key_update), \
     TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_keeps_fatal_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_keeps_transport_close), \
+    TEST_DECL_GROUP("tls13", test_tls12_export_v6_closed_refuses_write), \
     TEST_DECL_GROUP("tls13", test_tls13_chain_verify_cb_rpk), \
     TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse)
 
