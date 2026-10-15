@@ -26085,8 +26085,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                     }
                 }
                 else {
-                    cert->maxPathLen = (word16)min(cert->ca->maxPathLen - 1U,
-                                           cert->maxPathLen);
+                    cert->maxPathLen = (word16)min(
+                        (word16)(cert->ca->maxPathLen - 1U), cert->maxPathLen);
                 }
             }
             else {
