@@ -11142,6 +11142,18 @@ void DtlsMsgListDelete(DtlsMsg* head, void* heap)
     }
 }
 
+static DtlsMsg* DtlsMsgListUnlink(DtlsMsg* head, DtlsMsg* item)
+{
+    DtlsMsg** prevNext = &head;
+
+    while (*prevNext != NULL && *prevNext != item)
+        prevNext = &(*prevNext)->next;
+    if (*prevNext == item)
+        *prevNext = item->next;
+    item->next = NULL;
+    return head;
+}
+
 /* Drop stored messages the handshake already moved past. Plaintext entries
  * can be spoofed. dropUnencrypted 1 drops all of them, 2 drops those that
  * are not the next message in order. */
@@ -11572,6 +11584,16 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
 
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
+        if (cur != NULL && !cur->ready && !cur->encrypted &&
+                (cur->sz != dataSz || cur->type != type)) {
+            /* A plaintext entry can be spoofed. Don't let it pin the size or
+             * type. Start over with the latest description. */
+            WOLFSSL_MSG("Replacing stored plaintext message");
+            head = DtlsMsgListUnlink(head, cur);
+            DtlsMsgDelete(cur, heap);
+            ssl->dtls_rx_msg_list_sz--;
+            cur = NULL;
+        }
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur == NULL) {
