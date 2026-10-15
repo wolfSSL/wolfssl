@@ -12883,15 +12883,15 @@ int test_wc_CryptoCb_AesSetKey(void)
     ExpectIntEQ(aes->devId, TEST_CRYPTOCB_AES_DEVID);
 
     /* Direct callback entry guardrails. */
-    ExpectIntEQ(wc_CryptoCb_AesSetKey(NULL, key, sizeof(key)),
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(NULL, key, AES_128_KEY_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, NULL, sizeof(key)),
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, NULL, AES_128_KEY_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, key, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Set key - should trigger CryptoCB and "import" to mock SE */
-    ret = wc_AesGcmSetKey(aes, key, sizeof(key));
+    ret = wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE);
     ExpectIntEQ(ret, 0);
 
     /* Verify callback was invoked */
@@ -12902,44 +12902,44 @@ int test_wc_CryptoCb_AesSetKey(void)
 
     /* Verify key was "imported" to mock SE */
     ExpectIntEQ(mockSeKey.valid, 1);
-    ExpectIntEQ(mockSeKey.keySz, (int)sizeof(key));
+    ExpectIntEQ(mockSeKey.keySz, AES_128_KEY_SIZE);
 
     /* Verify keylen metadata stored in Aes struct */
-    ExpectIntEQ(aes->keylen, (int)sizeof(key));
+    ExpectIntEQ(aes->keylen, AES_128_KEY_SIZE);
 
     /* After SetKey succeeds via CryptoCB, verify key NOT in devKey */
     {
         byte zeroKey[AES_128_KEY_SIZE] = {0};
         /* Key should NOT be copied to devKey - SE owns it */
-        ExpectIntEQ(XMEMCMP(aes->devKey, zeroKey, sizeof(key)), 0);
+        ExpectIntEQ(XMEMCMP(aes->devKey, zeroKey, AES_128_KEY_SIZE), 0);
     }
 
     /* Missing device context should fail in the callback instead of falling
      * through as a successful offload path. */
     aes->devCtx = NULL;
-    ExpectIntEQ(wc_AesGcmEncrypt(aes, cipher, plain, sizeof(plain),
-        iv, sizeof(iv), authTag, sizeof(authTag), NULL, 0),
+    ExpectIntEQ(wc_AesGcmEncrypt(aes, cipher, plain, AES_BLOCK_SIZE,
+        iv, GCM_NONCE_MID_SZ, authTag, AES_BLOCK_SIZE, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Restore callback-owned state for the rest of the test. */
-    ret = wc_AesGcmSetKey(aes, key, sizeof(key));
+    ret = wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE);
     ExpectIntEQ(ret, 0);
     ExpectPtrEq(aes->devCtx, cryptoCbAesMockHandle);
 
     /* Test encrypt - callback performs crypto using stored key */
-    ret = wc_AesGcmEncrypt(aes, cipher, plain, sizeof(plain),
-                           iv, sizeof(iv), authTag, sizeof(authTag),
+    ret = wc_AesGcmEncrypt(aes, cipher, plain, AES_BLOCK_SIZE,
+                           iv, GCM_NONCE_MID_SZ, authTag, AES_BLOCK_SIZE,
                            NULL, 0);
     ExpectIntEQ(ret, 0);
 
     /* Test decrypt - callback performs crypto using stored key */
-    ret = wc_AesGcmDecrypt(aes, decrypted, cipher, sizeof(cipher),
-                           iv, sizeof(iv), authTag, sizeof(authTag),
+    ret = wc_AesGcmDecrypt(aes, decrypted, cipher, AES_BLOCK_SIZE,
+                           iv, GCM_NONCE_MID_SZ, authTag, AES_BLOCK_SIZE,
                            NULL, 0);
     ExpectIntEQ(ret, 0);
 
     /* Verify round-trip */
-    ExpectIntEQ(XMEMCMP(plain, decrypted, sizeof(plain)), 0);
+    ExpectIntEQ(XMEMCMP(plain, decrypted, AES_BLOCK_SIZE), 0);
 
 #ifdef WOLF_CRYPTO_CB_FREE
     /* Free should trigger callback and "delete" key from mock SE */
@@ -12960,7 +12960,7 @@ int test_wc_CryptoCb_AesSetKey(void)
 
     /* Cleanup */
     wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEVID);
-    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, key, sizeof(key)),
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, key, AES_128_KEY_SIZE),
         WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
 
     /* Test software path (no devId) still works */
@@ -12970,7 +12970,7 @@ int test_wc_CryptoCb_AesSetKey(void)
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     ExpectIntEQ(ret, 0);
 
-    ret = wc_AesGcmSetKey(aes, key, sizeof(key));
+    ret = wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE);
     ExpectIntEQ(ret, 0);
 
     /* Callback should NOT have been invoked */
@@ -13290,7 +13290,7 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
     ExpectIntEQ(aes->devId, TEST_CRYPTOCB_AESGCM_OFFLOAD_DEVID);
 
     /* Set key - should trigger CryptoCB and "import" to mock SE */
-    ret = wc_AesGcmSetKey(aes, key, sizeof(key));
+    ret = wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE);
     ExpectIntEQ(ret, 0);
 
     /* Verify SetKey callback was invoked */
@@ -13301,14 +13301,14 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
 
     /* Verify key was "imported" to mock SE */
     ExpectIntEQ(mockSeKeyOffload.valid, 1);
-    ExpectIntEQ(mockSeKeyOffload.keySz, (int)sizeof(key));
+    ExpectIntEQ(mockSeKeyOffload.keySz, AES_128_KEY_SIZE);
 
     /* Verify keylen metadata stored in Aes struct */
-    ExpectIntEQ(aes->keylen, (int)sizeof(key));
+    ExpectIntEQ(aes->keylen, AES_128_KEY_SIZE);
 
     /* Encrypt via wolfCrypt API - should route through CryptoCb */
     ret = wc_AesGcmEncrypt(aes, ciphertext, plaintext, 32,
-                           iv, sizeof(iv), authTag, sizeof(authTag),
+                           iv, GCM_NONCE_MID_SZ, authTag, AES_BLOCK_SIZE,
                            aad, 16);
     ExpectIntEQ(ret, 0);
 
@@ -13320,7 +13320,7 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
 
     /* Assert: Auth tag is non-zero */
     hasNonZero = 0;
-    for (i = 0; i < (int)sizeof(authTag); i++) {
+    for (i = 0; i < AES_BLOCK_SIZE; i++) {
         if (authTag[i] != 0) {
             hasNonZero = 1;
             break;
@@ -13330,7 +13330,7 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void)
 
     /* Decrypt via wolfCrypt API - should route through CryptoCb */
     ret = wc_AesGcmDecrypt(aes, decrypted, ciphertext, 32,
-                           iv, sizeof(iv), authTag, sizeof(authTag),
+                           iv, GCM_NONCE_MID_SZ, authTag, AES_BLOCK_SIZE,
                            aad, 16);
     ExpectIntEQ(ret, 0);
 
