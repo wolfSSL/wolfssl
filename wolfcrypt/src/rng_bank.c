@@ -1150,8 +1150,19 @@ WOLFSSL_API int wc_rng_bank_checkout(
                      WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE) &&
                     (! (flags & WC_RNG_BANK_FLAG_FOR_RECOVERY)))
                 {
+#ifdef WC_RNG_HAVE_LOCK
                     ret = wc_RNG_DRBG_Reseed_Now_Primary(
                         WC_RNG_BANK_INST_TO_RNG(*rng_inst), NULL, 0);
+#else
+                    /* Without the lock facility an instance retains no chain
+                     * parent for a reseed to defer to, so the plain reseed
+                     * is the primary reseed, and the lease just taken is the
+                     * exclusion -- reseed and the holder's draws under one
+                     * hold -- that _Primary() insists on for a bare instance
+                     * and refuses to assume in a multithreaded build. */
+                    ret = wc_RNG_DRBG_Reseed_Now(
+                        WC_RNG_BANK_INST_TO_RNG(*rng_inst), NULL, 0);
+#endif
                     if (ret != 0) {
                         (void)wc_rng_bank_inst_lock_put(*rng_inst);
                         *rng_inst = NULL;
@@ -2772,6 +2783,13 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                 if (ret == 0) {
                     break;
                 }
+                /* The transient codes are retryable -- fail early for the
+                 * rest, as wc_rng_bank_inst_reinit() does: a verdict
+                 * (WRONG_TYPE_OBJECT_E for a chain reseed of a stratum-0
+                 * member under WC_RNG_RBGC_STRATUM_IMMUTABLE, say) does not
+                 * change with waiting, and the lease is held meanwhile. */
+                if (! WC_RNG_ERR_IS_TRANSIENT(ret))
+                    break;
                 if (timeout_secs == 0)
                     break;
                 if (timeout_secs > 0) {

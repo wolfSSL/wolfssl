@@ -32836,7 +32836,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif /* WC_RNG_HAVE_LOCK || SINGLE_THREADED */
 #endif /* WC_RNG_HAVE_RBGC */
 
-#if defined(WC_RNG_HAVE_LOCK) || defined(SINGLE_THREADED)
     /* WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE checkout contracts.
      * Per-call PR demands CAN_WAIT (the fresh gather may block) and
      * contradicts uncredited and recovery seeding. */
@@ -32849,14 +32848,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_FOR_RECOVERY);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-#endif /* WC_RNG_HAVE_LOCK || SINGLE_THREADED */
 
-#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && defined(HAVE_HASHDRBG) && \
-    (defined(WC_RNG_HAVE_LOCK) || defined(SINGLE_THREADED))
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && defined(HAVE_HASHDRBG)
     if (svc_present) {
         wc_drbg_reseed_ctr_t ns_ctr;
         /* effective PR: the leased instance is freshly credited-reseeded
-         * (counter exactly 1) before any caller draw */
+         * (counter exactly 1) before any caller draw -- in every build,
+         * the lock-less multithreaded one included, where the lease is
+         * the exclusion. */
         ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
                                    WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE |
                                    WC_RNG_BANK_FLAG_CAN_WAIT);
@@ -32972,8 +32971,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif /* WC_RNG_HAVE_NEXT_SEED */
     }
-#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && HAVE_HASHDRBG && */
-       /* (WC_RNG_HAVE_LOCK || SINGLE_THREADED)                       */
+#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && HAVE_HASHDRBG */
 
 #ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
     #define RBT_MAGIC   ((WC_ATOMIC_UINT_ARG)0x746e6164) /* arbitrary nonzero */
@@ -36609,6 +36607,63 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     }
 #endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && LOCK && RBGC_REFCOUNT */
+
+#if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG) && \
+    defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+    /* A chain reseed asked of a bank whose members are not chain children
+     * (initialized without WC_RNG_BANK_FLAG_RBGC): under immutable strata
+     * the stratum-0 member refuses with WRONG_TYPE_OBJECT_E, a verdict that
+     * waiting does not change, so the _CAN_WAIT walk reports it at once
+     * rather than at timeout (or never). */
+    {
+        WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+        int bank_inited = 0;
+
+        WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER,
+                         return WC_TEST_RET_ENC_EC(MEMORY_E));
+        api_ret = wc_rng_bank_init(bank, 2,
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_QUIET,
+                                   10, HEAP_HINT, devId);
+        if (api_ret == 0)
+            bank_inited = 1;
+        if ((api_ret == 0) &&
+            (wc_RNG_DRBG_GetRBGCStratum(WC_RNG_BANK_OFFSET_TO_RNG(bank, 0))
+             != 0))
+        {
+            api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+        }
+        if (api_ret == 0) {
+            time_t ts1 = XTIME(0);
+            api_ret = wc_rng_bank_reseed_range(bank, 0, -1, NULL, 0, 3,
+                                               WC_RNG_BANK_FLAG_CAN_WAIT |
+                                               WC_RNG_BANK_FLAG_RBGC);
+            if (api_ret == WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+                if (XTIME(0) - ts1 >= 3)
+                    api_ret = WC_NO_ERR_TRACE(WC_TIMEOUT_E);
+                else
+                    api_ret = 0;
+            }
+            else if (api_ret == 0) {
+                api_ret = WC_NO_ERR_TRACE(UNEXPECTED_STATE_E);
+            }
+        }
+        /* the members are untouched by the refusal: a primary reseed walk
+         * of the same range succeeds */
+        if (api_ret == 0)
+            api_ret = wc_rng_bank_reseed_range(bank, 0, -1, NULL, 0, 3,
+                                               WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (bank_inited) {
+            int fini_ret = wc_rng_bank_fini(bank);
+            if ((api_ret == 0) && (fini_ret != 0))
+                api_ret = fini_ret;
+        }
+        WC_FREE_VAR(bank, HEAP_HINT);
+        if (api_ret != 0)
+            return WC_TEST_RET_ENC_EC(api_ret);
+    }
+#endif /* HAVE_WC_RNG_BANK && ROOT_RNG && RBGC && STRATUM_IMMUTABLE */
 
 #if defined(HAVE_WC_RNG_BANK) && defined(WC_RNG_BANK_HAVE_ROOT_RNG) && \
     !defined(WC_RNG_HAVE_LOCK)
