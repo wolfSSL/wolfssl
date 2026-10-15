@@ -11142,18 +11142,22 @@ void DtlsMsgListDelete(DtlsMsg* head, void* heap)
     }
 }
 
-/* Drop stored messages the handshake already moved past. With
- * dropUnencrypted also drop everything that arrived in plaintext. */
+/* Drop stored messages the handshake already moved past. Plaintext entries
+ * can be spoofed. dropUnencrypted 1 drops all of them, 2 drops those that
+ * are not the next message in order. */
 void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted)
 {
+    word32 expected = ssl->keys.dtls_expected_peer_handshake_number;
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     WOLFSSL_ENTER("DtlsMsgListPurge");
     while (cur != NULL) {
         DtlsMsg* next = cur->next;
-        if (cur->seq < ssl->keys.dtls_expected_peer_handshake_number ||
-                (dropUnencrypted && !cur->encrypted)) {
+        if (cur->seq < expected ||
+                (dropUnencrypted == 1 && !cur->encrypted) ||
+                (dropUnencrypted == 2 && !cur->encrypted &&
+                 cur->seq != expected)) {
             *prevNext = next;
             DtlsMsgDelete(cur, ssl->heap);
             ssl->dtls_rx_msg_list_sz--;
