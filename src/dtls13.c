@@ -360,11 +360,14 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
 
 int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
-    DtlsMsg* msg = ssl->dtls_rx_msg_list;
+    DtlsMsg* msg;
     word32 idx = 0;
     int ret = 0;
 
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
+
+    DtlsMsgListPurge(ssl, 0);
+    msg = ssl->dtls_rx_msg_list;
 
     while (msg != NULL) {
         int downgraded = 0;
@@ -438,6 +441,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
+    DtlsMsgListPurge(ssl, 0);
     return ssl->dtls_rx_msg_list != NULL &&
            ssl->dtls_rx_msg_list->ready &&
            ssl->dtls_rx_msg_list->seq ==
@@ -864,6 +868,7 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
     /* is not the next fragment in the message (the check is not 100% perfect,
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
+    DtlsMsgListPurge(ssl, 0);
     if (ssl->dtls_rx_msg_list != NULL) {
         DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
         while (last != NULL && last->m.m.next != NULL)

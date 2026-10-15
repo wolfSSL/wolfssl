@@ -6381,6 +6381,126 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
 }
 #endif
 
+int test_wolfSSL_DTLS_msg_list_purge(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_DTLS
+    WOLFSSL ssl[1];
+    static byte msg[100];
+    DtlsMsg* cur = NULL;
+
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    XMEMSET(msg, 7, sizeof(msg));
+    /* seq 1 partial, seq 2 complete, seq 3 partial */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 100, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
+
+    /* Nothing is stale yet */
+    ssl->keys.dtls_expected_peer_handshake_number = 1;
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
+    /* seq 1 and 2 were processed outside of the list */
+    ssl->keys.dtls_expected_peer_handshake_number = 3;
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(cur->seq, 3);
+    ExpectNull(cur->next);
+    /* Plaintext entries go when asked */
+    DtlsMsgListPurge(ssl, 1);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
+    ExpectNull(ssl->dtls_rx_msg_list);
+    /* Encrypted entries stay */
+    ssl->keys.decryptedCur = 1;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 4, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ssl->keys.decryptedCur = 0;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    DtlsMsgListPurge(ssl, 1);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(cur->seq, 4);
+    ExpectNull(cur->next);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_MTU)
+/* A complete in-order message is processed from the record buffer. A partial
+ * copy of it stored earlier must not block the list behind it. */
+static int test_dtls_stale_partial_head(method_provider method_c,
+        method_provider method_s, word32 shSeq, int fill)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static byte junk[200];
+    const word16 mtu = 1000; /* below the certificate message size */
+    word32 i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(junk, 0x5a, sizeof(junk));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            method_c, method_s), 0);
+    /* Fragment the server's certificate so it has to go through the list */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, mtu), WOLFSSL_SUCCESS);
+
+    /* Unauthenticated partial ServerHello */
+    ExpectIntEQ(DtlsMsgStore(ssl_c, 0, shSeq, junk, sizeof(junk),
+            server_hello, 0, 50, NULL), 0);
+    /* Unauthenticated entries that fill the list */
+    for (i = 0; fill && EXPECT_SUCCESS() && i < (word32)DTLS_POOL_SZ; i++) {
+        ExpectIntEQ(DtlsMsgStore(ssl_c, 0, 100 + i, junk, sizeof(junk),
+                server_hello, 0, 50, NULL), 0);
+    }
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, fill ? DTLS_POOL_SZ + 1 : 1);
+
+    /* The MTU also caps what the server reads. Make sure the ClientHello
+     * fits with room for a cookie. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    ExpectIntLE(test_ctx.s_len + 128, mtu);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNull(ssl_c->dtls_rx_msg_list);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_DTLS_stale_partial_head(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_MTU)
+#ifndef WOLFSSL_NO_TLS12
+    /* ServerHello is seq 1 after the HelloVerifyRequest */
+    EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_2_client_method,
+            wolfDTLSv1_2_server_method, 1, 0));
+#endif
+#ifdef WOLFSSL_DTLS13
+    EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
+            wolfDTLSv1_3_server_method, 0, 0));
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if !defined(NO_FILESYSTEM) && \
      defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
