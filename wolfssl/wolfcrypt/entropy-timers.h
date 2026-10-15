@@ -38,6 +38,8 @@
 /* AMD core clock (APERF) via RDPRU; reads 0 without RDPRU, so the health
  * tests fail closed.  --enable-wolfEntropy=amd-aperf */
 #ifdef WC_ENTROPY_TIMER_AMD_APERF
+    /* Bare metal: 5 ns per read.  Cloud VMs can trap RDPRU (AWS c7a: 881 ns,
+     * 1.2 s per seed); use --enable-amdrdseed there. */
     #if !defined(__x86_64__) || !(defined(__GNUC__) || defined(__clang__))
         #error WC_ENTROPY_TIMER_AMD_APERF needs x86_64 and GCC or clang
     #endif
