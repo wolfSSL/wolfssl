@@ -36647,6 +36647,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if ((api_ret == 0) && (free_ret != 0))
                 api_ret = free_ret;
             child_inited = 0;
+            (void)child_inited;
         }
         if (bank_inited) {
             int fini_ret = wc_rng_bank_fini(bank);
