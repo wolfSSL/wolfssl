@@ -7940,12 +7940,14 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define DtlsMsgListDelete wolfSSL_DtlsMsgListDelete
+        #define DtlsMsgListPurge wolfSSL_DtlsMsgListPurge
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
     WOLFSSL_TEST_VIS void DtlsMsgListDelete(DtlsMsg* head, void* heap);
+    WOLFSSL_TEST_VIS void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,

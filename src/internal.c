@@ -11142,6 +11142,29 @@ void DtlsMsgListDelete(DtlsMsg* head, void* heap)
     }
 }
 
+/* Drop stored messages the handshake already moved past. With
+ * dropUnencrypted also drop everything that arrived in plaintext. */
+void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted)
+{
+    DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
+    DtlsMsg* cur = ssl->dtls_rx_msg_list;
+
+    WOLFSSL_ENTER("DtlsMsgListPurge");
+    while (cur != NULL) {
+        DtlsMsg* next = cur->next;
+        if (cur->seq < ssl->keys.dtls_expected_peer_handshake_number ||
+                (dropUnencrypted && !cur->encrypted)) {
+            *prevNext = next;
+            DtlsMsgDelete(cur, ssl->heap);
+            ssl->dtls_rx_msg_list_sz--;
+        }
+        else {
+            prevNext = &cur->next;
+        }
+        cur = next;
+    }
+}
+
 /**
  * Drop messages when they are no longer going to be retransmitted
  */
@@ -22366,10 +22389,13 @@ int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl)
 
 int DtlsMsgDrain(WOLFSSL* ssl)
 {
-    DtlsMsg* item = ssl->dtls_rx_msg_list;
+    DtlsMsg* item;
     int ret = 0;
 
     WOLFSSL_ENTER("DtlsMsgDrain");
+
+    DtlsMsgListPurge(ssl, 0);
+    item = ssl->dtls_rx_msg_list;
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
@@ -22592,7 +22618,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      fragOffset, fragSz, ssl->heap);
         *inOutIdx += fragSz;
         ret = 0;
-        if (ssl->dtls_rx_msg_list != NULL && ssl->dtls_rx_msg_list->ready)
+        if (ssl->dtls_rx_msg_list != NULL)
             ret = DtlsMsgDrain(ssl);
     }
     else {
