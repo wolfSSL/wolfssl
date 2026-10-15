@@ -11154,6 +11154,27 @@ static DtlsMsg* DtlsMsgListUnlink(DtlsMsg* head, DtlsMsg* item)
     return head;
 }
 
+/* First complete message with the expected sequence number. Entries with
+ * that number from another epoch are skipped. */
+DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl)
+{
+    DtlsMsg* cur = ssl->dtls_rx_msg_list;
+
+    while (cur != NULL && !(cur->ready &&
+            cur->seq == ssl->keys.dtls_expected_peer_handshake_number)) {
+        cur = cur->next;
+    }
+    return cur;
+}
+
+/* Take item out of the rx list and free it. */
+void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item)
+{
+    ssl->dtls_rx_msg_list = DtlsMsgListUnlink(ssl->dtls_rx_msg_list, item);
+    DtlsMsgDelete(item, ssl->heap);
+    ssl->dtls_rx_msg_list_sz--;
+}
+
 /* Drop stored messages the handshake already moved past. Plaintext entries
  * can be spoofed. dropUnencrypted 1 drops all of them, 2 drops those that
  * are not the next message in order. */
@@ -11646,8 +11667,8 @@ int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 {
     WOLFSSL_ENTER("DtlsMsgInsert");
-    if (head == NULL || (item->epoch <= head->epoch &&
-                         item->seq   <  head->seq)) {
+    /* message_seq is one counter across epochs. Order by it alone. */
+    if (head == NULL || item->seq < head->seq) {
         item->next = head;
         head = item;
     }
@@ -11658,8 +11679,7 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
         DtlsMsg* cur = head->next;
         DtlsMsg* prev = head;
         while (cur) {
-            if (item->epoch <= cur->epoch &&
-                item->seq   <  cur->seq) {
+            if (item->seq < cur->seq) {
                 item->next = cur;
                 prev->next = item;
                 break;
@@ -22421,14 +22441,10 @@ int DtlsMsgDrain(WOLFSSL* ssl)
     WOLFSSL_ENTER("DtlsMsgDrain");
 
     DtlsMsgListPurge(ssl, 0);
-    item = ssl->dtls_rx_msg_list;
 
-    /* While there is an item in the store list, and it is the expected
-     * message, and it is complete, and there hasn't been an error in the
-     * last message... */
-    while (item != NULL &&
-            ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
-            item->ready && ret == 0) {
+    /* While the expected message is complete in the store list, and there
+     * hasn't been an error in the last message... */
+    while (ret == 0 && (item = DtlsMsgListNextReady(ssl)) != NULL) {
         word32 idx = 0;
 
     #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
@@ -22459,10 +22475,8 @@ int DtlsMsgDrain(WOLFSSL* ssl)
             break;
         }
     #endif
-        ssl->dtls_rx_msg_list = item->next;
-        DtlsMsgDelete(item, ssl->heap);
-        item = ssl->dtls_rx_msg_list;
-        ssl->dtls_rx_msg_list_sz--;
+        DtlsMsgListRemove(ssl, item);
+        DtlsMsgListPurge(ssl, 0);
     }
 
     WOLFSSL_LEAVE("DtlsMsgDrain()", ret);
