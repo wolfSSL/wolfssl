@@ -63,6 +63,7 @@ int test_tls12_resume_ticket_decline_fallback(void);
 int test_tls12_ticket_dropped_on_bad_finished(void);
 int test_tls12_ticket_cached_after_finished(void);
 int test_tls12_empty_ticket_keeps_cached(void);
+int test_tls12_session_cache_shared_row(void);
 int test_tls12_server_hello_tls13_suite(void);
 int test_tls12_client_hello_no_tls13_suites(void);
 int test_tls_set_session_min_downgrade(void);
@@ -141,6 +142,7 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_tls12_ticket_dropped_on_bad_finished),     \
         TEST_DECL_GROUP("tls", test_tls12_ticket_cached_after_finished),       \
         TEST_DECL_GROUP("tls", test_tls12_empty_ticket_keeps_cached),          \
+        TEST_DECL_GROUP("tls", test_tls12_session_cache_shared_row),           \
         TEST_DECL_GROUP("tls", test_tls12_server_hello_tls13_suite),           \
         TEST_DECL_GROUP("tls", test_tls12_client_hello_no_tls13_suites),       \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
