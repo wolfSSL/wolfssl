@@ -63,20 +63,13 @@ tests:
   sample.crypto.wolfssl_test_x25519_ed448:
     timeout: 200
     platform_allow: qemu_x86
-    extra_configs:
-      - CONFIG_WOLFSSL_CURVE25519=y
-      - CONFIG_WOLFSSL_ED25519=n
-      - CONFIG_WOLFSSL_ED448=y
-      - CONFIG_WOLFSSL_USER_IO=y
+    extra_args: CONF_FILE="prj.conf;prj-x25519-ed448.conf"
     integration_platforms:
       - qemu_x86
   sample.crypto.wolfssl_test_ed25519_x448:
     timeout: 200
     platform_allow: qemu_x86
-    extra_configs:
-      - CONFIG_WOLFSSL_ED25519=y
-      - CONFIG_WOLFSSL_CURVE448=y
-      - CONFIG_WOLFSSL_ED448=n
+    extra_args: CONF_FILE="prj.conf;prj-ed25519-x448.conf"
     integration_platforms:
       - qemu_x86
   # One scenario per assembly port CONFIG_WOLFCRYPT_ASM can select, so a

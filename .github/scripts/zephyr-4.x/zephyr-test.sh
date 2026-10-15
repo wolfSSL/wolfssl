@@ -120,6 +120,7 @@ DOCKER_IMAGE=$(select_docker_image "$ZEPHYR_VERSION")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # One "<board> <app> [overlay]" line per build; overlays are read from CONF_DIR
+# or, failing that, from the app directory
 CONF_DIR="${SCRIPT_DIR}"
 if [[ -n "$BUILD_LIST" ]]; then
     BUILDS=$(grep -Ev '^[[:space:]]*(#|$)' "$BUILD_LIST")
@@ -287,8 +288,11 @@ build_app() {
     local args="${CMAKE_ARGS}"
     local f
 
+    if [[ -f "/conf/${conf}" ]]; then
+        conf="/conf/${conf}"
+    fi
     if [[ -n "$conf" ]]; then
-        args="${args} -DOVERLAY_CONFIG=/conf/${conf}"
+        args="${args} -DOVERLAY_CONFIG=${conf}"
     fi
 
     echo "==> [container] Building ${app} for ${board}..."
