@@ -1,0 +1,79 @@
+name: MSP430 simulator test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'wolfssl/version.h'
+      - '.github/scripts/msp430/**'
+      - '.github/workflows/msp430-sim.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '**' ]
+    paths:
+      - 'wolfcrypt/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'wolfssl/version.h'
+      - '.github/scripts/msp430/**'
+      - '.github/workflows/msp430-sim.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  wolfcrypt:
+    name: wolfCrypt MSP430 (${{ matrix.name }})
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: small
+            profile: small
+            multiplier: none
+          - name: large
+            profile: large
+            multiplier: none
+          - name: P-256 software multiply
+            profile: ecc
+            multiplier: none
+          - name: P-256 F5 multiply
+            profile: ecc
+            multiplier: f5series
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache pinned TI MSP430 GCC archive
+        uses: actions/cache@v4
+        with:
+          path: .msp430-gcc-cache/toolchain.tar.bz2
+          key: msp430-gcc-linux64-9.3.1.11-b60851b61565e3dd
+
+      - name: Build and execute MSP430 tests
+        env:
+          MSP430_HWMULT: ${{ matrix.multiplier }}
+          MSP430_TEST_TIMEOUT: '900'
+        run: sh .github/scripts/msp430/run-docker.sh "$GITHUB_WORKSPACE" '${{ matrix.profile }}'
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: msp430-${{ matrix.profile }}-${{ matrix.multiplier }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            .msp430-sim-build/**/*.log
+            .msp430-sim-build/**/*.map
+            .msp430-sim-build/**/*.elf
+            .msp430-sim-build/timings.txt
+          include-hidden-files: true

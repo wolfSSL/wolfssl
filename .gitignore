@@ -534,3 +534,7 @@ compile_commands.json
 # Python cache
 __pycache__/
 wolfcrypt/benchmark/fips_cast_bench
+
+# MSP430 simulator toolchain and test output
+/.msp430-gcc-cache/
+/.msp430-sim-build/
