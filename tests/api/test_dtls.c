@@ -6246,9 +6246,11 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     ExpectNull(ssl->dtls_rx_msg_list);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
 
-    /* Fragments of one message must agree on the type */
+    /* Fragments of an authenticated message must agree on the type */
+    ssl->keys.decryptedCur = 1;
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 5, NULL),
             0);
+    ssl->keys.decryptedCur = 0;
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, server_hello_done,
             5, 5, NULL), WC_NO_ERR_TRACE(SEQUENCE_ERROR));
     ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
@@ -6436,6 +6438,65 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectNotNull(cur = ssl->dtls_rx_msg_list);
     ExpectIntEQ(cur->seq, 4);
     ExpectNull(cur->next);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+
+int test_wolfSSL_DTLS_plaintext_msg_replace(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_DTLS
+    WOLFSSL ssl[1];
+    static byte msg[100];
+    DtlsMsg* cur = NULL;
+
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    XMEMSET(msg, 7, sizeof(msg));
+
+    /* A plaintext partial entry follows the latest size and type */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 200, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(cur->sz, 200);
+    ExpectIntEQ(cur->bytesReceived, 50);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 200, server_key_exchange, 0, 50,
+            NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(cur->type, server_key_exchange);
+    /* The same description is not a replacement */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg + 50, 200, server_key_exchange,
+            50, 50, NULL), 0);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(cur->bytesReceived, 100);
+
+    /* An authenticated entry keeps its description */
+    ssl->keys.decryptedCur = 1;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 200, certificate, 0, 50, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ssl->keys.decryptedCur = 0;
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
+    ExpectIntEQ(cur->sz, 100);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+
+    /* A complete entry keeps its description */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 100, certificate, 0, 100, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 200, certificate, 0, 50, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 3));
+    ExpectIntEQ(cur->sz, 100);
+    ExpectIntEQ(cur->ready, 1);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
+
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     ssl->dtls_rx_msg_list = NULL;
 #endif
