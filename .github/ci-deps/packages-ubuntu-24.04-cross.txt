@@ -10,3 +10,4 @@ ccache
 crossbuild-essential-arm64
 crossbuild-essential-armhf
 libtool
+qemu-user
