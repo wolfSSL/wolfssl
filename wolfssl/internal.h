@@ -1671,10 +1671,12 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
-    DTLS_EXPORT_OPT_SZ       = 66, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 67, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_6     = 66, /* number of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_5     = 62, /* number of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_4     = 61, /* number of bytes used from Options */
-    TLS_EXPORT_OPT_SZ        = 66, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ        = 67, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_6      = 66, /* number of bytes used from Options */
     TLS_EXPORT_OPT_SZ_5      = 66, /* number of bytes used from Options */
     TLS_EXPORT_OPT_SZ_4      = 65, /* number of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* number of bytes used from Options */
@@ -5769,6 +5771,7 @@ struct Options {
 #endif
     word16            connReset:1;        /* has the peer reset */
     word16            isClosed:1;         /* if we consider conn closed */
+    word16            fatalAlert:1;       /* fatal alert sent or received */
     word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
     word16            usingCompression:1; /* are we using compression */

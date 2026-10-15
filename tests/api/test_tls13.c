@@ -13264,6 +13264,7 @@ int test_tls12_fatal_alert_closes_and_evicts(void)
             ExpectIntNE(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
             if (EXPECT_SUCCESS() && ssl_c != NULL) {
                 ExpectIntEQ(ssl_c->options.isClosed, 1);
+                ExpectIntEQ(ssl_c->options.fatalAlert, 1);
             }
         }
 
@@ -13353,6 +13354,199 @@ int test_tls13_no_app_data_after_fatal_alert(void)
     ExpectIntNE(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), 0);
     /* No new record was appended to what the alert itself already sent. */
     ExpectIntEQ(test_ctx.c_len, c_len_after_alert);
+
+    /* The server receiving that alert must stop writing too. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.fatalAlert, 1);
+        ssl_s->error = WOLFSSL_ERROR_NONE;
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 6.2: every TLS 1.3 error alert is fatal, whatever its
+ * level byte says. */
+int test_tls13_warning_error_alert_is_fatal(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    /* level=warning(0x01), code=handshake_failure(0x28) */
+    static const unsigned char warnHandshakeFailure[] =
+        { 0x15, 0x03, 0x03, 0x00, 0x02, 0x01, 0x28 };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)warnHandshakeFailure, sizeof(warnHandshakeFailure)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntNE(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+        ExpectIntEQ(ssl_c->options.fatalAlert, 1);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A failed peer certificate check is a fatal error, so it blocks writes. */
+int test_tls13_cert_failure_sets_fatal_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, "bad.example.com"),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+        ExpectIntEQ(ssl_c->options.fatalAlert, 1);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static int ConnCloseRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+}
+#endif
+
+/* A transport EOF without a fatal alert must not block writes; nginx answers
+ * a request whose client already closed its socket. */
+int test_tls13_write_after_transport_close(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char readBuf[32];
+    char msg[] = "response";
+    int c_len_before;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_s != NULL)
+        wolfSSL_SSLSetIORecv(ssl_s, ConnCloseRecv);
+    ExpectIntLE(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.isClosed, 1);
+        ExpectIntEQ(ssl_s->options.fatalAlert, 0);
+    }
+
+    c_len_before = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntGT(test_ctx.c_len, c_len_before);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* After our close_notify writes are refused, but the peer's data still reads. */
+int test_tls13_no_write_after_close_notify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char readBuf[32];
+    char msg[] = "response";
+    char req[] = "request";
+    int c_len_before;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    c_len_before = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        SSL_SHUTDOWN_ALREADY_DONE_E);
+    ExpectIntEQ(test_ctx.c_len, c_len_before);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, req, (int)sizeof(req)), (int)sizeof(req));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(req));
+    ExpectStrEQ(readBuf, req);
+
+    if (ssl_s != NULL)
+        wolfSSL_SSLSetIORecv(ssl_s, ConnCloseRecv);
+    ExpectIntLE(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.isClosed, 1);
+        ExpectIntEQ(ssl_s->options.fatalAlert, 0);
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(test_ctx.c_len, c_len_before);
+
+    ExpectIntLE(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)), 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.closeNotify, 1);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -15880,6 +16074,103 @@ int test_tls13_export_client_key_update(void)
     EXPECT_DECLS;
 #ifdef TEST_TLS13_EXPORT
     ExpectIntEQ(test_tls13_export_key_update(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An imported connection that had seen a fatal alert still refuses writes. */
+int test_tls13_export_keeps_fatal_alert(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "should never be sent";
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_c != NULL) {
+        ssl_c->options.isClosed = 1;
+        ssl_c->options.fatalAlert = 1;
+    }
+    ExpectIntEQ(test_tls13_export_reload(ctx_c, &test_ctx, &ssl_c),
+                TEST_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+        ExpectIntEQ(ssl_c->options.fatalAlert, 1);
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An imported connection closed only by a transport EOF can still write. */
+int test_tls13_export_keeps_transport_close(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_c != NULL)
+        ssl_c->options.isClosed = 1;
+    ExpectIntEQ(test_tls13_export_reload(ctx_c, &test_ctx, &ssl_c),
+                TEST_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+        ExpectIntEQ(ssl_c->options.fatalAlert, 0);
+    }
+    ExpectIntEQ(test_tls13_export_xfer(ssl_c, ssl_s, "after the close"),
+                TEST_SUCCESS);
+
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A version 6 export only has isClosed, which then also stands for a fatal
+ * alert, so the imported connection still refuses writes. */
+int test_tls12_export_v6_closed_refuses_write(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    char msg[] = "should never be sent";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL)
+        ssl_c->options.isClosed = 1;
+    ExpectIntEQ(test_tls13_export_alloc(ssl_c, &session, &sessionSz),
+                TEST_SUCCESS);
+    if (EXPECT_SUCCESS())
+        test_export_options_v6(session, &sessionSz);
+
+    ExpectIntEQ(test_tls13_export_import(ctx_c, &test_ctx, &imp, session,
+                    sessionSz), TEST_SUCCESS);
+    if (imp != NULL) {
+        ExpectIntEQ(imp->options.isClosed, 1);
+        ExpectIntEQ(imp->options.fatalAlert, 1);
+    }
+    ExpectIntEQ(wolfSSL_write(imp, msg, (int)sizeof(msg)),
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(imp);
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
 #endif
     return EXPECT_RESULT();
 }
