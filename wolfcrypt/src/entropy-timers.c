@@ -28,8 +28,12 @@
 #include <wolfssl/wolfcrypt/entropy-timers.h>
 #include <cpuid.h>
 
+/* Bare metal only: hypervisors trap RDPRU (AWS c7a: 881 ns a read, not 5 ns),
+ * so a seed takes ~1.2 s in a VM; use --enable-amdrdseed there.  Details: fips
+ * repo entropy/portable-timer-callbacks/README.md. */
+
 /* AMD64 APM vol. 3: RDPRU is CPUID Fn8000_0008 EBX bit 4 and RDTSCP is
- * Fn8000_0001 EDX bit 27.  Those leaves are vendor defined, so check AMD first. */
+ * Fn8000_0001 EDX bit 27.  Those leaves are vendor defined: check AMD first. */
 static int Entropy_AmdRdpruPresent(void)
 {
     unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
