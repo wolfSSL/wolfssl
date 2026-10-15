@@ -1058,9 +1058,9 @@ L_sha256_len_neon_start:
 	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
 #endif /* __APPLE__ */
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-#ifndef __ghs__
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 .arch_extension crypto
-#endif /* __ghs__ */
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 #ifndef __APPLE__
 	.text
 	.section	.rodata

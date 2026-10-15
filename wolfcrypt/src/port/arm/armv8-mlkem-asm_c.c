@@ -9124,9 +9124,9 @@ void mlkem_sha3_blocksx3_crypto(word64* state)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
-#ifndef __ghs__
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
     ".arch_extension sha3\n\t"
-#endif /* __ghs__ */
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"
@@ -9426,9 +9426,9 @@ void mlkem_shake128_blocksx3_seed_crypto(word64* state, byte* seed)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
-#ifndef __ghs__
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
     ".arch_extension sha3\n\t"
-#endif /* __ghs__ */
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"
@@ -9750,9 +9750,9 @@ void mlkem_shake256_blocksx3_seed_crypto(word64* state, byte* seed)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
-#ifndef __ghs__
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
     ".arch_extension sha3\n\t"
-#endif /* __ghs__ */
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"

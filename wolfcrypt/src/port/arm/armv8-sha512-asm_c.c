@@ -1050,9 +1050,9 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
 {
     const word64* k = L_SHA512_trans_crypto_len_k;
     __asm__ __volatile__ (
-#ifndef __ghs__
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
     ".arch_extension sha3\n\t"
-#endif /* __ghs__ */
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
         /* Load K into vector registers */
         "ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [%[k]], #0x40\n\t"
         "ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [%[k]], #0x40\n\t"
