@@ -11815,11 +11815,6 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         alt_fp_init(key->ku);
     #endif
     #else
-        /* Free the old key contents: re-init alone would leak them unwiped. */
-        mp_clear(key->pubkey.x);
-        mp_clear(key->pubkey.y);
-        mp_clear(key->pubkey.z);
-        ecc_forcezero_k(key);
         err = mp_init_multi(key->k, key->pubkey.x, key->pubkey.y, key->pubkey.z,
     #ifndef WOLFSSL_ECC_BLIND_K
                                                                       NULL, NULL
@@ -12983,11 +12978,6 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
     alt_fp_init(key->ku);
 #endif
 #else
-    /* Free the old key contents: re-init alone would leak them unwiped. */
-    mp_clear(key->pubkey.x);
-    mp_clear(key->pubkey.y);
-    mp_clear(key->pubkey.z);
-    ecc_forcezero_k(key);
     err = mp_init_multi(key->k, key->pubkey.x, key->pubkey.y, key->pubkey.z,
 #ifndef WOLFSSL_ECC_BLIND_K
                                                                       NULL, NULL
