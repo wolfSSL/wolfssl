@@ -40,8 +40,9 @@ verify-only builds do not have to pull in a random number generator.
 */
 
 /* Both key types are built from the flattened public key, which
- * WOLFSSL_RSA_VERIFY_ONLY builds do not expose. */
-#![cfg(all(feature = "signature", rsa, rsa_sign))]
+ * WOLFSSL_RSA_VERIFY_ONLY builds do not expose.  Signing and verifying need
+ * the signature wrapper, which NO_SIG_WRAPPER builds leave out. */
+#![cfg(all(feature = "signature", sig_wrapper, rsa, rsa_sign))]
 
 use core::ffi::c_void;
 use core::marker::PhantomData;

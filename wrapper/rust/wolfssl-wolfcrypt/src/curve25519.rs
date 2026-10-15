@@ -646,10 +646,11 @@ impl Curve25519Key {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     #[cfg(curve25519_export)]
-    pub fn export_key_raw(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key_raw(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -660,7 +661,7 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export public and private keys from Curve25519Key struct to raw buffers
@@ -674,10 +675,11 @@ impl Curve25519Key {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     #[cfg(curve25519_export)]
-    pub fn export_key_raw_ex(&mut self, private: &mut [u8], public: &mut [u8], big_endian: bool) -> Result<(), i32> {
+    pub fn export_key_raw_ex(&mut self, private: &mut [u8], public: &mut [u8], big_endian: bool) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let endian = if big_endian {sys::EC25519_BIG_ENDIAN} else {sys::EC25519_LITTLE_ENDIAN};
@@ -689,7 +691,7 @@ impl Curve25519Key {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export private key from Curve25519Key struct to a raw buffer

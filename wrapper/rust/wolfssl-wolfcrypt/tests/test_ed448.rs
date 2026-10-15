@@ -5,6 +5,7 @@ mod common;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::ed448::*;
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 #[cfg(all(ed448_import, ed448_export, random))]
@@ -181,6 +182,16 @@ fn test_ph_sign_verify() {
         0x9f, 0x87, 0x26, 0xe4, 0x62, 0xa1, 0x2a, 0x4f,
         0xeb, 0x06, 0xbd, 0x88, 0x01, 0xe7, 0x51, 0xe4
     ];
+    // Ed448ph prehash is the 64-byte SHAKE256 digest of the message.
+    #[cfg(shake256)]
+    {
+        use wolfssl_wolfcrypt::sha::SHAKE256;
+        let mut shake = SHAKE256::new().expect("Error with SHAKE256::new()");
+        shake.update(&message).expect("Error with update()");
+        let mut computed_hash = [0u8; 64];
+        shake.finalize(&mut computed_hash).expect("Error with finalize()");
+        assert_eq!(computed_hash, hash);
+    }
     let expected_signature = [
         0xc3u8, 0x22, 0x99, 0xd4, 0x6e, 0xc8, 0xff, 0x02,
         0xb5, 0x45, 0x40, 0x98, 0x28, 0x14, 0xdc, 0xe9,
@@ -243,6 +254,26 @@ fn test_verify_msg_bad_sig() {
     signature[0] ^= 0x01;
 
     assert_eq!(ed.verify_msg(&signature, &message, None), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed448_sign, ed448_verify, random))]
+fn test_msg_ex_variant_validation() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed448::SIG_SIZE];
+
+    // Unknown variant values are rejected.
+    for typ in [2u8, 0xFF] {
+        assert_eq!(ed.sign_msg_ex(&message, None, typ, &mut signature),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+        assert_eq!(ed.verify_msg_ex(&signature, &message, None, typ),
+            Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    }
 }
 
 #[test]
@@ -315,6 +346,46 @@ fn test_verify_msg_final_bad_sig() {
 }
 
 #[test]
+#[cfg(all(ed448_sign, ed448_streaming_verify, random))]
+fn test_verify_msg_streaming_ph_length() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+
+    let hash = [0x55u8; Ed448::PREHASH_SIZE];
+    let context = b"context";
+    let mut signature = [0u8; Ed448::SIG_SIZE];
+    ed.sign_hash_ph(&hash, Some(context), &mut signature).expect("Error with sign_hash_ph()");
+
+    // Exactly one prehash, split across updates.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash[0..32]).expect("Error with verify_msg_update()");
+    ed.verify_msg_update(&hash[32..]).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_final(&signature), Ok(true));
+
+    // Too little input is rejected at finalization.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash[0..Ed448::PREHASH_SIZE - 1]).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_final(&signature), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    // No input is rejected at finalization.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    assert_eq!(ed.verify_msg_final(&signature), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+
+    // Input beyond one prehash is rejected and not consumed.
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&hash).expect("Error with verify_msg_update()");
+    assert_eq!(ed.verify_msg_update(&[0u8]), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+    assert_eq!(ed.verify_msg_final(&signature), Ok(true));
+
+    // A single oversized update is rejected.
+    let long = [0x55u8; Ed448::PREHASH_SIZE + 1];
+    ed.verify_msg_init(&signature, Some(context), Ed448::ED448PH).expect("Error with verify_msg_init()");
+    assert_eq!(ed.verify_msg_update(&long), Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG));
+}
+
+#[test]
 #[cfg(all(ed448_import, ed448_export, random))]
 fn test_import_export() {
     common::setup();
@@ -324,18 +395,43 @@ fn test_import_export() {
 
     let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     let mut public = [0u8; Ed448::PUB_KEY_SIZE];
-    ed.export_key(&mut private, &mut public).expect("Error with export_key()");
+    let (private_size, public_size) = ed.export_key(&mut private, &mut public).expect("Error with export_key()");
+    assert_eq!(private_size, Ed448::PRV_KEY_SIZE);
+    assert_eq!(public_size, Ed448::PUB_KEY_SIZE);
 
     let mut public2 = [0u8; Ed448::PUB_KEY_SIZE];
-    ed.export_public(&mut public2).expect("Error with export_public()");
+    let public2_size = ed.export_public(&mut public2).expect("Error with export_public()");
+    assert_eq!(public2_size, Ed448::PUB_KEY_SIZE);
     assert_eq!(public2, public);
 
     let mut private2 = [0u8; Ed448::PRV_KEY_SIZE];
-    ed.export_private(&mut private2).expect("Error with export_private()");
+    let private2_size = ed.export_private(&mut private2).expect("Error with export_private()");
+    assert_eq!(private2_size, Ed448::PRV_KEY_SIZE);
     assert_eq!(private2, private);
 
     let mut private_only = [0u8; Ed448::KEY_SIZE];
-    ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
+    let private_only_size = ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
+    assert_eq!(private_only_size, Ed448::KEY_SIZE);
+
+    // Oversized output buffers: the returned sizes must reflect the number
+    // of bytes actually written, not the buffer lengths.
+    let mut big_private = [0xAAu8; Ed448::PRV_KEY_SIZE + 16];
+    let mut big_public = [0xAAu8; Ed448::PUB_KEY_SIZE + 16];
+    let (private_size, public_size) = ed.export_key(&mut big_private, &mut big_public).expect("Error with export_key()");
+    assert_eq!(private_size, Ed448::PRV_KEY_SIZE);
+    assert_eq!(public_size, Ed448::PUB_KEY_SIZE);
+    assert_eq!(&big_private[..private_size], &private[..]);
+    assert_eq!(&big_public[..public_size], &public[..]);
+    let mut big_public = [0xAAu8; Ed448::PUB_KEY_SIZE + 16];
+    let size = ed.export_public(&mut big_public).expect("Error with export_public()");
+    assert_eq!(size, Ed448::PUB_KEY_SIZE);
+    let mut big_private = [0xAAu8; Ed448::PRV_KEY_SIZE + 16];
+    let size = ed.export_private(&mut big_private).expect("Error with export_private()");
+    assert_eq!(size, Ed448::PRV_KEY_SIZE);
+    let mut big_private_only = [0xAAu8; Ed448::KEY_SIZE + 16];
+    let size = ed.export_private_only(&mut big_private_only).expect("Error with export_private_only()");
+    assert_eq!(size, Ed448::KEY_SIZE);
+    assert_eq!(&big_private_only[..size], &private_only[..]);
 
     let mut ed = Ed448::new().expect("Error with new()");
     ed.import_private_key_ex(&private, Some(&public), false).expect("Error with import_private_key_ex()");

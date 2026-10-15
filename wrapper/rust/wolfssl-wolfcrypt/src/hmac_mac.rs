@@ -79,8 +79,9 @@ macro_rules! impl_hmac_mac {
         $(#[$attr])*
         impl digest::Update for $name {
             fn update(&mut self, data: &[u8]) {
-                crate::hmac::HMAC::update(&mut self.hmac, data)
-                    .expect("wolfCrypt HMAC update failed");
+                crate::update_in_chunks(data, |chunk| {
+                    crate::hmac::HMAC::update(&mut self.hmac, chunk)
+                }).expect("wolfCrypt HMAC update failed");
             }
         }
 

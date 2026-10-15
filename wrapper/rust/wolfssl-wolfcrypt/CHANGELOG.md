@@ -8,9 +8,9 @@ Breaking changes:
   it; the key holds the RNG for its lifetime
 - The rand_core::TryRng implementation for RNG is now truly fallible: its
   associated Error type is the new random::RngError, which carries the wolfSSL
-  library error code, instead of core::convert::Infallible.  Entropy, reseed
+  library error code, instead of core::convert::Infallible. Entropy, reseed
   and hardware failures are returned to the caller instead of panicking inside
-  the library.  As a consequence RNG no longer implements the infallible
+  the library. As a consequence RNG no longer implements the infallible
   rand_core::Rng and rand_core::CryptoRng traits; wrap it in
   rand_core::UnwrapErr to keep the previous panic-on-failure behavior
 - Ed25519 and Ed448 no longer implement the signature crate's Keypair trait;
@@ -22,6 +22,21 @@ Breaking changes:
 - Replace Lms::export_pub_from() with Lms::export_pub(), which returns a new
   verify only key instead of re-initializing an existing one; this fixes a leak
   of the destination's private key data
+- CMAC::generate_ex() and CMAC::verify_ex() have been removed. They
+  re-initialized an already-initialized CMAC object without freeing its
+  existing resources, and left the object unusable afterward. Use
+  CMAC::new_ex() followed by the new CMAC::update_and_finalize() or
+  CMAC::update_and_verify() methods instead
+- Key export methods now return the number of bytes written instead of ():
+  Ed25519 and Ed448 export_public(), export_private() and
+  export_private_only() return Result<usize, i32>, and Ed25519/Ed448
+  export_key(), Curve25519Key::export_key_raw(),
+  Curve25519Key::export_key_raw_ex() and MlDsa::export_key() return
+  Result<(usize, usize), i32> holding the private and public key sizes.
+  Previously, callers passing an oversized output buffer had no way to know
+  where the exported key ended
+- ChaCha20Poly1305::finalize() now fails with BAD_FUNC_ARG on a decryption
+  instance; use finalize_verify() to authenticate decrypted data
 
 New features:
 
@@ -45,6 +60,20 @@ Fixes and improvements:
 - Fix detection of the built-in ML-DSA parameter sets: the mldsa_level2,
   mldsa_level3 and mldsa_level5 cfgs probed the WC_MLDSA_NN_KEY_SIZE macros,
   which wc_mldsa.h defines unconditionally, so all three were always enabled
+- XChaCha20Poly1305Aead's AeadInPlace implementation no longer allocates a
+  4112-byte buffer on the stack for every call and no longer limits messages to
+  4096 bytes. Decryption now verifies the authentication tag before decrypting,
+  so the caller's buffer is left unmodified when verification fails
+- The rsa_oaep feature (RSA::public_encrypt_oaep(),
+  RSA::private_decrypt_oaep() and the rsa_oaep module) is no longer enabled
+  when wolfSSL is built with WC_NO_RSA_OAEP. Previously it failed to link, or
+  with WC_RSA_NO_PADDING always returned an unsupported-padding error
+- The ecdsa and rsa_pkcs1v15 modules are no longer enabled when wolfSSL is
+  built with NO_SIG_WRAPPER. Both are built on wc_SignatureGenerate() and
+  wc_SignatureVerify(), so previously they failed to link
+- Ed25519 and Ed448 streaming verification with the prehash variant now
+  requires exactly PREHASH_SIZE (64) bytes of input, matching one-shot
+  verification
 
 ## v2.2.0
 

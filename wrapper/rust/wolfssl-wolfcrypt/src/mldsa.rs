@@ -813,8 +813,9 @@ impl MlDsa {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
@@ -833,7 +834,7 @@ impl MlDsa {
     /// }
     /// ```
     #[cfg(all(mldsa_export_private, mldsa_export_public))]
-    pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -846,7 +847,7 @@ impl MlDsa {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Sign a message and write the signature to `sig`.

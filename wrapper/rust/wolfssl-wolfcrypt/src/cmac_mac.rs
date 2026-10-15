@@ -71,8 +71,9 @@ macro_rules! impl_cmac_mac {
         $(#[$attr])*
         impl digest::Update for $name {
             fn update(&mut self, data: &[u8]) {
-                crate::cmac::CMAC::update(&mut self.cmac, data)
-                    .expect("wolfCrypt CMAC update failed");
+                crate::update_in_chunks(data, |chunk| {
+                    crate::cmac::CMAC::update(&mut self.cmac, chunk)
+                }).expect("wolfCrypt CMAC update failed");
             }
         }
 

@@ -38,6 +38,12 @@ use core::mem::MaybeUninit;
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed448 {
     ws_key: sys::ed448_key,
+    /// Number of bytes passed to `verify_msg_update()` so far when a
+    /// streaming verification was initialized with the prehash variant, or
+    /// `None` otherwise. Used to enforce that exactly one prehash of
+    /// `PREHASH_SIZE` bytes is verified.
+    #[cfg(ed448_streaming_verify)]
+    ph_stream_len: Option<usize>,
 }
 
 impl Ed448 {
@@ -52,6 +58,32 @@ impl Ed448 {
 
     pub const ED448: u8 = sys::Ed448 as u8;
     pub const ED448PH: u8 = sys::Ed448ph as u8;
+
+    /** Size of the prehashed message for the prehash variant. */
+    pub const PREHASH_SIZE: usize = sys::ED448_PREHASH_SIZE as usize;
+
+    /// Validate an Ed448 variant and optional context, returning the
+    /// context pointer and length to pass to wolfCrypt.
+    ///
+    /// Unknown variant values are rejected rather than being passed through
+    /// to wolfCrypt.
+    #[cfg(any(ed448_sign, ed448_verify, ed448_streaming_verify))]
+    fn check_variant_context(typ: u8, context: Option<&[u8]>) -> Result<(*const u8, u8), i32> {
+        let context = context.unwrap_or(&[]);
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        match typ {
+            Self::ED448 | Self::ED448PH => {}
+            _ => return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+        let context_ptr = if context.is_empty() {
+            core::ptr::null()
+        } else {
+            context.as_ptr()
+        };
+        Ok((context_ptr, context.len() as u8))
+    }
 
     /// Generate a new Ed448 key.
     ///
@@ -120,7 +152,11 @@ impl Ed448 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let mut ed448 = Ed448 { ws_key };
+        let mut ed448 = Ed448 {
+            ws_key,
+            #[cfg(ed448_streaming_verify)]
+            ph_stream_len: None,
+        };
         let rc = unsafe {
             sys::wc_ed448_make_key(rng.wc_rng,
                 sys::ED448_KEY_SIZE as i32, &mut ed448.ws_key)
@@ -188,7 +224,11 @@ impl Ed448 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let ed448 = Ed448 { ws_key };
+        let ed448 = Ed448 {
+            ws_key,
+            #[cfg(ed448_streaming_verify)]
+            ph_stream_len: None,
+        };
         Ok(ed448)
     }
 
@@ -234,8 +274,9 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
@@ -252,7 +293,7 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -263,7 +304,7 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export public key to buffer.
@@ -275,8 +316,9 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `public` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -292,7 +334,7 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_public(&self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_public(&self.ws_key, public.as_mut_ptr(),
@@ -301,7 +343,7 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(public_size as usize)
     }
 
     /// Export public/private key pair to buffer.
@@ -313,8 +355,9 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `keyout` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -330,7 +373,7 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private(&self, keyout: &mut [u8]) -> Result<usize, i32> {
         let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_private(&self.ws_key, keyout.as_mut_ptr(),
@@ -339,7 +382,7 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(keyout_size as usize)
     }
 
     /// Export private key only to buffer.
@@ -351,8 +394,9 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `private` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -368,7 +412,7 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private_only(&self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_private_only(&self.ws_key,
@@ -377,7 +421,7 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(private_size as usize)
     }
 
     /// Import a public Ed448 key from buffer.
@@ -710,11 +754,12 @@ impl Ed448 {
     /// Sign a message digest with optional context using Ed448 key.
     ///
     /// The context is part of the data signed.
-    /// The message is pre-hashed before signature calculation.
+    /// For Ed448ph interoperability, `hash` must be the 64-byte SHAKE256
+    /// prehash of the message (as computed by `sign_msg_ph()`).
     ///
     /// # Parameters
     ///
-    /// * `hash`: Message digest to sign.
+    /// * `hash`: 64-byte SHAKE256 message digest to sign.
     /// * `context`: Optional buffer containing context for which hash is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -733,15 +778,16 @@ impl Ed448 {
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// // 64-byte SHAKE256 digest of "abc"
     /// let hash = [
-    ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
-    ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
-    ///     0x12,0xe6,0xfa,0x4e,0x89,0xa9,0x7e,0xa2,
-    ///     0x0a,0x9e,0xee,0xe6,0x4b,0x55,0xd3,0x9a,
-    ///     0x21,0x92,0x99,0x2a,0x27,0x4f,0xc1,0xa8,
-    ///     0x36,0xba,0x3c,0x23,0xa3,0xfe,0xeb,0xbd,
-    ///     0x45,0x4d,0x44,0x23,0x64,0x3c,0xe8,0x0e,
-    ///     0x2a,0x9a,0xc9,0x4f,0xa5,0x4c,0xa4,0x9f
+    ///     0x48u8,0x33,0x66,0x60,0x13,0x60,0xa8,0x77,
+    ///     0x1c,0x68,0x63,0x08,0x0c,0xc4,0x11,0x4d,
+    ///     0x8d,0xb4,0x45,0x30,0xf8,0xf1,0xe1,0xee,
+    ///     0x4f,0x94,0xea,0x37,0xe7,0x8b,0x57,0x39,
+    ///     0xd5,0xa1,0x5b,0xef,0x18,0x6a,0x53,0x86,
+    ///     0xc7,0x57,0x44,0xc0,0x52,0x7e,0x1f,0xaa,
+    ///     0x9f,0x87,0x26,0xe4,0x62,0xa1,0x2a,0x4f,
+    ///     0xeb,0x06,0xbd,0x88,0x01,0xe7,0x51,0xe4
     /// ];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -779,7 +825,7 @@ impl Ed448 {
     ///
     /// # Parameters
     ///
-    /// * `message`: Message digest to sign.
+    /// * `message`: Message to prehash and sign; this method hashes it internally.
     /// * `context`: Optional buffer containing context for which message is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -837,6 +883,7 @@ impl Ed448 {
     /// * `din`: Data to sign.
     /// * `context`: Optional buffer containing context for which `din` is being signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     /// * `signature`: Output buffer to hold signature.
     ///
     /// # Returns
@@ -863,15 +910,7 @@ impl Ed448 {
     #[cfg(ed448_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448_sign_msg_ex(din.as_ptr(), din_size,
@@ -949,13 +988,13 @@ impl Ed448 {
     /// Verify the Ed448 signature of a message digest and optional context to ensure authenticity.
     ///
     /// The context is included as part of the data verified.
-    /// The hash algorithm used to create message digest must be SHA-512.
-    /// The message is pre-hashed before verification.
+    /// For Ed448ph interoperability, `hash` must be the 64-byte SHAKE256
+    /// prehash of the message (as computed by `verify_msg_ph()`).
     ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
-    /// * `hash`: Message to verify the signature of.
+    /// * `hash`: 64-byte SHAKE256 message digest to verify the signature of.
     /// * `context`: Optional buffer containing context for which the hash was signed.
     ///
     /// # Returns
@@ -972,15 +1011,16 @@ impl Ed448 {
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// // 64-byte SHAKE256 digest of "abc"
     /// let hash = [
-    ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
-    ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
-    ///     0x12,0xe6,0xfa,0x4e,0x89,0xa9,0x7e,0xa2,
-    ///     0x0a,0x9e,0xee,0xe6,0x4b,0x55,0xd3,0x9a,
-    ///     0x21,0x92,0x99,0x2a,0x27,0x4f,0xc1,0xa8,
-    ///     0x36,0xba,0x3c,0x23,0xa3,0xfe,0xeb,0xbd,
-    ///     0x45,0x4d,0x44,0x23,0x64,0x3c,0xe8,0x0e,
-    ///     0x2a,0x9a,0xc9,0x4f,0xa5,0x4c,0xa4,0x9f
+    ///     0x48u8,0x33,0x66,0x60,0x13,0x60,0xa8,0x77,
+    ///     0x1c,0x68,0x63,0x08,0x0c,0xc4,0x11,0x4d,
+    ///     0x8d,0xb4,0x45,0x30,0xf8,0xf1,0xe1,0xee,
+    ///     0x4f,0x94,0xea,0x37,0xe7,0x8b,0x57,0x39,
+    ///     0xd5,0xa1,0x5b,0xef,0x18,0x6a,0x53,0x86,
+    ///     0xc7,0x57,0x44,0xc0,0x52,0x7e,0x1f,0xaa,
+    ///     0x9f,0x87,0x26,0xe4,0x62,0xa1,0x2a,0x4f,
+    ///     0xeb,0x06,0xbd,0x88,0x01,0xe7,0x51,0xe4
     /// ];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -1092,6 +1132,7 @@ impl Ed448 {
     /// * `din`: Message to verify the signature of.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1119,15 +1160,7 @@ impl Ed448 {
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_ex(signature.as_ptr(), signature_size,
@@ -1147,11 +1180,17 @@ impl Ed448 {
 
     /// Initialize Ed448 key to perform streaming verification.
     ///
+    /// When `typ` is `Ed448::ED448PH`, the data passed to `verify_msg_update()`
+    /// must total exactly `Ed448::PREHASH_SIZE` bytes (the prehashed
+    /// message); otherwise `verify_msg_update()` or `verify_msg_final()`
+    /// returns `BAD_FUNC_ARG`.
+    ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1181,26 +1220,24 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
+            self.ph_stream_len = None;
             return Err(rc);
         }
+        self.ph_stream_len = if typ == Self::ED448PH { Some(0) } else { None };
         Ok(())
     }
 
     /// Add input data to Ed448 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed448::ED448PH`, a
+    /// segment that would bring the total input beyond
+    /// `Ed448::PREHASH_SIZE` bytes is rejected with `BAD_FUNC_ARG`.
     ///
     /// # Parameters
     ///
@@ -1234,6 +1271,19 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
+        // For the prehash variant, the total input must be exactly one
+        // prehash. Reject any segment that would exceed it.
+        let new_ph_len = match self.ph_stream_len {
+            Some(len) => {
+                let new_len = len.checked_add(din.len())
+                    .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+                if new_len > Self::PREHASH_SIZE {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+                Some(new_len)
+            }
+            None => None,
+        };
         let rc = unsafe {
             sys::wc_ed448_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
@@ -1241,10 +1291,15 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
+        self.ph_stream_len = new_ph_len;
         Ok(())
     }
 
     /// Finalize Ed448 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed448::ED448PH` and
+    /// the total input was not exactly `Ed448::PREHASH_SIZE` bytes,
+    /// `BAD_FUNC_ARG` is returned.
     ///
     /// # Parameters
     ///
@@ -1278,6 +1333,14 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        // For the prehash variant, the input must have been exactly one
+        // prehash. The streaming state is consumed either way.
+        if let Some(len) = self.ph_stream_len {
+            if len != Self::PREHASH_SIZE {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
+        }
+        self.ph_stream_len = None;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_final(signature.as_ptr(), signature_size,

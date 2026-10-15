@@ -169,24 +169,31 @@ fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
     })
 }
 
+/// Returns the base directory of the wolfSSL repository containing this
+/// crate, if that repository has been configured for an in-tree build.
+///
+/// The repository counts as configured only if `wolfssl/options.h` exists,
+/// which configure generates.
+fn wolfssl_in_tree_base_dir() -> Result<Option<String>> {
+    let base = wolfssl_repo_base_dir()?;
+    let options_h = Path::new(&base).join("wolfssl").join("options.h");
+    if options_h.is_file() {
+        Ok(Some(base))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Returns the include directory for wolfssl headers.
 ///
 /// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/include`.
-/// Otherwise falls back to the repo root if it exists (for in-tree host builds).
+/// Otherwise falls back to the repo root if it is configured for an in-tree
+/// build.
 fn wolfssl_include_dir() -> Result<Option<String>> {
     if let Some(dirs) = wolfssl_prefix_dirs() {
         Ok(Some(dirs.include.clone()))
     } else {
-        let base = wolfssl_repo_base_dir()?;
-        let base_path = Path::new(&base);
-        // Treat this as an in-tree wolfSSL repo only if the expected layout exists.
-        let wolfssl_dir = base_path.join("wolfssl");
-        let wolfssl_options = wolfssl_dir.join("options.h");
-        if wolfssl_options.is_file() {
-            Ok(Some(base))
-        } else {
-            Ok(None)
-        }
+        wolfssl_in_tree_base_dir()
     }
 }
 
@@ -194,18 +201,34 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
 ///
 /// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/lib` or
 /// `{WOLFSSL_PREFIX}/lib64`, whichever holds the library.
-/// Otherwise falls back to the in-tree build output directory if it exists.
+///
+/// Otherwise, if the repository containing this crate is configured for an
+/// in-tree build, returns its build output directory.  The bindings are then
+/// generated from the in-tree headers, so the library must come from the same
+/// tree: if it has not been built there, the build fails rather than falling
+/// back to a system-installed library built with different options.
+///
+/// Returns `None` only when neither applies, in which case the system-wide
+/// library is used.
 fn wolfssl_lib_dir() -> Result<Option<String>> {
     if let Some(dirs) = wolfssl_prefix_dirs() {
-        Ok(Some(dirs.lib.clone()))
-    } else {
-        let repo_lib_dir = wolfssl_repo_lib_dir()?;
-        if Path::new(&repo_lib_dir).exists() {
-            Ok(Some(repo_lib_dir))
-        } else {
-            Ok(None)
-        }
+        return Ok(Some(dirs.lib.clone()));
     }
+    if wolfssl_in_tree_base_dir()?.is_none() {
+        return Ok(None);
+    }
+    // The directory alone is not enough: configure/libtool create it before
+    // any library is built and `make clean` leaves it behind.
+    let repo_lib_dir = wolfssl_repo_lib_dir()?;
+    if !has_wolfssl_lib(Path::new(&repo_lib_dir)) {
+        return Err(io::Error::other(format!(
+            "the wolfSSL repository containing this crate is configured, but \
+             no wolfSSL library was found in {}.  Build the C library first \
+             (run make in the repository root), or set WOLFSSL_PREFIX to a \
+             wolfSSL installation.",
+            repo_lib_dir)));
+    }
+    Ok(Some(repo_lib_dir))
 }
 
 fn bindings_path() -> String {
@@ -440,11 +463,15 @@ fn setup_wolfssl_link() -> Result<()> {
             // The DLL is found through PATH at run time, so there is no rpath
             // to set here.
             Some(WolfsslLibKind::ImportLib) => println!("cargo::rustc-link-lib=wolfssl"),
-            Some(WolfsslLibKind::StaticLib) | None =>
+            Some(WolfsslLibKind::StaticLib) =>
                 println!("cargo::rustc-link-lib=static=wolfssl"),
+            // The library kind is unknown, so let the linker pick whichever
+            // one it finds.
+            None => println!("cargo::rustc-link-lib=wolfssl"),
         }
     } else {
-        // No local lib dir found; rely on whatever is installed system-wide.
+        // Neither WOLFSSL_PREFIX nor an in-tree build is in use; rely on
+        // whatever is installed system-wide.
         println!("cargo::rustc-link-lib=wolfssl");
     }
 
@@ -639,7 +666,12 @@ fn scan_cfg() -> Result<()> {
      * out by the public-only and verify-only build options, so only the
      * verify side tracks WC_RSA_PSS itself. */
     check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
-    check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
+    /* wc_RsaPublicEncrypt_ex() and wc_RsaPrivateDecrypt_ex() are declared
+     * unconditionally in rsa.h.  With WC_NO_RSA_OAEP they are either not
+     * defined at all (link failure) or, with WC_RSA_NO_PADDING, defined but
+     * unable to do OAEP.  Require the OAEP sentinel from headers.h too. */
+    check_cfg_if(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep",
+                 has_symbol(&binding, "WOLFSSL_RUST_HAVE_RSA_OAEP"));
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
     /* The RSA "only" build options subtract API, so each cfg names what is
      * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
@@ -701,6 +733,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_LmsKey_MakeKey", "lms_make_key");
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_L1_H5_W1", "lms_sha256_256");
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_SHA256_192_L1_H5_W1", "lms_sha256_192");
+
+    /* signature wrapper: wc_SignatureGenerate() and friends are only declared
+     * when NO_SIG_WRAPPER is not defined. */
+    check_cfg(&binding, "wc_SignatureGenerate", "sig_wrapper");
 
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");

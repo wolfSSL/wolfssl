@@ -210,15 +210,17 @@ impl CMAC {
         Ok(rc == 0)
     }
 
-    /// One-shot CMAC generation function (with heap and device ID).
+    /// Add final CMAC input data and generate the CMAC result.
+    ///
+    /// This is equivalent to calling `update()` followed by `finalize()`. It
+    /// uses the key, heap hint and device ID given when this `CMAC` object
+    /// was created and consumes the object since no further operations can
+    /// be performed with it.
     ///
     /// # Parameters
     ///
-    /// * `key`: Key to use for CMAC generation.
     /// * `data`: CMAC input data.
     /// * `dout`: Output buffer where CMAC is written.
-    /// * `heap`: Optional heap hint.
-    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -228,8 +230,6 @@ impl CMAC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(aes)]
-    /// {
     /// use wolfssl_wolfcrypt::cmac::CMAC;
     /// let key = [
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -240,33 +240,12 @@ impl CMAC {
     ///     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
     /// ];
     /// let mut generate_out = [0u8; 16];
-    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
-    /// cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
-    /// }
+    /// let cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
+    /// cmac.update_and_finalize(&message, &mut generate_out).expect("Error with update_and_finalize()");
     /// ```
-    #[cfg(aes)]
-    pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
-        let key_size = crate::buffer_len_to_u32(key.len())?;
-        let data_size = crate::buffer_len_to_u32(data.len())?;
-        let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe {
-            sys::wc_AesCmacGenerate_ex(&mut self.ws_cmac,
-                dout.as_mut_ptr(), &mut dout_size,
-                data.as_ptr(), data_size,
-                key.as_ptr(), key_size, heap, dev_id)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
-        Ok(())
+    pub fn update_and_finalize(mut self, data: &[u8], dout: &mut [u8]) -> Result<(), i32> {
+        self.update(data)?;
+        self.finalize(dout)
     }
 
     /// Add CMAC input data.
@@ -349,15 +328,18 @@ impl CMAC {
         Ok(())
     }
 
-    /// One-shot CMAC verification function (with optional heap and device ID).
+    /// Add final CMAC input data and verify the CMAC result.
+    ///
+    /// This is equivalent to calling `update()` followed by `finalize()` and
+    /// comparing the result to `check` in constant time. It uses the key,
+    /// heap hint and device ID given when this `CMAC` object was created and
+    /// consumes the object since no further operations can be performed with
+    /// it.
     ///
     /// # Parameters
     ///
-    /// * `key`: Key to use for CMAC generation.
     /// * `data`: CMAC input data.
     /// * `check`: CMAC value to compare to.
-    /// * `heap`: Optional heap hint.
-    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -381,39 +363,35 @@ impl CMAC {
     /// ];
     /// let mut generate_out = [0u8; 16];
     /// CMAC::generate(&key, &message, &mut generate_out).expect("Error with generate()");
-    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
-    /// let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
+    /// let cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
+    /// let valid = cmac.update_and_verify(&message, &generate_out).expect("Error with update_and_verify()");
     /// assert!(valid);
     /// }
     /// ```
-    #[cfg(aes)]
-    pub fn verify_ex(&mut self, key: &[u8], data: &[u8], check: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<bool, i32> {
-        let key_size = crate::buffer_len_to_u32(key.len())?;
-        let data_size = crate::buffer_len_to_u32(data.len())?;
-        let check_size = crate::buffer_len_to_u32(check.len())?;
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe {
-            sys::wc_AesCmacVerify_ex(&mut self.ws_cmac,
-                check.as_ptr(), check_size,
-                data.as_ptr(), data_size,
-                key.as_ptr(), key_size, heap, dev_id)
-        };
-        if rc == sys::wolfCrypt_ErrorCodes_MAC_CMP_FAILED_E {
-            return Ok(false);
+    pub fn update_and_verify(mut self, data: &[u8], check: &[u8]) -> Result<bool, i32> {
+        use zeroize::Zeroize;
+        let mut buf = [0u8; sys::WC_CMAC_TAG_MAX_SZ as usize];
+        if check.len() > buf.len() {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
-        if rc < 0 {
-            return Err(rc);
-        }
-        Ok(rc == 0)
+        let computed = &mut buf[..check.len()];
+        self.update(data)?;
+        let rc = self.finalize(computed);
+        let valid = rc.is_ok() && constant_time_eq(computed, check);
+        buf.zeroize();
+        rc?;
+        Ok(valid)
     }
 }
+/// Compare two equal-length byte slices without data-dependent branches.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    core::hint::black_box(diff) == 0
+}
+
 impl CMAC {
     fn zeroize(&mut self) {
         unsafe { crate::zeroize_raw(&mut self.ws_cmac); }

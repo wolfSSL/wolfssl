@@ -34,7 +34,7 @@ converts between DER and fixed `r||s` via `wc_ecc_sig_to_rs` and
 `wc_ecc_rs_raw_to_sig`.
 */
 
-#![cfg(all(feature = "signature", ecc, ecc_import, ecc_verify))]
+#![cfg(all(feature = "signature", sig_wrapper, ecc, ecc_import, ecc_verify))]
 
 use core::ffi::c_void;
 use core::mem::size_of;
