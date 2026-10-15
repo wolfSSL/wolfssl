@@ -1652,6 +1652,10 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
 #endif
     }
 
+    if (ver > WOLFSSL_EXPORT_VERSION_6) {
+        exp[idx++] = options->fatalAlert;
+    }
+
     /* version of connection */
     exp[idx++] = ssl->version.major;
     exp[idx++] = ssl->version.minor;
@@ -1712,8 +1716,14 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
 
     switch (ver) {
         case WOLFSSL_EXPORT_VERSION:
-        case WOLFSSL_EXPORT_VERSION_6:
             if (len < DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        case WOLFSSL_EXPORT_VERSION_6:
+            if (len < DTLS_EXPORT_OPT_SZ_6) {
                 WOLFSSL_MSG("Sanity check on buffer size failed");
                 return BAD_FUNC_ARG;
             }
@@ -1900,6 +1910,14 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
 #else
         idx++;
 #endif
+    }
+
+    if (ver > WOLFSSL_EXPORT_VERSION_6) {
+        options->fatalAlert = exp[idx++];
+    }
+    else {
+        /* Older exports did not tell a fatal alert from a transport EOF */
+        options->fatalAlert = options->isClosed;
     }
 
     /* version of connection */
@@ -2248,12 +2266,20 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     if (ret == 0) {
         switch (version) {
             case WOLFSSL_EXPORT_VERSION:
-            case WOLFSSL_EXPORT_VERSION_6:
                 if (type == WOLFSSL_EXPORT_DTLS) {
                     optSz = DTLS_EXPORT_OPT_SZ;
                 }
                 else {
                     optSz = TLS_EXPORT_OPT_SZ;
+                }
+                break;
+
+            case WOLFSSL_EXPORT_VERSION_6:
+                if (type == WOLFSSL_EXPORT_DTLS) {
+                    optSz = DTLS_EXPORT_OPT_SZ_6;
+                }
+                else {
+                    optSz = TLS_EXPORT_OPT_SZ_6;
                 }
                 break;
 
@@ -16697,6 +16723,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     (void)alertWhy;
 #endif
     ssl->options.isClosed = 1;
+    ssl->options.fatalAlert = 1;
 }
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
@@ -25309,12 +25336,14 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
         if (level == alert_fatal &&
                 !AlertIsExemptUserCanceled(ssl, code)) {
             ssl->options.isClosed = 1;  /* Don't send close_notify */
+            ssl->options.fatalAlert = 1;
         }
         /* RFC 9846 Section 6.2: In TLS 1.3, all error alerts are implicitly
          * fatal regardless of the AlertLevel byte. */
         if (IsAtLeastTLSv1_3(ssl->version) &&
                 code != close_notify && code != user_canceled) {
             ssl->options.isClosed = 1;
+            ssl->options.fatalAlert = 1;
         }
     }
 
@@ -30428,11 +30457,19 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* RFC 8446 6.2 - no new data write after fatal alert or otherwise closed */
-    if (ssl->options.isClosed) {
+    /* RFC 8446 6.2 - no new data write after a fatal alert */
+    if (ssl->options.fatalAlert) {
         WOLFSSL_MSG("Connection is closed, not sending new data");
         if (ssl->error == 0)
             ssl->error = SOCKET_PEER_CLOSED_E;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* ReceiveData() clears this error, as the peer may still send data */
+    if (ssl->options.sentNotify) {
+        WOLFSSL_MSG("close_notify already sent, not sending new data");
+        if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ))
+            ssl->error = SSL_SHUTDOWN_ALREADY_DONE_E;
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -30772,7 +30809,8 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 
     /* reset error state */
     if (error == WC_NO_ERR_TRACE(WANT_READ) ||
-        error == WOLFSSL_ERROR_WANT_READ) {
+        error == WOLFSSL_ERROR_WANT_READ ||
+        error == WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E)) {
         error = 0;
         ssl->error = 0;
     }
@@ -31039,7 +31077,10 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         /* Mark as closed in dtls only once we enter stateful mode. */
         if (!ssl->options.dtls || ssl->options.dtlsStateful)
 #endif
+        {
             ssl->options.isClosed = 1;  /* Don't send close_notify */
+            ssl->options.fatalAlert = 1;
+        }
     }
 
     /* send encrypted alert if encryption is on - can be a rehandshake over
