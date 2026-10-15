@@ -332,11 +332,21 @@ int test_wc_HashUpdate(void)
     }
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
-    /* The type argument is ignored; the type from wc_HashInit() is used. */
+    /* WC_HASH_TYPE_NONE selects the type from wc_HashInit(). */
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
-    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, NULL, 0), 0);
-    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, (byte*)"a", 1), 0);
-    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA512), 0);
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, NULL, 0), 0);
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, (byte*)"a", 1), 0);
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
+
+#ifdef DEBUG_WOLFSSL
+    /* A mismatched type is rejected in debug builds. */
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, (byte*)"a", 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
+#endif
 #endif
 #endif
     return EXPECT_RESULT();
@@ -403,17 +413,25 @@ int test_wc_HashFinal(void)
     }
 #if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
     {
-        /* The type argument is ignored; the type from wc_HashInit() is used,
-         * so a SHA-256 digest is produced. */
+        /* WC_HASH_TYPE_NONE selects the type from wc_HashInit(), so a
+         * SHA-256 digest is produced. */
         byte expected[WC_SHA256_DIGEST_SIZE];
 
         ExpectIntEQ(wc_Sha256Hash(NULL, 0, expected), 0);
         XMEMSET(digest, 0, sizeof(digest));
         ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
-        ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_SHA512, digest), 0);
+        ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_NONE, digest), 0);
         ExpectBufEQ(digest, expected, WC_SHA256_DIGEST_SIZE);
-        ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA512), 0);
+        ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
     }
+
+#ifdef DEBUG_WOLFSSL
+    /* A mismatched type is rejected in debug builds. */
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_SHA512, digest),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
+#endif
 #endif
 #endif
     return EXPECT_RESULT();
@@ -952,11 +970,9 @@ int test_wc_HashDecisionCoverage(void)
         /* wc_HashFree: hash == NULL. */
         ExpectIntEQ(wc_HashFree(NULL, type), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-        /* A mismatched type argument is ignored and the type recorded by
-         * wc_HashInit() is used, so the wrong union member is never
-         * selected. */
-        if (supportedHashLen > 1) {
-            enum wc_HashType type2 = supportedHash[1];
+        /* A type argument of WC_HASH_TYPE_NONE selects the type recorded by
+         * wc_HashInit(). */
+        {
             byte expected[WC_MAX_DIGEST_SIZE];
             int digestSz = wc_HashGetDigestSize(type);
 
@@ -965,23 +981,55 @@ int test_wc_HashDecisionCoverage(void)
                 sizeof(expected)), 0);
             XMEMSET(digest, 0, sizeof(digest));
             ExpectIntEQ(wc_HashInit(&hash, type), 0);
-            ExpectIntEQ(wc_HashUpdate(&hash, type2, (byte*)"a", 1), 0);
-            ExpectIntEQ(wc_HashFinal(&hash, type2, digest), 0);
+            ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, (byte*)"a",
+                1), 0);
+            ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_NONE, digest), 0);
             if (digestSz > 0) {
                 ExpectBufEQ(digest, expected, digestSz);
             }
-            ExpectIntEQ(wc_HashFree(&hash, type2), 0);
+            ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
         #ifdef WOLFSSL_HASH_FLAGS
             {
                 word32 flags = 0;
 
                 ExpectIntEQ(wc_HashInit(&hash, type), 0);
-                ExpectIntEQ(wc_HashSetFlags(&hash, type2, 0), 0);
-                ExpectIntEQ(wc_HashGetFlags(&hash, type2, &flags), 0);
-                ExpectIntEQ(wc_HashFree(&hash, type2), 0);
+                ExpectIntEQ(wc_HashSetFlags(&hash, WC_HASH_TYPE_NONE, 0), 0);
+                ExpectIntEQ(wc_HashGetFlags(&hash, WC_HASH_TYPE_NONE,
+                    &flags), 0);
+                ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
             }
         #endif
         }
+
+#ifdef DEBUG_WOLFSSL
+        /* type != WC_HASH_TYPE_NONE && type != hash->type mismatch branches,
+         * only built under DEBUG_WOLFSSL; needs two distinct compiled-in
+         * types for an independence pair against the matching-type calls
+         * above. */
+        if (supportedHashLen > 1) {
+            enum wc_HashType type2 = supportedHash[1];
+
+            ExpectIntEQ(wc_HashInit(&hash, type), 0);
+            ExpectIntEQ(wc_HashUpdate(&hash, type2, (byte*)"a", 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_HashFinal(&hash, type2, digest),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        #ifdef WOLFSSL_HASH_FLAGS
+            ExpectIntEQ(wc_HashSetFlags(&hash, type2, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            {
+                word32 flags = 0;
+
+                ExpectIntEQ(wc_HashGetFlags(&hash, type2, &flags),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
+        #endif
+            ExpectIntEQ(wc_HashFree(&hash, type2),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* clean up with the matching type. */
+            ExpectIntEQ(wc_HashFree(&hash, type), 0);
+        }
+#endif /* DEBUG_WOLFSSL */
 
         /* wc_Hash/wc_Hash_ex: hash_len < (word32)dig_size (true side,
          * BUFFER_E). False side already covered by every supportedHash[]
