@@ -12571,6 +12571,7 @@ int test_wc_CryptoCb_AesNoSwKey(void)
 #ifdef WOLFSSL_AES_XTS
     /* A HW-stored key replacing a software one must not leave the old
      * schedule usable: XTS only checks rounds */
+    XMEMSET(&xts, 0, sizeof(xts));
     ExpectIntEQ(wc_AesXtsInit(&xts, NULL, TEST_CRYPTOCB_AES_NOSW_DEVID), 0);
     test_CryptoCb_AesNoSw_Decline = 1;
     ExpectIntEQ(wc_AesXtsSetKeyNoInit(&xts, xtsKey, (word32)sizeof(xtsKey),
