@@ -881,6 +881,9 @@ struct LmsKey {
     int  labelLen;
 #endif
     WC_BITFIELD pubSet:1;  /* pub holds a public key */
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+    WC_BITFIELD privSet:1; /* priv_raw contains the private key */
+#endif
 };
 
 #ifndef WC_LMSKEY_TYPE_DEFINED
@@ -949,6 +952,7 @@ WOLFSSL_API const byte* wc_LmsKey_GetKidFromPrivRaw(const byte* priv,
     word32 privSz);
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
 /* Work out what the CPU can do; called from wc_LmsKey_Init().  Internal to
  * the library, not part of the API. */
 WOLFSSL_LOCAL void wc_lms_init(void);
@@ -963,6 +967,7 @@ int wc_hss_sigsleft(const LmsParams* params, const byte* priv_raw);
 WOLFSSL_API
 int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     word32 msgSz, const byte* sig, word32 sigSz);
+#endif /* !WOLF_CRYPTO_CB_ONLY_LMS */
 
 #ifdef __cplusplus
 } /* extern "C" */

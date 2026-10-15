@@ -275,6 +275,10 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
     callback the software reload runs as usual, which needs the write
     callback set too.
 
+    WOLF_CRYPTO_CB_ONLY_XMSS removes the software reload, so the read
+    callback is never called and only the device-backed no-op
+    succeeds.
+
     A reloaded key holds no public key: neither arm populates it.
     Call wc_XmssKey_ImportPubRaw() on a separate key to verify, or keep
     the public key exported at generation time.
@@ -283,6 +287,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_XMSS_RC_* mapped error if the read callback fails.
     \return IO_FAILED_E if the private key could not be read.
+    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_XMSS when the key is
+    not device-backed.
 
     \param [in,out] key Pointer to an XmssKey with parameters and
     read callback set.
