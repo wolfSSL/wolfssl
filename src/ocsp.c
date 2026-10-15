@@ -2123,12 +2123,15 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
             XMEMCPY(&ser->data[i], cid->status->serial,
                 (size_t)cid->status->serialSz);
             ser->length = cid->status->serialSz;
+            /* Qt and HAProxy read data/length as the value octets. */
+            ser->dataIsRaw = 1;
         #else
             ser->data[i++] = ASN_INTEGER;
             i += SetLength(cid->status->serialSz, ser->data + i);
             XMEMCPY(&ser->data[i], cid->status->serial,
                 (size_t)cid->status->serialSz);
             ser->length = i + cid->status->serialSz;
+            ser->dataIsRaw = 0;
         #endif
 
         cid->status->serialInt = ser;
