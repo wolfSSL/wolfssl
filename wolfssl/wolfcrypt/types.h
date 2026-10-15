@@ -882,7 +882,7 @@ enum {
                 wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                 #define XFREE(p, h, t)   \
-                    wolfSSL_Free(xp, h, t, __func__, __LINE__)
+                    wolfSSL_Free((p), h, t, __func__, __LINE__)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
@@ -892,7 +892,7 @@ enum {
         #else
             #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)   wolfSSL_Free(xp, h, t)
+                #define XFREE(p, h, t)   wolfSSL_Free((p), h, t)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t); } while (0)
