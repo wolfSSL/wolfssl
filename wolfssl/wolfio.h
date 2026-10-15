@@ -1134,6 +1134,20 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     #endif
 #endif
 
+#if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40400
+    /* Zephyr 4.4 keeps the unprefixed address family names only under
+     * CONFIG_NET_NAMESPACE_COMPAT_MODE. */
+    #ifndef WOLFSSL_IP4
+        #define WOLFSSL_IP4 NET_AF_INET
+    #endif
+    #ifndef WOLFSSL_IP6
+        #define WOLFSSL_IP6 NET_AF_INET6
+    #endif
+    #ifndef WOLFSSL_SOCKADDR_IN6
+        #define WOLFSSL_SOCKADDR_IN6 struct net_sockaddr_in6
+    #endif
+#endif
+
 #ifndef WOLFSSL_IP4
     #define WOLFSSL_IP4 AF_INET
 #endif

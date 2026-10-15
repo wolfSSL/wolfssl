@@ -465,6 +465,7 @@ config WOLFSSL_CURVE448
 config WOLFSSL_ED448
   bool "wolfCrypt Ed448 support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   default y if WOLFSSL_CURVE448
   help
     Enable Ed448 signatures (HAVE_ED448), together with the SHAKE-256
