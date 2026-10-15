@@ -17011,6 +17011,11 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
              * the error does not undo the rejection. */
             ret = (cert_err != 0) ? cert_err : VERIFY_CERT_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            /* A cert error is recorded by the caller. */
+            if (cert_err == 0 && ssl != NULL && ssl->peerVerifyRet == 0)
+                ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REJECTED;
+        #endif
 
             /* mark as verify error */
             args->verifyErr = 1;
@@ -17113,6 +17118,8 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
             WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
+    if (ret != 0 && ssl->peerVerifyRet == 0)
+        ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REJECTED;
     FreeDecodedCert(issuer);
     WC_FREE_VAR_EX(issuer, ssl->heap, DYNAMIC_TYPE_DCERT);
     return ret;

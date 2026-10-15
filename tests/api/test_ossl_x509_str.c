@@ -4376,6 +4376,7 @@ static int test_cvcb_depths;          /* depths seen by the verify cb */
 static int test_cvcb_depth_calls[TEST_CVCB_DEPTHS]; /* calls per depth */
 static int test_cvcb_first_depth;     /* depth of the first call */
 static int test_cvcb_bad_depth;       /* certs seen at the wrong depth */
+static long test_cvcb_verify_result;  /* SSL_get_verify_result() */
 
 /* Like OpenVPN's cert_verify_callback, which returns X509_verify_cert(). */
 static int test_cvcb_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
@@ -4485,6 +4486,12 @@ static int test_cvcb_ssl_ready(WOLFSSL* ssl)
     return TEST_SUCCESS;
 }
 
+static int test_cvcb_client_cleanup(WOLFSSL* ssl)
+{
+    test_cvcb_verify_result = SSL_get_verify_result(ssl);
+    return TEST_SUCCESS;
+}
+
 static int test_cvcb_client_ready(WOLFSSL_CTX* ctx)
 {
     if (test_cvcb_ready(ctx) != TEST_SUCCESS)
@@ -4526,6 +4533,7 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
     test_cvcb_ready = ready;
     client_cbs.ctx_ready = test_cvcb_client_ready;
     client_cbs.ssl_ready = test_cvcb_ssl_ready;
+    client_cbs.on_cleanup = test_cvcb_client_cleanup;
     client_cbs.caPemFile = caFile;
     server_cbs.certPemFile = certFile;
     server_cbs.keyPemFile = keyFile;
@@ -4550,6 +4558,7 @@ static int test_cvcb_run(ctx_cb ready, const char* caFile,
     test_cvcb_leaf_outside = 0;
     test_cvcb_depths = 0;
     test_cvcb_bad_depth = 0;
+    test_cvcb_verify_result = -1;
     ret = test_wolfSSL_client_server_nofail_memio(&client_cbs, &server_cbs,
         NULL);
     for (i = 1; i < TEST_CVCB_DEPTHS; i++) {
@@ -4749,6 +4758,42 @@ static int test_cvcb_ctx_ready_verify(WOLFSSL_CTX* ctx)
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, test_cvcb_verify_cb);
     return TEST_SUCCESS;
 }
+
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+static ctx_cb test_cvcb_ext_ready;
+
+static int test_cvcb_unknown_ext_cb(const word16* oid, word32 oidSz, int crit,
+    const unsigned char* der, word32 derSz)
+{
+    (void)oid;
+    (void)oidSz;
+    (void)crit;
+    (void)der;
+    (void)derSz;
+    return 0;
+}
+
+/* The CertManager accepts unknown extensions, and trusts a CA with one. */
+static int test_cvcb_ctx_ready_ext(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
+    byte* ca = NULL;
+    size_t caSz = 0;
+    int ret = TEST_FAIL;
+
+    wolfSSL_CertManagerSetUnknownExtCallback(cm, test_cvcb_unknown_ext_cb);
+    if (load_file("./certs/test/ca-cert-unknown-crit-ext.pem", &ca, &caSz)
+            == 0) {
+        /* Loading it as a trusted peer cert too may fail, as that does not use
+         * the callback. The handshake fails if the CA was not loaded. */
+        (void)wolfSSL_CertManagerLoadCABuffer(cm, ca, (long)caSz,
+            WOLFSSL_FILETYPE_PEM);
+        ret = test_cvcb_ext_ready(ctx);
+    }
+    XFREE(ca, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
 #endif
 
 /* The verify callback sees the CA that signed each cert at the depth after it,
@@ -4833,7 +4878,41 @@ int test_wolfSSL_verify_cb_trust_anchor(void)
         ExpectIntEQ(test_cvcb_depths, 0x3);
         ExpectIntEQ(test_cvcb_depth_calls[1], 1);
         ExpectIntEQ(test_cvcb_bad_depth, 0);
+
+        /* The peer cert has the name of its CA, not its key. The CA is
+         * reported, so a pin on another CA rejects it. */
+        ExpectIntEQ(test_cvcb_run(ready[i], NULL,
+            "./certs/test/server-self-issued-cert.pem", svrKeyFile,
+            "./certs/test/server-self-issued-cert.pem", 1, -1),
+            TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depths, 0x3);
+        ExpectIntEQ(test_cvcb_depth_calls[1], 1);
+        ExpectIntEQ(test_cvcb_bad_depth, 0);
+        ExpectIntEQ(test_cvcb_verify_result, X509_V_OK);
         test_cvcb_chain_files = test_cvcb_int_chain;
+        test_cvcb_pin = 1;
+        ExpectIntEQ(test_cvcb_run(ready[i], NULL,
+            "./certs/test/server-self-issued-cert.pem", svrKeyFile,
+            "./certs/test/server-self-issued-cert.pem", 1, -1), -1001);
+        ExpectIntEQ(test_cvcb_verify_result, X509_V_ERR_CERT_REJECTED);
+        test_cvcb_pin = 0;
+    #endif
+    #if defined(HAVE_ECC) && !defined(NO_RSA) && \
+        defined(WC_ASN_UNKNOWN_EXT_CB)
+        /* The CA has an unknown critical extension that the CertManager
+         * accepts. It is reported, so a pin on another CA rejects it. */
+        test_cvcb_ext_ready = ready[i];
+        ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
+            "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc-rsa.pem", 1, -1), TEST_SUCCESS);
+        ExpectIntEQ(test_cvcb_depths, 0x3);
+        ExpectIntEQ(test_cvcb_depth_calls[1], 1);
+        test_cvcb_pin = 1;
+        ExpectIntEQ(test_cvcb_run(test_cvcb_ctx_ready_ext, "",
+            "./certs/server-ecc-rsa.pem", "./certs/ecc-key.pem",
+            "./certs/server-ecc-rsa.pem", 1, -1), -1001);
+        ExpectIntEQ(test_cvcb_verify_result, X509_V_ERR_CERT_REJECTED);
+        test_cvcb_pin = 0;
     #endif
     }
 #endif

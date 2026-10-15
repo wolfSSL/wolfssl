@@ -110,18 +110,33 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
 #if defined(SESSION_CERTS) || defined(WOLFSSL_SIGNER_DER_CERT)
 
+/* Decode a cert like the CertManager does, with its unknown extension
+ * callback. */
+static int x509ParseCertCM(DecodedCert* cert, const byte* der, word32 derSz,
+        WOLFSSL_CERT_MANAGER* cm)
+{
+    InitDecodedCert(cert, der, derSz, cm->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback != NULL)
+        wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+#endif
+    return ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL);
+}
+
 /**
- * Find the issuing cert of the input cert. On a self-issued cert (issuer name
- * equals subject name) this function will return an error.
+ * Find the issuing cert of the input cert. On a self-signed cert, which the
+ * CertManager resolves to itself, no issuer is returned.
  * @param issuer The issuer x509 struct is returned here
  * @param cm     The cert manager that is queried for the issuer
  * @param x      This cert's issuer will be queried in cm
  * @return       WOLFSSL_SUCCESS on success
- *               WOLFSSL_FAILURE on error
+ *               WOLFSSL_FAILURE when no issuer is found
+ *               WOLFSSL_FATAL_ERROR on a decoding or allocation error
  */
 static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x)
 {
+    int ret = WOLFSSL_SUCCESS;
     Signer* ca = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
@@ -132,12 +147,14 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     }
 
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
-        return WOLFSSL_FAILURE);
+        return WOLFSSL_FATAL_ERROR);
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
-    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
-    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL) == 0
-            && !cert->selfIssued) {
+    if (x509ParseCertCM(cert, x->derCert->buffer, x->derCert->length,
+            cm) != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
     #ifndef NO_SKID
         if (cert->extAuthKeyIdSet)
             ca = GetCA(cm, cert->extAuthKeyId);
@@ -146,35 +163,60 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     #else /* NO_SKID */
         ca = GetCA(cm, cert->issuerHash);
     #endif /* NO SKID */
+        /* A self-issued cert may be signed by another key. Only a CA with the
+         * cert's own key is the cert itself. */
+        if (ca != NULL && cert->selfIssued &&
+                (ca->publicKey == NULL ||
+                 (ca->pubKeySize == cert->pubKeySize &&
+                  XMEMCMP(ca->publicKey, cert->publicKey,
+                      cert->pubKeySize) == 0))) {
+            ca = NULL;
+        }
     }
     FreeDecodedCert(cert);
-    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
 
-    if (ca == NULL)
-        return WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS && ca == NULL)
+        ret = WOLFSSL_FAILURE;
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* populate issuer with Signer DER. A signer restored from a cert cache
      * (cm_restore_cert_row()) carries no DER, so fall back to the empty
      * certificate below rather than dereferencing NULL. */
-    if ((ca->derCert != NULL) && (ca->derCert->buffer != NULL)) {
-        if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
-                ca->derCert->length, cm->heap) == NULL)
-            return WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS && ca->derCert != NULL &&
+            ca->derCert->buffer != NULL) {
+        if (x509ParseCertCM(cert, ca->derCert->buffer, ca->derCert->length,
+                cm) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            *issuer = wolfSSL_X509_new_ex(cm->heap);
+            if (*issuer == NULL) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else if (CopyDecodedToX509(*issuer, cert) != 0) {
+                wolfSSL_X509_free(*issuer);
+                *issuer = NULL;
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        FreeDecodedCert(cert);
+        WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
+        return ret;
     }
-    else
 #endif
-    {
+    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
+
+    if (ret == WOLFSSL_SUCCESS) {
         /* Create an empty certificate as CA doesn't have a certificate. */
         *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
             DYNAMIC_TYPE_OPENSSL);
         if (*issuer == NULL)
-            return WOLFSSL_FAILURE;
+            return WOLFSSL_FATAL_ERROR;
 
         InitX509((*issuer), 1, NULL);
     }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 #endif /* SESSION_CERTS || WOLFSSL_SIGNER_DER_CERT */
 
@@ -1183,7 +1225,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             }
             issuer = NULL;
     #ifdef WOLFSSL_SIGNER_DER_CERT
-            x509GetIssuerFromCM(&issuer, ctx->store->cm, ctx->current_cert);
+            if (x509GetIssuerFromCM(&issuer, ctx->store->cm,
+                    ctx->current_cert) == WOLFSSL_FATAL_ERROR) {
+                ret = WOLFSSL_FATAL_ERROR;
+                goto exit;
+            }
             if (issuer != NULL && ctx->owned != NULL) {
                 wolfSSL_sk_X509_push(ctx->owned, issuer);
             }
