@@ -5375,6 +5375,11 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Set have options based on public key OID. */
         wolfssl_set_have_from_key_oid(ctx, NULL, x->pubKeyOID);
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+        defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+        defined(WOLFSSL_HAVE_SLHDSA)
+        ctx->pkCurveOID = x->pkCurveOID;
+    #endif
     }
 
     return res;

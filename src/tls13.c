@@ -11437,7 +11437,21 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                 /* After this call, args->altSigLen has the length we need for
                  * the alternative signature. */
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                wolfssl_priv_der_blind_toggle(ssl->buffers.altKey,
+                                              ssl->buffers.altKeyMask);
+            #endif
                 ret = DecodeAltPrivateKey(ssl, &args->altSigLen);
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                if (ret == 0) {
+                    ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+                                                 &ssl->buffers.altKeyMask);
+                }
+                else {
+                    wolfssl_priv_der_blind_toggle(ssl->buffers.altKey,
+                                                  ssl->buffers.altKeyMask);
+                }
+            #endif
                 if (ret != 0)
                     goto exit_scv;
 
