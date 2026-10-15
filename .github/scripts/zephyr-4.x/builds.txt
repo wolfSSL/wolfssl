@@ -2,6 +2,7 @@
 # <board> <app under zephyr/> [Kconfig overlay in this directory or the app's]
 native_sim          samples/wolfssl_tls_sock
 native_sim          samples/wolfssl_tls_sock    external_libc.conf
+native_sim          samples/wolfssl_tls_sock    tls_cert.conf
 native_sim          samples/wolfssl_test
 native_sim          samples/wolfssl_test        external_libc.conf
 native_sim          samples/wolfssl_benchmark

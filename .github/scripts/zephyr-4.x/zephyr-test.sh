@@ -14,7 +14,8 @@
 #   -d, --subdir <dir>     App subdir under zephyr/ (samples or tests; default samples)
 #   -m, --modules <list>   West modules to fetch besides wolfSSL (default: all)
 #   -l, --list <file>      Build each "<board> <app> [overlay]" line of <file>
-#                          in one workspace, instead of -t/-s/-d/--extra-conf
+#                          in one workspace, instead of -t/-s/-d/--extra-conf;
+#                          an overlay not beside <file> is read from the app
 #   -v, --verbose          Verbose compile output (show full compiler commands)
 #   -W, --werror           Build with -Werror (treat warnings as errors)
 #   --commit <sha>         Checkout specific commit after fetching branch

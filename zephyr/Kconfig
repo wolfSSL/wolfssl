@@ -572,11 +572,12 @@ config WOLFSSL_CERT_REQ
 
 config WOLFSSL_CERT_EXT
   bool "wolfSSL certificate extensions"
-  depends on WOLFSSL_CERT_GEN
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
-    Define WOLFSSL_CERT_EXT. Adds the v3 extension setters -
-    wc_SetKeyUsage(), wc_SetExtKeyUsage(), wc_SetSubjectKeyId...() and
-    wc_SetAuthKeyId...() - to certificate generation.
+    Define WOLFSSL_CERT_EXT. Decodes further certificate extensions, such
+    as certificate policies, and with WOLFSSL_CERT_GEN adds the v3
+    extension setters - wc_SetKeyUsage(), wc_SetExtKeyUsage(),
+    wc_SetSubjectKeyId...() and wc_SetAuthKeyId...().
 
 config WOLFSSL_KEY_GEN
   bool "wolfCrypt key generation"
@@ -595,12 +596,13 @@ config WOLFSSL_ALT_NAMES
 config WOLFSSL_IP_ALT_NAME
   bool "wolfCrypt IP address subject alternative names"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
-  depends on NETWORKING
+  depends on NETWORKING || WOLFSSL_USER_IO || WOLFSSL_CRYPTO_ONLY
   help
     Decode and match IP address subject alternative names
     (WOLFSSL_IP_ALT_NAME).
 
-    Needs NETWORKING: the matching uses the socket address types.
+    With the built-in socket I/O this needs NETWORKING, as the TLS
+    layer's IPv6 matching uses the socket address types.
 
 config WOLFSSL_CERT_NAME_ALL
   bool "wolfCrypt all certificate name attributes"
