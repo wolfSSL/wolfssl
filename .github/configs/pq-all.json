@@ -370,5 +370,9 @@
   "--disable-mlkem", "--disable-mldsa", "--enable-lms=yes,verify-only",
   "--enable-xmss=yes,verify-only",
   "--enable-slhdsa=yes,sha2,verify-only"],
- "run": [["sh", "-c", "out=$(./wolfcrypt/benchmark/benchmark -lms_hss -xmss_xmssmt -slhdsa 2>&1) || exit 1; printf '%s\\n' \"$out\"; if printf '%s\\n' \"$out\" | grep -qE 'wc_(Lms|Xmss|SlhDsa)Key_Verify failed|Benchmark .* failed:'; then echo 'HBS benchmark failed' >&2; exit 1; fi; for row in 'LMS/HSS_L1_H10_W8 +[0-9]+' 'XMSS-SHA2_10_256 +[0-9]+' 'SLH-DSA-SHAKE-S +128' 'SLH-DSA-SHA2-S +128'; do printf '%s\\n' \"$out\" | grep -qE \"^$row +verify\" || { echo \"no $row verify row reported\" >&2; exit 1; }; done"]]}
+ "run": [["sh", "-c", "out=$(./wolfcrypt/benchmark/benchmark -lms_hss -xmss_xmssmt -slhdsa 2>&1) || exit 1; printf '%s\\n' \"$out\"; if printf '%s\\n' \"$out\" | grep -qE 'wc_(Lms|Xmss|SlhDsa)Key_Verify failed|Benchmark .* failed:'; then echo 'HBS benchmark failed' >&2; exit 1; fi; for row in 'LMS/HSS_L1_H10_W8 +[0-9]+' 'XMSS-SHA2_10_256 +[0-9]+' 'SLH-DSA-SHAKE-S +128' 'SLH-DSA-SHA2-S +128'; do printf '%s\\n' \"$out\" | grep -qE \"^$row +verify\" || { echo \"no $row verify row reported\" >&2; exit 1; }; done"]]},
+{"name": "mldsa-weak-prehash", "minutes": 2,
+ "comment": "Opt-in acceptance of a HashML-DSA pre-hash weaker than the parameter set",
+ "configure": ["--enable-cryptonly", "--enable-mldsa",
+  "CPPFLAGS=-DWOLFSSL_MLDSA_ALLOW_WEAK_PREHASH"]}
 ]

@@ -307,6 +307,10 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     (FIPS 204 sec 5.4), or the key has no private key set.
     \return BUFFER_E if the sig buffer is too small.
 
+    \note WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH accepts a supported hash weaker
+    than the parameter set instead of returning BAD_FUNC_ARG. An unsupported
+    hash is still refused. Not FIPS 204 section 5.4 compliant.
+
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
     \param [in] ctx Optional context string (NULL when ctxLen=0).
     \param [in] ctxLen Length of ctx in bytes; no greater than 255.
@@ -484,6 +488,9 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
     invalid, or hashAlg is unsupported or weaker than the parameter set
     (FIPS 204 sec 5.4).
+
+    \note WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH verifies such a signature rather
+    than refusing it. An unsupported hash is still refused.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.

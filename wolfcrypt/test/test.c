@@ -69159,6 +69159,10 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
+#ifndef NO_SHA256
+    byte sha256Digest[WC_SHA256_DIGEST_SIZE];
+    int  sha256Refused;
+#endif
     int res = 0;
 #endif
 #endif
@@ -69257,6 +69261,49 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
         res = 0;
         ret = wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0, digest,
             (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, &res);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (res != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
+    }
+#endif
+
+#ifndef NO_SHA256
+    /* SHA-256 gives 128-bit collision strength: enough for ML-DSA-44, short
+     * of the 192 and 256 that 65 and 87 need, FIPS 204 sec 5.4. */
+    ret = wc_Sha256Hash(msg, (word32)sizeof(msg), sha256Digest);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH
+    sha256Refused = 0;
+#else
+    sha256Refused = (param != WC_ML_DSA_44);
+#endif
+
+    sigLen = wc_MlDsaKey_SigSize(key);
+    ret = wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen, sha256Digest,
+        (word32)sizeof(sha256Digest), WC_HASH_TYPE_SHA256, rng);
+    if (sha256Refused) {
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0,
+            sha256Digest, (word32)sizeof(sha256Digest), WC_HASH_TYPE_SHA256,
+            &res);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = 0;
+    }
+    else {
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0,
+            sha256Digest, (word32)sizeof(sha256Digest), WC_HASH_TYPE_SHA256,
+            &res);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (res != 1)

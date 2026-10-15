@@ -111,6 +111,12 @@
  * WOLFSSL_MLDSA_REVERSE_HASH_OID                         Default: OFF
  *   Reverse the DER encoded hash oid when signing and verifying a pre-hashed
  *   message.
+ * WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH                       Default: OFF
+ *   Accept any recognised pre-hash with any parameter set when signing or
+ *   verifying a pre-hashed message, instead of requiring the digest strength
+ *   to match the parameter set. For devices that pre-hash with SHA-256 only.
+ *   DO NOT enable this if implementation must be conformant to FIPS 204.
+ *   Cannot be used in a FIPS build.
  *
  * WC_MLDSA_CACHE_MATRIX_A                                Default: OFF
  *   Enable caching of the A matrix on import.
@@ -238,6 +244,9 @@
         defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
         #error "SMALLEST_MEM keeps nothing pre-calculated"
     #endif
+#endif
+#if defined(HAVE_FIPS) && defined(WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH)
+    #error "WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH is not allowed in a FIPS build"
 #endif
 
 /* Signing drives the whole-vector helpers when it holds a full vector: the
@@ -899,7 +908,15 @@ static int mldsa_check_hash_strength(int hashAlg, word16 lambda)
             return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH
+    /* Accept any recognised pre-hash for any parameter set. Not FIPS 204
+     * section 5.4 compliant. */
+    (void)lambda;
+    (void)strength;
+    return 0;
+#else
     return (strength >= lambda) ? 0 : BAD_FUNC_ARG;
+#endif
 }
 
 /* Get the OID for the digest hash.
