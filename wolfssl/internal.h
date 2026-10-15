@@ -2425,6 +2425,11 @@ WOLFSSL_LOCAL int CheckCookieState(WOLFSSL* ssl);
 #else
     #define SSL_USING_PSK(ssl) ((ssl)->options.usingPSK_cipher)
 #endif
+/* A verified client certificate with proof of possession. Nothing is verified
+ * under verifyNone. */
+#define SSL_PEER_CERT_VERIFIED(ssl) \
+    ((ssl)->options.havePeerCert && (ssl)->options.havePeerVerify && \
+     !(ssl)->options.verifyNone)
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 WOLFSSL_LOCAL int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk);
 #else
@@ -3990,20 +3995,13 @@ WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
-/* Bits of InternalTicket.flags. Bit 0 is where this byte has always held
- * haveEMS, so sizeof(InternalTicket) and every offset are unchanged and an
- * older ticket parses with the newer bits clear. An older peer handed a ticket
- * carrying bit 1 copies the whole byte into haveEMS and fails the handshake
- * cleanly, so a shared TLS 1.2 ticket key needs matching versions. */
-#define WOLFSSL_TICKET_FLAG_EMS       0x01
-#define WOLFSSL_TICKET_FLAG_PEER_AUTH 0x02
-
 typedef struct InternalTicket {
     ProtocolVersion pv;                    /* version when ticket created */
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-    byte            flags;                 /* WOLFSSL_TICKET_FLAG_* */
+    byte            haveEMS:1;             /* have extended master secret */
+    byte            peerAuthOk:1;          /* client cert was verified */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */

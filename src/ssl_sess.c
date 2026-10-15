@@ -2940,7 +2940,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
-    /* peerAuthOk, last so an older reader stops before it. */
+    /* peerAuthOk */
     size += OPAQUE8_LEN;
 
     if (p != NULL) {
@@ -3928,12 +3928,14 @@ void SetupSession(WOLFSSL* ssl)
     else
         session->haveEMS = ssl->options.haveEMS;
     /* Server only: on a client these flags describe the server certificate,
-     * a different statement that nothing reads. A resumed connection sends no
-     * Certificate, so it keeps what it inherited. */
-    if (!ssl->options.resuming &&
-            (ssl->options.side == WOLFSSL_SERVER_END)) {
-        session->peerAuthOk = (byte)(ssl->options.havePeerCert &&
-                                     ssl->options.havePeerVerify);
+     * a different statement that nothing reads. A full handshake records its
+     * own outcome; a resumed one keeps what it inherited unless post-handshake
+     * auth added a certificate. */
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (!ssl->options.resuming)
+            session->peerAuthOk = 0;
+        if (SSL_PEER_CERT_VERIFIED(ssl))
+            session->peerAuthOk = 1;
     }
 #ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context

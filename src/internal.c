@@ -42637,8 +42637,9 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
                 ) {
             int secretSz = SECRET_LEN;
             /* The secret comes from the callback, and nothing records an auth
-             * outcome for it. */
-            if (ClientAuthRequired(ssl, ssl->options.usingPSK_cipher)) {
+             * outcome for it. The suite is not chosen yet, so no PSK exception
+             * applies. */
+            if (ClientAuthRequired(ssl, 0)) {
                 WOLFSSL_MSG("Session secret callback cannot assert client auth,"
                             " do full handshake");
                 ssl->options.resuming = 0;
@@ -44398,14 +44399,10 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
         it->suite[0] = ssl->options.cipherSuite0;
         it->suite[1] = ssl->options.cipherSuite;
 
-        /* Both arms below only add to this, and an async re-entry may not
-         * have re-zeroed the buffer. A resumed connection sends no
-         * Certificate, so it carries what it resumed. */
-        it->flags = 0;
-        if (ssl->options.resuming ? ssl->session->peerAuthOk :
-                (ssl->options.havePeerCert && ssl->options.havePeerVerify)) {
-            it->flags |= WOLFSSL_TICKET_FLAG_PEER_AUTH;
-        }
+        /* Post-handshake auth can add a certificate to a resumed connection,
+         * so fresh proof wins over what was resumed. */
+        it->peerAuthOk = (byte)(SSL_PEER_CERT_VERIFIED(ssl) ||
+            (ssl->options.resuming && ssl->session->peerAuthOk));
 
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);
@@ -44421,8 +44418,7 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
 #ifndef NO_ASN_TIME
             c32toa(LowResTimer(), it->timestamp);
 #endif
-            if (ssl->options.haveEMS)
-                it->flags |= WOLFSSL_TICKET_FLAG_EMS;
+            it->haveEMS = (byte) ssl->options.haveEMS;
         }
         else {
 #ifdef WOLFSSL_TLS13
@@ -44982,8 +44978,7 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
         XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
         /* After the DupSession above, which would otherwise overwrite it. */
-        ssl->session->peerAuthOk =
-            (it->flags & WOLFSSL_TICKET_FLAG_PEER_AUTH) ? 1 : 0;
+        ssl->session->peerAuthOk = it->peerAuthOk;
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->arrays == NULL)
@@ -44991,8 +44986,7 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
             /* Copy the haveExtendedMasterSecret property from the ticket to
              * the saved session, so the property may be checked later. */
-            ssl->session->haveEMS =
-                (it->flags & WOLFSSL_TICKET_FLAG_EMS) ? 1 : 0;
+            ssl->session->haveEMS = it->haveEMS;
             ato32((const byte*)&it->timestamp, &ssl->session->bornOn);
 #ifndef NO_RESUME_SUITE_CHECK
             ssl->session->cipherSuite0 = it->suite[0];
@@ -45073,8 +45067,8 @@ int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
         c32toa((word32)(milliBornOn >> 32), it->timestamp);
         c32toa((word32)milliBornOn        , it->timestamp + OPAQUE32_LEN);
 #endif
-        it->flags = (byte)((sess->haveEMS ? WOLFSSL_TICKET_FLAG_EMS : 0) |
-            (sess->peerAuthOk ? WOLFSSL_TICKET_FLAG_PEER_AUTH : 0));
+        it->haveEMS = (byte)sess->haveEMS;
+        it->peerAuthOk = sess->peerAuthOk;
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
         if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {
