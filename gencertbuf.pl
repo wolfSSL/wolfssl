@@ -4,7 +4,7 @@
 # version 1.1
 # Updated 07/01/2014
 #
-# Copyright (C) 2006-2015 wolfSSL Inc.
+# Copyright (C) 2006-2026 wolfSSL Inc.
 #
 
 use strict;
@@ -375,6 +375,45 @@ for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
 }
 
 print OUT_FILE "#endif /* WOLFSSL_HAVE_MLDSA */\n\n";
+
+# SLH-DSA self-signed root certificates and their PKCS#8 private keys
+my @slhdsa_roots = (
+        [ "#ifndef WOLFSSL_SLHDSA_PARAM_NO_128S",
+          "!WOLFSSL_SLHDSA_PARAM_NO_128S",
+          "shake", "shake128s" ],
+        [ "#if defined(WOLFSSL_SLHDSA_SHA2) && \\\n" .
+          "    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S)",
+          "WOLFSSL_SLHDSA_SHA2 && !WOLFSSL_SLHDSA_PARAM_NO_SHA2_128S",
+          "sha2", "sha2_128s" ],
+        );
+
+print OUT_FILE "#if defined(WOLFSSL_HAVE_SLHDSA)\n\n";
+
+for my $entry (@slhdsa_roots) {
+    my ($guard, $endComment, $fam, $param) = @$entry;
+    my $fbase = "./certs/slhdsa/root-slhdsa-${fam}-128s";
+    my $sbase = "root_slhdsa_${param}";
+
+    print OUT_FILE "$guard\n\n";
+
+    print OUT_FILE "/* ${fbase}.der */\n";
+    print OUT_FILE "static const unsigned char ${sbase}_cert_der[] =\n{\n";
+    file_to_hex("${fbase}.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_${sbase}_cert_der (sizeof(${sbase}_cert_der))\n\n";
+
+    print OUT_FILE "#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY\n";
+    print OUT_FILE "/* ${fbase}-priv.der */\n";
+    print OUT_FILE "static const unsigned char ${sbase}_key_der[] =\n{\n";
+    file_to_hex("${fbase}-priv.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_${sbase}_key_der (sizeof(${sbase}_key_der))\n";
+    print OUT_FILE "#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */\n\n";
+
+    print OUT_FILE "#endif /* $endComment */\n\n";
+}
+
+print OUT_FILE "#endif /* WOLFSSL_HAVE_SLHDSA */\n\n";
 
 # Hash-based signature verify vectors, used by the verify-only benchmarks
 # The LMS, XMSS and SHAKE-128s ones are KATs from wolfcrypt/test/test.c
