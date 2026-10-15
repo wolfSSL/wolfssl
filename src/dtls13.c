@@ -1954,8 +1954,16 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return 0;
     }
 
-    if (fragOff + fragLength > messageLength)
-        return BUFFER_ERROR;
+    if (fragOff + fragLength > messageLength) {
+        WOLFSSL_MSG("Fragment outside of the handshake message");
+        if (IsEncryptionOn(ssl, 0)) {
+            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+            return BUFFER_ERROR;
+        }
+        /* Unauthenticated. Drop it. */
+        *processedSize = idx + fragLength;
+        return 0;
+    }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
         &implicitAck);
@@ -2021,6 +2029,16 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
+        DtlsMsgListPurge(ssl, 0);
+        if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
+            /* Authenticated data and the next message in order take the room
+             * of plaintext that is out of order. */
+            if (IsEncryptionOn(ssl, 0))
+                DtlsMsgListPurge(ssl, 1);
+            else if (ssl->keys.dtls_peer_handshake_number ==
+                     ssl->keys.dtls_expected_peer_handshake_number)
+                DtlsMsgListPurge(ssl, 2);
+        }
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             /* Only ack a fragment we really buffered. */
             if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
@@ -2030,10 +2048,14 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
                 Dtls13RtxAddAckForCurRecord(ssl);
             }
         }
-        else {
+        else if (IsEncryptionOn(ssl, 0)) {
             /* DTLS_POOL_SZ outstanding messages is way more than enough for any
              * valid peer */
+            WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
             return DTLS_TOO_MANY_FRAGMENTS_E;
+        }
+        else {
+            WOLFSSL_MSG("Dropping unauthenticated fragment, list is full");
         }
 
         *processedSize = idx + fragLength;

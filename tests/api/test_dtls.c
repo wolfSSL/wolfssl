@@ -6411,6 +6411,14 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectNotNull(cur = ssl->dtls_rx_msg_list);
     ExpectIntEQ(cur->seq, 3);
     ExpectNull(cur->next);
+    /* Out of order plaintext entries go first */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, msg, 100, certificate, 0, 50, NULL),
+            0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    DtlsMsgListPurge(ssl, 2);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(cur->seq, 3);
     /* Plaintext entries go when asked */
     DtlsMsgListPurge(ssl, 1);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
@@ -6496,6 +6504,9 @@ int test_wolfSSL_DTLS_stale_partial_head(void)
 #ifdef WOLFSSL_DTLS13
     EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
             wolfDTLSv1_3_server_method, 0, 0));
+    /* Authenticated fragments evict unauthenticated entries */
+    EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_3_client_method,
+            wolfDTLSv1_3_server_method, 0, 1));
 #endif
 #endif
     return EXPECT_RESULT();
