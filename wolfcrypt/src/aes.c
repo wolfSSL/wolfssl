@@ -15186,6 +15186,12 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     if ((ret == 0) && (key != NULL)) {
         ret = wc_AesGcmSetKey(aes, key, len);
     }
+#ifdef WC_AES_HAVE_KEY_LOCATION
+    /* Streaming GCM has no device path, so a HW-stored key cannot be used. */
+    if ((ret == 0) && (aes->keyLocation == WC_KEY_HW_STORED)) {
+        ret = MISSING_KEY;
+    }
+#endif
 
 #if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
     /* Streaming AES-GCM drives the counter through the base AES_ECB_encrypt,

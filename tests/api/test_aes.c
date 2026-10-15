@@ -12545,6 +12545,10 @@ int test_wc_CryptoCb_AesNoSwKey(void)
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, out, in, sizeof(in), NULL, 0),
                 WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGcmInit(&aes, NULL, 0, iv, GCM_NONCE_MID_SZ),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_AesGcmInit(&aes, key, (word32)sizeof(key), iv,
+                              GCM_NONCE_MID_SZ), WC_NO_ERR_TRACE(MISSING_KEY));
 
     /* A HW-stored rekey must also stop a streaming GCM started in software */
     test_CryptoCb_AesNoSw_Decline = 1;
