@@ -512,10 +512,10 @@ int wolfSSL_EVP_CIPHER_CTX_reset(WOLFSSL_EVP_CIPHER_CTX *ctx)
     return ret;
 }
 
-unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+int wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
   if (ctx == NULL) return 0;
-  return ctx->flags & WOLFSSL_EVP_CIPH_MODE;
+  return (int)(ctx->flags & WOLFSSL_EVP_CIPH_MODE);
 }
 
 unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx)
@@ -2519,11 +2519,11 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
     }
 }
 
-unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
+int WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
     if (cipher == NULL)
         return 0;
-    return WOLFSSL_CIPHER_mode(cipher) & WOLFSSL_EVP_CIPH_MODE;
+    return (int)(WOLFSSL_CIPHER_mode(cipher) & WOLFSSL_EVP_CIPH_MODE);
 }
 
 void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
