@@ -91,7 +91,7 @@
 /***** Setup for RNG extra features *****/
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
-    !defined(WC_RNG_NO_LOCK)
+    !defined(WC_RNG_NO_LOCK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_LOCK
     #ifdef WOLFSSL_NO_ATOMICS
         typedef word32 WC_RNG_lock_t;
@@ -104,7 +104,7 @@
     #undef WC_RNG_HAVE_LOCK
 #endif
 
-#ifdef WC_RNG_WANT_LOCK_FULL_MUTEX
+#if defined(WC_RNG_WANT_LOCK_FULL_MUTEX) && !defined(WC_NO_RNG)
     #ifndef WC_RNG_HAVE_LOCK
         #error FULL_MUTEX depends on WC_RNG_HAVE_LOCK.
     #endif
@@ -115,7 +115,7 @@
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_RBGC)) && \
     !defined(WC_RNG_NO_RBGC) && defined(HAVE_HASHDRBG) && \
-    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_RBGC
 #else
     #undef WC_RNG_HAVE_RBGC
@@ -123,7 +123,7 @@
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_NEXT_SEED)) && \
     !defined(WC_RNG_NO_NEXT_SEED) && defined(HAVE_HASHDRBG) && \
-    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_NEXT_SEED
     #ifdef WOLFSSL_NO_ATOMICS
         typedef sword32 WC_DRBG_nextSeedLen_t;
@@ -141,7 +141,7 @@
 #endif
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_POOL)) && \
-    !defined(WC_RNG_NO_POOL)
+    !defined(WC_RNG_NO_POOL) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_POOL
     #ifdef WOLFSSL_NO_ATOMICS
         typedef word32 WC_RNG_pool_pos_t;
@@ -159,7 +159,7 @@
 #endif
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_FREE_HOOK)) && \
-    !defined(WC_RNG_NO_FREE_HOOK)
+    !defined(WC_RNG_NO_FREE_HOOK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_FREE_HOOK
     struct WC_RNG;
     typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
@@ -170,7 +170,7 @@
 #ifdef WC_RNG_NO_BANKREF_SUPPORT
     #undef WC_RNG_WANT_BANKREF_SUPPORT
 #endif
-#ifdef WC_RNG_WANT_BANKREF_SUPPORT
+#if defined(WC_RNG_WANT_BANKREF_SUPPORT) && !defined(WC_NO_RNG)
     #if defined(HAVE_FIPS) && \
         !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
         #error HAVE_FIPS is incompatible with WC_RNG_WANT_BANKREF_SUPPORT.
@@ -183,7 +183,8 @@
     #undef WC_HAVE_RNG_BANKREF
 #endif
 
-#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC)
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC) && \
+    !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
 #endif
 
@@ -552,7 +553,8 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
     #define WC_RNG_DEBUG_STATS
 #endif
 
-#if defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_HAVE_LOCK)
+#if defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_HAVE_LOCK) && \
+    !defined(WC_NO_RNG)
     #error WC_RNG_DEBUG_STATS requires the RNG lock facility (WC_RNG_WANT_LOCK).
 #endif
 
@@ -566,7 +568,7 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
 
 #if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)) || \
      defined(WC_RNG_WANT_ENTROPY_EPOCH)) && \
-    !defined(WC_RNG_NO_ENTROPY_EPOCH)
+    !defined(WC_RNG_NO_ENTROPY_EPOCH) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_ENTROPY_EPOCH
 #endif
 
