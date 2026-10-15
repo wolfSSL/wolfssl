@@ -47,12 +47,10 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
         return SIDE_ERROR;
 
     ctx->mutualAuth = (byte)req;
-    /* Required means ask for one and fail without it: sites reading only
-     * failNoCert would otherwise treat it as optional. */
+    /* A certificate has to be asked for to be required. */
     if (req) {
         ctx->verifyNone = 0;
         ctx->verifyPeer = 1;
-        ctx->failNoCert = 1;
     }
 
     return 0;
@@ -76,12 +74,10 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
         return SIDE_ERROR;
 
     ssl->options.mutualAuth = (word16)req;
-    /* Required means ask for one and fail without it: sites reading only
-     * failNoCert would otherwise treat it as optional. */
+    /* A certificate has to be asked for to be required. */
     if (req) {
         ssl->options.verifyNone = 0;
         ssl->options.verifyPeer = 1;
-        ssl->options.failNoCert = 1;
     }
 
     return 0;
