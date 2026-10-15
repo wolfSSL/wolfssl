@@ -34001,6 +34001,16 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
         }
     }
 #endif
+#if defined(HAVE_ECC) && defined(WOLFSSL_TLS13)
+    if ((ssl->options.sigAlgo == ecc_dsa_sa_algo) &&
+            IsAtLeastTLSv1_3(ssl->version) &&
+            (ssl->pkCurveOID != ECC_SECP256R1_OID) &&
+            (ssl->pkCurveOID != ECC_SECP384R1_OID) &&
+            (ssl->pkCurveOID != ECC_SECP521R1_OID)) {
+        /* TLS 1.3 defines ECDSA schemes for these curves only. */
+        return 0;
+    }
+#endif
     /* Signature algorithm matches certificate. */
     return sigAlgo == ssl->options.sigAlgo;
 }
@@ -34008,7 +34018,7 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
 #if defined(HAVE_ECC) && \
     ((defined(WOLFSSL_TLS13) && !defined(NO_CERTS)) || \
      defined(USE_ECDSA_KEYSZ_HASH_ALGO))
-int CmpEccStrength(int hashAlgo, int curveSz)
+static int CmpEccStrength(int hashAlgo, int curveSz)
 {
     int dgstSz = GetMacDigestSize((byte)hashAlgo);
     if (dgstSz <= 0)

@@ -12608,38 +12608,47 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
 /* An ECDSA SignatureScheme names a curve as well as a hash, so the peer key
  * has to be on the curve the announced scheme names (RFC 8446 4.4.3).
  *
- * returns 1 when the peer key's group agrees with the announced hash. */
+ * returns 1 when the peer key is on the curve the scheme names. */
 static int EccPeerCurveMatchesSigAlgo(WOLFSSL* ssl, byte hashAlgo,
                                       byte sigAlgo)
 {
     ecc_key* key = ssl->peerEccDsaKey;
+    word32 oidSum;
 
     if ((key == NULL) || (key->dp == NULL))
         return 0;
 
-    /* A curve with a scheme of its own has to be used with it, or a same
-     * sized curve would satisfy any of them. */
+    switch (sigAlgo) {
+        case ecc_dsa_sa_algo:
+            switch (hashAlgo) {
+                case sha256_mac: oidSum = ECC_SECP256R1_OID; break;
+                case sha384_mac: oidSum = ECC_SECP384R1_OID; break;
+                case sha512_mac: oidSum = ECC_SECP521R1_OID; break;
+                default:         return 0;
+            }
+            break;
 #ifdef HAVE_ECC_BRAINPOOL
-    if ((key->dp->oidSum == ECC_BRAINPOOLP256R1_OID) ||
-        (key->dp->oidSum == ECC_BRAINPOOLP384R1_OID) ||
-        (key->dp->oidSum == ECC_BRAINPOOLP512R1_OID)) {
-        if (sigAlgo != ecc_brainpool_sa_algo)
-            return 0;
-    }
-    else
+        case ecc_brainpool_sa_algo:
+            switch (hashAlgo) {
+                case sha256_mac: oidSum = ECC_BRAINPOOLP256R1_OID; break;
+                case sha384_mac: oidSum = ECC_BRAINPOOLP384R1_OID; break;
+                case sha512_mac: oidSum = ECC_BRAINPOOLP512R1_OID; break;
+                default:         return 0;
+            }
+            break;
 #endif
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    if (key->dp->oidSum == ECC_SM2P256V1_OID) {
-        if (sigAlgo != sm2_sa_algo)
+        case sm2_sa_algo:
+            if (hashAlgo != sm3_mac)
+                return 0;
+            oidSum = ECC_SM2P256V1_OID;
+            break;
+#endif
+        default:
             return 0;
     }
-    else
-#endif
-    if (sigAlgo != ecc_dsa_sa_algo) {
-        return 0;
-    }
 
-    return CmpEccStrength(hashAlgo, key->dp->size) == 0;
+    return key->dp->oidSum == oidSum;
 }
 #endif /* HAVE_ECC */
 
@@ -13049,11 +13058,18 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
         #ifdef HAVE_ECC
             if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
-                byte curveHash = 0, curveSig = 0;
+                byte curveHash = ssl->options.peerHashAlgo;
+                byte curveSig = ecc_dsa_sa_algo;
                 WOLFSSL_MSG("Peer sent ECC sig");
-                /* DecodeTls13SigAlg folds the brainpool schemes onto
-                 * ecc_dsa_sa_algo; DecodeSigAlg keeps them apart. */
-                DecodeSigAlg(input + args->begin, &curveHash, &curveSig);
+            #ifdef WOLFSSL_DUAL_ALG_CERTS
+                /* A hybrid scheme names the curve itself. */
+                if (args->altSigAlgo == 0)
+            #endif
+                {
+                    /* DecodeTls13SigAlg folds the brainpool schemes onto
+                     * ecc_dsa_sa_algo; DecodeSigAlg keeps them apart. */
+                    DecodeSigAlg(input + args->begin, &curveHash, &curveSig);
+                }
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
                                ssl->peerEccDsaKeyPresent &&
                                EccPeerCurveMatchesSigAlgo(ssl, curveHash,

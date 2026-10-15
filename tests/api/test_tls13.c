@@ -16041,6 +16041,10 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     const char* bpCert   = "./certs/ecc/server-bp256r1-cert.pem";
     const char* bpKey    = "./certs/ecc/bp256r1-key.pem";
 #endif
+#ifdef HAVE_ECC_KOBLITZ
+    const char* k1Cert   = "./certs/ecc/server-secp256k1-cert.pem";
+    const char* k1Key    = "./certs/ecc/secp256k1-key.pem";
+#endif
 
     /* Sanity: the P-256 server certificate authenticates under the scheme that
      * names its own curve, ecdsa_secp256r1_sha256. */
@@ -16224,6 +16228,73 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
 #endif /* HAVE_ECC_BRAINPOOL */
+
+#ifdef HAVE_ECC_KOBLITZ
+    /* secp256k1 has no TLS 1.3 scheme (RFC 8446 4.2.3). The sender finds no
+     * scheme for the key, so the handshake never reaches CertificateVerify. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, k1Cert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, k1Cert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, k1Key,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The same key under ecdsa_secp256r1_sha256, the scheme of the same-size
+     * NIST curve, is rejected by the receiver on the curve alone. Overriding
+     * the curve the sender reports for its own key is what makes it send
+     * that scheme. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, k1Cert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, k1Cert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, k1Key,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS())
+        ssl_s->pkCurveOID = ECC_SECP256R1_OID;
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 0);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Control: TLS 1.2 schemes name no curve, so the key is usable there. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, k1Cert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, k1Cert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, k1Key,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* HAVE_ECC_KOBLITZ */
 #endif
     return EXPECT_RESULT();
 }
