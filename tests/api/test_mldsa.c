@@ -1386,6 +1386,7 @@ static int mldsa_prehash_strength_level(byte level, int lambda, WC_RNG* rng)
     int hash;
     int res = 0;
     int i;
+    int accepted;
 
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1415,7 +1416,15 @@ static int mldsa_prehash_strength_level(byte level, int lambda, WC_RNG* rng)
             continue; /* hash not compiled in */
         }
         sigLen = MLDSA_MAX_SIG_SIZE;
-        if (mldsa_prehash_strengths[i].strength >= lambda) {
+        /* The opt-in drops the strength comparison, not the list of
+         * recognised hashes, so the 112-bit rows stay refused either way. */
+#ifdef WOLFSSL_MLDSA_ALLOW_WEAK_PREHASH
+        accepted = (mldsa_prehash_strengths[i].strength >= 128);
+        (void)lambda;
+#else
+        accepted = (mldsa_prehash_strengths[i].strength >= lambda);
+#endif
+        if (accepted) {
             ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, NULL, 0, sig, &sigLen,
                 digest, (word32)digestSz, hash, rng), 0);
             ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, NULL, 0,
