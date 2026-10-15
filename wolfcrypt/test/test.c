@@ -64784,6 +64784,11 @@ free_level:
     !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT)
 
+#if !defined(WC_NO_RNG) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define MLKEM_CERT_TEST_KEM
+#endif
+
 /* Parse the ML-KEM end-entity certificates, confirm the subject public key
  * carries the expected ML-KEM parameter set, and confirm the matching private
  * key reproduces that same public key. */
@@ -64791,6 +64796,9 @@ static wc_test_ret_t mlkem_cert_test(void)
 {
     wc_test_ret_t ret = 0;
     int i;
+#ifdef MLKEM_CERT_TEST_KEM
+    WC_RNG rng;
+#endif
     static const struct {
         const byte* cert;
         word32      certSz;
@@ -64813,6 +64821,12 @@ static wc_test_ret_t mlkem_cert_test(void)
         { NULL, 0, NULL, 0, 0 }
     };
 
+#ifdef MLKEM_CERT_TEST_KEM
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif
+
     for (i = 0; vectors[i].cert != NULL; i++) {
         /* One key object at a time: a static memory pool has no room for
          * both halves of the comparison at once. */
@@ -64824,6 +64838,12 @@ static wc_test_ret_t mlkem_cert_test(void)
         word32 pubSz = 0;
         word32 idx = 0;
         int keyInit = 0;
+#ifdef MLKEM_CERT_TEST_KEM
+        byte* ct = NULL;
+        word32 ctSz = 0;
+        byte ssA[WC_ML_KEM_SS_SZ];
+        byte ssB[WC_ML_KEM_SS_SZ];
+#endif
 
         key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -64858,6 +64878,18 @@ static wc_test_ret_t mlkem_cert_test(void)
         }
         if (ret == 0)
             ret = wc_MlKemKey_EncodePublicKey(key, pubA, pubSz);
+#ifdef MLKEM_CERT_TEST_KEM
+        /* Encapsulate to the certificate key, decapsulate below. */
+        if (ret == 0)
+            ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
+        if (ret == 0) {
+            ct = (byte*)XMALLOC(ctSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ct == NULL)
+                ret = WC_TEST_RET_ENC_ERRNO;
+        }
+        if (ret == 0)
+            ret = wc_MlKemKey_Encapsulate(key, ct, ssA, &rng);
+#endif
         if (keyInit) {
             wc_MlKemKey_Free(key);
             keyInit = 0;
@@ -64880,6 +64912,14 @@ static wc_test_ret_t mlkem_cert_test(void)
             if (XMEMCMP(pubA, pubB, pubSz) != 0)
                 ret = WC_TEST_RET_ENC_NC;
         }
+#ifdef MLKEM_CERT_TEST_KEM
+        if (ret == 0)
+            ret = wc_MlKemKey_Decapsulate(key, ssB, ct, ctSz);
+        if (ret == 0) {
+            if (XMEMCMP(ssA, ssB, sizeof(ssA)) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+#endif
 
 free_vector:
         if (keyInit)
@@ -64888,12 +64928,19 @@ free_vector:
         XFREE(pubA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pubB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(spki, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MLKEM_CERT_TEST_KEM
+        XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
         if (ret != 0)
             break;
     }
+#ifdef MLKEM_CERT_TEST_KEM
+    wc_FreeRng(&rng);
+#endif
     return ret;
 }
+#undef MLKEM_CERT_TEST_KEM
 #endif /* ML-KEM certificate test */
 
 /* Certificate generation with an ML-KEM subject key. A KEM cannot sign, so a
