@@ -6177,6 +6177,15 @@ static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
     ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 5));
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
     dfbr_free_list(ssl);
+
+    /* Failed DtlsMsg allocation with an empty list */
+    dfbr_fail = 1;
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 30,
+            NULL), WC_NO_ERR_TRACE(MEMORY_E));
+    ExpectIntEQ(dfbr_fail, 0);
+    ExpectNull(ssl->dtls_rx_msg_list);
+    ExpectIntEQ(ssl->error, WC_NO_ERR_TRACE(MEMORY_E));
+    ssl->error = 0;
     return EXPECT_RESULT();
 }
 #endif
@@ -6206,6 +6215,16 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectNull(ssl->dtls_rx_msg_list);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
+
+    /* Fragments of one message must agree on the type */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 5, NULL),
+            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, server_hello_done,
+            5, 5, NULL), WC_NO_ERR_TRACE(SEQUENCE_ERROR));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectIntEQ(msg->fragBucketListCount, 1);
+    ExpectIntEQ(msg->type, certificate);
+    dfbr_free_list(ssl);
 
     /* A zero-length fragment is accepted but does not take a bucket */
     ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, certificate, 5, 0,
@@ -6252,20 +6271,25 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     dfbr_free_list(ssl);
 
     /* Bucket limit, then a bridging fragment reclaims the slots */
-    if (2 * DTLS_FRAG_POOL_SZ + 2 <= DFBR_MAX_LEN) {
-        word32 len = 2 * (word32)DTLS_FRAG_POOL_SZ + 2;
+    if (3 * DTLS_FRAG_POOL_SZ + 2 <= DFBR_MAX_LEN) {
+        word32 len = 3 * (word32)DTLS_FRAG_POOL_SZ + 2;
         word32 k;
 
         for (k = 0; EXPECT_SUCCESS() && k < (word32)DTLS_FRAG_POOL_SZ; k++) {
-            ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 2 * k, len,
-                    certificate, 2 * k, 1, NULL), 0);
+            ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 3 * k + 2, len,
+                    certificate, 3 * k + 2, 1, NULL), 0);
         }
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
-                certificate, len - 2, 1, NULL),
-                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
         ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
         ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
         ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
+        /* Disjoint after the last bucket */
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 1, len,
+                certificate, len - 1, 1, NULL),
+                WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+        /* Disjoint before the first bucket */
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0, 1,
+                NULL), WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
+        ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
         ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0,
                 len - 2, NULL), 0);
         ExpectIntEQ(msg->fragBucketListCount, 1);
