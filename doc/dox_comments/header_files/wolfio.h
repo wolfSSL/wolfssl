@@ -1333,29 +1333,6 @@ void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend);
 
 /*!
     \ingroup IO
-    \brief Sets I/O for Mynewt platform.
-
-    \return none No returns
-
-    \param ssl SSL object
-    \param mnSocket Mynewt socket
-    \param mnSockAddrIn Mynewt socket address
-
-    _Example_
-    \code
-    WOLFSSL* ssl;
-    struct mn_socket sock;
-    struct mn_sockaddr_in addr;
-    wolfSSL_SetIO_Mynewt(ssl, &sock, &addr);
-    \endcode
-
-    \sa wolfSSL_SetIO_LwIP
-*/
-void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
-                          struct mn_sockaddr_in* mnSockAddrIn);
-
-/*!
-    \ingroup IO
     \brief Sets I/O for LwIP platform.
 
     \return 0 on success
@@ -1374,7 +1351,6 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
     int ret = wolfSSL_SetIO_LwIP(ssl, pcb, myRecv, mySent, NULL);
     \endcode
 
-    \sa wolfSSL_SetIO_Mynewt
 */
 int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb, tcp_recv_fn recv,
                        tcp_sent_fn sent, void *arg);

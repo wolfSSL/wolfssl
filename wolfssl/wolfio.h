@@ -84,7 +84,7 @@
     #include <winsock2.h>
     #include <ws2tcpip.h>
 #else
-    #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
+    #if defined(WOLFSSL_LWIP)
         /* lwIP needs to be configured to use sockets API in this mode */
         /* LWIP_SOCKET 1 in lwip/opt.h or in build */
         #include "lwip/sockets.h"
@@ -169,8 +169,6 @@
         #include <fcntl.h>
     #elif defined(WOLFSSL_SGX)
         #include <errno.h>
-    #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-        #include <mn_socket/mn_socket.h>
     #elif defined(WOLFSSL_DEOS)
         #include <socketapi.h>
         #include <lwip-socket.h>
@@ -470,7 +468,7 @@
     #if !defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_SOCK)
         #define HAVE_SOCKADDR
     #endif
-#elif defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
+#elif defined(WOLFSSL_LWIP)
     #define SEND_FUNCTION lwip_send
     #define RECV_FUNCTION lwip_recv
 #elif defined(WOLFSSL_PICOTCP)
@@ -562,9 +560,6 @@
         #elif defined(NUCLEUS_PLUS_2_3)
             typedef int socklen_t;
             #define XSOCKLENT socklen_t
-        #elif defined(WOLFSSL_APACHE_MYNEWT)
-            /* mn_socket doesn't provide socklen_t */
-            #define XSOCKLENT int
         #else
             #define XSOCKLENT socklen_t
         #endif
@@ -862,13 +857,6 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
                                          void* ctx);
     WOLFSSL_LOCAL int MicriumSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #endif /* MICRIUM */
-
-#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-    WOLFSSL_LOCAL int Mynewt_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-    WOLFSSL_LOCAL int Mynewt_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx);
-    WOLFSSL_API void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
-                                          struct mn_sockaddr_in* mnSockAddrIn);
-#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
 #ifdef WOLFSSL_UIP
 
