@@ -9765,7 +9765,9 @@ L_sha3_aarch64_r:
 	.quad	0x8000000080008081,0x8000000000008080
 	.quad	0x0000000080000001,0x8000000080008008
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 .arch_extension sha3
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 #ifndef __APPLE__
 .text
 .globl	mlkem_sha3_blocksx3_crypto

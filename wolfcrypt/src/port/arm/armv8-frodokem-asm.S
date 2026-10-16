@@ -326,7 +326,9 @@ _frodokem_sha3_x2_crypto:
 	adrp x1, L_sha3_aarch64_r@PAGE
 	add  x1, x1, L_sha3_aarch64_r@PAGEOFF
 #endif /* __APPLE__ */
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 .arch_extension sha3
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
 	ld4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
@@ -1500,7 +1502,9 @@ L_frodokem_mul_add_sb_plus_e_neon_j:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 #ifdef WOLFSSL_HAVE_FRODOKEM
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 	.arch	armv8-a+crypto
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 #ifndef __APPLE__
 .text
 .globl	frodokem_gen_a_rows_aes_arm64
@@ -1826,7 +1830,9 @@ L_frodokem_gen_a_rows_aes_arm64_done:
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 #ifdef WOLFSSL_HAVE_FRODOKEM
 #ifdef WOLFSSL_FRODOKEM_SVE
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 	.arch	armv9-a+sve2
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 #ifndef __APPLE__
 .text
 .globl	frodokem_sa_accum_sve
@@ -2218,7 +2224,9 @@ L_frodokem_add_sve_k:
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 #ifdef WOLFSSL_HAVE_FRODOKEM
 #ifdef WOLFSSL_FRODOKEM_SME
+#ifndef WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
 	.arch	armv9-a+sve2+sme+sme2
+#endif /* WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE */
 #ifndef __APPLE__
 .text
 .globl	frodokem_mul_bs_sme

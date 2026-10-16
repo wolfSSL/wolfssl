@@ -5002,6 +5002,10 @@
     #endif
 #endif
 
+#if defined(__ghs__) && !defined(WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE)
+    #define WOLFSSL_ARMASM_NO_ARCH_DIRECTIVE
+#endif
+
 /* curve25519/ed25519 implementation selection.
  *
  * These are derived here rather than in fe_operations.h because the generated
