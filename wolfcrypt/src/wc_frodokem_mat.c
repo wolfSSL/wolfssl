@@ -1312,10 +1312,10 @@ static int frodokem_gen_a_row_shake(wc_Shake* shake, word16* row,
     state8[WC_SHA3_128_COUNT * 8 - 1] = 0x80;
 
     for (l = 0; l + inc < 2 * p->n; l += inc) {
-        BlockSha3(state);
+        WC_SHA3_BLOCK(shake, state);
         XMEMCPY(rowBytes + l, state8, WC_SHA3_128_BLOCK_SIZE);
     }
-    BlockSha3(state);
+    WC_SHA3_BLOCK(shake, state);
     XMEMCPY(rowBytes + l, state8, (word32)(2 * p->n - l));
 
     ret = 0;

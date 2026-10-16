@@ -227,6 +227,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     Hmac   hmac[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
@@ -361,6 +363,10 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
             i++;
         }
         wc_HmacFree(hmac);
+    }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
     }
 
     ForceZero(buffer, (word32)hLen);

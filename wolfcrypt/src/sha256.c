@@ -1384,13 +1384,14 @@ static int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     int ret = 0;
 
     while (len >= WC_SHA256_BLOCK_SIZE) {
-        word32 buffer[WC_SHA256_BLOCK_SIZE / sizeof(word32)];
-
-        XMEMCPY(buffer, data, WC_SHA256_BLOCK_SIZE);
+        /* Keep the endian-conversion scratch in the context, where Free
+         * wipes it. Update and Final can already pass this same buffer. */
+        if (data != (const byte*)sha256->buffer)
+            XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWords(buffer, buffer, WC_SHA256_BLOCK_SIZE);
+        ByteReverseWords(sha256->buffer, sha256->buffer, WC_SHA256_BLOCK_SIZE);
     #endif
-        ret = Transform_Sha256(sha256, (const byte*)buffer);
+        ret = Transform_Sha256(sha256, (const byte*)sha256->buffer);
         if (ret != 0)
             break;
         data += WC_SHA256_BLOCK_SIZE;
@@ -1827,8 +1828,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                              sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
+    #elif defined(WC_SHA256_W_IN_CTX)
+        word32* W = sha256->Wbuf;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
+        #define SHA256_W_ON_STACK
     #endif
 
         /* Copy context->state[] to working vars */
@@ -1871,6 +1875,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         !defined(WOLFSSL_NO_MALLOC)
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(W, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #elif defined(SHA256_W_ON_STACK)
+        ForceZero(W, sizeof(W));
+        #undef SHA256_W_ON_STACK
     #endif
         return 0;
     }
@@ -1902,7 +1909,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #ifdef USE_SLOW_SHA256
         int j;
     #endif
+    #ifdef WC_SHA256_W_IN_CTX
+        word32* W = sha256->Wbuf;
+    #else
         word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
+    #endif
 
         /* Copy digest to working vars */
         S[0] = sha256->digest[0];
@@ -1948,6 +1959,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha256->digest[6] += S[6];
         sha256->digest[7] += S[7];
 
+    #ifndef WC_SHA256_W_IN_CTX
+        ForceZero(W, sizeof(W));
+    #endif
         return 0;
     }
 #endif /* SHA256_MANY_REGISTERS */
@@ -2400,6 +2414,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                               WC_SHA256_DIGEST_SIZE);
         }
         XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+        ForceZero(digest, sizeof(digest));
     #else
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
     #endif
@@ -2478,13 +2493,16 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         #endif
         {
             byte buffer[WC_SHA256_BLOCK_SIZE];
+            int tret;
             ByteReverseWords((word32*)buffer, (word32*)data,
                 WC_SHA256_BLOCK_SIZE);
         #ifdef __aarch64__
-            return Transform_Sha256_aarch64(sha256, buffer);
+            tret = Transform_Sha256_aarch64(sha256, buffer);
         #else
-            return Transform_Sha256(sha256, buffer);
+            tret = Transform_Sha256(sha256, buffer);
         #endif
+            ForceZero(buffer, sizeof(buffer));
+            return tret;
         }
     #else
         return Transform_Sha256(sha256, data);
@@ -3418,6 +3436,8 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
             wc_Sha224Free(tmpSha224);
         }
 
+        ForceZero(tmpSha224, sizeof(*tmpSha224));
+
         WC_FREE_VAR_EX(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -3454,7 +3474,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                                   dst->heap, DYNAMIC_TYPE_DIGEST);
         if (dst->W == NULL) {
-            XMEMSET(dst, 0, sizeof(wc_Sha224));
+            ForceZero(dst, sizeof(wc_Sha224));
             return MEMORY_E;
         }
     #endif
@@ -3567,6 +3587,9 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     }
 
 
+    ForceZero(tmpSha256, sizeof(*tmpSha256));
+
+
     WC_FREE_VAR_EX(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -3608,7 +3631,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                               dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha256));
+        ForceZero(dst, sizeof(wc_Sha256));
         return MEMORY_E;
     }
 #endif

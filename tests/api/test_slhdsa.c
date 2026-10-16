@@ -632,6 +632,8 @@ int test_wc_slhdsa_make_key(void)
         byte sk_seed[TEST_SLHDSA_DEFAULT_SEED_LEN];
         byte sk_prf[TEST_SLHDSA_DEFAULT_SEED_LEN];
         byte pk_seed[TEST_SLHDSA_DEFAULT_SEED_LEN];
+        byte expected[TEST_SLHDSA_DEFAULT_PRIV_LEN];
+        word32 n = TEST_SLHDSA_DEFAULT_SEED_LEN;
 
         XMEMSET(sk_seed, 0x01, sizeof(sk_seed));
         XMEMSET(sk_prf, 0x02, sizeof(sk_prf));
@@ -661,6 +663,30 @@ int test_wc_slhdsa_make_key(void)
         ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, sk_seed,
             sizeof(sk_seed), sk_prf, sizeof(sk_prf), pk_seed, sizeof(pk_seed)),
             SEED_OK);
+
+        /* Replacement must stage aliased seeds before erasing the old key. */
+        XMEMCPY(expected, key.sk, sizeof(expected));
+        ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, key.sk, n,
+            key.sk + n, n, key.sk + 2 * n, n), SEED_OK);
+        ExpectBufEQ(key.sk, expected, sizeof(expected));
+
+        /* The first seed may alias even when the other two are new. */
+        XMEMSET(sk_prf, 0x04, sizeof(sk_prf));
+        XMEMSET(pk_seed, 0x05, sizeof(pk_seed));
+        ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, key.sk, n,
+            sk_prf, n, pk_seed, n), SEED_OK);
+        ExpectBufEQ(key.sk, sk_seed, n);
+        ExpectBufEQ(key.sk + n, sk_prf, n);
+        ExpectBufEQ(key.sk + 2 * n, pk_seed, n);
+        ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), 0);
+
+        /* Reordered in-key aliases must all be read before any write. */
+        ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, key.sk + n, n,
+            key.sk + 2 * n, n, key.sk, n), SEED_OK);
+        ExpectBufEQ(key.sk, sk_prf, n);
+        ExpectBufEQ(key.sk + n, pk_seed, n);
+        ExpectBufEQ(key.sk + 2 * n, sk_seed, n);
+        ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), 0);
         wc_SlhDsaKey_Free(&key);
     }
 #endif
@@ -928,6 +954,9 @@ int test_wc_slhdsa_sign_vfy(void)
     byte* sig = NULL;
     word32 sigLen;
     byte ctx[10];
+#if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+    const byte zeroDigest[WC_SHA256_DIGEST_SIZE] = {0};
+#endif
 
     sig = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
@@ -1045,13 +1074,16 @@ int test_wc_slhdsa_sign_vfy(void)
     ExpectIntEQ(wc_SlhDsaKey_Init(&key, SLHDSA_SHA2_128F, NULL, INVALID_DEVID),
         0);
     ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
+    ExpectBufEQ(key.sha2Digest, zeroDigest, sizeof(zeroDigest));
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, sizeof(ctx), msg, sizeof(msg),
         sig, &sigLen, &rng), 0);
+    ExpectBufEQ(key.sha2Digest, zeroDigest, sizeof(zeroDigest));
     ExpectIntEQ(sigLen, WC_SLHDSA_SHA2_128F_SIG_LEN);
     ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, sizeof(ctx), msg, sizeof(msg),
         sig, sigLen), 0);
     wc_SlhDsaKey_Free(&key);
+    ExpectBufEQ(key.sha2Digest, zeroDigest, sizeof(zeroDigest));
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
     ExpectIntEQ(wc_SlhDsaKey_Init(&key, SLHDSA_SHA2_192S, NULL, INVALID_DEVID),
@@ -1787,6 +1819,20 @@ int test_wc_slhdsa_export_import(void)
     ExpectIntEQ(wc_SlhDsaKey_Init(&key2, TEST_SLHDSA_DEFAULT_PARAM, NULL,
         INVALID_DEVID), 0);
     ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key2, privKey, privKeyLen), 0);
+    /* Exact and partial aliasing of a replacement encoding must survive the
+     * old-key wipe. The fixed key storage has room for the shifted input. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key2, key2.sk, privKeyLen), 0);
+    ExpectBufEQ(key2.sk, privKey, privKeyLen);
+    if (privKeyLen < sizeof(key2.sk)) {
+        XMEMMOVE(key2.sk + 1, key2.sk, privKeyLen);
+        ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key2, key2.sk + 1, privKeyLen),
+            0);
+        ExpectBufEQ(key2.sk, privKey, privKeyLen);
+    }
+    /* Validation errors leave the existing key usable. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key2, privKey, privKeyLen - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectBufEQ(key2.sk, privKey, privKeyLen);
     /* Sign with imported key. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_Sign(&key2, ctx, sizeof(ctx), msg, sizeof(msg),
