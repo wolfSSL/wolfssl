@@ -148,9 +148,6 @@
 /* Uncomment next line if using STM32F7 */
 /* #define WOLFSSL_STM32F7 */
 
-/* Uncomment next line if using QL SEP settings */
-/* #define WOLFSSL_QL */
-
 /* Uncomment next line if building for EROAD */
 /* #define WOLFSSL_EROAD */
 
@@ -3062,34 +3059,8 @@
 #endif
 
 #ifdef WOLFSSL_QL
-    #ifndef WOLFSSL_SEP
-        #define WOLFSSL_SEP
-    #endif
-    #ifndef OPENSSL_EXTRA
-        #define OPENSSL_EXTRA
-    #endif
-    #ifndef SESSION_CERTS
-        #define SESSION_CERTS
-    #endif
-    #ifndef HAVE_AESCCM
-        #define HAVE_AESCCM
-    #endif
-    #ifndef ATOMIC_USER
-        #define ATOMIC_USER
-    #endif
-    #ifndef WOLFSSL_DER_LOAD
-        #define WOLFSSL_DER_LOAD
-    #endif
-    #ifndef KEEP_PEER_CERT
-        #define KEEP_PEER_CERT
-    #endif
-    #ifndef HAVE_ECC
-        #define HAVE_ECC
-    #endif
-    #ifndef SESSION_INDEX
-        #define SESSION_INDEX
-    #endif
-#endif /* WOLFSSL_QL */
+    #error "WOLFSSL_QL support has been removed"
+#endif
 
 
 #if defined(WOLFSSL_XILINX)
