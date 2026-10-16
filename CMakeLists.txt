@@ -2763,7 +2763,6 @@ endif()
 # TODO:
 #       - CRL monitor
 #       - User crypto
-#       - Whitewood netRandom client library
 #       - Max fragment length
 #       - ALPN
 #       - Trusted CA indication

@@ -1515,10 +1515,6 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
 
 #endif
 
-#ifdef HAVE_WNR
-    const char* wnrConfigFile = "wnr-example.conf";
-#endif
-
 #if defined(WOLFSSL_MDK_ARM)
     extern XFILE wolfSSL_fopen(const char *fname, const char *mode);
     #define fopen wolfSSL_fopen
@@ -5280,14 +5276,6 @@ int benchmark_init(void)
     }
 #endif
 
-#ifdef HAVE_WNR
-    ret = wc_InitNetRandom(wnrConfigFile, NULL, 5000);
-    if (ret != 0) {
-        printf("%sWhitewood netRandom config init failed %d\n",
-               err_prefix, ret);
-    }
-#endif /* HAVE_WNR */
-
     return ret;
 }
 
@@ -5321,13 +5309,6 @@ int benchmark_free(void)
 
     /* close device */
     wolfAsync_DevClose(&devId);
-#endif
-
-#ifdef HAVE_WNR
-    ret = wc_FreeNetRandom();
-    if (ret < 0) {
-        printf("%sFailed to free netRandom context %d\n", err_prefix, ret);
-    }
 #endif
 
 #ifdef WOLFSSL_SECO_CAAM

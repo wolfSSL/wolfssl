@@ -183,16 +183,6 @@ This library contains implementation for the random number generator.
     #include <windows.h>
     #include <wincrypt.h>
     #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
-#elif defined(HAVE_WNR)
-    #include <wnr.h>
-    wolfSSL_Mutex wnr_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wnr_mutex);    /* global netRandom mutex */
-    int wnr_timeout     = 0;    /* entropy timeout, milliseconds */
-    #ifndef WOLFSSL_MUTEX_INITIALIZER
-    /* Elects a single initializer for wnr_mutex. */
-    wc_MutexOnceFlag wnr_mutex_inited = WOLFSSL_ATOMIC_INITIALIZER(0);
-    #endif
-    int wnr_inited = 0;    /* flag for whether wc_InitNetRandom() has been called */
-    wnr_context*  wnr_ctx;      /* global netRandom context */
 #elif defined(FREESCALE_KSDK_2_0_TRNG)
     #include "fsl_trng.h"
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
@@ -7326,119 +7316,6 @@ exit_sha512_ex2:
 #endif /* HAVE_HASHDRBG */
 
 
-#ifdef HAVE_WNR
-
-/*
- * Init global Whitewood netRandom context
- * Returns 0 on success, negative on error
- */
-int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
-{
-    int ret = 0;
-
-    if (configFile == NULL || timeout < 0)
-        return BAD_FUNC_ARG;
-
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-    ret = wc_local_InitMutexOnce(&wnr_mutex, &wnr_mutex_inited);
-    if (ret != 0) {
-        WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
-        return ret;
-    }
-#endif
-
-    if (wnr_inited > 0) {
-        WOLFSSL_MSG("netRandom context already created, skipping");
-        return 0;
-    }
-
-    if (wc_LockMutex(&wnr_mutex) != 0) {
-        WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
-        return BAD_MUTEX_E;
-    }
-
-    /* store entropy timeout */
-    wnr_timeout = timeout;
-
-    /* create global wnr_context struct */
-    if (wnr_create(&wnr_ctx) != WNR_ERROR_NONE) {
-        WOLFSSL_MSG("Error creating global netRandom context");
-        ret = RNG_FAILURE_E;
-        goto out;
-    }
-
-    /* load config file */
-    if (wnr_config_loadf(wnr_ctx, (char*)configFile) != WNR_ERROR_NONE) {
-        WOLFSSL_MSG("Error loading config file into netRandom context");
-        wnr_destroy(wnr_ctx);
-        wnr_ctx = NULL;
-        ret = RNG_FAILURE_E;
-        goto out;
-    }
-
-    /* create/init polling mechanism */
-    if (wnr_poll_create() != WNR_ERROR_NONE) {
-        WOLFSSL_MSG("Error initializing netRandom polling mechanism");
-        wnr_destroy(wnr_ctx);
-        wnr_ctx = NULL;
-        ret = RNG_FAILURE_E;
-        goto out;
-    }
-
-    /* validate config, set HMAC callback (optional) */
-    if (wnr_setup(wnr_ctx, hmac_cb) != WNR_ERROR_NONE) {
-        WOLFSSL_MSG("Error setting up netRandom context");
-        wnr_destroy(wnr_ctx);
-        wnr_ctx = NULL;
-        wnr_poll_destroy();
-        ret = RNG_FAILURE_E;
-        goto out;
-    }
-
-    wnr_inited = 1;
-
-out:
-
-    wc_UnLockMutex(&wnr_mutex);
-
-    return ret;
-}
-
-/*
- * Free global Whitewood netRandom context
- * Returns 0 on success, negative on error
- */
-int wc_FreeNetRandom(void)
-{
-    if (wnr_inited > 0) {
-
-        if (wc_LockMutex(&wnr_mutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
-            return BAD_MUTEX_E;
-        }
-
-        if (wnr_ctx != NULL) {
-            wnr_destroy(wnr_ctx);
-            wnr_ctx = NULL;
-        }
-        wnr_poll_destroy();
-
-        wc_UnLockMutex(&wnr_mutex);
-
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-        wc_FreeMutex(&wnr_mutex);
-        WOLFSSL_ATOMIC_STORE(wnr_mutex_inited, 0);
-#endif
-
-        wnr_inited = 0;
-    }
-
-    return 0;
-}
-
-#endif /* HAVE_WNR */
-
-
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
     defined(HAVE_AMD_RDSEED)
 
@@ -9122,36 +8999,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         return (err_code == NRF_SUCCESS) ? 0 : -1;
-    }
-
-#elif defined(HAVE_WNR)
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        if (os == NULL || output == NULL || wnr_ctx == NULL ||
-                wnr_timeout < 0) {
-            return BAD_FUNC_ARG;
-        }
-
-    #ifndef WOLFSSL_MUTEX_INITIALIZER
-        if (WOLFSSL_ATOMIC_LOAD(wnr_mutex_inited) != 2) {
-            WOLFSSL_MSG("netRandom context must be created before use");
-            return RNG_FAILURE_E;
-        }
-    #endif
-
-        if (wc_LockMutex(&wnr_mutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
-            return BAD_MUTEX_E;
-        }
-
-        if (wnr_get_entropy(wnr_ctx, wnr_timeout, output, sz, sz) !=
-                WNR_ERROR_NONE)
-            return RNG_FAILURE_E;
-
-        wc_UnLockMutex(&wnr_mutex);
-
-        return 0;
     }
 
 #elif defined(INTIME_RTOS)

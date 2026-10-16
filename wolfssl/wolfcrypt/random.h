@@ -71,8 +71,7 @@
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
 #else
@@ -261,18 +260,12 @@
     #ifdef WOLFSSL_DRBG_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
-#elif defined(HAVE_WNR)
-     /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #elif defined(HAVE_INTEL_RDRAND)
     /* Intel RDRAND or RDSEED */
 #elif defined(WOLF_CRYPTO_CB)
     /* Requires registered Crypto Callback to service RNG, with devId set */
 #elif !defined(WC_NO_RNG)
     #error No RNG source defined!
-#endif
-
-#ifdef HAVE_WNR
-    #include <wnr.h>
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -798,13 +791,6 @@ WOLFSSL_API int  wc_NoiseSrc_GetRaw(wc_NoiseSrc* src, byte* output, word32 len,
 WOLFSSL_API int  wc_NoiseSrc_SelfTest(wc_NoiseSrc* src);
 
 #endif /* WOLFSSL_NOISE_SRC */
-
-
-#ifdef HAVE_WNR
-    /* Whitewood netRandom client library */
-    WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
-    WOLFSSL_API int  wc_FreeNetRandom(void);
-#endif /* HAVE_WNR */
 
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz,
