@@ -1,0 +1,24 @@
+#!gbuild
+
+####
+macro __CFG_NAME=rel
+macro __BSP_CFG_NAME=rel
+macro __ARCH_CFG_NAME=rel
+####
+macro __BSP_DIR=${__OS_DIR}/${__BSP_NAME}
+#macro __BUILD_DIR=${__OS_DIR}/bin/${__BSP_NAME}/${__BSP_CFG_NAME}
+macro __BUILD_DIR_ROOT=${__BUILD_DIR}/${__CFG_NAME}
+macro __BUILD_LIBS_DIR=${__OS_DIR}/libs/$(__BSP_NAME)/$(__BSP_CFG_NAME)
+macro __LIBS_DIR_BASE=${__OS_DIR}/libs
+macro __OPTIONDEFS=${__OS_DIR}/target/optionfiles
+####
+# do not provide this macro
+#macro __CFG_PROVIDES_DEBUG=0
+####
+import PY_DIR
+####
+
+externalDepends=${__BSP_DIR}/default.gpj  [RELEASE]
+[Build Configuration]
+	:optionsFile=${__OS_DIR}/target/configs/any_rel.opt
+	:optionsFile=${__OS_DIR}/target/configs/npw_any.opt

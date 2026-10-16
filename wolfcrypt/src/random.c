@@ -2892,8 +2892,8 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 #ifndef NO_SHA256
 int wc_Sha256Drbg_Disable(void)
 {
-    int ret;
 #ifdef WOLFSSL_DRBG_SHA512
+    int ret;
     ret = LockDrbgState();
     if (ret != 0)
         return ret;
@@ -2905,7 +2905,6 @@ int wc_Sha256Drbg_Disable(void)
     UnlockDrbgState();
     return 0;
 #else
-    (void)ret;
     return NOT_COMPILED_IN;
 #endif
 }
