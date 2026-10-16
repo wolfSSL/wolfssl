@@ -141,7 +141,7 @@ _poly1305_arm64_blocks:
 	stp	d12, d13, [x29, #64]
 	stp	d14, d15, [x29, #80]
 	cmp	x2, #0x40
-	blt	L_poly1305_arm64_blocks_done
+	b.lt	L_poly1305_arm64_blocks_done
 	# Set mask (0x3ffffff), hi bit and 5 into vector registers
 	movi	v25.16b, #0xff
 	movi	v27.4s, #1, lsl 24
@@ -258,9 +258,9 @@ L_poly1305_arm64_blocks_loop_64:
 	usra	v4.2d, v3.2d, #26
 	and	v3.16b, v3.16b, v26.16b
 	cmp	x2, #0x40
-	bge	L_poly1305_arm64_blocks_loop_64
+	b.ge	L_poly1305_arm64_blocks_loop_64
 	cmp	x2, #16
-	ble	L_poly1305_arm64_blocks_done_32
+	b.le	L_poly1305_arm64_blocks_done_32
 	# Start 32
 	ld4	{v5.2s, v6.2s, v7.2s, v8.2s}, [x1], #32
 	sub	x2, x2, #32
@@ -340,7 +340,7 @@ L_poly1305_arm64_blocks_loop_64:
 	and	v3.16b, v3.16b, v26.16b
 L_poly1305_arm64_blocks_done_32:
 	cmp	x2, #16
-	beq	L_poly1305_arm64_blocks_transfer
+	b.eq	L_poly1305_arm64_blocks_transfer
 	add	x14, x0, #0x60
 	st4	{v0.s, v1.s, v2.s, v3.s}[0], [x14], #16
 	st1	{v4.s}[0], [x14]
@@ -354,7 +354,7 @@ L_poly1305_arm64_blocks_transfer:
 	b	L_poly1305_arm64_blocks_start
 L_poly1305_arm64_blocks_done:
 	cmp	x2, #16
-	blt	L_poly1305_arm64_blocks_done_all
+	b.lt	L_poly1305_arm64_blocks_done_all
 	# Load h
 	ldp	w3, w4, [x0, #96]
 	ldp	w5, w6, [x0, #104]
@@ -422,7 +422,7 @@ L_poly1305_arm64_blocks_loop:
 	subs	x2, x2, #16
 	add	x1, x1, #16
 	# Loop again if more message to do.
-	bgt	L_poly1305_arm64_blocks_loop
+	b.gt	L_poly1305_arm64_blocks_loop
 	extr	x7, x5, x4, #40
 	ubfx	x5, x3, #52, #12
 	ubfx	x6, x4, #14, #26

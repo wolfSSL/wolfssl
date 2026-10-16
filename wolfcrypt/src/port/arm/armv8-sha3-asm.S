@@ -182,7 +182,7 @@ L_sha3_crypto_begin:
 	ld1r	{v30.2d}, [x1], #8
 	subs	x2, x2, #1
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_sha3_crypto_begin
+	b.ne	L_sha3_crypto_begin
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
 	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
@@ -409,7 +409,7 @@ L_SHA3_transform_base_begin:
 	ldr	x0, [x27], #8
 	subs	x28, x28, #1
 	eor	x1, x1, x0
-	bne	L_SHA3_transform_base_begin
+	b.ne	L_SHA3_transform_base_begin
 	ldr	x0, [x29, #40]
 	stp	x1, x2, [x0]
 	stp	x3, x4, [x0, #16]

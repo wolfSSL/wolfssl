@@ -31,8 +31,8 @@
 	EXPORT	AES_set_key_AARCH64
 AES_set_key_AARCH64 PROC
 	cmp	x1, #24
-	blt	L_aes_set_key_arm64_crypto_start_128
-	bgt	L_aes_set_key_arm64_crypto_start_256
+	b.lt	L_aes_set_key_arm64_crypto_start_128
+	b.gt	L_aes_set_key_arm64_crypto_start_256
 	ldr	x4, [x0], #8
 	ldr	x6, [x0], #8
 	ldr	x8, [x0], #8
@@ -159,7 +159,7 @@ AES_set_key_AARCH64 PROC
 	stp	w4, w5, [x2], #8
 	stp	w6, w7, [x2], #8
 	cmp	x3, #0
-	beq	L_aes_set_key_arm64_crypto_done
+	b.eq	L_aes_set_key_arm64_crypto_done
 	sub	x2, x2, #0xd0
 	ldur	Q0, [x2]
 	ldur	Q1, [x2, #192]
@@ -355,7 +355,7 @@ L_aes_set_key_arm64_crypto_start_256
 	stp	w4, w5, [x2], #8
 	stp	w6, w7, [x2], #8
 	cmp	x3, #0
-	beq	L_aes_set_key_arm64_crypto_done
+	b.eq	L_aes_set_key_arm64_crypto_done
 	sub	x2, x2, #0xf0
 	ldur	Q0, [x2]
 	ldur	Q1, [x2, #224]
@@ -530,7 +530,7 @@ L_aes_set_key_arm64_crypto_start_128
 	stp	w4, w5, [x2], #8
 	stp	w6, w7, [x2], #8
 	cmp	x3, #0
-	beq	L_aes_set_key_arm64_crypto_done
+	b.eq	L_aes_set_key_arm64_crypto_done
 	sub	x2, x2, #0xb0
 	ldur	Q0, [x2]
 	ldur	Q1, [x2, #160]
@@ -595,14 +595,14 @@ AES_encrypt_AARCH64 PROC
 	aese	V0.16B, V1.16B
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V2.16B
-	beq	L_aes_encrypt_arm64_crypto_round_done
+	b.eq	L_aes_encrypt_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x2], #32
 	subs	w3, w3, #2
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V1.16B
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V2.16B
-	beq	L_aes_encrypt_arm64_crypto_round_done
+	b.eq	L_aes_encrypt_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x2], #32
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V1.16B
@@ -645,14 +645,14 @@ AES_decrypt_AARCH64 PROC
 	aesimc	V0.16B, V0.16B
 	aesd	V0.16B, V2.16B
 	subs	w3, w3, #10
-	beq	L_aes_decrypt_arm64_crypto_round_done
+	b.eq	L_aes_decrypt_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x2], #32
 	aesimc	V0.16B, V0.16B
 	aesd	V0.16B, V1.16B
 	aesimc	V0.16B, V0.16B
 	aesd	V0.16B, V2.16B
 	subs	w3, w3, #2
-	beq	L_aes_decrypt_arm64_crypto_round_done
+	b.eq	L_aes_decrypt_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x2], #32
 	aesimc	V0.16B, V0.16B
 	aesd	V0.16B, V1.16B
@@ -678,15 +678,15 @@ AES_encrypt_blocks_AARCH64 PROC
 	ld1	{V24.2D, V25.2D, V26.2D}, [x3], #48
 	lsr	w2, w2, #4
 	cmp	w4, #12
-	blt	L_aes_encrypt_blocks_arm64_crypto_start_128
-	bgt	L_aes_encrypt_blocks_arm64_crypto_start_256
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_start_128
+	b.gt	L_aes_encrypt_blocks_arm64_crypto_start_256
 	; AES_ECB_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V27.2D, V28.2D}, [x3], #32
 	cmp	w2, #1
-	beq	L_aes_encrypt_blocks_arm64_crypto_192_start_1
+	b.eq	L_aes_encrypt_blocks_arm64_crypto_192_start_1
 	cmp	w2, #8
-	blt	L_aes_encrypt_blocks_arm64_crypto_192_start_4
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_192_start_4
 L_aes_encrypt_blocks_arm64_crypto_192_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -886,10 +886,10 @@ L_aes_encrypt_blocks_arm64_crypto_192_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_encrypt_blocks_arm64_crypto_192_start_8
+	b.ge	L_aes_encrypt_blocks_arm64_crypto_192_start_8
 L_aes_encrypt_blocks_arm64_crypto_192_start_4
 	cmp	w2, #4
-	blt	L_aes_encrypt_blocks_arm64_crypto_192_start_2
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_192_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -991,7 +991,7 @@ L_aes_encrypt_blocks_arm64_crypto_192_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_encrypt_blocks_arm64_crypto_192_start_2
 	cmp	w2, #2
-	blt	L_aes_encrypt_blocks_arm64_crypto_192_start_1
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -1079,9 +1079,9 @@ L_aes_encrypt_blocks_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	ld1	{V27.2D, V28.2D, V29.2D, V30.2D}, [x3], #0x40
 	cmp	w2, #1
-	beq	L_aes_encrypt_blocks_arm64_crypto_256_start_1
+	b.eq	L_aes_encrypt_blocks_arm64_crypto_256_start_1
 	cmp	w2, #8
-	blt	L_aes_encrypt_blocks_arm64_crypto_256_start_4
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_256_start_4
 L_aes_encrypt_blocks_arm64_crypto_256_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -1313,10 +1313,10 @@ L_aes_encrypt_blocks_arm64_crypto_256_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_encrypt_blocks_arm64_crypto_256_start_8
+	b.ge	L_aes_encrypt_blocks_arm64_crypto_256_start_8
 L_aes_encrypt_blocks_arm64_crypto_256_start_4
 	cmp	w2, #4
-	blt	L_aes_encrypt_blocks_arm64_crypto_256_start_2
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_256_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -1434,7 +1434,7 @@ L_aes_encrypt_blocks_arm64_crypto_256_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_encrypt_blocks_arm64_crypto_256_start_2
 	cmp	w2, #2
-	blt	L_aes_encrypt_blocks_arm64_crypto_256_start_1
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -1533,9 +1533,9 @@ L_aes_encrypt_blocks_arm64_crypto_256_done
 L_aes_encrypt_blocks_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w2, #1
-	beq	L_aes_encrypt_blocks_arm64_crypto_128_start_1
+	b.eq	L_aes_encrypt_blocks_arm64_crypto_128_start_1
 	cmp	w2, #8
-	blt	L_aes_encrypt_blocks_arm64_crypto_128_start_4
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_128_start_4
 L_aes_encrypt_blocks_arm64_crypto_128_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -1703,10 +1703,10 @@ L_aes_encrypt_blocks_arm64_crypto_128_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_encrypt_blocks_arm64_crypto_128_start_8
+	b.ge	L_aes_encrypt_blocks_arm64_crypto_128_start_8
 L_aes_encrypt_blocks_arm64_crypto_128_start_4
 	cmp	w2, #4
-	blt	L_aes_encrypt_blocks_arm64_crypto_128_start_2
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_128_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -1792,7 +1792,7 @@ L_aes_encrypt_blocks_arm64_crypto_128_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_encrypt_blocks_arm64_crypto_128_start_2
 	cmp	w2, #2
-	blt	L_aes_encrypt_blocks_arm64_crypto_128_start_1
+	b.lt	L_aes_encrypt_blocks_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aese	V0.16B, V16.16B
 	aesmc	V0.16B, V0.16B
@@ -1878,15 +1878,15 @@ AES_decrypt_blocks_AARCH64 PROC
 	ld1	{V24.2D, V25.2D, V26.2D}, [x3], #48
 	lsr	w2, w2, #4
 	cmp	w4, #12
-	blt	L_aes_decrypt_blocks_arm64_crypto_start_128
-	bgt	L_aes_decrypt_blocks_arm64_crypto_start_256
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_start_128
+	b.gt	L_aes_decrypt_blocks_arm64_crypto_start_256
 	; AES_ECB_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V27.2D, V28.2D}, [x3], #32
 	cmp	w2, #1
-	beq	L_aes_decrypt_blocks_arm64_crypto_192_start_1
+	b.eq	L_aes_decrypt_blocks_arm64_crypto_192_start_1
 	cmp	w2, #8
-	blt	L_aes_decrypt_blocks_arm64_crypto_192_start_4
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_192_start_4
 L_aes_decrypt_blocks_arm64_crypto_192_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -2086,10 +2086,10 @@ L_aes_decrypt_blocks_arm64_crypto_192_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_decrypt_blocks_arm64_crypto_192_start_8
+	b.ge	L_aes_decrypt_blocks_arm64_crypto_192_start_8
 L_aes_decrypt_blocks_arm64_crypto_192_start_4
 	cmp	w2, #4
-	blt	L_aes_decrypt_blocks_arm64_crypto_192_start_2
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_192_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -2191,7 +2191,7 @@ L_aes_decrypt_blocks_arm64_crypto_192_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_decrypt_blocks_arm64_crypto_192_start_2
 	cmp	w2, #2
-	blt	L_aes_decrypt_blocks_arm64_crypto_192_start_1
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -2279,9 +2279,9 @@ L_aes_decrypt_blocks_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	ld1	{V27.2D, V28.2D, V29.2D, V30.2D}, [x3], #0x40
 	cmp	w2, #1
-	beq	L_aes_decrypt_blocks_arm64_crypto_256_start_1
+	b.eq	L_aes_decrypt_blocks_arm64_crypto_256_start_1
 	cmp	w2, #8
-	blt	L_aes_decrypt_blocks_arm64_crypto_256_start_4
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_256_start_4
 L_aes_decrypt_blocks_arm64_crypto_256_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -2513,10 +2513,10 @@ L_aes_decrypt_blocks_arm64_crypto_256_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_decrypt_blocks_arm64_crypto_256_start_8
+	b.ge	L_aes_decrypt_blocks_arm64_crypto_256_start_8
 L_aes_decrypt_blocks_arm64_crypto_256_start_4
 	cmp	w2, #4
-	blt	L_aes_decrypt_blocks_arm64_crypto_256_start_2
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_256_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -2634,7 +2634,7 @@ L_aes_decrypt_blocks_arm64_crypto_256_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_decrypt_blocks_arm64_crypto_256_start_2
 	cmp	w2, #2
-	blt	L_aes_decrypt_blocks_arm64_crypto_256_start_1
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -2733,9 +2733,9 @@ L_aes_decrypt_blocks_arm64_crypto_256_done
 L_aes_decrypt_blocks_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w2, #1
-	beq	L_aes_decrypt_blocks_arm64_crypto_128_start_1
+	b.eq	L_aes_decrypt_blocks_arm64_crypto_128_start_1
 	cmp	w2, #8
-	blt	L_aes_decrypt_blocks_arm64_crypto_128_start_4
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_128_start_4
 L_aes_decrypt_blocks_arm64_crypto_128_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -2903,10 +2903,10 @@ L_aes_decrypt_blocks_arm64_crypto_128_start_8
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	cmp	w2, #8
-	bge	L_aes_decrypt_blocks_arm64_crypto_128_start_8
+	b.ge	L_aes_decrypt_blocks_arm64_crypto_128_start_8
 L_aes_decrypt_blocks_arm64_crypto_128_start_4
 	cmp	w2, #4
-	blt	L_aes_decrypt_blocks_arm64_crypto_128_start_2
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_128_start_2
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -2992,7 +2992,7 @@ L_aes_decrypt_blocks_arm64_crypto_128_start_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 L_aes_decrypt_blocks_arm64_crypto_128_start_2
 	cmp	w2, #2
-	blt	L_aes_decrypt_blocks_arm64_crypto_128_start_1
+	b.lt	L_aes_decrypt_blocks_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	aesd	V0.16B, V16.16B
 	aesimc	V0.16B, V0.16B
@@ -3078,8 +3078,8 @@ AES_CBC_encrypt_AARCH64 PROC
 	ld1	{V0.2D}, [x3]
 	subs	w5, w5, #12
 	lsr	w2, w2, #4
-	blt	L_aes_cbc_encrypt_arm64_crypto_start_128
-	bgt	L_aes_cbc_encrypt_arm64_crypto_start_256
+	b.lt	L_aes_cbc_encrypt_arm64_crypto_start_128
+	b.gt	L_aes_cbc_encrypt_arm64_crypto_start_256
 	; AES_CBC_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x4], #0x40
@@ -3113,7 +3113,7 @@ L_aes_cbc_encrypt_arm64_crypto_loop_192
 	aese	V0.16B, V27.16B
 	eor	V0.16B, V0.16B, V28.16B
 	st1	{V0.16B}, [x1], #16
-	bne	L_aes_cbc_encrypt_arm64_crypto_loop_192
+	b.ne	L_aes_cbc_encrypt_arm64_crypto_loop_192
 	ENDIF
 	b	L_aes_cbc_encrypt_arm64_crypto_done
 	; AES_CBC_256
@@ -3155,7 +3155,7 @@ L_aes_cbc_encrypt_arm64_crypto_loop_256
 	aese	V0.16B, V29.16B
 	eor	V0.16B, V0.16B, V30.16B
 	st1	{V0.16B}, [x1], #16
-	bne	L_aes_cbc_encrypt_arm64_crypto_loop_256
+	b.ne	L_aes_cbc_encrypt_arm64_crypto_loop_256
 	ENDIF
 	b	L_aes_cbc_encrypt_arm64_crypto_done
 	; AES_CBC_128
@@ -3188,7 +3188,7 @@ L_aes_cbc_encrypt_arm64_crypto_loop_128
 	aese	V0.16B, V25.16B
 	eor	V0.16B, V0.16B, V26.16B
 	st1	{V0.16B}, [x1], #16
-	bne	L_aes_cbc_encrypt_arm64_crypto_loop_128
+	b.ne	L_aes_cbc_encrypt_arm64_crypto_loop_128
 	ENDIF
 L_aes_cbc_encrypt_arm64_crypto_done
 	st1	{V0.2D}, [x3]
@@ -3204,14 +3204,14 @@ AES_CBC_decrypt_AARCH64 PROC
 	ld1	{V0.2D}, [x3]
 	lsr	w2, w2, #4
 	cmp	w5, #12
-	blt	L_aes_cbc_decrypt_blocks_arm64_crypto_start_128
-	bgt	L_aes_cbc_decrypt_blocks_arm64_crypto_start_256
+	b.lt	L_aes_cbc_decrypt_blocks_arm64_crypto_start_128
+	b.gt	L_aes_cbc_decrypt_blocks_arm64_crypto_start_256
 	; AES_CBC_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x4], #0x40
 	ld1	{V28.2D}, [x4]
 	cmp	w2, #10
-	ble	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
+	b.le	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
 L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1_long
 	ld1	{V1.16B}, [x0], #16
 	sub	w2, w2, #1
@@ -3244,7 +3244,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1_long
 	mov	V0.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1_long
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1_long
 	b	L_aes_cbc_decrypt_blocks_arm64_crypto_done
 L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
 	ld1	{V1.16B}, [x0], #16
@@ -3277,7 +3277,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
 	eor	V1.16B, V1.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_192_start_1
 	ENDIF
 	b	L_aes_cbc_decrypt_blocks_arm64_crypto_done
 	; AES_CBC_256
@@ -3287,7 +3287,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_start_256
 	ld1	{V28.2D, V29.2D}, [x4], #32
 	ld1	{V30.2D}, [x4]
 	cmp	w2, #5
-	ble	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
+	b.le	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
 L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1_long
 	ld1	{V1.16B}, [x0], #16
 	sub	w2, w2, #1
@@ -3324,7 +3324,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1_long
 	mov	V0.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1_long
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1_long
 	b	L_aes_cbc_decrypt_blocks_arm64_crypto_done
 L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
 	ld1	{V1.16B}, [x0], #16
@@ -3361,7 +3361,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
 	eor	V1.16B, V1.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_256_start_1
 	ENDIF
 	b	L_aes_cbc_decrypt_blocks_arm64_crypto_done
 	; AES_CBC_128
@@ -3370,7 +3370,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_start_128
 	ld1	{V24.2D, V25.2D}, [x4], #32
 	ld1	{V26.2D}, [x4]
 	cmp	w2, #24
-	ble	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
+	b.le	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
 L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1_long
 	ld1	{V1.16B}, [x0], #16
 	sub	w2, w2, #1
@@ -3399,7 +3399,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1_long
 	mov	V0.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1_long
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1_long
 	b	L_aes_cbc_decrypt_blocks_arm64_crypto_done
 L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
 	ld1	{V1.16B}, [x0], #16
@@ -3428,7 +3428,7 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
 	eor	V1.16B, V1.16B, V2.16B
 	st1	{V1.16B}, [x1], #16
 	cmp	w2, #1
-	bge	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
+	b.ge	L_aes_cbc_decrypt_blocks_arm64_crypto_128_start_1
 	ENDIF
 L_aes_cbc_decrypt_blocks_arm64_crypto_done
 	st1	{V0.2D}, [x3]
@@ -3460,18 +3460,18 @@ AES_CTR_encrypt_AARCH64 PROC
 	mov	x9, V16.D[1]
 	mov	x10, V16.D[0]
 	cmp	w7, #12
-	blt	L_aes_ctr_encrypt_arm64_crypto_start_128
-	bgt	L_aes_ctr_encrypt_arm64_crypto_start_256
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_start_128
+	b.gt	L_aes_ctr_encrypt_arm64_crypto_start_256
 	; AES_CTR_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x4], #0x40
 	ld1	{V12.2D}, [x4]
 	cmp	w8, #1
-	ble	L_aes_ctr_encrypt_arm64_crypto_192_start_1
+	b.le	L_aes_ctr_encrypt_arm64_crypto_192_start_1
 	adds	x11, x9, #1
 	adc	x12, x10, xzr
 	cmp	w8, #8
-	blt	L_aes_ctr_encrypt_arm64_crypto_192_start_4
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_192_start_4
 	adds	x13, x9, #2
 	adc	x14, x10, xzr
 	adds	x15, x9, #3
@@ -3723,10 +3723,10 @@ L_aes_ctr_encrypt_arm64_crypto_192_start_8
 	mov	V16.D[0], x10
 	mov	V16.D[1], x9
 	cmp	w8, #8
-	bge	L_aes_ctr_encrypt_arm64_crypto_192_start_8
+	b.ge	L_aes_ctr_encrypt_arm64_crypto_192_start_8
 L_aes_ctr_encrypt_arm64_crypto_192_start_4
 	cmp	w8, #4
-	blt	L_aes_ctr_encrypt_arm64_crypto_192_start_2
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_192_start_2
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x0], #0x40
 	adds	x13, x9, #2
 	mov	V17.D[0], x12
@@ -3852,7 +3852,7 @@ L_aes_ctr_encrypt_arm64_crypto_192_start_4
 	mov	V16.D[1], x9
 L_aes_ctr_encrypt_arm64_crypto_192_start_2
 	cmp	w8, #2
-	blt	L_aes_ctr_encrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_192_start_1
 	ld1	{V24.16B, V25.16B}, [x0], #32
 	eor	V20.16B, V20.16B, V20.16B
 	ext8	V19.16B, V16.16B, V16.16B, #8
@@ -3993,7 +3993,7 @@ L_aes_ctr_encrypt_arm64_crypto_192_start_byte
 	eor	w11, w11, w12
 	subs	w2, w2, #1
 	strb	w11, [x1], #1
-	bgt	L_aes_ctr_encrypt_arm64_crypto_192_start_byte
+	b.gt	L_aes_ctr_encrypt_arm64_crypto_192_start_byte
 	str	w13, [x6]
 L_aes_ctr_encrypt_arm64_crypto_192_partial_done
 	ENDIF
@@ -4005,11 +4005,11 @@ L_aes_ctr_encrypt_arm64_crypto_start_256
 	ld1	{V12.2D, V13.2D}, [x4], #32
 	ld1	{V14.2D}, [x4]
 	cmp	w8, #1
-	ble	L_aes_ctr_encrypt_arm64_crypto_256_start_1
+	b.le	L_aes_ctr_encrypt_arm64_crypto_256_start_1
 	adds	x11, x9, #1
 	adc	x12, x10, xzr
 	cmp	w8, #8
-	blt	L_aes_ctr_encrypt_arm64_crypto_256_start_4
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_256_start_4
 	adds	x13, x9, #2
 	adc	x14, x10, xzr
 	adds	x15, x9, #3
@@ -4293,10 +4293,10 @@ L_aes_ctr_encrypt_arm64_crypto_256_start_8
 	mov	V16.D[0], x10
 	mov	V16.D[1], x9
 	cmp	w8, #8
-	bge	L_aes_ctr_encrypt_arm64_crypto_256_start_8
+	b.ge	L_aes_ctr_encrypt_arm64_crypto_256_start_8
 L_aes_ctr_encrypt_arm64_crypto_256_start_4
 	cmp	w8, #4
-	blt	L_aes_ctr_encrypt_arm64_crypto_256_start_2
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_256_start_2
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x0], #0x40
 	adds	x13, x9, #2
 	mov	V17.D[0], x12
@@ -4438,7 +4438,7 @@ L_aes_ctr_encrypt_arm64_crypto_256_start_4
 	mov	V16.D[1], x9
 L_aes_ctr_encrypt_arm64_crypto_256_start_2
 	cmp	w8, #2
-	blt	L_aes_ctr_encrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_256_start_1
 	ld1	{V24.16B, V25.16B}, [x0], #32
 	eor	V20.16B, V20.16B, V20.16B
 	ext8	V19.16B, V16.16B, V16.16B, #8
@@ -4595,7 +4595,7 @@ L_aes_ctr_encrypt_arm64_crypto_256_start_byte
 	eor	w11, w11, w12
 	subs	w2, w2, #1
 	strb	w11, [x1], #1
-	bgt	L_aes_ctr_encrypt_arm64_crypto_256_start_byte
+	b.gt	L_aes_ctr_encrypt_arm64_crypto_256_start_byte
 	str	w13, [x6]
 L_aes_ctr_encrypt_arm64_crypto_256_partial_done
 	ENDIF
@@ -4606,11 +4606,11 @@ L_aes_ctr_encrypt_arm64_crypto_start_128
 	ld1	{V8.2D, V9.2D}, [x4], #32
 	ld1	{V10.2D}, [x4]
 	cmp	w8, #1
-	ble	L_aes_ctr_encrypt_arm64_crypto_128_start_1
+	b.le	L_aes_ctr_encrypt_arm64_crypto_128_start_1
 	adds	x11, x9, #1
 	adc	x12, x10, xzr
 	cmp	w8, #8
-	blt	L_aes_ctr_encrypt_arm64_crypto_128_start_4
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_128_start_4
 	adds	x13, x9, #2
 	adc	x14, x10, xzr
 	adds	x15, x9, #3
@@ -4830,10 +4830,10 @@ L_aes_ctr_encrypt_arm64_crypto_128_start_8
 	mov	V16.D[0], x10
 	mov	V16.D[1], x9
 	cmp	w8, #8
-	bge	L_aes_ctr_encrypt_arm64_crypto_128_start_8
+	b.ge	L_aes_ctr_encrypt_arm64_crypto_128_start_8
 L_aes_ctr_encrypt_arm64_crypto_128_start_4
 	cmp	w8, #4
-	blt	L_aes_ctr_encrypt_arm64_crypto_128_start_2
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_128_start_2
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x0], #0x40
 	adds	x13, x9, #2
 	mov	V17.D[0], x12
@@ -4943,7 +4943,7 @@ L_aes_ctr_encrypt_arm64_crypto_128_start_4
 	mov	V16.D[1], x9
 L_aes_ctr_encrypt_arm64_crypto_128_start_2
 	cmp	w8, #2
-	blt	L_aes_ctr_encrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_ctr_encrypt_arm64_crypto_128_start_1
 	ld1	{V24.16B, V25.16B}, [x0], #32
 	eor	V20.16B, V20.16B, V20.16B
 	ext8	V19.16B, V16.16B, V16.16B, #8
@@ -5068,7 +5068,7 @@ L_aes_ctr_encrypt_arm64_crypto_128_start_byte
 	eor	w11, w11, w12
 	subs	w2, w2, #1
 	strb	w11, [x1], #1
-	bgt	L_aes_ctr_encrypt_arm64_crypto_128_start_byte
+	b.gt	L_aes_ctr_encrypt_arm64_crypto_128_start_byte
 	str	w13, [x6]
 L_aes_ctr_encrypt_arm64_crypto_128_partial_done
 	ENDIF
@@ -5117,14 +5117,14 @@ AES_GCM_set_key_AARCH64 PROC
 	aese	V0.16B, V1.16B
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V2.16B
-	beq	L_aes_gcm_set_key_arm64_crypto_round_done
+	b.eq	L_aes_gcm_set_key_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x1], #32
 	subs	w3, w3, #2
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V1.16B
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V2.16B
-	beq	L_aes_gcm_set_key_arm64_crypto_round_done
+	b.eq	L_aes_gcm_set_key_arm64_crypto_round_done
 	ld1	{V1.2D, V2.2D}, [x1], #32
 	aesmc	V0.16B, V0.16B
 	aese	V0.16B, V1.16B
@@ -5166,7 +5166,7 @@ AES_GCM_encrypt_AARCH64 PROC
 	cmp	w2, #32
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -5181,7 +5181,7 @@ AES_GCM_encrypt_AARCH64 PROC
 	cmp	w2, #0x40
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -5212,7 +5212,7 @@ AES_GCM_encrypt_AARCH64 PROC
 	cmp	w2, #0x200
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -5265,11 +5265,11 @@ AES_GCM_encrypt_AARCH64 PROC
 L_aes_gcm_encrypt_arm64_crypto_h_done
 	lsr	w14, w8, #4
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
 	cmp	w14, #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_4
 L_aes_gcm_encrypt_arm64_crypto_aad_start_8
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x7], #0x40
@@ -5370,12 +5370,12 @@ L_aes_gcm_encrypt_arm64_crypto_aad_start_8
 	; Done GHASH
 	sub	w14, w14, #8
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_aad_start_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_aad_start_8
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
 L_aes_gcm_encrypt_arm64_crypto_aad_start_4
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	rbit	V18.16B, V18.16B
@@ -5431,10 +5431,10 @@ L_aes_gcm_encrypt_arm64_crypto_aad_start_4
 	; Done GHASH
 	sub	w14, w14, #4
 	cmp	w14, #4
-	bge	L_aes_gcm_encrypt_arm64_crypto_aad_start_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_aad_start_4
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_aad_start_1
 L_aes_gcm_encrypt_arm64_crypto_aad_start_2
 	ld1	{V18.16B, V19.16B}, [x7], #32
 	rbit	V18.16B, V18.16B
@@ -5468,8 +5468,8 @@ L_aes_gcm_encrypt_arm64_crypto_aad_start_2
 	; Done GHASH
 	sub	w14, w14, #2
 	cmp	w14, #1
-	bgt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_done
+	b.gt	L_aes_gcm_encrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_done
 L_aes_gcm_encrypt_arm64_crypto_aad_start_1
 	cbz	w14, L_aes_gcm_encrypt_arm64_crypto_aad_done
 L_aes_gcm_encrypt_arm64_crypto_aad_both_1
@@ -5493,7 +5493,7 @@ L_aes_gcm_encrypt_arm64_crypto_aad_both_1
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_aad_both_1
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_aad_both_1
 L_aes_gcm_encrypt_arm64_crypto_aad_done
 	and	w14, w8, #15
 	cbz	w14, L_aes_gcm_encrypt_arm64_crypto_aad_partial_done
@@ -5501,19 +5501,19 @@ L_aes_gcm_encrypt_arm64_crypto_aad_done
 	mov	w20, w14
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_dw
 	ldr	x19, [x7], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_aad_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_sw
 	ldr	w19, [x7], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_aad_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_aad_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_aad_start_byte
 	ldrh	w19, [x7], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -5522,7 +5522,7 @@ L_aes_gcm_encrypt_arm64_crypto_aad_start_byte
 	ldrb	w19, [x7], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_aad_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_aad_start_byte
 L_aes_gcm_encrypt_arm64_crypto_aad_end_bytes
 	sub	x11, x11, x14
 	ld1	{V18.2D}, [x11]
@@ -5547,7 +5547,7 @@ L_aes_gcm_encrypt_arm64_crypto_aad_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_aad_partial_done
 	; Load Nonce
 	cmp	w4, #12
-	bne	L_aes_gcm_encrypt_arm64_crypto_ghash_nonce
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_ghash_nonce
 	ldr	x16, [x3]
 	movi	V13.4S, #1, lsl 24
 	ldr	w17, [x3, #8]
@@ -5580,7 +5580,7 @@ L_aes_gcm_encrypt_arm64_crypto_nonce_start_1
 	eor	V13.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_nonce_start_1
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_nonce_start_1
 L_aes_gcm_encrypt_arm64_crypto_nonce_done
 	and	w24, w4, #15
 	cbz	x24, L_aes_gcm_encrypt_arm64_crypto_nonce_partial_done
@@ -5588,19 +5588,19 @@ L_aes_gcm_encrypt_arm64_crypto_nonce_done
 	mov	w20, w24
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_dw
 	ldr	x19, [x3], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_nonce_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_sw
 	ldr	w19, [x3], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_nonce_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_nonce_start_byte
 	ldrh	w19, [x3], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -5609,7 +5609,7 @@ L_aes_gcm_encrypt_arm64_crypto_nonce_start_byte
 	ldrb	w19, [x3], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_nonce_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_nonce_start_byte
 L_aes_gcm_encrypt_arm64_crypto_nonce_end_bytes
 	sub	x11, x11, x24
 	ld1	{V18.2D}, [x11]
@@ -5659,12 +5659,12 @@ L_aes_gcm_encrypt_arm64_crypto_done_nonce
 	st1	{V13.2D}, [x12]
 	lsr	w14, w2, #4
 	cmp	w13, #12
-	blt	L_aes_gcm_encrypt_arm64_crypto_start_128
-	bgt	L_aes_gcm_encrypt_arm64_crypto_start_256
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_start_128
+	b.gt	L_aes_gcm_encrypt_arm64_crypto_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_start_4
 L_aes_gcm_encrypt_arm64_crypto_192_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -5924,7 +5924,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_end_8
 L_aes_gcm_encrypt_arm64_crypto_192_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -6279,7 +6279,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_192_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_192_both_8
 L_aes_gcm_encrypt_arm64_crypto_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -6382,10 +6382,10 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_192_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -6509,7 +6509,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_end_4
 L_aes_gcm_encrypt_arm64_crypto_192_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -6682,7 +6682,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_192_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_192_both_4
 L_aes_gcm_encrypt_arm64_crypto_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -6736,8 +6736,8 @@ L_aes_gcm_encrypt_arm64_crypto_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_192_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_done
 L_aes_gcm_encrypt_arm64_crypto_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -6883,24 +6883,24 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_192_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_192_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_192_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_192_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_192_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -6909,7 +6909,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_192_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_192_start_byte
 L_aes_gcm_encrypt_arm64_crypto_192_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -6945,19 +6945,19 @@ L_aes_gcm_encrypt_arm64_crypto_192_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_192_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_192_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -6966,14 +6966,14 @@ L_aes_gcm_encrypt_arm64_crypto_192_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_192_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_192_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_192_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_192_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_192_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_192_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -7044,25 +7044,25 @@ L_aes_gcm_encrypt_arm64_crypto_192_partial_done
 	eor	V14.16B, V14.16B, V12.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_192_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_192_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_done
 L_aes_gcm_encrypt_arm64_crypto_192_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_192_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_192_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -7071,7 +7071,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_192_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_192_tag_end_bytes
 	ENDIF
 	b	L_aes_gcm_encrypt_arm64_crypto_done
@@ -7079,7 +7079,7 @@ L_aes_gcm_encrypt_arm64_crypto_192_tag_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_start_4
 L_aes_gcm_encrypt_arm64_crypto_256_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -7373,7 +7373,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_end_8
 L_aes_gcm_encrypt_arm64_crypto_256_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -7762,7 +7762,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_256_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_256_both_8
 L_aes_gcm_encrypt_arm64_crypto_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -7865,10 +7865,10 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9], #16
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_256_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -8009,7 +8009,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_end_4
 L_aes_gcm_encrypt_arm64_crypto_256_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -8199,7 +8199,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_256_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_256_both_4
 L_aes_gcm_encrypt_arm64_crypto_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -8253,8 +8253,8 @@ L_aes_gcm_encrypt_arm64_crypto_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_256_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_done
 L_aes_gcm_encrypt_arm64_crypto_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -8415,24 +8415,24 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_256_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_256_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_256_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_256_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_256_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -8441,7 +8441,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_256_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_256_start_byte
 L_aes_gcm_encrypt_arm64_crypto_256_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -8483,19 +8483,19 @@ L_aes_gcm_encrypt_arm64_crypto_256_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_256_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_256_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -8504,14 +8504,14 @@ L_aes_gcm_encrypt_arm64_crypto_256_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_256_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_256_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_256_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_256_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_256_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_256_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -8590,25 +8590,25 @@ L_aes_gcm_encrypt_arm64_crypto_256_partial_done
 	eor	V14.16B, V14.16B, V30.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_256_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_256_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_done
 L_aes_gcm_encrypt_arm64_crypto_256_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_256_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_256_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -8617,7 +8617,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_256_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_256_tag_end_bytes
 	ENDIF
 	b	L_aes_gcm_encrypt_arm64_crypto_done
@@ -8625,7 +8625,7 @@ L_aes_gcm_encrypt_arm64_crypto_256_tag_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_start_4
 L_aes_gcm_encrypt_arm64_crypto_128_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -8851,7 +8851,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_end_8
 L_aes_gcm_encrypt_arm64_crypto_128_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -9172,7 +9172,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_128_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_128_both_8
 L_aes_gcm_encrypt_arm64_crypto_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -9275,10 +9275,10 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_4
 	ld1	{V8.2D, V9.2D}, [x9], #32
 	ld1	{V10.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_128_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -9386,7 +9386,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_end_4
 L_aes_gcm_encrypt_arm64_crypto_128_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -9543,7 +9543,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_128_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_128_both_4
 L_aes_gcm_encrypt_arm64_crypto_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -9597,8 +9597,8 @@ L_aes_gcm_encrypt_arm64_crypto_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_128_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_done
 L_aes_gcm_encrypt_arm64_crypto_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -9732,24 +9732,24 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_128_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_128_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_128_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_128_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_128_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -9758,7 +9758,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_128_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_128_start_byte
 L_aes_gcm_encrypt_arm64_crypto_128_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -9790,19 +9790,19 @@ L_aes_gcm_encrypt_arm64_crypto_128_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_128_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_128_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -9811,14 +9811,14 @@ L_aes_gcm_encrypt_arm64_crypto_128_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_128_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_128_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_128_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_128_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_128_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_128_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -9885,25 +9885,25 @@ L_aes_gcm_encrypt_arm64_crypto_128_partial_done
 	eor	V14.16B, V14.16B, V10.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_128_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_128_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_done
 L_aes_gcm_encrypt_arm64_crypto_128_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_128_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_128_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -9912,7 +9912,7 @@ L_aes_gcm_encrypt_arm64_crypto_128_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_128_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_128_tag_end_bytes
 	ENDIF
 L_aes_gcm_encrypt_arm64_crypto_done
@@ -9957,7 +9957,7 @@ AES_GCM_decrypt_AARCH64 PROC
 	cmp	w2, #32
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -9972,7 +9972,7 @@ AES_GCM_decrypt_AARCH64 PROC
 	cmp	w2, #0x40
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -10003,7 +10003,7 @@ AES_GCM_decrypt_AARCH64 PROC
 	cmp	w2, #0x200
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -10056,11 +10056,11 @@ AES_GCM_decrypt_AARCH64 PROC
 L_aes_gcm_decrypt_arm64_crypto_h_done
 	lsr	w14, w8, #4
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
 	cmp	w14, #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_4
 L_aes_gcm_decrypt_arm64_crypto_aad_start_8
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x7], #0x40
@@ -10161,12 +10161,12 @@ L_aes_gcm_decrypt_arm64_crypto_aad_start_8
 	; Done GHASH
 	sub	w14, w14, #8
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_aad_start_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_aad_start_8
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
 L_aes_gcm_decrypt_arm64_crypto_aad_start_4
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	rbit	V18.16B, V18.16B
@@ -10222,10 +10222,10 @@ L_aes_gcm_decrypt_arm64_crypto_aad_start_4
 	; Done GHASH
 	sub	w14, w14, #4
 	cmp	w14, #4
-	bge	L_aes_gcm_decrypt_arm64_crypto_aad_start_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_aad_start_4
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_aad_start_1
 L_aes_gcm_decrypt_arm64_crypto_aad_start_2
 	ld1	{V18.16B, V19.16B}, [x7], #32
 	rbit	V18.16B, V18.16B
@@ -10259,8 +10259,8 @@ L_aes_gcm_decrypt_arm64_crypto_aad_start_2
 	; Done GHASH
 	sub	w14, w14, #2
 	cmp	w14, #1
-	bgt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_done
+	b.gt	L_aes_gcm_decrypt_arm64_crypto_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_done
 L_aes_gcm_decrypt_arm64_crypto_aad_start_1
 	cbz	w14, L_aes_gcm_decrypt_arm64_crypto_aad_done
 L_aes_gcm_decrypt_arm64_crypto_aad_both_1
@@ -10284,7 +10284,7 @@ L_aes_gcm_decrypt_arm64_crypto_aad_both_1
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_aad_both_1
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_aad_both_1
 L_aes_gcm_decrypt_arm64_crypto_aad_done
 	and	w14, w8, #15
 	cbz	w14, L_aes_gcm_decrypt_arm64_crypto_aad_partial_done
@@ -10292,19 +10292,19 @@ L_aes_gcm_decrypt_arm64_crypto_aad_done
 	mov	w20, w14
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_dw
 	ldr	x19, [x7], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_aad_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_sw
 	ldr	w19, [x7], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_aad_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_aad_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_aad_start_byte
 	ldrh	w19, [x7], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -10313,7 +10313,7 @@ L_aes_gcm_decrypt_arm64_crypto_aad_start_byte
 	ldrb	w19, [x7], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_aad_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_aad_start_byte
 L_aes_gcm_decrypt_arm64_crypto_aad_end_bytes
 	sub	x11, x11, x14
 	ld1	{V18.2D}, [x11]
@@ -10338,7 +10338,7 @@ L_aes_gcm_decrypt_arm64_crypto_aad_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_aad_partial_done
 	; Load Nonce
 	cmp	w4, #12
-	bne	L_aes_gcm_decrypt_arm64_crypto_ghash_nonce
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_ghash_nonce
 	ldr	x16, [x3]
 	movi	V13.4S, #1, lsl 24
 	ldr	w17, [x3, #8]
@@ -10371,7 +10371,7 @@ L_aes_gcm_decrypt_arm64_crypto_nonce_start_1
 	eor	V13.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_nonce_start_1
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_nonce_start_1
 L_aes_gcm_decrypt_arm64_crypto_nonce_done
 	and	w24, w4, #15
 	cbz	x24, L_aes_gcm_decrypt_arm64_crypto_nonce_partial_done
@@ -10379,19 +10379,19 @@ L_aes_gcm_decrypt_arm64_crypto_nonce_done
 	mov	w20, w24
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_dw
 	ldr	x19, [x3], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_nonce_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_sw
 	ldr	w19, [x3], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_nonce_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_nonce_start_byte
 	ldrh	w19, [x3], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -10400,7 +10400,7 @@ L_aes_gcm_decrypt_arm64_crypto_nonce_start_byte
 	ldrb	w19, [x3], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_nonce_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_nonce_start_byte
 L_aes_gcm_decrypt_arm64_crypto_nonce_end_bytes
 	sub	x11, x11, x24
 	ld1	{V18.2D}, [x11]
@@ -10450,12 +10450,12 @@ L_aes_gcm_decrypt_arm64_crypto_done_nonce
 	st1	{V13.2D}, [x12]
 	lsr	w14, w2, #4
 	cmp	w13, #12
-	blt	L_aes_gcm_decrypt_arm64_crypto_start_128
-	bgt	L_aes_gcm_decrypt_arm64_crypto_start_256
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_start_128
+	b.gt	L_aes_gcm_decrypt_arm64_crypto_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_start_4
 L_aes_gcm_decrypt_arm64_crypto_192_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -10715,7 +10715,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_end_8
 L_aes_gcm_decrypt_arm64_crypto_192_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -11070,7 +11070,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_192_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_192_both_8
 L_aes_gcm_decrypt_arm64_crypto_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -11173,10 +11173,10 @@ L_aes_gcm_decrypt_arm64_crypto_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_192_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -11300,7 +11300,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_end_4
 L_aes_gcm_decrypt_arm64_crypto_192_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -11473,7 +11473,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_192_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_192_both_4
 L_aes_gcm_decrypt_arm64_crypto_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -11527,8 +11527,8 @@ L_aes_gcm_decrypt_arm64_crypto_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_192_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_done
 L_aes_gcm_decrypt_arm64_crypto_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -11675,24 +11675,24 @@ L_aes_gcm_decrypt_arm64_crypto_192_start_1
 	st1	{V14.16B}, [x1], #16
 L_aes_gcm_decrypt_arm64_crypto_192_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_192_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_192_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_192_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_192_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -11701,7 +11701,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_192_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_192_start_byte
 L_aes_gcm_decrypt_arm64_crypto_192_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -11755,19 +11755,19 @@ L_aes_gcm_decrypt_arm64_crypto_192_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_192_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_192_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -11776,7 +11776,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_192_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_192_partial_done
 	ld1	{V14.2D}, [x12]
@@ -11828,7 +11828,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_partial_done
 	eor	V14.16B, V14.16B, V12.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_192_part_tag
@@ -11837,19 +11837,19 @@ L_aes_gcm_decrypt_arm64_crypto_192_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_192_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_192_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -11858,7 +11858,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_192_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_192_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -11869,7 +11869,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_192_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_192_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_192_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_192_tag_loaded
@@ -11887,7 +11887,7 @@ L_aes_gcm_decrypt_arm64_crypto_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_start_4
 L_aes_gcm_decrypt_arm64_crypto_256_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -12181,7 +12181,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_end_8
 L_aes_gcm_decrypt_arm64_crypto_256_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -12570,7 +12570,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_256_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_256_both_8
 L_aes_gcm_decrypt_arm64_crypto_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -12673,10 +12673,10 @@ L_aes_gcm_decrypt_arm64_crypto_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9], #16
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_256_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -12817,7 +12817,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_end_4
 L_aes_gcm_decrypt_arm64_crypto_256_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -13007,7 +13007,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_256_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_256_both_4
 L_aes_gcm_decrypt_arm64_crypto_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -13061,8 +13061,8 @@ L_aes_gcm_decrypt_arm64_crypto_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_256_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_done
 L_aes_gcm_decrypt_arm64_crypto_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -13223,24 +13223,24 @@ L_aes_gcm_decrypt_arm64_crypto_256_start_1
 	; Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_256_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_256_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_256_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_256_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_256_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -13249,7 +13249,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_256_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_256_start_byte
 L_aes_gcm_decrypt_arm64_crypto_256_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -13309,19 +13309,19 @@ L_aes_gcm_decrypt_arm64_crypto_256_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_256_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_256_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -13330,7 +13330,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_256_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_256_partial_done
 	ld1	{V14.2D}, [x12]
@@ -13390,7 +13390,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_partial_done
 	eor	V14.16B, V14.16B, V30.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_256_part_tag
@@ -13399,19 +13399,19 @@ L_aes_gcm_decrypt_arm64_crypto_256_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_256_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_256_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -13420,7 +13420,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_256_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_256_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -13431,7 +13431,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_256_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_256_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_256_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_256_tag_loaded
@@ -13449,7 +13449,7 @@ L_aes_gcm_decrypt_arm64_crypto_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_start_4
 L_aes_gcm_decrypt_arm64_crypto_128_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -13675,7 +13675,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_end_8
 L_aes_gcm_decrypt_arm64_crypto_128_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -13996,7 +13996,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_128_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_128_both_8
 L_aes_gcm_decrypt_arm64_crypto_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -14099,10 +14099,10 @@ L_aes_gcm_decrypt_arm64_crypto_128_start_4
 	ld1	{V8.2D, V9.2D}, [x9], #32
 	ld1	{V10.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_128_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -14210,7 +14210,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_end_4
 L_aes_gcm_decrypt_arm64_crypto_128_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -14367,7 +14367,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_128_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_128_both_4
 L_aes_gcm_decrypt_arm64_crypto_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -14421,8 +14421,8 @@ L_aes_gcm_decrypt_arm64_crypto_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_128_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_done
 L_aes_gcm_decrypt_arm64_crypto_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -14556,24 +14556,24 @@ L_aes_gcm_decrypt_arm64_crypto_128_start_1
 	; Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_128_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_128_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_128_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_128_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_128_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -14582,7 +14582,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_128_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_128_start_byte
 L_aes_gcm_decrypt_arm64_crypto_128_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -14632,19 +14632,19 @@ L_aes_gcm_decrypt_arm64_crypto_128_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_128_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_128_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -14653,7 +14653,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_128_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_128_partial_done
 	ld1	{V14.2D}, [x12]
@@ -14701,7 +14701,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_partial_done
 	eor	V14.16B, V14.16B, V10.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_128_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_128_part_tag
@@ -14710,19 +14710,19 @@ L_aes_gcm_decrypt_arm64_crypto_128_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_128_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_128_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -14731,7 +14731,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_128_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_128_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -14742,7 +14742,7 @@ L_aes_gcm_decrypt_arm64_crypto_128_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_128_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_128_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_128_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_128_tag_loaded
@@ -14799,7 +14799,7 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	cmp	w2, #32
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -14814,7 +14814,7 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	cmp	w2, #0x40
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -14844,7 +14844,7 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	cmp	w2, #0x200
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -14895,11 +14895,11 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	lsr	w14, w8, #4
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
 	cmp	w14, #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_8
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x7], #0x40
@@ -14992,12 +14992,12 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_8
 	; Done GHASH
 	sub	w14, w14, #8
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_8
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	rbit	V18.16B, V18.16B
@@ -15049,10 +15049,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
 	; Done GHASH
 	sub	w14, w14, #4
 	cmp	w14, #4
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_4
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
 	ld1	{V18.16B, V19.16B}, [x7], #32
 	rbit	V18.16B, V18.16B
@@ -15084,8 +15084,8 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
 	; Done GHASH
 	sub	w14, w14, #2
 	cmp	w14, #1
-	bgt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
+	b.gt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_1
 	cbz	w14, L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_both_1
@@ -15108,7 +15108,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_both_1
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_both_1
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_both_1
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
 	and	w14, w8, #15
 	cbz	w14, L_aes_gcm_encrypt_arm64_crypto_eor3_aad_partial_done
@@ -15116,19 +15116,19 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_done
 	mov	w20, w14
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_dw
 	ldr	x19, [x7], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_sw
 	ldr	w19, [x7], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_byte
 	ldrh	w19, [x7], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -15137,7 +15137,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_byte
 	ldrb	w19, [x7], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_aad_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_end_bytes
 	sub	x11, x11, x14
 	ld1	{V18.2D}, [x11]
@@ -15161,7 +15161,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_aad_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_eor3_aad_partial_done
 	; Load Nonce
 	cmp	w4, #12
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_ghash_nonce
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_ghash_nonce
 	ldr	x16, [x3]
 	movi	V13.4S, #1, lsl 24
 	ldr	w17, [x3, #8]
@@ -15193,7 +15193,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_1
 	eor	V13.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_1
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_1
 L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_done
 	and	w24, w4, #15
 	cbz	x24, L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_partial_done
@@ -15201,19 +15201,19 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_done
 	mov	w20, w24
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_dw
 	ldr	x19, [x3], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_sw
 	ldr	w19, [x3], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_byte
 	ldrh	w19, [x3], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -15222,7 +15222,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_byte
 	ldrb	w19, [x3], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_end_bytes
 	sub	x11, x11, x24
 	ld1	{V18.2D}, [x11]
@@ -15270,12 +15270,12 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done_nonce
 	st1	{V13.2D}, [x12]
 	lsr	w14, w2, #4
 	cmp	w13, #12
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_start_128
-	bgt	L_aes_gcm_encrypt_arm64_crypto_eor3_start_256
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_start_128
+	b.gt	L_aes_gcm_encrypt_arm64_crypto_eor3_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -15535,7 +15535,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -15882,7 +15882,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -15977,10 +15977,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -16104,7 +16104,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -16273,7 +16273,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_192_both_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -16323,8 +16323,8 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -16467,24 +16467,24 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_192_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -16493,7 +16493,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -16529,19 +16529,19 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -16550,14 +16550,14 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -16626,25 +16626,25 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_partial_done
 	eor	V14.16B, V14.16B, V12.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_eor3_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -16653,7 +16653,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_end_bytes
 	ENDIF
 	b	L_aes_gcm_encrypt_arm64_crypto_eor3_done
@@ -16661,7 +16661,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_eor3_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -16955,7 +16955,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -17336,7 +17336,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -17431,10 +17431,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9], #16
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -17575,7 +17575,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -17761,7 +17761,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_256_both_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -17811,8 +17811,8 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -17970,24 +17970,24 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_256_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -17996,7 +17996,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -18038,19 +18038,19 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -18059,14 +18059,14 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -18143,25 +18143,25 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_partial_done
 	eor	V14.16B, V14.16B, V30.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_eor3_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -18170,7 +18170,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_end_bytes
 	ENDIF
 	b	L_aes_gcm_encrypt_arm64_crypto_eor3_done
@@ -18178,7 +18178,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_end_bytes
 L_aes_gcm_encrypt_arm64_crypto_eor3_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w14, #32
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -18404,7 +18404,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_8
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -18717,7 +18717,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_8
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_8
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -18812,10 +18812,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_4
 	ld1	{V8.2D, V9.2D}, [x9], #32
 	ld1	{V10.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_done
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_2
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -18923,7 +18923,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_4
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -19076,7 +19076,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w14, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x1], #0x40
-	bge	L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_4
+	b.ge	L_aes_gcm_encrypt_arm64_crypto_eor3_128_both_4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -19126,8 +19126,8 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_1
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -19258,24 +19258,24 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_1
 	; Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_partial_done
+	b.eq	L_aes_gcm_encrypt_arm64_crypto_eor3_128_partial_done
 	eor	V16.16B, V16.16B, V16.16B
 	mov	w19, w14
 	st1	{V16.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -19284,7 +19284,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_bytes
 	sub	x11, x11, x14
 	ld1	{V16.2D}, [x11]
@@ -19316,19 +19316,19 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_end_bytes
 	st1	{V16.2D}, [x11]
 	mov	w19, w14
 	cmp	x19, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_dw
 	ldr	x17, [x11], #8
 	sub	x19, x19, #8
 	str	x17, [x1], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_sw
 	ldr	w17, [x11], #4
 	sub	x19, x19, #4
 	str	w17, [x1], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	x19, x19, #2
 	strh	w17, [x1], #2
@@ -19337,14 +19337,14 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	x19, x19, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_out_end_bytes
 	mov	x17, #16
 	sub	x17, x17, x14
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_zero
 	subs	x17, x17, #1
 	strb	wzr, [x11], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_zero
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_zero
 	sub	x11, x11, #16
 	ld1	{V14.2D}, [x11]
 	rbit	V14.16B, V14.16B
@@ -19409,25 +19409,25 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_partial_done
 	eor	V14.16B, V14.16B, V10.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_partial
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_partial
 	st1	{V26.16B}, [x5]
 	b	L_aes_gcm_encrypt_arm64_crypto_eor3_done
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_partial
 	st1	{V26.16B}, [x11]
 	cmp	w6, #8
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_dw
 	ldr	x16, [x11], #8
 	sub	w6, w6, #8
 	str	x16, [x5], #8
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_dw
 	cmp	w6, #4
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_sw
 	ldr	w16, [x11], #4
 	sub	w6, w6, #4
 	str	w16, [x5], #4
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_sw
 	cmp	w6, #2
-	blt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte
 	ldrh	w16, [x11], #2
 	sub	w6, w6, #2
 	strh	w16, [x5], #2
@@ -19436,7 +19436,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte
 	ldrb	w16, [x11], #1
 	subs	w6, w6, #1
 	strb	w16, [x5], #1
-	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_end_bytes
 	ENDIF
 L_aes_gcm_encrypt_arm64_crypto_eor3_done
@@ -19481,7 +19481,7 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	cmp	w2, #32
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -19496,7 +19496,7 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	cmp	w2, #0x40
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -19526,7 +19526,7 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	cmp	w2, #0x200
 	csetm	x17, cc
 	ands	x16, x16, x17
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -19577,11 +19577,11 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	lsr	w14, w8, #4
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
 	cmp	w14, #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_8
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x7], #0x40
@@ -19674,12 +19674,12 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_8
 	; Done GHASH
 	sub	w14, w14, #8
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_8
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
 	cmp	w14, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
 	ld1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x7], #0x40
 	rbit	V18.16B, V18.16B
@@ -19731,10 +19731,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
 	; Done GHASH
 	sub	w14, w14, #4
 	cmp	w14, #4
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_4
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
 	ld1	{V18.16B, V19.16B}, [x7], #32
 	rbit	V18.16B, V18.16B
@@ -19766,8 +19766,8 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
 	; Done GHASH
 	sub	w14, w14, #2
 	cmp	w14, #1
-	bgt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
+	b.gt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_1
 	cbz	w14, L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_both_1
@@ -19790,7 +19790,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_both_1
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_both_1
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_both_1
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
 	and	w14, w8, #15
 	cbz	w14, L_aes_gcm_decrypt_arm64_crypto_eor3_aad_partial_done
@@ -19798,19 +19798,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_done
 	mov	w20, w14
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_dw
 	ldr	x19, [x7], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_sw
 	ldr	w19, [x7], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_byte
 	ldrh	w19, [x7], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -19819,7 +19819,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_byte
 	ldrb	w19, [x7], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_aad_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_end_bytes
 	sub	x11, x11, x14
 	ld1	{V18.2D}, [x11]
@@ -19843,7 +19843,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_aad_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_aad_partial_done
 	; Load Nonce
 	cmp	w4, #12
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_ghash_nonce
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_ghash_nonce
 	ldr	x16, [x3]
 	movi	V13.4S, #1, lsl 24
 	ldr	w17, [x3, #8]
@@ -19875,7 +19875,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_1
 	eor	V13.16B, V28.16B, V30.16B
 	; Done GHASH
 	subs	w14, w14, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_1
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_1
 L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_done
 	and	w24, w4, #15
 	cbz	x24, L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_partial_done
@@ -19883,19 +19883,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_done
 	mov	w20, w24
 	st1	{V28.2D}, [x11]
 	cmp	w20, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_dw
 	ldr	x19, [x3], #8
 	sub	w20, w20, #8
 	str	x19, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_dw
 	cmp	w20, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_sw
 	ldr	w19, [x3], #4
 	sub	w20, w20, #4
 	str	w19, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_sw
 	cmp	w20, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_byte
 	ldrh	w19, [x3], #2
 	sub	w20, w20, #2
 	strh	w19, [x11], #2
@@ -19904,7 +19904,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_byte
 	ldrb	w19, [x3], #1
 	subs	w20, w20, #1
 	strb	w19, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_end_bytes
 	sub	x11, x11, x24
 	ld1	{V18.2D}, [x11]
@@ -19952,12 +19952,12 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_done_nonce
 	st1	{V13.2D}, [x12]
 	lsr	w14, w2, #4
 	cmp	w13, #12
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_start_128
-	bgt	L_aes_gcm_decrypt_arm64_crypto_eor3_start_256
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_start_128
+	b.gt	L_aes_gcm_decrypt_arm64_crypto_eor3_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -20217,7 +20217,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -20564,7 +20564,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -20659,10 +20659,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -20786,7 +20786,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -20955,7 +20955,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_192_both_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -21005,8 +21005,8 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_done
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -21150,24 +21150,24 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_1
 	st1	{V14.16B}, [x1], #16
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -21176,7 +21176,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -21229,19 +21229,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -21250,7 +21250,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done
 	ld1	{V14.2D}, [x12]
@@ -21301,7 +21301,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done
 	eor	V14.16B, V14.16B, V12.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_part_tag
@@ -21310,19 +21310,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -21331,7 +21331,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -21342,7 +21342,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_192_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_loaded
@@ -21360,7 +21360,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -21654,7 +21654,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -22035,7 +22035,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -22130,10 +22130,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x9], #0x40
 	ld1	{V12.2D}, [x9], #16
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -22274,7 +22274,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -22460,7 +22460,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_256_both_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -22510,8 +22510,8 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_done
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -22669,24 +22669,24 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_1
 	; Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -22695,7 +22695,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -22754,19 +22754,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -22775,7 +22775,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done
 	ld1	{V14.2D}, [x12]
@@ -22834,7 +22834,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done
 	eor	V14.16B, V14.16B, V30.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_part_tag
@@ -22843,19 +22843,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -22864,7 +22864,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -22875,7 +22875,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_256_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_loaded
@@ -22893,7 +22893,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w14, #32
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -23119,7 +23119,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_8
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_8
 	ldr	Q12, [x9]
 	add	w24, w15, #1
@@ -23432,7 +23432,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x1], #0x40
 	cmp	w14, #8
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_8
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_8
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -23527,10 +23527,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_4
 	ld1	{V8.2D, V9.2D}, [x9], #32
 	ld1	{V10.2D}, [x9]
 	cmp	w14, #1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_done
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_1
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_2
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
 	add	w19, w15, #2
@@ -23638,7 +23638,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_4
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_4
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -23791,7 +23791,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w14, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x1], #0x40
-	bge	L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_4
+	b.ge	L_aes_gcm_decrypt_arm64_crypto_eor3_128_both_4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -23841,8 +23841,8 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w14, #1
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_1
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_done
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_2
 	add	w20, w15, #1
 	mov	V14.16B, V13.16B
@@ -23973,24 +23973,24 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_1
 	; Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_done
 	ands	w14, w2, #15
-	beq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done
+	b.eq	L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done
 	eor	V15.16B, V15.16B, V15.16B
 	mov	w19, w14
 	st1	{V15.2D}, [x11]
 	cmp	x19, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_dw
 	ldr	x17, [x0], #8
 	sub	x19, x19, #8
 	str	x17, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_dw
 	cmp	x19, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_sw
 	ldr	w17, [x0], #4
 	sub	x19, x19, #4
 	str	w17, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_sw
 	cmp	x19, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_byte
 	ldrh	w17, [x0], #2
 	sub	x19, x19, #2
 	strh	w17, [x11], #2
@@ -23999,7 +23999,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_byte
 	ldrb	w17, [x0], #1
 	subs	x19, x19, #1
 	strb	w17, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_bytes
 	sub	x11, x11, x14
 	ld1	{V15.2D}, [x11]
@@ -24048,19 +24048,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_end_bytes
 	eor	V14.16B, V14.16B, V15.16B
 	st1	{V14.2D}, [x11]
 	cmp	w14, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_dw
 	ldr	x17, [x11], #8
 	sub	w14, w14, #8
 	str	x17, [x1], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_dw
 	cmp	w14, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_sw
 	ldr	w17, [x11], #4
 	sub	w14, w14, #4
 	str	w17, [x1], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_sw
 	cmp	w14, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte
 	ldrh	w17, [x11], #2
 	sub	w14, w14, #2
 	strh	w17, [x1], #2
@@ -24069,7 +24069,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte
 	ldrb	w17, [x11], #1
 	subs	w14, w14, #1
 	strb	w17, [x1], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done
 	ld1	{V14.2D}, [x12]
@@ -24116,7 +24116,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done
 	eor	V14.16B, V14.16B, V10.16B
 	eor	V26.16B, V26.16B, V14.16B
 	cmp	w6, #16
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_part_tag
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_part_tag
 	ld1	{V28.16B}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_part_tag
@@ -24125,19 +24125,19 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_part_tag
 	mov	x17, x6
 	st1	{V28.2D}, [x11]
 	cmp	x17, #8
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_dw
 	ldr	x16, [x5], #8
 	sub	x17, x17, #8
 	str	x16, [x11], #8
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_dw
 	cmp	x17, #4
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_sw
 	ldr	w16, [x5], #4
 	sub	x17, x17, #4
 	str	w16, [x11], #4
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_sw
 	cmp	x17, #2
-	blt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_byte
 	ldrh	w16, [x5], #2
 	sub	x17, x17, #2
 	strh	w16, [x11], #2
@@ -24146,7 +24146,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_byte
 	ldrb	w16, [x5], #1
 	subs	x17, x17, #1
 	strb	w16, [x11], #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_start_byte
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_end_bytes
 	sub	x11, x11, x6
 	ld1	{V28.2D}, [x11]
@@ -24157,7 +24157,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_end_bytes
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_calc_tag_byte
 	strb	wzr, [x11], #1
 	subs	x17, x17, #1
-	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_128_calc_tag_byte
 	subs	x11, x11, #16
 	ld1	{V26.2D}, [x11]
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_loaded
@@ -24198,7 +24198,7 @@ AES_GCM_init_AARCH64 PROC
 	ushr	V6.2D, V6.2D, #56
 	; Load Nonce
 	cmp	w3, #12
-	bne	L_aes_gcm_init_arm64_crypto_ghash_nonce
+	b.ne	L_aes_gcm_init_arm64_crypto_ghash_nonce
 	ldr	x9, [x2]
 	movi	V4.4S, #1, lsl 24
 	ldr	w10, [x2, #8]
@@ -24231,7 +24231,7 @@ L_aes_gcm_init_arm64_crypto_start_1
 	eor	V4.16B, V7.16B, V9.16B
 	; Done GHASH
 	subs	w7, w7, #1
-	bne	L_aes_gcm_init_arm64_crypto_start_1
+	b.ne	L_aes_gcm_init_arm64_crypto_start_1
 L_aes_gcm_init_arm64_crypto_done
 	and	w13, w3, #15
 	cbz	x13, L_aes_gcm_init_arm64_crypto_partial_done
@@ -24239,19 +24239,19 @@ L_aes_gcm_init_arm64_crypto_done
 	mov	w12, w13
 	st1	{V7.2D}, [x6]
 	cmp	w12, #8
-	blt	L_aes_gcm_init_arm64_crypto_start_dw
+	b.lt	L_aes_gcm_init_arm64_crypto_start_dw
 	ldr	x11, [x2], #8
 	sub	w12, w12, #8
 	str	x11, [x6], #8
 L_aes_gcm_init_arm64_crypto_start_dw
 	cmp	w12, #4
-	blt	L_aes_gcm_init_arm64_crypto_start_sw
+	b.lt	L_aes_gcm_init_arm64_crypto_start_sw
 	ldr	w11, [x2], #4
 	sub	w12, w12, #4
 	str	w11, [x6], #4
 L_aes_gcm_init_arm64_crypto_start_sw
 	cmp	w12, #2
-	blt	L_aes_gcm_init_arm64_crypto_start_byte
+	b.lt	L_aes_gcm_init_arm64_crypto_start_byte
 	ldrh	w11, [x2], #2
 	sub	w12, w12, #2
 	strh	w11, [x6], #2
@@ -24260,7 +24260,7 @@ L_aes_gcm_init_arm64_crypto_start_byte
 	ldrb	w11, [x2], #1
 	subs	w12, w12, #1
 	strb	w11, [x6], #1
-	bne	L_aes_gcm_init_arm64_crypto_start_byte
+	b.ne	L_aes_gcm_init_arm64_crypto_start_byte
 L_aes_gcm_init_arm64_crypto_end_bytes
 	sub	x6, x6, x13
 	ld1	{V0.2D}, [x6]
@@ -24331,14 +24331,14 @@ L_aes_gcm_init_arm64_crypto_done_nonce
 	aese	V4.16B, V7.16B
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V8.16B
-	beq	L_aes_gcm_init_arm64_crypto_round_done
+	b.eq	L_aes_gcm_init_arm64_crypto_round_done
 	ld1	{V7.2D, V8.2D}, [x0], #32
 	subs	w1, w1, #2
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V7.16B
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V8.16B
-	beq	L_aes_gcm_init_arm64_crypto_round_done
+	b.eq	L_aes_gcm_init_arm64_crypto_round_done
 	ld1	{V7.2D, V8.2D}, [x0], #32
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V7.16B
@@ -24403,7 +24403,7 @@ AES_GCM_aad_update_AARCH64 PROC
 	ld1	{V12.2D}, [x3]
 	ushr	V21.2D, V21.2D, #56
 	cmp	x1, #0x40
-	blt	L_aes_gcm_aad_update_arm64_crypto_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V11.1Q, V12.2D, V12.2D
 	pmull	V10.1Q, V12.1D, V12.1D
@@ -24414,7 +24414,7 @@ AES_GCM_aad_update_AARCH64 PROC
 	mov	V10.D[1], V9.D[0]
 	eor	V13.16B, V10.16B, V11.16B
 	cmp	x1, #0x100
-	blt	L_aes_gcm_aad_update_arm64_crypto_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V8.1Q, V12.1D, V13.1D
 	pmull2	V9.1Q, V12.2D, V13.2D
@@ -24441,7 +24441,7 @@ AES_GCM_aad_update_AARCH64 PROC
 	eor	V15.16B, V10.16B, V11.16B
 	; Done
 	cmp	x1, #0x400
-	blt	L_aes_gcm_aad_update_arm64_crypto_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V8.1Q, V12.1D, V15.1D
 	pmull2	V9.1Q, V12.2D, V15.2D
@@ -24494,11 +24494,11 @@ AES_GCM_aad_update_AARCH64 PROC
 L_aes_gcm_aad_update_arm64_crypto_h_done
 	lsr	x1, x1, #4
 	cmp	x1, #4
-	blt	L_aes_gcm_aad_update_arm64_crypto_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_start_1
 	cmp	x1, #16
-	blt	L_aes_gcm_aad_update_arm64_crypto_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_start_2
 	cmp	x1, #0x40
-	blt	L_aes_gcm_aad_update_arm64_crypto_start_4
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_start_4
 L_aes_gcm_aad_update_arm64_crypto_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -24599,12 +24599,12 @@ L_aes_gcm_aad_update_arm64_crypto_start_8
 	; Done GHASH
 	sub	x1, x1, #8
 	cmp	x1, #8
-	bge	L_aes_gcm_aad_update_arm64_crypto_start_8
+	b.ge	L_aes_gcm_aad_update_arm64_crypto_start_8
 	cmp	x1, #1
-	blt	L_aes_gcm_aad_update_arm64_crypto_done
-	beq	L_aes_gcm_aad_update_arm64_crypto_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_done
+	b.eq	L_aes_gcm_aad_update_arm64_crypto_start_1
 	cmp	x1, #16
-	blt	L_aes_gcm_aad_update_arm64_crypto_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_start_2
 L_aes_gcm_aad_update_arm64_crypto_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	rbit	V0.16B, V0.16B
@@ -24660,10 +24660,10 @@ L_aes_gcm_aad_update_arm64_crypto_start_4
 	; Done GHASH
 	sub	x1, x1, #4
 	cmp	x1, #4
-	bge	L_aes_gcm_aad_update_arm64_crypto_start_4
+	b.ge	L_aes_gcm_aad_update_arm64_crypto_start_4
 	cmp	x1, #1
-	blt	L_aes_gcm_aad_update_arm64_crypto_done
-	beq	L_aes_gcm_aad_update_arm64_crypto_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_done
+	b.eq	L_aes_gcm_aad_update_arm64_crypto_start_1
 L_aes_gcm_aad_update_arm64_crypto_start_2
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	rbit	V0.16B, V0.16B
@@ -24697,8 +24697,8 @@ L_aes_gcm_aad_update_arm64_crypto_start_2
 	; Done GHASH
 	sub	x1, x1, #2
 	cmp	x1, #1
-	bgt	L_aes_gcm_aad_update_arm64_crypto_start_2
-	blt	L_aes_gcm_aad_update_arm64_crypto_done
+	b.gt	L_aes_gcm_aad_update_arm64_crypto_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_done
 L_aes_gcm_aad_update_arm64_crypto_start_1
 	cbz	x1, L_aes_gcm_aad_update_arm64_crypto_done
 L_aes_gcm_aad_update_arm64_crypto_both_1
@@ -24722,7 +24722,7 @@ L_aes_gcm_aad_update_arm64_crypto_both_1
 	eor	V20.16B, V8.16B, V10.16B
 	; Done GHASH
 	subs	x1, x1, #1
-	bne	L_aes_gcm_aad_update_arm64_crypto_both_1
+	b.ne	L_aes_gcm_aad_update_arm64_crypto_both_1
 L_aes_gcm_aad_update_arm64_crypto_done
 	st1	{V20.2D}, [x2]
 	ldp	D8, D9, [x29, #16]
@@ -24767,14 +24767,14 @@ AES_GCM_encrypt_block_AARCH64 PROC
 	aese	V5.16B, V0.16B
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V1.16B
-	beq	L_aes_gcm_encrypt_block_arm64_crypto_round_done
+	b.eq	L_aes_gcm_encrypt_block_arm64_crypto_round_done
 	ld1	{V0.2D, V1.2D}, [x0], #32
 	subs	w1, w1, #2
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V0.16B
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V1.16B
-	beq	L_aes_gcm_encrypt_block_arm64_crypto_round_done
+	b.eq	L_aes_gcm_encrypt_block_arm64_crypto_round_done
 	ld1	{V0.2D, V1.2D}, [x0], #32
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V0.16B
@@ -24806,7 +24806,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -24817,7 +24817,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -24844,7 +24844,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -24897,12 +24897,12 @@ AES_GCM_encrypt_update_AARCH64 PROC
 L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	lsr	w8, w4, #4
 	cmp	x1, #12
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_start_128
-	bgt	L_aes_gcm_encrypt_update_arm64_crypto_start_256
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_start_128
+	b.gt	L_aes_gcm_encrypt_update_arm64_crypto_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_192_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -25162,7 +25162,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_192_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -25517,7 +25517,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_192_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_192_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -25620,10 +25620,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_192_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -25747,7 +25747,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_192_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -25920,7 +25920,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_192_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_192_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -25974,8 +25974,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_192_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_192_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_192_done
 L_aes_gcm_encrypt_update_arm64_crypto_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -26126,7 +26126,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_192_done
 L_aes_gcm_encrypt_update_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_256_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -26420,7 +26420,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_256_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -26809,7 +26809,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_256_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_256_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -26912,10 +26912,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0], #16
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_256_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -27056,7 +27056,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_256_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -27246,7 +27246,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_256_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_256_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -27300,8 +27300,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_256_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_256_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_256_done
 L_aes_gcm_encrypt_update_arm64_crypto_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -27467,7 +27467,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_256_done
 L_aes_gcm_encrypt_update_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_128_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -27693,7 +27693,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_128_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -28014,7 +28014,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_128_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_128_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -28117,10 +28117,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_start_4
 	ld1	{V8.2D, V9.2D}, [x0], #32
 	ld1	{V10.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_128_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -28228,7 +28228,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_128_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -28385,7 +28385,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_128_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_128_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -28439,8 +28439,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_128_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_128_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_128_done
 L_aes_gcm_encrypt_update_arm64_crypto_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -28620,25 +28620,25 @@ AES_GCM_encrypt_final_AARCH64 PROC
 	rbit	V5.16B, V5.16B
 	eor	V5.16B, V5.16B, V7.16B
 	cmp	w2, #16
-	bne	L_aes_gcm_encrypt_final_arm64_crypto_tag_partial
+	b.ne	L_aes_gcm_encrypt_final_arm64_crypto_tag_partial
 	st1	{V5.16B}, [x1]
 	b	L_aes_gcm_encrypt_final_arm64_crypto_done
 L_aes_gcm_encrypt_final_arm64_crypto_tag_partial
 	st1	{V5.16B}, [x0]
 	cmp	w2, #8
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_dw
 	ldr	x8, [x0], #8
 	sub	w2, w2, #8
 	str	x8, [x1], #8
 L_aes_gcm_encrypt_final_arm64_crypto_tag_start_dw
 	cmp	w2, #4
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_sw
 	ldr	w8, [x0], #4
 	sub	w2, w2, #4
 	str	w8, [x1], #4
 L_aes_gcm_encrypt_final_arm64_crypto_tag_start_sw
 	cmp	w2, #2
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte
 	ldrh	w8, [x0], #2
 	sub	w2, w2, #2
 	strh	w8, [x1], #2
@@ -28647,7 +28647,7 @@ L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte
 	ldrb	w8, [x0], #1
 	subs	w2, w2, #1
 	strb	w8, [x1], #1
-	bne	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte
 L_aes_gcm_encrypt_final_arm64_crypto_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_done
 	ret
@@ -28672,7 +28672,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -28683,7 +28683,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -28710,7 +28710,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -28763,12 +28763,12 @@ AES_GCM_decrypt_update_AARCH64 PROC
 L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	lsr	w8, w4, #4
 	cmp	x1, #12
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_start_128
-	bgt	L_aes_gcm_decrypt_update_arm64_crypto_start_256
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_start_128
+	b.gt	L_aes_gcm_decrypt_update_arm64_crypto_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_192_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -29028,7 +29028,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_192_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -29383,7 +29383,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_192_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_192_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -29486,10 +29486,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_192_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -29613,7 +29613,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_192_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -29786,7 +29786,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_192_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_192_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -29840,8 +29840,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_192_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_192_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_192_done
 L_aes_gcm_decrypt_update_arm64_crypto_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -29993,7 +29993,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_192_done
 L_aes_gcm_decrypt_update_arm64_crypto_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_256_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -30287,7 +30287,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_256_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -30676,7 +30676,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_256_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_256_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -30779,10 +30779,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0], #16
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_256_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -30923,7 +30923,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_256_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -31113,7 +31113,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_256_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_256_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -31167,8 +31167,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_256_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_256_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_256_done
 L_aes_gcm_decrypt_update_arm64_crypto_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -31334,7 +31334,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_256_done
 L_aes_gcm_decrypt_update_arm64_crypto_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_128_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -31560,7 +31560,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_128_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -31881,7 +31881,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_128_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_128_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -31984,10 +31984,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_start_4
 	ld1	{V8.2D, V9.2D}, [x0], #32
 	ld1	{V10.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_128_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -32095,7 +32095,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_128_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -32252,7 +32252,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_128_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_128_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -32306,8 +32306,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_128_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_128_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_128_done
 L_aes_gcm_decrypt_update_arm64_crypto_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -32487,7 +32487,7 @@ AES_GCM_decrypt_final_AARCH64 PROC
 	rbit	V5.16B, V5.16B
 	eor	V5.16B, V5.16B, V7.16B
 	cmp	w2, #16
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_part_tag
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_part_tag
 	ld1	{V0.16B}, [x1]
 	b	L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 L_aes_gcm_decrypt_final_arm64_crypto_part_tag
@@ -32496,19 +32496,19 @@ L_aes_gcm_decrypt_final_arm64_crypto_part_tag
 	mov	x10, x2
 	st1	{V0.2D}, [x0]
 	cmp	x10, #8
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_dw
 	ldr	x9, [x1], #8
 	sub	x10, x10, #8
 	str	x9, [x0], #8
 L_aes_gcm_decrypt_final_arm64_crypto_tag_start_dw
 	cmp	x10, #4
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_sw
 	ldr	w9, [x1], #4
 	sub	x10, x10, #4
 	str	w9, [x0], #4
 L_aes_gcm_decrypt_final_arm64_crypto_tag_start_sw
 	cmp	x10, #2
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_byte
 	ldrh	w9, [x1], #2
 	sub	x10, x10, #2
 	strh	w9, [x0], #2
@@ -32517,7 +32517,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_start_byte
 	ldrb	w9, [x1], #1
 	subs	x10, x10, #1
 	strb	w9, [x0], #1
-	bne	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_final_arm64_crypto_tag_start_byte
 L_aes_gcm_decrypt_final_arm64_crypto_tag_end_bytes
 	sub	x0, x0, x2
 	ld1	{V0.2D}, [x0]
@@ -32528,7 +32528,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_end_bytes
 L_aes_gcm_decrypt_final_arm64_crypto_calc_tag_byte
 	strb	wzr, [x0], #1
 	subs	x10, x10, #1
-	bne	L_aes_gcm_decrypt_final_arm64_crypto_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_final_arm64_crypto_calc_tag_byte
 	subs	x0, x0, #16
 	ld1	{V5.2D}, [x0]
 L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
@@ -32560,7 +32560,7 @@ AES_GCM_init_AARCH64_EOR3 PROC
 	ushr	V6.2D, V6.2D, #56
 	; Load Nonce
 	cmp	w3, #12
-	bne	L_aes_gcm_init_arm64_crypto_eor3_ghash_nonce
+	b.ne	L_aes_gcm_init_arm64_crypto_eor3_ghash_nonce
 	ldr	x9, [x2]
 	movi	V4.4S, #1, lsl 24
 	ldr	w10, [x2, #8]
@@ -32592,7 +32592,7 @@ L_aes_gcm_init_arm64_crypto_eor3_start_1
 	eor	V4.16B, V7.16B, V9.16B
 	; Done GHASH
 	subs	w7, w7, #1
-	bne	L_aes_gcm_init_arm64_crypto_eor3_start_1
+	b.ne	L_aes_gcm_init_arm64_crypto_eor3_start_1
 L_aes_gcm_init_arm64_crypto_eor3_done
 	and	w13, w3, #15
 	cbz	x13, L_aes_gcm_init_arm64_crypto_eor3_partial_done
@@ -32600,19 +32600,19 @@ L_aes_gcm_init_arm64_crypto_eor3_done
 	mov	w12, w13
 	st1	{V7.2D}, [x6]
 	cmp	w12, #8
-	blt	L_aes_gcm_init_arm64_crypto_eor3_start_dw
+	b.lt	L_aes_gcm_init_arm64_crypto_eor3_start_dw
 	ldr	x11, [x2], #8
 	sub	w12, w12, #8
 	str	x11, [x6], #8
 L_aes_gcm_init_arm64_crypto_eor3_start_dw
 	cmp	w12, #4
-	blt	L_aes_gcm_init_arm64_crypto_eor3_start_sw
+	b.lt	L_aes_gcm_init_arm64_crypto_eor3_start_sw
 	ldr	w11, [x2], #4
 	sub	w12, w12, #4
 	str	w11, [x6], #4
 L_aes_gcm_init_arm64_crypto_eor3_start_sw
 	cmp	w12, #2
-	blt	L_aes_gcm_init_arm64_crypto_eor3_start_byte
+	b.lt	L_aes_gcm_init_arm64_crypto_eor3_start_byte
 	ldrh	w11, [x2], #2
 	sub	w12, w12, #2
 	strh	w11, [x6], #2
@@ -32621,7 +32621,7 @@ L_aes_gcm_init_arm64_crypto_eor3_start_byte
 	ldrb	w11, [x2], #1
 	subs	w12, w12, #1
 	strb	w11, [x6], #1
-	bne	L_aes_gcm_init_arm64_crypto_eor3_start_byte
+	b.ne	L_aes_gcm_init_arm64_crypto_eor3_start_byte
 L_aes_gcm_init_arm64_crypto_eor3_end_bytes
 	sub	x6, x6, x13
 	ld1	{V0.2D}, [x6]
@@ -32690,14 +32690,14 @@ L_aes_gcm_init_arm64_crypto_eor3_done_nonce
 	aese	V4.16B, V7.16B
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V8.16B
-	beq	L_aes_gcm_init_arm64_crypto_eor3_round_done
+	b.eq	L_aes_gcm_init_arm64_crypto_eor3_round_done
 	ld1	{V7.2D, V8.2D}, [x0], #32
 	subs	w1, w1, #2
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V7.16B
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V8.16B
-	beq	L_aes_gcm_init_arm64_crypto_eor3_round_done
+	b.eq	L_aes_gcm_init_arm64_crypto_eor3_round_done
 	ld1	{V7.2D, V8.2D}, [x0], #32
 	aesmc	V4.16B, V4.16B
 	aese	V4.16B, V7.16B
@@ -32761,7 +32761,7 @@ AES_GCM_aad_update_AARCH64_EOR3 PROC
 	ld1	{V12.2D}, [x3]
 	ushr	V21.2D, V21.2D, #56
 	cmp	x1, #0x40
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V11.1Q, V12.2D, V12.2D
 	pmull	V10.1Q, V12.1D, V12.1D
@@ -32772,7 +32772,7 @@ AES_GCM_aad_update_AARCH64_EOR3 PROC
 	mov	V10.D[1], V9.D[0]
 	eor	V13.16B, V10.16B, V11.16B
 	cmp	x1, #0x100
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V8.1Q, V12.1D, V13.1D
 	pmull2	V9.1Q, V12.2D, V13.2D
@@ -32798,7 +32798,7 @@ AES_GCM_aad_update_AARCH64_EOR3 PROC
 	eor	V15.16B, V10.16B, V11.16B
 	; Done
 	cmp	x1, #0x400
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V8.1Q, V12.1D, V15.1D
 	pmull2	V9.1Q, V12.2D, V15.2D
@@ -32849,11 +32849,11 @@ AES_GCM_aad_update_AARCH64_EOR3 PROC
 L_aes_gcm_aad_update_arm64_crypto_eor3_h_done
 	lsr	x1, x1, #4
 	cmp	x1, #4
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
 	cmp	x1, #16
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
 	cmp	x1, #0x40
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
 L_aes_gcm_aad_update_arm64_crypto_eor3_start_8
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -32946,12 +32946,12 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_start_8
 	; Done GHASH
 	sub	x1, x1, #8
 	cmp	x1, #8
-	bge	L_aes_gcm_aad_update_arm64_crypto_eor3_start_8
+	b.ge	L_aes_gcm_aad_update_arm64_crypto_eor3_start_8
 	cmp	x1, #1
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
-	beq	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
+	b.eq	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
 	cmp	x1, #16
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
 L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	rbit	V0.16B, V0.16B
@@ -33003,10 +33003,10 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
 	; Done GHASH
 	sub	x1, x1, #4
 	cmp	x1, #4
-	bge	L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
+	b.ge	L_aes_gcm_aad_update_arm64_crypto_eor3_start_4
 	cmp	x1, #1
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
-	beq	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
+	b.eq	L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
 L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	rbit	V0.16B, V0.16B
@@ -33038,8 +33038,8 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
 	; Done GHASH
 	sub	x1, x1, #2
 	cmp	x1, #1
-	bgt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
-	blt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
+	b.gt	L_aes_gcm_aad_update_arm64_crypto_eor3_start_2
+	b.lt	L_aes_gcm_aad_update_arm64_crypto_eor3_done
 L_aes_gcm_aad_update_arm64_crypto_eor3_start_1
 	cbz	x1, L_aes_gcm_aad_update_arm64_crypto_eor3_done
 L_aes_gcm_aad_update_arm64_crypto_eor3_both_1
@@ -33062,7 +33062,7 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_both_1
 	eor	V20.16B, V8.16B, V10.16B
 	; Done GHASH
 	subs	x1, x1, #1
-	bne	L_aes_gcm_aad_update_arm64_crypto_eor3_both_1
+	b.ne	L_aes_gcm_aad_update_arm64_crypto_eor3_both_1
 L_aes_gcm_aad_update_arm64_crypto_eor3_done
 	st1	{V20.2D}, [x2]
 	ldp	D8, D9, [x29, #16]
@@ -33107,14 +33107,14 @@ AES_GCM_encrypt_block_AARCH64_EOR3 PROC
 	aese	V5.16B, V0.16B
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V1.16B
-	beq	L_aes_gcm_encrypt_block_arm64_crypto_eor3_round_done
+	b.eq	L_aes_gcm_encrypt_block_arm64_crypto_eor3_round_done
 	ld1	{V0.2D, V1.2D}, [x0], #32
 	subs	w1, w1, #2
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V0.16B
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V1.16B
-	beq	L_aes_gcm_encrypt_block_arm64_crypto_eor3_round_done
+	b.eq	L_aes_gcm_encrypt_block_arm64_crypto_eor3_round_done
 	ld1	{V0.2D, V1.2D}, [x0], #32
 	aesmc	V5.16B, V5.16B
 	aese	V5.16B, V0.16B
@@ -33146,7 +33146,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -33157,7 +33157,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -33183,7 +33183,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -33234,12 +33234,12 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	lsr	w8, w4, #4
 	cmp	x1, #12
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_128
-	bgt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_256
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_128
+	b.gt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -33499,7 +33499,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -33846,7 +33846,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -33941,10 +33941,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -34068,7 +34068,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -34237,7 +34237,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -34287,8 +34287,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_done
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -34436,7 +34436,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_192_done
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -34730,7 +34730,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -35111,7 +35111,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -35206,10 +35206,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0], #16
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -35350,7 +35350,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -35536,7 +35536,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -35586,8 +35586,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_done
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -35750,7 +35750,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_256_done
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w8, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -35976,7 +35976,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_8
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_8
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -36289,7 +36289,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_8
 	eor	V3.16B, V3.16B, V11.16B
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_8
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_8
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -36384,10 +36384,10 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_4
 	ld1	{V8.2D, V9.2D}, [x0], #32
 	ld1	{V10.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_done
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_2
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -36495,7 +36495,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_4
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -36648,7 +36648,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_4
 	eor	V21.16B, V21.16B, V17.16B
 	cmp	w8, #4
 	st1	{V18.16B, V19.16B, V20.16B, V21.16B}, [x2], #0x40
-	bge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_4
+	b.ge	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_both_4
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -36698,8 +36698,8 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_1
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_done
 L_aes_gcm_encrypt_update_arm64_crypto_eor3_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -36875,25 +36875,25 @@ AES_GCM_encrypt_final_AARCH64_EOR3 PROC
 	rbit	V5.16B, V5.16B
 	eor	V5.16B, V5.16B, V7.16B
 	cmp	w2, #16
-	bne	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_partial
+	b.ne	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_partial
 	st1	{V5.16B}, [x1]
 	b	L_aes_gcm_encrypt_final_arm64_crypto_eor3_done
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_partial
 	st1	{V5.16B}, [x0]
 	cmp	w2, #8
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_dw
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_dw
 	ldr	x8, [x0], #8
 	sub	w2, w2, #8
 	str	x8, [x1], #8
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_dw
 	cmp	w2, #4
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_sw
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_sw
 	ldr	w8, [x0], #4
 	sub	w2, w2, #4
 	str	w8, [x1], #4
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_sw
 	cmp	w2, #2
-	blt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte
+	b.lt	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte
 	ldrh	w8, [x0], #2
 	sub	w2, w2, #2
 	strh	w8, [x1], #2
@@ -36902,7 +36902,7 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte
 	ldrb	w8, [x0], #1
 	subs	w2, w2, #1
 	strb	w8, [x1], #1
-	bne	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte
+	b.ne	L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_done
 	ret
@@ -36927,7 +36927,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -36938,7 +36938,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -36964,7 +36964,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	b.cc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -37015,12 +37015,12 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	lsr	w8, w4, #4
 	cmp	x1, #12
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_128
-	bgt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_256
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_128
+	b.gt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_256
 	; AES_GCM_192
 	IF :LNOT::DEF:NO_AES_192
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -37280,7 +37280,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -37627,7 +37627,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -37722,10 +37722,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -37849,7 +37849,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -38018,7 +38018,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -38068,8 +38068,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_done
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -38218,7 +38218,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_192_done
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_256
 	IF :LNOT::DEF:NO_AES_256
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -38512,7 +38512,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -38893,7 +38893,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -38988,10 +38988,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_4
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x0], #0x40
 	ld1	{V12.2D}, [x0], #16
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -39132,7 +39132,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -39318,7 +39318,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -39368,8 +39368,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_done
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -39532,7 +39532,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_256_done
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_start_128
 	IF :LNOT::DEF:NO_AES_128
 	cmp	w8, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -39758,7 +39758,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_8
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_8
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_8
 	ldr	Q12, [x0]
 	add	w17, w9, #1
@@ -40071,7 +40071,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_8
 	eor	V11.16B, V11.16B, V3.16B
 	st1	{V8.16B, V9.16B, V10.16B, V11.16B}, [x2], #0x40
 	cmp	w8, #8
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_8
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_8
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_8
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -40166,10 +40166,10 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_4
 	ld1	{V8.2D, V9.2D}, [x0], #32
 	ld1	{V10.2D}, [x0]
 	cmp	w8, #1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_done
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_1
 	cmp	w8, #4
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_2
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
 	add	w12, w9, #2
@@ -40277,7 +40277,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_4
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_4
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -40430,7 +40430,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_4
 	eor	V17.16B, V17.16B, V21.16B
 	cmp	w8, #4
 	st1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
-	bge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_4
+	b.ge	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_both_4
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_4
 	rbit	V18.16B, V18.16B
 	rbit	V19.16B, V19.16B
@@ -40480,8 +40480,8 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_end_4
 	eor	V26.16B, V28.16B, V30.16B
 	; Done GHASH
 	cmp	w8, #1
-	beq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_1
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_done
+	b.eq	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_1
+	b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_done
 L_aes_gcm_decrypt_update_arm64_crypto_eor3_128_start_2
 	add	w13, w9, #1
 	mov	V14.16B, V13.16B
@@ -40657,7 +40657,7 @@ AES_GCM_decrypt_final_AARCH64_EOR3 PROC
 	rbit	V5.16B, V5.16B
 	eor	V5.16B, V5.16B, V7.16B
 	cmp	w2, #16
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_part_tag
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_part_tag
 	ld1	{V0.16B}, [x1]
 	b	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_part_tag
@@ -40666,19 +40666,19 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_part_tag
 	mov	x10, x2
 	st1	{V0.2D}, [x0]
 	cmp	x10, #8
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_dw
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_dw
 	ldr	x9, [x1], #8
 	sub	x10, x10, #8
 	str	x9, [x0], #8
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_dw
 	cmp	x10, #4
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_sw
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_sw
 	ldr	w9, [x1], #4
 	sub	x10, x10, #4
 	str	w9, [x0], #4
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_sw
 	cmp	x10, #2
-	blt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte
+	b.lt	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte
 	ldrh	w9, [x1], #2
 	sub	x10, x10, #2
 	strh	w9, [x0], #2
@@ -40687,7 +40687,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte
 	ldrb	w9, [x1], #1
 	subs	x10, x10, #1
 	strb	w9, [x0], #1
-	bne	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte
+	b.ne	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_end_bytes
 	sub	x0, x0, x2
 	ld1	{V0.2D}, [x0]
@@ -40698,7 +40698,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_end_bytes
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_calc_tag_byte
 	strb	wzr, [x0], #1
 	subs	x10, x10, #1
-	bne	L_aes_gcm_decrypt_final_arm64_crypto_eor3_calc_tag_byte
+	b.ne	L_aes_gcm_decrypt_final_arm64_crypto_eor3_calc_tag_byte
 	subs	x0, x0, #16
 	ld1	{V5.2D}, [x0]
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded
@@ -40733,8 +40733,8 @@ AES_XTS_encrypt_AARCH64 PROC
 	and	w2, w2, #15
 	mov	x19, #0x87
 	cmp	x7, #12
-	blt	L_aes_xts_encrypt_arm64_crypto_start_128
-	bgt	L_aes_xts_encrypt_arm64_crypto_start_256
+	b.lt	L_aes_xts_encrypt_arm64_crypto_start_128
+	b.gt	L_aes_xts_encrypt_arm64_crypto_start_256
 	; AES_XTS_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x5], #0x40
@@ -40779,7 +40779,7 @@ AES_XTS_encrypt_AARCH64 PROC
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_encrypt_arm64_crypto_192_start_2
+	b.lt	L_aes_xts_encrypt_arm64_crypto_192_start_2
 L_aes_xts_encrypt_arm64_crypto_192_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -40909,10 +40909,10 @@ L_aes_xts_encrypt_arm64_crypto_192_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_encrypt_arm64_crypto_192_start_4
+	b.ge	L_aes_xts_encrypt_arm64_crypto_192_start_4
 L_aes_xts_encrypt_arm64_crypto_192_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_encrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_xts_encrypt_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -41025,7 +41025,7 @@ L_aes_xts_encrypt_arm64_crypto_192_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_encrypt_arm64_crypto_192_start_byte
+	b.gt	L_aes_xts_encrypt_arm64_crypto_192_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -41111,7 +41111,7 @@ L_aes_xts_encrypt_arm64_crypto_start_256
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_encrypt_arm64_crypto_256_start_2
+	b.lt	L_aes_xts_encrypt_arm64_crypto_256_start_2
 L_aes_xts_encrypt_arm64_crypto_256_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -41257,10 +41257,10 @@ L_aes_xts_encrypt_arm64_crypto_256_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_encrypt_arm64_crypto_256_start_4
+	b.ge	L_aes_xts_encrypt_arm64_crypto_256_start_4
 L_aes_xts_encrypt_arm64_crypto_256_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_encrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_xts_encrypt_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -41385,7 +41385,7 @@ L_aes_xts_encrypt_arm64_crypto_256_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_encrypt_arm64_crypto_256_start_byte
+	b.gt	L_aes_xts_encrypt_arm64_crypto_256_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -41465,7 +41465,7 @@ L_aes_xts_encrypt_arm64_crypto_start_128
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_encrypt_arm64_crypto_128_start_2
+	b.lt	L_aes_xts_encrypt_arm64_crypto_128_start_2
 L_aes_xts_encrypt_arm64_crypto_128_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -41579,10 +41579,10 @@ L_aes_xts_encrypt_arm64_crypto_128_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_encrypt_arm64_crypto_128_start_4
+	b.ge	L_aes_xts_encrypt_arm64_crypto_128_start_4
 L_aes_xts_encrypt_arm64_crypto_128_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_encrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_xts_encrypt_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -41683,7 +41683,7 @@ L_aes_xts_encrypt_arm64_crypto_128_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_encrypt_arm64_crypto_128_start_byte
+	b.gt	L_aes_xts_encrypt_arm64_crypto_128_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -41735,8 +41735,8 @@ AES_XTS_decrypt_AARCH64 PROC
 	cset	w9, ne
 	sub	w8, w8, w9
 	cmp	x7, #12
-	blt	L_aes_xts_decrypt_arm64_crypto_start_128
-	bgt	L_aes_xts_decrypt_arm64_crypto_start_256
+	b.lt	L_aes_xts_decrypt_arm64_crypto_start_128
+	b.gt	L_aes_xts_decrypt_arm64_crypto_start_256
 	; AES_XTS_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x5], #0x40
@@ -41781,7 +41781,7 @@ AES_XTS_decrypt_AARCH64 PROC
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_decrypt_arm64_crypto_192_start_2
+	b.lt	L_aes_xts_decrypt_arm64_crypto_192_start_2
 L_aes_xts_decrypt_arm64_crypto_192_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -41911,10 +41911,10 @@ L_aes_xts_decrypt_arm64_crypto_192_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_decrypt_arm64_crypto_192_start_4
+	b.ge	L_aes_xts_decrypt_arm64_crypto_192_start_4
 L_aes_xts_decrypt_arm64_crypto_192_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_decrypt_arm64_crypto_192_start_1
+	b.lt	L_aes_xts_decrypt_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -42058,7 +42058,7 @@ L_aes_xts_decrypt_arm64_crypto_192_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_decrypt_arm64_crypto_192_start_byte
+	b.gt	L_aes_xts_decrypt_arm64_crypto_192_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -42144,7 +42144,7 @@ L_aes_xts_decrypt_arm64_crypto_start_256
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_decrypt_arm64_crypto_256_start_2
+	b.lt	L_aes_xts_decrypt_arm64_crypto_256_start_2
 L_aes_xts_decrypt_arm64_crypto_256_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -42290,10 +42290,10 @@ L_aes_xts_decrypt_arm64_crypto_256_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_decrypt_arm64_crypto_256_start_4
+	b.ge	L_aes_xts_decrypt_arm64_crypto_256_start_4
 L_aes_xts_decrypt_arm64_crypto_256_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_decrypt_arm64_crypto_256_start_1
+	b.lt	L_aes_xts_decrypt_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -42453,7 +42453,7 @@ L_aes_xts_decrypt_arm64_crypto_256_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_decrypt_arm64_crypto_256_start_byte
+	b.gt	L_aes_xts_decrypt_arm64_crypto_256_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -42533,7 +42533,7 @@ L_aes_xts_decrypt_arm64_crypto_start_128
 	extr	x17, x15, x14, #63
 	eor	x16, x9, x14, lsl 1
 	cmp	w8, #4
-	blt	L_aes_xts_decrypt_arm64_crypto_128_start_2
+	b.lt	L_aes_xts_decrypt_arm64_crypto_128_start_2
 L_aes_xts_decrypt_arm64_crypto_128_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x12
@@ -42647,10 +42647,10 @@ L_aes_xts_decrypt_arm64_crypto_128_start_4
 	sub	w8, w8, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w8, #4
-	bge	L_aes_xts_decrypt_arm64_crypto_128_start_4
+	b.ge	L_aes_xts_decrypt_arm64_crypto_128_start_4
 L_aes_xts_decrypt_arm64_crypto_128_start_2
 	cmp	w8, #2
-	blt	L_aes_xts_decrypt_arm64_crypto_128_start_1
+	b.lt	L_aes_xts_decrypt_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x12
 	mov	V5.D[1], x13
@@ -42778,7 +42778,7 @@ L_aes_xts_decrypt_arm64_crypto_128_start_byte
 	strb	w12, [x1], #1
 	strb	w13, [x6], #1
 	subs	w9, w9, #1
-	bgt	L_aes_xts_decrypt_arm64_crypto_128_start_byte
+	b.gt	L_aes_xts_decrypt_arm64_crypto_128_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -42829,8 +42829,8 @@ AES_XTS_encrypt_update_AARCH64 PROC
 	and	w2, w2, #15
 	mov	x17, #0x87
 	cmp	x6, #12
-	blt	L_aes_xts_encrypt_update_arm64_crypto_start_128
-	bgt	L_aes_xts_encrypt_update_arm64_crypto_start_256
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_start_128
+	b.gt	L_aes_xts_encrypt_update_arm64_crypto_start_256
 	; AES_XTS_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
@@ -42847,7 +42847,7 @@ AES_XTS_encrypt_update_AARCH64 PROC
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_encrypt_update_arm64_crypto_192_start_2
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_192_start_2
 L_aes_xts_encrypt_update_arm64_crypto_192_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -42977,10 +42977,10 @@ L_aes_xts_encrypt_update_arm64_crypto_192_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_encrypt_update_arm64_crypto_192_start_4
+	b.ge	L_aes_xts_encrypt_update_arm64_crypto_192_start_4
 L_aes_xts_encrypt_update_arm64_crypto_192_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_encrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -43093,7 +43093,7 @@ L_aes_xts_encrypt_update_arm64_crypto_192_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_encrypt_update_arm64_crypto_192_start_byte
+	b.gt	L_aes_xts_encrypt_update_arm64_crypto_192_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -43146,7 +43146,7 @@ L_aes_xts_encrypt_update_arm64_crypto_start_256
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_encrypt_update_arm64_crypto_256_start_2
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_256_start_2
 L_aes_xts_encrypt_update_arm64_crypto_256_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -43292,10 +43292,10 @@ L_aes_xts_encrypt_update_arm64_crypto_256_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_encrypt_update_arm64_crypto_256_start_4
+	b.ge	L_aes_xts_encrypt_update_arm64_crypto_256_start_4
 L_aes_xts_encrypt_update_arm64_crypto_256_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_encrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -43420,7 +43420,7 @@ L_aes_xts_encrypt_update_arm64_crypto_256_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_encrypt_update_arm64_crypto_256_start_byte
+	b.gt	L_aes_xts_encrypt_update_arm64_crypto_256_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -43476,7 +43476,7 @@ L_aes_xts_encrypt_update_arm64_crypto_start_128
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_encrypt_update_arm64_crypto_128_start_2
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_128_start_2
 L_aes_xts_encrypt_update_arm64_crypto_128_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -43590,10 +43590,10 @@ L_aes_xts_encrypt_update_arm64_crypto_128_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_encrypt_update_arm64_crypto_128_start_4
+	b.ge	L_aes_xts_encrypt_update_arm64_crypto_128_start_4
 L_aes_xts_encrypt_update_arm64_crypto_128_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_encrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_xts_encrypt_update_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -43694,7 +43694,7 @@ L_aes_xts_encrypt_update_arm64_crypto_128_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_encrypt_update_arm64_crypto_128_start_byte
+	b.gt	L_aes_xts_encrypt_update_arm64_crypto_128_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -43747,8 +43747,8 @@ AES_XTS_decrypt_update_AARCH64 PROC
 	cset	w8, ne
 	sub	w7, w7, w8
 	cmp	x6, #12
-	blt	L_aes_xts_decrypt_update_arm64_crypto_start_128
-	bgt	L_aes_xts_decrypt_update_arm64_crypto_start_256
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_start_128
+	b.gt	L_aes_xts_decrypt_update_arm64_crypto_start_256
 	; AES_XTS_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
@@ -43765,7 +43765,7 @@ AES_XTS_decrypt_update_AARCH64 PROC
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_decrypt_update_arm64_crypto_192_start_2
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_192_start_2
 L_aes_xts_decrypt_update_arm64_crypto_192_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -43895,10 +43895,10 @@ L_aes_xts_decrypt_update_arm64_crypto_192_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_decrypt_update_arm64_crypto_192_start_4
+	b.ge	L_aes_xts_decrypt_update_arm64_crypto_192_start_4
 L_aes_xts_decrypt_update_arm64_crypto_192_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_decrypt_update_arm64_crypto_192_start_1
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_192_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -44042,7 +44042,7 @@ L_aes_xts_decrypt_update_arm64_crypto_192_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_decrypt_update_arm64_crypto_192_start_byte
+	b.gt	L_aes_xts_decrypt_update_arm64_crypto_192_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -44095,7 +44095,7 @@ L_aes_xts_decrypt_update_arm64_crypto_start_256
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_decrypt_update_arm64_crypto_256_start_2
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_256_start_2
 L_aes_xts_decrypt_update_arm64_crypto_256_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -44241,10 +44241,10 @@ L_aes_xts_decrypt_update_arm64_crypto_256_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_decrypt_update_arm64_crypto_256_start_4
+	b.ge	L_aes_xts_decrypt_update_arm64_crypto_256_start_4
 L_aes_xts_decrypt_update_arm64_crypto_256_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_decrypt_update_arm64_crypto_256_start_1
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_256_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -44404,7 +44404,7 @@ L_aes_xts_decrypt_update_arm64_crypto_256_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_decrypt_update_arm64_crypto_256_start_byte
+	b.gt	L_aes_xts_decrypt_update_arm64_crypto_256_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -44460,7 +44460,7 @@ L_aes_xts_decrypt_update_arm64_crypto_start_128
 	extr	x16, x14, x13, #63
 	eor	x15, x8, x13, lsl 1
 	cmp	w7, #4
-	blt	L_aes_xts_decrypt_update_arm64_crypto_128_start_2
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_128_start_2
 L_aes_xts_decrypt_update_arm64_crypto_128_start_4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
 	mov	V5.D[0], x11
@@ -44574,10 +44574,10 @@ L_aes_xts_decrypt_update_arm64_crypto_128_start_4
 	sub	w7, w7, #4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	cmp	w7, #4
-	bge	L_aes_xts_decrypt_update_arm64_crypto_128_start_4
+	b.ge	L_aes_xts_decrypt_update_arm64_crypto_128_start_4
 L_aes_xts_decrypt_update_arm64_crypto_128_start_2
 	cmp	w7, #2
-	blt	L_aes_xts_decrypt_update_arm64_crypto_128_start_1
+	b.lt	L_aes_xts_decrypt_update_arm64_crypto_128_start_1
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	mov	V5.D[0], x11
 	mov	V5.D[1], x12
@@ -44705,7 +44705,7 @@ L_aes_xts_decrypt_update_arm64_crypto_128_start_byte
 	strb	w11, [x1], #1
 	strb	w12, [x5], #1
 	subs	w8, w8, #1
-	bgt	L_aes_xts_decrypt_update_arm64_crypto_128_start_byte
+	b.gt	L_aes_xts_decrypt_update_arm64_crypto_128_start_byte
 	sub	x1, x1, x2
 	sub	x5, x5, x2
 	sub	x1, x1, #16
@@ -45014,7 +45014,7 @@ AES_GCMSIV_polyval_pmull PROC
 	eor	V9.16B, V19.16B, V18.16B
 L_AES_GCMSIV_polyval_pmull_loop8
 	cmp	w3, #8
-	blt	L_AES_GCMSIV_polyval_pmull_done8
+	b.lt	L_AES_GCMSIV_polyval_pmull_done8
 	ld1	{V10.16B, V11.16B, V12.16B, V13.16B}, [x2], #0x40
 	ld1	{V14.16B, V15.16B, V16.16B, V17.16B}, [x2], #0x40
 	eor	V10.16B, V10.16B, V0.16B
@@ -45143,7 +45143,7 @@ L_AES_GCMSIV_polyval_pmull_loop8
 L_AES_GCMSIV_polyval_pmull_done8
 L_AES_GCMSIV_polyval_pmull_loop4
 	cmp	w3, #4
-	blt	L_AES_GCMSIV_polyval_pmull_done4
+	b.lt	L_AES_GCMSIV_polyval_pmull_done4
 	ld1	{V10.16B, V11.16B, V12.16B, V13.16B}, [x2], #0x40
 	eor	V10.16B, V10.16B, V0.16B
 	pmull	V18.1Q, V10.1D, V5.1D
@@ -45262,7 +45262,7 @@ L_AES_GCMSIV_polyval_pmull_rem
 	eor	V18.16B, V18.16B, V24.16B
 	eor	V0.16B, V19.16B, V18.16B
 	subs	w3, w3, #1
-	bne	L_AES_GCMSIV_polyval_pmull_rem
+	b.ne	L_AES_GCMSIV_polyval_pmull_rem
 L_AES_GCMSIV_polyval_pmull_done
 	rev64	V0.16B, V0.16B
 	ext8	V0.16B, V0.16B, V0.16B, #8
@@ -45290,15 +45290,15 @@ AES_GCMSIV_ctr_aarch64 PROC
 	ld1	{V0.2D, V1.2D, V2.2D, V3.2D}, [x3], #0x40
 	ld1	{V4.2D, V5.2D, V6.2D, V7.2D}, [x3], #0x40
 	cmp	w4, #12
-	blt	L_AES_GCMSIV_ctr_aarch64_start_128
-	bgt	L_AES_GCMSIV_ctr_aarch64_start_256
+	b.lt	L_AES_GCMSIV_ctr_aarch64_start_128
+	b.gt	L_AES_GCMSIV_ctr_aarch64_start_256
 	; AES_GCMSIV_CTR_192
 	IF :LNOT::DEF:NO_AES_192
 	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x3], #0x40
 	ld1	{V12.2D}, [x3]
 L_AES_GCMSIV_ctr_aarch64_192_loop4
 	cmp	x6, #4
-	blt	L_AES_GCMSIV_ctr_aarch64_192_done4
+	b.lt	L_AES_GCMSIV_ctr_aarch64_192_done4
 	mov	V16.16B, V15.16B
 	mov	V16.S[0], w7
 	mov	V17.16B, V15.16B
@@ -45415,7 +45415,7 @@ L_AES_GCMSIV_ctr_aarch64_192_loop4
 	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
 	sub	x6, x6, #4
 	cmp	x6, #4
-	bge	L_AES_GCMSIV_ctr_aarch64_192_loop4
+	b.ge	L_AES_GCMSIV_ctr_aarch64_192_loop4
 L_AES_GCMSIV_ctr_aarch64_192_done4
 L_AES_GCMSIV_ctr_aarch64_192_loop1
 	cbz	x6, L_AES_GCMSIV_ctr_aarch64_192_done1
@@ -45462,7 +45462,7 @@ L_AES_GCMSIV_ctr_aarch64_start_256
 	ld1	{V14.2D}, [x3]
 L_AES_GCMSIV_ctr_aarch64_256_loop4
 	cmp	x6, #4
-	blt	L_AES_GCMSIV_ctr_aarch64_256_done4
+	b.lt	L_AES_GCMSIV_ctr_aarch64_256_done4
 	mov	V16.16B, V15.16B
 	mov	V16.S[0], w7
 	mov	V17.16B, V15.16B
@@ -45595,7 +45595,7 @@ L_AES_GCMSIV_ctr_aarch64_256_loop4
 	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
 	sub	x6, x6, #4
 	cmp	x6, #4
-	bge	L_AES_GCMSIV_ctr_aarch64_256_loop4
+	b.ge	L_AES_GCMSIV_ctr_aarch64_256_loop4
 L_AES_GCMSIV_ctr_aarch64_256_done4
 L_AES_GCMSIV_ctr_aarch64_256_loop1
 	cbz	x6, L_AES_GCMSIV_ctr_aarch64_256_done1
@@ -45645,7 +45645,7 @@ L_AES_GCMSIV_ctr_aarch64_start_128
 	ld1	{V10.2D}, [x3]
 L_AES_GCMSIV_ctr_aarch64_128_loop4
 	cmp	x6, #4
-	blt	L_AES_GCMSIV_ctr_aarch64_128_done4
+	b.lt	L_AES_GCMSIV_ctr_aarch64_128_done4
 	mov	V16.16B, V15.16B
 	mov	V16.S[0], w7
 	mov	V17.16B, V15.16B
@@ -45746,7 +45746,7 @@ L_AES_GCMSIV_ctr_aarch64_128_loop4
 	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
 	sub	x6, x6, #4
 	cmp	x6, #4
-	bge	L_AES_GCMSIV_ctr_aarch64_128_loop4
+	b.ge	L_AES_GCMSIV_ctr_aarch64_128_loop4
 L_AES_GCMSIV_ctr_aarch64_128_done4
 L_AES_GCMSIV_ctr_aarch64_128_loop1
 	cbz	x6, L_AES_GCMSIV_ctr_aarch64_128_done1
@@ -45850,7 +45850,7 @@ L_AES_invert_key_NEON_loop
 	st1	{V1.2D}, [x2], #16
 	subs	w4, w4, #2
 	sub	x3, x3, #16
-	bne	L_AES_invert_key_NEON_loop
+	b.ne	L_AES_invert_key_NEON_loop
 	movi	V2.16B, #27
 	add	x2, x0, #16
 	sub	w4, w1, #1
@@ -45883,7 +45883,7 @@ L_AES_invert_key_NEON_mix_loop
 	eor	V0.16B, V0.16B, V4.16B
 	st1	{V0.2D}, [x2], #16
 	subs	w4, w4, #1
-	bne	L_AES_invert_key_NEON_mix_loop
+	b.ne	L_AES_invert_key_NEON_mix_loop
 	ret
 	ENDP
 	ENDIF
@@ -45917,9 +45917,9 @@ AES_set_encrypt_key_NEON PROC
 	movi	V5.16B, #27
 	eor	V26.16B, V26.16B, V26.16B
 	cmp	x1, #0x80
-	beq	L_AES_set_encrypt_key_NEON_start_128
+	b.eq	L_AES_set_encrypt_key_NEON_start_128
 	cmp	x1, #0xc0
-	beq	L_AES_set_encrypt_key_NEON_start_192
+	b.eq	L_AES_set_encrypt_key_NEON_start_192
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V1.16B}, [x0]
 	rev32	V0.16B, V0.16B
@@ -45977,7 +45977,7 @@ L_AES_set_encrypt_key_NEON_loop_256
 	eor	V1.16B, V1.16B, V24.16B
 	st1	{V1.2D}, [x2], #16
 	subs	x3, x3, #1
-	bne	L_AES_set_encrypt_key_NEON_loop_256
+	b.ne	L_AES_set_encrypt_key_NEON_loop_256
 	eor	V22.16B, V1.16B, V2.16B
 	eor	V23.16B, V1.16B, V3.16B
 	eor	V24.16B, V1.16B, V4.16B
@@ -46049,7 +46049,7 @@ L_AES_set_encrypt_key_NEON_loop_192
 	eor	V1.16B, V1.16B, V23.16B
 	st1	{V1.D}[1], [x2], #8
 	subs	x3, x3, #1
-	bne	L_AES_set_encrypt_key_NEON_loop_192
+	b.ne	L_AES_set_encrypt_key_NEON_loop_192
 	eor	V22.16B, V1.16B, V2.16B
 	eor	V23.16B, V1.16B, V3.16B
 	eor	V24.16B, V1.16B, V4.16B
@@ -46110,7 +46110,7 @@ L_AES_set_encrypt_key_NEON_loop_128
 	eor	V0.16B, V0.16B, V25.16B
 	st1	{V0.2D}, [x2], #16
 	subs	x3, x3, #1
-	bne	L_AES_set_encrypt_key_NEON_loop_128
+	b.ne	L_AES_set_encrypt_key_NEON_loop_128
 L_AES_set_encrypt_key_NEON_end
 	ldp	D8, D9, [x29, #16]
 	ldp	D10, D11, [x29, #32]
@@ -46139,7 +46139,7 @@ AES_ECB_encrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	bcc	L_AES_ECB_encrypt_NEON_start_2
+	b.cc	L_AES_ECB_encrypt_NEON_start_2
 L_AES_ECB_encrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -46372,7 +46372,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V15.16B
 	; Round Done
 	subs	w7, w7, #2
-	bne	L_AES_ECB_encrypt_NEON_loop_nr_4
+	b.ne	L_AES_ECB_encrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -46543,15 +46543,15 @@ L_AES_ECB_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_ECB_encrypt_NEON_loop_4
+	b.cs	L_AES_ECB_encrypt_NEON_loop_4
 L_AES_ECB_encrypt_NEON_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 	cmp	x2, #16
-	beq	L_AES_ECB_encrypt_NEON_start_1
-	bcc	L_AES_ECB_encrypt_NEON_data_done
+	b.eq	L_AES_ECB_encrypt_NEON_start_1
+	b.cc	L_AES_ECB_encrypt_NEON_data_done
 L_AES_ECB_encrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -46672,7 +46672,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V11.16B
 	; Round Done
 	subs	w7, w7, #2
-	bne	L_AES_ECB_encrypt_NEON_loop_nr_2
+	b.ne	L_AES_ECB_encrypt_NEON_loop_nr_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V1.16B, V12.16B
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
@@ -46760,7 +46760,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_2
 	st1	{V0.16B, V1.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #0
-	beq	L_AES_ECB_encrypt_NEON_data_done
+	b.eq	L_AES_ECB_encrypt_NEON_data_done
 L_AES_ECB_encrypt_NEON_start_1
 	ld1	{V3.2D}, [x6]
 	mov	x8, x3
@@ -46826,7 +46826,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_1
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w7, w7, #2
-	bne	L_AES_ECB_encrypt_NEON_loop_nr_1
+	b.ne	L_AES_ECB_encrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -46969,7 +46969,7 @@ L_AES_CBC_encrypt_NEON_loop_nr
 	eor	V0.16B, V4.16B, V3.16B
 	eor	V0.16B, V0.16B, V2.16B
 	subs	w8, w8, #2
-	bne	L_AES_CBC_encrypt_NEON_loop_nr
+	b.ne	L_AES_CBC_encrypt_NEON_loop_nr
 	eor	V2.16B, V0.16B, V6.16B
 	eor	V3.16B, V0.16B, V7.16B
 	eor	V4.16B, V0.16B, V8.16B
@@ -47014,7 +47014,7 @@ L_AES_CBC_encrypt_NEON_loop_nr
 	rev32	V0.16B, V0.16B
 	st1	{V0.16B}, [x1], #16
 	subs	x2, x2, #16
-	bne	L_AES_CBC_encrypt_NEON_loop_block
+	b.ne	L_AES_CBC_encrypt_NEON_loop_block
 	st1	{V0.2D}, [x5]
 	ldp	D8, D9, [x29, #16]
 	ldp	D10, D11, [x29, #32]
@@ -47049,7 +47049,7 @@ AES_CTR_encrypt_NEON PROC
 	mov	x10, V8.D[1]
 	mov	x11, V8.D[0]
 	cmp	x2, #0x40
-	bcc	L_AES_CTR_encrypt_NEON_start_2
+	b.cc	L_AES_CTR_encrypt_NEON_start_2
 L_AES_CTR_encrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -47300,7 +47300,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V15.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_CTR_encrypt_NEON_loop_nr_4
+	b.ne	L_AES_CTR_encrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -47476,7 +47476,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_CTR_encrypt_NEON_loop_4
+	b.cs	L_AES_CTR_encrypt_NEON_loop_4
 	mov	V2.D[1], x10
 	mov	V2.D[0], x11
 	rev64	V2.4S, V2.4S
@@ -47486,8 +47486,8 @@ L_AES_CTR_encrypt_NEON_start_2
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 	cmp	x2, #16
-	beq	L_AES_CTR_encrypt_NEON_start_1
-	bcc	L_AES_CTR_encrypt_NEON_data_done
+	b.eq	L_AES_CTR_encrypt_NEON_start_1
+	b.cc	L_AES_CTR_encrypt_NEON_data_done
 L_AES_CTR_encrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -47615,7 +47615,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V11.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_CTR_encrypt_NEON_loop_nr_2
+	b.ne	L_AES_CTR_encrypt_NEON_loop_nr_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V1.16B, V12.16B
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
@@ -47706,7 +47706,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_2
 	st1	{V0.16B, V1.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #0
-	beq	L_AES_CTR_encrypt_NEON_data_done
+	b.eq	L_AES_CTR_encrypt_NEON_data_done
 L_AES_CTR_encrypt_NEON_start_1
 	ld1	{V3.2D}, [x7]
 	mov	x9, x3
@@ -47770,7 +47770,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_1
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w8, w8, #2
-	bne	L_AES_CTR_encrypt_NEON_loop_nr_1
+	b.ne	L_AES_CTR_encrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -47894,7 +47894,7 @@ AES_ECB_decrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	bcc	L_AES_ECB_decrypt_NEON_start_2
+	b.cc	L_AES_ECB_decrypt_NEON_start_2
 L_AES_ECB_decrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -48225,7 +48225,7 @@ L_AES_ECB_decrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V4.16B
 	; Round Done
 	subs	w7, w7, #2
-	bne	L_AES_ECB_decrypt_NEON_loop_nr_4
+	b.ne	L_AES_ECB_decrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -48445,11 +48445,11 @@ L_AES_ECB_decrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_ECB_decrypt_NEON_loop_4
+	b.cs	L_AES_ECB_decrypt_NEON_loop_4
 L_AES_ECB_decrypt_NEON_start_2
 	cmp	x2, #16
-	beq	L_AES_ECB_decrypt_NEON_start_1
-	bcc	L_AES_ECB_decrypt_NEON_data_done
+	b.eq	L_AES_ECB_decrypt_NEON_start_1
+	b.cc	L_AES_ECB_decrypt_NEON_data_done
 L_AES_ECB_decrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -48626,7 +48626,7 @@ L_AES_ECB_decrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V4.16B
 	; Round Done
 	subs	w7, w7, #2
-	bne	L_AES_ECB_decrypt_NEON_loop_nr_2
+	b.ne	L_AES_ECB_decrypt_NEON_loop_nr_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
@@ -48745,7 +48745,7 @@ L_AES_ECB_decrypt_NEON_loop_nr_2
 	st1	{V0.16B, V1.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #0
-	beq	L_AES_ECB_decrypt_NEON_data_done
+	b.eq	L_AES_ECB_decrypt_NEON_data_done
 L_AES_ECB_decrypt_NEON_start_1
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -48839,7 +48839,7 @@ L_AES_ECB_decrypt_NEON_loop_nr_1
 	;   XOR in Key Schedule
 	eor	V0.16B, V0.16B, V4.16B
 	subs	w7, w7, #2
-	bne	L_AES_ECB_decrypt_NEON_loop_nr_1
+	b.ne	L_AES_ECB_decrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -48926,7 +48926,7 @@ AES_CBC_decrypt_NEON PROC
 	ld1	{V3.2D}, [x5]
 	add	x10, x29, #16
 	cmp	x2, #0x40
-	bcc	L_AES_CBC_decrypt_NEON_start_2
+	b.cc	L_AES_CBC_decrypt_NEON_start_2
 L_AES_CBC_decrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -49259,7 +49259,7 @@ L_AES_CBC_decrypt_NEON_loop_nr_4
 	eor	V7.16B, V7.16B, V8.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_CBC_decrypt_NEON_loop_nr_4
+	b.ne	L_AES_CBC_decrypt_NEON_loop_nr_4
 	tbl	V8.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
 	tbl	V9.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
 	tbl	V10.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V6.16B
@@ -49485,11 +49485,11 @@ L_AES_CBC_decrypt_NEON_loop_nr_4
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_CBC_decrypt_NEON_loop_4
+	b.cs	L_AES_CBC_decrypt_NEON_loop_4
 L_AES_CBC_decrypt_NEON_start_2
 	cmp	x2, #16
-	beq	L_AES_CBC_decrypt_NEON_start_1
-	bcc	L_AES_CBC_decrypt_NEON_data_done
+	b.eq	L_AES_CBC_decrypt_NEON_start_1
+	b.cc	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B}, [x0], #32
@@ -49667,7 +49667,7 @@ L_AES_CBC_decrypt_NEON_loop_nr_2
 	eor	V5.16B, V5.16B, V8.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_CBC_decrypt_NEON_loop_nr_2
+	b.ne	L_AES_CBC_decrypt_NEON_loop_nr_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
@@ -49789,9 +49789,9 @@ L_AES_CBC_decrypt_NEON_loop_nr_2
 	st1	{V4.16B, V5.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #32
-	bcs	L_AES_CBC_decrypt_NEON_loop_2
+	b.cs	L_AES_CBC_decrypt_NEON_loop_2
 	cmp	x2, #0
-	beq	L_AES_CBC_decrypt_NEON_data_done
+	b.eq	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_start_1
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -49887,7 +49887,7 @@ L_AES_CBC_decrypt_NEON_loop_nr_1
 	;   XOR in Key Schedule
 	eor	V4.16B, V4.16B, V8.16B
 	subs	w8, w8, #2
-	bne	L_AES_CBC_decrypt_NEON_loop_nr_1
+	b.ne	L_AES_CBC_decrypt_NEON_loop_nr_1
 	eor	V0.16B, V4.16B, V12.16B
 	eor	V1.16B, V4.16B, V13.16B
 	eor	V2.16B, V4.16B, V14.16B
@@ -50280,7 +50280,7 @@ L_GCM_gmult_len_NEON_start_block
 	eor	V8.16B, V8.16B, V3.16B
 	eor	V18.16B, V8.16B, V1.16B
 	subs	x3, x3, #16
-	bne	L_GCM_gmult_len_NEON_start_block
+	b.ne	L_GCM_gmult_len_NEON_start_block
 	rbit	V18.16B, V18.16B
 	st1	{V18.2D}, [x0]
 	ldp	D8, D9, [x29, #16]
@@ -50312,7 +50312,7 @@ AES_GCM_encrypt_NEON PROC
 	rev32	V2.16B, V2.16B
 	mov	w6, V2.S[3]
 	cmp	x2, #0x40
-	bcc	L_AES_GCM_encrypt_NEON_start_2
+	b.cc	L_AES_GCM_encrypt_NEON_start_2
 	mov	x7, V2.D[0]
 	mov	x8, V2.D[1]
 L_AES_GCM_encrypt_NEON_loop_4
@@ -50552,7 +50552,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V15.16B
 	; Round Done
 	subs	w11, w11, #2
-	bne	L_AES_GCM_encrypt_NEON_loop_nr_4
+	b.ne	L_AES_GCM_encrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -50728,7 +50728,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_GCM_encrypt_NEON_loop_4
+	b.cs	L_AES_GCM_encrypt_NEON_loop_4
 	mov	V2.D[0], x7
 	mov	V2.D[1], x8
 	mov	V2.S[3], w6
@@ -50738,8 +50738,8 @@ L_AES_GCM_encrypt_NEON_start_2
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 	cmp	x2, #16
-	beq	L_AES_GCM_encrypt_NEON_start_1
-	bcc	L_AES_GCM_encrypt_NEON_data_done
+	b.eq	L_AES_GCM_encrypt_NEON_start_1
+	b.cc	L_AES_GCM_encrypt_NEON_data_done
 L_AES_GCM_encrypt_NEON_loop_2
 	mov	x12, x3
 	ld1	{V4.2D}, [x12], #16
@@ -50861,7 +50861,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V11.16B
 	; Round Done
 	subs	w11, w11, #2
-	bne	L_AES_GCM_encrypt_NEON_loop_nr_2
+	b.ne	L_AES_GCM_encrypt_NEON_loop_nr_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V1.16B, V12.16B
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
@@ -50952,7 +50952,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_2
 	st1	{V0.16B, V1.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #0
-	beq	L_AES_GCM_encrypt_NEON_data_done
+	b.eq	L_AES_GCM_encrypt_NEON_data_done
 L_AES_GCM_encrypt_NEON_start_1
 	ld1	{V3.2D}, [x10]
 	mov	x12, x3
@@ -51018,7 +51018,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_1
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w11, w11, #2
-	bne	L_AES_GCM_encrypt_NEON_loop_nr_1
+	b.ne	L_AES_GCM_encrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -51166,7 +51166,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_tweak
 	eor	V2.16B, V10.16B, V9.16B
 	eor	V2.16B, V2.16B, V8.16B
 	subs	w21, w21, #2
-	bne	L_AES_XTS_encrypt_NEON_loop_nr_tweak
+	b.ne	L_AES_XTS_encrypt_NEON_loop_nr_tweak
 	eor	V8.16B, V2.16B, V12.16B
 	eor	V9.16B, V2.16B, V13.16B
 	eor	V10.16B, V2.16B, V14.16B
@@ -51212,7 +51212,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_tweak
 	mov	x8, V2.D[0]
 	mov	x9, V2.D[1]
 	cmp	w2, #0x40
-	bcc	L_AES_XTS_encrypt_NEON_start_2
+	b.cc	L_AES_XTS_encrypt_NEON_start_2
 L_AES_XTS_encrypt_NEON_loop_4
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -51465,7 +51465,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V15.16B
 	; Round Done
 	subs	w21, w21, #2
-	bne	L_AES_XTS_encrypt_NEON_loop_nr_4
+	b.ne	L_AES_XTS_encrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -51651,14 +51651,14 @@ L_AES_XTS_encrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bcs	L_AES_XTS_encrypt_NEON_loop_4
+	b.cs	L_AES_XTS_encrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_encrypt_NEON_start_2
 	cmp	w2, #32
-	bcc	L_AES_XTS_encrypt_NEON_start_1
+	b.cc	L_AES_XTS_encrypt_NEON_start_1
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x22], #16
@@ -51789,7 +51789,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V11.16B
 	; Round Done
 	subs	w21, w21, #2
-	bne	L_AES_XTS_encrypt_NEON_loop_nr_2
+	b.ne	L_AES_XTS_encrypt_NEON_loop_nr_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V1.16B, V12.16B
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
@@ -51886,7 +51886,7 @@ L_AES_XTS_encrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	bcc	L_AES_XTS_encrypt_NEON_start_partial
+	b.cc	L_AES_XTS_encrypt_NEON_start_partial
 	mov	x22, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x22], #16
@@ -51950,7 +51950,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_1
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w21, w21, #2
-	bne	L_AES_XTS_encrypt_NEON_loop_nr_1
+	b.ne	L_AES_XTS_encrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -51996,7 +51996,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_1
 	eor	V0.16B, V0.16B, V2.16B
 	st1	{V0.16B}, [x1], #16
 	subs	w2, w2, #16
-	beq	L_AES_XTS_encrypt_NEON_data_done
+	b.eq	L_AES_XTS_encrypt_NEON_data_done
 	and	x16, x17, x9, asr 63
 	extr	x9, x9, x8, #63
 	eor	x8, x16, x8, lsl 1
@@ -52015,7 +52015,7 @@ L_AES_XTS_encrypt_NEON_start_byte
 	strb	w10, [x1], #1
 	strb	w11, [x6], #1
 	subs	w16, w16, #1
-	bgt	L_AES_XTS_encrypt_NEON_start_byte
+	b.gt	L_AES_XTS_encrypt_NEON_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -52081,7 +52081,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_partial
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w21, w21, #2
-	bne	L_AES_XTS_encrypt_NEON_loop_nr_partial
+	b.ne	L_AES_XTS_encrypt_NEON_loop_nr_partial
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -52236,7 +52236,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_tweak
 	eor	V2.16B, V10.16B, V9.16B
 	eor	V2.16B, V2.16B, V8.16B
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_tweak
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_tweak
 	eor	V8.16B, V2.16B, V12.16B
 	eor	V9.16B, V2.16B, V13.16B
 	eor	V10.16B, V2.16B, V14.16B
@@ -52287,7 +52287,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_tweak
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x21]
 	ld1	{V3.2D}, [x23]
 	cmp	w2, #0x40
-	bcc	L_AES_XTS_decrypt_NEON_start_2
+	b.cc	L_AES_XTS_decrypt_NEON_start_2
 L_AES_XTS_decrypt_NEON_loop_4
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -52638,7 +52638,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_4
 	eor	V3.16B, V3.16B, V4.16B
 	; Round Done
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_4
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -52873,14 +52873,14 @@ L_AES_XTS_decrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bcs	L_AES_XTS_decrypt_NEON_loop_4
+	b.cs	L_AES_XTS_decrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_decrypt_NEON_start_2
 	cmp	w2, #32
-	bcc	L_AES_XTS_decrypt_NEON_start_1
+	b.cc	L_AES_XTS_decrypt_NEON_start_1
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x25], #16
@@ -53067,7 +53067,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_2
 	eor	V1.16B, V1.16B, V4.16B
 	; Round Done
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_2
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
@@ -53195,7 +53195,7 @@ L_AES_XTS_decrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	bcc	L_AES_XTS_decrypt_NEON_start_partial
+	b.cc	L_AES_XTS_decrypt_NEON_start_partial
 	mov	x25, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x25], #16
@@ -53283,7 +53283,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_1
 	;   XOR in Key Schedule
 	eor	V0.16B, V0.16B, V4.16B
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_1
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -53442,7 +53442,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_partial_1
 	;   XOR in Key Schedule
 	eor	V0.16B, V0.16B, V4.16B
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_partial_1
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_partial_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -53507,7 +53507,7 @@ L_AES_XTS_decrypt_NEON_start_byte
 	strb	w10, [x1], #1
 	strb	w11, [x6], #1
 	subs	w16, w16, #1
-	bgt	L_AES_XTS_decrypt_NEON_start_byte
+	b.gt	L_AES_XTS_decrypt_NEON_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -53598,7 +53598,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_partial_2
 	;   XOR in Key Schedule
 	eor	V0.16B, V0.16B, V4.16B
 	subs	w24, w24, #2
-	bne	L_AES_XTS_decrypt_NEON_loop_nr_partial_2
+	b.ne	L_AES_XTS_decrypt_NEON_loop_nr_partial_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -53995,7 +53995,7 @@ L_AES_GCMSIV_polyval_neon_loop
 	eor	V8.16B, V8.16B, V3.16B
 	eor	V18.16B, V8.16B, V1.16B
 	subs	w3, w3, #1
-	bne	L_AES_GCMSIV_polyval_neon_loop
+	b.ne	L_AES_GCMSIV_polyval_neon_loop
 L_AES_GCMSIV_polyval_neon_done
 	rbit	V18.16B, V18.16B
 	st1	{V18.2D}, [x0]
@@ -54066,7 +54066,7 @@ AES_GCMSIV_ctr_neon PROC
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x6]
 	ldr	w10, [x5]
 	cmp	x2, #0x40
-	bcc	L_AES_GCMSIV_ctr_neon_start_2
+	b.cc	L_AES_GCMSIV_ctr_neon_start_2
 L_AES_GCMSIV_ctr_neon_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -54310,7 +54310,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_4
 	eor	V3.16B, V3.16B, V15.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_GCMSIV_ctr_neon_loop_nr_4
+	b.ne	L_AES_GCMSIV_ctr_neon_loop_nr_4
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
 	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
 	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
@@ -54486,15 +54486,15 @@ L_AES_GCMSIV_ctr_neon_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bcs	L_AES_GCMSIV_ctr_neon_loop_4
+	b.cs	L_AES_GCMSIV_ctr_neon_loop_4
 L_AES_GCMSIV_ctr_neon_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 	cmp	x2, #16
-	beq	L_AES_GCMSIV_ctr_neon_start_1
-	bcc	L_AES_GCMSIV_ctr_neon_data_done
+	b.eq	L_AES_GCMSIV_ctr_neon_start_1
+	b.cc	L_AES_GCMSIV_ctr_neon_data_done
 L_AES_GCMSIV_ctr_neon_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -54620,7 +54620,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_2
 	eor	V1.16B, V1.16B, V11.16B
 	; Round Done
 	subs	w8, w8, #2
-	bne	L_AES_GCMSIV_ctr_neon_loop_nr_2
+	b.ne	L_AES_GCMSIV_ctr_neon_loop_nr_2
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V1.16B, V12.16B
 	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
@@ -54711,7 +54711,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_2
 	st1	{V0.16B, V1.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #0
-	beq	L_AES_GCMSIV_ctr_neon_data_done
+	b.eq	L_AES_GCMSIV_ctr_neon_data_done
 L_AES_GCMSIV_ctr_neon_start_1
 	ld1	{V3.2D}, [x7]
 	mov	x9, x3
@@ -54779,7 +54779,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_1
 	eor	V0.16B, V10.16B, V9.16B
 	eor	V0.16B, V0.16B, V8.16B
 	subs	w8, w8, #2
-	bne	L_AES_GCMSIV_ctr_neon_loop_nr_1
+	b.ne	L_AES_GCMSIV_ctr_neon_loop_nr_1
 	eor	V8.16B, V0.16B, V12.16B
 	eor	V9.16B, V0.16B, V13.16B
 	eor	V10.16B, V0.16B, V14.16B
@@ -54997,7 +54997,7 @@ L_AES_invert_key_loop
 	stp	w10, w11, [x0], #8
 	subs	w13, w13, #2
 	sub	x12, x12, #16
-	bne	L_AES_invert_key_loop
+	b.ne	L_AES_invert_key_loop
 	sub	x0, x0, x1, lsl 3
 	add	x0, x0, #16
 	sub	w13, w1, #1
@@ -55085,7 +55085,7 @@ L_AES_invert_key_mix_loop
 	eor	w10, w10, w11, ror 24
 	str	w10, [x0], #4
 	subs	w13, w13, #1
-	bne	L_AES_invert_key_mix_loop
+	b.ne	L_AES_invert_key_mix_loop
 	ret
 	ENDP
 	ENDIF
@@ -55104,9 +55104,9 @@ AES_set_encrypt_key PROC
 	adrp	x12, L_AES_ARM64_te
 	add	x12, x12, L_AES_ARM64_te
 	cmp	x1, #0x80
-	beq	L_AES_set_encrypt_key_start_128
+	b.eq	L_AES_set_encrypt_key_start_128
 	cmp	x1, #0xc0
-	beq	L_AES_set_encrypt_key_start_192
+	b.eq	L_AES_set_encrypt_key_start_192
 	ldr	w6, [x0]
 	ldr	w7, [x0, #4]
 	ldr	w8, [x0, #8]
@@ -55183,7 +55183,7 @@ L_AES_set_encrypt_key_loop_256
 	stnp	w8, w9, [x2, #8]
 	sub	x2, x2, #16
 	subs	x4, x4, #1
-	bne	L_AES_set_encrypt_key_loop_256
+	b.ne	L_AES_set_encrypt_key_loop_256
 	ubfx	w6, w9, #0, #8
 	ubfx	w7, w9, #8, #8
 	ubfx	w8, w9, #16, #8
@@ -55260,7 +55260,7 @@ L_AES_set_encrypt_key_loop_192
 	stnp	w8, w9, [x2, #8]
 	stnp	w10, w11, [x2, #16]
 	subs	x4, x4, #1
-	bne	L_AES_set_encrypt_key_loop_192
+	b.ne	L_AES_set_encrypt_key_loop_192
 	ubfx	w6, w11, #0, #8
 	ubfx	w7, w11, #8, #8
 	ubfx	w8, w11, #16, #8
@@ -55327,7 +55327,7 @@ L_AES_set_encrypt_key_loop_128
 	stp	w6, w7, [x2]
 	stnp	w8, w9, [x2, #8]
 	subs	x4, x4, #1
-	bne	L_AES_set_encrypt_key_loop_128
+	b.ne	L_AES_set_encrypt_key_loop_128
 L_AES_set_encrypt_key_end
 	ret
 	ENDP
@@ -55486,7 +55486,7 @@ L_AES_ECB_encrypt_loop_nr
 	eor	x6, x6, x10
 	eor	x7, x7, x11
 	subs	w16, w16, #2
-	bne	L_AES_ECB_encrypt_loop_nr
+	b.ne	L_AES_ECB_encrypt_loop_nr
 	ubfx	x10, x6, #48, #8
 	ubfx	x13, x6, #24, #8
 	ubfx	x14, x7, #8, #8
@@ -55642,7 +55642,7 @@ L_AES_ECB_encrypt_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_ECB_encrypt_loop_block_128
+	b.ne	L_AES_ECB_encrypt_loop_block_128
 	ldr	x17, [x29, #24]
 	ldp	x29, x30, [sp], #32
 	ret
@@ -55806,7 +55806,7 @@ L_AES_CBC_encrypt_loop_nr
 	eor	x7, x7, x11
 	eor	x8, x8, x12
 	subs	w17, w17, #2
-	bne	L_AES_CBC_encrypt_loop_nr
+	b.ne	L_AES_CBC_encrypt_loop_nr
 	ubfx	x11, x7, #48, #8
 	ubfx	x14, x7, #24, #8
 	ubfx	x15, x8, #8, #8
@@ -55962,7 +55962,7 @@ L_AES_CBC_encrypt_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_CBC_encrypt_loop_block
+	b.ne	L_AES_CBC_encrypt_loop_block
 	stp	x7, x8, [x5]
 	ldp	x17, x19, [x29, #16]
 	ldp	x29, x30, [sp], #32
@@ -56124,7 +56124,7 @@ L_AES_CTR_encrypt_loop_nr
 	eor	x7, x7, x11
 	eor	x8, x8, x12
 	subs	w20, w20, #2
-	bne	L_AES_CTR_encrypt_loop_nr
+	b.ne	L_AES_CTR_encrypt_loop_nr
 	ubfx	x11, x7, #48, #8
 	ubfx	x14, x7, #24, #8
 	ubfx	x17, x8, #8, #8
@@ -56290,7 +56290,7 @@ L_AES_CTR_encrypt_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_CTR_encrypt_loop_block_128
+	b.ne	L_AES_CTR_encrypt_loop_block_128
 	rev32	x15, x15
 	rev32	x16, x16
 	stp	x15, x16, [x5]
@@ -56494,7 +56494,7 @@ L_AES_ECB_decrypt_loop_nr
 	eor	x7, x7, x11
 	eor	x8, x8, x12
 	subs	w17, w17, #2
-	bne	L_AES_ECB_decrypt_loop_nr
+	b.ne	L_AES_ECB_decrypt_loop_nr
 	ubfx	x11, x8, #48, #8
 	ubfx	x14, x7, #24, #8
 	ubfx	x15, x8, #8, #8
@@ -56622,7 +56622,7 @@ L_AES_ECB_decrypt_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_ECB_decrypt_loop_block
+	b.ne	L_AES_ECB_decrypt_loop_block
 	ldp	x17, x19, [x29, #16]
 	ldp	x29, x30, [sp], #32
 	ret
@@ -56787,7 +56787,7 @@ L_AES_CBC_decrypt_loop_nr_even
 	eor	x8, x8, x12
 	eor	x9, x9, x13
 	subs	w19, w19, #2
-	bne	L_AES_CBC_decrypt_loop_nr_even
+	b.ne	L_AES_CBC_decrypt_loop_nr_even
 	ubfx	x12, x9, #48, #8
 	ubfx	x15, x8, #24, #8
 	ubfx	x16, x9, #8, #8
@@ -56918,7 +56918,7 @@ L_AES_CBC_decrypt_loop_nr_even
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	beq	L_AES_CBC_decrypt_end_dec_odd
+	b.eq	L_AES_CBC_decrypt_end_dec_odd
 	mov	x20, x3
 	ldr	x8, [x0]
 	ldr	x9, [x0, #8]
@@ -57064,7 +57064,7 @@ L_AES_CBC_decrypt_loop_nr_odd
 	eor	x8, x8, x12
 	eor	x9, x9, x13
 	subs	w19, w19, #2
-	bne	L_AES_CBC_decrypt_loop_nr_odd
+	b.ne	L_AES_CBC_decrypt_loop_nr_odd
 	ubfx	x12, x9, #48, #8
 	ubfx	x15, x8, #24, #8
 	ubfx	x16, x9, #8, #8
@@ -57195,7 +57195,7 @@ L_AES_CBC_decrypt_loop_nr_odd
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_CBC_decrypt_loop_block
+	b.ne	L_AES_CBC_decrypt_loop_block
 	b	L_AES_CBC_decrypt_end_dec
 L_AES_CBC_decrypt_end_dec_odd
 	ldnp	x12, x13, [x5, #16]
@@ -57627,7 +57627,7 @@ L_GCM_gmult_len_start_block
 	stp	x8, x9, [x0]
 	subs	x3, x3, #16
 	add	x2, x2, #16
-	bne	L_GCM_gmult_len_start_block
+	b.ne	L_GCM_gmult_len_start_block
 	ret
 	ENDP
 	ENDIF
@@ -57980,7 +57980,7 @@ L_GCM_gmult_len_start_block
 	stp	x4, x5, [x0]
 	subs	x3, x3, #16
 	add	x2, x2, #16
-	bne	L_GCM_gmult_len_start_block
+	b.ne	L_GCM_gmult_len_start_block
 	ret
 	ENDP
 	ENDIF
@@ -58141,7 +58141,7 @@ L_AES_GCM_encrypt_loop_nr
 	eor	x6, x6, x10
 	eor	x7, x7, x11
 	subs	w20, w20, #2
-	bne	L_AES_GCM_encrypt_loop_nr
+	b.ne	L_AES_GCM_encrypt_loop_nr
 	ubfx	x10, x6, #48, #8
 	ubfx	x13, x6, #24, #8
 	ubfx	x14, x7, #8, #8
@@ -58301,7 +58301,7 @@ L_AES_GCM_encrypt_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_GCM_encrypt_loop_block
+	b.ne	L_AES_GCM_encrypt_loop_block
 	rev32	x16, x16
 	rev32	x17, x17
 	stp	x16, x17, [x5]
@@ -58469,7 +58469,7 @@ L_AES_XTS_encrypt_loop_nr_tweak
 	eor	x21, x21, x14
 	eor	x22, x22, x15
 	subs	w25, w25, #2
-	bne	L_AES_XTS_encrypt_loop_nr_tweak
+	b.ne	L_AES_XTS_encrypt_loop_nr_tweak
 	ubfx	x14, x21, #48, #8
 	ubfx	x17, x21, #24, #8
 	ubfx	x19, x22, #8, #8
@@ -58766,7 +58766,7 @@ L_AES_XTS_encrypt_loop_nr
 	eor	x10, x10, x14
 	eor	x11, x11, x15
 	subs	w25, w25, #2
-	bne	L_AES_XTS_encrypt_loop_nr
+	b.ne	L_AES_XTS_encrypt_loop_nr
 	ubfx	x14, x10, #48, #8
 	ubfx	x17, x10, #24, #8
 	ubfx	x19, x11, #8, #8
@@ -58927,7 +58927,7 @@ L_AES_XTS_encrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bcs	L_AES_XTS_encrypt_loop_block
+	b.cs	L_AES_XTS_encrypt_loop_block
 	cbz	w2, L_AES_XTS_encrypt_done_data
 	mov	x26, x4
 	sub	x1, x1, #16
@@ -58940,7 +58940,7 @@ L_AES_XTS_encrypt_start_byte
 	strb	w19, [x1], #1
 	strb	w20, [x6], #1
 	subs	w14, w14, #1
-	bgt	L_AES_XTS_encrypt_start_byte
+	b.gt	L_AES_XTS_encrypt_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -59088,7 +59088,7 @@ L_AES_XTS_encrypt_loop_nr_partial
 	eor	x10, x10, x14
 	eor	x11, x11, x15
 	subs	w25, w25, #2
-	bne	L_AES_XTS_encrypt_loop_nr_partial
+	b.ne	L_AES_XTS_encrypt_loop_nr_partial
 	ubfx	x14, x10, #48, #8
 	ubfx	x17, x10, #24, #8
 	ubfx	x19, x11, #8, #8
@@ -59417,7 +59417,7 @@ L_AES_XTS_decrypt_loop_nr_tweak
 	eor	x23, x23, x16
 	eor	x24, x24, x17
 	subs	w27, w27, #2
-	bne	L_AES_XTS_decrypt_loop_nr_tweak
+	b.ne	L_AES_XTS_decrypt_loop_nr_tweak
 	ubfx	x16, x23, #48, #8
 	ubfx	x20, x23, #24, #8
 	ubfx	x21, x24, #8, #8
@@ -59569,7 +59569,7 @@ L_AES_XTS_decrypt_loop_nr_tweak
 	rev32	x23, x23
 	rev32	x24, x24
 	cmp	w2, #16
-	bcc	L_AES_XTS_decrypt_start_partail
+	b.cc	L_AES_XTS_decrypt_start_partail
 L_AES_XTS_decrypt_loop_block
 	mov	x28, x4
 	ldp	x12, x13, [x0]
@@ -59716,7 +59716,7 @@ L_AES_XTS_decrypt_loop_nr
 	eor	x12, x12, x16
 	eor	x13, x13, x17
 	subs	w27, w27, #2
-	bne	L_AES_XTS_decrypt_loop_nr
+	b.ne	L_AES_XTS_decrypt_loop_nr
 	ubfx	x16, x13, #48, #8
 	ubfx	x20, x12, #24, #8
 	ubfx	x21, x13, #8, #8
@@ -59849,7 +59849,7 @@ L_AES_XTS_decrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bcs	L_AES_XTS_decrypt_loop_block
+	b.cs	L_AES_XTS_decrypt_loop_block
 	cbz	w2, L_AES_XTS_decrypt_done_data
 L_AES_XTS_decrypt_start_partail
 	and	x21, x11, x24, asr 63
@@ -60000,7 +60000,7 @@ L_AES_XTS_decrypt_loop_nr_partial_1
 	eor	x12, x12, x16
 	eor	x13, x13, x17
 	subs	w27, w27, #2
-	bne	L_AES_XTS_decrypt_loop_nr_partial_1
+	b.ne	L_AES_XTS_decrypt_loop_nr_partial_1
 	ubfx	x16, x13, #48, #8
 	ubfx	x20, x12, #24, #8
 	ubfx	x21, x13, #8, #8
@@ -60134,7 +60134,7 @@ L_AES_XTS_decrypt_start_byte
 	strb	w21, [x1], #1
 	strb	w22, [x6], #1
 	subs	w16, w16, #1
-	bgt	L_AES_XTS_decrypt_start_byte
+	b.gt	L_AES_XTS_decrypt_start_byte
 	sub	x1, x1, x2
 	sub	x6, x6, x2
 	sub	x1, x1, #16
@@ -60283,7 +60283,7 @@ L_AES_XTS_decrypt_loop_nr_partial_2
 	eor	x12, x12, x16
 	eor	x13, x13, x17
 	subs	w27, w27, #2
-	bne	L_AES_XTS_decrypt_loop_nr_partial_2
+	b.ne	L_AES_XTS_decrypt_loop_nr_partial_2
 	ubfx	x16, x13, #48, #8
 	ubfx	x20, x12, #24, #8
 	ubfx	x21, x13, #8, #8
@@ -60800,7 +60800,7 @@ L_AES_GCMSIV_polyval_base_loop
 	stp	x8, x9, [x0]
 	subs	w3, w3, #1
 	add	x2, x2, #16
-	bne	L_AES_GCMSIV_polyval_base_loop
+	b.ne	L_AES_GCMSIV_polyval_base_loop
 L_AES_GCMSIV_polyval_base_done
 	ret
 	ENDP
@@ -61029,7 +61029,7 @@ L_AES_GCMSIV_ctr_base_loop_nr
 	eor	x7, x7, x11
 	eor	x8, x8, x12
 	subs	w21, w21, #2
-	bne	L_AES_GCMSIV_ctr_base_loop_nr
+	b.ne	L_AES_GCMSIV_ctr_base_loop_nr
 	ubfx	x11, x7, #48, #8
 	ubfx	x14, x7, #24, #8
 	ubfx	x19, x8, #8, #8
@@ -61190,7 +61190,7 @@ L_AES_GCMSIV_ctr_base_loop_nr
 	subs	x2, x2, #16
 	add	x0, x0, #16
 	add	x1, x1, #16
-	bne	L_AES_GCMSIV_ctr_base_loop_block
+	b.ne	L_AES_GCMSIV_ctr_base_loop_block
 L_AES_GCMSIV_ctr_base_done
 	bfi	x15, x17, #0, #32
 	stp	x15, x16, [x5]
