@@ -96,7 +96,7 @@
  * it for the Legendre-symbol guard inside the Z search. Both wrappers are
  * compiled while the names still mean the real functions. */
 #if defined(HAVE_COMP_KEY) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_SP_MATH) && !defined(SQRTMOD_USE_MOD_EXP)
     #define MCDC_ECC_SQRTMOD_INTERPOSE
 #endif
@@ -738,8 +738,7 @@ static void wb_fp_cache_suite(void)
  * propagation, so their "err == MP_OKAY" operands need an armed mp_* as well.
  * ========================================================================= */
 #if defined(HAVE_ECC) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 /* Coordinate-for-coordinate equality, for asserting a _safe wrapper copied
  * an operand out verbatim. */
 static int wb_point_eq(ecc_point* p1, ecc_point* p2)
@@ -1366,7 +1365,7 @@ static void wb_fault_map_and_sign_sw(void)
 
 #if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_CUSTOM_CURVES) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_KCAPI_ECC)
     if (err == MP_OKAY) {
         WC_RNG rng;

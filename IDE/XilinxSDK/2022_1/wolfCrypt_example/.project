@@ -1561,11 +1561,6 @@
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/port/af_alg/wc_afalg.h</locationURI>
 		</link>
 		<link>
-			<name>inc/wolfssl/wolfcrypt/port/arm/cryptoCell.h</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/port/arm/cryptoCell.h</locationURI>
-		</link>
-		<link>
 			<name>inc/wolfssl/wolfcrypt/port/atmel/atmel.h</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/port/atmel/atmel.h</locationURI>
@@ -1819,16 +1814,6 @@
 			<name>src/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/port/arm/cryptoCell.c</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/cryptoCell.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/port/arm/cryptoCellHash.c</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/cryptoCellHash.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/xilinx/xil-aesgcm.c</name>

@@ -103,7 +103,6 @@ on the specific device platform.
  * with the #elif chain at the start of the "Hardware Acceleration" section. */
 #if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && ( \
         defined(WOLFSSL_TI_HASH) || \
-        defined(WOLFSSL_CRYPTOCELL) || \
         defined(MAX3266X_SHA) || \
         defined(FREESCALE_LTC_SHA) || \
         defined(FREESCALE_MMCAU_SHA) || \
@@ -148,10 +147,6 @@ on the specific device platform.
 
 #if defined(WOLFSSL_TI_HASH)
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
-#elif defined(WOLFSSL_CRYPTOCELL)
-    /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
-
-
 #elif defined(MAX3266X_SHA)
     /* Already brought in by sha256.h */
     /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
