@@ -1226,7 +1226,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             issuer = NULL;
     #ifdef WOLFSSL_SIGNER_DER_CERT
             if (x509GetIssuerFromCM(&issuer, ctx->store->cm,
-                    ctx->current_cert) == WOLFSSL_FATAL_ERROR) {
+                    ctx->current_cert) ==
+                    WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
