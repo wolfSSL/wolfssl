@@ -6734,11 +6734,11 @@ int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
  * idx is the location to start searching from, the value at when the entry was
  *     found is stored into idx
  * returns a pointer to the entry on success and null on fail */
-static WOLFSSL_X509_NAME_ENTRY* GetEntryByNID(WOLFSSL_X509_NAME* name, int nid,
-        int* idx)
+static const WOLFSSL_X509_NAME_ENTRY* GetEntryByNID(
+        const WOLFSSL_X509_NAME* name, int nid, int* idx)
 {
     int i;
-    WOLFSSL_X509_NAME_ENTRY* ret = NULL;
+    const WOLFSSL_X509_NAME_ENTRY* ret = NULL;
 
     for (i = *idx; i < MAX_NAME_ENTRIES; i++) {
         if (name->entry[i].nid == nid) {
@@ -6768,11 +6768,11 @@ static WOLFSSL_X509_NAME_ENTRY* GetEntryByNID(WOLFSSL_X509_NAME* name, int nid,
  *         case that len is less than or equal to 0. A negative value is
  *         considered an error case.
  */
-int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
+int wolfSSL_X509_NAME_get_text_by_NID(const WOLFSSL_X509_NAME* name,
                                       int nid, char* buf, int len)
 {
-    WOLFSSL_X509_NAME_ENTRY* e;
-    unsigned char *text = NULL;
+    const WOLFSSL_X509_NAME_ENTRY* e;
+    const unsigned char *text = NULL;
     int textSz = 0;
     int idx    = 0;
 
@@ -6788,7 +6788,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
         WOLFSSL_MSG("Entry type not found");
         return WOLFSSL_FATAL_ERROR;
     }
-    text   = wolfSSL_ASN1_STRING_data(e->value);
+    text   = wolfSSL_ASN1_STRING_get0_data(e->value);
     textSz = wolfSSL_ASN1_STRING_length(e->value);
 
     if (text == NULL) {
@@ -7251,7 +7251,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     /* Looks up the index of the first entry encountered with matching NID
      * The search starts from index 'pos'
      * returns a negative value on failure and positive index value on success*/
-    int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name,
+    int wolfSSL_X509_NAME_get_index_by_NID(const WOLFSSL_X509_NAME* name,
                                           int nid, int pos)
     {
         int value = nid, i;
@@ -15743,7 +15743,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
-    int wolfSSL_X509_NAME_get_index_by_OBJ(WOLFSSL_X509_NAME *name,
+    int wolfSSL_X509_NAME_get_index_by_OBJ(const WOLFSSL_X509_NAME *name,
                                            const WOLFSSL_ASN1_OBJECT *obj,
                                            int idx) {
         if (!name || idx >= MAX_NAME_ENTRIES ||

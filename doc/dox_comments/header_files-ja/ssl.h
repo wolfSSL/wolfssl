@@ -4232,7 +4232,7 @@ int  wolfSSL_X509_get_isCA(WOLFSSL_X509* x509);
 
     \sa none
 */
-int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
+int wolfSSL_X509_NAME_get_text_by_NID(const WOLFSSL_X509_NAME* name, int nid,
                                       char* buf, int len);
 
 /*!
