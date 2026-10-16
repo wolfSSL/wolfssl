@@ -15468,20 +15468,13 @@ err:
 WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     const WOLFSSL_X509_NAME_ENTRY *ne)
 {
-    WOLFSSL_ASN1_OBJECT* object = NULL;
-
     WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_get_object");
 
-    if (ne != NULL) {
-        /* Create object from nid - reuse existing object if possible. */
-        object = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
-        if (object != NULL) {
-            /* Cache the object in the entry. */
-            ((WOLFSSL_X509_NAME_ENTRY*)ne)->object = object;
-        }
+    if (ne == NULL) {
+        return NULL;
     }
-
-    return object;
+    /* Object is set when the entry's NID is set. */
+    return ne->object;
 }
 #endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
         * HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
