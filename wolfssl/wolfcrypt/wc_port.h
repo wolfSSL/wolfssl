@@ -317,8 +317,6 @@
     #define NU_DEBUG
     #include "plus/nucleus.h"
     #include "nucleus.h"
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
         }  /* extern "C" */
@@ -1326,21 +1324,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
 
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include <fs/fs.h>
-    #define XFILE  struct fs_file*
-
-    #define XFOPEN     mynewt_fopen
-    #define XFSEEK     mynewt_fseek
-    #define XFTELL     mynewt_ftell
-    #define XFREAD     mynewt_fread
-    #define XFWRITE    mynewt_fwrite
-    #define XFCLOSE    mynewt_fclose
-    #define XSEEK_SET  0
-    #define XSEEK_END  2
-    #define XBADFILE   NULL
-    #define XFGETS(b,s,f) -2 /* Not ported yet */
-
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
         }  /* extern "C" */
@@ -1833,15 +1816,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             };
             #define _TM_DEFINED
     #endif
-
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include "os/os_time.h"
-    typedef long time_t;
-    extern time_t mynewt_time(time_t* timer);
-    #define XTIME(t1)       mynewt_time((t1))
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
 
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus

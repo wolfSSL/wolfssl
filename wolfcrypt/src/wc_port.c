@@ -4729,22 +4729,6 @@ time_t windows_time(time_t* timer)
 }
 #endif /*  _WIN32_WCE */
 
-#if defined(WOLFSSL_APACHE_MYNEWT)
-#include "os/os_time.h"
-
-time_t mynewt_time(time_t* timer)
-{
-    time_t now;
-    struct os_timeval tv;
-    os_gettimeofday(&tv, NULL);
-    now = (time_t)tv.tv_sec;
-    if(timer != NULL) {
-        *timer = now;
-    }
-    return now;
-}
-#endif /* WOLFSSL_APACHE_MYNEWT */
-
 #if defined(WOLFSSL_GMTIME)
 struct tm* gmtime_r(const time_t* timer, struct tm *ret)
 {
