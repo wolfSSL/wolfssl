@@ -5792,8 +5792,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
         }
 
-        if (!ssl->options.handShakeDone) {
-            /* Only reset the session if we didn't complete a handshake */
+        /* A client keeps the session it may resume. A server's is per
+         * connection, and the application may still hold it. */
+        if (!ssl->options.handShakeDone ||
+                (ssl->options.side == WOLFSSL_SERVER_END)) {
             wolfSSL_FreeSession(ssl->ctx, ssl->session);
             ssl->session = wolfSSL_NewSession(ssl->heap);
             if (ssl->session == NULL) {
@@ -5809,6 +5811,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
+        /* Per-connection budgets, not cumulative across a reused object. */
+        ssl->options.alertCount = 0;
+        ssl->options.emptyRecordCount = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -5832,12 +5837,18 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
+        ssl->fragOffset = 0;
+        ssl->options.buildingMsg = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
         ssl->options.peerAuthGood = 0;
+        ssl->options.usingPSK_cipher = 0;
+        ssl->options.usingAnon_cipher = 0;
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+        ssl->options.pskNegotiated = 0;
+#endif
         ssl->options.tls1_3 = 0;
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
@@ -5936,10 +5947,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
-        #ifndef NO_WOLFSSL_SERVER
-        if (ssl->options.side == WOLFSSL_SERVER_END)
-            ssl->session->ticketNonce.len = 0;
-        #endif
         #if !defined(NO_WOLFSSL_SERVER) && \
             defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
         /* Recorded from the ClientHello, so it must not carry into the next
@@ -5952,6 +5959,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         #endif
         ssl->options.rejectTicket = 0;
+        ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
     #endif
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;

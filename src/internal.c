@@ -19062,10 +19062,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif /* HAVE_RPK && WOLFSSL_TLS13 */
 
             if (args->count == 0) {
-                /* Empty certificate message. */
-                if ((ssl->options.side == WOLFSSL_SERVER_END) &&
-                    (ssl->options.mutualAuth || (ssl->options.failNoCert &&
-                                             IsAtLeastTLSv1_2(ssl)))) {
+                /* Empty certificate message. Only mutualAuth fails here
+                 * before TLS 1.2; the later check catches the rest. */
+                if (ClientAuthRequired(ssl, SSL_USING_PSK(ssl)) &&
+                        (ssl->options.mutualAuth || IsAtLeastTLSv1_2(ssl))) {
                     WOLFSSL_MSG("No peer cert from Client");
                     ret = NO_PEER_CERT;
                     WOLFSSL_ERROR_VERBOSE(ret);
@@ -42528,7 +42528,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             if (!session) {
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
-            } else {
+            }
+            else if (ClientAuthRequired(ssl, CipherRequires(
+                        session->cipherSuite0, session->cipherSuite,
+                        REQUIRES_PSK)) && !session->peerAuthOk) {
+                WOLFSSL_MSG("Session lacks client auth, do full handshake");
+                ssl->options.resuming = 0;
+                ssl->options.peerAuthGood = 0;
+            }
+            else {
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;
@@ -42563,6 +42571,22 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 
 #endif /* OLD_HELLO_ALLOWED */
+
+#ifndef NO_CERTS
+/* Does a full handshake on this connection require a client certificate?
+ * usingPsk is whether the suite in question authenticates with a PSK, which
+ * only the caller knows. verifyPostHandshake is deliberately absent: it defers
+ * the demand, not the policy, so the callers that care apply it. */
+int ClientAuthRequired(const WOLFSSL* ssl, int usingPsk)
+{
+    if (ssl->options.side != WOLFSSL_SERVER_END)
+        return 0;
+    if (ssl->options.verifyNone)
+        return 0;
+    return ssl->options.mutualAuth || ssl->options.failNoCert ||
+           (ssl->options.failNoCertxPSK && !usingPsk);
+}
+#endif /* !NO_CERTS */
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -42612,6 +42636,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
                 ) {
             int secretSz = SECRET_LEN;
+            /* The secret comes from the callback, and nothing records an auth
+             * outcome for it. The suite is not chosen yet, so no PSK exception
+             * applies. */
+            if (ClientAuthRequired(ssl, 0)) {
+                WOLFSSL_MSG("Session secret callback cannot assert client auth,"
+                            " do full handshake");
+                ssl->options.resuming = 0;
+                ssl->options.peerAuthGood = 0;
+                return ret;
+            }
             WOLFSSL_MSG("Calling session secret callback");
             ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                        RAN_LEN);
@@ -42657,6 +42691,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (!session) {
             WOLFSSL_MSG("Session lookup for resume failed");
             ssl->options.resuming = 0;
+            return ret;
+        }
+        if (ClientAuthRequired(ssl, CipherRequires(session->cipherSuite0,
+                    session->cipherSuite, REQUIRES_PSK)) &&
+                !session->peerAuthOk) {
+            WOLFSSL_MSG("Session lacks client auth, do full handshake");
+            ssl->options.resuming = 0;
+            ssl->options.peerAuthGood = 0;
             return ret;
         }
 #if defined(HAVE_SESSION_TICKET) && \
@@ -42861,6 +42903,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* Reset to sane value for SCR */
         ssl->options.resuming = 0;
         ssl->arrays->sessionIDSz = 0;
+#ifdef HAVE_SESSION_TICKET
+        /* Only this ClientHello may set them, in TLSX_SessionTicket_Parse(),
+         * which ignores the extension during SCR - so an SCR hello inherits
+         * the connection's. */
+        if (!IsSCR(ssl)) {
+            ssl->options.useTicket = 0;
+            ssl->options.createTicket = 0;
+        }
+#endif
 
         /* protocol version, random and session id length check */
         if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
@@ -44348,6 +44399,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->suite[0] = ssl->options.cipherSuite0;
         it->suite[1] = ssl->options.cipherSuite;
 
+        /* Post-handshake auth can add a certificate to a resumed connection,
+         * so fresh proof wins over what was resumed. */
+        it->peerAuthOk = (byte)(SSL_PEER_CERT_VERIFIED(ssl) ||
+            (ssl->options.resuming && ssl->session->peerAuthOk));
+
     #ifdef WOLFSSL_EARLY_DATA
         c32toa(ssl->options.maxEarlyDataSz, it->maxEarlyDataSz);
     #endif
@@ -44921,6 +44977,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef HAVE_ALPN
         XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
+        /* After the DupSession above, which would otherwise overwrite it. */
+        ssl->session->peerAuthOk = it->peerAuthOk;
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->arrays == NULL)
@@ -45010,6 +45068,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         c32toa((word32)milliBornOn        , it->timestamp + OPAQUE32_LEN);
 #endif
         it->haveEMS = (byte)sess->haveEMS;
+        it->peerAuthOk = sess->peerAuthOk;
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
         if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {
@@ -46523,20 +46582,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
 
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-                if (ssl->options.verifyPeer &&
-                         (ssl->options.mutualAuth || ssl->options.failNoCert)) {
-                    if (!ssl->options.havePeerCert) {
-                        WOLFSSL_MSG("client didn't present peer cert");
-                        ERROR_OUT(NO_PEER_CERT, exit_dcke);
-                    }
-                }
-
-                if (ssl->options.verifyPeer && ssl->options.failNoCertxPSK) {
-                    if (!ssl->options.havePeerCert &&
-                                             !ssl->options.usingPSK_cipher) {
-                        WOLFSSL_MSG("client didn't present peer cert");
-                        ERROR_OUT(NO_PEER_CERT, exit_dcke);
-                    }
+                if (ClientAuthRequired(ssl, SSL_USING_PSK(ssl)) &&
+                        !ssl->options.havePeerCert) {
+                    WOLFSSL_MSG("client didn't present peer cert");
+                    ERROR_OUT(NO_PEER_CERT, exit_dcke);
                 }
             #endif /* !NO_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
 
