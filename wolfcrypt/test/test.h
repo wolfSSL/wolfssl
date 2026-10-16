@@ -357,6 +357,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
 #ifdef HAVE_ED448
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ed448_test(void);
 #endif
+#ifdef WOLFSSL_C509
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  c509_test(void);
+#endif
 #ifdef WOLFSSL_HAVE_MLKEM
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mlkem_test(void);
 #endif

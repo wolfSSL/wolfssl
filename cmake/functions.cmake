@@ -988,6 +988,7 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_ASN)
             list(APPEND LIB_SOURCES wolfcrypt/src/asn.c)
+            list(APPEND LIB_SOURCES wolfcrypt/src/c509.c)
         endif()
     endif()
 
