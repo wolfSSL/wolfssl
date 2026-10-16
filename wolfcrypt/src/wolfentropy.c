@@ -66,8 +66,10 @@ data, use this implementation to seed and re-seed the DRBG.
 /* Maximum number of bytes to sample to produce max entropy. */
 #define MAX_NOISE_CNT        (MAX_ENTROPY_BITS * 8 + ENTROPY_EXTRA)
 
-/* MemUse entropy global state initialized. */
-static volatile int entropy_memuse_initialized = 0;
+/* MemUse entropy global state initialized.  Published with a release store
+ * after all startup work succeeds; checked with an acquire load on the
+ * fast-path so a reader seeing 1 is guaranteed to see a complete init. */
+static wolfSSL_Atomic_Int entropy_memuse_initialized = WOLFSSL_ATOMIC_INITIALIZER(0);
 /* Global SHA-3 object used for conditioning entropy and creating noise. */
 static wc_Sha3 entropyHash;
 /* Reset the health tests. */
@@ -526,6 +528,9 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
  * same time.
  */
 static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+static wc_MutexOnceFlag entropy_mutex_init = WOLFSSL_ATOMIC_INITIALIZER(0);
+#endif
 
 /* Generate raw entropy for performing assessment.
  *
@@ -545,7 +550,7 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
     }
 
 #ifdef HAVE_FIPS
-    if (!entropy_memuse_initialized) {
+    if (!WOLFSSL_ATOMIC_LOAD(entropy_memuse_initialized)) {
         ret = Entropy_Init();
     }
 #endif
@@ -569,12 +574,13 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
     if (ret == 0) {
         ret = Entropy_GetNoise(raw, cnt);
     }
-#ifdef ENTROPY_MEMUSE_THREADED
-    /* Stop the counter thread to avoid thrashing the system. */
-    Entropy_StopThread();
-#endif
 
+    /* Only touch the shared thread state when this thread holds the mutex. */
     if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
         wc_UnLockMutex(&entropy_mutex);
     }
 
@@ -859,6 +865,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
     int noise_len;
+    int locked = 0;
     static byte noise[MAX_NOISE_CNT];
 
     if (bits <= 0 || bits > MAX_ENTROPY_BITS || (entropy == NULL && len > 0)) {
@@ -879,7 +886,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
      * SHA3_BLOCK function pointer is null when Sha3Update() is called by
      * Entropy_MemUse(), which ends badly.
      */
-    if (!entropy_memuse_initialized) {
+    if (!WOLFSSL_ATOMIC_LOAD(entropy_memuse_initialized)) {
         ret = Entropy_Init();
     }
 #endif
@@ -888,6 +895,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
         ret = BAD_MUTEX_E;
     }
+    locked = (ret == 0);
 
 #ifdef ENTROPY_MEMUSE_THREADED
     if (ret == 0) {
@@ -939,12 +947,15 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         }
     }
 
-#ifdef ENTROPY_MEMUSE_THREADED
-    /* Stop the counter thread to avoid thrashing the system. */
-    Entropy_StopThread();
-#endif
+    /* Only touch the shared thread state and release the mutex when this
+     * thread actually acquired it; on the Entropy_Init() or lock failure
+     * paths another thread may currently own the mutex. */
+    if (locked) {
+    #ifdef ENTROPY_MEMUSE_THREADED
+        /* Stop the counter thread to avoid thrashing the system. */
+        Entropy_StopThread();
+    #endif
 
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -963,10 +974,14 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 int wc_Entropy_OnDemandTest(void)
 {
     int ret = 0;
+    int locked = 0;
 
     /* Lock the mutex as we don't want collecting to happen during testing. */
     if (wc_LockMutex(&entropy_mutex) != 0) {
         ret = BAD_MUTEX_E;
+    }
+    else {
+        locked = 1;
     }
 
     if (ret == 0) {
@@ -974,7 +989,7 @@ int wc_Entropy_OnDemandTest(void)
         ret = Entropy_HealthTest_Startup();
     }
 
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+    if (locked) {
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -989,31 +1004,37 @@ int wc_Entropy_OnDemandTest(void)
 int Entropy_Init(void)
 {
     int ret = 0;
+    int locked = 0;
+    int shaInitialized = 0;
 
-    /* Check whether initialization has succeeded before. */
-    if (!entropy_memuse_initialized) {
+    /* Acquire load: a reader seeing 1 observes a fully initialized state. */
+    if (!WOLFSSL_ATOMIC_LOAD(entropy_memuse_initialized)) {
     #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-        ret = wc_InitMutex(&entropy_mutex);
+        ret = wc_local_InitMutexOnce(&entropy_mutex, &entropy_mutex_init);
     #endif
-        if (ret == 0)
+        if (ret == 0) {
             ret = wc_LockMutex(&entropy_mutex);
+        }
+        if (ret == 0) {
+            locked = 1;
+        }
 
-        if (entropy_memuse_initialized) {
-            /* Short circuit return -- a competing thread initialized the state
-             * while we were waiting.  Note, this is only threadsafe when
-             * WOLFSSL_MUTEX_INITIALIZER is defined.
-             */
-            if (ret == 0)
+        /* Re-check under the mutex (classic double-checked locking). */
+        if (WOLFSSL_ATOMIC_LOAD(entropy_memuse_initialized)) {
+            /* Another thread finished init while we waited for the mutex. */
+            if (locked) {
                 wc_UnLockMutex(&entropy_mutex);
+            }
             return 0;
         }
 
         if (ret == 0) {
             /* Initialize a SHA3-256 object for use in entropy operations. */
             ret = wc_InitSha3_256(&entropyHash, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                shaInitialized = 1;
+            }
         }
-        /* Set globals initialized. */
-        entropy_memuse_initialized = (ret == 0);
         if (ret == 0) {
         #ifdef ENTROPY_MEMUSE_THREADED
             /* Start the counter thread as a proxy for time counter. */
@@ -1030,7 +1051,16 @@ int Entropy_Init(void)
         #endif
         }
 
-        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        if ((ret != 0) && shaInitialized) {
+            wc_Sha3_256_Free(&entropyHash);
+        }
+
+        /* Release store: publish only after all startup work has succeeded. */
+        if (ret == 0) {
+            WOLFSSL_ATOMIC_STORE(entropy_memuse_initialized, 1);
+        }
+
+        if (locked) {
             wc_UnLockMutex(&entropy_mutex);
         }
     }
@@ -1043,16 +1073,17 @@ int Entropy_Init(void)
 void Entropy_Final(void)
 {
     /* Only finalize when initialized. */
-    if (entropy_memuse_initialized) {
+    if (WOLFSSL_ATOMIC_LOAD(entropy_memuse_initialized)) {
         /* Dispose of the SHA3-356 hash object. */
         wc_Sha3_256_Free(&entropyHash);
     #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         wc_FreeMutex(&entropy_mutex);
+        WOLFSSL_ATOMIC_STORE(entropy_mutex_init, 0);
     #endif
         /* Clear health test data. */
         Entropy_HealthTest_Reset();
         /* No longer initialized. */
-        entropy_memuse_initialized = 0;
+        WOLFSSL_ATOMIC_STORE(entropy_memuse_initialized, 0);
     }
 }
 
