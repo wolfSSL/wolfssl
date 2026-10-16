@@ -73,13 +73,29 @@ static wc_Sha3 entropyHash;
 /* Reset the health tests. */
 static void Entropy_HealthTest_Reset(void);
 
+/* ENTROPY_TIMEHIRES_FREE_RUNNING_64 is defined by each time source below that
+ * is a free-running 64-bit counter. Only for those is the full-width delta
+ * (now - entropy_last_time) meaningful. Other sources wrap early (tv_nsec every
+ * 1e9 ns, a 32-bit custom counter every 2^32, a torn hi/lo read) and their
+ * deltas are only valid modulo that period - harmless to the 8-bit path, since
+ * both periods are 0 mod 256, but not to wc_Entropy_GetRawEntropy64(). The
+ * counter thread is not marked either: its non-atomic word64 load/increment
+ * can tear on 32-bit CPUs, and a restarted thread can briefly overlap the old
+ * one. A CUSTOM_ENTROPY_TIMEHIRES that is a free-running 64-bit counter can opt
+ * in with WOLFSSL_ENTROPY_TIMEHIRES_64BIT. This marker only gates the
+ * assessment API; it does not change the noise source.
+ */
 #ifdef CUSTOM_ENTROPY_TIMEHIRES
+#ifdef WOLFSSL_ENTROPY_TIMEHIRES_64BIT
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
+#endif
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
     return CUSTOM_ENTROPY_TIMEHIRES();
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && \
       (defined(__x86_64__) || defined(__i386__))
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
 /* Get the high resolution time counter.
  *
  * @return  64-bit count of CPU cycles.
@@ -96,6 +112,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && \
       (defined(__APPLE__) || defined(__MACH__))
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
 /* Get the high resolution time counter.
  *
  * @return  64-bit time in nanoseconds.
@@ -105,6 +122,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
 /* Get the high resolution time counter.
  *
  * @return  64-bit timer count.
@@ -155,6 +173,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     return now.tv_nsec;
 }
 #elif defined(_WIN32) /* USE_WINDOWS_API */
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
 /* Get the high resolution time counter.
  *
  * @return  64-bit timer
@@ -166,6 +185,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     return (word64)(count.QuadPart);
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
+#define ENTROPY_TIMEHIRES_FREE_RUNNING_64
 /* Get time counter from arch_sys_counter clocksource.
  *
  * @return  64-bit timer count.
@@ -522,6 +542,45 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
     return 0;
 }
 
+#ifdef ENTROPY_TIMEHIRES_FREE_RUNNING_64
+/* Get as many full-width samples of noise as required.
+ *
+ * One sample is the complete 64-bit time delta measured for that sample
+ * (see Entropy_GetSample()), NOT truncated to the 8 least-significant bits
+ * as in Entropy_GetNoise(). Intended for SP 800-90B assessment of the raw
+ * measurement.
+ *
+ * Deliberately identical to Entropy_GetNoise() apart from the store, so the
+ * assessed samples are the ones the noise source produces in operation. In
+ * particular, entropy_last_time is not reset after the warm-up, so noise[0]
+ * spans the interval since the previous sample taken by any caller.
+ *
+ * @param [out] noise    Buffer to hold samples.
+ * @param [in]  samples  Number of 64-bit samples to get.
+ * @return  0 on success.
+ * @return  Negative on hash failure (e.g. FIPS module not operational).
+ */
+static int Entropy_GetNoise64(word64* noise, int samples)
+{
+    int i;
+    int ret;
+
+    /* Do it once to get things going. */
+    ret = Entropy_MemUse();
+    if (ret != 0)
+        return ret;
+
+    /* Get as many samples as required. */
+    for (i = 0; i < samples; i++) {
+        ret = Entropy_GetSample(&noise[i]);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+#endif /* ENTROPY_TIMEHIRES_FREE_RUNNING_64 */
+
 /* Mutex to prevent multiple callers requesting entropy operations at the
  * same time.
  */
@@ -579,6 +638,87 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
     }
 
     return ret;
+}
+
+/* Generate full-width raw entropy samples for performing assessment.
+ *
+ * Same collection path as wc_Entropy_GetRawEntropy(), but each sample is
+ * the complete 64-bit time delta (sample = now - entropy_last_time) rather
+ * than its 8 least-significant bits. Samples are raw, unconditioned and are
+ * not passed through the health tests. They are stored in host byte order;
+ * callers must serialize explicitly (e.g. to little-endian) before writing
+ * assessment files. raw[0] spans the interval since the previous sample taken
+ * by any caller and is not representative of a single measurement.
+ *
+ * Only available when the selected time source is a free-running 64-bit
+ * counter (see ENTROPY_TIMEHIRES_FREE_RUNNING_64); otherwise the upper bits
+ * would be corrupted by counter wrap.
+ *
+ * @param [out] raw  Buffer to hold raw 64-bit entropy samples.
+ * @param [in]  cnt  Number of 64-bit samples to get (not bytes).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when raw is NULL or cnt is not positive.
+ * @return  NOT_COMPILED_IN when the time source is not a free-running 64-bit
+ *          counter.
+ * @return  BAD_MUTEX_E when the entropy mutex cannot be locked.
+ * @return  Negative on Entropy_Init() failure (FIPS builds), hash failure
+ *          (e.g. FIPS module not operational), or counter thread start failure.
+ */
+int wc_Entropy_GetRawEntropy64(word64* raw, int cnt)
+{
+#ifndef ENTROPY_TIMEHIRES_FREE_RUNNING_64
+    if (raw == NULL || cnt <= 0) {
+        return BAD_FUNC_ARG;
+    }
+    return NOT_COMPILED_IN;
+#else
+    int ret = 0;
+    int locked = 0;
+
+    if (raw == NULL || cnt <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_FIPS
+    if (!entropy_memuse_initialized) {
+        ret = Entropy_Init();
+    }
+#endif
+
+    /* Lock the mutex as collection uses globals. */
+    if (ret == 0) {
+        if (wc_LockMutex(&entropy_mutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            locked = 1;
+        }
+    }
+
+#ifdef ENTROPY_MEMUSE_THREADED
+    if (ret == 0) {
+        /* Start the counter thread as a proxy for time counter. */
+        ret = Entropy_StartThread();
+    }
+#endif
+    if (ret == 0) {
+        ret = Entropy_GetNoise64(raw, cnt);
+    }
+#ifdef ENTROPY_MEMUSE_THREADED
+    /* Stop the counter thread to avoid thrashing the system. Only when this
+     * caller holds the mutex: a caller that failed to lock never started the
+     * thread, and must not stop one another caller is using. */
+    if (locked) {
+        Entropy_StopThread();
+    }
+#endif
+
+    if (locked) {
+        wc_UnLockMutex(&entropy_mutex);
+    }
+
+    return ret;
+#endif /* ENTROPY_TIMEHIRES_FREE_RUNNING_64 */
 }
 
 #if ENTROPY_MIN == 1

@@ -25,12 +25,14 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_Entropy_GetRawEntropy(void);
+int test_wc_Entropy_GetRawEntropy64(void);
 int test_wc_Entropy_OnDemandTest(void);
 int test_wc_EntropyDecisionCoverage(void);
 int test_wc_EntropyFeatureCoverage(void);
 
 #define TEST_WOLFENTROPY_DECLS                                              \
     TEST_DECL_GROUP("wolfentropy", test_wc_Entropy_GetRawEntropy),         \
+    TEST_DECL_GROUP("wolfentropy", test_wc_Entropy_GetRawEntropy64),       \
     TEST_DECL_GROUP("wolfentropy", test_wc_Entropy_OnDemandTest),          \
     TEST_DECL_GROUP("wolfentropy", test_wc_EntropyDecisionCoverage),       \
     TEST_DECL_GROUP("wolfentropy", test_wc_EntropyFeatureCoverage)
