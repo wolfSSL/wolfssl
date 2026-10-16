@@ -31430,6 +31430,7 @@ int test_wc_MldsaDecisionCoverage2(void)
         byte id[4];
         byte oversizeId[MLDSA_MAX_ID_LEN + 1];
         char oversizeLabel[MLDSA_MAX_LABEL_LEN + 2];
+        byte level = 0;
 
         XMEMSET(&idKey, 0, sizeof(idKey));
         XMEMSET(id, 'I', sizeof(id));
@@ -31453,9 +31454,11 @@ int test_wc_MldsaDecisionCoverage2(void)
         /* InitId: id == NULL with len == 0 -> nothing to store, accepted. */
         ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, NULL, 0, NULL, INVALID_DEVID),
             0);
-        /* InitId: valid, id != NULL && len != 0 -> copied in. */
+        /* InitId: valid, id != NULL && len != 0 -> copied in, and a
+         * parameter set is selected even when ML-DSA-87 is compiled out. */
         ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, (int)sizeof(id), NULL,
             INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_GetParams(&idKey, &level), 0);
         wc_MlDsaKey_Free(&idKey);
         /* InitId: valid, len == 0 (independence of id!=NULL&&len!=0). */
         XMEMSET(&idKey, 0, sizeof(idKey));
@@ -31478,7 +31481,21 @@ int test_wc_MldsaDecisionCoverage2(void)
         /* InitLabel: valid. */
         ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, "label", NULL,
             INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_GetParams(&idKey, &level), 0);
         wc_MlDsaKey_Free(&idKey);
+
+        /* An argument error leaves the caller's object untouched: it is not
+         * initialized yet, so nothing in it may be freed or reset. */
+        XMEMSET(&idKey, 0x5A, sizeof(idKey));
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, NULL, (int)sizeof(id), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(idKey.level, 0x5A);
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(idKey.level, 0x5A);
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, "", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(idKey.level, 0x5A);
     }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
