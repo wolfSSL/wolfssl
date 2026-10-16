@@ -3334,7 +3334,6 @@ static int test_wolfSSL_set_alpn_protos_binary_safe(void)
             if (alpn != NULL) {
                 /* Exactly one protocol, named "a,b". */
                 ExpectNull(alpn->next);
-                ExpectNotNull(alpn->protocol_name);
                 ExpectStrEQ(alpn->protocol_name, "a,b");
             }
         }
@@ -3366,7 +3365,6 @@ static int test_wolfSSL_set_alpn_protos_binary_safe(void)
             if (alpn != NULL) {
                 ExpectNull(alpn->next);
                 ExpectIntEQ(alpn->protocol_nameSz, 3);
-                ExpectNotNull(alpn->protocol_name);
                 ExpectBufEQ(alpn->protocol_name, embeddedNul + 1, 3);
             }
         }
@@ -45656,6 +45654,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_ALPN_server_response_count),
     TEST_DECL(test_TLSX_SupportedCurve_empty_or_unsupported),
     TEST_DECL(test_TLSX_SignatureAlgorithmsCert_parse),
+    TEST_DECL(test_TLSX_PointFormat_list),
+    TEST_DECL(test_TLSX_MaxFragment_value),
     TEST_DECL(test_TLSX_PointFormat_uncompressed_required),
     TEST_DECL(test_wolfSSL_CTX_add_client_custom_ext),
     TEST_DECL(test_wolfSSL_custom_ext_handshake),

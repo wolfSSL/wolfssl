@@ -1673,6 +1673,7 @@ static TLSX* TLSX_New(TLSX_Type type, const void* data, void* heap)
     if (extension) {
         extension->type = type;
         extension->data = (void*)data;
+        extension->val  = 0;
         extension->resp = 0;
         extension->next = NULL;
     }
@@ -1817,7 +1818,8 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
         return NULL;
     }
 
-    alpn = (ALPN*)XMALLOC(sizeof(ALPN), heap, DYNAMIC_TYPE_TLSX);
+    alpn = (ALPN*)XMALLOC(sizeof(ALPN) + protocol_nameSz + 1, heap,
+                          DYNAMIC_TYPE_TLSX);
     if (alpn == NULL) {
         WOLFSSL_MSG("Memory failure");
         return NULL;
@@ -1826,14 +1828,6 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
     alpn->next = NULL;
     alpn->negotiated = 0;
     alpn->options = 0;
-
-    alpn->protocol_name = (char*)XMALLOC(protocol_nameSz + 1,
-                                         heap, DYNAMIC_TYPE_TLSX);
-    if (alpn->protocol_name == NULL) {
-        WOLFSSL_MSG("Memory failure");
-        XFREE(alpn, heap, DYNAMIC_TYPE_TLSX);
-        return NULL;
-    }
 
     XMEMCPY(alpn->protocol_name, protocol_name, protocol_nameSz);
     alpn->protocol_name[protocol_nameSz] = 0;
@@ -1852,7 +1846,6 @@ static void TLSX_ALPN_Free(ALPN *alpn, void* heap)
     if (alpn == NULL)
         return;
 
-    XFREE(alpn->protocol_name, heap, DYNAMIC_TYPE_TLSX);
     XFREE(alpn, heap, DYNAMIC_TYPE_TLSX);
 }
 
@@ -2277,37 +2270,27 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 /** Creates a new SNI object. */
 static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 {
-    SNI* sni = (SNI*)XMALLOC(sizeof(SNI), heap, DYNAMIC_TYPE_TLSX);
+    SNI* sni;
 
     (void)heap;
 
-    if (sni) {
-        sni->type = type;
-        sni->next = NULL;
+    if (type != WOLFSSL_SNI_HOST_NAME) /* invalid type */
+        return NULL;
 
-    #ifndef NO_WOLFSSL_SERVER
-        sni->options = 0;
-        sni->status  = WOLFSSL_SNI_NO_MATCH;
-    #endif
+    sni = (SNI*)XMALLOC(sizeof(SNI) + size + 1, heap, DYNAMIC_TYPE_TLSX);
+    if (sni == NULL)
+        return NULL;
 
-        switch (sni->type) {
-            case WOLFSSL_SNI_HOST_NAME:
-                sni->data.host_name = (char*)XMALLOC(size + 1, heap,
-                                                     DYNAMIC_TYPE_TLSX);
-                if (sni->data.host_name) {
-                    XSTRNCPY(sni->data.host_name, (const char*)data, size);
-                    sni->data.host_name[size] = '\0';
-                } else {
-                    XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
-                    sni = NULL;
-                }
-            break;
+    sni->type = type;
+    sni->next = NULL;
 
-            default: /* invalid type */
-                XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
-                sni = NULL;
-        }
-    }
+#ifndef NO_WOLFSSL_SERVER
+    sni->options = 0;
+    sni->status  = WOLFSSL_SNI_NO_MATCH;
+#endif
+
+    XSTRNCPY(sni->host_name, (const char*)data, size);
+    sni->host_name[size] = '\0';
 
     return sni;
 }
@@ -2316,12 +2299,6 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 static void TLSX_SNI_Free(SNI* sni, void* heap)
 {
     if (sni) {
-        switch (sni->type) {
-            case WOLFSSL_SNI_HOST_NAME:
-                XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
-            break;
-        }
-
         XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
     }
     (void)heap;
@@ -2351,7 +2328,7 @@ WOLFSSL_TEST_VIS word16 TLSX_SNI_GetSize(SNI* list)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length += (word32)XSTRLEN((char*)sni->data.host_name);
+                length += (word32)XSTRLEN((char*)sni->host_name);
             break;
         }
 
@@ -2377,12 +2354,12 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length = (word16)XSTRLEN((char*)sni->data.host_name);
+                length = (word16)XSTRLEN((char*)sni->host_name);
 
                 c16toa(length, output + offset); /* sni length */
                 offset += OPAQUE16_LEN;
 
-                XMEMCPY(output + offset, sni->data.host_name, length);
+                XMEMCPY(output + offset, sni->host_name, length);
 
                 offset += length;
             break;
@@ -2579,7 +2556,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
     {
         const char* hostName;
-        hostName = (sni != NULL) ? sni->data.host_name : NULL;
+        hostName = (sni != NULL) ? sni->host_name : NULL;
         matched = cacheOnly || (hostName != NULL &&
             XSTRLEN(hostName) == size &&
             XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
@@ -2756,7 +2733,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data,
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
                 if (data) {
-                    *data = sni->data.host_name;
+                    *data = sni->host_name;
                     return (word16)XSTRLEN((char*)*data);
                 }
         }
@@ -2967,52 +2944,47 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 /** Creates a new TCA object. */
 static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
 {
-    TCA* tca = (TCA*)XMALLOC(sizeof(TCA), heap, DYNAMIC_TYPE_TLSX);
-
-    if (tca) {
-        XMEMSET(tca, 0, sizeof(TCA));
-        tca->type = type;
-
-        switch (type) {
-            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
-                break;
-
-            #ifndef NO_SHA
-            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
-            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (idSz == WC_SHA_DIGEST_SIZE &&
-                        (tca->id =
-                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
-                    XMEMCPY(tca->id, id, idSz);
-                    tca->idSz = idSz;
-                }
-                else {
-                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                    tca = NULL;
-                }
-                break;
-            #endif
-
-            case WOLFSSL_TRUSTED_CA_X509_NAME:
-                if (idSz > 0 &&
-                        (tca->id =
-                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
-                    XMEMCPY(tca->id, id, idSz);
-                    tca->idSz = idSz;
-                }
-                else {
-                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                    tca = NULL;
-                }
-                break;
-
-            default: /* invalid type */
-                XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                tca = NULL;
-        }
-    }
+    TCA* tca;
+    word32 allocSz;
 
     (void)heap;
+
+    switch (type) {
+        case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+            idSz = 0;
+            break;
+
+        #ifndef NO_SHA
+        case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+        case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+            if (idSz != WC_SHA_DIGEST_SIZE)
+                return NULL;
+            break;
+        #endif
+
+        case WOLFSSL_TRUSTED_CA_X509_NAME:
+            if (idSz == 0)
+                return NULL;
+            break;
+
+        default: /* invalid type */
+            return NULL;
+    }
+
+    allocSz = (word32)sizeof(TCA) + idSz;
+    /* Fails where size_t is too narrow to hold the sum. */
+    if ((word32)(size_t)allocSz != allocSz)
+        return NULL;
+    tca = (TCA*)XMALLOC((size_t)allocSz, heap, DYNAMIC_TYPE_TLSX);
+    if (tca == NULL)
+        return NULL;
+
+    XMEMSET(tca, 0, sizeof(TCA));
+    tca->type = type;
+    if (idSz > 0) {
+        XMEMCPY(tca->id, id, idSz);
+        tca->idSz = idSz;
+    }
 
     return tca;
 }
@@ -3023,7 +2995,6 @@ static void TLSX_TCA_Free(TCA* tca, void* heap)
     (void)heap;
 
     if (tca) {
-        XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
         XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
     }
 }
@@ -3087,29 +3058,15 @@ static word16 TLSX_TCA_Write(TCA* list, byte* output)
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (tca->id != NULL) {
-                    XMEMCPY(output + offset, tca->id, tca->idSz);
-                    offset += tca->idSz;
-                }
-                else {
-                    /* ID missing. Set to an empty string. */
-                    c16toa(0, output + offset);
-                    offset += OPAQUE16_LEN;
-                }
+                XMEMCPY(output + offset, tca->id, tca->idSz);
+                offset += tca->idSz;
                 break;
             #endif
             case WOLFSSL_TRUSTED_CA_X509_NAME:
-                if (tca->id != NULL) {
-                    c16toa(tca->idSz, output + offset); /* tca length */
-                    offset += OPAQUE16_LEN;
-                    XMEMCPY(output + offset, tca->id, tca->idSz);
-                    offset += tca->idSz;
-                }
-                else {
-                    /* ID missing. Set to an empty string. */
-                    c16toa(0, output + offset);
-                    offset += OPAQUE16_LEN;
-                }
+                c16toa(tca->idSz, output + offset); /* tca length */
+                offset += OPAQUE16_LEN;
+                XMEMCPY(output + offset, tca->id, tca->idSz);
+                offset += tca->idSz;
                 break;
             default:
                 /* ID unknown. Set to an empty string. */
@@ -3317,9 +3274,9 @@ int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 
 #ifdef HAVE_MAX_FRAGMENT
 
-static word16 TLSX_MFL_Write(byte* data, byte* output)
+static word16 TLSX_MFL_Write(byte mfl, byte* output)
 {
-    output[0] = data[0];
+    output[0] = mfl;
 
     return ENUM_LEN;
 }
@@ -3347,8 +3304,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             extension = TLSX_Find(ssl->ctx->extensions,
                     TLSX_MAX_FRAGMENT_LENGTH);
         }
-        if (extension == NULL || extension->data == NULL ||
-                ((byte*)extension->data)[0] != *input) {
+        if (extension == NULL || (byte)extension->val != *input) {
             SendAlert(ssl, alert_fatal, illegal_parameter);
             WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
             return UNKNOWN_MAX_FRAG_LEN_E;
@@ -3389,29 +3345,27 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 {
-    byte* data = NULL;
     int ret = 0;
+    TLSX* extension;
 
     if (extensions == NULL || mfl < WOLFSSL_MFL_MIN || mfl > WOLFSSL_MFL_MAX)
         return BAD_FUNC_ARG;
 
-    data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX);
-    if (data == NULL)
-        return MEMORY_E;
-
-    data[0] = mfl;
-
-    ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data, heap);
-    if (ret != 0) {
-        XFREE(data, heap, DYNAMIC_TYPE_TLSX);
+    /* The code fits in the extension itself, so it holds no data. */
+    ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, NULL, heap);
+    if (ret != 0)
         return ret;
-    }
+
+    extension = TLSX_Find(*extensions, TLSX_MAX_FRAGMENT_LENGTH);
+    if (extension == NULL)
+        return MEMORY_E;
+    extension->val = mfl;
 
     return WOLFSSL_SUCCESS;
 }
 
 
-#define MFL_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
+#define MFL_FREE_ALL(data, heap) WC_DO_NOTHING
 #define MFL_GET_SIZE(data) ENUM_LEN
 #define MFL_WRITE          TLSX_MFL_Write
 #define MFL_PARSE          TLSX_MFL_Parse
@@ -4993,20 +4947,74 @@ static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
     return 0;
 }
 
-static int TLSX_PointFormat_New(PointFormat** point, byte format, void* heap)
+/* Formats the first allocation holds. */
+#define POINT_FORMATS_INIT_CNT 4
+/* Most formats a list can hold. The capacity is a byte. */
+#define POINT_FORMATS_MAX_CNT  128
+/* Append() grows with (byte)(count + 1), which must not wrap. */
+wc_static_assert(POINT_FORMATS_MAX_CNT < 0xFFU);
+/* Powers of two, so the doubling in Grow() lands on the maximum exactly. */
+wc_static_assert((POINT_FORMATS_INIT_CNT &
+                  (POINT_FORMATS_INIT_CNT - 1)) == 0);
+wc_static_assert((POINT_FORMATS_MAX_CNT &
+                  (POINT_FORMATS_MAX_CNT - 1)) == 0);
+wc_static_assert(POINT_FORMATS_INIT_CNT <= POINT_FORMATS_MAX_CNT);
+
+/* Make room for the requested number of point formats.
+ *
+ * formats  The list to grow, allocated when NULL. Updated on reallocation.
+ * cnt      The number of formats the list has to hold.
+ * heap     The heap used for allocation.
+ * returns 0 on success, otherwise failure.
+ */
+static int TLSX_PointFormat_Grow(PointFormats** formats, byte cnt, void* heap)
 {
-    if (point == NULL)
+    PointFormats* list = *formats;
+    PointFormats* newList;
+    word16 cap = POINT_FORMATS_INIT_CNT;
+
+    if ((list != NULL) && (cnt <= list->cap))
+        return 0;
+    if (cnt > POINT_FORMATS_MAX_CNT)
         return BAD_FUNC_ARG;
 
-    (void)heap;
+    while (cap < cnt)
+        cap *= 2;
 
-    *point = (PointFormat*)XMALLOC(sizeof(PointFormat), heap,
-                                                             DYNAMIC_TYPE_TLSX);
-    if (*point == NULL)
+    newList = (PointFormats*)XMALLOC(sizeof(PointFormats) + cap, heap,
+                                     DYNAMIC_TYPE_TLSX);
+    if (newList == NULL)
         return MEMORY_E;
 
-    (*point)->format = format;
-    (*point)->next = NULL;
+    newList->count = 0;
+    newList->cap = (byte)cap;
+
+    if (list != NULL) {
+        newList->count = list->count;
+        XMEMCPY(newList->format, list->format, list->count);
+        XFREE(list, heap, DYNAMIC_TYPE_TLSX);
+    }
+
+    *formats = newList;
+
+    return 0;
+}
+
+static int TLSX_PointFormat_New(PointFormats** formats, byte format,
+                                                                     void* heap)
+{
+    PointFormats* list = NULL;
+    int ret;
+
+    if (formats == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = TLSX_PointFormat_Grow(&list, 1, heap);
+    if (ret != 0)
+        return ret;
+
+    list->format[list->count++] = format;
+    *formats = list;
 
     return 0;
 }
@@ -5022,14 +5030,10 @@ static void TLSX_SupportedCurve_FreeAll(SupportedCurve* list, void* heap)
     (void)heap;
 }
 
-static void TLSX_PointFormat_FreeAll(PointFormat* list, void* heap)
+static void TLSX_PointFormat_FreeAll(PointFormats* list, void* heap)
 {
-    PointFormat* point;
-
-    while ((point = list)) {
-        list = point->next;
-        XFREE(point, heap, DYNAMIC_TYPE_TLSX);
-    }
+    if (list != NULL)
+        XFREE(list, heap, DYNAMIC_TYPE_TLSX);
     (void)heap;
 }
 
@@ -5055,25 +5059,30 @@ static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
     return ret;
 }
 
-static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
+static int TLSX_PointFormat_Append(PointFormats** formats, byte format,
+                                                                     void* heap)
 {
-    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    PointFormats* list;
+    int ret;
+    byte i;
 
-    while (list) {
-        if (list->format == format) {
-            ret = 0; /* format already in use */
-            break;
-        }
+    if ((formats == NULL) || (*formats == NULL))
+        return BAD_FUNC_ARG;
 
-        if (list->next == NULL) {
-            ret = TLSX_PointFormat_New(&list->next, format, heap);
-            break;
-        }
-
-        list = list->next;
+    list = *formats;
+    for (i = 0; i < list->count; i++) {
+        if (list->format[i] == format)
+            return 0; /* format already in use */
     }
 
-    return ret;
+    ret = TLSX_PointFormat_Grow(formats, (byte)(list->count + 1), heap);
+    if (ret != 0)
+        return ret;
+
+    list = *formats;
+    list->format[list->count++] = format;
+
+    return 0;
 }
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
@@ -5238,15 +5247,12 @@ static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
 
 #endif
 
-static word16 TLSX_PointFormat_GetSize(PointFormat* list)
+static word16 TLSX_PointFormat_GetSize(PointFormats* list)
 {
-    PointFormat* point;
     word16 length = ENUM_LEN; /* list length */
 
-    while ((point = list)) {
-        list = point->next;
-        length += ENUM_LEN; /* format length */
-    }
+    if (list != NULL)
+        length = (word16)(length + list->count * ENUM_LEN);
 
     return length;
 }
@@ -5270,13 +5276,14 @@ static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
 
 #endif
 
-static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
+static word16 TLSX_PointFormat_Write(PointFormats* list, byte* output)
 {
     word16 offset = ENUM_LEN;
+    byte i;
 
-    while (list) {
-        output[offset++] = list->format;
-        list = list->next;
+    if (list != NULL) {
+        for (i = 0; i < list->count; i++)
+            output[offset++] = list->format[i];
     }
 
     output[0] = (byte)(offset - ENUM_LEN);
@@ -6257,10 +6264,19 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap, int side)
     return WOLFSSL_SUCCESS;
 }
 
+/* Add a point format to the extension's list, creating the extension when it
+ * does not exist yet. Appending may reallocate extension->data.
+ *
+ * extensions  The list of extensions.
+ * format      The point format to add.
+ * heap        The heap used for allocation.
+ * returns WOLFSSL_SUCCESS on success, BAD_FUNC_ARG at
+ * POINT_FORMATS_MAX_CNT formats, otherwise an allocation failure.
+ */
 int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 {
     TLSX* extension = NULL;
-    PointFormat* point = NULL;
+    PointFormats* formats = NULL;
     int ret = 0;
 
     if (extensions == NULL)
@@ -6269,19 +6285,19 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
     extension = TLSX_Find(*extensions, TLSX_EC_POINT_FORMATS);
 
     if (!extension) {
-        ret = TLSX_PointFormat_New(&point, format, heap);
+        ret = TLSX_PointFormat_New(&formats, format, heap);
         if (ret != 0)
             return ret;
 
-        ret = TLSX_Push(extensions, TLSX_EC_POINT_FORMATS, point, heap);
+        ret = TLSX_Push(extensions, TLSX_EC_POINT_FORMATS, formats, heap);
         if (ret != 0) {
-            XFREE(point, heap, DYNAMIC_TYPE_TLSX);
+            XFREE(formats, heap, DYNAMIC_TYPE_TLSX);
             return ret;
         }
     }
     else {
-        ret = TLSX_PointFormat_Append((PointFormat*)extension->data, format,
-                                                                          heap);
+        ret = TLSX_PointFormat_Append((PointFormats**)&extension->data, format,
+                                      heap);
         if (ret != 0)
             return ret;
     }
@@ -6700,16 +6716,15 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
 WOLFSSL_TEST_VIS SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                             byte* data, word16 size, void* heap)
 {
-    SessionTicket* ticket = (SessionTicket*)XMALLOC(sizeof(SessionTicket),
-                                                       heap, DYNAMIC_TYPE_TLSX);
-    if (ticket) {
-        ticket->data = (byte*)XMALLOC(size, heap, DYNAMIC_TYPE_TLSX);
-        if (ticket->data == NULL) {
-            XFREE(ticket, heap, DYNAMIC_TYPE_TLSX);
-            return NULL;
-        }
+    SessionTicket* ticket;
+    word32 allocSz = (word32)sizeof(SessionTicket) + size;
 
-        XMEMCPY(ticket->data, data, size);
+    if ((word32)(size_t)allocSz != allocSz)
+        return NULL;
+    ticket = (SessionTicket*)XMALLOC((size_t)allocSz, heap, DYNAMIC_TYPE_TLSX);
+    if (ticket) {
+        if (size > 0)
+            XMEMCPY(ticket->data, data, size);
         ticket->size     = size;
         ticket->lifetime = lifetime;
     }
@@ -6720,10 +6735,8 @@ WOLFSSL_TEST_VIS SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
 }
 WOLFSSL_TEST_VIS void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap)
 {
-    if (ticket) {
-        XFREE(ticket->data, heap, DYNAMIC_TYPE_TLSX);
-        XFREE(ticket,       heap, DYNAMIC_TYPE_TLSX);
-    }
+    if (ticket != NULL)
+        XFREE(ticket, heap, DYNAMIC_TYPE_TLSX);
 
     (void)heap;
 }
@@ -15572,7 +15585,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
             case TLSX_EC_POINT_FORMATS:
                 WOLFSSL_MSG("Point Formats extension free");
-                PF_FREE_ALL((PointFormat*)extension->data, heap);
+                PF_FREE_ALL((PointFormats*)extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST:
@@ -15814,7 +15827,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
 
             case TLSX_EC_POINT_FORMATS:
-                length += PF_GET_SIZE((PointFormat*)extension->data);
+                length += PF_GET_SIZE((PointFormats*)extension->data);
                 break;
 
             case TLSX_STATUS_REQUEST:
@@ -16066,7 +16079,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_MAX_FRAGMENT_LENGTH:
                 WOLFSSL_MSG("Max Fragment Length extension to write");
-                offset += MFL_WRITE((byte*)extension->data, output + offset);
+                offset += MFL_WRITE((byte)extension->val, output + offset);
                 break;
 
             case TLSX_EXTENDED_MASTER_SECRET:
@@ -16087,7 +16100,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_EC_POINT_FORMATS:
                 WOLFSSL_MSG("Point Formats extension to write");
-                offset += PF_WRITE((PointFormat*)extension->data,
+                offset += PF_WRITE((PointFormats*)extension->data,
                                     output + offset);
                 break;
 

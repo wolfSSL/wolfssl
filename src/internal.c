@@ -44227,8 +44227,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
         if (extension != NULL) {
             alpn = (ALPN*)extension->data;
-            if (alpn != NULL && alpn->negotiated == 1 &&
-                    alpn->protocol_name != NULL) {
+            if (alpn != NULL && alpn->negotiated == 1) {
                 word32 protoLen = (word32)alpn->protocol_nameSz;
                 if (protoLen > 0) {
                     return wc_Hash(TICKET_BINDING_HASH_TYPE,
