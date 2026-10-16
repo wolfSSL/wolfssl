@@ -54,6 +54,7 @@ int test_wc_AesGcmEncryptDecrypt_InPlace(void);
 int test_wc_AesGcmEncryptDecrypt_UnalignedBuffers(void);
 int test_wc_AesGcm_CrossCipher(void);
 int test_wc_AesGcmMixedEncDecLongIV(void);
+int test_wc_AesGcmEncryptDecrypt_NonStdIv(void);
 int test_wc_AesGcmNonStdNonce(void);
 int test_wc_AesGcmEncrypt_ex_NonceUnique(void);
 int test_wc_AesCcmEncrypt_ex_NonceUnique(void);
@@ -232,6 +233,7 @@ int test_wc_CryptoCb_AesDirect(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_UnalignedBuffers),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_CrossCipher),                    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),                \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_NonStdIv),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmNonStdNonce),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncrypt_ex_NonceUnique), \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncrypt_ex_NonceUnique), \
