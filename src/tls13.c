@@ -4939,9 +4939,16 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 }
 #endif
 
+/* Length of the session's ID to send as legacy_session_id. Only the ID of a
+ * session being resumed is sent. */
+static byte Tls13ClientSessionIdSz(const WOLFSSL* ssl)
+{
+    return ssl->options.resuming ? ssl->session->sessionIDSz : 0;
+}
+
 static void GetTls13SessionId(WOLFSSL* ssl, byte* output, word32* idx)
 {
-    if (ssl->session->sessionIDSz > 0) {
+    if (Tls13ClientSessionIdSz(ssl) > 0) {
         /* Session resumption for old versions of protocol. */
         if (ssl->session->sessionIDSz <= ID_LEN) {
             if (output != NULL)
@@ -6245,6 +6252,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     case TLS_ASYNC_FINALIZE:
     {
+    /* The echo must match the ID GetTls13SessionId() sent. */
+    byte sentIdSz = Tls13ClientSessionIdSz(ssl);
 #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
     if (ssl->options.tls13MiddleBoxCompat) {
         if (args->sessIdSz == 0) {
@@ -6252,8 +6261,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
-        if (ssl->session->sessionIDSz != 0) {
-            if (ssl->session->sessionIDSz != args->sessIdSz ||
+        if (sentIdSz != 0) {
+            if (sentIdSz != args->sessIdSz ||
                 XMEMCMP(ssl->session->sessionID, args->sessId,
                     args->sessIdSz) != 0) {
                 WOLFSSL_MSG("session id doesn't match");
@@ -6298,7 +6307,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          * sent (RFC 8446 Section 4.1.3), so don't accept an arbitrary value.
          * An empty echo is the compliant server case and stays acceptable. */
         if (!requireEmptyEcho && args->sessIdSz != 0 &&
-                (args->sessIdSz != ssl->session->sessionIDSz ||
+                (args->sessIdSz != sentIdSz ||
                  XMEMCMP(ssl->session->sessionID, args->sessId,
                          args->sessIdSz) != 0)) {
             WOLFSSL_MSG("Server sent different session id");
@@ -6309,7 +6318,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     else
 #endif /* WOLFSSL_QUIC || WOLFSSL_DTLS13 */
-    if (args->sessIdSz != ssl->session->sessionIDSz || (args->sessIdSz > 0 &&
+    if (args->sessIdSz != sentIdSz || (args->sessIdSz > 0 &&
         XMEMCMP(ssl->session->sessionID, args->sessId, args->sessIdSz) != 0))
     {
         WOLFSSL_MSG("Server sent different session id");
