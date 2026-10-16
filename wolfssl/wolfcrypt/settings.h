@@ -111,8 +111,6 @@
 /* Uncomment next line if using lwip */
 /* #define WOLFSSL_LWIP */
 
-/* Uncomment next line if building wolfSSL for LSR */
-/* #define WOLFSSL_LSR */
 
 /* Uncomment next line if building for Freescale Classic MQX version 5.0 */
 /* #define FREESCALE_MQX_5_0 */
@@ -1999,29 +1997,7 @@
 #endif
 
 #ifdef WOLFSSL_LSR
-    #define HAVE_WEBSERVER
-    #define SIZEOF_LONG_LONG 8
-    #define WOLFSSL_LOW_MEMORY
-    #define NO_WRITEV
-    #define NO_SHA512
-    #define NO_DH
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
-    #define NO_DSA
-    #define NO_DEV_RANDOM
-    #define NO_WOLFSSL_DIR
-    #ifndef NO_FILESYSTEM
-        #define LSR_FS
-        #include "inc/hw_types.h"
-        #include "fs.h"
-    #endif
-    #define WOLFSSL_LWIP
-    #include <errno.h>  /* for tcp errno */
-    #define WOLFSSL_SAFERTOS
-    #if defined(__IAR_SYSTEMS_ICC__)
-        /* enum uses enum */
-        #pragma diag_suppress=Pa089
-    #endif
+    #error "WOLFSSL_LSR support has been removed"
 #endif
 
 #ifdef WOLFSSL_SAFERTOS
