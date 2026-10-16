@@ -8866,6 +8866,7 @@ void bench_sha224(int useDeviceID)
                     ret = wc_Sha224Final(hash[0], digest[0]);
                 if (ret != 0)
                     goto exit_sha224;
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -11001,6 +11002,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                         }
                     }
                 } /* for i */
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -11019,7 +11021,6 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                             goto exit_hmac;
                         }
                     }
-                    RECORD_MULTI_VALUE_STATS();
                 } /* for i */
             } while (pending > 0);
         } while (bench_stats_check(start)
@@ -11057,6 +11058,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                         }
                     }
                 } /* for i */
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -14516,6 +14518,7 @@ void bench_slhdsa(int param)
     byte ctx[1];
     char name[30];
     int len;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, goto exit);
@@ -14565,8 +14568,12 @@ void bench_slhdsa(int param)
 #endif
        );
     bench_stats_asym_finish(name, len, "gen", 0, count, start, ret);
+    #ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+    #endif
 
     PRIVATE_KEY_UNLOCK();
+    RESET_MULTI_VALUE_STATS_VARS();
     bench_stats_start(&count, &start);
     do {
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
@@ -14584,6 +14591,9 @@ void bench_slhdsa(int param)
        );
     PRIVATE_KEY_LOCK();
     bench_stats_asym_finish(name, len, "sign", 0, count, start, ret);
+    #ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+    #endif
 
     outLen = (word32)sizeof(pk);
     ret = wc_SlhDsaKey_ExportPublic(key, pk, &outLen);
@@ -14600,6 +14610,7 @@ void bench_slhdsa(int param)
     if (ret != 0) {
         goto exit;
     }
+    RESET_MULTI_VALUE_STATS_VARS();
     bench_stats_start(&count, &start);
     do {
         ret = wc_SlhDsaKey_Verify(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
@@ -14615,9 +14626,13 @@ void bench_slhdsa(int param)
 #endif
        );
     bench_stats_asym_finish(name, len, "verify", 0, count, start, ret);
+    #ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+    #endif
 
     /* Internal interface: sign M' directly (no M' construction). */
     PRIVATE_KEY_UNLOCK();
+    RESET_MULTI_VALUE_STATS_VARS();
     bench_stats_start(&count, &start);
     do {
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
@@ -14635,7 +14650,11 @@ void bench_slhdsa(int param)
        );
     PRIVATE_KEY_LOCK();
     bench_stats_asym_finish(name, len, "sign-msg", 0, count, start, ret);
+    #ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+    #endif
 
+    RESET_MULTI_VALUE_STATS_VARS();
     bench_stats_start(&count, &start);
     do {
         ret = wc_SlhDsaKey_VerifyMsg(key_vfy, msg, (word32)sizeof(msg),
@@ -14651,6 +14670,9 @@ void bench_slhdsa(int param)
 #endif
        );
     bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
+    #ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+    #endif
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
     /* Pre-hash interface: hash message ONCE outside the timed loop (the
@@ -14678,6 +14700,7 @@ void bench_slhdsa(int param)
         }
 
         PRIVATE_KEY_UNLOCK();
+        RESET_MULTI_VALUE_STATS_VARS();
         bench_stats_start(&count, &start);
         do {
             sigLen = WC_SLHDSA_MAX_SIG_LEN;
@@ -14695,7 +14718,11 @@ void bench_slhdsa(int param)
            );
         PRIVATE_KEY_LOCK();
         bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+        #ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+        #endif
 
+        RESET_MULTI_VALUE_STATS_VARS();
         bench_stats_start(&count, &start);
         do {
             ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
@@ -14711,6 +14738,9 @@ void bench_slhdsa(int param)
 #endif
            );
         bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+        #ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+        #endif
     }
 #elif defined(WOLFSSL_SHAKE256)
     /* Reached without SHA-256, or without the SHA-512 the larger parameter
@@ -14725,6 +14755,7 @@ void bench_slhdsa(int param)
         }
 
         PRIVATE_KEY_UNLOCK();
+        RESET_MULTI_VALUE_STATS_VARS();
         bench_stats_start(&count, &start);
         do {
             sigLen = WC_SLHDSA_MAX_SIG_LEN;
@@ -14742,7 +14773,11 @@ void bench_slhdsa(int param)
            );
         PRIVATE_KEY_LOCK();
         bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+        #ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+        #endif
 
+        RESET_MULTI_VALUE_STATS_VARS();
         bench_stats_start(&count, &start);
         do {
             ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
@@ -14758,6 +14793,9 @@ void bench_slhdsa(int param)
 #endif
            );
         bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+        #ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+        #endif
     }
 #endif /* NO_SHA256 / WOLFSSL_SHAKE256 */
 
@@ -18472,6 +18510,7 @@ void bench_mldsaKeySign(byte level)
                 printf("wc_MlDsaKey_MakeKey failed %d\n", ret);
                 goto out;
             }
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
