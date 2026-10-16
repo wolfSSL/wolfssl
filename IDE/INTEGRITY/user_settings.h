@@ -45,9 +45,6 @@ int integrity_rand_generate_seed(unsigned char* output, unsigned int sz);
 #define WOLFSSL_SP_ARM64
 #define WOLFSSL_SP_ARM64_ASM
 
-/* remove this line once the ".arch_extension crypto" issue is resolved */
-#define WOLFSSL_ARMASM_NO_HW_CRYPTO
-
 #define WOLFSSL_TLS13
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
