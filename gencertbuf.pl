@@ -4,7 +4,7 @@
 # version 1.1
 # Updated 07/01/2014
 #
-# Copyright (C) 2006-2015 wolfSSL Inc.
+# Copyright (C) 2006-2026 wolfSSL Inc.
 #
 
 use strict;
@@ -405,6 +405,24 @@ for my $entry (@hbs_vectors) {
     }
     print OUT_FILE "#endif /* $guard */\n\n";
 }
+
+# ML-KEM end-entity certificates and expandedKey form private keys
+print OUT_FILE "#if defined(WOLFSSL_HAVE_MLKEM)\n\n";
+
+for my $n (512, 768, 1024) {
+    for my $kind ("cert", "key") {
+        my $fname = "./certs/mlkem/mlkem${n}-${kind}.der";
+        my $sname = "mlkem${n}_${kind}_der";
+
+        print OUT_FILE "/* $fname */\n";
+        print OUT_FILE "static const unsigned char $sname\[] =\n{\n";
+        file_to_hex($fname);
+        print OUT_FILE "};\n";
+        print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n";
+    }
+}
+
+print OUT_FILE "#endif /* WOLFSSL_HAVE_MLKEM */\n\n";
 
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";

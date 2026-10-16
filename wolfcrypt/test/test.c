@@ -64782,14 +64782,14 @@ free_level:
  * certs/mlkem/README.txt for why - so nothing here expands a seed and the test
  * runs in WOLFSSL_MLKEM_NO_MAKE_KEY builds too, which is exactly what that key
  * format was chosen for. */
-#if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
-    defined(WC_ENABLE_ASYM_KEY_EXPORT)
+#if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_ASN) && !defined(NO_CERTS) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
 
-/* The largest committed ML-KEM DER is under 7 kB, and a static memory pool has
- * no bucket much beyond that. */
-#define MLKEM_CERT_DER_SZ (FOURK_BUF * 2)
+#if !defined(WC_NO_RNG) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define MLKEM_CERT_TEST_KEM
+#endif
 
 /* Parse the ML-KEM end-entity certificates, confirm the subject public key
  * carries the expected ML-KEM parameter set, and confirm the matching private
@@ -64798,67 +64798,66 @@ static wc_test_ret_t mlkem_cert_test(void)
 {
     wc_test_ret_t ret = 0;
     int i;
+#ifdef MLKEM_CERT_TEST_KEM
+    WC_RNG rng;
+#endif
     static const struct {
-        const char* cert;
-        const char* key;
+        const byte* cert;
+        word32      certSz;
+        const byte* key;
+        word32      keySz;
         int         level;
     } vectors[] = {
 #if defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_NO_ML_KEM)
-        { CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem512-cert.der",
-          CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem512-key.der", WC_ML_KEM_512 },
+        { mlkem512_cert_der, sizeof_mlkem512_cert_der,
+          mlkem512_key_der, sizeof_mlkem512_key_der, WC_ML_KEM_512 },
 #endif
 #if defined(WOLFSSL_WC_ML_KEM_768) && !defined(WOLFSSL_NO_ML_KEM)
-        { CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem768-cert.der",
-          CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem768-key.der", WC_ML_KEM_768 },
+        { mlkem768_cert_der, sizeof_mlkem768_cert_der,
+          mlkem768_key_der, sizeof_mlkem768_key_der, WC_ML_KEM_768 },
 #endif
 #if defined(WOLFSSL_WC_ML_KEM_1024) && !defined(WOLFSSL_NO_ML_KEM)
-        { CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem1024-cert.der",
-          CERT_ROOT "mlkem" CERT_PATH_SEP "mlkem1024-key.der", WC_ML_KEM_1024 },
+        { mlkem1024_cert_der, sizeof_mlkem1024_cert_der,
+          mlkem1024_key_der, sizeof_mlkem1024_key_der, WC_ML_KEM_1024 },
 #endif
-        { NULL, NULL, 0 }
+        { NULL, 0, NULL, 0, 0 }
     };
 
+#ifdef MLKEM_CERT_TEST_KEM
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif
+
     for (i = 0; vectors[i].cert != NULL; i++) {
-        /* One key object and one file buffer at a time: a static memory pool
-         * has no room for both halves of the comparison at once. */
+        /* One key object at a time: a static memory pool has no room for
+         * both halves of the comparison at once. */
         MlKemKey* key = NULL;
-        XFILE f = XBADFILE;
-        byte* derBuf = NULL;
         byte* spki = NULL;
         byte* pubA = NULL;
         byte* pubB = NULL;
         word32 spkiSz = MLKEM_MAX_PUB_KEY_DER_SIZE;
         word32 pubSz = 0;
         word32 idx = 0;
-        size_t derSz = 0;
         int keyInit = 0;
+#ifdef MLKEM_CERT_TEST_KEM
+        byte* ct = NULL;
+        word32 ctSz = 0;
+        byte ssA[WC_ML_KEM_SS_SZ];
+        byte ssB[WC_ML_KEM_SS_SZ];
+#endif
 
         key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-        derBuf = (byte*)XMALLOC(MLKEM_CERT_DER_SZ, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
         spki = (byte*)XMALLOC(spkiSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (key == NULL || derBuf == NULL || spki == NULL) {
+        if (key == NULL || spki == NULL) {
             ret = WC_TEST_RET_ENC_ERRNO;
-            goto free_vector;
-        }
-
-        f = XFOPEN(vectors[i].cert, "rb");
-        if (f == XBADFILE) {
-            ret = WC_TEST_RET_ENC_ERRNO;
-            goto free_vector;
-        }
-        derSz = XFREAD(derBuf, 1, MLKEM_CERT_DER_SZ, f);
-        XFCLOSE(f);
-        /* a full buffer means the file did not fit */
-        if ((derSz == 0) || (derSz == (size_t)MLKEM_CERT_DER_SZ)) {
-            ret = WC_TEST_RET_ENC_NC;
             goto free_vector;
         }
 
         /* Pull the SubjectPublicKeyInfo straight out of the certificate. */
-        ret = wc_GetSubjectPubKeyInfoDerFromCert(derBuf, (word32)derSz, spki,
-            &spkiSz);
+        ret = wc_GetSubjectPubKeyInfoDerFromCert(vectors[i].cert,
+            vectors[i].certSz, spki, &spkiSz);
         if (ret == 0) {
             ret = wc_MlKemKey_Init(key, vectors[i].level, HEAP_HINT, devId);
             if (ret == 0)
@@ -64881,6 +64880,18 @@ static wc_test_ret_t mlkem_cert_test(void)
         }
         if (ret == 0)
             ret = wc_MlKemKey_EncodePublicKey(key, pubA, pubSz);
+#ifdef MLKEM_CERT_TEST_KEM
+        /* Encapsulate to the certificate key, decapsulate below. */
+        if (ret == 0)
+            ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
+        if (ret == 0) {
+            ct = (byte*)XMALLOC(ctSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ct == NULL)
+                ret = WC_TEST_RET_ENC_ERRNO;
+        }
+        if (ret == 0)
+            ret = wc_MlKemKey_Encapsulate(key, ct, ssA, &rng);
+#endif
         if (keyInit) {
             wc_MlKemKey_Free(key);
             keyInit = 0;
@@ -64888,25 +64899,13 @@ static wc_test_ret_t mlkem_cert_test(void)
         if (ret != 0)
             goto free_vector;
 
-        f = XFOPEN(vectors[i].key, "rb");
-        if (f == XBADFILE) {
-            ret = WC_TEST_RET_ENC_ERRNO;
-            goto free_vector;
-        }
-        derSz = XFREAD(derBuf, 1, MLKEM_CERT_DER_SZ, f);
-        XFCLOSE(f);
-        if ((derSz == 0) || (derSz == (size_t)MLKEM_CERT_DER_SZ)) {
-            ret = WC_TEST_RET_ENC_NC;
-            goto free_vector;
-        }
-
         ret = wc_MlKemKey_Init(key, vectors[i].level, HEAP_HINT, devId);
         if (ret == 0)
             keyInit = 1;
         if (ret == 0) {
             idx = 0;
-            ret = wc_MlKemKey_PrivateKeyDecode(key, derBuf, (word32)derSz,
-                &idx);
+            ret = wc_MlKemKey_PrivateKeyDecode(key, vectors[i].key,
+                vectors[i].keySz, &idx);
         }
         /* The private key must reproduce the certificate's public key. */
         if (ret == 0)
@@ -64915,6 +64914,14 @@ static wc_test_ret_t mlkem_cert_test(void)
             if (XMEMCMP(pubA, pubB, pubSz) != 0)
                 ret = WC_TEST_RET_ENC_NC;
         }
+#ifdef MLKEM_CERT_TEST_KEM
+        if (ret == 0)
+            ret = wc_MlKemKey_Decapsulate(key, ssB, ct, ctSz);
+        if (ret == 0) {
+            if (XMEMCMP(ssA, ssB, sizeof(ssA)) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+#endif
 
 free_vector:
         if (keyInit)
@@ -64923,13 +64930,19 @@ free_vector:
         XFREE(pubA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pubB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(spki, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(derBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MLKEM_CERT_TEST_KEM
+        XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
         if (ret != 0)
             break;
     }
+#ifdef MLKEM_CERT_TEST_KEM
+    wc_FreeRng(&rng);
+#endif
     return ret;
 }
+#undef MLKEM_CERT_TEST_KEM
 #endif /* ML-KEM certificate test */
 
 /* Certificate generation with an ML-KEM subject key. A KEM cannot sign, so a
@@ -65465,10 +65478,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         goto out;
 #endif
 
-#if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
-    defined(WC_ENABLE_ASYM_KEY_EXPORT)
+#if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_ASN) && !defined(NO_CERTS) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
     ret = mlkem_cert_test();
     if (ret != 0)
         goto out;
