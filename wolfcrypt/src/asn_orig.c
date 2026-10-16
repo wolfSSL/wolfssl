@@ -252,7 +252,7 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
          }
    #endif
 
-    #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+    #if defined(WOLFSSL_XILINX_CRYPT)
         if (wc_InitRsaHw(key) != 0) {
             return BAD_STATE_E;
         }
