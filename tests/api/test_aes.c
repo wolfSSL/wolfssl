@@ -4060,9 +4060,13 @@ static WC_NO_INLINE int test_AesGcmEncrypt_DirtyNeon(Aes* aes, byte* out,
     const byte* in, word32 sz, const byte* iv, word32 ivSz, byte* tag,
     word32 tagSz, const byte* aad, word32 aadSz)
 {
+    int ret;
+
     TEST_AES_GCM_FILL_NEON();
-    return wc_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad,
-        aadSz);
+    ret = wc_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad, aadSz);
+    /* Keep this from becoming a tail call, which would restore q6 first. */
+    __asm__ __volatile__ ("" ::: "memory");
+    return ret;
 }
 
 /* Decrypt with junk in the NEON registers. */
@@ -4070,9 +4074,13 @@ static WC_NO_INLINE int test_AesGcmDecrypt_DirtyNeon(Aes* aes, byte* out,
     const byte* in, word32 sz, const byte* iv, word32 ivSz, const byte* tag,
     word32 tagSz, const byte* aad, word32 aadSz)
 {
+    int ret;
+
     TEST_AES_GCM_FILL_NEON();
-    return wc_AesGcmDecrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad,
-        aadSz);
+    ret = wc_AesGcmDecrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad, aadSz);
+    /* Keep this from becoming a tail call, which would restore q6 first. */
+    __asm__ __volatile__ ("" ::: "memory");
+    return ret;
 }
 #endif
 
