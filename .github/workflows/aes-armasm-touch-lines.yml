@@ -1,0 +1,96 @@
+name: "AES touch-lines on Arm assembly"
+
+# Compile aes.c for Cortex-M Thumb-2 asm, with and without touch-lines, and
+# check it routes to the C core (AesEncrypt_C present) only when it is set.
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/src/aes.c'
+      - 'wolfcrypt/src/port/arm/thumb2-aes-asm_c.c'
+      - 'wolfssl/wolfcrypt/**'
+      - '.github/workflows/aes-armasm-touch-lines.yml'
+      - 'examples/configs/user_settings_arm_thumb2_aes.h'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '**' ]
+    paths:
+      - 'wolfcrypt/src/aes.c'
+      - 'wolfcrypt/src/port/arm/thumb2-aes-asm_c.c'
+      - 'wolfssl/wolfcrypt/**'
+      - '.github/workflows/aes-armasm-touch-lines.yml'
+      - 'examples/configs/user_settings_arm_thumb2_aes.h'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  compile:
+    name: ${{ matrix.leg }} (Cortex-M4, Thumb-2)
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Plain Thumb-2 assembly: the T-table core, C core not compiled.
+          - leg: 'assembly'
+            touch_lines: ''
+            expect_c_core: '0'
+            expect_gcmsiv_asm: '1'
+          # Touch-lines routes AES through the C table core.
+          - leg: 'touch-lines routed to C core'
+            touch_lines: '-DWOLFSSL_AES_TOUCH_LINES'
+            expect_c_core: '1'
+            expect_gcmsiv_asm: '0'
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+
+      - name: Compile aes.c for Thumb-2 and check the routing
+        run: |
+          set -e
+          mkdir -p "$GITHUB_WORKSPACE/cfg"
+          cp examples/configs/user_settings_arm_thumb2_aes.h \
+              "$GITHUB_WORKSPACE/cfg/user_settings.h"
+
+          CF="-mcpu=cortex-m4 -mthumb -Os -Wall -Wextra -Werror -c"
+          CF="$CF -I. -I$GITHUB_WORKSPACE/cfg -DWOLFSSL_USER_SETTINGS"
+
+          # The Thumb-2 assembly translation unit must keep compiling alongside.
+          arm-none-eabi-gcc $CF ${{ matrix.touch_lines }} \
+              wolfcrypt/src/port/arm/thumb2-aes-asm_c.c -o /dev/null
+
+          arm-none-eabi-gcc $CF ${{ matrix.touch_lines }} \
+              wolfcrypt/src/aes.c -o aes.o
+
+          have=$(arm-none-eabi-nm aes.o | grep -c ' AesEncrypt_C$' || true)
+          echo "AesEncrypt_C present: $have (expected ${{ matrix.expect_c_core }})"
+          if [ "$have" != "${{ matrix.expect_c_core }}" ]; then
+              echo "Routing check failed: the C-core selection does not match" \
+                   "the touch-lines setting."
+              exit 1
+          fi
+
+          # GCM-SIV CTR has its own asm gated on WOLFSSL_ARMASM; touch-lines
+          # must route it to C too, leaving the asm CTR an unreferenced extern.
+          siv=$(arm-none-eabi-nm aes.o | grep -c 'U AES_GCMSIV_ctr_thumb2' || true)
+          echo "GCM-SIV asm CTR referenced: $siv (expected ${{ matrix.expect_gcmsiv_asm }})"
+          if [ "$siv" != "${{ matrix.expect_gcmsiv_asm }}" ]; then
+              echo "GCM-SIV routing check failed."
+              exit 1
+          fi
