@@ -1,57 +1,6 @@
 /*!
     \ingroup Random
 
-    \brief Init global Whitewood netRandom context
-
-    \return 0 Success
-    \return BAD_FUNC_ARG Either configFile is null or timeout is negative.
-    \return RNG_FAILURE_E There was a failure initializing the rng.
-
-    \param configFile Path to configuration file
-    \param hmac_cb Optional to create HMAC callback.
-    \param timeout A timeout duration.
-
-    _Example_
-    \code
-    char* config = "path/to/config/example.conf";
-    int time = // Some sufficient timeout value;
-
-    if (wc_InitNetRandom(config, NULL, time) != 0)
-    {
-        // Some error occurred
-    }
-    \endcode
-
-    \sa wc_FreeNetRandom
-*/
-int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
-
-/*!
-    \ingroup Random
-
-    \brief Free global Whitewood netRandom context.
-
-    \return 0 Success
-    \return BAD_MUTEX_E Error locking mutex on wnr_mutex
-
-    \param none No returns.
-
-    _Example_
-    \code
-    int ret = wc_FreeNetRandom();
-    if(ret != 0)
-    {
-        // Handle the error
-    }
-    \endcode
-
-    \sa wc_InitNetRandom
-*/
-int  wc_FreeNetRandom(void);
-
-/*!
-    \ingroup Random
-
     \brief Gets the seed (from OS) and key cipher for rng.  rng->drbg
     (deterministic random bit generator) allocated (should be deallocated
     with wc_FreeRng).  This is a blocking operation.

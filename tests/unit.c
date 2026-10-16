@@ -107,11 +107,6 @@ int unit_test(int argc, char** argv)
 #ifdef WC_RNG_SEED_CB
     wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
-        err_sys("Whitewood netRandom global config failed");
-#endif /* HAVE_WNR */
-
 #ifndef WOLFSSL_TIRTOS
     ChangeToWolfRoot();
 #endif
@@ -367,11 +362,6 @@ int unit_test(int argc, char** argv)
 #endif
 
 exit:
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0)
-        err_sys("Failed to free netRandom context");
-#endif /* HAVE_WNR */
-
     /* Drop process-global ECC caches before exit. wolfCrypt_Cleanup() only
      * runs its cleanup body when initRefCount transitions 2->1 (the body
      * itself does the second decrement to 0); the unit driver's single

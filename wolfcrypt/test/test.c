@@ -810,10 +810,6 @@ static WC_MAYBE_UNUSED int test_EccInit_Pub(ecc_key* key, int keySize,
 }
 #endif /* HAVE_ECC */
 
-#ifdef HAVE_WNR
-    const char* wnrConfigFile = "wnr-example.conf";
-#endif
-
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
 
@@ -3979,13 +3975,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         fatInitDefault();
 #endif
 
-#ifdef HAVE_WNR
-        if ((ret = wc_InitNetRandom(wnrConfigFile, NULL, 5000)) != 0) {
-            err_sys("Whitewood netRandom global config failed",
-                    WC_TEST_RET_ENC_EC(ret));
-            return WC_TEST_RET_ENC_EC(ret);
-        }
-#endif
 #ifndef WOLFSSL_ESPIDF
         args.argc = argc;
         args.argv = argv;
@@ -4035,13 +4024,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             err_sys("Error with wolfCrypt_Cleanup!\n", args.return_code);
         }
 
-#ifdef HAVE_WNR
-        if ((ret = wc_FreeNetRandom()) < 0) {
-            args.return_code = WC_TEST_RET_ENC_EC(ret);
-            err_sys("Failed to free netRandom context",
-                    args.return_code);
-        }
-#endif /* HAVE_WNR */
 #ifdef DOLPHIN_EMULATOR
         /* Returning from main panics the emulator. Just hang
          * and let the user force quit the emulator window. */
