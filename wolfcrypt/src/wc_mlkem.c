@@ -2114,7 +2114,8 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     unsigned int i = 0;
     int fail = -1; /* mismatch until mlkem_cmp() says otherwise */
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     byte* cmp = NULL;
 #else
     byte cmp[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
@@ -2206,7 +2207,8 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
 #else
 
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     if (ret == 0) {
         /* Allocate memory for cipher text that is generated. */
         cmp = (byte*)XMALLOC(ctSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2281,7 +2283,8 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #endif
     }
 
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     /* Dispose of dynamic memory allocated in function. cmp holds the
      * re-encrypted ciphertext computed from the secret decrypted message;
      * zeroize before release - FIPS 203 section 3.3 (consistent with the PCT

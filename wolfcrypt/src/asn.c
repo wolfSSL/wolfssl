@@ -9067,10 +9067,20 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = GetASN_Items(rsaKeyASN, dataASN, rsaKeyASN_Length,
             RSA_ASN_COMPLETE, input, inOutIdx, inSz);
     }
+#ifdef WOLFSSL_LINUXKM
+    /* Tolerate PKCS1v1 in Linux kernels -- before kernel 6.0, the crypto
+     * manager's RSA test vectors were labeled version 1 with only two primes
+     * (and zeroed CRT parameters).  An actual multi-prime key still fails to
+     * parse, since RSA_ASN_COMPLETE requires the whole buffer be consumed. */
+    if ((ret == 0) && (version > PKCS1v1)) {
+        ret = ASN_PARSE_E;
+    }
+#else
     /* Only two-prime (version 0) keys are supported. */
     if ((ret == 0) && (version != PKCS1v0)) {
         ret = ASN_PARSE_E;
     }
+#endif
     if ((ret == 0) && (key != NULL)) {
     #if !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         /* RSA key object has all private key values. */
