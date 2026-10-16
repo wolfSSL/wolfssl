@@ -93,6 +93,13 @@
             }                                                           \
             SP_FREE_VAR(NAME, HEAP, DT);                                \
         } while (0)
+    #define SP_ZEROFREE_VAR_ALT(TYPE, NAME, FZ_NAME, CNT, HEAP, DT)     \
+        do {                                                            \
+            if ((FZ_NAME) != NULL) {                                    \
+                ForceZero(FZ_NAME, sizeof(TYPE) * (CNT));               \
+            }                                                           \
+            SP_FREE_VAR(NAME, HEAP, DT);                                \
+        } while (0)
 #else
     #define SP_DECL_VAR(TYPE, NAME, CNT)                                \
         TYPE NAME[CNT]
@@ -105,6 +112,12 @@
         do {                                                            \
             if ((NAME) != NULL) {                                       \
                 ForceZero(NAME, sizeof(TYPE) * (CNT));                  \
+            }                                                           \
+        } while (0)
+    #define SP_ZEROFREE_VAR_ALT(TYPE, NAME, FZ_NAME, CNT, HEAP, DT)     \
+        do {                                                            \
+            if ((FZ_NAME) != NULL) {                                    \
+                ForceZero(FZ_NAME, sizeof(TYPE) * (CNT));               \
             }                                                           \
         } while (0)
 #endif
@@ -125,13 +138,6 @@
         }
     #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
         XFREE(NAME, (HEAP), DT)
-    #define SP_ZEROFREE_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)            \
-        do {                                                            \
-            if ((NAME) != NULL) {                                       \
-                ForceZero(NAME, sizeof(TYPE) * (CNT));                  \
-            }                                                           \
-            SP_FREE_VAR_LARGE(NAME, HEAP, DT);                          \
-        } while (0)
 #else
     #define SP_DECL_VAR_LARGE(TYPE, NAME, CNT)                          \
         TYPE NAME[CNT]
@@ -139,12 +145,6 @@
         WC_DO_NOTHING
     #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
         WC_DO_NOTHING
-    #define SP_ZEROFREE_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)            \
-        do {                                                            \
-            if ((NAME) != NULL) {                                       \
-                ForceZero(NAME, sizeof(TYPE) * (CNT));                  \
-            }                                                           \
-        } while (0)
 #endif
 
 #ifdef WOLFSSL_SP_X86_64_ASM
@@ -965,8 +965,7 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_16(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (33 * 32) + 32, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -1196,8 +1195,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
         sp_2048_cond_sub_avx2_16(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (33 * 32) + 32, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -1777,8 +1775,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_32(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (65 * 64) + 64, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -2043,8 +2040,7 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
         sp_2048_cond_sub_avx2_32(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (65 * 64) + 64, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -2339,7 +2335,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 256;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, d, 32 * 4, NULL, DYNAMIC_TYPE_RSA);
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 32, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
 }
@@ -2651,9 +2648,9 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_2048_to_mp(r, res);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, m, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     SP_ZEROFREE_VAR(sp_digit, e, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    SP_ZEROFREE_VAR(sp_digit, b, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -3886,8 +3883,7 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_24(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (33 * 48) + 48, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -4117,8 +4113,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
         sp_3072_cond_sub_avx2_24(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (33 * 48) + 48, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -4646,8 +4641,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_48(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (17 * 96) + 96, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -4860,8 +4854,7 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
         sp_3072_cond_sub_avx2_48(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (17 * 96) + 96, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -5156,7 +5149,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 384;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, d, 48 * 4, NULL, DYNAMIC_TYPE_RSA);
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 48, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
 }
@@ -5468,9 +5462,9 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, m, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     SP_ZEROFREE_VAR(sp_digit, e, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    SP_ZEROFREE_VAR(sp_digit, b, 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -5891,9 +5885,9 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, m, 24, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     SP_ZEROFREE_VAR(sp_digit, e, 24, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    SP_ZEROFREE_VAR(sp_digit, b, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -6688,8 +6682,7 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_4096_cond_sub_64(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (17 * 128) + 128, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -6902,8 +6895,7 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
         sp_4096_cond_sub_avx2_64(r, r, m, mask);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, td, (17 * 128) + 128, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -7198,7 +7190,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 512;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, d, 64 * 4, NULL, DYNAMIC_TYPE_RSA);
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 64, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
 }
@@ -7510,9 +7503,9 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_4096_to_mp(r, res);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, m, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     SP_ZEROFREE_VAR(sp_digit, e, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    SP_ZEROFREE_VAR(sp_digit, b, 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 }
@@ -9502,10 +9495,8 @@ static int sp_256_ecc_mulmod_win_add_sub_4(sp_point_256* r, const sp_point_256* 
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_256, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 4 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -10182,10 +10173,8 @@ static int sp_256_ecc_mulmod_win_add_sub_avx2_4(sp_point_256* r, const sp_point_
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_256, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 4 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -10486,8 +10475,8 @@ static int sp_256_ecc_mulmod_stripe_4(sp_point_256* r, const sp_point_256* g,
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_256, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -10677,7 +10666,7 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -10958,8 +10947,8 @@ static int sp_256_ecc_mulmod_stripe_avx2_4(sp_point_256* r, const sp_point_256* 
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_256, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -11054,7 +11043,7 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -11230,8 +11219,8 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_256_point_to_ecc_point_4(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -11327,7 +11316,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4 + 4 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -23845,9 +23834,7 @@ static int sp_256_ecc_mulmod_add_only_4(sp_point_256* r, const sp_point_256* g,
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_256, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -23963,9 +23950,7 @@ static int sp_256_ecc_mulmod_add_only_avx2_4(sp_point_256* r, const sp_point_256
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_256, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -24061,7 +24046,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_256_point_to_ecc_point_4(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -24156,7 +24141,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4 + 4 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -24236,8 +24221,6 @@ static int sp_256_ecc_gen_k_4(WC_RNG* rng, sp_digit* k)
         }
     }
     while (err == 0);
-
-    ForceZero(buf, sizeof(buf));
 
     return err;
 #else
@@ -24328,7 +24311,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_256_point_to_ecc_point_4(point, pub);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     /* point is not sensitive, so no need to zeroize */
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
@@ -24513,8 +24496,8 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         *outLen = 32;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -24744,9 +24727,6 @@ static WC_INLINE int sp_256_div_4(const sp_digit* a, const sp_digit* d, sp_digit
     else
 #endif
         sp_256_cond_sub_4(r, t1, d, (sp_digit)0 - r1);
-
-    ForceZero(t1, sizeof(t1));
-    ForceZero(t2, sizeof(t2));
 
     return MP_OKAY;
 }
@@ -26296,7 +26276,7 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     }
 
     SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, priv, 4, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -28350,10 +28330,8 @@ static int sp_384_ecc_mulmod_win_add_sub_6(sp_point_384* r, const sp_point_384* 
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_384, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -29080,10 +29058,8 @@ static int sp_384_ecc_mulmod_win_add_sub_avx2_6(sp_point_384* r, const sp_point_
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_384, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -29387,8 +29363,8 @@ static int sp_384_ecc_mulmod_stripe_6(sp_point_384* r, const sp_point_384* g,
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_384, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -29578,7 +29554,7 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 6 * 7, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -29862,8 +29838,8 @@ static int sp_384_ecc_mulmod_stripe_avx2_6(sp_point_384* r, const sp_point_384* 
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_384, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -29958,7 +29934,7 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 6 * 7, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -30134,8 +30110,8 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_384_point_to_ecc_point_6(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -30231,7 +30207,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6 + 6 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -48563,9 +48539,7 @@ static int sp_384_ecc_mulmod_add_only_6(sp_point_384* r, const sp_point_384* g,
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_384, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -48681,9 +48655,7 @@ static int sp_384_ecc_mulmod_add_only_avx2_6(sp_point_384* r, const sp_point_384
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 6 * 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_384, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -48779,7 +48751,7 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_384_point_to_ecc_point_6(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -48874,7 +48846,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6 + 6 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -48954,8 +48926,6 @@ static int sp_384_ecc_gen_k_6(WC_RNG* rng, sp_digit* k)
         }
     }
     while (err == 0);
-
-    ForceZero(buf, sizeof(buf));
 
     return err;
 #else
@@ -49046,7 +49016,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_384_point_to_ecc_point_6(point, pub);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     /* point is not sensitive, so no need to zeroize */
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
@@ -49231,8 +49201,8 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
         *outLen = 48;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -49464,9 +49434,6 @@ static WC_INLINE int sp_384_div_6(const sp_digit* a, const sp_digit* d, sp_digit
     else
 #endif
         sp_384_cond_sub_6(r, t1, d, (sp_digit)0 - r1);
-
-    ForceZero(t1, sizeof(t1));
-    ForceZero(t2, sizeof(t2));
 
     return MP_OKAY;
 }
@@ -50981,7 +50948,7 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     }
 
     SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, priv, 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -53005,10 +52972,8 @@ static int sp_521_ecc_mulmod_win_add_sub_9(sp_point_521* r, const sp_point_521* 
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_521, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -53710,10 +53675,8 @@ static int sp_521_ecc_mulmod_win_add_sub_avx2_9(sp_point_521* r, const sp_point_
         }
     }
 
-    SP_ZEROFREE_VAR_LARGE(sp_point_521, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR_LARGE(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -54017,8 +53980,8 @@ static int sp_521_ecc_mulmod_stripe_9(sp_point_521* r, const sp_point_521* g,
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_521, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -54208,7 +54171,7 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -54492,8 +54455,8 @@ static int sp_521_ecc_mulmod_stripe_avx2_9(sp_point_521* r, const sp_point_521* 
         }
     }
 
-    SP_ZEROFREE_VAR(sp_point_521, rt, 2, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, t, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -54588,7 +54551,7 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
     }
 
-    SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
     return err;
 #endif
 }
@@ -54764,8 +54727,8 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_521_point_to_ecc_point_9(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -54861,7 +54824,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9 + 9 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -89379,9 +89342,7 @@ static int sp_521_ecc_mulmod_add_only_9(sp_point_521* r, const sp_point_521* g,
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_521, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -89497,9 +89458,7 @@ static int sp_521_ecc_mulmod_add_only_avx2_9(sp_point_521* r, const sp_point_521
     }
 
     SP_ZEROFREE_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_521, rt, 2, heap, DYNAMIC_TYPE_ECC);
-
-    ForceZero(v, sizeof(v));
+    SP_FREE_VAR(rt, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -89595,7 +89554,7 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_521_point_to_ecc_point_9(point, r);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -89690,7 +89649,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
         RESTORE_VECTOR_REGISTERS();
 #endif
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9 + 9 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
     SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
 
     return err;
@@ -89771,8 +89730,6 @@ static int sp_521_ecc_gen_k_9(WC_RNG* rng, sp_digit* k)
         }
     }
     while (err == 0);
-
-    ForceZero(buf, sizeof(buf));
 
     return err;
 #else
@@ -89863,7 +89820,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_521_point_to_ecc_point_9(point, pub);
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
     /* point is not sensitive, so no need to zeroize */
     SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
@@ -90048,8 +90005,8 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
         *outLen = 66;
     }
 
-    SP_ZEROFREE_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -90308,10 +90265,6 @@ static WC_INLINE int sp_521_div_9(const sp_digit* a, const sp_digit* d, sp_digit
 #endif
         sp_521_cond_sub_9(r, t1, sd, (sp_digit)0 - r1);
     sp_521_rshift_9(r, r, 55);
-
-    ForceZero(t1, sizeof(t1));
-    ForceZero(t2, sizeof(t2));
-    ForceZero(sd, sizeof(sd));
 
     return MP_OKAY;
 }
@@ -91872,7 +91825,7 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
     }
 
     SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
-    SP_ZEROFREE_VAR(sp_digit, priv, 9, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
