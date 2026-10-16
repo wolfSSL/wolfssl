@@ -87,7 +87,7 @@
 #elif MDK_CONF_THREAD == 12
 #define WOLFSSL_uTKERNEL2
 #elif MDK_CONF_THREAD == 13
-#define WOLFSSL_FROSTED
+#error "Frosted OS support has been removed"
 #elif MDK_CONF_THREAD == 14
 #define WOLFSSL_CMSIS_RTOS
 #elif MDK_CONF_THREAD == 15
