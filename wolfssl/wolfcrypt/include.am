@@ -108,6 +108,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nxp/casper_port.h \
                          wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h \
                          wolfssl/wolfcrypt/port/nxp/hwpuf_port.h \
+                         wolfssl/wolfcrypt/port/nxp/els_pkc_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
@@ -282,6 +283,10 @@ if BUILD_ELE
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
 else
 noinst_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
+endif
+
+if BUILD_ELS_PKC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/els_pkc_port.h
 endif
 
 if BUILD_TROPIC01
