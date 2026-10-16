@@ -40,6 +40,7 @@
 #endif
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
+#include <tests/api/test_falcon.h>
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 int test_wc_SignatureGetSize_ecc(void)
@@ -170,7 +171,7 @@ int test_wc_SignatureGetSize_rsa(void)
 int test_wc_falcon_sign_verify(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
     /* Whichever level this build has; --enable-falcon=level1 / =level5 drops
      * the other, and wc_falcon_set_level() then rejects it. */
 #ifndef WOLFSSL_NO_FALCON_LEVEL1
