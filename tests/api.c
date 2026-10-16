@@ -11071,11 +11071,24 @@ static int test_wolfSSL_UseSupportedCurve(void)
                         wolfSSL_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSupportedCurve(ssl,  0));
 
+#if defined(HAVE_ECC) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
     /* success case */
     ExpectIntEQ(WOLFSSL_SUCCESS,
                      wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1));
     ExpectIntEQ(WOLFSSL_SUCCESS,
                          wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1));
+#else
+    ExpectIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                     wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1));
+    ExpectIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                         wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1));
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_PQC_HYBRIDS)
+    ExpectIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                     wolfSSL_UseSupportedCurve(ssl, WOLFSSL_SECP256R1MLKEM768));
+#endif
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
