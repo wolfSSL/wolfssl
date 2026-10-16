@@ -1161,13 +1161,15 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
+    if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash update type mismatch!");
         return BAD_FUNC_ARG;
     }
+#else
+    (void)type;
 #endif
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5Update(&hash->alg.md5, data, dataSz);
@@ -1310,13 +1312,15 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
+    if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash final type mismatch!");
         return BAD_FUNC_ARG;
     }
+#else
+    (void)type;
 #endif
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5Final(&hash->alg.md5, out);
@@ -1461,13 +1465,15 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
-    if (hash->type != WC_HASH_TYPE_NONE && hash->type != type) {
+    if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash free type mismatch!");
         return BAD_FUNC_ARG;
     }
+#else
+    (void)type;
 #endif
 
-    switch (type) {
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             wc_Md5Free(&hash->alg.md5);
@@ -1625,7 +1631,16 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-    switch (type) {
+#ifdef DEBUG_WOLFSSL
+    if (type != WC_HASH_TYPE_NONE && type != hash->type) {
+        WOLFSSL_MSG("Hash set flags type mismatch!");
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)type;
+#endif
+
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5SetFlags(&hash->alg.md5, flags);
@@ -1742,7 +1757,16 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-    switch (type) {
+#ifdef DEBUG_WOLFSSL
+    if (type != WC_HASH_TYPE_NONE && type != hash->type) {
+        WOLFSSL_MSG("Hash get flags type mismatch!");
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)type;
+#endif
+
+    switch (hash->type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             ret = wc_Md5GetFlags(&hash->alg.md5, flags);
