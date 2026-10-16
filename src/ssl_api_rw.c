@@ -1010,11 +1010,10 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
             ssl->error = WOLFSSL_ERROR_NONE;
             ret = WOLFSSL_SUCCESS;
         }
-        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-        else if (ret == WC_NO_ERR_TRACE(WANT_READ)) {
+        else if ((ret < 0) && (ret != WC_NO_ERR_TRACE(APP_DATA_READY))) {
+            /* Retry would process the same bad record again, error out. */
             ssl->error = ret;
+            WOLFSSL_ERROR(ret);
             ret = WOLFSSL_FATAL_ERROR;
         }
         else if (ssl->error == WOLFSSL_ERROR_NONE) {
