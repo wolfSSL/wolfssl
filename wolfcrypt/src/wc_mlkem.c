@@ -2125,10 +2125,6 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PRIV_SET) == 0)) {
-        ret = BAD_STATE_E;
-    }
-
     if (ret == 0) {
         /* Establish cipher text size based on key type. */
         switch (key->type) {
@@ -2194,6 +2190,10 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         ret = 0;
     }
 #endif
+    /* Only software needs a local private key; a key named by id has none */
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PRIV_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
     /* Software decapsulation re-encrypts with the public key (FIPS 203,
      * Algorithm 18, steps 2 and 8), so refuse before decrypting without it. */
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_PUB_SET) == 0)) {
