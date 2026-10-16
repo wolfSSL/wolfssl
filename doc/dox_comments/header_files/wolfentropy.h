@@ -80,8 +80,10 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
     \ingroup wolfEntropy
     \brief Tests entropy source on demand.
 
-    \return 0 On success
-    \return RNG_FAILURE_E Test failed
+    \return  0 on success.
+    \return  ENTROPY_RT_E or ENTROPY_APT_E on failure.
+    \return  BAD_MUTEX_E when unable to lock mutex.
+    \return  Negative when creating the counter thread fails.
 
     _Example_
     \code
