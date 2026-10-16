@@ -10380,6 +10380,63 @@ int test_tls13_derive_keys_no_key(void)
     return EXPECT_RESULT();
 }
 
+/* Resumption PSKs from nonces too long for the fixed HKDF label buffer */
+int test_tls13_resumption_psk_long_nonce(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && !defined(NO_SHA256) &&             \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
+    && defined(HAVE_AESGCM) && defined(WOLFSSL_TEST_STATIC_BUILD) &&           \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    byte nonce[TLS13_TICKET_NONCE_MAX_SZ];
+    byte psk[WC_SHA256_DIGEST_SIZE];
+    byte expected[WC_SHA256_DIGEST_SIZE];
+    int lens[3];
+    int i;
+
+    /* largest nonce whose HkdfLabel still fits MAX_TLS13_HKDF_LABEL_SZ */
+    lens[0] = MAX_TLS13_HKDF_LABEL_SZ -
+        (OPAQUE16_LEN + OPAQUE8_LEN + 6 + 10 + OPAQUE8_LEN);
+    lens[1] = lens[0] + 1;
+    lens[2] = TLS13_TICKET_NONCE_MAX_SZ;
+    XMEMSET(nonce, 0x5a, sizeof(nonce));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
+        if (lens[i] > TLS13_TICKET_NONCE_MAX_SZ)
+            continue;
+        ExpectIntEQ(DeriveResumptionPSK(ssl_c, nonce, (byte)lens[i], psk), 0);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_Tls13_HKDF_Expand_Label_Alloc(expected,
+            WC_SHA256_DIGEST_SIZE, ssl_c->session->masterSecret,
+            WC_SHA256_DIGEST_SIZE, (const byte*)"tls13 ", 6,
+            (const byte*)"resumption", 10, nonce, (word32)lens[i], WC_SHA256,
+            NULL), 0);
+        PRIVATE_KEY_LOCK();
+        ExpectBufEQ(psk, expected, sizeof(psk));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 /* Test that a truncated PQC hybrid KeyShare in a ServerHello does not cause a
  * heap use-after-free during cleanup. A malicious server sends
  * SECP256R1MLKEM768 with only 10 bytes of key exchange data (expected: 1120+).

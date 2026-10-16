@@ -38293,16 +38293,16 @@ static int test_wolfSSL_FIPS_mode(void)
 
 
 
-#if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
-    && defined(WOLFSSL_TLS13) &&                                               \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
-    && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
-static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler,
+    word32 maxEarlyData)
 {
     struct test_memio_ctx *test_ctx;
     byte buf[2048];
     int idx, sz;
     word32 tmp;
+    word32 extLen = (maxEarlyData != 0) ? 8 : 0;
     int ret;
 
     idx = 5; /* space for record header */
@@ -38313,13 +38313,13 @@ static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
     tmp = OPAQUE32_LEN +
         OPAQUE32_LEN +
         OPAQUE8_LEN + nonceLength +
-        OPAQUE16_LEN + OPAQUE8_LEN + OPAQUE16_LEN;
+        OPAQUE16_LEN + OPAQUE8_LEN + OPAQUE16_LEN + extLen;
     c32to24(tmp, buf + idx);
     idx += OPAQUE24_LEN;
 
     c32toa((word32)12345, buf+idx); /* lifetime */
     idx += OPAQUE32_LEN;
-    c32toa((word32)12345, buf+idx); /* add */
+    c32toa((word32)filler, buf+idx); /* add */
     idx += OPAQUE32_LEN;
     buf[idx] = nonceLength; /* nonce length */
     idx++;
@@ -38328,11 +38328,18 @@ static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
     tmp = 1; /* ticket len */
     c16toa((word16)tmp, buf+idx);
     idx += 2;
-    buf[idx] = 0xFF; /* ticket */
+    buf[idx] = filler; /* ticket */
     idx++;
-    tmp = 0; /* ext len */
-    c16toa((word16)tmp, buf+idx);
+    c16toa((word16)extLen, buf+idx);
     idx += 2;
+    if (maxEarlyData != 0) {
+        c16toa(TLSXT_EARLY_DATA, buf+idx);
+        idx += 2;
+        c16toa(OPAQUE32_LEN, buf+idx);
+        idx += 2;
+        c32toa(maxEarlyData, buf+idx);
+        idx += OPAQUE32_LEN;
+    }
 
     sz = BuildTls13Message(ssl, buf, 2048, buf+5, idx - 5,
         handshake, 0, 0, 0);
@@ -38342,7 +38349,12 @@ static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
     ret = test_memio_write_cb(ssl, (char*)buf, sz, test_ctx);
     return !(ret == sz);
 }
+#endif
 
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
+    && defined(WOLFSSL_TLS13) &&                                               \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
+    && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 static int test_ticket_nonce_check(WOLFSSL_SESSION *sess, byte len)
 {
     int ret = 0;
@@ -38368,7 +38380,7 @@ static int test_ticket_nonce_malloc_do(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
     EXPECT_DECLS;
     char *buf[1024];
 
-    ExpectIntEQ(send_new_session_ticket(ssl_s, len, len), 0);
+    ExpectIntEQ(send_new_session_ticket(ssl_s, len, len, 0), 0);
     ExpectTrue((wolfSSL_recv(ssl_c, buf, 1024, 0) == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
         (ssl_c->error == WC_NO_ERR_TRACE(WANT_READ)));
 
@@ -38401,6 +38413,36 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
 
     return EXPECT_RESULT();
 }
+
+#if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+static int test_ticket_nonce_cache_restore(WOLFSSL *ssl_s, WOLFSSL *ssl_c,
+    byte len)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION *cached = NULL;
+    byte *mem = NULL;
+    int memSz = 0;
+
+    ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, len), TEST_SUCCESS);
+    ExpectIntGT(memSz = wolfSSL_get_session_cache_memsize(), 0);
+    ExpectNotNull(mem = (byte*)XMALLOC((size_t)memSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wolfSSL_memsave_session_cache(mem, memSz), WOLFSSL_SUCCESS);
+    /* Frees the heap nonces that the saved image still points to */
+    wolfSSL_CTX_flush_sessions(ssl_c->ctx, 0x7FFFFFFFL);
+    ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, memSz), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cached = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_GetSessionFromCache(ssl_c, cached), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cached->ticketNonce.len, 0);
+    ExpectIntEQ(cached->ticketLen, 0);
+
+    wolfSSL_SESSION_free(cached);
+    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif
 
 static int test_ticket_nonce_malloc(void)
 {
@@ -38441,7 +38483,7 @@ static int test_ticket_nonce_malloc(void)
     medium = 255;
 #endif
 #if TLS13_TICKET_NONCE_STATIC_SZ + 20 + 20 <= 255
-    big = small + 20;
+    big = small + 40;
 #else
     big = 255;
 #endif
@@ -38458,6 +38500,10 @@ static int test_ticket_nonce_malloc(void)
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, small), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, medium), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, big), TEST_SUCCESS);
+#if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+    ExpectIntEQ(test_ticket_nonce_cache_restore(ssl_s, ssl_c, big),
+        TEST_SUCCESS);
+#endif
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, medium), TEST_SUCCESS);
     ExpectIntEQ(test_ticket_nonce_cache(ssl_s, ssl_c, small), TEST_SUCCESS);
 
@@ -38469,6 +38515,74 @@ static int test_ticket_nonce_malloc(void)
     return EXPECT_RESULT();
 }
 
+#elif defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int test_ticket_nonce_too_long(void)
+{
+    EXPECT_DECLS;
+#if TLS13_TICKET_NONCE_STATIC_SZ < TLS13_TICKET_NONCE_MAX_SZ
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    char buf[64];
+    byte small = TLS13_TICKET_NONCE_STATIC_SZ;
+    byte big = TLS13_TICKET_NONCE_MAX_SZ;
+#ifdef WOLFSSL_EARLY_DATA
+    WOLFSSL_SESSION *held = NULL;
+    word32 earlyData = 0x100;
+#else
+    word32 earlyData = 0;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(send_new_session_ticket(ssl_s, small, small, earlyData), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->session->ticketNonce.len, small);
+
+#ifdef WOLFSSL_EARLY_DATA
+    ExpectNotNull(held = wolfSSL_get1_session(ssl_c));
+#endif
+    /* A nonce that does not fit drops the ticket, not the connection. */
+    ExpectIntEQ(send_new_session_ticket(ssl_s, big, big, earlyData * 2), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c->session->ticketNonce.len, small);
+    ExpectIntEQ(ssl_c->session->ticketNonce.data[0], small);
+    ExpectIntEQ(ssl_c->session->ticketLen, 1);
+    ExpectIntEQ(ssl_c->session->ticket[0], small);
+    ExpectIntEQ(ssl_c->session->ticketAdd, small);
+#ifdef WOLFSSL_EARLY_DATA
+    ExpectIntEQ(ssl_c->session->maxEarlyDataSz, earlyData);
+    ExpectPtrNE(ssl_c->session, held);
+    ExpectIntEQ(held->maxEarlyDataSz, earlyData);
+    wolfSSL_SESSION_free(held);
+#endif
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, "ping", 4), 4);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), 4);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#else
+    (void)send_new_session_ticket;
+#endif
+    return EXPECT_RESULT();
+}
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
@@ -45799,6 +45913,9 @@ TEST_CASE testCases[] = {
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
     && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_ticket_nonce_malloc),
+#elif defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    TEST_DECL(test_ticket_nonce_too_long),
 #endif
     TEST_DECL(test_ticket_ret_create),
     TEST_DECL(test_ticket_expired_full_handshake),

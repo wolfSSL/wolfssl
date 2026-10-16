@@ -44386,7 +44386,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
-            if (ssl->session->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
+            if (ssl->session->ticketNonce.len > INTERNAL_TICKET_NONCE_SZ) {
                 WOLFSSL_MSG("Bad ticket nonce value");
                 ret = BAD_TICKET_MSG_SZ;
                 goto error;
@@ -44710,7 +44710,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     #ifdef WOLFSSL_TLS13
         /* Check resumption master secret. */
         if (IsAtLeastTLSv1_3(it->pv) &&
-                it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+                it->ticketNonceLen > INTERNAL_TICKET_NONCE_SZ) {
             WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
             return BAD_TICKET_ENCRYPT;
         }
@@ -44939,7 +44939,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef WOLFSSL_TLS13
             /* This should have been already checked in
              * DoClientTicketCheckVersion */
-            if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+            if (it->ticketNonceLen > INTERNAL_TICKET_NONCE_SZ) {
                 WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
                 return;
             }
@@ -45012,7 +45012,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         it->haveEMS = (byte)sess->haveEMS;
         c32toa(sess->ticketAdd, it->ageAdd);
         c16toa(sess->namedGroup, it->namedGroup);
-        if (sess->ticketNonce.len <= MAX_TICKET_NONCE_STATIC_SZ) {
+        if (sess->ticketNonce.len <= INTERNAL_TICKET_NONCE_SZ) {
             it->ticketNonceLen = sess->ticketNonce.len;
             XMEMCPY(it->ticketNonce, sess->ticketNonce.data,
                     sess->ticketNonce.len);

@@ -411,8 +411,12 @@ static int SessionSanityPointerSet(int row)
         #endif /* HAVE_SESSION_TICKET */
         #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || \
             !defined(NO_PSK))
+        /* A nonce that was on the heap is lost, so drop its ticket */
         if (s->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
-            s->ticketNonce.len = MAX_TICKET_NONCE_STATIC_SZ;
+            s->ticketNonce.len = 0;
+        #ifdef HAVE_SESSION_TICKET
+            s->ticketLen = 0;
+        #endif
         }
         #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
             (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
@@ -1388,15 +1392,11 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
         output->ticketNonce.data = output->ticketNonce.dataStatic;
         output->ticketNonce.len = 0;
     }
-    error = SessionTicketNoncePrealloc(&preallocNonce, &preallocNonceLen,
-        output->heap);
-    if (error != 0) {
-        if (tmpBufSet) {
-            output->ticket = output->staticTicket;
-            output->ticketLenAlloc = 0;
-        }
-        WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+    /* Only client sessions can hold a nonce longer than the static buffer.
+     * Without the buffer only such a session fails to copy. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        (void)SessionTicketNoncePrealloc(&preallocNonce, &preallocNonceLen,
+            output->heap);
     }
 #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET*/
 

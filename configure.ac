@@ -9899,15 +9899,19 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
 fi
 
+# By default settings.h enables it for TLS 1.3 clients.
 AC_ARG_ENABLE([ticket-nonce-malloc],
-    [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled)])],
+    [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: enabled for TLS 1.3 clients with session tickets, except FIPS, selftest, MAXQ10xx and WOLFSSL_NO_MALLOC builds)])],
     [ ENABLED_TICKET_NONCE_MALLOC=$enableval ],
-    [ ENABLED_TICKET_NONCE_MALLOC=no_implicit ]
+    [ ENABLED_TICKET_NONCE_MALLOC=default ]
     )
 
 if test "$ENABLED_TICKET_NONCE_MALLOC" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
+elif test "$ENABLED_TICKET_NONCE_MALLOC" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TICKET_NONCE_MALLOC"
 fi
 
 # Extended Master Secret Extension
@@ -11018,7 +11022,7 @@ then
           [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
 
     # support longer session ticket nonce
-    if test "$ENABLED_TICKET_NONCE_MALLOC" = "no_implicit"
+    if test "$ENABLED_TICKET_NONCE_MALLOC" = "default"
     then
         ENABLED_TICKET_NONCE_MALLOC="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
