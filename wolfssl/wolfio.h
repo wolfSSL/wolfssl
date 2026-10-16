@@ -234,8 +234,8 @@
         #elif defined(NUCLEUS_PLUS_2_3)
             #define SO_TYPE     17  /* Socket type */
             #define SO_RCVTIMEO 13  /* Recv Timeout */
-        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
-                && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_CONTIKI) \
+                && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
             #include <sys/socket.h>
             #include <arpa/inet.h>
@@ -364,15 +364,6 @@
         #define SOCKET_EPIPE       BSD_ERROR
         #define SOCKET_ECONNREFUSED BSD_ERROR
         #define SOCKET_ECONNABORTED BSD_ERROR
-#elif defined(WOLFSSL_PICOTCP)
-    #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
-    #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
-    #define SOCKET_ETIMEDOUT    PICO_ERR_ETIMEDOUT
-    #define SOCKET_ECONNRESET   PICO_ERR_ECONNRESET
-    #define SOCKET_EINTR        PICO_ERR_EINTR
-    #define SOCKET_EPIPE        PICO_ERR_EIO
-    #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
-    #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
 #elif defined(FREERTOS_TCP)
     #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
     #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
@@ -473,9 +464,6 @@
 #elif defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
     #define SEND_FUNCTION lwip_send
     #define RECV_FUNCTION lwip_recv
-#elif defined(WOLFSSL_PICOTCP)
-    #define SEND_FUNCTION pico_send
-    #define RECV_FUNCTION pico_recv
 #elif defined(FREERTOS_TCP)
     #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
     #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
