@@ -1,0 +1,24 @@
+#!/bin/sh
+# wolfssl-compliance-tooling SBOM driver - thin shell wrapper.
+#
+# The engine is Python (sbom-driver.py) for Windows and air-gap parity. This
+# wrapper lets a Make or shell caller invoke it as a plain command. It picks a
+# Python interpreter (CRA_PYTHON, then python3, then python) and forwards all
+# arguments unchanged.
+set -e
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+DRIVER_PY="$SCRIPT_DIR/sbom-driver.py"
+
+if [ -n "${CRA_PYTHON:-}" ]; then
+    PY="$CRA_PYTHON"
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+elif command -v python >/dev/null 2>&1; then
+    PY=python
+else
+    echo "ERROR: no python3 found; set CRA_PYTHON." >&2
+    exit 1
+fi
+
+exec "$PY" "$DRIVER_PY" "$@"
