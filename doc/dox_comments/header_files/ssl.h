@@ -15360,6 +15360,71 @@ int  wolfSSL_update_keys(WOLFSSL* ssl);
     \ingroup IO
 
     \brief This function is called on a TLS v1.3 client or server wolfSSL to
+    send cover traffic: an application data record with no content and
+    paddingSz bytes of padding (RFC 8446, Section 5.4 and Appendix E.3). The
+    peer discards the record, so an observer sees traffic without the
+    application sending data. This only holds when the cipher suite encrypts:
+    with an integrity-only suite (NULL cipher, RFC 9150) the content type and
+    padding are visible, and the record gives no cover.
+    This function can only be called after a handshake has been completed.
+    DTLS v1.3 and QUIC are not supported.
+
+    A wolfSSL peer counts each such record as an empty record and fails the
+    connection with EMPTY_RECORD_LIMIT_E after WOLFSSL_MAX_EMPTY_RECORDS of
+    them in a row with no application data in between.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] paddingSz number of padding bytes, from 0 up to the maximum
+    fragment size to send (16384, or less when a maximum fragment length was
+    negotiated or wolfSSL_set_max_send_fragment() set a lower cap).
+
+    \return NOT_COMPILED_IN if built with WOLFSSL_THREADED_CRYPT (takes
+    precedence on every call, before argument validation).
+    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is out of range, or not
+    using stream TLS v1.3.
+    \return BAD_STATE_E if the connection cannot carry application data now:
+    the handshake or a post-handshake exchange is not done, an unretried
+    WANT_WRITE write is pending, output queued before this call could not be
+    sent, an asynchronous record build is suspended, the connection has
+    failed or been shut down, or a key update limit was reached. The cover
+    record is not queued; wolfSSL_want_write() tells whether other output
+    is.
+    \return WRITE_DUP_WRITE_E if called on the read side of a
+    wolfSSL_write_dup() pair.
+    \return ZERO_RETURN, FATAL_ERROR or another error the read side of a
+    wolfSSL_write_dup() pair hit, when called on the write side.
+    \return SOCKET_PEER_CLOSED_E if the peer reset or closed the connection
+    while queued output or the cover record was sent.
+    \return WOLFSSL_ERROR_WANT_WRITE if the cover record is queued; call
+    wolfSSL_write() with a length of 0 and a non-NULL buffer to send it.
+    \return other negative values on failure.
+    \return WOLFSSL_SUCCESS if successful.
+
+    _Example_
+    \code
+    int ret;
+    char none;
+    WOLFSSL* ssl;
+    ...
+    ret = wolfSSL_send_cover_traffic_TLSv13(ssl, 256);
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        ret = wolfSSL_write(ssl, &none, 0);
+        /* 0 is returned when flushed and also when the peer closed. */
+        if (ret <= 0)
+            ret = wolfSSL_get_error(ssl, ret);
+    }
+    \endcode
+
+    \sa wolfSSL_write
+    \sa wolfSSL_set_max_send_fragment
+*/
+int  wolfSSL_send_cover_traffic_TLSv13(WOLFSSL* ssl, int paddingSz);
+
+/*!
+    \ingroup IO
+
+    \brief This function is called on a TLS v1.3 client or server wolfSSL to
     determine whether a rollover of keys is in progress. When
     wolfSSL_update_keys() is called, a KeyUpdate message is sent and the
     encryption key is updated. The decryption key is updated when the response

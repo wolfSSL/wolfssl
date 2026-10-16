@@ -390,6 +390,139 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     return ret;
 }
 
+#ifdef WOLFSSL_TLS13
+/* Send a TLS 1.3 cover traffic record: application data with no content and
+ * paddingSz bytes of padding (RFC 8446 Section 5.4).
+ *
+ * @param [in, out] ssl        SSL/TLS object.
+ * @param [in]      paddingSz  Number of padding bytes, 0 to the maximum
+ *                             fragment size to send.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  NOT_COMPILED_IN when built with WOLFSSL_THREADED_CRYPT (takes
+ *          precedence on every call, before argument validation).
+ * @return  BAD_FUNC_ARG when ssl is NULL, paddingSz is out of range, or not
+ *          using stream TLS 1.3.
+ * @return  WRITE_DUP_WRITE_E on the read side of a write duplicate.
+ * @return  On the write side of a write duplicate, an error the read side
+ *          hit, e.g. ZERO_RETURN after the peer's close_notify or
+ *          FATAL_ERROR. The record is not sent.
+ * @return  BAD_STATE_E when no application data may be sent now, a
+ *          wolfSSL_write() that returned WANT_WRITE has not been retried,
+ *          output queued before this call could not be sent, an
+ *          asynchronous record build is suspended, or a key update limit was
+ *          reached. The record is not queued, but other output may be;
+ *          wolfSSL_want_write() tells.
+ * @return  SOCKET_PEER_CLOSED_E when the peer reset or closed the
+ *          connection while queued output or the record was sent. A
+ *          KeyUpdate or alert sent first reports SOCKET_ERROR_E.
+ * @return  WOLFSSL_ERROR_WANT_WRITE when the record is queued. A
+ *          zero-length wolfSSL_write() with a non-NULL buffer sends it.
+ * @return  Other negative value on failure.
+ */
+int wolfSSL_send_cover_traffic_TLSv13(WOLFSSL* ssl, int paddingSz)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_send_cover_traffic_TLSv13");
+
+    #ifdef WOLFSSL_THREADED_CRYPT
+    /* Records finished by the crypt threads replace the output buffer. */
+    ret = NOT_COMPILED_IN;
+    #else
+    if ((ssl == NULL) || !IsAtLeastTLSv1_3(ssl->version) ||
+            ssl->options.dtls) {
+        ret = BAD_FUNC_ARG;
+    }
+    #ifdef WOLFSSL_QUIC
+    else if (WOLFSSL_IS_QUIC(ssl)) {
+        ret = BAD_FUNC_ARG;
+    }
+    #endif
+    /* TLSInnerPlaintext may be one byte, the content type, more than the
+     * maximum fragment size. */
+    else if ((paddingSz < 0) ||
+             (paddingSz > wolfssl_local_GetMaxSendFragSize(ssl))) {
+        ret = BAD_FUNC_ARG;
+    }
+    #ifdef HAVE_WRITE_DUP
+    else if (ssl->dupSide == READ_DUP_SIDE) {
+        ret = WRITE_DUP_WRITE_E;
+    }
+    #endif
+    /* Application data queued on WANT_WRITE is accounted for by retrying
+     * that write. */
+    else if (ssl->buffers.plainSz > 0) {
+        ret = BAD_STATE_E;
+    }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    /* A suspended record build would lose its state to this one. */
+    else if (ssl->options.buildArgs13Set) {
+        ret = BAD_STATE_E;
+    }
+    #endif
+    else {
+        /* Before anything below can write or change ssl->error. */
+        ret = wolfssl_local_CheckTls13SendState(ssl);
+    }
+    #endif
+
+    /* As SendData(): output already queued, by an earlier call or grouped,
+     * is sent first. While it cannot be, nothing new is queued, and
+     * BAD_STATE_E keeps WANT_WRITE meaning the record was queued. */
+    if (ret == 0) {
+        if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+            ssl->error = 0;
+        }
+        if (ssl->buffers.outputBuffer.length > 0) {
+            ret = SendBuffered(ssl);
+            /* As SendData(): report a peer reset or close as such. */
+            if ((ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) &&
+                    (ssl->options.connReset || ssl->options.isClosed)) {
+                ret = SOCKET_PEER_CLOSED_E;
+            }
+            if (ret != 0) {
+                ssl->error = ret;
+            }
+            if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                ret = BAD_STATE_E;
+            }
+        }
+    }
+
+    #ifdef HAVE_WRITE_DUP
+    /* Send what the read side delegated, e.g. a KeyUpdate response. Not
+     * gated on ssl->error, so that an error the read side hit refuses every
+     * call. */
+    if ((ret == 0) && (ssl->dupWrite != NULL)) {
+        ret = wolfssl_write_dup_prepare(ssl);
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
+            ret = ssl->error;
+        }
+        /* Only a part sent post-handshake authentication flight returns
+         * WANT_WRITE; a queued KeyUpdate returns 0. The flight is left for
+         * wolfSSL_write() to finish, with ssl->error kept. */
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+            ret = BAD_STATE_E;
+        }
+    }
+    #endif
+
+    if (ret == 0) {
+        ret = wolfssl_local_SendTls13CoverTraffic(ssl, (word16)paddingSz);
+    }
+    if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+        ret = WOLFSSL_ERROR_WANT_WRITE;
+    }
+    else if (ret == 0) {
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_send_cover_traffic_TLSv13", ret);
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13 */
+
 /* Inject data into the input buffer as if it was received from the peer.
  *
  * Used when the application reads the transport itself.
