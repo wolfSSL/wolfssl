@@ -2547,9 +2547,9 @@ WOLFSSL_API int wolfSSL_X509_sign_ctx(WOLFSSL_X509 *x509, WOLFSSL_EVP_MD_CTX *ct
 WOLFSSL_API int wolfSSL_X509_NAME_entry_count(const WOLFSSL_X509_NAME* name);
 WOLFSSL_API int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name);
 WOLFSSL_API int wolfSSL_X509_NAME_get_text_by_NID(
-                                            WOLFSSL_X509_NAME* name, int nid, char* buf, int len);
+    const WOLFSSL_X509_NAME* name, int nid, char* buf, int len);
 WOLFSSL_API int wolfSSL_X509_NAME_get_index_by_NID(
-                                           WOLFSSL_X509_NAME* name, int nid, int pos);
+    const WOLFSSL_X509_NAME* name, int nid, int pos);
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_NAME_ENTRY_get_data(
     const WOLFSSL_X509_NAME_ENTRY* in);
 
@@ -5472,9 +5472,8 @@ struct WOLFSSL_X509_NAME_ENTRY {
     int size;
 };
 
-WOLFSSL_API int wolfSSL_X509_NAME_get_index_by_OBJ(WOLFSSL_X509_NAME *name,
-                                                   const WOLFSSL_ASN1_OBJECT *obj,
-                                                   int idx);
+WOLFSSL_API int wolfSSL_X509_NAME_get_index_by_OBJ(
+    const WOLFSSL_X509_NAME *name, const WOLFSSL_ASN1_OBJECT *obj, int idx);
 
 
 
