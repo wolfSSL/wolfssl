@@ -1291,20 +1291,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSNPRINTF rtp_snprintf
     #define XFPRINTF fprintf
 
-#elif defined(LSR_FS)
-    #include <fs.h>
-    #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME)
-    #define XFSEEK(F, O, W)         (void)F
-    #define XFTELL(F)               (F)->len
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
-    #define XFWRITE(BUF, SZ, AMT, F) fs_write(F, (char*)BUF, SZ*AMT)
-    #define XFCLOSE                 fs_close
-    #define XSEEK_SET               0
-    #define XSEEK_END               0
-    #define XBADFILE                NULL
-    #define XFGETS(b,s,f)           -2 /* Not ported yet */
-
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen
