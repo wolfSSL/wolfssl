@@ -6901,7 +6901,7 @@ doPart:
                 int handshakeBytes;
                 int used;
 
-                if (recordEnd < sslFrame || recordEnd > sslFrame + rhSize) {
+                if (recordEnd < sslFrame || recordEnd - sslFrame > rhSize) {
                     SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
                     return WOLFSSL_FATAL_ERROR;
                 }
