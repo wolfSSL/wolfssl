@@ -191,9 +191,7 @@
 /* #define WOLFSSL_STATIC_RSA */
 
 /* Uncomment next line if building for ARDUINO */
-/* Uncomment both lines if building for ARDUINO on INTEL_GALILEO */
 /* #define WOLFSSL_ARDUINO */
-/* #define INTEL_GALILEO */
 
 /* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
 /* #define WOLFSSL_ASYNC_CRYPT */
@@ -1502,6 +1500,10 @@
 #endif
 
 
+#ifdef INTEL_GALILEO
+    #error "INTEL_GALILEO support has been removed"
+#endif
+
 #ifdef WOLFSSL_ARDUINO
     /* Define WOLFSSL_USER_IO here to avoid check in internal.c */
     #define WOLFSSL_USER_IO
@@ -1510,7 +1512,7 @@
     #define NO_WOLFSSL_DIR
     #define SINGLE_THREADED
     #define NO_DEV_RANDOM
-    #if defined(INTEL_GALILEO) || defined(ESP32)
+    #if defined(ESP32)
         /* boards with has time.h compatibility */
     #elif defined(__arm__)
         /* TODO is time really missing from Arduino Due? */
