@@ -9,6 +9,8 @@ EXTRA_DIST += cmake/config.in
 EXTRA_DIST += cmake/functions.cmake
 EXTRA_DIST += cmake/options.h.in
 EXTRA_DIST += cmake/modules/FindARIA.cmake
+EXTRA_DIST += cmake/install-sbom.cmake
+EXTRA_DIST += cmake/uninstall-sbom.cmake
 
 if CMAKE_INSTALL
 cmakedir = $(libdir)/cmake/wolfssl

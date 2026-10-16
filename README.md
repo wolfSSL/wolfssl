@@ -45,8 +45,8 @@ Act (CRA) compliance via two entry points:
 - `python3 scripts/gen-sbom …` for embedded / RTOS / IDE-based builds
   (Keil, IAR, STM32CubeIDE, ESP-IDF, Zephyr, plain CMake, custom Makefile)
   configured through a hand-edited `user_settings.h`. No autotools required.
-- `make sbom` for Linux server / Debian / RPM / Yocto / FIPS-Ready
-  builds that already use `./configure && make`.
+- `make sbom` (autotools) or `cmake --build build --target sbom` (CMake)
+  for Linux server / Debian / RPM / Yocto / FIPS-Ready builds.
 
 Both produce SPDX 2.3 + CycloneDX 1.6 JSON intended to satisfy the
 NTIA minimum elements. The `make sbom` path additionally runs
