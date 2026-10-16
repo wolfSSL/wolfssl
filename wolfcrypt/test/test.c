@@ -226,15 +226,6 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include "fsl_debug_console.h"
     #undef printf
     #define printf PRINTF
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include <assert.h>
-    #include <string.h>
-    #include "sysinit/sysinit.h"
-    #include "os/os.h"
-    #ifdef ARCH_sim
-    #include "mcu/mcu_sim.h"
-    #endif
-    #include "os/os_time.h"
 #elif defined(WOLFSSL_ESPIDF)
     #include <time.h>
     #include <sys/time.h>
@@ -4038,21 +4029,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         tz.tz_minuteswest = 0;
         tz.tz_dsttime = 0;
         settimeofday(&utctime, &tz);
-#endif
-#ifdef WOLFSSL_APACHE_MYNEWT
-        #ifdef ARCH_sim
-            mcu_sim_parse_args(argc, argv);
-        #endif
-        sysinit();
-
-        /* set dummy wallclock time. */
-        struct os_timeval utctime;
-        struct os_timezone tz;
-        utctime.tv_sec = 1521725159; /* dummy time: 2018-03-22T13:25:59+00:00 */
-        utctime.tv_usec = 0;
-        tz.tz_minuteswest = 0;
-        tz.tz_dsttime = 0;
-        os_settimeofday(&utctime, &tz);
 #endif
 #ifdef WOLFSSL_ZEPHYR
         /* set dummy wallclock time. */
