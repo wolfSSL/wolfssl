@@ -3425,8 +3425,19 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
     int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
     {
         int ret = 0; /* assume success unless proven otherwise */
+        wc_ptr_t srcAddr;
+        wc_ptr_t dstAddr;
 
         if (src == NULL || dst == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* Reject if src and dst had overlapping */
+        srcAddr = (wc_ptr_t)src;
+        dstAddr = (wc_ptr_t)dst;
+
+        if ((srcAddr <= dstAddr && dstAddr - srcAddr < sizeof(*src)) ||
+            (dstAddr < srcAddr && srcAddr - dstAddr < sizeof(*dst))) {
             return BAD_FUNC_ARG;
         }
 
@@ -3574,8 +3585,19 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
     int ret = 0;
+    wc_ptr_t srcAddr;
+    wc_ptr_t dstAddr;
 
     if (src == NULL || dst == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Reject if src and dst had overlapping */
+    srcAddr = (wc_ptr_t)src;
+    dstAddr = (wc_ptr_t)dst;
+
+    if ((srcAddr <= dstAddr && dstAddr - srcAddr < sizeof(*src)) ||
+        (dstAddr < srcAddr && srcAddr - dstAddr < sizeof(*dst))) {
         return BAD_FUNC_ARG;
     }
 
