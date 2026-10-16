@@ -187,6 +187,79 @@ int test_wolfSSL_PKCS7_certs(void)
     return EXPECT_RESULT();
 }
 
+/* d2i_PKCS7() loads a certificates-only bundle that fills cert[] and refuses
+ * one with more certificates instead of returning a truncated stack. */
+int test_wolfSSL_PKCS7_certs_over_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_BIO) && \
+    !defined(NO_RSA) && defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048)
+    STACK_OF(X509)* sk = NULL;
+    STACK_OF(X509)* certs = NULL;
+    X509* x509 = NULL;
+    PKCS7* p7 = NULL;
+    BIO* bio = NULL;
+    const byte* p = NULL;
+    const byte* der = NULL;
+    int buflen = 0;
+    int count;
+    int i;
+
+    for (count = MAX_PKCS7_CERTS; count <= MAX_PKCS7_CERTS + 1; count++) {
+        ExpectNotNull(p7 = PKCS7_new());
+        if (p7 != NULL) {
+            p7->version = 1;
+        #ifdef NO_SHA
+            p7->hashOID = SHA256h;
+        #else
+            p7->hashOID = SHAh;
+        #endif
+        }
+        ExpectNotNull(sk = sk_X509_new_null());
+        for (i = 0; EXPECT_SUCCESS() && i < count; i++) {
+            der = client_cert_der_2048;
+            ExpectNotNull(x509 = d2i_X509(NULL, &der,
+                sizeof_client_cert_der_2048));
+            ExpectIntGT(sk_X509_push(sk, x509), 0);
+            if (EXPECT_FAIL()) {
+                X509_free(x509);
+            }
+            x509 = NULL;
+        }
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(wolfSSL_PKCS7_encode_certs(p7, sk, bio), 1);
+        /* encode_certs takes sk only on success. */
+        if (EXPECT_SUCCESS()) {
+            sk = NULL;
+        }
+        else if (sk != NULL) {
+            sk_X509_pop_free(sk, X509_free);
+            sk = NULL;
+        }
+        ExpectIntGT((buflen = BIO_get_mem_data(bio, &p)), 0);
+        PKCS7_free(p7);
+        p7 = NULL;
+
+        if (count == MAX_PKCS7_CERTS) {
+            ExpectNotNull(p7 = d2i_PKCS7(NULL, &p, buflen));
+            ExpectNotNull(certs = wolfSSL_PKCS7_to_stack(p7));
+            ExpectIntEQ(sk_X509_num(certs), count);
+        }
+        else {
+            ExpectNull(p7 = d2i_PKCS7(NULL, &p, buflen));
+        }
+
+        /* PKCS7_free frees the certs */
+        PKCS7_free(p7);
+        p7 = NULL;
+        certs = NULL;
+        BIO_free(bio);
+        bio = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_PKCS7_sign(void)
 {
     EXPECT_DECLS;
