@@ -402,6 +402,10 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_FROSTED
+    #error "Frosted OS support has been removed"
+#endif
+
 #if defined(HAVE_FIPS) && \
     (defined(WC_FIPS_LL_CRYPTO) || defined(WOLFSSL_FIPS_DEV_NO_POST)) && \
     !defined(FIPS_NO_WRAPPERS)

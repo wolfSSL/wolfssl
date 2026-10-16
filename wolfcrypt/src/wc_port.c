@@ -4224,35 +4224,6 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         }
     }
 
-#elif defined (WOLFSSL_FROSTED)
-
-    int wc_InitMutex(wolfSSL_Mutex* m)
-    {
-        *m = mutex_init();
-        if (*m)
-            return 0;
-        else
-            return -1;
-    }
-
-    int wc_FreeMutex(wolfSSL_Mutex* m)
-    {
-        mutex_destroy(*m);
-        return(0);
-    }
-
-    int wc_LockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_lock(*m);
-        return 0;
-    }
-
-    int wc_UnLockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_unlock(*m);
-        return 0;
-    }
-
 #elif defined(WOLFSSL_CMSIS_RTOS)
 
     #ifndef CMSIS_NMUTEX
