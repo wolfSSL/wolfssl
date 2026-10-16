@@ -34864,6 +34864,19 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
             ret = ASN_PARSE_E;
         }
     }
+    /* Parameters A, B and the order are bounded like the prime so decoding
+     * does not depend on how the curve set is stored (the static hex buffers
+     * hold at most MAX_ECC_BYTES). */
+    if ((ret == 0) &&
+            ((dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length >
+                (word32)MAX_ECC_BYTES) ||
+             (dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length >
+                (word32)MAX_ECC_BYTES) ||
+             (dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length >
+                (word32)MAX_ECC_BYTES))) {
+        WOLFSSL_MSG("ECC explicit domain parameter outside MAX_ECC_BYTES");
+        ret = ASN_PARSE_E;
+    }
     if (ret == 0) {
         /* Base point: 0x04 <x> <y> (must be uncompressed). */
         GetASN_GetConstRef(&dataASN[ECCSPECIFIEDASN_IDX_BASE], &base,
@@ -34931,16 +34944,6 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     }
     #else
     /* Hex strings are held in fixed size MAX_ECC_STRING buffers. */
-    if ((ret == 0) &&
-            ((dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length >
-                (word32)MAX_ECC_BYTES) ||
-             (dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length >
-                (word32)MAX_ECC_BYTES) ||
-             (dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length >
-                (word32)MAX_ECC_BYTES))) {
-        WOLFSSL_MSG("ECC explicit domain parameter too long for hex buffer");
-        ret = ASN_PARSE_E;
-    }
     if (ret == 0) {
         /* Base X-ordinate */
         wc_DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
