@@ -3569,7 +3569,8 @@ static int mlkem_xof_absorb(wc_Shake* shake128, const byte* seed, int len)
  * @param  [in, out]  shake128  SHAKE-128 object.
  * @param  [out]      out       Buffer to write to.
  * @param  [in]       blocks    Number of blocks to write.
- * @return  0 on success always.
+ * @return  0 on success.
+ * @return  Negative on hash error.
  */
 static int mlkem_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 {
@@ -4228,12 +4229,14 @@ static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
                     GEN_MATRIX_SIZE);
                 /* Create more blocks if too many rejected.
                  * Alg 7, Step 4. */
-                while (ctr < MLKEM_N) {
+                while ((ret == 0) && (ctr < MLKEM_N)) {
                     /* Alg 7, Step 5. */
-                    mlkem_xof_squeezeblocks(prf, rand, 1);
-                    /* Alg 7, Step 4-16. */
-                    ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
-                        MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                    ret = mlkem_xof_squeezeblocks(prf, rand, 1);
+                    if (ret == 0) {
+                        /* Alg 7, Step 4-16. */
+                        ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
+                            MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                    }
                 }
             }
         }
@@ -4493,12 +4496,14 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
                 GEN_MATRIX_SIZE);
             /* Create more blocks if too many rejected.
              * Alg 7, Step 4. */
-            while (ctr < MLKEM_N) {
+            while ((ret == 0) && (ctr < MLKEM_N)) {
                 /* Alg 7, Step 5. */
-                mlkem_xof_squeezeblocks(prf, rand, 1);
-                /* Alg 7, Step 4-16. */
-                ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
-                    MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                ret = mlkem_xof_squeezeblocks(prf, rand, 1);
+                if (ret == 0) {
+                    /* Alg 7, Step 4-16. */
+                    ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
+                        MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                }
             }
         }
     }

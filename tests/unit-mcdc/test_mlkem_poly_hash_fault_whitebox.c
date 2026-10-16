@@ -59,6 +59,17 @@
  *      translation unit only and mcdc_fh_arm(n) makes the n-th primitive call
  *      -- and every later one -- return BAD_FUNC_ARG.
  *
+ * CONTINUATION SQUEEZE
+ * --------------------
+ * The matrix generators squeeze GEN_MATRIX_NBLOCKS blocks up front and only
+ * squeeze one more block per loop when rejection sampling comes up short --
+ * roughly 1 seed in 140. The fixed sweep seed never reaches that loop, so a
+ * failure there went unnoticed while its return code was ignored. The
+ * continuation rows search seeds in a fixed order for one whose first
+ * polynomial needs another block (more than absorb + initial squeeze seen
+ * disarmed), then fail primitive call 3 -- the first continuation squeeze --
+ * and require the error to be returned with the polynomial left incomplete.
+ *
  * The sweep is a short dense range (1..WB_SWEEP) per helper. Each helper's
  * whole chain is only a handful of primitive calls deep, and index 1 alone
  * already drives the first loop condition false; the deeper indices are what
@@ -97,6 +108,20 @@ static int wb_fail = 0;
 /* Small, generic vector length. It is not tied to a compiled parameter set:
  * every helper below takes k as a plain argument. */
 #define WB_K      2
+
+/* Seeds tried when looking for one that needs a continuation squeeze. About
+ * 1 in 140 does, so this bound is never close to being reached. */
+#define WB_SEED_TRIES  4096
+
+/* Primitive calls made for one polynomial without a continuation squeeze:
+ * the absorb and the initial GEN_MATRIX_NBLOCKS squeeze. Reset is not
+ * interposed. */
+#define WB_XOF_CALLS   2
+
+/* The last coefficient was never sampled: it still holds the -1 sentinel or a
+ * rejected (>= q) value that the 64-bit sampler stores speculatively. */
+#define WB_POLY_INCOMPLETE(a) \
+    (((a)[MLKEM_N - 1] < 0) || ((a)[MLKEM_N - 1] >= MLKEM_Q))
 
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
@@ -252,9 +277,70 @@ static void wb_gen_matrix_c_rows(void)
     WB_NOTE("mlkem_gen_matrix_c success-chain rows exercised");
 }
 
+/* mlkem_gen_matrix_c(): a failing continuation squeeze must be returned, not
+ * ignored with the stale buffer sampled again. */
+static void wb_gen_matrix_c_continuation(void)
+{
+    MLKEM_PRF_T    prf;
+    static sword16 a[MLKEM_N];
+    byte           seed[WC_ML_KEM_SYM_SZ];
+    word32         s;
+    int            i;
+    int            ret;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
+    XMEMSET(seed, 0x5c, sizeof(seed));
+
+    for (s = 0; s < WB_SEED_TRIES; s++) {
+        seed[0] = (byte)s;
+        seed[1] = (byte)(s >> 8);
+        mcdc_fh_disarm();
+        if (mlkem_gen_matrix_c(&prf, a, 1, seed, 0) != 0) {
+            WB_NOTE("mlkem_gen_matrix_c seed search failed");
+            wb_fail = 1;
+            break;
+        }
+        if (mcdc_fh_seen() > WB_XOF_CALLS) {
+            break;
+        }
+    }
+    if (s == WB_SEED_TRIES) {
+        WB_NOTE("no seed needing a continuation squeeze found");
+        wb_fail = 1;
+    }
+    else if (wb_fail == 0) {
+        for (i = 0; i < MLKEM_N; i++) {
+            a[i] = -1;
+        }
+        mcdc_fh_arm(WB_XOF_CALLS + 1);
+        ret = mlkem_gen_matrix_c(&prf, a, 1, seed, 0);
+        mcdc_fh_disarm();
+        if (ret != MCDC_FH_ERR) {
+            WB_NOTE("mlkem_gen_matrix_c ignored a continuation squeeze error");
+            wb_fail = 1;
+        }
+        if (!WB_POLY_INCOMPLETE(a)) {
+            WB_NOTE("mlkem_gen_matrix_c sampled after a failed squeeze");
+            wb_fail = 1;
+        }
+    }
+
+    mlkem_prf_free(&prf);
+    WB_NOTE("mlkem_gen_matrix_c continuation-squeeze error row exercised");
+}
+
 #else
 
 static void wb_gen_matrix_c_rows(void)
+{
+    WB_NOTE("mlkem_gen_matrix_c arm not compiled in this variant; skipped");
+}
+
+static void wb_gen_matrix_c_continuation(void)
 {
     WB_NOTE("mlkem_gen_matrix_c arm not compiled in this variant; skipped");
 }
@@ -303,9 +389,70 @@ static void wb_gen_matrix_i_rows(void)
     WB_NOTE("mlkem_gen_matrix_i success-chain rows exercised");
 }
 
+/* mlkem_gen_matrix_i(): a failing continuation squeeze must be returned, not
+ * ignored with the stale buffer sampled again. */
+static void wb_gen_matrix_i_continuation(void)
+{
+    MLKEM_PRF_T    prf;
+    static sword16 a[MLKEM_N];
+    byte           seed[WC_ML_KEM_SYM_SZ];
+    word32         s;
+    int            i;
+    int            ret;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
+    XMEMSET(seed, 0x5c, sizeof(seed));
+
+    for (s = 0; s < WB_SEED_TRIES; s++) {
+        seed[0] = (byte)s;
+        seed[1] = (byte)(s >> 8);
+        mcdc_fh_disarm();
+        if (mlkem_gen_matrix_i(&prf, a, 1, seed, 0, 0) != 0) {
+            WB_NOTE("mlkem_gen_matrix_i seed search failed");
+            wb_fail = 1;
+            break;
+        }
+        if (mcdc_fh_seen() > WB_XOF_CALLS) {
+            break;
+        }
+    }
+    if (s == WB_SEED_TRIES) {
+        WB_NOTE("no seed needing a continuation squeeze found");
+        wb_fail = 1;
+    }
+    else if (wb_fail == 0) {
+        for (i = 0; i < MLKEM_N; i++) {
+            a[i] = -1;
+        }
+        mcdc_fh_arm(WB_XOF_CALLS + 1);
+        ret = mlkem_gen_matrix_i(&prf, a, 1, seed, 0, 0);
+        mcdc_fh_disarm();
+        if (ret != MCDC_FH_ERR) {
+            WB_NOTE("mlkem_gen_matrix_i ignored a continuation squeeze error");
+            wb_fail = 1;
+        }
+        if (!WB_POLY_INCOMPLETE(a)) {
+            WB_NOTE("mlkem_gen_matrix_i sampled after a failed squeeze");
+            wb_fail = 1;
+        }
+    }
+
+    mlkem_prf_free(&prf);
+    WB_NOTE("mlkem_gen_matrix_i continuation-squeeze error row exercised");
+}
+
 #else
 
 static void wb_gen_matrix_i_rows(void)
+{
+    WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
+}
+
+static void wb_gen_matrix_i_continuation(void)
 {
     WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
 }
@@ -320,7 +467,9 @@ int main(void)
     mcdc_fh_disarm();
     wb_hash512_rows();
     wb_gen_matrix_c_rows();
+    wb_gen_matrix_c_continuation();
     wb_gen_matrix_i_rows();
+    wb_gen_matrix_i_continuation();
     wb_get_noise_rows();
     mcdc_fh_disarm();
 
