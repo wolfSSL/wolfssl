@@ -359,6 +359,8 @@ jobs:
                 export PKG_CONFIG_PATH="$WOLFSSL_PREFIX/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
                 export EXTRA_CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-I$WOLFSSL_PREFIX/include"
                 export LDFLAGS="${LDFLAGS:+$LDFLAGS }-L$WOLFSSL_PREFIX/lib -Wl,-rpath,$WOLFSSL_PREFIX/lib"
+                # Releases up to v1.1.0 run mkcerts.sh once per cert file under -j.
+                if [ -x tools/certs/mkcerts.sh ]; then tools/certs/mkcerts.sh; fi
                 if [ "$REF" = "v1.0" ]; then
                   # v1.0 predates EXTRA_CFLAGS on Linux, so its header probe
                   # sees only CFLAGS. Keep its native warning/thread flags.
