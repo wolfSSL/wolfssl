@@ -2282,7 +2282,13 @@ int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 
     \brief This function reads in an ECC private key from the input buffer,
     input, parses the private key, and uses it to generate an ecc_key object,
-    which it stores in key.
+    which it stores in key. If the input RFC 5915 DER encoding omits the
+    optional publicKey field, the key is left with type ECC_PRIVATEKEY_ONLY.
+    Callers requiring the public point (e.g. for export or verification)
+    can complete the key with wc_ecc_make_pub_ex(), passing an RNG so the
+    scalar multiply is blinded. Self-test and pre-v5 FIPS builds, whose ECC
+    implementations predate wc_ecc_make_pub_ex(), use wc_ecc_make_pub()
+    instead.
 
     \return 0 On successfully decoding the private key and storing the result
     in the ecc_key struct
@@ -2333,6 +2339,7 @@ int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     \endcode
 
     \sa wc_RSA_PrivateKeyDecode
+    \sa wc_ecc_make_pub_ex
 */
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                            ecc_key* key, word32 inSz);
