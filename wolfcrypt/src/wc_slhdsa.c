@@ -8584,6 +8584,10 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Zeroize key first so wc_SlhDsaKey_Free() is safe on any failure. */
+        XMEMSET(key, 0, sizeof(SlhDsaKey));
+    }
     if (ret == 0) {
         int i;
 
@@ -8600,9 +8604,6 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         }
     }
     if (ret == 0) {
-        /* Zeroize key. */
-        XMEMSET(key, 0, sizeof(SlhDsaKey));
-
         /* Set the parameters into key early so SLHDSA_IS_SHA2 works. */
         key->params = &SlhDsaParams[idx];
         /* Set heap hint to use with all allocations. */
@@ -11202,7 +11203,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
         ret = MISSING_KEY;
     }
     /* Check private key buffer length. */
-    else if (*privLen < key->params->n * 4) {
+    else if (*privLen < (word32)key->params->n * 4U) {
         ret = BAD_LENGTH_E;
     }
     else {
@@ -11242,7 +11243,7 @@ int wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* pub, word32* pubLen)
         ret = MISSING_KEY;
     }
     /* Check public key buffer length. */
-    else if (*pubLen < key->params->n * 2) {
+    else if (*pubLen < (word32)key->params->n * 2U) {
         ret = BAD_LENGTH_E;
     }
     else {

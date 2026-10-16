@@ -501,50 +501,34 @@ static int sha512DrbgDisabled = 0;
 static wolfSSL_Mutex drbgStateMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-enum {
-    WC_DRBG_MUTEX_UNINITED,
-    WC_DRBG_MUTEX_INITED
-};
-/* Ports with no static mutex initializer must create drbgStateMutex at run
- * time, so its readiness is tracked here.
- *
- * wc_DrbgState_MutexInit and wc_DrbgState_MutexFree are called only from
- * wolfCrypt_Init() and wolfCrypt_Cleanup(), inside the span serialized by the
- * init-state machine, so this flag is not otherwise synchronized. */
-static int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+/* Ports with no static mutex initializer create drbgStateMutex on first use,
+ * so wc_InitRng() works without wolfCrypt_Init(). */
+static wc_MutexOnceFlag drbgStateMutex_once = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
 #endif /* !defined(SINGLE_THREADED) */
 
 
 int wc_DrbgState_MutexInit(void)
 {
-#ifndef SINGLE_THREADED
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_UNINITED) {
-        int ret = wc_InitMutex(&drbgStateMutex);
-        if (ret != 0) {
-            /* flag left unchanged because mutex was not inited */
-            return ret;
-        }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
-    }
-
-#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
-#endif /* !defined(SINGLE_THREADED) */
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    return wc_local_InitMutexOnce(&drbgStateMutex, &drbgStateMutex_once);
+#else
     return 0;
+#endif
 }
 
 int wc_DrbgState_MutexFree(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_INITED) {
+    /* 2 = created; never free one that is still being created. */
+    if (WOLFSSL_ATOMIC_LOAD(drbgStateMutex_once) == 2) {
         int ret = wc_FreeMutex(&drbgStateMutex);
         if (ret != 0) {
             /* flag left unchanged because mutex was not freed */
             return ret;
         }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+        WOLFSSL_ATOMIC_STORE(drbgStateMutex_once, 0);
     }
 
 #endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
@@ -555,6 +539,11 @@ int wc_DrbgState_MutexFree(void)
 static WARN_UNUSED_RESULT int LockDrbgState(void)
 {
 #ifndef SINGLE_THREADED
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    int ret = wc_DrbgState_MutexInit();
+    if (ret != 0)
+        return ret;
+#endif
     return wc_LockMutex(&drbgStateMutex);
 #else
     return 0;
