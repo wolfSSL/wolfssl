@@ -56265,53 +56265,26 @@ static int sp_256_ecc_gen_k_4(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_256, point, 2);
-#else
     SP_DECL_VAR(sp_point_256, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 4);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_256_ecc_gen_k_4(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_4(infinity, point, p256_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_256_iszero_4(point->x) || sp_256_iszero_4(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_256_to_mp(k, priv);
@@ -56332,11 +56305,7 @@ typedef struct sp_ecc_key_gen_256_ctx {
     int state;
     sp_256_ecc_mulmod_4_ctx mulmod_ctx;
     sp_digit k[4];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256  point[2];
-#else
     sp_point_256 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_256_ctx;
 
 /* Makes a random EC key pair.
@@ -56352,7 +56321,6 @@ typedef struct sp_ecc_key_gen_256_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -56361,9 +56329,6 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_256_ctx* ctx = (sp_ecc_key_gen_256_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_256_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -56382,31 +56347,10 @@ int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p256_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_256_iszero_4(ctx->point->x) ||
-                    sp_256_iszero_4(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_256_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_256_point_to_ecc_point_4(ctx->point, pub);
@@ -83367,53 +83311,26 @@ static int sp_384_ecc_gen_k_6(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_384, point, 2);
-#else
     SP_DECL_VAR(sp_point_384, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 6);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_384_ecc_gen_k_6(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_6(infinity, point, p384_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_384_iszero_6(point->x) || sp_384_iszero_6(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_384_to_mp(k, priv);
@@ -83434,11 +83351,7 @@ typedef struct sp_ecc_key_gen_384_ctx {
     int state;
     sp_384_ecc_mulmod_6_ctx mulmod_ctx;
     sp_digit k[6];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384  point[2];
-#else
     sp_point_384 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_384_ctx;
 
 /* Makes a random EC key pair.
@@ -83454,7 +83367,6 @@ typedef struct sp_ecc_key_gen_384_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -83463,9 +83375,6 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_384_ctx* ctx = (sp_ecc_key_gen_384_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_384_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -83484,31 +83393,10 @@ int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p384_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_384_iszero_6(ctx->point->x) ||
-                    sp_384_iszero_6(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_384_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_384_point_to_ecc_point_6(ctx->point, pub);
@@ -128876,53 +128764,26 @@ static int sp_521_ecc_gen_k_9(WC_RNG* rng, sp_digit* k)
  * @param [in]  heap  Heap to use for allocation.
  *
  * @return  MP_OKAY on success.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
 int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_DECL_VAR(sp_point_521, point, 2);
-#else
     SP_DECL_VAR(sp_point_521, point, 1);
-#endif
     SP_DECL_VAR(sp_digit, k, 9);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521* infinity = NULL;
-#endif
     int err = MP_OKAY;
 
 
     (void)heap;
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
-#else
     SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
-#endif
     SP_ALLOC_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-        infinity = point + 1;
-    #endif
-
         err = sp_521_ecc_gen_k_9(rng, k);
     }
     if (err == MP_OKAY) {
             err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, NULL);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_9(infinity, point, p521_order, 1, 1, NULL);
-    }
-    if (err == MP_OKAY) {
-        if (sp_521_iszero_9(point->x) || sp_521_iszero_9(point->y)) {
-            err = ECC_INF_E;
-        }
-    }
-#endif
 
     if (err == MP_OKAY) {
         err = sp_521_to_mp(k, priv);
@@ -128943,11 +128804,7 @@ typedef struct sp_ecc_key_gen_521_ctx {
     int state;
     sp_521_ecc_mulmod_9_ctx mulmod_ctx;
     sp_digit k[9];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521  point[2];
-#else
     sp_point_521 point[1];
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 } sp_ecc_key_gen_521_ctx;
 
 /* Makes a random EC key pair.
@@ -128963,7 +128820,6 @@ typedef struct sp_ecc_key_gen_521_ctx {
  *
  * @return  MP_OKAY on success.
  * @return  FP_WOULDBLOCK while more work remains.
- * @return  ECC_INF_E when the point does not have the correct order.
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
@@ -128972,9 +128828,6 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_key_gen_521_ctx* ctx = (sp_ecc_key_gen_521_ctx*)sp_ctx->data;
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_521* infinity = ctx->point + 1;
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
     typedef char ctx_size_test[sizeof(sp_ecc_key_gen_521_ctx)
                                >= sizeof(*sp_ctx) ? -1 : 1];
@@ -128993,31 +128846,10 @@ int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng, mp_int* priv,
                       ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 err = FP_WOULDBLOCK;
-            #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-                XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
                 ctx->state = 2;
-            #else
-                ctx->state = 3;
-            #endif
             }
             break;
-    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
         case 2:
-            err = sp_521_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
-                      infinity, ctx->point, p521_order, 1, 1, heap);
-            if (err == MP_OKAY) {
-                if (sp_521_iszero_9(ctx->point->x) ||
-                    sp_521_iszero_9(ctx->point->y)) {
-                    err = ECC_INF_E;
-                }
-                else {
-                    err = FP_WOULDBLOCK;
-                    ctx->state = 3;
-                }
-            }
-            break;
-    #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
-        case 3:
             err = sp_521_to_mp(ctx->k, priv);
             if (err == MP_OKAY) {
                 err = sp_521_point_to_ecc_point_9(ctx->point, pub);

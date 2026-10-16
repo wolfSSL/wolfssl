@@ -1819,7 +1819,6 @@ then
     test "$enable_certext" = "" && enable_certext=yes
     test "$enable_sep" = "" && enable_sep=yes
     test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
@@ -1842,6 +1841,11 @@ then
     test "$enable_rng_extras" = "" && enable_rng_extras=yes
     test "$enable_dh" = "" && enable_dh=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
+    then
+        test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    fi
 
     if test "$ENABLED_FIPS" = "no"
     then
@@ -2059,7 +2063,6 @@ then
     if test "$enable_ecc" != "no"
     then
         test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
-        test "$enable_fpecc" = "" && enable_fpecc=yes
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
     test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
