@@ -24,6 +24,12 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_ecdsa_glue.c \
 	      linuxkm/lkcapi_ecdh_glue.c \
 	      linuxkm/lkcapi_rsa_glue.c \
+	      linuxkm/lkcapi_ed_glue.c \
+	      linuxkm/lkcapi_lms_glue.c \
+	      linuxkm/lkcapi_mldsa_glue.c \
+	      linuxkm/lkcapi_mlkem_glue.c \
+	      linuxkm/lkcapi_slhdsa_glue.c \
+	      linuxkm/lkcapi_xmss_glue.c \
 	      linuxkm/wolfcrypt.lds \
 	      linuxkm/simd_hammer/simd_hammer.c \
 	      linuxkm/simd_hammer/Makefile \
