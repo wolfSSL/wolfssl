@@ -84,8 +84,8 @@ int Nucleus_Net_Errno;
             #if defined(HAVE_RTP_SYS)
             #elif defined(EBSNET)
             #elif defined(NETOS)
-            #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
-                    && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
+            #elif !defined(DEVKITPRO) && !defined(WOLFSSL_CONTIKI) \
+                    && !defined(WOLFSSL_WICED) \
                     && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
                 #ifdef HAVE_NETDB_H
                     #include <netdb.h>
