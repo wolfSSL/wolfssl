@@ -5606,8 +5606,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define NO_SESSION_CACHE_REF
 #endif
 
-/* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
+/* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. DTLS
+ * keeps the epochs of buffered handshake messages in them. */
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS) || \
+    defined(WOLFSSL_DTLS_DROP_STATS) || \
     (defined(WOLFSSL_HAVE_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
     WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_HAVE_LMS) && \
     !defined(WOLFSSL_LMS_VERIFY_ONLY))

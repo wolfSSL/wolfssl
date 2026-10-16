@@ -11163,7 +11163,7 @@ DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl)
 
     while (cur != NULL && !(cur->ready &&
             cur->seq == ssl->keys.dtls_expected_peer_handshake_number &&
-            cur->epoch >= ssl->keys.dtls_peer_hs_epoch)) {
+            !w64LT(cur->epoch, ssl->keys.dtls_peer_hs_epoch))) {
         cur = cur->next;
     }
     return cur;
@@ -11183,14 +11183,14 @@ void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item)
 void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted)
 {
     word32 expected = ssl->keys.dtls_expected_peer_handshake_number;
-    word16 epoch = ssl->keys.dtls_peer_hs_epoch;
+    w64wrapper epoch = ssl->keys.dtls_peer_hs_epoch;
     DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
     DtlsMsg* cur = ssl->dtls_rx_msg_list;
 
     WOLFSSL_ENTER("DtlsMsgListPurge");
     while (cur != NULL) {
         DtlsMsg* next = cur->next;
-        if (cur->seq < expected || cur->epoch < epoch ||
+        if (cur->seq < expected || w64LT(cur->epoch, epoch) ||
                 (dropUnencrypted == 1 && !cur->encrypted) ||
                 (dropUnencrypted == 2 && !cur->encrypted &&
                  cur->seq != expected)) {
@@ -11436,9 +11436,9 @@ static int DtlsMsgAssembleCompleteMessage(DtlsMsg* msg, void* heap)
     return 0;
 }
 
-int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
-               word32 fragOffset, word32 fragSz, void* heap, word32 totalLen,
-               byte encrypted)
+int DtlsMsgSet(DtlsMsg* msg, word32 seq, w64wrapper epoch, const byte* data,
+               byte type, word32 fragOffset, word32 fragSz, void* heap,
+               word32 totalLen, byte encrypted)
 {
     word32 fragOffsetEnd = fragOffset + fragSz;
 
@@ -11457,7 +11457,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
     if (msg->type != no_shake) {
         /* msg is already populated with the correct seq, epoch, and type */
-        if (msg->type != type || msg->epoch != epoch || msg->seq != seq) {
+        if (msg->type != type || !w64Equal(msg->epoch, epoch) ||
+                msg->seq != seq) {
             WOLFSSL_ERROR_VERBOSE(SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
         }
@@ -11570,10 +11571,11 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 }
 
 
-DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, w64wrapper epoch, word32 seq)
 {
     WOLFSSL_ENTER("DtlsMsgFind");
-    while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
+    while (head != NULL &&
+            !(w64Equal(head->epoch, epoch) && head->seq == seq)) {
         head = head->next;
     }
     return head;
@@ -11581,7 +11583,7 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 
 
 /* Returns 0 when the fragment was stored, negative when it was dropped. */
-int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
+int DtlsMsgStore(WOLFSSL* ssl, w64wrapper epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     /* See if seq exists in the list. If it isn't in the list, make
@@ -11723,7 +11725,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
         DtlsMsg* cur = ssl->dtls_tx_msg_list;
 
         XMEMCPY(item->raw, data, dataSz);
-        item->epoch = ssl->keys.dtls_epoch;
+        item->epoch = w64From32(0, ssl->keys.dtls_epoch);
         item->seq = ssl->keys.dtls_handshake_number;
         item->type = type;
 
@@ -11807,7 +11809,8 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
 int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
 {
     WOLFSSL_ENTER("VerifyForTxDtlsMsgDelete");
-    if (item->epoch < ssl->keys.dtls_epoch - 1)
+    if (ssl->keys.dtls_epoch > 0 && w64LT(item->epoch,
+            w64From32(0, (word32)ssl->keys.dtls_epoch - 1)))
         /* Messages not from current or previous epoch can be deleted */
         return 1;
     switch (ssl->options.side) {
@@ -11867,7 +11870,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
         while (pool != NULL) {
             int epochOrder;
 
-            if (pool->epoch == 0) {
+            if (w64IsZero(pool->epoch)) {
                 DtlsRecordLayerHeader* dtls;
 
                 dtls = (DtlsRecordLayerHeader*)pool->raw;
@@ -11906,7 +11909,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                  * PREV_ORDER will always use ssl->keys
                  */
                 if (DtlsSCRKeysSet(ssl)) {
-                    if (pool->epoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+                    if (w64Equal(pool->epoch, w64From32(0,
+                            ssl->secure_renegotiation->tmp_keys.dtls_epoch)))
                         epochOrder = CUR_ORDER;
                     else
                         epochOrder = PREV_ORDER;
@@ -20787,7 +20791,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             DtlsMsgPoolReset(ssl);
             ssl->keys.dtls_handshake_number = 0;
             ssl->keys.dtls_expected_peer_handshake_number = 0;
-            ssl->keys.dtls_peer_hs_epoch = 0;
+            w64Zero(&ssl->keys.dtls_peer_hs_epoch);
         }
     }
 #endif
@@ -22590,7 +22594,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 return DTLS_TOO_MANY_FRAGMENTS_E;
             }
 
-            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+            DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
                          ssl->keys.dtls_peer_handshake_number,
                          input + *inOutIdx, size, type,
                          fragOffset, fragSz, ssl->heap);
@@ -22658,7 +22662,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             WOLFSSL_ERROR(DTLS_TOO_MANY_FRAGMENTS_E);
             return DTLS_TOO_MANY_FRAGMENTS_E;
         }
-        DtlsMsgStore(ssl, ssl->keys.curEpoch,
+        DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
                      ssl->keys.dtls_peer_handshake_number,
                      input + *inOutIdx, size, type,
                      fragOffset, fragSz, ssl->heap);
@@ -22689,7 +22693,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Reached rx msg limit error");
                 return DTLS_TOO_MANY_FRAGMENTS_E;
             }
-            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+            DtlsMsgStore(ssl, w64From32(0, ssl->keys.curEpoch),
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
@@ -22705,7 +22709,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
 #endif
             if (ret == 0) {
-                ssl->keys.dtls_peer_hs_epoch = ssl->keys.curEpoch;
+                ssl->keys.dtls_peer_hs_epoch = w64From32(0, ssl->keys.curEpoch);
                 DtlsTxMsgListClean(ssl);
                 if (ssl->dtls_rx_msg_list != NULL) {
                     ret = DtlsMsgDrain(ssl);
@@ -28723,7 +28727,7 @@ int SendFinished(WOLFSSL* ssl)
             ssl->options.side == WOLFSSL_CLIENT_END)) {
         ssl->keys.dtls_handshake_number = 0;
         ssl->keys.dtls_expected_peer_handshake_number = 0;
-        ssl->keys.dtls_peer_hs_epoch = 0;
+        w64Zero(&ssl->keys.dtls_peer_hs_epoch);
     }
 #endif
 

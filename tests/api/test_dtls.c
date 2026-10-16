@@ -5706,6 +5706,7 @@ static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
     DtlsMsg* cur = NULL;
     static byte msg[100];
     static byte msgInit = 0;
+    w64wrapper ep0 = w64From32(0, 0);
 
     if (!msgInit) {
         int i;
@@ -5719,11 +5720,12 @@ static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
     ExpectIntLE(f_offset + f_len, sizeof(msg));
 
     if (EXPECT_SUCCESS())
-        DtlsMsgStore(ssl, 0, seq, msg + f_offset, len, certificate, f_offset, f_len, NULL);
+        DtlsMsgStore(ssl, ep0, seq, msg + f_offset, len, certificate,
+                f_offset, f_len, NULL);
 
     ExpectNotNull(ssl->dtls_rx_msg_list);
 
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, seq));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, seq));
     ExpectIntEQ(cur->fragBucketListCount, f_count);
     ExpectIntEQ(cur->ready, ready);
     ExpectIntEQ(cur->bytesReceived, bytesReceived);
@@ -5869,8 +5871,8 @@ int test_wolfSSL_DTLS_fragment_buckets(void)
 static word32 dfbr_rand_state;
 static word32 dfbr_rand(void)
 {
-    dfbr_rand_state = dfbr_rand_state * 1103515245u + 12345u;
-    return (dfbr_rand_state >> 8) & 0xFFFFFFu;
+    dfbr_rand_state = dfbr_rand_state * 1103515245U + 12345U;
+    return (dfbr_rand_state >> 8) & 0xFFFFFFU;
 }
 
 #if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
@@ -5963,20 +5965,20 @@ static int dfbr_check(DtlsMsg* msg, const byte* pattern, const byte* covered,
         DtlsFragBucket* fb;
         word32 sum = 0;
         word32 count = 0;
-        word32 prevEnd = 0;
+        word32 lastEnd = 0;
 
         ExpectNull(msg->raw);
         for (fb = msg->fragBucketList; EXPECT_SUCCESS() && fb != NULL;
                 fb = fb->m.m.next) {
             /* Sorted and separated by at least one byte */
             if (count > 0)
-                ExpectIntGT(fb->m.m.offset, prevEnd);
+                ExpectIntGT(fb->m.m.offset, lastEnd);
             ExpectIntGT(fb->m.m.sz, 0);
             ExpectIntLE(fb->m.m.offset + fb->m.m.sz, len);
             ExpectBufEQ(fb->buf, pattern + fb->m.m.offset, fb->m.m.sz);
             for (i = fb->m.m.offset; i < fb->m.m.offset + fb->m.m.sz; i++)
                 ExpectIntEQ(covered[i], 1);
-            prevEnd = fb->m.m.offset + fb->m.m.sz;
+            lastEnd = fb->m.m.offset + fb->m.m.sz;
             sum += fb->m.m.sz;
             count++;
         }
@@ -5996,6 +5998,7 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
     word32 iter;
     word32 i;
     word32 n = 0;
+    w64wrapper ep0 = w64From32(0, 0);
 
     for (iter = 0; EXPECT_SUCCESS() && iter < 1500; iter++) {
         word32 len = dfbr_rand() % (DFBR_MAX_LEN + 1);
@@ -6040,8 +6043,8 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
                     break;
             }
 
-            msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1);
 #ifdef DFBR_ALLOC_FAIL
+            msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1);
             if (injectFail && msg != NULL && dfbr_rand() % 4 == 0) {
                 dfbr_skip = 0;
                 dfbr_fail = 1;
@@ -6051,7 +6054,7 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
             (void)injectFail;
             (void)failed;
 #endif
-            ret = DtlsMsgStore(ssl, 0, 1, pattern + off, len, certificate,
+            ret = DtlsMsgStore(ssl, ep0, 1, pattern + off, len, certificate,
                     off, fsz, NULL);
 #ifdef DFBR_ALLOC_FAIL
             if (failed) {
@@ -6072,7 +6075,7 @@ static int dfbr_random_pass(WOLFSSL* ssl, const byte* pattern, int injectFail)
                 for (i = off; i < off + fsz; i++)
                     covered[i] = 1;
             }
-            msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1);
+            msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1);
             EXPECT_TEST(dfbr_check(msg, pattern, covered, len, 1));
             if (msg != NULL && msg->ready)
                 break;
@@ -6093,20 +6096,21 @@ static int dfbr_alloc_count_cases(WOLFSSL* ssl, const byte* pattern)
 {
     EXPECT_DECLS;
     DtlsMsg* msg = NULL;
+    w64wrapper ep0 = w64From32(0, 0);
 
     ssl->keys.decryptedCur = 1;
     dfbr_allocs = 0;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 90, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 90, certificate, 0, 30,
             NULL), 0);
     /* The message and its bucket */
     ExpectIntEQ(dfbr_allocs, 2);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 30, 90, certificate, 30, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 30, 90, certificate, 30, 30,
             NULL), 0);
     ExpectIntEQ(dfbr_allocs, 3);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 60, 90, certificate, 60, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 60, 90, certificate, 60, 30,
             NULL), 0);
     ExpectIntEQ(dfbr_allocs, 4);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(msg->ready, 1);
     ExpectBufEQ(msg->fullMsg, pattern, 90);
 
@@ -6119,15 +6123,16 @@ static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
 {
     EXPECT_DECLS;
     DtlsMsg* msg = NULL;
+    w64wrapper ep0 = w64From32(0, 0);
 
     /* Failed combine leaves both buckets intact */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 30, certificate, 0, 10,
             NULL), 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 20, 30, certificate, 20, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 20, 30, certificate, 20, 10,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 10, 30, certificate, 10, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 10, 30, certificate, 10, 10,
             NULL), WC_NO_ERR_TRACE(MEMORY_ERROR));
     ExpectIntEQ(dfbr_fail, 0);
     ExpectIntEQ(msg->fragBucketListCount, 2);
@@ -6137,17 +6142,17 @@ static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
     ExpectNotNull(msg->fragBucketList->m.m.next);
     ExpectIntEQ(msg->fragBucketList->m.m.next->m.m.offset, 20);
     /* Retry succeeds and completes the message */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 10, 30, certificate, 10, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 10, 30, certificate, 10, 10,
             NULL), 0);
     ExpectIntEQ(msg->ready, 1);
     ExpectBufEQ(msg->fullMsg, pattern, 30);
 
     /* Failed insert before the first bucket leaves the list intact */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern + 20, 30, certificate, 20, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, pattern + 20, 30, certificate, 20, 10,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 2));
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern, 30, certificate, 0, 5, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, pattern, 30, certificate, 0, 5, NULL),
             WC_NO_ERR_TRACE(MEMORY_ERROR));
     ExpectIntEQ(dfbr_fail, 0);
     ExpectIntEQ(msg->fragBucketListCount, 1);
@@ -6155,62 +6160,62 @@ static int dfbr_alloc_fail_cases(WOLFSSL* ssl, const byte* pattern)
     ExpectNotNull(msg->fragBucketList);
     ExpectIntEQ(msg->fragBucketList->m.m.offset, 20);
     ExpectNull(msg->fragBucketList->m.m.next);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern, 30, certificate, 0, 5, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, pattern, 30, certificate, 0, 5, NULL),
             0);
     ExpectIntEQ(msg->fragBucketListCount, 2);
 
     /* Failed append after the last bucket leaves the list intact */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, pattern, 30, certificate, 0, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, pattern, 30, certificate, 0, 10,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 3));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 3));
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, pattern + 20, 30, certificate, 20, 5,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, pattern + 20, 30, certificate, 20, 5,
             NULL), WC_NO_ERR_TRACE(MEMORY_ERROR));
     ExpectIntEQ(dfbr_fail, 0);
     ExpectIntEQ(msg->fragBucketListCount, 1);
     ExpectIntEQ(msg->bytesReceived, 10);
     ExpectNotNull(msg->fragBucketList);
     ExpectNull(msg->fragBucketList->m.m.next);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, pattern + 20, 30, certificate, 20, 5,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, pattern + 20, 30, certificate, 20, 5,
             NULL), 0);
     ExpectIntEQ(msg->fragBucketListCount, 2);
 
     /* Failed first bucket of a message created by a zero-length fragment */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 4, pattern + 5, 30, certificate, 5, 0,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 4, pattern + 5, 30, certificate, 5, 0,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 4));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 4));
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 4, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 4, pattern, 30, certificate, 0, 30,
             NULL), WC_NO_ERR_TRACE(MEMORY_ERROR));
     ExpectIntEQ(dfbr_fail, 0);
     ExpectNull(msg->fragBucketList);
     ExpectIntEQ(msg->fragBucketListCount, 0);
     ExpectIntEQ(msg->bytesReceived, 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 4, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 4, pattern, 30, certificate, 0, 30,
             NULL), 0);
     ExpectIntEQ(msg->ready, 1);
 
     /* Failed DtlsMsg allocation for a new message */
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 5, pattern, 30, certificate, 0, 30,
             NULL), WC_NO_ERR_TRACE(MEMORY_E));
     ExpectIntEQ(dfbr_fail, 0);
-    ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 5));
+    ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 5));
     ExpectIntEQ(ssl->error, WC_NO_ERR_TRACE(MEMORY_E));
     ssl->error = 0;
     /* Failed first bucket of a new message drops the message */
     dfbr_skip = 1;
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 5, pattern, 30, certificate, 0, 30,
             NULL), WC_NO_ERR_TRACE(MEMORY_ERROR));
     ExpectIntEQ(dfbr_fail, 0);
-    ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 5));
+    ExpectNull(DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 5));
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
     dfbr_free_list(ssl);
 
     /* Failed DtlsMsg allocation with an empty list */
     dfbr_fail = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 30, certificate, 0, 30,
             NULL), WC_NO_ERR_TRACE(MEMORY_E));
     ExpectIntEQ(dfbr_fail, 0);
     ExpectNull(ssl->dtls_rx_msg_list);
@@ -6227,6 +6232,7 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     static byte pattern[DFBR_MAX_LEN];
     DtlsMsg* msg = NULL;
     word32 i;
+    w64wrapper ep0 = w64From32(0, 0);
 #ifdef DFBR_ALLOC_FAIL
     wolfSSL_Malloc_cb mf = NULL;
     wolfSSL_Free_cb ff = NULL;
@@ -6241,54 +6247,54 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     dfbr_rand_state = 0x12345678;
 
     /* no_shake is the "unpopulated" marker, never a valid wire type */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, no_shake, 0, 5, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 10, no_shake, 0, 5, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectNull(ssl->dtls_rx_msg_list);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
 
     /* Fragments of an authenticated message must agree on the type */
     ssl->keys.decryptedCur = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 5, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 10, certificate, 0, 5, NULL),
             0);
     ssl->keys.decryptedCur = 0;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, server_hello_done,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 5, 10, server_hello_done,
             5, 5, NULL), WC_NO_ERR_TRACE(SEQUENCE_ERROR));
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(msg->fragBucketListCount, 1);
     ExpectIntEQ(msg->type, certificate);
     dfbr_free_list(ssl);
 
     /* A zero-length fragment is accepted but does not take a bucket */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 5, 10, certificate, 5, 0,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 5, 10, certificate, 5, 0,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectNull(msg->fragBucketList);
     ExpectIntEQ(msg->fragBucketListCount, 0);
     ExpectIntEQ(msg->bytesReceived, 0);
     ExpectIntEQ(msg->type, certificate);
     ExpectIntEQ(msg->ready, 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 10, certificate, 0, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 10, certificate, 0, 10,
             NULL), 0);
     ExpectIntEQ(msg->ready, 1);
     /* An empty message assembles from its single empty fragment */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, pattern, 0, server_hello_done, 0, 0,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, pattern, 0, server_hello_done, 0, 0,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 2));
     ExpectIntEQ(msg->ready, 1);
     ExpectIntEQ(msg->sz, 0);
     dfbr_free_list(ssl);
 
     /* Inconsistent bookkeeping at completion drops the buckets and fails */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 30, certificate, 0, 10,
             NULL), 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 20, 30, certificate, 20, 10,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 20, 30, certificate, 20, 10,
             NULL), 0);
-    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(msg->bytesReceived, 20);
     /* Corrupt the count so the next fragment appears to complete the msg */
     if (msg != NULL)
         msg->bytesReceived = 25;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 10, 30, certificate, 10, 5,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 10, 30, certificate, 10, 5,
             NULL), WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectNull(msg->fragBucketList);
     ExpectIntEQ(msg->fragBucketListCount, 0);
@@ -6296,7 +6302,7 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
     ExpectIntEQ(msg->ready, 0);
     ExpectNull(msg->raw);
     /* A retransmission rebuilds the message */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, 30, certificate, 0, 30,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, 30, certificate, 0, 30,
             NULL), 0);
     ExpectIntEQ(msg->ready, 1);
     ExpectBufEQ(msg->fullMsg, pattern, 30);
@@ -6308,32 +6314,32 @@ int test_wolfSSL_DTLS_fragment_buckets_random(void)
         word32 k;
 
         for (k = 0; EXPECT_SUCCESS() && k < (word32)DTLS_FRAG_POOL_SZ; k++) {
-            ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + 3 * k + 2, len,
+            ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + 3 * k + 2, len,
                     certificate, 3 * k + 2, 1, NULL), 0);
         }
-        ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+        ExpectNotNull(msg = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
         ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
         ExpectIntEQ(msg->bytesReceived, DTLS_FRAG_POOL_SZ);
         /* Disjoint after the last bucket */
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 1, len,
+        ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + len - 1, len,
                 certificate, len - 1, 1, NULL),
                 WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
         /* Disjoint before the first bucket */
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0, 1,
+        ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, len, certificate, 0, 1,
                 NULL), WC_NO_ERR_TRACE(DTLS_TOO_MANY_FRAGMENTS_E));
         ExpectIntEQ(msg->fragBucketListCount, DTLS_FRAG_POOL_SZ);
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern, len, certificate, 0,
+        ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern, len, certificate, 0,
                 len - 2, NULL), 0);
         ExpectIntEQ(msg->fragBucketListCount, 1);
         ExpectIntEQ(msg->bytesReceived, len - 2);
-        ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, pattern + len - 2, len,
+        ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, pattern + len - 2, len,
                 certificate, len - 2, 2, NULL), 0);
         ExpectIntEQ(msg->ready, 1);
         ExpectBufEQ(msg->fullMsg, pattern, len);
         dfbr_free_list(ssl);
     }
 
-#ifdef DFBR_ALLOC_FAIL
+#if defined(DFBR_ALLOC_FAIL) && defined(USE_WOLFSSL_MEMORY)
     wolfSSL_GetAllocators(&mf, &ff, &rf);
     ExpectIntEQ(wolfSSL_SetAllocators(dfbr_malloc, dfbr_free, dfbr_realloc),
             0);
@@ -6390,15 +6396,16 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     WOLFSSL ssl[1];
     static byte msg[100];
     DtlsMsg* cur = NULL;
+    w64wrapper ep0 = w64From32(0, 0);
 
     XMEMSET(ssl, 0, sizeof(*ssl));
     XMEMSET(msg, 7, sizeof(msg));
     /* seq 1 partial, seq 2 complete, seq 3 partial */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, msg, 100, certificate, 0, 50, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 100, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, msg, 100, certificate, 0, 100, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, msg, 100, certificate, 0, 50, NULL),
             0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
 
@@ -6414,7 +6421,7 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectIntEQ(cur->seq, 3);
     ExpectNull(cur->next);
     /* Out of order plaintext entries go first */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 5, msg, 100, certificate, 0, 50, NULL),
             0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
     DtlsMsgListPurge(ssl, 2);
@@ -6427,10 +6434,10 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectNull(ssl->dtls_rx_msg_list);
     /* Encrypted entries stay */
     ssl->keys.decryptedCur = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 4, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 4, msg, 100, certificate, 0, 50, NULL),
             0);
     ssl->keys.decryptedCur = 0;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 5, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 5, msg, 100, certificate, 0, 50, NULL),
             0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
     DtlsMsgListPurge(ssl, 1);
@@ -6439,18 +6446,62 @@ int test_wolfSSL_DTLS_msg_list_purge(void)
     ExpectIntEQ(cur->seq, 4);
     ExpectNull(cur->next);
     /* Entries from an epoch below the last processed one go too */
-    ExpectIntEQ(DtlsMsgStore(ssl, 1, 6, msg, 100, certificate, 0, 50, NULL),
-            0);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 1), 6, msg, 100, certificate,
+            0, 50, NULL), 0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
-    ssl->keys.dtls_peer_hs_epoch = 1;
+    ssl->keys.dtls_peer_hs_epoch = w64From32(0, 1);
     DtlsMsgListPurge(ssl, 0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
     ExpectNotNull(cur = ssl->dtls_rx_msg_list);
-    ExpectIntEQ(cur->epoch, 1);
+    ExpectTrue(w64Equal(cur->epoch, w64From32(0, 1)));
     ExpectIntEQ(cur->seq, 6);
-    ssl->keys.dtls_peer_hs_epoch = 0;
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    /* DTLS 1.3 epoch 65536 is not stale after 65535 */
+    ssl->keys.dtls_expected_peer_handshake_number = 7;
+    ssl->keys.dtls_peer_hs_epoch = w64From32(0, 0xFFFF);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 0xFFFE), 8, msg, 100,
+            certificate, 0, 50, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 0x10000), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectTrue(w64Equal(cur->epoch, w64From32(0, 0x10000)));
+    ExpectIntEQ(cur->seq, 7);
+    dfbr_free_list(ssl);
+    /* Nor is epoch 2^32 after 2^32 - 1 */
+    ssl->keys.dtls_peer_hs_epoch = w64From32(0, 0xFFFFFFFF);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 0xFFFFFFFE), 8, msg, 100,
+            certificate, 0, 50, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(1, 0), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectTrue(w64Equal(cur->epoch, w64From32(1, 0)));
+    dfbr_free_list(ssl);
+    /* Epochs more than 32768 apart. A 16-bit serial number compare gets
+     * both of these backwards. */
+    ssl->keys.dtls_peer_hs_epoch = w64From32(0, 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 0x9000), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
+    ExpectTrue(w64Equal(cur->epoch, w64From32(0, 0x9000)));
+    dfbr_free_list(ssl);
+    ssl->keys.dtls_peer_hs_epoch = w64From32(0, 0x9000);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 2), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    ExpectNull(DtlsMsgListNextReady(ssl));
+    DtlsMsgListPurge(ssl, 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 0);
+    w64Zero(&ssl->keys.dtls_peer_hs_epoch);
+    dfbr_free_list(ssl);
 #endif
     return EXPECT_RESULT();
 }
@@ -6463,26 +6514,28 @@ int test_wolfSSL_DTLS_msg_list_order(void)
     WOLFSSL ssl[1];
     static byte msg[100];
     DtlsMsg* cur = NULL;
+    w64wrapper ep0 = w64From32(0, 0);
+    w64wrapper ep2 = w64From32(0, 2);
 
     XMEMSET(ssl, 0, sizeof(*ssl));
     XMEMSET(msg, 7, sizeof(msg));
 
     /* Ordered by sequence number across epochs */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 50, msg, 100, server_hello, 0, 100,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 50, msg, 100, server_hello, 0, 100,
             NULL), 0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, msg, 100, certificate, 0, 50, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 2, 2, msg, 100, certificate, 0, 100, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep2, 2, msg, 100, certificate, 0, 100, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 2, 7, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep2, 7, msg, 100, certificate, 0, 50, NULL),
             0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 4);
     ExpectNotNull(cur = ssl->dtls_rx_msg_list);
     ExpectIntEQ(cur->seq, 2);
-    ExpectIntEQ(cur->epoch, 0);
+    ExpectTrue(w64Equal(cur->epoch, ep0));
     ExpectNotNull(cur = cur->next);
     ExpectIntEQ(cur->seq, 2);
-    ExpectIntEQ(cur->epoch, 2);
+    ExpectTrue(w64Equal(cur->epoch, ep2));
     ExpectNotNull(cur = cur->next);
     ExpectIntEQ(cur->seq, 7);
     ExpectNotNull(cur = cur->next);
@@ -6493,7 +6546,7 @@ int test_wolfSSL_DTLS_msg_list_order(void)
      * same number from another epoch */
     ssl->keys.dtls_expected_peer_handshake_number = 2;
     ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
-    ExpectIntEQ(cur->epoch, 2);
+    ExpectTrue(w64Equal(cur->epoch, ep2));
     ExpectIntEQ(cur->ready, 1);
     ssl->keys.dtls_expected_peer_handshake_number = 7;
     ExpectNull(DtlsMsgListNextReady(ssl));
@@ -6501,11 +6554,26 @@ int test_wolfSSL_DTLS_msg_list_order(void)
     ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
     ExpectIntEQ(cur->seq, 50);
     /* A ready entry from an epoch below the last processed one is stale */
-    ssl->keys.dtls_peer_hs_epoch = 2;
+    ssl->keys.dtls_peer_hs_epoch = ep2;
     ExpectNull(DtlsMsgListNextReady(ssl));
-    ssl->keys.dtls_peer_hs_epoch = 0;
+    ssl->keys.dtls_peer_hs_epoch = ep0;
     ExpectNotNull(cur = DtlsMsgListNextReady(ssl));
     ExpectIntEQ(cur->seq, 50);
+
+    /* Epochs that only differ above the low 16 or 32 bits are distinct */
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(0, 0x10002), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, w64From32(1, 2), 7, msg, 100,
+            certificate, 0, 100, NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 6);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep2, 7));
+    ExpectIntEQ(cur->ready, 0);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list,
+            w64From32(0, 0x10002), 7));
+    ExpectIntEQ(cur->ready, 1);
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list,
+            w64From32(1, 2), 7));
+    ExpectIntEQ(cur->ready, 1);
 
     DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
     ssl->dtls_rx_msg_list = NULL;
@@ -6520,47 +6588,48 @@ int test_wolfSSL_DTLS_plaintext_msg_replace(void)
     WOLFSSL ssl[1];
     static byte msg[100];
     DtlsMsg* cur = NULL;
+    w64wrapper ep0 = w64From32(0, 0);
 
     XMEMSET(ssl, 0, sizeof(*ssl));
     XMEMSET(msg, 7, sizeof(msg));
 
     /* A plaintext partial entry follows the latest size and type */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, msg, 100, certificate, 0, 50, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 200, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, msg, 200, certificate, 0, 50, NULL),
             0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(cur->sz, 200);
     ExpectIntEQ(cur->bytesReceived, 50);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg, 200, server_key_exchange, 0, 50,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, msg, 200, server_key_exchange, 0, 50,
             NULL), 0);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(cur->type, server_key_exchange);
     /* The same description is not a replacement */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, msg + 50, 200, server_key_exchange,
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 1, msg + 50, 200, server_key_exchange,
             50, 50, NULL), 0);
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 1));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 1));
     ExpectIntEQ(cur->bytesReceived, 100);
 
     /* An authenticated entry keeps its description */
     ssl->keys.decryptedCur = 1;
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 100, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, msg, 100, certificate, 0, 50, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 2, msg, 200, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 2, msg, 200, certificate, 0, 50, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ssl->keys.decryptedCur = 0;
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 2));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 2));
     ExpectIntEQ(cur->sz, 100);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
 
     /* A complete entry keeps its description */
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 100, certificate, 0, 100, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, msg, 100, certificate, 0, 100, NULL),
             0);
-    ExpectIntEQ(DtlsMsgStore(ssl, 0, 3, msg, 200, certificate, 0, 50, NULL),
+    ExpectIntEQ(DtlsMsgStore(ssl, ep0, 3, msg, 200, certificate, 0, 50, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, 3));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, ep0, 3));
     ExpectIntEQ(cur->sz, 100);
     ExpectIntEQ(cur->ready, 1);
     ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 3);
@@ -6571,7 +6640,8 @@ int test_wolfSSL_DTLS_plaintext_msg_replace(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_MTU)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_DTLS_MTU)
 /* A complete in-order message is processed from the record buffer. A partial
  * copy of it stored earlier must not block the list behind it. */
 static int test_dtls_stale_partial_head(method_provider method_c,
@@ -6584,6 +6654,7 @@ static int test_dtls_stale_partial_head(method_provider method_c,
     static byte junk[200];
     const word16 mtu = 1000; /* below the certificate message size */
     word32 i;
+    w64wrapper ep0 = w64From32(0, 0);
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(junk, 0x5a, sizeof(junk));
@@ -6593,16 +6664,16 @@ static int test_dtls_stale_partial_head(method_provider method_c,
     ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, mtu), WOLFSSL_SUCCESS);
 
     /* Unauthenticated partial ServerHello */
-    ExpectIntEQ(DtlsMsgStore(ssl_c, 0, shSeq, junk, sizeof(junk),
+    ExpectIntEQ(DtlsMsgStore(ssl_c, ep0, shSeq, junk, sizeof(junk),
             server_hello, 0, 50, NULL), 0);
     /* Unauthenticated entries that fill the list */
     for (i = 0; fill && EXPECT_SUCCESS() && i < (word32)DTLS_POOL_SZ; i++) {
-        ExpectIntEQ(DtlsMsgStore(ssl_c, 0, 100 + i, junk, sizeof(junk),
+        ExpectIntEQ(DtlsMsgStore(ssl_c, ep0, 100 + i, junk, sizeof(junk),
                 server_hello, 0, 50, NULL), 0);
     }
     /* Unauthenticated complete entry far ahead */
     if (highSeq) {
-        ExpectIntEQ(DtlsMsgStore(ssl_c, 0, 50, junk, sizeof(junk),
+        ExpectIntEQ(DtlsMsgStore(ssl_c, ep0, 50, junk, sizeof(junk),
                 server_hello, 0, sizeof(junk), NULL), 0);
     }
     ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz,
@@ -6707,10 +6778,112 @@ int test_wolfSSL_DTLS13_sh_fragment_keeps_ch(void)
 }
 #endif
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_ASYNC_CRYPT)
+/* Give the first traffic epoch a new number with the same low bits. */
+static void test_dtls13_renumber_traffic0(WOLFSSL* ssl, w64wrapper epoch)
+{
+    w64wrapper t0 = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    int i;
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; i++) {
+        if (w64Equal(ssl->dtls13Epochs[i].epochNumber, t0))
+            ssl->dtls13Epochs[i].epochNumber = epoch;
+    }
+    if (w64Equal(ssl->dtls13Epoch, t0))
+        ssl->dtls13Epoch = epoch;
+    if (w64Equal(ssl->dtls13PeerEpoch, t0))
+        ssl->dtls13PeerEpoch = epoch;
+    if (w64Equal(ssl->keys.dtls_peer_hs_epoch, t0))
+        ssl->keys.dtls_peer_hs_epoch = epoch;
+}
+
+static int test_dtls13_read_pending(WOLFSSL* ssl)
+{
+    byte buf[8];
+    int ret = wolfSSL_read(ssl, buf, (int)sizeof(buf));
+
+    if (ret > 0 || wolfSSL_get_error(ssl, ret) != WOLFSSL_ERROR_WANT_READ)
+        return -1;
+    return 0;
+}
+
+/* KeyUpdates move the peers on from epoch while the client buffers every
+ * handshake message. The message from the next epoch must not be taken for a
+ * stale one. */
+static int test_dtls13_rx_list_epoch_boundary(w64wrapper epoch)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    w64wrapper next = epoch;
+    const char msg[] = "epoch";
+    char buf[sizeof(msg)];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Settle the post-handshake flight so no record is in flight */
+    ExpectIntEQ(test_dtls13_read_pending(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_read_pending(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_read_pending(ssl_c), 0);
+    ExpectNull(ssl_c->dtls13Rtx.rtxRecords);
+    ExpectNull(ssl_s->dtls13Rtx.rtxRecords);
+    if (EXPECT_SUCCESS()) {
+        test_dtls13_renumber_traffic0(ssl_c, epoch);
+        test_dtls13_renumber_traffic0(ssl_s, epoch);
+    }
+    /* A device makes the client store even complete in-order messages */
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, 0x7e57), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_dtls13_read_pending(ssl_c), 0);
+        ExpectIntEQ(test_dtls13_read_pending(ssl_s), 0);
+        ExpectIntEQ(test_dtls13_read_pending(ssl_c), 0);
+        w64Increment(&next);
+        ExpectTrue(w64Equal(ssl_c->dtls13PeerEpoch, next));
+        ExpectTrue(w64Equal(ssl_c->keys.dtls_peer_hs_epoch, w64Sub32(next, 1,
+                NULL)));
+        ExpectTrue(w64Equal(ssl_s->dtls13Epoch, next));
+        ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, next));
+        ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+    }
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), sizeof(msg));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_DTLS13_rx_list_epoch_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_ASYNC_CRYPT)
+    /* Through epoch 65536 and through epoch 2^32 */
+    EXPECT_TEST(test_dtls13_rx_list_epoch_boundary(w64From32(0, 0xFFFF)));
+    EXPECT_TEST(test_dtls13_rx_list_epoch_boundary(w64From32(0,
+            0xFFFFFFFF)));
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_DTLS_stale_partial_head(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_MTU)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_DTLS_MTU)
 #ifndef WOLFSSL_NO_TLS12
     /* ServerHello is seq 1 after the HelloVerifyRequest */
     EXPECT_TEST(test_dtls_stale_partial_head(wolfDTLSv1_2_client_method,

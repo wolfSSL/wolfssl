@@ -2031,7 +2031,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         }
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             /* Only ack a fragment we really buffered. */
-            if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
+            if (DtlsMsgStore(ssl, ssl->keys.curEpoch64,
                     ssl->keys.dtls_peer_handshake_number,
                     input + DTLS_HANDSHAKE_HEADER_SZ, messageLength,
                     handshakeType, fragOff, fragLength, ssl->heap) == 0) {
@@ -2070,7 +2070,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         Dtls13RtxAddAckForCurRecord(ssl);
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
-    ssl->keys.dtls_peer_hs_epoch = (word16)w64GetLow32(ssl->keys.curEpoch64);
+    ssl->keys.dtls_peer_hs_epoch = ssl->keys.curEpoch64;
 
     /* check if we have buffered some message */
     if (Dtls13NextMessageComplete(ssl))
