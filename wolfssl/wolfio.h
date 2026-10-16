@@ -45,7 +45,7 @@
 #if !defined(WOLFSSL_USER_IO)
     /* Micrium uses NetSock I/O callbacks in wolfio.c */
     #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM) && \
-        !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_NO_SOCK)
+        !defined(WOLFSSL_NO_SOCK)
         #define USE_WOLFSSL_IO
     #endif
 #endif
@@ -235,7 +235,7 @@
             #define SO_TYPE     17  /* Socket type */
             #define SO_RCVTIMEO 13  /* Recv Timeout */
         #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
-                && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
+                && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
             #include <sys/socket.h>
             #include <arpa/inet.h>
@@ -869,39 +869,6 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
                                           struct mn_sockaddr_in* mnSockAddrIn);
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
-
-#ifdef WOLFSSL_UIP
-
-    struct uip_wolfssl_ctx {
-        union socket_connector {
-            struct tcp_socket tcp;
-            struct udp_socket udp;
-        } conn;
-        WOLFSSL_CTX *ctx;
-        WOLFSSL *ssl;
-        byte *input_databuf;
-        byte *output_databuf;
-        byte *ssl_rx_databuf;
-        int ssl_rb_len;
-        int ssl_rb_off;
-        struct process *process;
-        tcp_socket_data_callback_t input_callback;
-        tcp_socket_event_callback_t event_callback;
-        int closing;
-        uip_ipaddr_t peer_addr;
-        word16 peer_port;
-    };
-
-    typedef struct uip_wolfssl_ctx uip_wolfssl_ctx;
-
-    WOLFSSL_LOCAL int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-    WOLFSSL_LOCAL int uIPReceive(WOLFSSL* ssl, char* buf, int sz,
-                                     void* ctx);
-    WOLFSSL_LOCAL int uIPReceiveFrom(WOLFSSL* ssl, char* buf, int sz,
-                                         void* ctx);
-    WOLFSSL_LOCAL int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-
-#endif
 
 #ifdef WOLFSSL_GNRC
     #include <sock_types.h>
