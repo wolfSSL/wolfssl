@@ -78131,8 +78131,9 @@ static wc_test_ret_t slhdsa_init_fail_free_test(void)
 }
 #endif
 
-#if !defined(NO_ASN) && (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
-    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
+#if !defined(NO_ASN) && !defined(NO_CERTS) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
 /* Verify a self-signed certificate's signature with its own public key. */
 static wc_test_ret_t slhdsa_cert_self_verify(SlhDsaKey* pub, const byte* der,
     word32 derSz)
@@ -78317,7 +78318,7 @@ out:
 
     return ret;
 }
-#endif /* !NO_ASN && (SHAKE128S || SHA2_128S) */
+#endif /* !NO_ASN && !NO_CERTS && (SHAKE128S || SHA2_128S) */
 
 wc_test_ret_t slhdsa_test(void)
 {
@@ -80194,8 +80195,9 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-#if !defined(NO_ASN) && (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
-    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
+#if !defined(NO_ASN) && !defined(NO_CERTS) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
     if (ret == 0) {
         ret = slhdsa_cert_test();
         if (ret != 0)
