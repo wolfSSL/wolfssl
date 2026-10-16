@@ -111,9 +111,6 @@
 /* Uncomment next line if using lwip */
 /* #define WOLFSSL_LWIP */
 
-/* Uncomment next line if building wolfSSL for a game console */
-/* #define WOLFSSL_GAME_BUILD */
-
 /* Uncomment next line if building wolfSSL for LSR */
 /* #define WOLFSSL_LSR */
 
@@ -1965,7 +1962,7 @@
 #endif /* EBSNET */
 
 #ifdef WOLFSSL_GAME_BUILD
-    #define SIZEOF_LONG_LONG 8
+    #error "WOLFSSL_GAME_BUILD support has been removed"
 #endif
 
 #ifdef WOLFSSL_LSR

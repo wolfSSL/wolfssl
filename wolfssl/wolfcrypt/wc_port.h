@@ -237,22 +237,18 @@
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif
-    #ifdef WOLFSSL_GAME_BUILD
-        #include "system/xtl.h"
-    #else
-        #ifndef WIN32_LEAN_AND_MEAN
-            #define WIN32_LEAN_AND_MEAN
-        #endif
-        #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
-            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
-            #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
-            #ifndef WOLFSSL_USER_IO
-                #include <winsock2.h>
-                #include <ws2tcpip.h> /* required for InetPton */
-            #endif
-        #endif /* WOLFSSL_SGX */
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
     #endif
+    #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
+        #include <windows.h>
+        #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
+        #ifndef WOLFSSL_USER_IO
+            #include <winsock2.h>
+            #include <ws2tcpip.h> /* required for InetPton */
+        #endif
+    #endif /* WOLFSSL_SGX */
     #if !defined(SINGLE_THREADED) && !defined(_WIN32_WCE)
         #include <process.h>
     #endif
