@@ -143,7 +143,7 @@
 /* Buffer sizes large enough to store exported DER-encoded keys. */
 #define WC_MLDSA_44_PUB_KEY_DER_SIZE      1334
 #define WC_MLDSA_44_PRV_KEY_DER_SIZE      2588
-#define WC_MLDSA_44_BOTH_KEY_DER_SIZE     3904
+#define WC_MLDSA_44_BOTH_KEY_DER_SIZE     3905
 /* PEM size with the header "-----BEGIN PRIVATE KEY-----" and the
  * footer "-----END PRIVATE KEY-----". */
 #define WC_MLDSA_44_BOTH_KEY_PEM_SIZE     5344
@@ -156,7 +156,7 @@
     (WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE)
 #define WC_MLDSA_65_PUB_KEY_DER_SIZE      1974
 #define WC_MLDSA_65_PRV_KEY_DER_SIZE      4060
-#define WC_MLDSA_65_BOTH_KEY_DER_SIZE     6016
+#define WC_MLDSA_65_BOTH_KEY_DER_SIZE     6017
 #define WC_MLDSA_65_BOTH_KEY_PEM_SIZE     8204
 
 /* ML-DSA-87 (NIST security category 5). */
@@ -167,7 +167,7 @@
     (WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE)
 #define WC_MLDSA_87_PUB_KEY_DER_SIZE      2614
 #define WC_MLDSA_87_PRV_KEY_DER_SIZE      4924
-#define WC_MLDSA_87_BOTH_KEY_DER_SIZE     7520
+#define WC_MLDSA_87_BOTH_KEY_DER_SIZE     7521
 #define WC_MLDSA_87_BOTH_KEY_PEM_SIZE     10267
 
 
