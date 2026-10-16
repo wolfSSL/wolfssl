@@ -2238,10 +2238,11 @@ static int ccmAesAead_rfc4309_loaded = 0;
 /* AES-XTS asm needs a vector save on every call.  Without the fallback the
  * whole context is pinned to C at setkey, so no save is ever taken. */
 #if defined(WOLFSSL_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(WC_SVR_USE_NATIVE_REG_BUFS) && \
     !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
     #define WC_LINUXKM_XTS_NO_AESNI
     #ifndef WC_FLAG_DONT_USE_VECTOR_OPS
-        #error AES-XTS without WC_C_DYNAMIC_FALLBACK needs WC_FLAG_DONT_USE_VECTOR_OPS.
+        #error AES-XTS without WC_C_DYNAMIC_FALLBACK or WC_SVR_USE_NATIVE_REG_BUFS needs WC_FLAG_DONT_USE_VECTOR_OPS.
     #endif
 #endif
 
