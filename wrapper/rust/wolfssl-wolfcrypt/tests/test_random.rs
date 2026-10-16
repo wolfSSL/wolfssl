@@ -90,6 +90,24 @@ fn test_rng_generate_block_u32() {
     assert_ne!(buffer[buffer.len() - 1], 0xFFFF_FFFFu32);
 }
 
+// Test that generate_block fills buffers larger than a single DRBG request.
+#[test]
+fn test_rng_generate_block_large() {
+    let rng = RNG::new().expect("Failed to create RNG");
+    let max = wolfssl_wolfcrypt::sys::RNG_MAX_BLOCK_LEN as usize;
+    let mut buffer = vec![0u8; max * 3 + 17];
+    rng.generate_block(&mut buffer).expect("Failed to generate a large block");
+
+    // Check that the tail of each chunk was written.
+    for end in [max, max * 2, max * 3, buffer.len()] {
+        assert_ne!(&buffer[end - 16..end], &[0u8; 16]);
+    }
+
+    let mut buffer = vec![0u64; max / 8 * 2 + 1];
+    rng.generate_block(&mut buffer).expect("Failed to generate a large block of u64");
+    assert_ne!(buffer[buffer.len() - 1], 0u64);
+}
+
 #[test]
 #[cfg(random_hashdrbg)]
 fn test_rng_reseed() {
