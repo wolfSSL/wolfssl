@@ -105,7 +105,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  *
  * Hardware Acceleration (AES-specific):
  * WC_ASYNC_ENABLE_AES:     Enable async AES operations           default: off
- * WOLFSSL_CRYPTOCELL_AES:  CryptoCell AES acceleration           default: off
  * WOLFSSL_DEVCRYPTO_AES:   /dev/crypto AES acceleration          default: off
  * WOLFSSL_DEVCRYPTO_CBC:   /dev/crypto AES-CBC acceleration      default: off
  * WOLFSSL_KCAPI_AES:       Linux kernel crypto API for AES       default: off
@@ -5193,93 +5192,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     } /* wc_AesSetKey */
 
     /* end #elif ESP32 */
-#elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
-
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
-                    int dir)
-    {
-        SaSiError_t ret = SASI_OK;
-        SaSiAesIv_t iv_aes;
-
-        if (aes == NULL ||
-           (keylen != AES_128_KEY_SIZE &&
-            keylen != AES_192_KEY_SIZE &&
-            keylen != AES_256_KEY_SIZE)) {
-            return BAD_FUNC_ARG;
-        }
-
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
-        {
-            int ret2 =
-                wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
-            if (ret2 < 0)
-                return ret2;
-        }
-#endif
-
-    #if defined(AES_MAX_KEY_SIZE)
-        if (keylen > (AES_MAX_KEY_SIZE/8)) {
-            return BAD_FUNC_ARG;
-        }
-    #endif
-        if (dir != AES_ENCRYPTION &&
-            dir != AES_DECRYPTION) {
-            return BAD_FUNC_ARG;
-        }
-
-        if (dir == AES_ENCRYPTION) {
-            aes->ctx.mode = SASI_AES_ENCRYPT;
-            SaSi_AesInit(&aes->ctx.user_ctx,
-                         SASI_AES_ENCRYPT,
-                         SASI_AES_MODE_CBC,
-                         SASI_AES_PADDING_NONE);
-        }
-        else {
-            aes->ctx.mode = SASI_AES_DECRYPT;
-            SaSi_AesInit(&aes->ctx.user_ctx,
-                         SASI_AES_DECRYPT,
-                         SASI_AES_MODE_CBC,
-                         SASI_AES_PADDING_NONE);
-        }
-
-        aes->keylen = keylen;
-        aes->keyInstalled = 1;
-        aes->rounds = keylen/4 + 6;
-        XMEMCPY(aes->key, userKey, keylen);
-
-        aes->ctx.key.pKey = (byte*)aes->key;
-        aes->ctx.key.keySize= keylen;
-
-        ret = SaSi_AesSetKey(&aes->ctx.user_ctx,
-                             SASI_AES_USER_KEY,
-                             &aes->ctx.key,
-                             sizeof(aes->ctx.key));
-        if (ret != SASI_OK) {
-            return BAD_FUNC_ARG;
-        }
-
-        ret = wc_AesSetIV(aes, iv);
-
-        if (iv)
-            XMEMCPY(iv_aes, iv, WC_AES_BLOCK_SIZE);
-        else
-            XMEMSET(iv_aes,  0, WC_AES_BLOCK_SIZE);
-
-
-        ret = SaSi_AesSetIv(&aes->ctx.user_ctx, iv_aes);
-        if (ret != SASI_OK) {
-            return ret;
-        }
-       return ret;
-    }
-    #if defined(WOLFSSL_AES_DIRECT)
-        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                            const byte* iv, int dir)
-        {
-            return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-        }
-    #endif
-
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) \
     && !defined(WOLFSSL_QNX_CAAM)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
@@ -7597,15 +7509,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #define NEED_SW_AESCBC
     #define NEED_AESCBC_HW_FALLBACK
 
-#elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
-    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
-        return SaSi_AesBlock(&aes->ctx.user_ctx, (uint8_t*)in, sz, out);
-    }
-    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
-        return SaSi_AesBlock(&aes->ctx.user_ctx, (uint8_t*)in, sz, out);
-    }
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
         !defined(WOLFSSL_QNX_CAAM)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
@@ -16958,10 +16861,6 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     return wc_psa_aes_get_key_size(aes, keySize);
-#endif
-#if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
-    *keySize = aes->ctx.key.keySize;
-    return ret;
 #endif
     switch (aes->rounds) {
 #ifdef WOLFSSL_AES_128

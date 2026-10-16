@@ -3225,7 +3225,7 @@ static void wb_forged_order_minus_1(void)
  * ------------------------------------------------------------------------- */
 #if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_DHUK) && \
     defined(WOLFSSL_CUSTOM_CURVES)
 static void wb_sign_hash_sw_indices(void)
