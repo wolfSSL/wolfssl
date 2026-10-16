@@ -28,9 +28,7 @@
  * <tests/unit.h> for the same reason. INT_MAX is used below. */
 #include <limits.h>
 
-#ifdef HAVE_LIBZ
-    #include <wolfssl/wolfcrypt/compress.h>
-#endif
+#include <wolfssl/wolfcrypt/compress.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/internal.h>
 #include <tests/api/api.h>
@@ -135,6 +133,234 @@ static int test_tls_compression_ssl_ready(WOLFSSL* ssl)
     return EXPECT_RESULT();
 }
 #endif /* TEST_TLS_COMPRESSION_ANY */
+
+#ifdef HAVE_LIBZ
+static const word16 algList[] = {
+    WC_ZLIB,
+};
+
+static int test_wc_CompressionData_RoundTrip(void)
+{
+    EXPECT_DECLS;
+    word32 i = 0;
+    wc_CompressionData cd = {0};
+    static byte data[3000];
+    /* we don't need complex data here we are not testing if our
+     * compression algs compress correctly just that decomp -> comp -> decomp
+     * is working losslessly */
+    XMEMSET(data, 'a', sizeof(data));
+    for (i = 0; i < XELEM_CNT(algList); i ++) {
+        if (!wc_IsCompressionAlgSupported((word16)algList[i])) {
+            continue;
+        }
+        ExpectIntEQ(wc_CompressionData_InitComp(&cd, data, sizeof(data),
+                    algList[i]), 0);
+        ExpectIntEQ(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntGT(sizeof(data), cd.compressedSz);
+        ExpectIntEQ(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntEQ(sizeof(data), cd.uncompressedSz);
+        ExpectIntEQ(XMEMCMP(cd.data, data, sizeof(data)), 0);
+    }
+    wc_CompressionData_Free(&cd);
+    return EXPECT_RESULT();
+}
+
+static const struct {
+    word16 alg;
+    const byte* compressedData;
+    word32 compressedSz; /* compressed data may contain 0x00 bytes */
+    const byte* uncompressedData;} compressedTestVectors[] = {
+    /* Hello, world! Test vector for zlib. */
+    {WC_ZLIB,
+    /* compressed data */
+    (const byte*)"\x78\x01\xf3\x48\xcd\xc9\xc9\xd7\x51\x28\xcf\x2f"
+        "\xca\x49\x51\x54\x08\x49\x2d\x2e\x51\x28\x4b\x4d"
+        "\x2e\xc9\x2f\x52\x48\xcb\x2f\x52\xa8\xca\xc9\x4c"
+        "\xd2\x53\xf0\x20\xac\x06\x00\x7d\xd8\x18\xe5",
+    47,
+    /* uncompressed message */
+    (const byte*)"Hello, world! Test vector for zlib. "
+        "Hello, world! Test vector for zlib."},
+    /* add more vectors here */
+};
+
+static int test_wc_CompressionData_InitWithCompressedData(void)
+{
+    EXPECT_DECLS;
+    word32 i;
+    wc_CompressionData cd;
+    for (i = 0; i < XELEM_CNT(compressedTestVectors); i ++) {
+        word32 uncompLen = 0;
+        if (!wc_IsCompressionAlgSupported(
+                (word16)compressedTestVectors[i].alg)) {
+            /* skip test */
+            continue;
+        }
+
+        uncompLen = (word32)XSTRLEN(
+                    (const char*)compressedTestVectors[i].uncompressedData);
+        ExpectIntEQ(wc_CompressionData_InitComp(&cd,
+                compressedTestVectors[i].uncompressedData,
+                uncompLen, compressedTestVectors[i].alg), 0);
+        ExpectIntEQ(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntLE((int)cd.compressedSz, (int)uncompLen);
+        wc_CompressionData_Free(&cd);
+
+        ExpectIntEQ(wc_CompressionData_InitDeComp(&cd,
+                compressedTestVectors[i].compressedData,
+                compressedTestVectors[i].compressedSz,
+                (word32)XSTRLEN(
+                    (const char*)compressedTestVectors[i].uncompressedData),
+                compressedTestVectors[i].alg), 0);
+        ExpectIntEQ(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntEQ((int)cd.uncompressedSz, (int)uncompLen);
+        ExpectIntEQ(XMEMCMP(cd.data, compressedTestVectors[i].uncompressedData,
+                    cd.uncompressedSz), 0);
+        wc_CompressionData_Free(&cd);
+    }
+
+    return EXPECT_RESULT();
+}
+
+static int test_wc_CompressionData_BadArgs(void)
+{
+    EXPECT_DECLS;
+    word16 badAlgId = 0xFFFF;
+    word32 i;
+    wc_CompressionData cd = {0};
+    byte data[10];
+    byte outBuf[10];
+    word32 outBufSz = sizeof(outBuf);
+    XMEMSET(data, 'a', sizeof(data));
+    for (i = 0; i < XELEM_CNT(algList); i ++) {
+        if (!wc_IsCompressionAlgSupported((word16)algList[i])) {
+            continue;
+        }
+        /* --- init with uncompressed data --- */
+        ExpectIntNE(wc_CompressionData_InitComp(NULL, data, sizeof(data),
+                    algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitComp(&cd, NULL, sizeof(data),
+                    algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitComp(&cd, data, 0,
+                    algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitComp(&cd, data, sizeof(data),
+                    badAlgId), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+        /* --- init with uncompressed data --- */
+
+        /* --- init with compressed data --- */
+        ExpectIntNE(wc_CompressionData_InitDeComp(NULL, data, sizeof(data),
+                    sizeof(data), algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitDeComp(&cd, NULL, sizeof(data),
+                    sizeof(data), algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitDeComp(&cd, data, sizeof(data),
+                    0, algList[i]), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+
+        ExpectIntNE(wc_CompressionData_InitDeComp(&cd, data, sizeof(data),
+                    sizeof(data), badAlgId), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_Compress(&cd), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz), 0);
+        /* --- init with compressed data --- */
+
+        ExpectIntNE(wc_CompressionData_Compress(NULL), 0);
+        ExpectIntNE(wc_CompressionData_DeCompress(NULL), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(NULL, outBuf, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(NULL, outBuf, outBufSz), 0);
+
+        ExpectIntEQ(wc_CompressionData_InitComp(&cd , data, sizeof(data),
+                    WC_ZLIB), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, NULL, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, NULL, outBufSz), 0);
+        ExpectIntNE(wc_CompressionData_CompToBuf(&cd, outBuf, 0), 0);
+        ExpectIntNE(wc_CompressionData_DeCompToBuf(&cd, outBuf, 0), 0);
+    }
+    wc_CompressionData_Free(&cd);
+    return EXPECT_RESULT();
+}
+
+static int test_wc_CompressionData_ToBuffer(void)
+{
+    EXPECT_DECLS;
+    word32 i;
+    wc_CompressionData cd;
+    for (i = 0; i < XELEM_CNT(compressedTestVectors); i ++) {
+        word32 uncompLen = 0;
+        byte outBuf[100] = {0};
+        word32 outBufSz = sizeof(outBuf);
+        word16 alg = compressedTestVectors[i].alg;
+        if (!wc_IsCompressionAlgSupported(alg)) {
+            /* skip test */
+            continue;
+        }
+
+        uncompLen = (word32)XSTRLEN(
+                    (const char*)compressedTestVectors[i].uncompressedData);
+
+        ExpectIntEQ(wc_CompressionData_InitComp(&cd,
+                compressedTestVectors[i].uncompressedData, uncompLen, alg), 0);
+        /* check that compression succeeds */
+        ExpectIntGE(wc_CompressionData_CompToBuf(&cd, outBuf, outBufSz),0);
+        wc_CompressionData_Free(&cd);
+
+        ExpectIntEQ(wc_CompressionData_InitDeComp(&cd,
+                compressedTestVectors[i].compressedData,
+                compressedTestVectors[i].compressedSz, uncompLen, alg), 0);
+        ExpectIntEQ(wc_CompressionData_DeCompToBuf(&cd, outBuf, outBufSz),
+                (int)uncompLen);
+        wc_CompressionData_Free(&cd);
+    }
+    return EXPECT_RESULT();
+}
+
+#endif /* HAVE_LIBZ */
+
+int test_wc_CompressionData(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_LIBZ
+    ExpectIntEQ(test_wc_CompressionData_RoundTrip(), TEST_SUCCESS);
+    ExpectIntEQ(test_wc_CompressionData_InitWithCompressedData(),
+            TEST_SUCCESS);
+    ExpectIntEQ(test_wc_CompressionData_BadArgs(), TEST_SUCCESS);
+    ExpectIntEQ(test_wc_CompressionData_ToBuffer(), TEST_SUCCESS);
+
+#endif
+    return EXPECT_RESULT();
+}
 
 #ifdef TEST_TLS_COMPRESSION
 
