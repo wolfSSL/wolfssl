@@ -20909,8 +20909,11 @@ static int test_wolfSSL_check_domain(void)
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
         &func_cb_server, NULL), TEST_SUCCESS);
 
-    /* Should have been called once for each cert in sent chain */
-#ifdef WOLFSSL_VERIFY_CB_ALL_CERTS
+    /* Should have been called once for each cert in sent chain, and for the
+     * trust anchor above it */
+#if defined(WOLFSSL_SIGNER_DER_CERT) && defined(OPENSSL_EXTRA)
+    ExpectIntEQ(test_wolfSSL_check_domain_verify_count, 4);
+#elif defined(WOLFSSL_VERIFY_CB_ALL_CERTS)
     ExpectIntEQ(test_wolfSSL_check_domain_verify_count, 3);
 #else
     ExpectIntEQ(test_wolfSSL_check_domain_verify_count, 1);
