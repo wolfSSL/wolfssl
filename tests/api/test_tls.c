@@ -3417,7 +3417,9 @@ int test_tls12_resume_ticket_wrong_suite(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK) && \
+    (defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256) || \
+     defined(WOLFSSL_TLS13))
 static const byte test_clear_psk[] = { 0x5a, 0x6b, 0x7c, 0x8d };
 
 static unsigned int test_clear_psk_client_cb(WOLFSSL* ssl, const char* hint,
@@ -3461,19 +3463,24 @@ static int test_tls12_clear_resets_options_ex(int psk)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-#ifndef NO_PSK
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
     if (psk) {
         /* On the CTXs, so the fresh object below is configured alike. */
         wolfSSL_CTX_set_psk_client_callback(ctx_c, test_clear_psk_client_cb);
         wolfSSL_CTX_set_psk_server_callback(ctx_s, test_clear_psk_server_cb);
         ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
-                        "DHE-PSK-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+                        "ECDHE-PSK-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
     }
 #else
     (void)psk;
 #endif
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
+    /* The CTX suite list predates the callback; this rebuilds the object's. */
+    if (psk)
+        wolfSSL_set_psk_server_callback(ssl_s, test_clear_psk_server_cb);
+#endif
     ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     /* Data both ways and a bidirectional close, so record-layer and shutdown
@@ -3500,9 +3507,6 @@ static int test_tls12_clear_resets_options_ex(int psk)
         ssl_s->options.hashAlgo     = fresh->options.hashAlgo;
         ssl_s->options.sigAlgo      = fresh->options.sigAlgo;
         ssl_s->options.haveDH       = fresh->options.haveDH;
-#ifndef NO_DH
-        ssl_s->options.dhKeySz      = fresh->options.dhKeySz;
-#endif
         /* wolfSSL_get_shutdown() reports a completed bidirectional shutdown
          * from this after a clear, by documented intent. */
         ssl_s->options.shutdownDone = fresh->options.shutdownDone;
@@ -3551,7 +3555,7 @@ int test_tls12_clear_resets_options(void)
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     ExpectIntEQ(test_tls12_clear_resets_options_ex(0), TEST_SUCCESS);
-#ifndef NO_PSK
+#if !defined(NO_PSK) && defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
     /* A PSK suite leaves different state behind. */
     ExpectIntEQ(test_tls12_clear_resets_options_ex(1), TEST_SUCCESS);
 #endif
@@ -3565,18 +3569,21 @@ int test_tls12_clear_resets_options(void)
 int test_tls_clear_resets_psk_flags(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK) && \
+    (defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256) || \
+     defined(WOLFSSL_TLS13))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     wolfSSL_set_psk_client_callback(ssl_c, test_clear_psk_client_cb);
     wolfSSL_set_psk_server_callback(ssl_s, test_clear_psk_server_cb);
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256"),
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-PSK-AES128-GCM-SHA256"),
                 WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     if (ssl_s != NULL)
@@ -3613,7 +3620,7 @@ int test_tls_clear_resets_psk_flags(void)
     ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s);
     ctx_s = NULL;
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 && BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 */
 
 #ifdef WOLFSSL_TLS13
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
