@@ -772,12 +772,50 @@ const char *wolfSSL_OCSP_cert_status_str(long s)
 int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec)
 {
+#ifndef NO_ASN_TIME
+    int ret = WOLFSSL_SUCCESS;
+    time_t now = wc_Time(0);
+    time_t cmp;
+
+    /* Same semantics as OpenSSL's OCSP_check_validity: sec is the allowed
+     * clock skew and maxsec, when non-negative, the maximum age of thisUpdate.
+     * wolfSSL_X509_cmp_time() returns 0 for a NULL or malformed time. */
+    if (sec < 0)
+        sec = 0;
+
+    cmp = now + sec;
+    if (wolfSSL_X509_cmp_time(thisupd, &cmp) != -1) {
+        WOLFSSL_MSG("OCSP thisUpdate missing, malformed or in the future");
+        ret = WOLFSSL_FAILURE;
+    }
+    else if (maxsec >= 0) {
+        cmp = now - maxsec;
+        if (wolfSSL_X509_cmp_time(thisupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP thisUpdate is too old");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if ((ret == WOLFSSL_SUCCESS) && (nextupd != NULL)) {
+        cmp = now - sec;
+        if (wolfSSL_X509_cmp_time(nextupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP nextUpdate has passed or is malformed");
+            ret = WOLFSSL_FAILURE;
+        }
+        else if (wolfSSL_ASN1_TIME_compare(nextupd, thisupd) < 0) {
+            WOLFSSL_MSG("OCSP nextUpdate precedes thisUpdate");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+#else
     (void)thisupd;
     (void)nextupd;
     (void)sec;
     (void)maxsec;
-    /* Dates validated in DecodeSingleResponse. */
     return WOLFSSL_SUCCESS;
+#endif /* !NO_ASN_TIME */
 }
 
 void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* certId)
