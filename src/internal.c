@@ -5541,6 +5541,8 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
             defined(WOLFSSL_QT)
         XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authInfoCaIssuer = NULL;
+        x509->authInfoCaIssuerSz = 0;
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk, NULL);
         }
