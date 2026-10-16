@@ -43350,8 +43350,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
         if (wolfSSL_EVP_CIPHER_CTX_mode(NULL) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-        if (wolfSSL_EVP_CIPHER_CTX_mode(en) !=
-                (int)(en->flags & WOLFSSL_EVP_CIPH_MODE))
+        if (wolfSSL_EVP_CIPHER_CTX_mode(en) != WOLFSSL_EVP_CIPH_CBC_MODE)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
