@@ -303,8 +303,6 @@
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Task.h>
     #include <ti/sysbios/knl/Semaphore.h>
-#elif defined(WOLFSSL_FROSTED)
-    #include <semaphore.h>
 #elif defined(INTIME_RTOS)
     #include <rt.h>
     #include <io.h>
@@ -491,8 +489,6 @@
         typedef osMutexId_t wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
-    #elif defined(WOLFSSL_FROSTED)
-        typedef mutex_t * wolfSSL_Mutex;
     #elif defined(INTIME_RTOS)
         typedef RTHANDLE wolfSSL_Mutex;
     #elif defined(WOLFSSL_NUCLEUS_1_2)
