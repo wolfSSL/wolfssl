@@ -2898,8 +2898,9 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out,
         }
     }
     if (len != -1) {
-        /* Copy in string - NUL always put on end of stored string. */
-        XMEMCPY(buf, data, (size_t)(len + 1));
+        /* Copy in string and NUL terminate. */
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
         /* Return buffer. */
         *out = buf;
     }
