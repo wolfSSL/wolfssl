@@ -3895,15 +3895,20 @@ void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
     XFREE(t, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
-#ifndef NO_WOLFSSL_STUB
+#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 /* Set the Unix time GMT into ASN.1 TIME object.
  *
- * Not implemented.
- *
- * @param [in, out] a   ASN.1 TIME object.
+ * @param [in, out] a   ASN.1 TIME object. Allocated when NULL.
  * @param [in]      t   Unix time GMT.
- * @return  An ASN.1 TIME object.
+ * @return  An ASN.1 TIME object on success.
+ * @return  NULL on failure.
  */
+WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, time_t t)
+{
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_set");
+    return wolfSSL_ASN1_TIME_adj(a, t, 0, 0);
+}
+#elif !defined(NO_WOLFSSL_STUB)
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, time_t t)
 {
     WOLFSSL_STUB("wolfSSL_ASN1_TIME_set");
@@ -3911,7 +3916,7 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, time_t t)
     (void)t;
     return a;
 }
-#endif /* !NO_WOLFSSL_STUB */
+#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES */
 
 #ifndef NO_ASN_TIME
 /* Convert time to Unix time (GMT).

@@ -1,0 +1,122 @@
+name: tcpdump Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-tcpdump
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v6
+        with:
+          name: wolf-install-tcpdump
+          path: build-dir.tgz
+          retention-days: 5
+
+  tcpdump_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 4.99.6 ]
+    name: ${{ matrix.ref }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    needs: build_wolfssl
+    steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
+      - name: Download lib
+        uses: actions/download-artifact@v7
+        with:
+          name: wolf-install-tcpdump
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: bison flex
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      - name: Checkout OSP
+        uses: actions/checkout@v5
+        with:
+          repository: wolfssl/osp
+          path: osp
+          fetch-depth: 1
+
+      # Ubuntu 24.04 ships libpcap 1.10.4, which reads pcap timestamps as
+      # signed 32-bit values. That breaks the time_2038_overflow, time_2039,
+      # time_2106 and time_2106_max tests. Build libpcap 1.10.5 next to
+      # tcpdump instead; tcpdump's configure picks up ../libpcap on its own.
+      - name: Checkout libpcap
+        uses: actions/checkout@v5
+        with:
+          repository: the-tcpdump-group/libpcap
+          path: libpcap
+          ref: libpcap-1.10.5
+          fetch-depth: 1
+
+      - name: Build libpcap
+        working-directory: libpcap
+        run: |
+          ./autogen.sh
+          ./configure
+          make -j
+
+      - name: Checkout tcpdump
+        uses: actions/checkout@v5
+        with:
+          repository: the-tcpdump-group/tcpdump
+          path: tcpdump
+          ref: tcpdump-${{ matrix.ref }}
+          fetch-depth: 1
+
+      - name: Build and test tcpdump
+        working-directory: tcpdump
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          patch -p1 < $GITHUB_WORKSPACE/osp/tcpdump/${{ matrix.ref }}/tcpdump-${{ matrix.ref }}.patch
+          autoreconf -ivf
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          make -j
+          ldd ./tcpdump | grep wolfssl
+          make check
