@@ -4020,6 +4020,151 @@ int test_wc_AesGcmMixedEncDecLongIV(void)
 
 } /* END wc_AesGcmMixedEncDecLongIV */
 
+/* Hardware accelerators and FIPS mode only support the 12-byte IV, and the
+ * test needs GCM decrypt. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(NO_AES) && \
+    defined(HAVE_AESGCM) && (defined(WOLFSSL_AES_128) || \
+    defined(WOLFSSL_AES_192) || defined(WOLFSSL_AES_256)) && \
+    (defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES)
+#define TEST_AES_GCM_ANY_IV
+#endif
+
+#if defined(TEST_AES_GCM_ANY_IV) && \
+    defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && defined(__GNUC__)
+#define TEST_AES_GCM_DIRTY_NEON
+/* Fill every NEON register with 0xff. Must run in the same function that
+ * makes the GCM call, so the junk is still there when it starts. */
+#define TEST_AES_GCM_FILL_NEON()                                    \
+    __asm__ __volatile__ (                                          \
+        "vmov.i8 q0, #0xff\n\t"  "vmov.i8 q1, #0xff\n\t"            \
+        "vmov.i8 q2, #0xff\n\t"  "vmov.i8 q3, #0xff\n\t"            \
+        "vmov.i8 q4, #0xff\n\t"  "vmov.i8 q5, #0xff\n\t"            \
+        "vmov.i8 q6, #0xff\n\t"  "vmov.i8 q7, #0xff\n\t"            \
+        "vmov.i8 q8, #0xff\n\t"  "vmov.i8 q9, #0xff\n\t"            \
+        "vmov.i8 q10, #0xff\n\t" "vmov.i8 q11, #0xff\n\t"           \
+        "vmov.i8 q12, #0xff\n\t" "vmov.i8 q13, #0xff\n\t"           \
+        "vmov.i8 q14, #0xff\n\t" "vmov.i8 q15, #0xff\n\t"           \
+        :                                                           \
+        :                                                           \
+        : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",           \
+          "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",     \
+          "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",   \
+          "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31")
+
+/* Encrypt with junk in the NEON registers. */
+static WC_NO_INLINE int test_AesGcmEncrypt_DirtyNeon(Aes* aes, byte* out,
+    const byte* in, word32 sz, const byte* iv, word32 ivSz, byte* tag,
+    word32 tagSz, const byte* aad, word32 aadSz)
+{
+    int ret;
+
+    TEST_AES_GCM_FILL_NEON();
+    ret = wc_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad, aadSz);
+    /* Keep this from becoming a tail call, which would restore q6 first. */
+    __asm__ __volatile__ ("" ::: "memory");
+    return ret;
+}
+
+/* Decrypt with junk in the NEON registers. */
+static WC_NO_INLINE int test_AesGcmDecrypt_DirtyNeon(Aes* aes, byte* out,
+    const byte* in, word32 sz, const byte* iv, word32 ivSz, const byte* tag,
+    word32 tagSz, const byte* aad, word32 aadSz)
+{
+    int ret;
+
+    TEST_AES_GCM_FILL_NEON();
+    ret = wc_AesGcmDecrypt(aes, out, in, sz, iv, ivSz, tag, tagSz, aad, aadSz);
+    /* Keep this from becoming a tail call, which would restore q6 first. */
+    __asm__ __volatile__ ("" ::: "memory");
+    return ret;
+}
+#endif
+
+/*
+ * test function for AES-GCM encrypt and decrypt with IVs that are not 12
+ * bytes, run with junk left in the NEON registers on 32-bit Arm.
+ * A 12-byte IV is run too, so the common path gets the same check.
+ */
+int test_wc_AesGcmEncryptDecrypt_NonStdIv(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_AES_GCM_ANY_IV
+    const byte key[AES_256_KEY_SIZE] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    const byte aad[] = {
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xab, 0xad, 0xda, 0xd2
+    };
+    /* Each key size has its own loop in the 32-bit Arm assembly. */
+    static const word32 keySzs[] = {
+    #ifdef WOLFSSL_AES_128
+        AES_128_KEY_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_192
+        AES_192_KEY_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_256
+        AES_256_KEY_SIZE,
+    #endif
+    };
+    static const word32 ivSzs[] = { 1, 8, 12, 13, 16, 20 };
+    Aes aes;
+    byte iv[20];
+    byte in[60];
+    byte out[sizeof(in)];
+    byte plain[sizeof(in)];
+    byte tag[WC_AES_BLOCK_SIZE];
+#ifdef TEST_AES_GCM_DIRTY_NEON
+    byte dirtyOut[sizeof(in)];
+    byte dirtyTag[WC_AES_BLOCK_SIZE];
+#endif
+    word32 k;
+    word32 i;
+    int ret;
+
+    XMEMSET(&aes, 0, sizeof(Aes));
+    XMEMSET(iv, 0x5a, sizeof(iv));
+    for (i = 0; i < (word32)sizeof(in); i++)
+        in[i] = (byte)i;
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    for (k = 0; k < (word32)(sizeof(keySzs) / sizeof(keySzs[0])); k++) {
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, keySzs[k]), 0);
+        for (i = 0; i < (word32)(sizeof(ivSzs) / sizeof(ivSzs[0])); i++) {
+            XMEMSET(plain, 0, sizeof(plain));
+            ExpectIntEQ(wc_AesGcmEncrypt(&aes, out, in, sizeof(in), iv,
+                ivSzs[i], tag, sizeof(tag), aad, sizeof(aad)), 0);
+        #ifdef TEST_AES_GCM_DIRTY_NEON
+            /* Encrypt with junk must match the normal encrypt. */
+            ExpectIntEQ(test_AesGcmEncrypt_DirtyNeon(&aes, dirtyOut, in,
+                sizeof(in), iv, ivSzs[i], dirtyTag, sizeof(dirtyTag), aad,
+                sizeof(aad)), 0);
+            ExpectBufEQ(dirtyOut, out, sizeof(out));
+            ExpectBufEQ(dirtyTag, tag, sizeof(tag));
+            ret = test_AesGcmDecrypt_DirtyNeon(&aes, plain, out, sizeof(out),
+                iv, ivSzs[i], tag, sizeof(tag), aad, sizeof(aad));
+        #else
+            ret = wc_AesGcmDecrypt(&aes, plain, out, sizeof(out), iv,
+                ivSzs[i], tag, sizeof(tag), aad, sizeof(aad));
+        #endif
+            ExpectIntEQ(ret, 0);
+            ExpectBufEQ(plain, in, sizeof(in));
+        }
+    }
+
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_AesGcmEncryptDecrypt_NonStdIv */
+
 /*******************************************************************************
  * AES-GCM non-standard nonce lengths
  ******************************************************************************/
