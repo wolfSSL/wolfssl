@@ -286,6 +286,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
+    byte nonce[WC_AES_BLOCK_SIZE];
+
+    /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
+    if ((aes != NULL) && (aes->nonceSz != 0)) {
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+        return wc_AesSetKey(aes, key, len, nonce, AES_ENCRYPTION);
+    }
     return wc_AesSetKey(aes, key, len, NULL, AES_ENCRYPTION);
 }
 
