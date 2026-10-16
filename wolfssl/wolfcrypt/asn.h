@@ -3445,7 +3445,7 @@ WOLFSSL_LOCAL int wc_SlhDsaParamToOid(enum SlhDsaParam param);
 #ifndef PKCS_MAX_KEY_SIZE
     #define PKCS_MAX_KEY_SIZE    64  /* MAX PKCS Key length */
 #endif
-#if !defined(WOLFSSL_GAME_BUILD) && !defined(MAX_KEY_SIZE)
+#ifndef MAX_KEY_SIZE
     /* for backwards compatibility */
     #define MAX_KEY_SIZE PKCS_MAX_KEY_SIZE
 #endif
