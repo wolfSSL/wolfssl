@@ -1247,6 +1247,9 @@ enum {
 #ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
     #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
 #endif
+#if WOLFSSL_DTLS_FRAG_POOL_SZ > 255
+    #error "WOLFSSL_DTLS_FRAG_POOL_SZ must be at most 255"
+#endif
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
@@ -3277,6 +3280,12 @@ typedef struct Keys {
     w64wrapper curEpoch64;    /* Received epoch in current record    */
     w64wrapper curSeq;
 #endif /* WOLFSSL_DTLS13 */
+    /* Epoch of last processed peer message. Full connection epoch.
+     * RFC 9147, Section 4: The DTLS epoch serialized in DTLSPlaintext is 2
+     * octets long for compatibility with DTLS 1.2. However, this value is set
+     * as the least significant 2 octets of the connection epoch, which is an
+     * 8 octet counter. */
+    w64wrapper dtls_peer_hs_epoch;
 
 #ifdef WOLFSSL_MULTICAST
     byte   curPeerId;   /* Received peer group ID in current record */
@@ -6436,8 +6445,13 @@ typedef struct DtlsMsg {
     byte*           fullMsg;   /* for TX fullMsg == raw. For RX this points to
                                 * the start of the message after headers. */
     DtlsFragBucket* fragBucketList;
+    /* Epoch that this message belongs to. Full connection epoch.
+     * RFC 9147, Section 4: The DTLS epoch serialized in DTLSPlaintext is 2
+     * octets long for compatibility with DTLS 1.2. However, this value is set
+     * as the least significant 2 octets of the connection epoch, which is an
+     * 8 octet counter. */
+    w64wrapper      epoch;
     word32          bytesReceived;
-    word16          epoch;     /* Epoch that this message belongs to */
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
@@ -7940,21 +7954,28 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define DtlsMsgListDelete wolfSSL_DtlsMsgListDelete
+        #define DtlsMsgListPurge wolfSSL_DtlsMsgListPurge
+        #define DtlsMsgListNextReady wolfSSL_DtlsMsgListNextReady
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
     WOLFSSL_TEST_VIS void DtlsMsgListDelete(DtlsMsg* head, void* heap);
+    WOLFSSL_TEST_VIS void DtlsMsgListPurge(WOLFSSL* ssl, int dropUnencrypted);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgListNextReady(WOLFSSL* ssl);
+    WOLFSSL_LOCAL void DtlsMsgListRemove(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
-    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
+    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, w64wrapper epoch,
                                   const byte* data, byte type,
                                   word32 fragOffset, word32 fragSz, void* heap,
                                   word32 totalLen, byte encrypted);
-    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, w64wrapper epoch,
+                                          word32 seq);
 
-    WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
-                                    const byte* data, word32 dataSz, byte type,
+    WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, w64wrapper epoch,
+                                    word32 seq, const byte* data,
+                                    word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
@@ -8315,7 +8336,7 @@ WOLFSSL_TEST_VIS int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper 
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
     word32 inputSize);
 WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input,
-    word16 length);
+    word32 length);
 WOLFSSL_LOCAL int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash,
         int* hashSz, const byte* body, word32 length, CipherSpecs* specs);
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
