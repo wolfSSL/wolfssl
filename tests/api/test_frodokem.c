@@ -920,7 +920,7 @@ int test_wc_frodokem_roundtrip(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -975,7 +975,7 @@ int test_wc_frodokem_encode_decode(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1068,7 +1068,7 @@ int test_wc_frodokem_decap_implicit_reject(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1156,7 +1156,7 @@ int test_wc_frodokem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1225,7 +1225,7 @@ int test_wc_frodokem_decode_privkey_bad_pkh(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
     int i;
     FrodoKemKey* key = NULL;
@@ -1449,7 +1449,7 @@ int test_wc_frodokem_op_len_checks(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1590,7 +1590,7 @@ int test_wc_frodokem_asn1(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
@@ -1780,7 +1780,7 @@ int test_wc_frodokem_key_pem(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_PEM_TO_DER) && \
@@ -1880,7 +1880,7 @@ int test_wc_frodokem_x509(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
     defined(HAVE_ECC) && \
     defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_FRODOKEM_SHAKE) && \
@@ -2000,12 +2000,14 @@ int test_wc_frodokem_cert_file(void)
     } fixtures[] = {
         { "./certs/frodokem/frodokem976-cert.der",  CERT_TYPE,
           FRODOKEM_976_SHAKEk },
-        { "./certs/frodokem/frodokem976-req.der",   CERTREQ_TYPE,
-          FRODOKEM_976_SHAKEk },
         { "./certs/frodokem/frodokem1344-cert.der", CERT_TYPE,
           FRODOKEM_1344_SHAKEk },
+#ifdef WOLFSSL_CERT_REQ
+        { "./certs/frodokem/frodokem976-req.der",   CERTREQ_TYPE,
+          FRODOKEM_976_SHAKEk },
         { "./certs/frodokem/frodokem1344-req.der",  CERTREQ_TYPE,
-          FRODOKEM_1344_SHAKEk }
+          FRODOKEM_1344_SHAKEk },
+#endif
     };
     byte* buf = NULL;
     DecodedCert* dc = NULL;

@@ -65987,11 +65987,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
             }
         }
 #endif /* FRODOKEM_TEST_ASN1 */
+        wc_FrodoKemKey_Free(key);
+        key_inited = 0;
     }
 
-    /* key is freed once at out:, which covers both the normal loop-exit and
-     * the error-break paths. wc_FrodoKemKey_Init zeroizes the object on
-     * re-entry, so no per-iteration free is needed. */
 out:
     if (key_inited)
         wc_FrodoKemKey_Free(key);
