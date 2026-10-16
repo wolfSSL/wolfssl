@@ -79,6 +79,17 @@ int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_pqc_hybrid_malformed_ecdh(void);
 int test_tls13_empty_record_limit(void);
+int test_tls13_send_cover_traffic(void);
+int test_tls13_send_cover_traffic_refused(void);
+int test_tls13_send_cover_traffic_mfl(void);
+int test_tls13_send_cover_traffic_send_cap(void);
+int test_tls13_send_cover_traffic_write_dup(void);
+int test_tls13_send_cover_traffic_null_cipher(void);
+int test_tls13_send_cover_traffic_empty_limit(void);
+int test_tls13_send_cover_traffic_write_dup_errors(void);
+int test_tls13_send_cover_traffic_rekey(void);
+int test_tls13_send_cover_traffic_pha(void);
+int test_tls13_send_cover_traffic_pha_async(void);
 int test_tls13_short_session_ticket(void);
 int test_tls13_zero_length_session_ticket(void);
 int test_tls13_new_session_ticket_max_lifetime(void);
@@ -238,6 +249,17 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_malformed_ecdh), \
     TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic),    \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_refused), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_mfl), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_send_cap), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_write_dup), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_null_cipher), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_empty_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_write_dup_errors), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_rekey), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_pha), \
+    TEST_DECL_GROUP("tls13", test_tls13_send_cover_traffic_pha_async), \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_zero_length_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_lifetime), \
