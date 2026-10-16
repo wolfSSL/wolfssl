@@ -20628,19 +20628,12 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (ConstantCompare(input + *inOutIdx,
                    (const byte*)&ssl->hsHashes->verifyHashes, (int)size) != 0) {
             WOLFSSL_MSG("Verify finished error on hashes");
-#ifdef HAVE_SESSION_TICKET
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT)
             /* Drop the unverified ticket (SetTicket() made the session
              * unique, so this cannot clear one shared with the app). */
             if (ssl->options.side == WOLFSSL_CLIENT_END &&
                     ssl->msgsReceived.got_session_ticket) {
-                ForceZero(ssl->session->ticket, ssl->session->ticketLen);
-                if (ssl->session->ticketLenAlloc > 0) {
-                    XFREE(ssl->session->ticket, ssl->heap,
-                          DYNAMIC_TYPE_SESSION_TICK);
-                    ssl->session->ticket = ssl->session->staticTicket;
-                    ssl->session->ticketLenAlloc = 0;
-                }
-                ssl->session->ticketLen = 0;
+                (void)SetSessionTicket(ssl->session, NULL, 0);
             }
 #endif
             WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
@@ -39848,9 +39841,55 @@ exit_scv:
 
 
 #ifdef HAVE_SESSION_TICKET
+/* Replace the session's ticket. The session is unchanged on failure.
+ *
+ * @param [in, out] session  Session to update.
+ * @param [in]      ticket   Ticket data, may be NULL when length is 0.
+ * @param [in]      length   Length of ticket data in bytes.
+ * @return  0 on success.
+ * @return  MEMORY_ERROR when allocating the ticket buffer fails.
+ */
+int SetSessionTicket(WOLFSSL_SESSION* session, const byte* ticket,
+    word16 length)
+{
+    byte* buf = session->staticTicket;
+    word16 allocSz = 0;
+    word16 staticUsed = length;
+
+    if (length > sizeof(session->staticTicket)) {
+        buf = (byte*)XMALLOC(length, session->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (buf == NULL)
+            return MEMORY_ERROR;
+        allocSz = length;
+        staticUsed = 0;
+    }
+
+    /* Copy first, ticket may point at the current ticket. */
+    if (length > 0) {
+        XMEMMOVE(buf, ticket, length);
+    }
+
+    if (session->ticket != session->staticTicket) {
+        if (session->ticket != NULL) {
+            ForceZero(session->ticket,
+                min(session->ticketLen, session->ticketLenAlloc));
+        }
+        XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
+    }
+    ForceZero(session->staticTicket + staticUsed,
+        sizeof(session->staticTicket) - staticUsed);
+
+    session->ticket = buf;
+    session->ticketLen = length;
+    session->ticketLenAlloc = allocSz;
+
+    return 0;
+}
+
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
     word32 sessIdLen = ID_LEN;
+    int ret;
 
     if (length > WOLFSSL_MAX_16BIT)
         return BUFFER_ERROR;
@@ -39858,33 +39897,13 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     if (!HaveUniqueSessionObj(ssl))
         return MEMORY_ERROR;
 
-    /* Free old dynamic ticket if we already had one */
-    if (ssl->session->ticketLenAlloc > 0) {
-        XFREE(ssl->session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session->ticket = ssl->session->staticTicket;
-        ssl->session->ticketLenAlloc = 0;
-    }
-
-    if (length > sizeof(ssl->session->staticTicket)) {
-        byte* sessionTicket =
-                   (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (sessionTicket == NULL)
-            return MEMORY_E;
-        ssl->session->ticket = sessionTicket;
-        ssl->session->ticketLenAlloc = (word16)length;
-    }
-    ssl->session->ticketLen = (word16)length;
+    ret = SetSessionTicket(ssl->session, ticket, (word16)length);
+    if (ret != 0)
+        return ret;
 
     if (length > 0) {
         if (length < ID_LEN)
             sessIdLen = length;
-        XMEMCPY(ssl->session->ticket, ticket, length);
-        if (ssl->session_ticket_cb != NULL) {
-            ssl->session_ticket_cb(ssl,
-                                   ssl->session->ticket,
-                                   ssl->session->ticketLen,
-                                   ssl->session_ticket_ctx);
-        }
         /* Create a fake sessionID based on the ticket, this will
          * supersede the existing session cache info. */
         ssl->options.haveSessionId = 1;
@@ -39912,6 +39931,13 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
                                  ssl->session->ticket + length - sessIdLen,
                                  sessIdLen);
             ssl->arrays->sessionIDSz = ID_LEN;
+        }
+        /* Invoke callback at the end, after ticket is fully processed. */
+        if (ssl->session_ticket_cb != NULL) {
+            ssl->session_ticket_cb(ssl,
+                                   ssl->session->ticket,
+                                   ssl->session->ticketLen,
+                                   ssl->session_ticket_ctx);
         }
     }
 

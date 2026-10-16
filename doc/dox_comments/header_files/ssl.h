@@ -13527,9 +13527,9 @@ int wolfSSL_get_SessionTicket(WOLFSSL* ssl, unsigned char* buf, word32* bufSz);
     The function returned without errors.
     \return BAD_FUNC_ARG returned if the WOLFSSL structure is NULL. This will
     also be thrown if the buf argument is NULL but the bufSz argument
-    is not zero.
+    is not zero, or if bufSz is larger than 65535.
     \return MEMORY_ERROR will be returned when the ticket cannot be
-    allocated.
+    allocated. The previous ticket is kept.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param buf a byte pointer that gets loaded into the ticket member

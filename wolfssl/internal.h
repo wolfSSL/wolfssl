@@ -7765,6 +7765,8 @@ WOLFSSL_LOCAL int CipherRequires(byte first, byte second, int requirement);
 WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 
+WOLFSSL_LOCAL int SetSessionTicket(WOLFSSL_SESSION* session,
+    const byte* ticket, word16 length);
 WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
 WOLFSSL_TEST_VIS int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
         int isEncrypted);
