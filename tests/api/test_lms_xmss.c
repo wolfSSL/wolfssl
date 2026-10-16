@@ -2337,6 +2337,34 @@ int test_wc_LmsDecisionCoverage(void)
         ExpectIntEQ(wc_LmsKey_Sign(&key, ssig, &ssigSz, smsg, -1),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
+
+    /* wc_LmsKey_SigsLeft: NULL, a key with no parameters set and a
+     * verify-only key report no signatures left. No keygen needed. */
+    ExpectIntEQ(wc_LmsKey_SigsLeft(NULL), 0);
+    {
+        LmsKey bare;
+        XMEMSET(&bare, 0, sizeof(bare));
+        ExpectIntEQ(wc_LmsKey_Init(&bare, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_LmsKey_SigsLeft(&bare), 0);
+        wc_LmsKey_Free(&bare);
+    }
+#if !defined(WOLFSSL_NO_LMS_SHA256_256)
+    {
+        /* HSS public key: L=1 || LMS_SHA256_M32_H5 || LMOTS_SHA256_N32_W8 ||
+         * I || T[1]. */
+        LmsKey vkey;
+        byte   pub[60];
+        XMEMSET(&vkey, 0, sizeof(vkey));
+        XMEMSET(pub, 0, sizeof(pub));
+        pub[3]  = 1;
+        pub[7]  = LMS_SHA256_M32_H5;
+        pub[11] = LMOTS_SHA256_N32_W8;
+        ExpectIntEQ(wc_LmsKey_Init(&vkey, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_LmsKey_ImportPubRaw(&vkey, pub, sizeof(pub)), 0);
+        ExpectIntEQ(wc_LmsKey_SigsLeft(&vkey), 0);
+        wc_LmsKey_Free(&vkey);
+    }
+#endif
 #endif /* !WOLFSSL_LMS_VERIFY_ONLY */
 
     wc_LmsKey_Free(&key);

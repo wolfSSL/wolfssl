@@ -59,7 +59,7 @@
     安全性は完全に失われます。
 
     1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
-    残りの回数はwc_LmsKey_SigsLeft()で問い合わせてください。
+    署名が残っているかどうかはwc_LmsKey_SigsLeft()で問い合わせてください。
 
     \defgroup XMSS アルゴリズム - XMSS / XMSS^MT (RFC 8391)
     XMSS(eXtended Merkle Signature Scheme)とそのマルチツリー版である
@@ -71,7 +71,7 @@
     ワンタイム鍵を再利用すると、この方式の安全性は完全に失われます。
 
     1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
-    残りの回数はwc_XmssKey_SigsLeft()で問い合わせてください。
+    署名が残っているかどうかはwc_XmssKey_SigsLeft()で問い合わせてください。
 
     \defgroup ECCSI_Overview ECC​​SIの概要
     ECCSI(楕円曲線ベースの証明書レス署名によるアイデンティティベース暗号化)は、RFC 6507(https://tools.ietf.org/html/rfc6507)で規定されています。
