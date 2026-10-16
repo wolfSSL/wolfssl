@@ -69336,8 +69336,8 @@ free_level:
  * runs in WOLFSSL_MLKEM_NO_MAKE_KEY builds too, which is exactly what that key
  * format was chosen for. */
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
-    defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    !defined(NO_ASN) && !defined(NO_CERTS) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
 
 #if !defined(WC_NO_RNG) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -70146,8 +70146,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
-    defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    !defined(NO_ASN) && !defined(NO_CERTS) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
     ret = mlkem_cert_test();
     if (ret != 0)
         goto out;
