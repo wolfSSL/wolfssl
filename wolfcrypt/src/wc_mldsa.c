@@ -13559,6 +13559,10 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
+    /* A callback reads WC_HASH_TYPE_NONE as pure ML-DSA, so reject it. */
+    if ((ret == 0) && (hashAlg == WC_HASH_TYPE_NONE)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -13978,6 +13982,10 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* A callback reads WC_HASH_TYPE_NONE as pure ML-DSA, so reject it. */
+    if ((ret == 0) && (hashAlg == WC_HASH_TYPE_NONE)) {
         ret = BAD_FUNC_ARG;
     }
 
