@@ -338,7 +338,6 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/wolfcrypt/port/af_alg/wc_afalg.h \
 	wolfssl/wolfcrypt/port/aria/aria-crypt.h \
 	wolfssl/wolfcrypt/port/aria/aria-cryptocb.h \
-	wolfssl/wolfcrypt/port/arm/cryptoCell.h \
 	wolfssl/wolfcrypt/port/atmel/atmel.h \
 	wolfssl/wolfcrypt/port/autosar/CryIf.h \
 	wolfssl/wolfcrypt/port/autosar/Crypto.h \

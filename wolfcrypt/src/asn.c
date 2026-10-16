@@ -260,7 +260,7 @@ ASN Options:
 
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
-    #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+    #if defined(WOLFSSL_XILINX_CRYPT)
         extern int wc_InitRsaHw(RsaKey* key);
     #endif
 #endif
