@@ -2897,8 +2897,9 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *asn1)
         }
     }
     if (len != -1) {
-        /* Copy in string - NUL always put on end of stored string. */
-        XMEMCPY(buf, data, (size_t)(len + 1));
+        /* Copy in string and NUL terminate - data may not be NUL terminated. */
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
         /* Return buffer. */
         *out = buf;
     }
@@ -3640,10 +3641,12 @@ static int wolfssl_asn1_string_print_esc_2253(WOLFSSL_BIO *bio,
     WOLFSSL_ASN1_STRING *str)
 {
     char* p;
+    int i;
     int str_len = 0;
 
-    /* Write all of string character by character. */
-    for (p = str->data; (*p) != '\0'; p++) {
+    /* Write all of string character by character.
+     * Use length as data is not necessarily NUL terminated. */
+    for (p = str->data, i = 0; i < str->length; p++, i++) {
         /* Check if character needs escaping. */
         if (wolfssl_check_esc_char(*p)){
             /* Update count of written characters. */
