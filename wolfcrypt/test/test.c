@@ -99547,7 +99547,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
         /* Encapsulate and decapsulate resolve through the finder the same way,
-         * so a lookup regression in either cannot hide behind keygen. */
+         * so a lookup regression in either cannot hide behind keygen. The
+         * callback restores the key's device id, so clear it each time. */
         if (ret == 0) {
             byte* ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
                 DYNAMIC_TYPE_TMP_BUFFER);
@@ -99571,6 +99572,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
                     ret = WC_TEST_RET_ENC_EC(r);
             }
             if (ret == 0) {
+                key->devId = INVALID_DEVID;
                 myCryptoCbFindInvalidLeft = 1;
                 r = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
                 myCryptoCbFindInvalidLeft = 0;
@@ -99580,6 +99582,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
                     ret = WC_TEST_RET_ENC_NC;
             }
             if (ret == 0) {
+                key->devId = INVALID_DEVID;
                 myCryptoCbFindInvalidLeft = 1;
                 r = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
                 myCryptoCbFindInvalidLeft = 0;
