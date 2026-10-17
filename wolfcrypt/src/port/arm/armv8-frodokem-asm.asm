@@ -23,7 +23,7 @@
 ;   cd ../scripts
 ;   ruby ./frodokem/frodokem.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-frodokem-asm.asm
-	IF :DEF:WOLFSSL_HAVE_FRODOKEM
+	IF :DEF:WOLFSSL_HAVE_FRODOKEM :LAND: :LNOT::DEF:WOLF_CRYPTO_CB_ONLY_FRODOKEM
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_sha3_aarch64_r
@@ -1348,7 +1348,7 @@ L_frodokem_mul_add_sb_plus_e_neon_j
 	ret
 	ENDP
 	ENDIF
-	IF :DEF:WOLFSSL_HAVE_FRODOKEM
+	IF :DEF:WOLFSSL_HAVE_FRODOKEM :LAND: :LNOT::DEF:WOLF_CRYPTO_CB_ONLY_FRODOKEM
 ; 	.arch	armv8-a+crypto
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
