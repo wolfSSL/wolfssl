@@ -69328,6 +69328,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
+        wc_MlKemKey_Free(key);
         ret = wc_MlKemKey_Init(key, testData[i][0], HEAP_HINT, devId);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -69354,6 +69355,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (XMEMCMP(pub, pub2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
+        wc_MlKemKey_Free(key);
         ret = wc_MlKemKey_Init(key, testData[i][0], HEAP_HINT, devId);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -69402,6 +69404,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 #endif
 #endif
+        wc_MlKemKey_Free(key);
+        key_inited = 0;
     }
 
 #if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && \
