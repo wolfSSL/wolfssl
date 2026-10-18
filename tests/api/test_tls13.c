@@ -5766,11 +5766,23 @@ int test_tls13_multi_pqc_key_share(void)
         ECC_MIN_KEY_SZ <= 384
         #define TEST_TLS13_BAD_KS_SECP384R1MLKEM1024
     #endif
+    #if defined(WOLFSSL_EXTRA_PQC_HYBRIDS) && \
+        !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448) && \
+        ECC_MIN_KEY_SZ <= 448
+        #define TEST_TLS13_BAD_KS_X448MLKEM768
+    #endif
     #if defined(TEST_TLS13_BAD_KS_ML_KEM_768) || \
         defined(TEST_TLS13_BAD_KS_X25519MLKEM768) || \
         defined(TEST_TLS13_BAD_KS_SECP256R1MLKEM768) || \
-        defined(TEST_TLS13_BAD_KS_SECP384R1MLKEM1024)
+        defined(TEST_TLS13_BAD_KS_SECP384R1MLKEM1024) || \
+        defined(TEST_TLS13_BAD_KS_X448MLKEM768)
         #define TEST_TLS13_MLKEM_BAD_KEY_SHARE_ENABLED
+    #endif
+    /* Plain X448 uses the helpers below, which need one of the ML-KEM
+     * groups. */
+    #if defined(TEST_TLS13_MLKEM_BAD_KEY_SHARE_ENABLED) && \
+        defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
+        #define TEST_TLS13_BAD_KS_X448
     #endif
 #endif
 
@@ -6009,6 +6021,53 @@ static int test_tls13_x25519_low_order_key_share(int devId)
 }
 #endif
 
+#ifdef TEST_TLS13_BAD_KS_X448
+/* The X448 inputs that give an all-zero shared secret: u = 0, 1 and p-1, and
+ * the non-canonical encodings p and p+1 of 0 and 1 (p = 2^448 - 2^224 - 1).
+ * wc_curve448_check_public() rejects all of them, so they are reported as a
+ * bad peer key and answered with illegal_parameter. */
+static int test_tls13_x448_low_order_key_share(void)
+{
+    EXPECT_DECLS;
+    byte lowOrder[5][CURVE448_PUB_KEY_SIZE];
+    int bad = WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR);
+    int i;
+
+    /* Little-endian encodings; lowOrder[0] is 0. */
+    XMEMSET(lowOrder, 0, sizeof(lowOrder));
+    /* 1 */
+    lowOrder[1][0] = 0x01;
+    /* p-1 */
+    XMEMSET(lowOrder[2], 0xff, CURVE448_PUB_KEY_SIZE);
+    lowOrder[2][0] = 0xfe;
+    lowOrder[2][28] = 0xfe;
+    /* p */
+    XMEMSET(lowOrder[3], 0xff, CURVE448_PUB_KEY_SIZE);
+    lowOrder[3][28] = 0xfe;
+    /* p+1 */
+    XMEMSET(lowOrder[4] + 28, 0xff, CURVE448_PUB_KEY_SIZE - 28);
+
+    for (i = 0; i < (int)(sizeof(lowOrder) / sizeof(lowOrder[0])); i++) {
+    #ifdef TEST_TLS13_BAD_KS_X448MLKEM768
+        /* The X448 part follows the 1184 byte ML-KEM-768 encapsulation key
+         * in the ClientHello and the 1088 byte ciphertext in the
+         * ServerHello. */
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(
+            WOLFSSL_X448MLKEM768, 1, -1, 0, 1184, lowOrder[i],
+            CURVE448_PUB_KEY_SIZE, INVALID_DEVID, bad), TEST_SUCCESS);
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(
+            WOLFSSL_X448MLKEM768, 0, -1, 0, 1088, lowOrder[i],
+            CURVE448_PUB_KEY_SIZE, INVALID_DEVID, bad), TEST_SUCCESS);
+    #endif
+        /* A plain X448 ServerHello takes the same path. */
+        ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_ECC_X448,
+            0, -1, 0, 0, lowOrder[i], CURVE448_PUB_KEY_SIZE, INVALID_DEVID,
+            bad), TEST_SUCCESS);
+    }
+    return EXPECT_RESULT();
+}
+#endif
+
 /* kemOff: where the ML-KEM part starts in both key shares.
  * eccLen: bytes of ECDH public key in each share, 0 for pure ML-KEM. */
 static int test_tls13_mlkem_bad_key_share_group(int group, int kemOff,
@@ -6083,6 +6142,13 @@ int test_tls13_mlkem_bad_key_share(void)
 #ifdef TEST_TLS13_BAD_KS_SECP384R1MLKEM1024
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(
         WOLFSSL_SECP384R1MLKEM1024, 97, 97), TEST_SUCCESS);
+#endif
+#ifdef TEST_TLS13_BAD_KS_X448MLKEM768
+    ExpectIntEQ(test_tls13_mlkem_bad_key_share_group(WOLFSSL_X448MLKEM768, 0,
+        CURVE448_PUB_KEY_SIZE), TEST_SUCCESS);
+#endif
+#ifdef TEST_TLS13_BAD_KS_X448
+    ExpectIntEQ(test_tls13_x448_low_order_key_share(), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
