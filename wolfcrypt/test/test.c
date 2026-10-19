@@ -5172,6 +5172,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t flags_test(void)
         WCF(WC_PK_TYPE_ED448_MAKE_PUB),
         WCF(WC_PK_TYPE_ED448_CHECK_KEY),
         WCF(WC_PK_TYPE_ED448_KEYGEN),
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_SLHDSA)
+        WCF(WC_PK_TYPE_PQC_SIG_MAKE_PUB),
+#endif
         };
         lret = wcflags_check_distinct("wc_PkType", wc_PkType_tab,
             (int)(sizeof(wc_PkType_tab)/sizeof(wc_PkType_tab[0])));
