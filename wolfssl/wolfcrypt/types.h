@@ -2539,6 +2539,23 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         struct wc_static_assert_dummy_struct
 #endif
 
+/* WC_ASSUME(expr) tells an optimizing compiler that expr is always true, so it
+ * can use it, for example to bound a value. The compiler removes the check, so
+ * no code is added. expr must never be false, or behavior is undefined. It
+ * does nothing at -O0, where the check would stay as a branch. Define
+ * WC_NO_ASSUME to turn it off, or define WC_ASSUME to supply your own. */
+#if defined(WC_NO_ASSUME)
+    #define WC_ASSUME(expr) WC_DO_NOTHING
+#elif !defined(WC_ASSUME)
+    #if defined(__OPTIMIZE__) && (defined(__clang__) || \
+        (defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 5)))
+        #define WC_ASSUME(expr) \
+            do { if (!(expr)) __builtin_unreachable(); } while (0)
+    #else
+        #define WC_ASSUME(expr) WC_DO_NOTHING
+    #endif
+#endif
+
 #ifndef WC_RELAX_LONG_LOOP
     #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
 #endif
