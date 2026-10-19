@@ -336,5 +336,80 @@ static WC_INLINE int test_pkcs8_patch_version_byte(byte* der, word32 derSz,
 }
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+
+/* Whether the build can derive a P-256 public point from its scalar.
+ *
+ * Returns 1 when it can, and 0 for the errors that mean the build or device
+ * has no P-256 derivation, so the caller skips. Any other error returns -1,
+ * so the caller fails instead of skipping. */
+static WC_INLINE int test_ecc_can_derive_pub(void)
+{
+    static const byte priv[32] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20
+    };
+    ecc_key key;
+    int ret;
+
+    if (wc_ecc_init(&key) != 0) {
+        return -1;
+    }
+    ret = wc_ecc_import_private_key_ex(priv, (word32)sizeof(priv), NULL, 0,
+        &key, ECC_SECP256R1);
+    if (ret == 0) {
+        ret = wc_ecc_make_pub(&key, NULL);
+    }
+    wc_ecc_free(&key);
+
+    if (ret == 0) {
+        return 1;
+    }
+    if ((ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) ||
+            (ret == WC_NO_ERR_TRACE(NO_VALID_DEVID)) ||
+            (ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E))) {
+        return 0;
+    }
+    return -1;
+}
+
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN)
+/* Encode the P-256 client key as SEC1 without its public point, the form
+ * wc_EccPrivateKeyToDer() emits. pub, when not NULL, gets the X9.63 point the
+ * key should derive.
+ *
+ * Returns the DER size, or a negative error. */
+static WC_INLINE int test_ecc_priv_only_der(byte* der, word32 derSz,
+    byte* pub, word32* pubSz)
+{
+    ecc_key key;
+    word32 idx = 0;
+    int ret;
+
+    ret = wc_ecc_init(&key);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &key,
+        (word32)sizeof_ecc_clikey_der_256);
+    if ((ret == 0) && (pub != NULL)) {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963(&key, pub, pubSz);
+        PRIVATE_KEY_LOCK();
+    }
+    if (ret == 0) {
+        ret = wc_EccPrivateKeyToDer(&key, der, derSz);
+    }
+    wc_ecc_free(&key);
+    return ret;
+}
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN */
+#endif
+
 #endif /* WOLFCRYPT_TEST_API_H */
 
