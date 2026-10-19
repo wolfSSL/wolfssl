@@ -34,6 +34,7 @@
 #include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_dtls.h>
+#include <tests/swdev/swdev_loader.h>
 
 /* Cast used to make send()/recv() buffer arguments portable between
  * Windows (char*) and POSIX (void*). Mirrors the private macro in
@@ -6836,8 +6837,9 @@ static int test_dtls13_rx_list_epoch_boundary(w64wrapper epoch)
         test_dtls13_renumber_traffic0(ssl_c, epoch);
         test_dtls13_renumber_traffic0(ssl_s, epoch);
     }
-    /* A device makes the client store even complete in-order messages */
-    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, 0x7e57), WOLFSSL_SUCCESS);
+    /* A device makes the client store even complete in-order messages.
+     * swdev does the crypto in callback only builds. */
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, WC_SWDEV_ID), WOLFSSL_SUCCESS);
 
     for (i = 0; i < 2; i++) {
         ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
