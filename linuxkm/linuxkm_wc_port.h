@@ -1265,7 +1265,8 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
-#if defined(CONFIG_X86_32) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+#if defined(CONFIG_X86_32) && defined(CONFIG_SMP) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
     /* this_cpu_read() expands the generic 8-byte read, whose nested __ret
      * locals shadow (linux-4.19.325 asm-generic/percpu.h:121,139). */
     #undef raw_smp_processor_id
