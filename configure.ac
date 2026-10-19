@@ -9405,6 +9405,10 @@ then
         break;;
       esac
     done
+    case "$ENABLED_ENTROPY_MEMUSE" in
+      *thread*amd-aperf*|*amd-aperf*thread*)
+        AC_MSG_ERROR([--enable-wolfEntropy: thread and amd-aperf cannot be combined.]) ;;
+    esac
 fi
 
 if (test "$ENABLED_RNG" = "yes" && test "$ENABLED_ENTROPY_MEMUSE" != "no") || test "$ENABLED_BENCHMARK" = "yes"
