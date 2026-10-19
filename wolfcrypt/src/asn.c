@@ -10046,7 +10046,8 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                         WOLFSSL_ERROR_VERBOSE(ret);
                     }
                 }
-                ForceZero(privDer, privSz);
+                /* All of privDer, so the compiler knows the length fits. */
+                ForceZero(privDer, MAX_ECC_BYTES);
             }
         }
         else {

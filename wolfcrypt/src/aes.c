@@ -16365,7 +16365,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+    wc_MemZero_Add("wc_AesCcmEncrypt B", ab.b, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_PUSH;
@@ -16375,7 +16375,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     ret = wc_AesEncrypt(aes, ab.b, ab.a);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
-        wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
+        wc_MemZero_Add("wc_AesCcmEncrypt A", ab.a, sizeof(ab.a));
 #endif
 
     if ((ret == 0) && (authInSz > 0))
@@ -16541,8 +16541,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     ab.b[15] = 1;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
-    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+    wc_MemZero_Add("wc_AesCcmEncrypt A", ab.a, sizeof(ab.a));
+    wc_MemZero_Add("wc_AesCcmEncrypt B", ab.b, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_PUSH;
