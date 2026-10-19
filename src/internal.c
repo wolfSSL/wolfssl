@@ -16416,6 +16416,49 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
 }
 #endif /* WOLFSSL_ACERT */
 
+#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* Verify result for a failed revocation check. */
+int RevocationVerifyErr(int err)
+{
+    int x509Err;
+
+    if (err == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED))
+        return WOLFSSL_X509_V_ERR_CERT_REVOKED;
+    x509Err = GetX509Error(err);
+    /* GetX509Error() returns an error it has no mapping for unchanged. */
+    if (err != 0 && x509Err == err)
+        x509Err = WOLFSSL_X509_V_ERR_CERT_REJECTED;
+    return x509Err;
+}
+#endif
+
+/* Record err as the verify result unless an earlier error is there. */
+void SetRevocationVerifyRet(WOLFSSL* ssl, int err)
+{
+#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    if (ssl->peerVerifyRet == 0)
+        ssl->peerVerifyRet = RevocationVerifyErr(err);
+#else
+    (void)ssl;
+    (void)err;
+#endif
+}
+
+/* Returns 1 when err is a CRL failure that WOLFSSL_VERIFY_NONE waives. */
+int CrlErrWaived(const WOLFSSL* ssl, int err)
+{
+    if (ssl->options.verifyNone &&
+            (err == WC_NO_ERR_TRACE(CRL_MISSING) ||
+             err == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
+             err == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
+        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
+        return 1;
+    }
+    return 0;
+}
+
 #if defined(HAVE_OCSP) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                           defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
 /* Revocation check for a chain certificate at staple index idx that the peer
@@ -16450,16 +16493,14 @@ int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request, int idx)
      * certificate has left once OCSP has not answered for it. */
     if (!ocspAnswered && SSL_CM(ssl)->crlEnabled && SSL_CM(ssl)->crlCheckAll &&
             idx >= 1 && idx < 1 + MAX_CHAIN_DEPTH &&
+        #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+            !ssl->deferredChainCrlSkipped[idx] &&
+        #endif
             (ret == 0 || ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN))) {
         ret = ssl->deferredChainCrlRet[idx];
     }
-    if (ssl->options.verifyNone &&
-                      (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
-                       ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
-                       ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
-        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
+    if (CrlErrWaived(ssl, ret))
         ret = 0;
-    }
 #else
     (void)idx;
 #endif
@@ -16467,15 +16508,7 @@ int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request, int idx)
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
         WOLFSSL_MSG("\tNon Leaf revocation check not ok");
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        if (ssl->peerVerifyRet == 0) {
-            ssl->peerVerifyRet =
-                (ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED) ||
-                 ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))
-                    ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                    : WOLFSSL_X509_V_ERR_CERT_REJECTED;
-        }
-#endif
+        SetRevocationVerifyRet(ssl, ret);
     }
 #ifdef WOLFSSL_NONBLOCK_OCSP
     else if (idx >= 0 && idx < 1 + MAX_CHAIN_DEPTH) {
@@ -17124,6 +17157,38 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     return ret;
 }
 
+#if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                          defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+/* Offer a CRL error held for a staple to the verify callback, and store its
+ * verdict there. Returns the certificate's verdict without that error. */
+static int DoHeldCrlVerifyCallback(WOLFSSL* ssl, ProcPeerCertArgs* args,
+    int* heldCrlRet)
+{
+    int ret = 0;
+    int cbRet;
+    word16 verifyErr = args->verifyErr;
+
+    args->verifyErr = 0;
+    cbRet = DoVerifyCallback(SSL_CM(ssl), ssl, *heldCrlRet, args);
+    if (cbRet != 0 && cbRet != *heldCrlRet) {
+        ret = cbRet;
+    }
+    else if (args->verifyErr) {
+        /* A staple may still answer for the CRL error, but not for a
+         * rejection on other grounds, so ask about the certificate alone. */
+        args->verifyErr = 0;
+        ret = DoVerifyCallback(SSL_CM(ssl), ssl, 0, args);
+    }
+    else {
+        *heldCrlRet = cbRet;
+    }
+    if (verifyErr)
+        args->verifyErr = 1;
+
+    return ret;
+}
+#endif
+
 #ifdef HAVE_CRL
 void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         ProcPeerCertArgs* args, int* outRet)
@@ -17150,7 +17215,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         if (ret == 1 && userCrl != NULL) {
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
-            *outRet = CheckCertCRL(userCrl, args->dCert);
+            *outRet = CheckCertCRLSync(userCrl, args->dCert);
         }
         else
             *outRet = CRL_MISSING;
@@ -17914,6 +17979,16 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
     }
     return ret;
 }
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+/* Returns 1 when the CRL walk from ca reads more than the CRL ca issued. */
+static int ChainCRLCheckPastIssuer(const Signer* ca)
+{
+    return ca != NULL && XMEMCMP(ca->subjectNameHash, ca->issuerNameHash,
+        SIGNER_DIGEST_SIZE) != 0;
+}
+#endif
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -18135,30 +18210,6 @@ exit_req_v2:
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
-#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-/* Verify result for a failed revocation check, 0 for any other error. */
-static int RevocationVerifyErr(int err)
-{
-    switch (err) {
-        case WC_NO_ERR_TRACE(OCSP_CERT_REVOKED):
-        case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
-            return WOLFSSL_X509_V_ERR_CERT_REVOKED;
-        case WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN):
-        case WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL):
-        case WC_NO_ERR_TRACE(OCSP_NEED_URL):
-        case WC_NO_ERR_TRACE(HTTP_TIMEOUT):
-        case WC_NO_ERR_TRACE(OCSP_INVALID_STATUS):
-        case WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR):
-        case WC_NO_ERR_TRACE(CRL_MISSING):
-        case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
-            return WOLFSSL_X509_V_ERR_CERT_REJECTED;
-        default:
-            return 0;
-    }
-}
-#endif
-
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
 /* Perform OCSP/CRL revocation checking on the leaf (peer) certificate.
  * Stores the verification result in *pRet. Returns 1 if the caller should
@@ -18260,15 +18311,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Lookup not ok");
             args->fatal = 0;
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            if (ssl->peerVerifyRet == 0) {
-                /* Return first cert error here */
-                ssl->peerVerifyRet =
-                    ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED)
-                    ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                    : WOLFSSL_X509_V_ERR_CERT_REJECTED;
-            }
-        #endif
+            SetRevocationVerifyRet(ssl, ret);
         }
     }
     #endif /* HAVE_OCSP */
@@ -18276,7 +18319,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
     #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
     /* Take the verdict now, while the DecodedCert backing it is alive. On
-     * TLS 1.3 only for a leaf its staple answered; the rest decide below. */
+     * TLS 1.3 only once a staple or a lookup answered for the leaf. */
     if (stapleDeferred && SSL_CM(ssl)->crlEnabled &&
             ssl->options.side == WOLFSSL_CLIENT_END
         #ifdef WOLFSSL_TLS13
@@ -18295,22 +18338,35 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
     #endif
         if (crlRet != 0)
             DoCrlCallback(SSL_CM(ssl), ssl, args, &crlRet);
-        if (ssl->options.verifyNone &&
-                          (crlRet == WC_NO_ERR_TRACE(CRL_MISSING) ||
-                           crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
-                           crlRet == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
-            WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
-            crlRet = 0;
+        /* No staple covers the CAs above the peer's chain, so their verdict
+         * stands whatever the leaf's staple says. */
+        if (crlRet != WC_NO_ERR_TRACE(CRL_CERT_REVOKED) &&
+                SSL_CM(ssl)->crlCheckAll && args->totalCerts == 1 &&
+                args->dCert->ca != NULL &&
+                (crlRet == 0 || ChainCRLCheckPastIssuer(args->dCert->ca))) {
+            int caRet = ProcessPeerCertsChainCRLCheck(ssl, args);
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            if (caRet == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+                *pRet = caRet;
+                return 1;
+            }
+        #endif
+            if (caRet != 0) {
+                ret = caRet;
+                args->fatal = 0;
+                WOLFSSL_ERROR_VERBOSE(ret);
+                WOLFSSL_MSG("\tCRL chain check not ok");
+                SetRevocationVerifyRet(ssl, ret);
+            }
         }
+        if (CrlErrWaived(ssl, crlRet))
+            crlRet = 0;
         /* No staple can overturn a revocation, so it fails the leaf now. */
         if (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) {
             ret = crlRet;
             args->fatal = 0;
             WOLFSSL_ERROR_VERBOSE(ret);
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            if (ssl->peerVerifyRet == 0)
-                ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REVOKED;
-        #endif
+            SetRevocationVerifyRet(ssl, ret);
         }
         /* TLS 1.3 has no ServerHelloDone to hold the rest for. */
         else if (!ssl->options.tls1_3
@@ -18345,15 +18401,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
         if (ret != 0) {
             WOLFSSL_MSG("\tCRL check not ok");
             args->fatal = 0;
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            if (ssl->peerVerifyRet == 0) {
-                /* Return first cert error here */
-                ssl->peerVerifyRet =
-                        ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)
-                            ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                            : WOLFSSL_X509_V_ERR_CERT_REJECTED;
-            }
-        #endif
+            SetRevocationVerifyRet(ssl, ret);
         }
     }
     if ((ret == 0 || ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN))
@@ -18372,6 +18420,7 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
                 WOLFSSL_ERROR_VERBOSE(ret);
                 WOLFSSL_MSG("\tCRL chain check not ok");
                 args->fatal = 0;
+                SetRevocationVerifyRet(ssl, ret);
             }
         }
         else {
@@ -19129,6 +19178,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->deferredCrlDone = 0;
         XMEMSET(ssl->deferredChainCrlRet, 0,
                 sizeof(ssl->deferredChainCrlRet));
+    #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+        XMEMSET(ssl->deferredChainCrlSkipped, 0,
+                sizeof(ssl->deferredChainCrlSkipped));
+    #endif
     #endif
     #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
         (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
@@ -19488,6 +19541,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
                 #endif
+                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                    int holdCrl = 0;
+                    int heldCrlRet = 0;
+                #endif
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -19643,11 +19702,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (SSL_CM(ssl)->crlEnabled &&
                                 SSL_CM(ssl)->crlCheckAll) {
                             int doCrlLookup = 1;
-                        #if defined(HAVE_OCSP) && \
-                          (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                           defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                            int certCrlRet = 0;
-                        #endif
 
                         #ifdef HAVE_OCSP
                             if (SSL_CM(ssl)->ocspEnabled &&
@@ -19685,12 +19739,30 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             #if defined(HAVE_OCSP) && \
                               (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
                                defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                                /* The CA walk below reports on certificates of
-                                 * its own, so hold this one's verdict now. */
-                                certCrlRet = ret;
+                                /* Held back for the fallback, which only
+                                 * runs when OCSP can still answer for this. */
+                                if (ocspStapleDeferred &&
+                                        SSL_CM(ssl)->ocspEnabled &&
+                                        SSL_CM(ssl)->ocspCheckAll) {
+                                    holdCrl = 1;
+                                    if (ret != WC_NO_ERR_TRACE(
+                                                CRL_CERT_REVOKED)) {
+                                        heldCrlRet = ret;
+                                        ret = 0;
+                                    }
+                                }
                             #endif
+                                /* No staple covers the CAs above the chain. */
                                 if (ret == 0 &&
-                                        args->certIdx == args->totalCerts-1) {
+                                        args->certIdx == args->totalCerts-1
+                                #if defined(HAVE_OCSP) && \
+                                  (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                                   defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                                        && (heldCrlRet == 0 ||
+                                            ChainCRLCheckPastIssuer(
+                                                args->dCert->ca))
+                                #endif
+                                        ) {
                                     ret = ProcessPeerCertsChainCRLCheck(ssl,
                                             args);
                                 #ifdef WOLFSSL_NONBLOCK_OCSP
@@ -19706,27 +19778,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                         args->fatal = 0;
                                     }
                                 }
-                            #if defined(HAVE_OCSP) && \
-                              (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                               defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-                                /* Held back for the fallback, which only
-                                 * runs when OCSP can still answer for this. */
-                                if (ocspStapleDeferred &&
-                                        SSL_CM(ssl)->ocspEnabled &&
-                                        SSL_CM(ssl)->ocspCheckAll) {
-                                    int csrIdx = args->certIdx;
-
-                                    if (csrIdx >= 1 &&
-                                            csrIdx < 1 + MAX_CHAIN_DEPTH) {
-                                        ssl->deferredChainCrlRet[csrIdx] =
-                                            certCrlRet;
-                                    }
-                                    if (ret != WC_NO_ERR_TRACE(
-                                                CRL_CERT_REVOKED)) {
-                                        ret = 0;
-                                    }
-                                }
-                            #endif
                             }
                         }
                 #endif /* HAVE_CRL */
@@ -19829,22 +19880,40 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
-                #if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && \
-                    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-                    /* Return first cert error here */
-                    if (ssl->peerVerifyRet == 0)
-                        ssl->peerVerifyRet = RevocationVerifyErr(ret);
-                #endif
-
+                    SetRevocationVerifyRet(ssl, ret);
                     /* Do verify callback */
-                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-                    if (ssl->options.verifyNone &&
-                              (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
-                               ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
-                               ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
-                        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
-                        ret = ssl->error = 0;
+                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                    if (ret != 0 || heldCrlRet == 0)
+                #endif
+                    {
+                        ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     }
+                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                    /* The callback rules on a held CRL error now, while the
+                     * certificate is still at hand. */
+                    if (ret == 0 && heldCrlRet != 0) {
+                        ret = DoHeldCrlVerifyCallback(ssl, args, &heldCrlRet);
+                    }
+                #endif
+                    if (CrlErrWaived(ssl, ret))
+                        ret = ssl->error = 0;
+                #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+                    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                    if (holdCrl && args->certIdx >= 1 &&
+                            args->certIdx < 1 + MAX_CHAIN_DEPTH) {
+                        ssl->deferredChainCrlRet[args->certIdx] = heldCrlRet;
+                    #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+                        /* Skipped, so its 0 is a success no CRL gave. */
+                        ssl->deferredChainCrlSkipped[args->certIdx] =
+                            (args->dCert->extCrlInfo == NULL);
+                    #endif
+                    }
+                #endif
 
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     if (ret != 0 && args->dCert->isCA) {
@@ -20562,16 +20631,30 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             /* Do leaf verify callback when it wasn't called yet. Skipped when
              * the chain verify callback owns the verdict. */
             if (!UsingChainVerifyCb(ssl) &&
-                    (ret == 0 || ret != args->leafVerifyErr))
-                ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-
-            if (ssl->options.verifyNone &&
-                              (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
-                               ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
-                               ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
-                WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
-                ret = ssl->error = 0;
+                    (ret == 0 || ret != args->leafVerifyErr)) {
+            #if defined(HAVE_CRL) && \
+                (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                 defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                if (ret != 0 || !ssl->deferredCrlDone ||
+                        ssl->deferredCrlRet == 0)
+            #endif
+                {
+                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                }
+            #if defined(HAVE_CRL) && \
+                (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                 defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+                /* The callback rules on the held leaf CRL error as well. */
+                if (ret == 0 && ssl->deferredCrlDone &&
+                        ssl->deferredCrlRet != 0) {
+                    ret = DoHeldCrlVerifyCallback(ssl, args,
+                        &ssl->deferredCrlRet);
+                }
+            #endif
             }
+
+            if (CrlErrWaived(ssl, ret))
+                ret = ssl->error = 0;
 
             if (ret != 0) {
                 /* Key checks still apply with the chain verify callback, even
@@ -21569,11 +21652,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                             csrRet != WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL))
                 #endif
                         ) {
-                    #if defined(OPENSSL_EXTRA) || \
-                        defined(OPENSSL_EXTRA_X509_SMALL)
-                        if (ssl->peerVerifyRet == 0)
-                            ssl->peerVerifyRet = RevocationVerifyErr(csrRet);
-                    #endif
+                        SetRevocationVerifyRet(ssl, csrRet);
                         return csrRet;
                     }
                 }
@@ -45412,13 +45491,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #endif
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
-                    ret = CheckCertCRL(SSL_CM(ssl)->crl, dCert);
-                #ifdef WOLFSSL_NONBLOCK_OCSP
-                    /* Nothing retries this check, so a fetch that would
-                     * block leaves the CRL missing. */
-                    if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
-                        ret = CRL_MISSING;
-                #endif
+                    ret = CheckCertCRLSync(SSL_CM(ssl)->crl, dCert);
                 }
             #endif
                 if (ret == 0) {

@@ -823,12 +823,7 @@ static int cm_cert_crl_result(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 {
     int crlRet;
 
-    crlRet = CheckCertCRL(cm->crl, cert);
-#ifdef WOLFSSL_NONBLOCK_OCSP
-    /* A synchronous caller cannot retry a fetch that would block. */
-    if (crlRet == WC_NO_ERR_TRACE(OCSP_WANT_READ))
-        crlRet = CRL_MISSING;
-#endif
+    crlRet = CheckCertCRLSync(cm->crl, cert);
     if (crlRet != 0) {
         WOLFSSL_MSG("CheckCertCRL failed");
     }

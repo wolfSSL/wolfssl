@@ -618,13 +618,15 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
  * with X509_STORE_CTX_set0_crls. The caller-owned crl is not modified. */
 static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm)
+        int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm,
+        int canRetry)
 {
     int        foundEntry = 0;
     int        ret = 0;
 
     WOLFSSL_ENTER("CheckCertCRL");
     (void)issuerName;
+    (void)canRetry;
 
     if ((serial == NULL || serialSz == 0) && serialHash == NULL) {
         WOLFSSL_MSG("Either serial or hash has to be provided");
@@ -684,7 +686,7 @@ static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     /* A fetch that would block is retried, not a CRL found missing. */
     if (foundEntry == 0
     #ifdef WOLFSSL_NONBLOCK_OCSP
-            && ret != WC_NO_ERR_TRACE(OCSP_WANT_READ)
+            && (!canRetry || ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))
     #endif
             ) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
@@ -726,19 +728,33 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int extCrlInfoSz, void* issuerName)
 {
     return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
-            extCrlInfo, extCrlInfoSz, issuerName, crl->cm);
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm, 1);
 }
 
-/* Is the cert ok with CRL, return 0 on success */
-int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+static int CheckDecodedCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
+        WOLFSSL_CERT_MANAGER* cm, int canRetry)
 {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     void* issuerName = cert->issuerName;
 #else
     void* issuerName = NULL;
 #endif
-    return CheckCertCRL_ex(crl, cert->issuerHash, cert->serial, cert->serialSz,
-            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName);
+    return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
+            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm,
+            canRetry);
+}
+
+/* Is the cert ok with CRL, return 0 on success */
+int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+{
+    return CheckDecodedCertCRL(crl, cert, crl->cm, 1);
+}
+
+/* As CheckCertCRL() for a caller that cannot retry a fetch that would block,
+ * which then counts as a missing CRL. */
+int CheckCertCRLSync(WOLFSSL_CRL* crl, DecodedCert* cert)
+{
+    return CheckDecodedCertCRL(crl, cert, crl->cm, 0);
 }
 
 /* Check cert against crl using cm for CRL signature verification. Does not
@@ -747,13 +763,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 int CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_CRL* crl,
         DecodedCert* cert)
 {
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    void* issuerName = cert->issuerName;
-#else
-    void* issuerName = NULL;
-#endif
-    return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
-            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm);
+    return CheckDecodedCertCRL(crl, cert, cm, 0);
 }
 
 #ifdef HAVE_CRL_UPDATE_CB

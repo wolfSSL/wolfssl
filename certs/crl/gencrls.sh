@@ -243,60 +243,64 @@ mv tmp extra-crls/large_crlnum2.pem
 
 # OCSP root-ca CRL (empty, no revocations)
 cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
 
-echo "Step 31"
+echo "Step 32a OCSP root-ca CRL"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
 check_result $?
 
 # metadata
-echo "Step 32"
+echo "Step 32a OCSP root-ca CRL metadata"
 openssl crl -in ../ocsp/root-ca-crl.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/root-ca-crl.pem
 
 # OCSP root-ca CRL revoking intermediate1
 cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
 
-echo "Step 32 OCSP root-ca CRL revoking intermediate1"
+echo "Step 32b OCSP root-ca CRL revoking intermediate1"
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/intermediate1-ca-cert.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
 check_result $?
 
-echo "Step 32 OCSP root-ca CRL revoking intermediate1, gencrl"
+echo "Step 32b OCSP root-ca CRL revoking intermediate1, gencrl"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl-revoked.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
 check_result $?
 
 # metadata
-echo "Step 32 OCSP root-ca CRL revoking intermediate1, metadata"
+echo "Step 32b OCSP root-ca CRL revoking intermediate1, metadata"
 openssl crl -in ../ocsp/root-ca-crl-revoked.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/root-ca-crl-revoked.pem
 
 # OCSP intermediate1-ca CRL (empty, no revocations)
 cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
 
-echo "Step 32 OCSP intermediate1-ca CRL"
+echo "Step 32c OCSP intermediate1-ca CRL"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
 check_result $?
 
 # metadata
-echo "Step 32 OCSP intermediate1-ca CRL metadata"
+echo "Step 32c OCSP intermediate1-ca CRL metadata"
 openssl crl -in ../ocsp/intermediate1-ca-crl.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/intermediate1-ca-crl.pem
 
 # OCSP intermediate1-ca CRL revoking server1
 cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
 
-echo "Step 32 OCSP intermediate1-ca CRL revoking server1"
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1"
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/server1-cert.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
 check_result $?
 
-echo "Step 32 OCSP intermediate1-ca CRL revoking server1, gencrl"
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1, gencrl"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl-revoked.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
 check_result $?
 
 # metadata
-echo "Step 32 OCSP intermediate1-ca CRL revoking server1, metadata"
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1, metadata"
 openssl crl -in ../ocsp/intermediate1-ca-crl-revoked.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/intermediate1-ca-crl-revoked.pem

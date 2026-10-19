@@ -3460,14 +3460,7 @@ static int TLSX_CSR_LeafCrlCheck(WOLFSSL* ssl, int ocspRet, int ocspAnswered)
         if (ret != 0) {
             WOLFSSL_ERROR_VERBOSE(ret);
             WOLFSSL_MSG("\tCRL check not ok");
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            if (ssl->peerVerifyRet == 0) {
-                ssl->peerVerifyRet =
-                    (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))
-                        ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                        : WOLFSSL_X509_V_ERR_CERT_REJECTED;
-            }
-#endif
+            SetRevocationVerifyRet(ssl, ret);
         }
     }
 
