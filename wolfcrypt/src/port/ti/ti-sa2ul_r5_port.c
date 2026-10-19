@@ -24,10 +24,11 @@
 #if defined(WOLFSSL_TI_AM64X_R5)
 
 #ifndef WOLF_CRYPTO_CB
-    #error WOLFSSL_TI_SA2UL support requires ./configure --enable-cryptocb or WOLF_CRYPTO_CB to be defined
+    #error WOLFSSL_TI_AM64X_R5 support requires WOLF_CRYPTO_CB to be defined
 #endif
 
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
@@ -774,6 +775,71 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AESGCM */
+
+#if defined(WOLFSSL_CMAC) && defined(HAVE_AES_CBC)
+#define CMAC_SCRATCH_SIZE 0x1000u
+static XALIGNED(SA2UL_CACHELINE_ALIGNMENT) byte cmac_in[CMAC_SCRATCH_SIZE];
+static XALIGNED(SA2UL_CACHELINE_ALIGNMENT) byte cmac_out[CMAC_SCRATCH_SIZE];
+
+static int ti_sa2ul_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
+{
+    int ret = 0;
+    word32 procLen;
+    word32 n;
+    word32 fromIn;
+    word32 used = 0;
+
+    if (cmac == NULL || (in == NULL && inSz != 0))
+        return BAD_FUNC_ARG;
+    if (cmac->type != WC_CMAC_AES)
+        return CRYPTOCB_UNAVAILABLE;
+
+    /* keep at least one byte (up to a full block) buffered for final */
+    if (cmac->bufferSz + inSz <= WC_AES_BLOCK_SIZE) {
+        XMEMCPY(&cmac->buffer[cmac->bufferSz], in, inSz);
+        cmac->bufferSz += inSz;
+        return 0;
+    }
+    procLen = ((cmac->bufferSz + inSz - 1) / WC_AES_BLOCK_SIZE) *
+              WC_AES_BLOCK_SIZE;
+
+    while (procLen > 0) {
+        n = min(procLen, CMAC_SCRATCH_SIZE);
+        fromIn = n - cmac->bufferSz;
+        used = max(used, n);
+
+        XMEMCPY(cmac_in, cmac->buffer, cmac->bufferSz);
+        XMEMCPY(cmac_in + cmac->bufferSz, in, fromIn);
+        XMEMCPY(cmac->aes.reg, cmac->digest, WC_AES_BLOCK_SIZE);
+
+        ret = ti_sa2ul_AesCbcEncrypt(&cmac->aes, cmac_out, cmac_in, n);
+        if (ret != 0)
+            break;
+
+        XMEMCPY(cmac->digest, cmac->aes.reg, WC_AES_BLOCK_SIZE);
+        cmac->totalSz += n;
+        cmac->bufferSz = 0;
+        in += fromIn;
+        inSz -= fromIn;
+        procLen -= n;
+    }
+
+    /* only wipe what was used */
+    ForceZero(cmac_in, used);
+    ForceZero(cmac_out, used);
+    ForceZero(cmac->aes.reg, WC_AES_BLOCK_SIZE);
+
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        /* hw busy -- state is consistent, finish the rest in software */
+        return wc_local_CmacUpdateAes(cmac, in, inSz);
+    }
+    if (ret == 0) {
+        XMEMCPY(cmac->buffer, in, inSz);
+        cmac->bufferSz = inSz;
+    }
+    return ret;
+}
+#endif /* WOLFSSL_CMAC && HAVE_AES_CBC */
 #endif /* !NO_AES && !WOLFSSL_TI_AM64X_NO_AES */
 
 
@@ -1190,6 +1256,19 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 # endif /* HAVE_AESGCM */
 #endif /* !NO_AES && !WOLFSSL_TI_AM64X_NO_AES */
     }
+#if !defined(NO_AES) && !defined(WOLFSSL_TI_AM64X_NO_AES) && \
+    defined(WOLFSSL_CMAC) && defined(HAVE_AES_CBC)
+    else if (info->algo_type == WC_ALGO_TYPE_CMAC)
+    {
+        /* only update is accelerated; init (key != NULL) and final
+         * (out != NULL) fall back to software */
+        if (info->cmac.key == NULL && info->cmac.out == NULL &&
+            info->cmac.in != NULL) {
+            ret = ti_sa2ul_CmacUpdate(info->cmac.cmac, info->cmac.in,
+                                      info->cmac.inSz);
+        }
+    }
+#endif
     else if (info->algo_type == WC_ALGO_TYPE_HASH)
     {
 #if !defined(WOLFSSL_TI_AM64X_NO_SHA) && (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))

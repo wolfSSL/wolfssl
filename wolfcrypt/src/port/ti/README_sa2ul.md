@@ -1,6 +1,7 @@
 # wolfSSL TI SA2UL Hardware Acceleration Port
 
-wolfSSL supports hardware acceleration on the TI AM6442 via the SA2UL peripheral.
+wolfSSL supports hardware acceleration on the TI AM6442 via the SA2UL peripheral,
+with software running on one of the Cortex-R5F cores.
 
 ## SA2UL on the TI AM6442
 
@@ -18,7 +19,7 @@ Basic hardware acceleration supported:
 - CMAC-AES (128, 256)
 
 Note: The wolfCrypt sa2ul support depends on the TI MCU Plus SDK.  wolfBoot has
-an example (ti-am64x.config) of how to compile with the MCU Plus SDK.
+an example (ti-am64x-r5.config) of how to compile with the MCU Plus SDK.
 
 ### wolfSSL TI AM64x Hardware Acceleration Switches
 
@@ -40,4 +41,3 @@ wolfCrypt software algorithms), with the following switches:
 ## Support
 
 For questions please email support@wolfssl.com
-
