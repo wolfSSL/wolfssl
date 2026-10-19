@@ -48,9 +48,10 @@ static int Entropy_AmdRdpruPresent(void)
     return __get_cpuid(0x80000008, &eax, &ebx, &ecx, &edx) && ((ebx >> 4) & 1);
 }
 
-/* The CPU number, which Linux stores in TSC_AUX for RDTSCP to return
- * (arch/x86/kernel/cpu/common.c:2351-2357, setup_getcpu). */
-static unsigned int Entropy_Cpu(void)
+/* Linux's per-CPU tag in TSC_AUX, (node << 12) | cpu, returned by RDTSCP.
+ * Linux arch/x86/include/asm/segment.h vdso_encode_cpunode() and
+ * arch/x86/kernel/cpu/common.c setup_getcpu(). */
+static unsigned int Entropy_CpuTag(void)
 {
     unsigned int lo, hi, aux;
 
@@ -80,11 +81,11 @@ word64 wc_Entropy_TimeAmdAperf(void)
     if (!present)
         return 0;
 
-    cpu = Entropy_Cpu();
+    cpu = Entropy_CpuTag();
     /* RDPRU, encoded as bytes for assemblers that do not know it. */
     __asm__ __volatile__ (".byte 0x0f,0x01,0xfd"
                           : "=a"(lo), "=d"(hi) : "c"(1));
-    cpuAfter = Entropy_Cpu();
+    cpuAfter = Entropy_CpuTag();
     aperf = ((word64)hi << 32) | lo;
 
     if ((cpu == cpuAfter) && (cpu == lastCpu))
