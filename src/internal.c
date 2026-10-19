@@ -30465,7 +30465,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* ReceiveData() clears this error, as the peer may still send data */
+    /* Reads and wolfSSL_shutdown() clear this; the peer may still send data */
     if (ssl->options.sentNotify) {
         WOLFSSL_MSG("close_notify already sent, not sending new data");
         if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ))

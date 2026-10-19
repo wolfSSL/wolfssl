@@ -9412,7 +9412,6 @@ int test_dtls12_export_import_v6(void)
         word16 totalLen;
 
         ato16(session + sessionSz - WOLFSSL_EXPORT_LEN, &cidLen);
-        session[1] = (byte)((session[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
         ato16(session + WOLFSSL_EXPORT_LEN, &totalLen);
         c16toa((word16)(totalLen - WOLFSSL_EXPORT_LEN),
                session + WOLFSSL_EXPORT_LEN);

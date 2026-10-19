@@ -1001,6 +1001,8 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
         ret = WOLFSSL_SHUTDOWN_NOT_DONE;
     }
     else {
+        if (ssl->error == WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E))
+            ssl->error = WOLFSSL_ERROR_NONE;
         ret = ProcessReply(ssl);
         if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
