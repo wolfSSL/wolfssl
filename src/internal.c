@@ -30275,6 +30275,18 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
+    /* RFC 8446 Section 6.1: after sending close_notify the sender "will not
+     * send any more messages on this connection". wolfSSL_shutdown() and
+     * wolfSSL_SendUserCanceled() set sentNotify once the alert is sent or
+     * buffered, and wolfSSL_set_shutdown(WOLFSSL_SENT_SHUTDOWN) sets it too.
+     * Refuse before anything is built so no application_data record follows
+     * the alert. OpenSSL fails the same way with SSL_R_PROTOCOL_IS_SHUTDOWN. */
+    if (ssl->options.sentNotify) {
+        WOLFSSL_MSG("Not allowing write after close_notify sent");
+        ssl->error = CLOSE_NOTIFY_SENT_E;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     if (error == WC_NO_ERR_TRACE(WANT_WRITE)
     #ifdef WOLFSSL_ASYNC_CRYPT
         || error == WC_NO_ERR_TRACE(WC_PENDING_E)
@@ -30761,7 +30773,10 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 
     /* reset error state */
     if (error == WC_NO_ERR_TRACE(WANT_READ) ||
-        error == WOLFSSL_ERROR_WANT_READ) {
+        error == WOLFSSL_ERROR_WANT_READ ||
+        /* A write refused after close_notify was sent is not a connection
+         * fault: the peer may still have data to deliver. */
+        error == WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E)) {
         error = 0;
         ssl->error = 0;
     }
@@ -31875,6 +31890,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case CHAIN_VERIFY_UNSUPPORTED_E:
         return "Chain verify callback used with unsupported feature";
+
+    case CLOSE_NOTIFY_SENT_E:
+        return "close_notify already sent, no more data may be written";
     }
 
     return "unknown error number";

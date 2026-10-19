@@ -259,8 +259,10 @@ enum wolfSSL_ErrorCodes {
                                             * peer's certificates */
     CHAIN_VERIFY_UNSUPPORTED_E   = -525,   /* Chain verify callback used with
                                             * DTLS, RPK or OCSP stapling */
+    CLOSE_NOTIFY_SENT_E          = -526,   /* close_notify already sent, no
+                                            * more data may be written */
 
-    WOLFSSL_LAST_E               = -525
+    WOLFSSL_LAST_E               = -526
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

@@ -1498,6 +1498,77 @@ int test_wolfSSL_shutdown_no_notify(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_write() is refused once close_notify has been sent.
+ *
+ * RFC 8446 Section 6.1: close_notify tells the peer the sender "will not send
+ * any more messages on this connection". After wolfSSL_shutdown() has sent the
+ * alert and is waiting on the peer's, a write used to go out as an
+ * application_data record behind it. It must fail with CLOSE_NOTIFY_SENT_E
+ * and put nothing on the wire, and the shutdown must still complete.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_write_after_shutdown(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_SHUTDOWNONCE)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "after close_notify";
+    char buf[sizeof(msg)];
+    int onWire = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Client sends close_notify; the peer's has not arrived yet. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sentNotify, 1);
+    }
+    onWire = test_ctx.s_len;
+    ExpectIntGT(onWire, 0);
+
+    /* A write in the half-closed state is refused and sends nothing. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E));
+    }
+    ExpectIntNE(wolfSSL_get_error(ssl_c, 0), 0);
+    ExpectIntEQ(test_ctx.s_len, onWire);
+
+    /* The refusal is not a connection fault: the peer may still send, so a
+     * read goes ahead and just finds nothing waiting. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+
+    /* The peer sees only the close_notify. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+
+    /* The refused write does not get in the way of finishing the shutdown.
+     * The server has already seen the client's close_notify, so its own
+     * shutdown completes in one call. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the paths wolfSSL_SendUserCanceled() takes once the alert is sent.
  *
  * The NULL case is covered by test_wolfSSL_rw_bad_args(). This drives the
