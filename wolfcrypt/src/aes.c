@@ -16209,12 +16209,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    /* A and B in one struct, so one wipe clears both. */
 #ifdef WOLFSSL_AESNI
-    ALIGN128 byte A[WC_AES_BLOCK_SIZE * 4];
-    ALIGN128 byte B[WC_AES_BLOCK_SIZE * 4];
+    struct {
+        ALIGN128 byte a[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte b[WC_AES_BLOCK_SIZE * 4];
+    } ab;
 #else
-    byte A[WC_AES_BLOCK_SIZE];
-    byte B[WC_AES_BLOCK_SIZE];
+    struct {
+        byte a[WC_AES_BLOCK_SIZE];
+        byte b[WC_AES_BLOCK_SIZE];
+    } ab;
 #endif
     byte lenSz;
     word32 i;
@@ -16273,16 +16278,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return MISSING_KEY;
     }
 
-    XMEMSET(A, 0, sizeof(A));
-    XMEMCPY(B+1, nonce, nonceSz);
+    XMEMSET(ab.a, 0, sizeof(ab.a));
+    XMEMCPY(ab.b+1, nonce, nonceSz);
 
-    B[0] = (byte)((authInSz > 0 ? 64 : 0)
-                  + (8 * (((byte)authTagSz - 2) / 2))
-                  + (lenSz - 1));
+    ab.b[0] = (byte)((authInSz > 0 ? 64 : 0)
+                     + (8 * (((byte)authTagSz - 2) / 2))
+                     + (lenSz - 1));
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B[WC_AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
+        ab.b[WC_AES_BLOCK_SIZE - 1 - i] =
+            (byte)((inSz >> ((8 * i) & mask)) & mask);
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -16293,78 +16299,77 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* note this wc_AesEncrypt() will perform cache prefetches if needed, so
      * that the later encrypt ops don't need to.
      */
-    ret = wc_AesEncrypt(aes, B, A);
+    ret = wc_AesEncrypt(aes, ab.b, ab.a);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
         wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
 #endif
 
     if ((ret == 0) && (authInSz > 0))
-        ret = roll_auth(aes, authIn, authInSz, A);
+        ret = roll_auth(aes, authIn, authInSz, ab.a);
 
     if ((ret == 0) && (inSz > 0))
-        ret = roll_x(aes, in, inSz, A);
+        ret = roll_x(aes, in, inSz, ab.a);
 
     if (ret == 0) {
-        XMEMCPY(authTag, A, authTagSz);
+        XMEMCPY(authTag, ab.a, authTagSz);
 
-        B[0] = (byte)(lenSz - 1U);
+        ab.b[0] = (byte)(lenSz - 1U);
         for (i = 0; i < lenSz; i++)
-            B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &never_prefetch);
+            ab.b[WC_AES_BLOCK_SIZE - 1 - i] = 0;
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &never_prefetch);
     }
 
     if (ret == 0) {
-        xorbuf(authTag, A, authTagSz);
-        B[15] = 1;
+        xorbuf(authTag, ab.a, authTagSz);
+        ab.b[15] = 1;
     }
 #ifdef WOLFSSL_AESNI
     if ((ret == 0) && aes->use_aesni) {
         while (inSz >= WC_AES_BLOCK_SIZE * 4) {
-            AesCcmCtrIncSet4(B, lenSz);
+            AesCcmCtrIncSet4(ab.b, lenSz);
 
-            AES_ECB_encrypt_AESNI(B, A, WC_AES_BLOCK_SIZE * 4, (byte*)aes->key,
-                            (int)aes->rounds);
+            AES_ECB_encrypt_AESNI(ab.b, ab.a, WC_AES_BLOCK_SIZE * 4,
+                (byte*)aes->key, (int)aes->rounds);
 
-            xorbuf(A, in, WC_AES_BLOCK_SIZE * 4);
-            XMEMCPY(out, A, WC_AES_BLOCK_SIZE * 4);
+            xorbuf(ab.a, in, WC_AES_BLOCK_SIZE * 4);
+            XMEMCPY(out, ab.a, WC_AES_BLOCK_SIZE * 4);
 
             inSz -= WC_AES_BLOCK_SIZE * 4;
             in += WC_AES_BLOCK_SIZE * 4;
             out += WC_AES_BLOCK_SIZE * 4;
 
-            AesCcmCtrInc4(B, lenSz);
+            AesCcmCtrInc4(ab.b, lenSz);
         }
     }
 #endif
     if (ret == 0) {
         while (inSz >= WC_AES_BLOCK_SIZE) {
-            ret = AesEncrypt_preFetchOpt(aes, B, A, &never_prefetch);
+            ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &never_prefetch);
             if (ret != 0)
                 break;
-            xorbuf(A, in, WC_AES_BLOCK_SIZE);
-            XMEMCPY(out, A, WC_AES_BLOCK_SIZE);
+            xorbuf(ab.a, in, WC_AES_BLOCK_SIZE);
+            XMEMCPY(out, ab.a, WC_AES_BLOCK_SIZE);
 
-            AesCcmCtrInc(B, lenSz);
+            AesCcmCtrInc(ab.b, lenSz);
             inSz -= WC_AES_BLOCK_SIZE;
             in += WC_AES_BLOCK_SIZE;
             out += WC_AES_BLOCK_SIZE;
         }
     }
     if ((ret == 0) && (inSz > 0)) {
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &never_prefetch);
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &never_prefetch);
     }
     if ((ret == 0) && (inSz > 0)) {
-        xorbuf(A, in, inSz);
-        XMEMCPY(out, A, inSz);
+        xorbuf(ab.a, in, inSz);
+        XMEMCPY(out, ab.a, inSz);
     }
 
-    ForceZero(A, sizeof(A));
-    ForceZero(B, sizeof(B));
+    ForceZero(&ab, sizeof(ab));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(A, sizeof(A));
-    wc_MemZero_Check(B, sizeof(B));
+    wc_MemZero_Check(ab.a, sizeof(ab.a));
+    wc_MemZero_Check(ab.b, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_POP;
@@ -16379,12 +16384,17 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    /* A and B in one struct, so one wipe clears both. */
 #ifdef WOLFSSL_AESNI
-    ALIGN128 byte B[WC_AES_BLOCK_SIZE * 4];
-    ALIGN128 byte A[WC_AES_BLOCK_SIZE * 4];
+    struct {
+        ALIGN128 byte a[WC_AES_BLOCK_SIZE * 4];
+        ALIGN128 byte b[WC_AES_BLOCK_SIZE * 4];
+    } ab;
 #else
-    byte A[WC_AES_BLOCK_SIZE];
-    byte B[WC_AES_BLOCK_SIZE];
+    struct {
+        byte a[WC_AES_BLOCK_SIZE];
+        byte b[WC_AES_BLOCK_SIZE];
+    } ab;
 #endif
     byte* o;
     byte lenSz;
@@ -16449,13 +16459,13 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     o = out;
     oSz = inSz;
-    XMEMSET(A, 0, sizeof A);
-    XMEMCPY(B+1, nonce, nonceSz);
+    XMEMSET(ab.a, 0, sizeof ab.a);
+    XMEMCPY(ab.b+1, nonce, nonceSz);
 
-    B[0] = (byte)(lenSz - 1U);
+    ab.b[0] = (byte)(lenSz - 1U);
     for (i = 0; i < lenSz; i++)
-        B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
-    B[15] = 1;
+        ab.b[WC_AES_BLOCK_SIZE - 1 - i] = 0;
+    ab.b[15] = 1;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
@@ -16467,30 +16477,30 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
         while (oSz >= WC_AES_BLOCK_SIZE * 4) {
-            AesCcmCtrIncSet4(B, lenSz);
+            AesCcmCtrIncSet4(ab.b, lenSz);
 
-            AES_ECB_encrypt_AESNI(B, A, WC_AES_BLOCK_SIZE * 4, (byte*)aes->key,
-                            (int)aes->rounds);
+            AES_ECB_encrypt_AESNI(ab.b, ab.a, WC_AES_BLOCK_SIZE * 4,
+                (byte*)aes->key, (int)aes->rounds);
 
-            xorbuf(A, in, WC_AES_BLOCK_SIZE * 4);
-            XMEMCPY(o, A, WC_AES_BLOCK_SIZE * 4);
+            xorbuf(ab.a, in, WC_AES_BLOCK_SIZE * 4);
+            XMEMCPY(o, ab.a, WC_AES_BLOCK_SIZE * 4);
 
             oSz -= WC_AES_BLOCK_SIZE * 4;
             in += WC_AES_BLOCK_SIZE * 4;
             o += WC_AES_BLOCK_SIZE * 4;
 
-            AesCcmCtrInc4(B, lenSz);
+            AesCcmCtrInc4(ab.b, lenSz);
         }
     }
 #endif
 
     while (oSz >= WC_AES_BLOCK_SIZE) {
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &did_prefetches);
         if (ret != 0)
             break;
-        xorbuf(A, in, WC_AES_BLOCK_SIZE);
-        XMEMCPY(o, A, WC_AES_BLOCK_SIZE);
-        AesCcmCtrInc(B, lenSz);
+        xorbuf(ab.a, in, WC_AES_BLOCK_SIZE);
+        XMEMCPY(o, ab.a, WC_AES_BLOCK_SIZE);
+        AesCcmCtrInc(ab.b, lenSz);
         oSz -= WC_AES_BLOCK_SIZE;
         in += WC_AES_BLOCK_SIZE;
         o += WC_AES_BLOCK_SIZE;
@@ -16499,48 +16509,49 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* oSz, not inSz, is the count of bytes left after the block loop above --
      * inSz is kept pristine here for the CBC-MAC phase below. */
     if ((ret == 0) && (oSz > 0))
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &did_prefetches);
 
     if ((ret == 0) && (oSz > 0)) {
-        xorbuf(A, in, oSz);
-        XMEMCPY(o, A, oSz);
+        xorbuf(ab.a, in, oSz);
+        XMEMCPY(o, ab.a, oSz);
     }
 
     if (ret == 0) {
         o = out;
         oSz = inSz;
 
-        B[0] = (byte)((authInSz > 0 ? 64 : 0)
-                      + (8 * (((byte)authTagSz - 2) / 2))
-                      + (lenSz - 1));
+        ab.b[0] = (byte)((authInSz > 0 ? 64 : 0)
+                         + (8 * (((byte)authTagSz - 2) / 2))
+                         + (lenSz - 1));
         for (i = 0; i < lenSz; i++) {
             if (mask && i >= wordSz)
                 mask = 0x00;
-            B[WC_AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
+            ab.b[WC_AES_BLOCK_SIZE - 1 - i] =
+                (byte)((inSz >> ((8 * i) & mask)) & mask);
         }
 
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.a, &did_prefetches);
     }
 
     if (ret == 0) {
         if (authInSz > 0)
-            ret = roll_auth(aes, authIn, authInSz, A);
+            ret = roll_auth(aes, authIn, authInSz, ab.a);
     }
     if ((ret == 0) && (inSz > 0))
-        ret = roll_x(aes, o, oSz, A);
+        ret = roll_x(aes, o, oSz, ab.a);
 
     if (ret == 0) {
-        B[0] = (byte)(lenSz - 1U);
+        ab.b[0] = (byte)(lenSz - 1U);
         for (i = 0; i < lenSz; i++)
-            B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
-        ret = AesEncrypt_preFetchOpt(aes, B, B, &did_prefetches);
+            ab.b[WC_AES_BLOCK_SIZE - 1 - i] = 0;
+        ret = AesEncrypt_preFetchOpt(aes, ab.b, ab.b, &did_prefetches);
     }
 
     if (ret == 0)
-        xorbuf(A, B, authTagSz);
+        xorbuf(ab.a, ab.b, authTagSz);
 
     if (ret == 0) {
-        if (ConstantCompare(A, authTag, (int)authTagSz) != 0) {
+        if (ConstantCompare(ab.a, authTag, (int)authTagSz) != 0) {
             /* SP 800-38C section 6.2: do not reveal the payload on a failed
              * tag. */
             #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) &&   \
@@ -16554,13 +16565,12 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         }
     }
 
-    ForceZero(A, sizeof(A));
-    ForceZero(B, sizeof(B));
+    ForceZero(&ab, sizeof(ab));
     o = NULL;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(A, sizeof(A));
-    wc_MemZero_Check(B, sizeof(B));
+    wc_MemZero_Check(ab.a, sizeof(ab.a));
+    wc_MemZero_Check(ab.b, sizeof(ab.b));
 #endif
 
     VECTOR_REGISTERS_POP;

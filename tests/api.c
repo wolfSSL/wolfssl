@@ -32597,6 +32597,7 @@ static int test_ForceZero(void)
 {
     EXPECT_DECLS;
     unsigned char data[32];
+    unsigned char big[32 + 300 + 16];
     unsigned int i, j, len;
 
     /* Test case with 0 length */
@@ -32616,6 +32617,26 @@ static int test_ForceZero(void)
                 }
                 else {
                     ExpectIntEQ(data[j], 0x00);
+                }
+            }
+        }
+    }
+
+    /* Longer wipes take other paths. Test each len from 32 to 300 bytes at
+     * 16 start offsets, with guard bytes on both sides. */
+    for (i = 16; i < 32; i++) {
+        for (len = 32; len <= 300; len++) {
+            for (j = 0; j < sizeof(big); j++)
+                big[j] = (unsigned char)(j % 255 + 1);
+
+            ForceZero(big + i, len);
+
+            for (j = 0; j < sizeof(big); j++) {
+                if (j < i || j >= i + len) {
+                    ExpectIntNE(big[j], 0x00);
+                }
+                else {
+                    ExpectIntEQ(big[j], 0x00);
                 }
             }
         }
