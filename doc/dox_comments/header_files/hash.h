@@ -96,8 +96,8 @@ int wc_Hash(enum wc_HashType hash_type,
     \return 0 Success.
     \return BAD_FUNC_ARG hash is NULL, data is NULL while dataSz is greater
     than 0, the hash object was not initialized with a valid hash type, or
-    (in debug builds) type is not WC_HASH_TYPE_NONE and does not match the
-    hash type used during initialization.
+    type is not WC_HASH_TYPE_NONE and does not match the hash type used
+    during initialization.
     \return HASH_TYPE_E the hash type stored in the hash object is not
     supported or not compiled in.
     \return Other negative error codes may be returned by the underlying
@@ -107,8 +107,8 @@ int wc_Hash(enum wc_HashType hash_type,
     wc_HashInit() or wc_HashInit_ex().
     \param type Must be either WC_HASH_TYPE_NONE or the same hash type that
     was used to initialize the hash object. The hash type stored in the hash
-    object during initialization is always used to select the algorithm. In
-    debug builds (DEBUG_WOLFSSL), any other value results in BAD_FUNC_ARG.
+    object during initialization is always used to select the algorithm.
+    Any other value results in BAD_FUNC_ARG.
     \param data Pointer to buffer containing the data to hash. May be NULL
     only if dataSz is 0.
     \param dataSz Length of the data buffer in bytes.
@@ -146,9 +146,8 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
 
     \return 0 Success.
     \return BAD_FUNC_ARG hash or out is NULL, the hash object was not
-    initialized with a valid hash type, or (in debug builds) type is not
-    WC_HASH_TYPE_NONE and does not match the hash type used during
-    initialization.
+    initialized with a valid hash type, or type is not WC_HASH_TYPE_NONE
+    and does not match the hash type used during initialization.
     \return HASH_TYPE_E the hash type stored in the hash object is not
     supported or not compiled in.
     \return Other negative error codes may be returned by the underlying
@@ -158,8 +157,8 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
     wc_HashInit() or wc_HashInit_ex().
     \param type Must be either WC_HASH_TYPE_NONE or the same hash type that
     was used to initialize the hash object. The hash type stored in the hash
-    object during initialization is always used to select the algorithm. In
-    debug builds (DEBUG_WOLFSSL), any other value results in BAD_FUNC_ARG.
+    object during initialization is always used to select the algorithm.
+    Any other value results in BAD_FUNC_ARG.
     \param out Pointer to the buffer to receive the digest. It must be at
     least as large as the digest size of the hash type the object was
     initialized with (see wc_HashGetDigestSize()).
@@ -197,9 +196,8 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out);
 
     \return 0 Success.
     \return BAD_FUNC_ARG hash is NULL, the hash object was not initialized
-    with a valid hash type, or (in debug builds) type is not
-    WC_HASH_TYPE_NONE and does not match the hash type used during
-    initialization.
+    with a valid hash type, or type is not WC_HASH_TYPE_NONE and does not
+    match the hash type used during initialization.
     \return HASH_TYPE_E the hash type stored in the hash object is not
     supported or not compiled in.
 
@@ -207,8 +205,8 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out);
     wc_HashInit() or wc_HashInit_ex().
     \param type Must be either WC_HASH_TYPE_NONE or the same hash type that
     was used to initialize the hash object. The hash type stored in the hash
-    object during initialization is always used to select the algorithm. In
-    debug builds (DEBUG_WOLFSSL), any other value results in BAD_FUNC_ARG.
+    object during initialization is always used to select the algorithm.
+    Any other value results in BAD_FUNC_ARG.
 
     _Example_
     \code
@@ -235,9 +233,8 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 
     \return 0 Success.
     \return BAD_FUNC_ARG hash is NULL, the hash object was not initialized
-    with a valid hash type, or (in debug builds) type is not
-    WC_HASH_TYPE_NONE and does not match the hash type used during
-    initialization.
+    with a valid hash type, or type is not WC_HASH_TYPE_NONE and does not
+    match the hash type used during initialization.
     \return HASH_TYPE_E the hash type stored in the hash object is not
     supported or not compiled in.
 
@@ -245,8 +242,8 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
     wc_HashInit() or wc_HashInit_ex().
     \param type Must be either WC_HASH_TYPE_NONE or the same hash type that
     was used to initialize the hash object. The hash type stored in the hash
-    object during initialization is always used to select the algorithm. In
-    debug builds (DEBUG_WOLFSSL), any other value results in BAD_FUNC_ARG.
+    object during initialization is always used to select the algorithm.
+    Any other value results in BAD_FUNC_ARG.
     \param flags Flags to set (for example WC_HASH_FLAG_ISCOPY).
 
     _Example_
@@ -273,9 +270,8 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags);
 
     \return 0 Success.
     \return BAD_FUNC_ARG hash is NULL, the hash object was not initialized
-    with a valid hash type, or (in debug builds) type is not
-    WC_HASH_TYPE_NONE and does not match the hash type used during
-    initialization.
+    with a valid hash type, or type is not WC_HASH_TYPE_NONE and does not
+    match the hash type used during initialization.
     \return HASH_TYPE_E the hash type stored in the hash object is not
     supported or not compiled in.
 
@@ -283,8 +279,8 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags);
     wc_HashInit() or wc_HashInit_ex().
     \param type Must be either WC_HASH_TYPE_NONE or the same hash type that
     was used to initialize the hash object. The hash type stored in the hash
-    object during initialization is always used to select the algorithm. In
-    debug builds (DEBUG_WOLFSSL), any other value results in BAD_FUNC_ARG.
+    object during initialization is always used to select the algorithm.
+    Any other value results in BAD_FUNC_ARG.
     \param flags Pointer to receive the current flags. If NULL, no flags are
     returned.
 

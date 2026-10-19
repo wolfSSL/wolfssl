@@ -1160,14 +1160,10 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
     if (hash == NULL || (data == NULL && dataSz > 0))
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
     if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash update type mismatch!");
         return BAD_FUNC_ARG;
     }
-#else
-    (void)type;
-#endif
 
     switch (hash->type) {
         case WC_HASH_TYPE_MD5:
@@ -1311,14 +1307,10 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
     if (hash == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
     if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash final type mismatch!");
         return BAD_FUNC_ARG;
     }
-#else
-    (void)type;
-#endif
 
     switch (hash->type) {
         case WC_HASH_TYPE_MD5:
@@ -1464,14 +1456,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
     if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash free type mismatch!");
         return BAD_FUNC_ARG;
     }
-#else
-    (void)type;
-#endif
 
     switch (hash->type) {
         case WC_HASH_TYPE_MD5:
@@ -1631,14 +1619,10 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
     if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash set flags type mismatch!");
         return BAD_FUNC_ARG;
     }
-#else
-    (void)type;
-#endif
 
     switch (hash->type) {
         case WC_HASH_TYPE_MD5:
@@ -1757,14 +1741,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef DEBUG_WOLFSSL
     if (type != WC_HASH_TYPE_NONE && type != hash->type) {
         WOLFSSL_MSG("Hash get flags type mismatch!");
         return BAD_FUNC_ARG;
     }
-#else
-    (void)type;
-#endif
 
     switch (hash->type) {
         case WC_HASH_TYPE_MD5:

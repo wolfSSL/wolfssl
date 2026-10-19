@@ -338,15 +338,13 @@ int test_wc_HashUpdate(void)
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, (byte*)"a", 1), 0);
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
 
-#ifdef DEBUG_WOLFSSL
-    /* A mismatched type is rejected in debug builds. */
+    /* A mismatched type is rejected. */
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, (byte*)"a", 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
-#endif
 #endif
 #endif
     return EXPECT_RESULT();
@@ -425,13 +423,11 @@ int test_wc_HashFinal(void)
         ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
     }
 
-#ifdef DEBUG_WOLFSSL
-    /* A mismatched type is rejected in debug builds. */
+    /* A mismatched type is rejected. */
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_SHA512, digest),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
-#endif
 #endif
 #endif
     return EXPECT_RESULT();
@@ -1001,11 +997,9 @@ int test_wc_HashDecisionCoverage(void)
         #endif
         }
 
-#ifdef DEBUG_WOLFSSL
-        /* type != WC_HASH_TYPE_NONE && type != hash->type mismatch branches,
-         * only built under DEBUG_WOLFSSL; needs two distinct compiled-in
-         * types for an independence pair against the matching-type calls
-         * above. */
+        /* type != WC_HASH_TYPE_NONE && type != hash->type mismatch branches;
+         * needs two distinct compiled-in types for an independence pair
+         * against the matching-type calls above. */
         if (supportedHashLen > 1) {
             enum wc_HashType type2 = supportedHash[1];
 
@@ -1029,7 +1023,6 @@ int test_wc_HashDecisionCoverage(void)
             /* clean up with the matching type. */
             ExpectIntEQ(wc_HashFree(&hash, type), 0);
         }
-#endif /* DEBUG_WOLFSSL */
 
         /* wc_Hash/wc_Hash_ex: hash_len < (word32)dig_size (true side,
          * BUFFER_E). False side already covered by every supportedHash[]
