@@ -47,7 +47,7 @@
         #error WC_ENTROPY_TIMER_AMD_APERF needs a user-space build
     #endif
     #ifndef __linux__
-        #error WC_ENTROPY_TIMER_AMD_APERF needs Linux (CPU number in TSC_AUX)
+        #error WC_ENTROPY_TIMER_AMD_APERF needs Linux (per-CPU tag in TSC_AUX)
     #endif
     #ifdef CUSTOM_ENTROPY_TIMEHIRES
         #error WC_ENTROPY_TIMER_AMD_APERF and CUSTOM_ENTROPY_TIMEHIRES both set
