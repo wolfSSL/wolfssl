@@ -182,14 +182,14 @@ wait $PID
 
 # intermediate4-ca names no OCSP responder, so it answers for server6 itself.
 openssl ocsp -issuer ./intermediate4-ca-cert.pem -cert ./server6-cert.pem \
--no_nonce -reqout server6-request.der
-check_result $? ""
+-no_nonce -reqout server6-request.der && \
 openssl ocsp -index ./index-intermediate4-ca-issued-certs.txt \
 -rsigner intermediate4-ca-cert.pem -rkey intermediate4-ca-key.pem \
 -CA intermediate4-ca-cert.pem -reqin server6-request.der \
 -respout test-server6-response.der -ndays 1000
-check_result $? ""
-rm server6-request.der
+RESULT=$?
+rm -f server6-request.der
+check_result $RESULT ""
 
 # now start up a responder that signs using rsa-pss
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -rsigopt rsa_padding_mode:pss &

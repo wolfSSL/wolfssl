@@ -2520,8 +2520,9 @@ int test_wolfSSL_CertManagerCRL(void)
 /* 2021-01-01, before the test certs are valid, before the CRL expires. */
 #define TEST_CM_CRL_BEFORE_NOTBEFORE 1609459200L
 
-/* 2030-01-01, after both the test certs and the CRL have expired. */
-#define TEST_CM_CRL_AFTER_NEXTUPDATE 1893456000L
+/* 2037-12-31, after the test certs and the CRL expire, and before a 32-bit
+ * time_t runs out. */
+#define TEST_CM_CRL_AFTER_NEXTUPDATE 2145830400L
 
 static time_t test_cm_crl_out_of_date_now;
 
@@ -2609,6 +2610,63 @@ int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
     ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(CRL_MISSING)), 1);
 #endif
     wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static int test_cm_crl_would_block_err_calls;
+
+static int test_cm_crl_would_block_io_cb(WOLFSSL_CRL* crl, const char* url,
+    int urlSz)
+{
+    (void)crl;
+    (void)url;
+    (void)urlSz;
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+static int test_cm_crl_would_block_err_cb(int ret, WOLFSSL_CRL* crl,
+    WOLFSSL_CERT_MANAGER* cm, void* ctx)
+{
+    (void)crl;
+    (void)cm;
+    (void)ctx;
+    test_cm_crl_would_block_err_calls++;
+    return ret == WC_NO_ERR_TRACE(CRL_MISSING);
+}
+#endif
+
+/* A synchronous check cannot retry a fetch that would block, so it treats the
+ * CRL as missing, which the CRL error callback may waive. */
+int test_wolfSSL_CertManagerCheckCRL_would_block(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm,
+        test_cm_crl_would_block_io_cb), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_MISSING));
+
+    test_cm_crl_would_block_err_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_ErrorCb(cm,
+        test_cm_crl_would_block_err_cb, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), 1);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), 1);
+    ExpectIntEQ(test_cm_crl_would_block_err_calls, 2);
 
     wolfSSL_CertManagerFree(cm);
 #endif

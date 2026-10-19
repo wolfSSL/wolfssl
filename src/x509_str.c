@@ -305,6 +305,9 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
 }
 
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Returns corresponding X509 error from internal ASN error <e> */
 int GetX509Error(int e)
 {
@@ -362,6 +365,9 @@ int GetX509Error(int e)
             return e;
     }
 }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
                                                                     int depth)

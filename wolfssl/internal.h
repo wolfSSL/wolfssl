@@ -7272,6 +7272,10 @@ struct WOLFSSL {
         /* Chain CRL verdicts, indexed like the staple list, applied at the
          * fallback that runs for an entry no staple and no OCSP answered. */
         int  deferredChainCrlRet[1 + MAX_CHAIN_DEPTH];
+    #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+        /* Entries whose CRL check was skipped for want of a CDP. */
+        byte deferredChainCrlSkipped[1 + MAX_CHAIN_DEPTH];
+    #endif
     #endif
     #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP) && \
         (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
@@ -8396,9 +8400,14 @@ WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void
 WOLFSSL_LOCAL int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     const WOLFSSL_ASN1_STRING* asn_in);
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int GetX509Error(int e);
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+WOLFSSL_LOCAL int RevocationVerifyErr(int err);
 #endif
+#endif
+WOLFSSL_LOCAL void SetRevocationVerifyRet(WOLFSSL* ssl, int err);
+WOLFSSL_LOCAL int CrlErrWaived(const WOLFSSL* ssl, int err);
 #endif
 
 #ifdef HAVE_EX_DATA_CRYPTO

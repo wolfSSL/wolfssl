@@ -1490,9 +1490,8 @@ int test_TLSX_CSR_parse(void)
     if (ctx != NULL)
         ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        /* A server's CertificateRequest also carries this extension, empty
-         * per RFC 8446 4.4.2.1. The client must not run the server-side
-         * branch, which would replace its own request. */
+        /* RFC 8446 4.4.2.1: a CertificateRequest carries it empty too, and
+         * the client must not let that replace its own request. */
         Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
         const byte truncatedReq[] = { WOLFSSL_CSR_OCSP };
         const byte fullReq[] = { WOLFSSL_CSR_OCSP, 0x00, 0x00, 0x00, 0x00 };
