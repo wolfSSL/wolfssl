@@ -93,7 +93,8 @@ is_c_like() {
 
 is_makelike() {
     case "$1" in
-        Makefile|Makefile.*|*.am|*.mk) return 0 ;;
+        Makefile|Makefile.*|*/Makefile|*/Makefile.*) return 0 ;;
+        *.am|*.mk) return 0 ;;
     esac
     return 1
 }
