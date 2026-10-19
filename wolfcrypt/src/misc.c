@@ -850,7 +850,7 @@ static WC_INLINE WC_FZ_AVX2_ATTR void ForceZero_AVX2(byte* zb, size_t len)
         /* 64 bytes per pass from the next 32-byte boundary, then 32 if
          * left. */
         zb = (byte *)(((wc_ptr_t)zb + 32) & ~(wc_ptr_t)31);
-        while (zb + 32 < ze - 32) {
+        while (zb < ze - 64) {
             *(volatile fz_v32 *)zb = zv;
             *(volatile fz_v32 *)(zb + 32) = zv;
             zb += 64;
@@ -865,9 +865,9 @@ static WC_INLINE WC_FZ_AVX2_ATTR void ForceZero_AVX2(byte* zb, size_t len)
 /* Returns whether the CPU and OS support AVX2. Each file caches the flags. */
 static WC_INLINE int ForceZero_HaveAVX2(void)
 {
-    static cpuid_flags_t fz_cpuid_flags = WC_CPUID_INITIALIZER;
+    static cpuid_flags_atomic_t fz_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
-    cpuid_get_flags_ex(&fz_cpuid_flags);
+    cpuid_get_flags_atomic(&fz_cpuid_flags);
     return IS_INTEL_AVX2(fz_cpuid_flags) != 0;
 }
 #endif /* WC_FORCE_ZERO_AVX2 */
