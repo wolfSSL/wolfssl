@@ -822,12 +822,30 @@ if(WOLFSSL_DEBUG)
         "-DDEBUG")
 endif()
 
+add_option("WOLFSSL_LINUXKM_DEFAULTS"
+    "Alias for WOLFSSL_KERNEL_SETTINGS, matching autotools --enable-linuxkm-defaults (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_LINUXKM_DEFAULTS)
+    default_option(WOLFSSL_KERNEL_SETTINGS "yes")
+endif()
+
+add_option("WOLFSSL_KERNEL_SETTINGS"
+    "Enable default settings appropriate for kernel modules, matching autotools --enable-kernel-settings (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_KERNEL_SETTINGS)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
+        )
+    set(WOLFSSL_CRYPT_ONLY_DEFAULT "yes")
+else()
+    set(WOLFSSL_CRYPT_ONLY_DEFAULT "no")
+endif()
 
 # wolfCrypt only (no TLS). Declared ahead of the TLS-layer options so the
 # forces below land before their add_option() calls.
 add_option("WOLFSSL_CRYPT_ONLY"
-    "Enable wolfCrypt Only build (default: disabled)"
-    "no" "yes;no")
+    "Enable wolfCrypt Only build (default: disabled unless WOLFSSL_KERNEL_SETTINGS)"
+    "${WOLFSSL_CRYPT_ONLY_DEFAULT}" "yes;no")
 
 if(WOLFSSL_CRYPT_ONLY)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_ONLY")
@@ -3667,15 +3685,6 @@ add_option("WOLFSSL_KERNEL_STACK_DEBUG"
 if(WOLFSSL_KERNEL_STACK_DEBUG)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_KERNEL_STACK_DEBUG"
-        )
-endif()
-
-add_option("WOLFSSL_LINUXKM_DEFAULTS"
-    "Enable default settings appropriate for kernel modules (default: disabled)"
-    "no" "yes;no")
-if(WOLFSSL_LINUXKM_DEFAULTS)
-    list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
         )
 endif()
 

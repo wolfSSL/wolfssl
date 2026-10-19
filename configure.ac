@@ -1357,9 +1357,9 @@ fi
 
 # wolfCrypt Only Build
 AC_ARG_ENABLE([cryptonly],
-    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled unless --enable-kernel-settings)])],
     [ENABLED_CRYPTONLY=$enableval],
-    [ENABLED_CRYPTONLY=no])
+    [ENABLED_CRYPTONLY=$KERNEL_MODE_DEFAULTS])
 
 AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
