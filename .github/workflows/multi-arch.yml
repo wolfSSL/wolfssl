@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential crossbuild-essential-arm64 crossbuild-essential-armhf crossbuild-essential-riscv64 crossbuild-essential-armel qemu-user
+          packages: autoconf automake libtool build-essential crossbuild-essential-arm64 crossbuild-essential-armhf crossbuild-essential-riscv64 crossbuild-essential-armel crossbuild-essential-ppc64el qemu-user
           ghcr-debs-tag: ubuntu-22.04-minimal
 
       # ccache via the cross-platform composite; the script passes the

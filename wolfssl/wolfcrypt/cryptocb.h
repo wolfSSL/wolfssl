@@ -1032,8 +1032,11 @@ typedef struct wc_CryptoInfo {
         int type;               /* enum wc_SetKeyType */
         void* obj;              /* Aes*, Hmac*, RsaKey*, ecc_key* */
         void* key;              /* Raw key bytes or temp struct to export from */
+                                /* AES: NULL when the key lives on the device */
         word32 keySz;           /* Key size (0 when key is a struct ptr) */
         void* aux;              /* Auxiliary data (IV, etc.) or NULL */
+                                /* AES: the IV; a device that takes the key */
+                                /* must load it itself */
         word32 auxSz;           /* Aux data size, 0 if unused */
         int flags;              /* AES: direction (AES_ENCRYPTION/DECRYPTION) */
     } setkey;
