@@ -3723,6 +3723,10 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && \
     !defined(NO_SHA256) && !defined(WC_NO_RNG)
         if (ctx->srp != NULL) {
+            if (ctx->srp_password != NULL) {
+                ForceZero(ctx->srp_password,
+                          (word32)XSTRLEN((char*)ctx->srp_password));
+            }
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp_password = NULL;
             wc_SrpTerm(ctx->srp);
