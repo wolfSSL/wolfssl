@@ -95,7 +95,12 @@ static int wb_wm_rng_block(WC_RNG* rng, byte* out, word32 sz);
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* A failed WB_CHECK, as opposed to a skipped setup step. */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+#define WB_CHECK(cond, msg) \
+    do { if (!(cond)) { printf("  [wb][FAIL] %s\n", (msg)); wb_bad = 1; } } \
+    while (0)
 
 #define WB_RNG_REAL     0   /* pass through to the real RNG                */
 #define WB_RNG_FIXED    1   /* every draw is 0xa5.. (top digit non-zero)   */
@@ -201,13 +206,87 @@ static void wb_mp_rand_top_digit(void)
 
 #endif /* !WC_NO_RNG && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
 
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+static void wb_ecc_derive_pub_if_needed(void)
+{
+    WC_RNG rng;
+    ecc_key key;
+    int ret;
+
+    WB_NOTE("wc_ecc_derive_pub_if_needed(): NULL / full / private-only / "
+            "failed derivation");
+    ret = wc_ecc_derive_pub_if_needed(NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "key==NULL");
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_ecc_init(&key) != 0) {
+        WB_NOTE("wc_ecc_init failed; skipped");
+        wb_fail = 1;
+        wc_FreeRng(&rng);
+        return;
+    }
+    if (wc_ecc_make_key_ex(&rng, 0, &key, ECC_SECP256R1) != 0) {
+        WB_NOTE("wc_ecc_make_key_ex failed; skipped");
+        wb_fail = 1;
+        goto out;
+    }
+
+    /* A key that already holds its point is left untouched. A marker in
+     * pubkey.x tells an early return apart from a silent recompute. */
+    if (mp_set(key.pubkey.x, 1) == MP_OKAY) {
+        ret = wc_ecc_derive_pub_if_needed(&key, &rng);
+        WB_CHECK((ret == 0) && (key.type == ECC_PRIVATEKEY) &&
+            (mp_isone(key.pubkey.x) == MP_YES), "full key early-returns");
+    }
+
+    /* A private-only key is completed, replacing the marker. */
+    key.type = ECC_PRIVATEKEY_ONLY;
+    ret = wc_ecc_derive_pub_if_needed(&key, &rng);
+    WB_CHECK((ret == 0) && (key.type == ECC_PRIVATEKEY) &&
+        (mp_isone(key.pubkey.x) != MP_YES), "private-only key promoted");
+
+    /* With no RNG passed, the key's own is used, or none. */
+    key.type = ECC_PRIVATEKEY_ONLY;
+    ret = wc_ecc_derive_pub_if_needed(&key, NULL);
+    WB_CHECK((ret == 0) && (key.type == ECC_PRIVATEKEY), "no RNG promoted");
+
+    /* A failed derivation leaves the key private-only. */
+    key.type = ECC_PRIVATEKEY_ONLY;
+    mp_zero(key.k);
+#ifdef WOLFSSL_ECC_BLIND_K
+    mp_zero(key.kb);
+#endif
+    ret = wc_ecc_derive_pub_if_needed(&key, &rng);
+    WB_CHECK((ret != 0) && (ret != WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E)) &&
+        (key.type == ECC_PRIVATEKEY_ONLY), "zero scalar fails closed");
+
+out:
+    wc_ecc_free(&key);
+    wc_FreeRng(&rng);
+}
+#else
+static void wb_ecc_derive_pub_if_needed(void)
+{
+    WB_NOTE("ECC P-256 or RNG unavailable; derive-pub vectors skipped");
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("wolfmath.c white-box supplement\n");
     wb_mp_rand_top_digit();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup issues are surfaced as skips; a nonzero exit would make the
-     * suite discard this variant's coverage. */
+    wb_ecc_derive_pub_if_needed();
+    printf("done (%s)\n",
+        wb_bad ? "with failures" : wb_fail ? "with skips" : "ok");
+    /* Setup issues are surfaced as skips and failed checks as failures,
+     * which the smoke runner greps for; a nonzero exit would make the suite
+     * discard this variant's coverage. */
     return 0;
 }
