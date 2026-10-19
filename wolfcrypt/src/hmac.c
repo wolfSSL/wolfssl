@@ -1682,8 +1682,6 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             break;
     }
 
-    /* The inner digest is keyed output (ISO/IEC 19790 7.9.7). */
-    ForceZero(hmac->innerHash, sizeof(hmac->innerHash));
     if (ret == 0) {
         hmac->innerHashKeyed = 0;
     }
