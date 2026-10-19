@@ -1821,6 +1821,12 @@ enum wc_PkType {
     WC_PK_TYPE_ED448_KEYGEN    = 56,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_KEYGEN
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    WC_PK_TYPE_PQC_SIG_MAKE_PUB = 57,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_MAKE_PUB
+#endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
