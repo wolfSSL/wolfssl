@@ -16421,18 +16421,195 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
 }
 #endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
 
+#ifdef WOLF_CRYPTO_CB
+/* Get the public key from the device for a key with no key held here.
+ *
+ * The device writes the public key straight into key->p.
+ *
+ * @param [in, out] key  ML-DSA key with the parameters set and no public or
+ *                       private key set.
+ * @return  0 on success.
+ * @return  CRYPTOCB_UNAVAILABLE when no device does the operation.
+ * @return  BUFFER_E when the device's public key is the wrong size.
+ * @return  PUBLIC_KEY_E when the device's public key is all zeros.
+ * @return  BAD_STATE_E when the device changed the key's parameters or,
+ *          with dynamic keys, replaced or freed its public key buffer.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int mldsa_make_pub_key_dev(wc_MlDsaKey* key)
+{
+    int ret = 0;
+    /* The level is open until the device says which key it holds, but only
+     * when the caller didn't choose it. The placeholder level is the largest,
+     * so key->p fits any device key. */
+#ifdef WOLF_PRIVATE_KEY_ID
+    int anyLevel = key->devLevelOpen;
+#else
+    int anyLevel = 0;
+#endif
+    /* pkSz and the size of key->p follow from these parameters. */
+    const wc_MlDsaParams* keyParams = key->params;
+    word32 pkSz = keyParams->pkSz;
+    word32 outSz = pkSz;
+    int newLevel = -1;
+    /* End of the largest smaller standard public key, compiled in or not:
+     * the device may hold a level this build lacks. Past it, a key of a
+     * smaller level leaves the buffer zero. */
+    word32 tailStart = 0;
+    word32 i;
+
+#ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+    ret = mldsa_alloc_pub_buf(key);
+#endif
+    if (ret == 0) {
+        byte* pubBuf = key->p;
+    #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+        /* Address kept as an integer: if the device frees key->p, pubBuf's
+         * value may no longer be read. */
+        wc_ptr_t pubAddr = (wc_ptr_t)pubBuf;
+    #endif
+
+        /* Zeros show a device that reports success without writing. */
+        XMEMSET(pubBuf, 0, pkSz);
+
+        ret = wc_CryptoCb_PqcSignatureMakePub(key, WC_PQC_SIG_TYPE_MLDSA,
+            pubBuf, &outSz);
+        /* Whatever the device returned, it must have left the key as it was:
+         * a device that reset the key may have resized or freed key->p. */
+        if ((key->params != keyParams)
+    #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+                || ((wc_ptr_t)key->p != pubAddr)
+    #endif
+                ) {
+            ret = BAD_STATE_E;
+            keyParams = NULL;
+            /* key->p can't be trusted, but the key is still the caller's:
+             * a public key the device set through the API isn't left set. */
+            key->pubKeySet = 0;
+        }
+    }
+    /* Find the smaller levels. The device's key says the level only when
+     * none has been chosen, and only a compiled in level can be taken. */
+    if (ret == 0) {
+        /* In ascending public key size: the last smaller size found is the
+         * largest. */
+        static const byte levels[] = {
+            WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87
+        };
+        static const word32 levelPkSz[] = {
+            WC_MLDSA_44_PUB_KEY_SIZE, WC_MLDSA_65_PUB_KEY_SIZE,
+            WC_MLDSA_87_PUB_KEY_SIZE
+        };
+        const wc_MlDsaParams* params = NULL;
+
+        for (i = 0; i < (word32)XELEM_CNT(levels); i++) {
+            if (levelPkSz[i] >= pkSz) {
+                continue;
+            }
+            tailStart = levelPkSz[i];
+            if (anyLevel && (levelPkSz[i] == outSz) &&
+                    (mldsa_get_params(levels[i], &params) == 0)) {
+                newLevel = levels[i];
+            }
+        }
+        if (newLevel >= 0) {
+            pkSz = outSz;
+        }
+    }
+    if ((ret == 0) && (outSz != pkSz)) {
+        ret = BUFFER_E;
+    }
+    /* A public key is never all zeros: nothing was written. */
+    if (ret == 0) {
+        byte acc = 0;
+
+        for (i = 0; i < pkSz; i++) {
+            acc |= key->p[i];
+        }
+        if (acc == 0) {
+            ret = PUBLIC_KEY_E;
+        }
+    }
+    /* A device that left *pubOutSz as given and wrote a smaller level's key
+     * leaves the end of the buffer zero. */
+    if ((ret == 0) && (newLevel < 0) && (tailStart > 0)) {
+        byte acc = 0;
+
+        for (i = tailStart; i < pkSz; i++) {
+            acc |= key->p[i];
+        }
+        if (acc == 0) {
+            ret = BUFFER_E;
+        }
+    }
+    if ((ret == 0) && (newLevel >= 0)) {
+        /* SetParams frees key->p, which already holds the public key and is
+         * large enough for the smaller level. */
+    #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+        byte* p = key->p;
+
+        key->p = NULL;
+    #endif
+        ret = wc_MlDsaKey_SetParams(key, (byte)newLevel);
+    #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+        key->p = p;
+    #endif
+    }
+    if (ret == 0) {
+        key->pubKeySet = 1;
+    #ifdef WOLF_PRIVATE_KEY_ID
+        /* The level is the device key's now. */
+        key->devLevelOpen = 0;
+    #endif
+    }
+    else if (keyParams != NULL) {
+        /* Don't leave behind what the device wrote. */
+    #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
+        if (key->p != NULL)
+    #endif
+        {
+            XMEMSET(key->p, 0, keyParams->pkSz);
+        }
+        key->pubKeySet = 0;
+    }
+    /* key->p is rewritten, so drop what was cached from the old one. */
+    if (keyParams != NULL) {
+    #ifdef WC_MLDSA_CACHE_PUB_VECTORS
+        key->pubVecSet = 0;
+    #endif
+    #ifdef WC_MLDSA_CACHE_MATRIX_A
+        key->aSet = 0;
+    #endif
+    }
+
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB */
+
 /* Derive the public key (rho || t1) from the private key.
  *
  * When the public key is already set it is only checked against the private
  * key's tr.
  *
- * @param [in, out] key  ML-DSA key with the private key set.
+ * A device-bound key with no private or public key held here gets the
+ * public key from the device. A key from wc_MlDsaKey_InitId() or
+ * wc_MlDsaKey_InitLabel() with no wc_MlDsaKey_SetParams() call takes the
+ * level of the device's key. A key whose public key came from a device has
+ * no private key here, so a repeat call returns BAD_FUNC_ARG.
+ *
+ * @param [in, out] key  ML-DSA key with the private key set, or bound to a
+ *                       device that holds it.
  * @return  0 on success, or when the set public key matches tr.
  * @return  BAD_FUNC_ARG when key is NULL, or the private key or parameters
  *          are not set.
- * @return  PUBLIC_KEY_E when the public key does not match the private key.
- * @return  NO_VALID_DEVID when the software implementation is not compiled
- *          in.
+ * @return  BUFFER_E when the device's public key is the wrong size.
+ * @return  PUBLIC_KEY_E when the public key does not match the private key
+ *          or the device's public key is all zeros.
+ * @return  BAD_STATE_E when the device changed the key's parameters or,
+ *          with dynamic keys, replaced or freed its public key buffer.
+ * @return  NO_VALID_DEVID when the private key is set and the software
+ *          implementation is not compiled in.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other negative when an error occurs.
  */
@@ -16440,13 +16617,32 @@ int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key)
 {
     int ret = 0;
 
-    /* Derivation needs the local private key bytes: a devId-bound key with
-     * imported private material derives in software, while a key that only
-     * references a device-held private key (id/label) has prvKeySet == 0. */
-    if ((key == NULL) || (!key->prvKeySet) || (key->params == NULL)) {
+    if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* A device/id-backed key has no local private material (prvKeySet == 0),
+     * so ask the device before the prvKeySet check. A private key held here
+     * is not sent: the device's public key could not be checked against it.
+     * A public key set here is not sent either, as the device writes into
+     * it. */
+    if ((ret == 0) && (!key->prvKeySet) && (!key->pubKeySet)
+#ifndef WOLF_CRYPTO_CB_FIND
+            && (key->devId != INVALID_DEVID)
+#endif
+            ) {
+        ret = mldsa_make_pub_key_dev(key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* No device answered: there is no private key to derive from. */
+        ret = 0;
+    }
+#endif
+
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 #ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
     /* No software check or derivation, and no device operation for it. */
     if (ret == 0) {
@@ -17405,6 +17601,10 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     if (ret == 0) {
         ret = wc_MlDsaKey_SetParams(key, MLDSA_DEV_KEY_LEVEL);
     }
+    /* Not chosen by the caller: the device's key may be of another level. */
+    if (ret == 0) {
+        key->devLevelOpen = 1;
+    }
 
     return ret;
 }
@@ -17449,6 +17649,9 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     /* Set the highest level this build has; see wc_MlDsaKey_InitId. */
     if (ret == 0) {
         ret = wc_MlDsaKey_SetParams(key, MLDSA_DEV_KEY_LEVEL);
+    }
+    if (ret == 0) {
+        key->devLevelOpen = 1;
     }
 
     return ret;
@@ -17551,6 +17754,10 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
         key->level = level % WC_ML_DSA_DRAFT;
         key->pubKeySet = 0;
         key->prvKeySet = 0;
+    #ifdef WOLF_PRIVATE_KEY_ID
+        /* The level is now the caller's choice. */
+        key->devLevelOpen = 0;
+    #endif
     }
 
     return ret;

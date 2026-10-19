@@ -213,6 +213,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_PQC_SIG_SIGN: return "PQC Sig Sign";
         case WC_PK_TYPE_PQC_SIG_VERIFY: return "PQC Sig Verify";
         case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY: return "PQC Sig CheckPrivKey";
+        case WC_PK_TYPE_PQC_SIG_MAKE_PUB: return "PQC Sig MakePub";
         case WC_PK_TYPE_PQC_SIG_SIGN_MSG: return "PQC Sig SignMsg";
         case WC_PK_TYPE_PQC_SIG_VERIFY_MSG: return "PQC Sig VerifyMsg";
 #endif
@@ -2595,6 +2596,41 @@ int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
         cryptoInfo.pk.pqc_sig_check.pubKey = pubKey;
         cryptoInfo.pk.pqc_sig_check.pubKeySz = pubKeySz;
         cryptoInfo.pk.pqc_sig_check.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+/* Ask the device for the public key. Returns 0 on success,
+ * CRYPTOCB_UNAVAILABLE when no device does it, or the device's own error
+ * (NOT_COMPILED_IN is returned as CRYPTOCB_UNAVAILABLE). */
+int wc_CryptoCb_PqcSignatureMakePub(void* key, int type, byte* pubOut,
+    word32* pubOutSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL || pubOut == NULL || pubOutSz == NULL)
+        return ret;
+
+    /* get devId; an unbound key still goes through the find callback */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+
+    /* locate registered callback. A slot sits at INVALID_DEVID while it is
+     * being registered or retired, so never dispatch through one. */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb && (dev->devId != INVALID_DEVID)) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_MAKE_PUB;
+        cryptoInfo.pk.pqc_sig_make_pub.key = key;
+        cryptoInfo.pk.pqc_sig_make_pub.pubOut = pubOut;
+        cryptoInfo.pk.pqc_sig_make_pub.pubOutSz = pubOutSz;
+        cryptoInfo.pk.pqc_sig_make_pub.type = type;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
