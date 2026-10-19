@@ -15327,8 +15327,11 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
-    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return WANT_WRITE if the writing is not ready.
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or running over
+    QUIC.
+    \return WOLFSSL_ERROR_WANT_WRITE if non-blocking I/O is not ready to write.
+    The KeyUpdate message is queued and the next wolfSSL_write() call sends
+    it; do not call wolfSSL_update_keys() again for this update.
     \return BAD_STATE_E if the connection has already performed the maximum
     number of key updates. RFC 9846, Section 4.7.3 caps a TLS 1.3 sender at
     2^48-1 key updates; beyond that the connection must be closed rather than
@@ -15336,7 +15339,11 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     request_update set is ignored once this cap is reached, rather than
     failing the connection, so only an application-initiated update reports
     this error.
-    \return WOLFSSL_SUCCESS if successful.
+    \return WOLFSSL_SUCCESS if successful. With DTLS v1.3 this means the
+    KeyUpdate was sent, not that the peer has acknowledged it. Keep calling
+    wolfSSL_read() and servicing the DTLS timers so the ACK is processed. A
+    further wolfSSL_update_keys() call while that ACK is outstanding returns
+    WOLFSSL_SUCCESS without sending anything.
 
     _Example_
     \code
@@ -15344,8 +15351,8 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_update_keys(ssl);
-    if (ret == WANT_WRITE) {
-        // need to call again when I/O ready
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // KeyUpdate queued: the next wolfSSL_write() sends it when I/O ready
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // failed to send key update
@@ -15353,6 +15360,8 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_write
+    \sa wolfSSL_key_update_response
+    \sa wolfSSL_dtls13_has_pending_msg
 */
 int  wolfSSL_update_keys(WOLFSSL* ssl);
 
@@ -15466,8 +15475,11 @@ int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
-    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return WANT_WRITE if the writing is not ready.
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or running over
+    QUIC.
+    \return WOLFSSL_ERROR_WANT_WRITE if non-blocking I/O is not ready to write.
+    The CertificateRequest message is queued and the next wolfSSL_write() call
+    sends it; do not call wolfSSL_request_certificate() again for this request.
     \return SIDE_ERROR if called with a client.
     \return NOT_READY_ERROR if called when the handshake is not finished.
     \return POST_HAND_AUTH_ERROR if posthandshake authentication is disallowed.
@@ -15480,8 +15492,8 @@ int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_request_certificate(ssl);
-    if (ret == WANT_WRITE) {
-        // need to call again when I/O ready
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // CertificateRequest queued: the next wolfSSL_write() sends it
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // failed to request a client certificate
