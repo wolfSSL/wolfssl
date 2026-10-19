@@ -7988,6 +7988,9 @@ WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+WOLFSSL_LOCAL int wolfssl_ec_key_derive_pub(ecc_key* key);
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_LOCAL int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,

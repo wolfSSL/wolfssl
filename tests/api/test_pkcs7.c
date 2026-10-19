@@ -9516,3 +9516,171 @@ int test_wc_PKCS7_CertFooterDecisionCoverage(void)
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
     return EXPECT_RESULT();
 }
+
+/* Test encoding with a SEC1 ECC key that omits the public point. */
+int test_wc_PKCS7_EncodeSignedData_ecc_priv_only(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP)
+    PKCS7*  pkcs7 = NULL;
+    WC_RNG  rng;
+    ecc_key key;
+    word32  idx = 0;
+    byte    privOnlyDer[128];
+    int     privOnlyDerSz = 0;
+    byte    output[FOURK_BUF];
+    byte    data[] = "Test data to encode.";
+    int     canDerive = test_ecc_can_derive_pub();
+
+    if (canDerive == 0) {
+        return TEST_SKIPPED;
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(output, 0, sizeof(output));
+
+    ExpectIntGT(privOnlyDerSz = test_ecc_priv_only_der(privOnlyDer,
+        (word32)sizeof(privOnlyDer), NULL, NULL), 0);
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &key,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(key.type, ECC_PRIVATEKEY_ONLY);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cliecc_cert_der_256,
+        (word32)sizeof_cliecc_cert_der_256), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->privateKey   = privOnlyDer;
+        pkcs7->privateKeySz = (word32)privOnlyDerSz;
+        pkcs7->encryptOID   = ECDSAk;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->rng          = &rng;
+    }
+
+    ExpectIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output,
+        (word32)sizeof(output)), 0);
+
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    #define TEST_PKCS7_ECC_PRIV_ONLY_NO_DERIVE
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_PKCS7_NO_DERIVE_DEVID 0x50374450 /* "P7DP" */
+
+static int pkcs7MakePubCalls = 0;
+static int pkcs7MakePubResult = WC_NO_ERR_TRACE(NO_VALID_DEVID);
+
+/* Answers every make-pub with pkcs7MakePubResult and leaves the rest to
+ * software. */
+static int test_pkcs7_no_derive_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)ctx;
+
+    if ((devId == TEST_PKCS7_NO_DERIVE_DEVID) &&
+            (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_MAKE_PUB)) {
+        pkcs7MakePubCalls++;
+        return pkcs7MakePubResult;
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+/* A device that cannot derive the public point still signs with a SEC1 key
+ * that omits it, as hardware builds without derivation did before. Any other
+ * derivation error still fails the signing. */
+int test_wc_PKCS7_EncodeSignedData_ecc_priv_only_no_derive(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS7_ECC_PRIV_ONLY_NO_DERIVE
+    PKCS7*  pkcs7 = NULL;
+    WC_RNG  rng;
+    byte    privOnlyDer[128];
+    int     privOnlyDerSz = 0;
+    byte    output[FOURK_BUF];
+    int     outputSz = 0;
+    byte    data[] = "Test data to encode.";
+    static const int makePubResult[] = { WC_NO_ERR_TRACE(NO_VALID_DEVID),
+        WC_NO_ERR_TRACE(MEMORY_E) };
+    int     r;
+    int     canDerive = test_ecc_can_derive_pub();
+
+    /* Without derivation in the build the device is never asked. */
+    if (canDerive == 0) {
+        return TEST_SKIPPED;
+    }
+    ExpectIntEQ(canDerive, 1);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntGT(privOnlyDerSz = test_ecc_priv_only_der(privOnlyDer,
+        (word32)sizeof(privOnlyDer), NULL, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS7_NO_DERIVE_DEVID,
+        test_pkcs7_no_derive_cb, NULL), 0);
+
+    for (r = 0; r < (int)(sizeof(makePubResult) / sizeof(makePubResult[0]));
+            r++) {
+        pkcs7MakePubCalls = 0;
+        pkcs7MakePubResult = makePubResult[r];
+        XMEMSET(output, 0, sizeof(output));
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT,
+            TEST_PKCS7_NO_DERIVE_DEVID));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cliecc_cert_der_256,
+            (word32)sizeof_cliecc_cert_der_256), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = data;
+            pkcs7->contentSz    = (word32)sizeof(data);
+            pkcs7->privateKey   = privOnlyDer;
+            pkcs7->privateKeySz = (word32)privOnlyDerSz;
+            pkcs7->encryptOID   = ECDSAk;
+            pkcs7->hashOID      = SHA256h;
+            pkcs7->rng          = &rng;
+        }
+        outputSz = wc_PKCS7_EncodeSignedData(pkcs7, output,
+            (word32)sizeof(output));
+        ExpectIntGE(pkcs7MakePubCalls, 1);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        if (makePubResult[r] == WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+            ExpectIntGT(outputSz, 0);
+            /* The signature verifies against the key's certificate. */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output,
+                (word32)outputSz), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+        else {
+            ExpectIntEQ(outputSz, makePubResult[r]);
+        }
+    }
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS7_NO_DERIVE_DEVID);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
