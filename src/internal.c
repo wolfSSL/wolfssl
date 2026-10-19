@@ -10244,6 +10244,7 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
     #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
         WOLFSSL_HEAP*      ctx_heap;
+        WOLFSSL_MEM_CONN_STATS* stats;
 
         ctx_heap = ssl_hint->memory;
     #ifndef SINGLE_THREADED
@@ -10269,7 +10270,10 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
 
         /* check if tracking stats */
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
-            XFREE(ssl_hint->stats, heap, DYNAMIC_TYPE_SSL);
+            /* with ssl->ctx NULL, heap is ssl->heap and XFREE updates stats */
+            stats = ssl_hint->stats;
+            ssl_hint->stats = NULL;
+            XFREE(stats, heap, DYNAMIC_TYPE_SSL);
         }
     #endif /* !WOLFSSL_STATIC_MEMORY_LEAN */
         XFREE(ssl->heap, heap, DYNAMIC_TYPE_SSL);
@@ -10554,9 +10558,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
     ssl->ws_peer_ca_names = NULL;
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    FreeSSL_StaticMemory(ssl);
-#endif /* WOLFSSL_STATIC_MEMORY */
 #ifdef OPENSSL_EXTRA
     /* Enough to free stack structure since WOLFSSL_CIPHER
      * isn't allocated separately. */
@@ -10597,6 +10598,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(ssl->peerSigSpec, ssl->heap, DYNAMIC_TYPE_TLSX);
 #endif
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* last, as everything above may still free through ssl->heap */
+    FreeSSL_StaticMemory(ssl);
+#endif /* WOLFSSL_STATIC_MEMORY */
 }
 
 /* Free any handshake resources no longer needed */
@@ -37072,6 +37077,10 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
 
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    ssl->options.dhKeyTested = 0;
+#endif
     ssl->buffers.serverDH_P.buffer =
         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_P.buffer) {
@@ -37256,7 +37265,7 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ssl->namedGroup = group;
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
-        ssl->options.dhDoKeyTest = 0;
+        ssl->options.dhKeyTested = 1;
     #endif
     }
 #endif /* HAVE_FFDHE */
@@ -40973,6 +40982,15 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                         pSz = wc_DhGetNamedKeyMinSize(ssl->namedGroup);
 
+                        /* A retained buffer's length is the last key's size. */
+                        if (ssl->buffers.serverDH_Priv.buffer != NULL &&
+                                ssl->buffers.serverDH_Priv.length < pSz) {
+                            ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                      ssl->buffers.serverDH_Priv.length);
+                            XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+                                  DYNAMIC_TYPE_PRIVATE_KEY);
+                            ssl->buffers.serverDH_Priv.buffer = NULL;
+                        }
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in wolfSSL_ResourceFree and
                              * FreeHandshakeResources */
@@ -41064,6 +41082,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                                 ssl->buffers.serverDH_P.length;
                         }
 
+                        /* A retained buffer's length is the last key's size. */
+                        if (ssl->buffers.serverDH_Priv.buffer != NULL &&
+                                ssl->buffers.serverDH_Priv.length <
+                                    ssl->buffers.serverDH_P.length) {
+                            ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                      ssl->buffers.serverDH_Priv.length);
+                            XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap,
+                                  DYNAMIC_TYPE_PRIVATE_KEY);
+                            ssl->buffers.serverDH_Priv.buffer = NULL;
+                        }
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in wolfSSL_ResourceFree
                              * and FreeHandshakeResources

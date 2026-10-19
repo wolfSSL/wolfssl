@@ -9000,6 +9000,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return NULL;
     if (ssl->ctx == ctx)
         return ssl->ctx;
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* the SSL and its heap hint are freed through ssl->ctx->heap */
+    if (ssl->ctx != NULL && ssl->ctx->heap != ctx->heap) {
+        WOLFSSL_MSG("Cannot switch to a CTX with a different heap");
+        return NULL;
+    }
+#endif
 
     /* suites, allocated and derived under the CTX mutex as this CTX may be
      * shared with other threads. Done before taking a reference below so that
