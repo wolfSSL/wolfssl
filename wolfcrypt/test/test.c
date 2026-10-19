@@ -56924,6 +56924,17 @@ static wc_test_ret_t ecc_test_neg_rs(WC_RNG* rng)
     ret = wc_ecc_verify_hash_ex(r, s, hash, sizeof(hash), &verify, key);
     if ((ret == 0) || (verify != 0))
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    /* Same for r: restore s, then move r below zero. */
+    ret = mp_add(s, n, s);
+    if (ret == MP_OKAY)
+        ret = mp_sub(r, n, r);
+    if (ret != MP_OKAY)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    verify = 0;
+    ret = wc_ecc_verify_hash_ex(r, s, hash, sizeof(hash), &verify, key);
+    if ((ret == 0) || (verify != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     ret = 0;
 
 done:
