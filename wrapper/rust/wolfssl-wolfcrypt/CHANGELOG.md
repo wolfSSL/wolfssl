@@ -74,6 +74,9 @@ Fixes and improvements:
 - Ed25519 and Ed448 streaming verification with the prehash variant now
   requires exactly PREHASH_SIZE (64) bytes of input, matching one-shot
   verification
+- RNG::generate_block() (and the rand_core implementation built on it) now
+  fills buffers larger than RNG_MAX_BLOCK_LEN by splitting them into multiple
+  DRBG requests, instead of failing with BAD_FUNC_ARG
 
 ## v2.2.0
 

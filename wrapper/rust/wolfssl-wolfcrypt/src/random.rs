@@ -351,6 +351,10 @@ impl RNG {
     /// random bytes. It calculates the total size of the slice in bytes and
     /// calls the underlying `wc_RNG_GenerateBlock` wolfssl library function.
     ///
+    /// A single DRBG generate request is limited to `RNG_MAX_BLOCK_LEN` bytes
+    /// (the SP 800-90A per-request maximum). Larger buffers are filled with
+    /// multiple consecutive requests of at most that size each.
+    ///
     /// # Parameters
     ///
     /// * `buf`: A mutable slice of any type `T` to be filled with random data.
@@ -358,16 +362,26 @@ impl RNG {
     /// # Returns
     ///
     /// A `Result` which is `Ok(())` on success or an `Err` with the wolfssl
-    /// library return code on failure.
+    /// library return code on failure. On failure the buffer may have been
+    /// partially filled and its contents must not be used.
     pub fn generate_block<T: PrimInt>(&self, buf: &mut [T]) -> Result<(), i32> {
-        let ptr = buf.as_mut_ptr() as *mut u8;
-        let size = crate::buffer_len_to_u32(size_of_val(buf))?;
-        let rc = unsafe { sys::wc_RNG_GenerateBlock(self.wc_rng, ptr, size) };
-        if rc == 0 {
-            Ok(())
-        } else {
-            Err(rc)
+        let len = size_of_val(buf);
+        // SAFETY: PrimInt types are plain integers with no padding bytes and
+        // for which every bit pattern is valid, so viewing the slice as bytes
+        // and overwriting them is sound.
+        let bytes = unsafe {
+            core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, len)
+        };
+        for chunk in bytes.chunks_mut(sys::RNG_MAX_BLOCK_LEN as usize) {
+            let size = crate::buffer_len_to_u32(chunk.len())?;
+            let rc = unsafe {
+                sys::wc_RNG_GenerateBlock(self.wc_rng, chunk.as_mut_ptr(), size)
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
         }
+        Ok(())
     }
 
     /// Reseed random number generator.
