@@ -1559,8 +1559,160 @@ int test_wolfSSL_write_after_shutdown(void)
      * The server has already seen the client's close_notify, so its own
      * shutdown completes in one call. */
     ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Refuse another write right before the final shutdown, so the error it
+     * leaves behind is the one the shutdown has to get past. The read above
+     * had already replaced the first one with WANT_READ. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E));
+    }
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
 
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a close_notify left buffered by WANT_WRITE still goes out after a
+ * refused write.
+ *
+ * A non-blocking shutdown that could not send the alert leaves it in the
+ * output buffer with sentNotify set, to be flushed by the next call. A write
+ * refused in between replaces the WANT_WRITE it left behind with
+ * CLOSE_NOTIFY_SENT_E, and a read replaces that with WANT_READ. The flush
+ * used to be keyed off WANT_WRITE alone, so the alert was stranded and the
+ * shutdown waited on the peer for a close_notify it had never been sent.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_write_after_shutdown_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_SHUTDOWNONCE)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "after close_notify";
+    char buf[sizeof(msg)];
+    word32 buffered = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The transport is not writable: close_notify stays in the output
+     * buffer, but it counts as sent. */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.sentNotify, 1);
+        buffered = ssl_c->buffers.outputBuffer.length;
+    }
+    ExpectIntGT(buffered, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* The write is refused and leaves the buffered alert alone. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E));
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, buffered);
+    }
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* A read in between finds nothing and leaves WANT_READ behind. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+
+    /* Once the transport is writable again the shutdown retry flushes the
+     * alert rather than waiting on the peer. */
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+    }
+    ExpectIntGT(test_ctx.s_len, 0);
+
+    /* The peer sees only the close_notify, and the exchange completes. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a write duplicate sends nothing after close_notify either.
+ *
+ * On the write side of a TLS 1.3 write duplicate, wolfSSL_write() first does
+ * the work the read side delegated, such as answering a peer's
+ * KeyUpdate(update_requested). That ran before the write itself was refused,
+ * so a KeyUpdate record went out behind the close_notify.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_write_after_shutdown_write_dup(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_WRITE_DUP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_SHUTDOWNONCE)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl_w = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "after close_notify";
+    int onWire = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* ssl_c becomes read-only; ssl_w is the write side. */
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_c));
+
+    /* The write side sends close_notify; the peer's has not arrived yet. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_w), WOLFSSL_SHUTDOWN_NOT_DONE);
+    if (ssl_w != NULL) {
+        ExpectIntEQ(ssl_w->options.sentNotify, 1);
+        /* The read side has delegated a KeyUpdate response. */
+        ssl_w->dupWrite->keyUpdateRespond = 1;
+    }
+    onWire = test_ctx.s_len;
+    ExpectIntGT(onWire, 0);
+
+    /* The write is refused before the delegated work runs: no KeyUpdate and
+     * no application data follow the alert. */
+    ExpectIntEQ(wolfSSL_write(ssl_w, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_w != NULL) {
+        ExpectIntEQ(ssl_w->error, WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E));
+        ExpectIntEQ(ssl_w->keys.keyUpdateRespond, 0);
+    }
+    ExpectIntEQ(test_ctx.s_len, onWire);
+
+    wolfSSL_free(ssl_w);
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
