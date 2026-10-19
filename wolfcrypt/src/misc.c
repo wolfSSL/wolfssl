@@ -862,13 +862,19 @@ static WC_INLINE WC_FZ_AVX2_ATTR void ForceZero_AVX2(byte* zb, size_t len)
 }
 #undef WC_FZ_AVX2_ATTR
 
-/* Returns whether the CPU and OS support AVX2. Each file caches the flags. */
+/* Returns whether the CPU and OS support AVX2. Each file caches the flags.
+ * Once they are cached, this is one atomic load. */
 static WC_INLINE int ForceZero_HaveAVX2(void)
 {
     static cpuid_flags_atomic_t fz_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+    cpuid_flags_t flags = WOLFSSL_ATOMIC_LOAD(fz_cpuid_flags);
 
-    cpuid_get_flags_atomic(&fz_cpuid_flags);
-    return IS_INTEL_AVX2(fz_cpuid_flags) != 0;
+    if (flags == WC_CPUID_INITIALIZER) {
+        /* Threads that race here store the same flags. */
+        flags = cpuid_get_flags();
+        WOLFSSL_ATOMIC_STORE(fz_cpuid_flags, flags);
+    }
+    return IS_INTEL_AVX2(flags) != 0;
 }
 #endif /* WC_FORCE_ZERO_AVX2 */
 
