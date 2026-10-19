@@ -2047,6 +2047,81 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void)
 #endif
     return EXPECT_RESULT();
 }
+/* FIPS 186-4 4.6: a DSA signature covers the leftmost min(N, outlen) bits of
+ * the digest. A 2048-bit key has a 256-bit q, so a SHA-256 digest is used
+ * whole and two digests that agree only on their first 20 bytes must not share
+ * a signature. */
+int test_wolfSSL_EVP_PKEY_sign_dsa_digest_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DSA) && \
+    !defined(WC_FIPS_186_5_PLUS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_SHA256)
+    WOLFSSL_DSA* dsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctxVerify = NULL;
+    WOLFSSL_EVP_MD_CTX* mdCtx = NULL;
+    byte   digest[SHA256_DIGEST_LENGTH];
+    byte   other[SHA256_DIGEST_LENGTH];
+    byte   sig[DSA_MAX_SIG_SIZE];
+    byte   msg[16];
+    size_t siglen = sizeof(sig);
+    unsigned int sigFinalLen = sizeof(sig);
+    SHA256_CTX shaCtx;
+
+    XMEMSET(msg, 0x33, sizeof(msg));
+    XMEMSET(digest, 0x5a, sizeof(digest));
+    XMEMCPY(other, digest, sizeof(other));
+    /* Differ only beyond the first WC_SHA_DIGEST_SIZE bytes. */
+    other[WC_SHA_DIGEST_SIZE] = (byte)~other[WC_SHA_DIGEST_SIZE];
+
+    ExpectNotNull(dsa = DSA_new());
+    ExpectIntEQ(DSA_generate_parameters_ex(dsa, 2048, NULL, 0, NULL, NULL,
+        NULL), 1);
+    ExpectIntEQ(DSA_generate_key(dsa), 1);
+    ExpectIntEQ(wolfSSL_BN_num_bytes(dsa->q), SHA256_DIGEST_LENGTH);
+
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectNotNull(ctxVerify = EVP_PKEY_CTX_new(pkey, NULL));
+
+    ExpectIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, digest, sizeof(digest)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(EVP_PKEY_verify_init(ctxVerify), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, siglen, digest,
+        sizeof(digest)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, siglen, other, sizeof(other)),
+        WOLFSSL_FAILURE);
+
+    /* EVP_SignFinal() hands the digest over separately: what it signs has to
+     * be what EVP_PKEY_verify() checks. */
+    ExpectNotNull(mdCtx = EVP_MD_CTX_new());
+    ExpectIntEQ(EVP_SignInit(mdCtx, EVP_sha256()), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_SignUpdate(mdCtx, msg, sizeof(msg)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_SignFinal(mdCtx, sig, &sigFinalLen, pkey),
+        WOLFSSL_SUCCESS);
+    SHA256_Init(&shaCtx);
+    SHA256_Update(&shaCtx, msg, sizeof(msg));
+    SHA256_Final(digest, &shaCtx);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256Free((wc_Sha256*)&shaCtx);
+#endif
+    ExpectIntEQ(EVP_PKEY_verify(ctxVerify, sig, (size_t)sigFinalLen, digest,
+        sizeof(digest)), WOLFSSL_SUCCESS);
+    EVP_MD_CTX_free(mdCtx);
+
+    EVP_PKEY_CTX_free(ctxVerify);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    DSA_free(dsa);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_sign_verify_ec(void)
 {
     EXPECT_DECLS;
