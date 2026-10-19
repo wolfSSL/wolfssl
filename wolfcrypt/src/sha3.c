@@ -2452,9 +2452,6 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, 0);
     }
-    /* Sha3Final does not clear t; the absorbed seed would stay for the
-     * squeeze lifetime (ISO/IEC 19790:2012 7.9.7). */
-    ForceZero(shake->t, sizeof(shake->t));
     /* No partial data. */
     shake->i = 0;
 
@@ -2804,9 +2801,6 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, 0);
     }
-    /* Sha3Final does not clear t; the absorbed seed would stay for the
-     * squeeze lifetime (ISO/IEC 19790:2012 7.9.7). */
-    ForceZero(shake->t, sizeof(shake->t));
     /* No partial data. */
     shake->i = 0;
 
