@@ -1514,7 +1514,8 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         if (ret == 0) {
             XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
         }
-        ForceZero(hashTempBuf, (word32) hashOutSz);
+        /* All of hashTempBuf, so the compiler knows the length fits. */
+        ForceZero(hashTempBuf, sizeof(hashTempBuf));
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(hashTempBuf, (word32) hashOutSz);
     #endif
