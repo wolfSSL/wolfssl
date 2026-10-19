@@ -51,6 +51,20 @@
 #define ECX 2
 #define EDX 3
 
+/* misc.c may include cpuid.h, which uses these names with other values. */
+#undef CPUID_AVX1
+#undef CPUID_AVX2
+#undef CPUID_RDRAND
+#undef CPUID_RDSEED
+#undef CPUID_BMI2
+#undef CPUID_ADX
+#undef IS_INTEL_AVX1
+#undef IS_INTEL_AVX2
+#undef IS_INTEL_BMI2
+#undef IS_INTEL_ADX
+#undef IS_INTEL_RDRAND
+#undef IS_INTEL_RDSEED
+
 #define CPUID_AVX1   0x1
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
