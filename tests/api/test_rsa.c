@@ -906,6 +906,15 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Section 6 (Table 5) disallows RSAES-PKCS1-v1_5 key
+     * transport, so the v7 module refuses both directions. */
+    ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng),
+        WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
+    ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key),
+        WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
+    (void)cipherLenResult;
+#else
     /* Encrypt. */
     ExpectIntGT(cipherLenResult = (word32)wc_RsaPublicEncrypt(in, inLen, cipher,
         cipherLen, &key, &rng), 0);
@@ -934,6 +943,7 @@ int test_wc_RsaPublicEncryptDecrypt(void)
         WC_FREE_VAR(shortPlain, NULL);
     }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(plain, NULL);
@@ -1496,6 +1506,15 @@ int test_wc_RsaDecisionCoverage(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The v7 module refuses RSAES-PKCS1-v1_5 key transport (SP 800-131A
+     * Rev. 2 Section 6, Table 5) ahead of the argument checks below, so
+     * those rsa.c decisions are not reachable through it. */
+    ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng),
+        WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
+    (void)cipherOutLen;
+    (void)plain;
+#else
     /* ---- wc_RsaPublicEncrypt: argument-check decision branches ---- */
     ExpectIntEQ(wc_RsaPublicEncrypt(NULL, inLen, cipher, cipherLen, &key, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1540,6 +1559,7 @@ int test_wc_RsaDecisionCoverage(void)
         ExpectIntEQ(wc_RsaPrivateDecryptInline(cipher, (word32)cipherOutLen,
             &outPtr, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
 #if !defined(HAVE_FIPS) && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
     /* ---- wc_RsaPublicEncrypt_ex: argument-check + invalid-mode branches --- */

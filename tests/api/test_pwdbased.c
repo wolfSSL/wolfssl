@@ -200,9 +200,17 @@ int test_wc_PBKDF2DecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* valid derivation */
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The 8-byte salt is below the SP 800-132 Section 5.1 minimum of 128
+     * bits, so the v7 module derives the key and flags it not approved. */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID), WC_FIPS_NOT_APPROVED);
+#else
     ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
                     salt, (int)sizeof(salt), 2, (int)sizeof(derived),
                     WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
