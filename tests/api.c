@@ -47275,6 +47275,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_crl_get_crl_cb_would_block),
     TEST_DECL_GROUP("ocsp", test_ocsp_multi_fallback_no_cdp),
     TEST_DECL_GROUP("ocsp", test_ocsp_multi_fallback_waived_leaf),
+    TEST_DECL_GROUP("ocsp", test_ocsp_revocation_alert),
     TEST_DECL_GROUP("ocsp", test_ocsp_unstapled_chain_no_url),
     TEST_DECL_GROUP("ocsp", test_ocsp_checkall_staple_missing_chain),
     TEST_DECL_GROUP("ocsp", test_ocsp_must_staple_acked_no_status),

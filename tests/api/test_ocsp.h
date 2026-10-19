@@ -58,6 +58,7 @@ int test_ocsp_unstapled_chain_crl_would_block(void);
 int test_crl_get_crl_cb_would_block(void);
 int test_ocsp_multi_fallback_no_cdp(void);
 int test_ocsp_multi_fallback_waived_leaf(void);
+int test_ocsp_revocation_alert(void);
 int test_ocsp_unstapled_chain_no_url(void);
 int test_ocsp_checkall_staple_missing_chain(void);
 int test_ocsp_must_staple_acked_no_status(void);

@@ -8520,6 +8520,7 @@ WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
 #endif
 
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
+WOLFSSL_LOCAL int RevocationAlert(int err);
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_LOCAL void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk,
