@@ -2626,6 +2626,8 @@ int test_wolfSSL_EVP_PKEY_encrypt(void)
     ExpectIntEQ(EVP_PKEY_encrypt(ctx, outEncTmp, &outEncLen, inTmp, rsaKeySz),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
+    /* Still holds the plaintext length from the decrypt above. */
+    outDecLen = rsaKeySz;
     ExpectIntEQ(EVP_PKEY_decrypt(ctx, outDecTmp, &outDecLen, outEncTmp,
         outEncLen), WOLFSSL_SUCCESS);
     ExpectIntEQ(XMEMCMP(inTmp, outDecTmp, outDecLen), 0);
@@ -2638,6 +2640,98 @@ int test_wolfSSL_EVP_PKEY_encrypt(void)
     XFREE(outEncTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(outDecTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* On input *outLen is the size of out, so a plaintext longer than that must be
+ * refused rather than written out. */
+int test_wolfSSL_EVP_PKEY_decrypt_outLen(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    WOLFSSL_RSA* rsa = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    const size_t rsaKeySz = 2048/8;  /* Bytes */
+    const size_t bufSz = 32;         /* What the caller says it has room for */
+    byte   in[200];                  /* Over bufSz, under the key size */
+    byte*  enc = NULL;
+    byte*  dec = NULL;
+    size_t encLen = 2048/8;
+    size_t decLen = 0;
+    size_t i = 0;
+
+    XMEMSET(in, 0x5a, sizeof(in));
+
+    ExpectNotNull(enc = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    /* Only the first bufSz bytes are the caller's, the rest is a guard. */
+    ExpectNotNull(dec = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (dec != NULL) {
+        XMEMSET(dec, 0xa5, rsaKeySz);
+    }
+
+    ExpectNotNull(rsa = RSA_generate_key(2048, WC_RSA_EXPONENT, NULL, NULL));
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+    if (EXPECT_FAIL()) {
+        RSA_free(rsa);
+    }
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    if (pkey != NULL) {
+        EVP_PKEY_free(pkey);
+    }
+
+    ExpectIntEQ(EVP_PKEY_encrypt_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_encrypt(ctx, enc, &encLen, in, sizeof(in)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(encLen, rsaKeySz);
+
+    ExpectIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
+
+    decLen = bufSz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_FAILURE);
+    if (dec != NULL) {
+        for (i = 0; i < rsaKeySz; i++) {
+            if (dec[i] != 0xa5)
+                break;
+        }
+    }
+    ExpectIntEQ(i, rsaKeySz);
+
+    /* The same ciphertext decrypts once there is room for the plaintext. */
+    decLen = rsaKeySz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(decLen, sizeof(in));
+    ExpectIntEQ(XMEMCMP(dec, in, sizeof(in)), 0);
+
+    /* A decrypt that fails while working in a buffer of ours leaves the
+     * caller's alone too. */
+    if (enc != NULL)
+        enc[rsaKeySz / 2] = (byte)~enc[rsaKeySz / 2];
+    if (dec != NULL)
+        XMEMSET(dec, 0xa5, rsaKeySz);
+    decLen = bufSz;
+    ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
+        WOLFSSL_FAILURE);
+    i = 0;
+    if (dec != NULL) {
+        for (i = 0; i < rsaKeySz; i++) {
+            if (dec[i] != 0xa5)
+                break;
+        }
+    }
+    ExpectIntEQ(i, rsaKeySz);
+
+    EVP_PKEY_CTX_free(ctx);
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
