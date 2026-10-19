@@ -3531,9 +3531,10 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
-        /* Only the leftmost |q| bytes are signed, so the length fits an int. */
-        if (tbslen > (size_t)(bytes / 2))
-            tbslen = (size_t)(bytes / 2);
+        /* wolfssl_dsa_do_sign() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
         ret = wolfssl_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
         /* wolfssl_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
@@ -3665,9 +3666,10 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
         if (bytes <= 0 || siglen < (size_t)bytes * 2)
             return WOLFSSL_FAILURE;
-        /* Only the leftmost |q| bytes are used, so the length fits an int. */
-        if (tbslen > (size_t)bytes)
-            tbslen = (size_t)bytes;
+        /* wolfssl_dsa_do_verify() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
         if (wolfssl_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
             ctx->pkey->dsa, &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;
