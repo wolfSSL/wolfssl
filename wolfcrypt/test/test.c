@@ -77914,7 +77914,8 @@ static wc_test_ret_t slhdsa_init_fail_free_test(void)
     WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
         return WC_TEST_RET_ENC_EC(MEMORY_E));
     XMEMSET(key, 0xA5, sizeof(SlhDsaKey));
-    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)0x7f, HEAP_HINT, devId);
+    /* 15 fits the enum's range but names no parameter set. */
+    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)15, HEAP_HINT, devId);
     wc_SlhDsaKey_Free(key);
     WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
