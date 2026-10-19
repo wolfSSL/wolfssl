@@ -9391,6 +9391,10 @@ then
         then
             AC_MSG_ERROR([--enable-wolfEntropy=amd-aperf needs an x86_64 user-space build.])
         fi
+        case "$host_os" in
+            linux*) ;;
+            *) AC_MSG_ERROR([--enable-wolfEntropy=amd-aperf needs Linux.]) ;;
+        esac
         AM_CFLAGS="$AM_CFLAGS -DWC_ENTROPY_TIMER_AMD_APERF"
         ;;
       nofallback)

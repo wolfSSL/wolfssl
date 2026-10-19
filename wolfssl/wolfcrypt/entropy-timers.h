@@ -46,6 +46,9 @@
     #if defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_BSDKM)
         #error WC_ENTROPY_TIMER_AMD_APERF needs a user-space build
     #endif
+    #ifndef __linux__
+        #error WC_ENTROPY_TIMER_AMD_APERF needs Linux (CPU number in TSC_AUX)
+    #endif
     #ifdef CUSTOM_ENTROPY_TIMEHIRES
         #error WC_ENTROPY_TIMER_AMD_APERF and CUSTOM_ENTROPY_TIMEHIRES both set
     #endif
