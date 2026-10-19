@@ -1540,6 +1540,7 @@ int wc_CamelliaSetKey(wc_Camellia* cam, const byte* key, word32 len, const byte*
     }
 
     if (ret != 0)
+        cam->keySz = 0;
         return ret;
 
     cam->keySz = len * 8;

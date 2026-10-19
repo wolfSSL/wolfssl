@@ -88,6 +88,45 @@ int test_wc_CamelliaSetKey(void)
 } /* END test_wc_CameliaSetKey */
 
 /*
+ * testing wc_CamelliaSetKey resets keySz when re-keying fails with an
+ * invalid key length , so later encryption returns MISSING_KEY
+ */
+int test_wc_CamelliaSetKey_FailedRekey(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CAMELLIA
+    wc_Camellia camellia;
+    static const byte in[CAMELLIA_BLOCK_SIZE] = { 0 };
+    byte out[CAMELLIA_BLOCK_SIZE];
+
+    static const byte key16[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15
+    };
+    static const byte iv[]    = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15
+    };
+    XMEMSET(&camellia, 0, sizeof(camellia));
+
+    ExpectIntEQ(wc_CamelliaSetKey(&camellia, key16, (word32)sizeof(key16), iv),
+                0);
+     /* Re-key with an invalid length: must fail with BAD_FUNC_ARG */
+    ExpectIntEQ(wc_CamelliaSetKey(&camellia, key16, 20, iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* After a failed re-key, keySz must be reset so the context is treated
+     * as un-keyed and encryption is refused. */
+    ExpectIntEQ(wc_CamelliaCbcEncrypt(&camellia, out, in, sizeof(in)),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_CamelliaEncryptDirect(&camellia, out, in),
+                WC_NO_ERR_TRACE(MISSING_KEY));
+
+    wc_CamelliaFree(&camellia);
+#endif
+    return EXPECT_RESULT();
+}/* END test_wc_CamelliaSetKey_FailedRekey*/
+
+/*
  * Testing wc_CamelliaSetIV()
  */
 int test_wc_CamelliaSetIV(void)
