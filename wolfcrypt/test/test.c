@@ -50581,6 +50581,11 @@ static wc_test_ret_t ecc_p256_sign_verify_test(WC_RNG* rng)
     int verified;
     int i;
 
+    if (sizeof(hash) < WC_MIN_DIGEST_SIZE_FOR_SIGN ||
+        sizeof(hash) < WC_MIN_DIGEST_SIZE_FOR_VERIFY ||
+        sizeof(hash) > WC_MAX_DIGEST_SIZE)
+        return 0;
+
     if (wc_ecc_get_curve_idx(ECC_SECP256R1) == ECC_CURVE_INVALID)
         return 0;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
