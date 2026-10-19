@@ -30,6 +30,10 @@
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -418,6 +422,115 @@ int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)
     return err;
 }
 #endif /* HAVE_WOLF_BIGINT */
+
+#ifdef HAVE_ECC
+#ifndef WOLFSSL_ASYNC_MAX_REINVOKE
+    #define WOLFSSL_ASYNC_MAX_REINVOKE 1000
+#endif
+
+/* One attempt at caching the public point of a private-only key. */
+static int ecc_derive_pub(ecc_key* key, WC_RNG* rng)
+{
+#ifndef ALT_ECC_SIZE
+    /* The derivation re-initializes the coordinates. With heap math they can
+     * still own digits, e.g. from a full key the EC_KEY held before. */
+    mp_clear(key->pubkey.x);
+    mp_clear(key->pubkey.y);
+    mp_clear(key->pubkey.z);
+#endif
+#if defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS) && FIPS_VERSION_LT(5,0))
+    (void)rng;
+    return wc_ecc_make_pub(key, NULL);
+#else
+    return wc_ecc_make_pub_ex(key, NULL, rng);
+#endif
+}
+
+/* Derive and cache the public point of a private-only key.
+ *
+ * SEC1/RFC 5915 makes the publicKey field optional, so
+ * wc_EccPrivateKeyDecode() can leave key->type == ECC_PRIVATEKEY_ONLY.
+ * Lives here rather than in ecc.c so FIPS builds, which swap ecc.c for a
+ * tagged copy, have it too.
+ *
+ * key  private key to complete, cannot be NULL
+ * rng  RNG for blinding the generic multiply, may be NULL: key->rng is used
+ *      instead, and with neither the generic multiply is unblinded. The SP
+ *      base-point multiply for SP-accelerated curves does not use it.
+ *
+ * returns 0 when the key holds a public point, ECC_PRIVATEONLY_E when the
+ *         build or device has no derivation and the key was left
+ *         private-only, WC_HW_WAIT_E when a crypto callback stayed pending,
+ *         or another error when the derivation failed.
+ */
+int wc_ecc_derive_pub_if_needed(ecc_key* key, WC_RNG* rng)
+{
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (key->type != ECC_PRIVATEKEY_ONLY) {
+        return 0;
+    }
+#ifdef WOLFSSL_CAAM
+    /* A black key holds an encrypted blob, not a scalar. */
+    if (key->blackKey != 0) {
+        return WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E);
+    }
+#endif
+
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
+    defined(ECC_TIMING_RESISTANT)
+    if (rng == NULL) {
+        rng = key->rng;
+    }
+#endif
+    ret = ecc_derive_pub(key, rng);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Callers read key->type and key->pubkey as soon as this returns. */
+    #if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
+    {
+        /* Crypto callbacks are the only async backend. A pending ECC callback
+         * completes only when called again: wc_AsyncWait() polls, which never
+         * runs it, and would wait forever. Each call restarts the derivation
+         * from the private-only key. */
+        int reinvoke = 0;
+
+        while ((ret == WC_NO_ERR_TRACE(WC_PENDING_E)) &&
+                (reinvoke++ < WOLFSSL_ASYNC_MAX_REINVOKE)) {
+            ret = ecc_derive_pub(key, rng);
+        }
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            WOLFSSL_MSG("ECC make-pub callback still pending after retry "
+                        "limit");
+            ret = WC_HW_WAIT_E;
+        }
+    }
+    #else
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+
+    if (ret != 0) {
+        /* FIPS copies of ecc.c promote the key even when make-pub fails, and
+         * a pending derivation is promoted before the device has a point. */
+        key->type = ECC_PRIVATEKEY_ONLY;
+    }
+    /* No derivation in this build or device. WC_KEY_SIZE_E is an SP-only
+     * build without this curve. */
+    if ((ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) ||
+            (ret == WC_NO_ERR_TRACE(NO_VALID_DEVID)) ||
+            (ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E))) {
+        ret = WC_NO_ERR_TRACE(ECC_PRIVATEONLY_E);
+    }
+
+    return ret;
+}
+#endif /* HAVE_ECC */
 
 #endif /* !NO_BIG_INT || WOLFSSL_SP_MATH */
 

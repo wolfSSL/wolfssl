@@ -145,6 +145,13 @@ WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len,
     WOLFSSL_LOCAL int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst);
 #endif /* HAVE_WOLF_BIGINT */
 
+#if defined(HAVE_ECC) && !defined(NO_BIG_INT)
+    /* Here, not ecc.h: FIPS builds swap ecc.h for a tagged copy. */
+    struct ecc_key;
+    WOLFSSL_LOCAL int wc_ecc_derive_pub_if_needed(struct ecc_key* key,
+        WC_RNG* rng);
+#endif
+
 
 #ifdef HAVE_WC_INTROSPECTION
     WOLFSSL_API const char *wc_GetMathInfo(void);
