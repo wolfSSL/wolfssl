@@ -4926,7 +4926,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         (void)dir;
 
-        if (aes == NULL || (keylen != 16 &&
+        if (aes == NULL || userKey == NULL || (keylen != 16 &&
         #ifdef WOLFSSL_AES_192
             keylen != 24 &&
         #endif
@@ -5022,7 +5022,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
-        if (aes == NULL)
+        if (aes == NULL || userKey == NULL)
             return BAD_FUNC_ARG;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -5149,7 +5149,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         (void)dir;
         (void)iv;
         ESP_LOGV(TAG, "wc_AesSetKey_for_ESP32");
-        if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
+        if (aes == NULL || userKey == NULL ||
+            (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
 
@@ -5201,7 +5202,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         SaSiError_t ret = SASI_OK;
         SaSiAesIv_t iv_aes;
 
-        if (aes == NULL ||
+        if (aes == NULL || userKey == NULL ||
            (keylen != AES_128_KEY_SIZE &&
             keylen != AES_192_KEY_SIZE &&
             keylen != AES_256_KEY_SIZE)) {
@@ -5302,7 +5303,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             const byte* iv, int dir)
     {
         /* Reject invalid AES key lengths early (FIPS 197: 128/192/256 only);
-         * wc_AesSetKeyDirect only bounds-checks keylen. */
+         * wc_AesSetKeyDirect only bounds-checks keylen.
+         * Update: wc_AesSetKeyDirect now checks 16/24/32 too. */
         if (userKey == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
@@ -5361,7 +5363,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
         int cbRet;
 #endif
-        if ((aes == NULL) || (userKey == NULL)) {
+        if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -5384,7 +5386,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
@@ -5419,6 +5424,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
+        }
+    #endif
+
+        /* A device may take a NULL key, software needs one. */
+        if (userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
@@ -5435,12 +5453,95 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+        int cbRet;
+#endif
         if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
-        if (keylen > sizeof(aes->key)) {
+
+        /* Same key sizes as wc_AesSetKey(), checked before a device sees the
+         * key. A NULL key still goes to the device. */
+        switch (keylen) {
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 &&     \
+        defined(WOLFSSL_AES_128)
+        case 16:
+    #endif
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 192 &&     \
+        defined(WOLFSSL_AES_192)
+        case 24:
+    #endif
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 256 &&     \
+        defined(WOLFSSL_AES_256)
+        case 32:
+    #endif
+            break;
+        default:
             return BAD_FUNC_ARG;
         }
+
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY)
+        /* Same AES_SETKEY step as wc_AesSetKey() and the generic path. */
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
+            if (ret == 0) {
+                /* Callback succeeded - SE owns the key */
+                aes->keylen = (int)keylen;
+                aes->keyInstalled = 1;
+                if (iv != NULL)
+                    XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+                else
+                    XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
+                return 0;
+            }
+            else if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                aes->devCtx = NULL;
+                return ret;
+            }
+            /* CRYPTOCB_UNAVAILABLE: continue to software setup */
+        }
+    #endif
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            cbRet = wc_CryptoCb_SetKey(aes->devId,
+                WC_SETKEY_AES, aes, (void*)userKey, keylen,
+                (void*)iv,
+                (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key. */
+                    aes->keylen = (int)keylen;
+                    aes->keyInstalled = 1;
+                }
+                return cbRet;
+            }
+            /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
+        }
+    #endif
+
+        /* A device may take a NULL key, software needs one. */
+        if (userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
+            if (keylen > sizeof(aes->devKey)) {
+                return BAD_FUNC_ARG;
+            }
+            XMEMCPY(aes->devKey, userKey, keylen);
+        }
+    #endif
 
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
@@ -5500,7 +5601,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             int ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
@@ -5533,15 +5637,45 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
         /* This function allows key sizes that are not 128/192/256 bits */
+        /* Not any more: like wc_AesSetKey(), only 16/24/32 are taken. */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
-        if (aes == NULL) {
+        if ((aes == NULL) || (userKey == NULL)) {
             return BAD_FUNC_ARG;
         }
-        if (keylen > sizeof(aes->key)) {
+        /* The asm builds a 256-bit schedule for any other size, reading past
+         * a shorter key. */
+        switch (keylen) {
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 &&     \
+        defined(WOLFSSL_AES_128)
+        case 16:
+    #endif
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 192 &&     \
+        defined(WOLFSSL_AES_192)
+        case 24:
+    #endif
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 256 &&     \
+        defined(WOLFSSL_AES_256)
+        case 32:
+    #endif
+            break;
+        default:
             return BAD_FUNC_ARG;
         }
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
+            if (keylen > sizeof(aes->devKey)) {
+                return BAD_FUNC_ARG;
+            }
+            XMEMCPY(aes->devKey, userKey, keylen);
+        }
+    #endif
 
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
@@ -5558,7 +5692,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         (void)dir;
 
-        if (aes == NULL)
+        if (aes == NULL || userKey == NULL)
             return BAD_FUNC_ARG;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
