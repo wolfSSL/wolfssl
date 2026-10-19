@@ -16791,6 +16791,7 @@ static void* GetChainVerifyCtx(const WOLFSSL* ssl)
 void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
     int alertWhy;
+    int revAlert;
     if (ssl == NULL || ret == 0) {
         return;
     }
@@ -16798,6 +16799,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 
     /* Determine alert reason */
     alertWhy = bad_certificate;
+    revAlert = RevocationAlert(ret);
     if (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) ||
         ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) {
         alertWhy = certificate_expired;
@@ -16808,11 +16810,9 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
              ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E)) {
         alertWhy = unknown_ca;
     }
-#ifdef OPENSSL_EXTRA
-    else if (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) {
-        alertWhy = certificate_revoked;
+    else if (revAlert != invalid_alert) {
+        alertWhy = revAlert;
     }
-#endif
 #if defined(HAVE_RPK)
     else if (ret == WC_NO_ERR_TRACE(UNSUPPORTED_CERTIFICATE)) {
         alertWhy = unsupported_certificate;
@@ -21024,8 +21024,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
         /* A chain lookup's own failure is not a bad staple. */
         if (fallbackErr) {
-            alertWhy = (TranslateErrorToAlert(ret) == certificate_revoked) ?
-                certificate_revoked : bad_certificate;
+            alertWhy = RevocationAlert(ret);
+            if (alertWhy == invalid_alert)
+                alertWhy = bad_certificate;
         }
     #endif
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -22463,7 +22464,9 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     /* listed for symmetry with TranslateErrorToAlert(); default covers it */
     case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):
     default:
-        why = handshake_failure;
+        why = RevocationAlert(error);
+        if (why == invalid_alert)
+            why = handshake_failure;
         break;
     }
 
@@ -40776,6 +40779,27 @@ const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
     }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
+    /* Alert for a failed revocation check, else invalid_alert. */
+    int RevocationAlert(int err)
+    {
+        switch (err) {
+            case WC_NO_ERR_TRACE(OCSP_CERT_REVOKED):
+            case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
+                return certificate_revoked;
+            /* RFC 8446 Section 6.2: the status could not be determined. */
+            case WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN):
+            case WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL):
+            case WC_NO_ERR_TRACE(OCSP_NEED_URL):
+            case WC_NO_ERR_TRACE(HTTP_TIMEOUT):
+            case WC_NO_ERR_TRACE(OCSP_INVALID_STATUS):
+            case WC_NO_ERR_TRACE(CRL_MISSING):
+            case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
+                return certificate_unknown;
+            default:
+                return invalid_alert;
+        }
+    }
+
     int TranslateErrorToAlert(int err)
     {
         switch (err) {
@@ -40815,20 +40839,8 @@ const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
             case WC_NO_ERR_TRACE(OUT_OF_ORDER_E):
             case WC_NO_ERR_TRACE(DUPLICATE_MSG_E):
                 return unexpected_message;
-            /* RFC 8446 Section 6.2: a certificate revoked by its signer. */
-            case WC_NO_ERR_TRACE(OCSP_CERT_REVOKED):
-            case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
-                return certificate_revoked;
-            case WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN):
-            case WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL):
-            case WC_NO_ERR_TRACE(OCSP_NEED_URL):
-            case WC_NO_ERR_TRACE(HTTP_TIMEOUT):
-            case WC_NO_ERR_TRACE(OCSP_INVALID_STATUS):
-            case WC_NO_ERR_TRACE(CRL_MISSING):
-            case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
-                return bad_certificate;
             default:
-                return invalid_alert;
+                return RevocationAlert(err);
         }
     }
 

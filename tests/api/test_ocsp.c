@@ -3116,6 +3116,7 @@ int test_ocsp_acked_no_status_crl_ca_walk(void)
 
     for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
         struct test_ssl_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
 
         XMEMSET(&test_ocsp_crl_ca_walk_opts, 0,
             sizeof(test_ocsp_crl_ca_walk_opts));
@@ -3153,6 +3154,12 @@ int test_ocsp_acked_no_status_crl_ca_walk(void)
                 TEST_SUCCESS);
             ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
                 params[i].expect);
+            XMEMSET(&h, 0, sizeof(h));
+            ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.code,
+                params[i].expect == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ?
+                certificate_revoked : certificate_unknown);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
             ExpectIntEQ(wolfSSL_get_verify_result(test_ctx.c_ssl),
                 params[i].expect == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ?
@@ -3423,9 +3430,7 @@ int test_ocsp_staple_crl_policy(void)
 {
     EXPECT_DECLS;
     struct test_ssl_memio_ctx test_ctx;
-#ifdef OPENSSL_EXTRA
     WOLFSSL_ALERT_HISTORY h;
-#endif
 
     /* A validated leaf staple answers the leaf's revocation status, so a CRL
      * store holding nothing for its issuer must not reject the handshake. */
@@ -3507,13 +3512,11 @@ int test_ocsp_staple_crl_policy(void)
     ExpectIntEQ(test_ocsp_staple_crl_policy_cb_err,
         WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
 #endif
-#ifdef OPENSSL_EXTRA
     XMEMSET(&h, 0, sizeof(h));
     ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(h.last_rx.level, alert_fatal);
     ExpectIntEQ(h.last_rx.code, certificate_revoked);
-#endif
     test_ssl_memio_cleanup(&test_ctx);
 
 #ifndef WOLFSSL_NO_TLS12
@@ -3541,13 +3544,11 @@ int test_ocsp_staple_crl_policy(void)
     ExpectIntEQ(test_ocsp_staple_crl_policy_cb_err,
         WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
 #endif
-#ifdef OPENSSL_EXTRA
     XMEMSET(&h, 0, sizeof(h));
     ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(h.last_rx.level, alert_fatal);
     ExpectIntEQ(h.last_rx.code, certificate_revoked);
-#endif
     test_ssl_memio_cleanup(&test_ctx);
 #endif
 
@@ -3918,6 +3919,188 @@ int test_ocsp_acked_no_leaf_staple_ocsp(void)
 }
 #endif /* HAVE_OCSP && WOLFSSL_TLS13 && HAVE_CERTIFICATE_STATUS_REQUEST && */
        /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !NO_RSA && !NO_SHA */
+
+#if defined(HAVE_OCSP) && defined(HAVE_OCSP_RESPONDER) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
+static OcspResponder* test_ocsp_resp_responder;
+
+/* Lets the responder answer for cert with the given status. */
+static int test_ocsp_resp_add(const char* certFile,
+    const char* issuerFile, const char* keyFile, enum Ocsp_Cert_Status status)
+{
+    EXPECT_DECLS;
+    byte* cert = NULL;
+    byte* issuer = NULL;
+    byte* key = NULL;
+    size_t certSz = 0;
+    size_t issuerSz = 0;
+    size_t keySz = 0;
+    DecodedCert dCert;
+    DecodedCert dIssuer;
+    char subject[WC_ASN_NAME_MAX];
+    word32 subjectSz = sizeof(subject);
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    word32 serialSz = sizeof(serial);
+
+    ExpectIntEQ(load_file(certFile, &cert, &certSz), 0);
+    ExpectIntEQ(load_file(issuerFile, &issuer, &issuerSz), 0);
+    ExpectIntEQ(load_file(keyFile, &key, &keySz), 0);
+    wc_InitDecodedCert(&dCert, cert, (word32)certSz, NULL);
+    wc_InitDecodedCert(&dIssuer, issuer, (word32)issuerSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, 0, NULL), 0);
+    ExpectIntEQ(wc_ParseCert(&dIssuer, CERT_TYPE, 0, NULL), 0);
+    ExpectIntEQ(wc_OcspResponder_AddSigner(
+        test_ocsp_resp_responder, issuer, (word32)issuerSz, key,
+        (word32)keySz, NULL, 0), 0);
+    ExpectIntEQ(wc_GetDecodedCertSubject(&dIssuer, subject, &subjectSz), 0);
+    ExpectIntEQ(wc_GetDecodedCertSerial(&dCert, serial, &serialSz), 0);
+    ExpectIntEQ(wc_OcspResponder_SetCertStatus(
+        test_ocsp_resp_responder, subject, subjectSz, serial,
+        serialSz, status, status == CERT_REVOKED ? wc_Time(NULL) - 3600 : 0,
+        status == CERT_REVOKED ? WC_CRL_REASON_KEY_COMPROMISE :
+        WC_CRL_REASON_UNSPECIFIED, status == CERT_GOOD ? 3600 : 0), 0);
+
+    wc_FreeDecodedCert(&dCert);
+    wc_FreeDecodedCert(&dIssuer);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(issuer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_resp_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
+{
+    word32 respSz = 0;
+
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    if (wc_OcspResponder_WriteResponse(test_ocsp_resp_responder,
+            req, (word32)reqSz, NULL, &respSz) != 0)
+        return -1;
+    *response = (unsigned char*)XMALLOC(respSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (*response == NULL)
+        return -1;
+    if (wc_OcspResponder_WriteResponse(test_ocsp_resp_responder,
+            req, (word32)reqSz, *response, &respSz) != 0) {
+        XFREE(*response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *response = NULL;
+        return -1;
+    }
+    return (int)respSz;
+}
+
+static void test_ocsp_resp_io_free(void* ioCtx,
+    unsigned char* response)
+{
+    (void)ioCtx;
+    XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+
+static int test_ocsp_revocation_alert_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_URL_OVERRIDE |
+            WOLFSSL_OCSP_NO_NONCE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_resp_io_cb,
+            test_ocsp_resp_io_free, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* A leaf the lookup finds revoked gets certificate_revoked, one it cannot
+ * settle certificate_unknown. */
+int test_ocsp_revocation_alert(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    int tls13;
+    static const struct {
+        enum Ocsp_Cert_Status status;
+        int expect;
+        int alert;
+    } params[] = {
+        { CERT_REVOKED, WC_NO_ERR_TRACE(OCSP_CERT_REVOKED),
+          certificate_revoked },
+        { CERT_UNKNOWN, WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN),
+          certificate_unknown },
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        ExpectNotNull(test_ocsp_resp_responder = wc_OcspResponder_new(NULL,
+            0));
+        ExpectIntEQ(test_ocsp_resp_add(
+            "./certs/intermediate/server-int-cert.der",
+            "./certs/intermediate/ca-int2-cert.der",
+            "./certs/intermediate/ca-int2-key.der", params[i].status),
+            TEST_SUCCESS);
+        for (tls13 = 0; tls13 < 2 && !EXPECT_FAIL(); tls13++) {
+            struct test_ssl_memio_ctx test_ctx;
+            WOLFSSL_ALERT_HISTORY h;
+
+        #ifndef WOLFSSL_TLS13
+            if (tls13)
+                break;
+        #endif
+        #ifdef WOLFSSL_NO_TLS12
+            if (!tls13)
+                continue;
+        #endif
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        #ifdef WOLFSSL_TLS13
+            if (tls13) {
+                test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+                test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+            }
+        #endif
+        #ifndef WOLFSSL_NO_TLS12
+            if (!tls13) {
+                test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+                test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+            }
+        #endif
+            test_ctx.s_cb.certPemFile =
+                "./certs/intermediate/server-chain-short.pem";
+            test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
+            test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
+            test_ctx.c_cb.ctx_ready = test_ocsp_revocation_alert_ctx_ready;
+            ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+            ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                params[i].expect);
+            XMEMSET(&h, 0, sizeof(h));
+            ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.level, alert_fatal);
+            ExpectIntEQ(h.last_rx.code, params[i].alert);
+            if (EXPECT_FAIL())
+                fprintf(stderr, "status %d, tls13 %d\n", params[i].status,
+                    tls13);
+            test_ssl_memio_cleanup(&test_ctx);
+        }
+        wc_OcspResponder_free(test_ocsp_resp_responder);
+        test_ocsp_resp_responder = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_revocation_alert(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 
 /* CHECKALL CRL client with stapling: each chain CRL verdict is held back for a
  * staple, so an entry that no staple and no OCSP answer covered must get it. */
@@ -4486,83 +4669,8 @@ int test_ocsp_unstapled_chain_no_url(void)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_OCSP_RESPONDER) && \
     defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_FILESYSTEM)
-static OcspResponder* test_ocsp_multi_waived_leaf_responder;
 static byte* test_ocsp_multi_waived_leaf_chain;
 static size_t test_ocsp_multi_waived_leaf_chain_sz;
-
-/* Lets the responder answer for cert with the given status. */
-static int test_ocsp_multi_waived_leaf_add(const char* certFile,
-    const char* issuerFile, const char* keyFile, enum Ocsp_Cert_Status status)
-{
-    EXPECT_DECLS;
-    byte* cert = NULL;
-    byte* issuer = NULL;
-    byte* key = NULL;
-    size_t certSz = 0;
-    size_t issuerSz = 0;
-    size_t keySz = 0;
-    DecodedCert dCert;
-    DecodedCert dIssuer;
-    char subject[WC_ASN_NAME_MAX];
-    word32 subjectSz = sizeof(subject);
-    byte serial[EXTERNAL_SERIAL_SIZE];
-    word32 serialSz = sizeof(serial);
-
-    ExpectIntEQ(load_file(certFile, &cert, &certSz), 0);
-    ExpectIntEQ(load_file(issuerFile, &issuer, &issuerSz), 0);
-    ExpectIntEQ(load_file(keyFile, &key, &keySz), 0);
-    wc_InitDecodedCert(&dCert, cert, (word32)certSz, NULL);
-    wc_InitDecodedCert(&dIssuer, issuer, (word32)issuerSz, NULL);
-    ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, 0, NULL), 0);
-    ExpectIntEQ(wc_ParseCert(&dIssuer, CERT_TYPE, 0, NULL), 0);
-    ExpectIntEQ(wc_OcspResponder_AddSigner(
-        test_ocsp_multi_waived_leaf_responder, issuer, (word32)issuerSz, key,
-        (word32)keySz, NULL, 0), 0);
-    ExpectIntEQ(wc_GetDecodedCertSubject(&dIssuer, subject, &subjectSz), 0);
-    ExpectIntEQ(wc_GetDecodedCertSerial(&dCert, serial, &serialSz), 0);
-    ExpectIntEQ(wc_OcspResponder_SetCertStatus(
-        test_ocsp_multi_waived_leaf_responder, subject, subjectSz, serial,
-        serialSz, status, 0, WC_CRL_REASON_UNSPECIFIED,
-        status == CERT_GOOD ? 3600 : 0), 0);
-
-    wc_FreeDecodedCert(&dCert);
-    wc_FreeDecodedCert(&dIssuer);
-    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(issuer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    return EXPECT_RESULT();
-}
-
-static int test_ocsp_multi_waived_leaf_io_cb(void* ioCtx, const char* url,
-    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
-{
-    word32 respSz = 0;
-
-    (void)ioCtx;
-    (void)url;
-    (void)urlSz;
-    if (wc_OcspResponder_WriteResponse(test_ocsp_multi_waived_leaf_responder,
-            req, (word32)reqSz, NULL, &respSz) != 0)
-        return -1;
-    *response = (unsigned char*)XMALLOC(respSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (*response == NULL)
-        return -1;
-    if (wc_OcspResponder_WriteResponse(test_ocsp_multi_waived_leaf_responder,
-            req, (word32)reqSz, *response, &respSz) != 0) {
-        XFREE(*response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        *response = NULL;
-        return -1;
-    }
-    return (int)respSz;
-}
-
-static void test_ocsp_multi_waived_leaf_io_free(void* ioCtx,
-    unsigned char* response)
-{
-    (void)ioCtx;
-    XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-}
 
 static int test_ocsp_multi_waived_leaf_srv_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -4601,8 +4709,8 @@ static int test_ocsp_multi_waived_leaf_ctx_ready(WOLFSSL_CTX* ctx)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_multi_waived_leaf_io_cb,
-            test_ocsp_multi_waived_leaf_io_free, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_resp_io_cb,
+            test_ocsp_resp_io_free, NULL), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
         WOLFSSL_SUCCESS);
     /* The CRL signer has to be in the manager before its CRL loads. */
@@ -4634,17 +4742,17 @@ int test_ocsp_multi_fallback_waived_leaf(void)
         chain[leafSz - 1] ^= 0x01;
     XFREE(leaf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    ExpectNotNull(test_ocsp_multi_waived_leaf_responder =
+    ExpectNotNull(test_ocsp_resp_responder =
         wc_OcspResponder_new(NULL, 0));
-    ExpectIntEQ(test_ocsp_multi_waived_leaf_add(
+    ExpectIntEQ(test_ocsp_resp_add(
         "./certs/intermediate/server-int-cert.der",
         "./certs/intermediate/ca-int2-cert.der",
         "./certs/intermediate/ca-int2-key.der", CERT_GOOD), TEST_SUCCESS);
-    ExpectIntEQ(test_ocsp_multi_waived_leaf_add(
+    ExpectIntEQ(test_ocsp_resp_add(
         "./certs/intermediate/ca-int2-cert.der",
         "./certs/intermediate/ca-int-cert.der",
         "./certs/intermediate/ca-int-key.der", CERT_GOOD), TEST_SUCCESS);
-    ExpectIntEQ(test_ocsp_multi_waived_leaf_add(
+    ExpectIntEQ(test_ocsp_resp_add(
         "./certs/intermediate/ca-int-cert.der", "./certs/ca-cert.der",
         "./certs/ca-key.der", CERT_UNKNOWN), TEST_SUCCESS);
 
@@ -4675,8 +4783,8 @@ int test_ocsp_multi_fallback_waived_leaf(void)
         test_ssl_memio_cleanup(&test_ctx);
     }
 
-    wc_OcspResponder_free(test_ocsp_multi_waived_leaf_responder);
-    test_ocsp_multi_waived_leaf_responder = NULL;
+    wc_OcspResponder_free(test_ocsp_resp_responder);
+    test_ocsp_resp_responder = NULL;
     test_ocsp_multi_waived_leaf_chain = NULL;
     XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -5253,7 +5361,7 @@ int test_ocsp_checkall_staple_missing_chain(void)
                     ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
                         WOLFSSL_SUCCESS);
                     ExpectIntEQ(h.last_rx.level, alert_fatal);
-                    ExpectIntEQ(h.last_rx.code, bad_certificate);
+                    ExpectIntEQ(h.last_rx.code, certificate_unknown);
                 }
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 /* A rejected chain certificate must reach the compatibility
