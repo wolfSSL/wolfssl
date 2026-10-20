@@ -30432,7 +30432,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     if (ssl->options.sendKeyUpdate) {
         ssl->options.sendKeyUpdate = 0;
         ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
-        if (ret != 0) {
+        /* WANT_WRITE: sent by the retry below */
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
             ssl->error = BUILD_MSG_ERROR;
             return WOLFSSL_FATAL_ERROR;
         }
