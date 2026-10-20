@@ -906,7 +906,7 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* SP 800-131A Rev. 2 Section 6 (Table 5) disallows RSAES-PKCS1-v1_5 key
      * transport, so the v7 module refuses both directions. */
     ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng),
@@ -943,7 +943,7 @@ int test_wc_RsaPublicEncryptDecrypt(void)
         WC_FREE_VAR(shortPlain, NULL);
     }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS_VERSION3_GE(7,0,0) && !FIPS_NO_WRAPPERS */
 
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(plain, NULL);
@@ -1506,7 +1506,7 @@ int test_wc_RsaDecisionCoverage(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* The v7 module refuses RSAES-PKCS1-v1_5 key transport (SP 800-131A
      * Rev. 2 Section 6, Table 5) ahead of the argument checks below, so
      * those rsa.c decisions are not reachable through it. */
@@ -1559,7 +1559,7 @@ int test_wc_RsaDecisionCoverage(void)
         ExpectIntEQ(wc_RsaPrivateDecryptInline(cipher, (word32)cipherOutLen,
             &outPtr, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS_VERSION3_GE(7,0,0) && !FIPS_NO_WRAPPERS */
 
 #if !defined(HAVE_FIPS) && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
     /* ---- wc_RsaPublicEncrypt_ex: argument-check + invalid-mode branches --- */

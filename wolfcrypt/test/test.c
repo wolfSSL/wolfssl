@@ -41689,7 +41689,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, plainSz);
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* SP 800-131A Rev. 2 Section 6 (Table 5): WC_RSA_PKCSV15_PAD key
      * transport is refused by the extended wrappers under v7. */
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
@@ -41771,7 +41771,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
 #endif
-#if FIPS_VERSION3_LT(7,0,0)
+#if FIPS_VERSION3_LT(7,0,0) || defined(FIPS_NO_WRAPPERS)
 #ifndef WOLFSSL_MICROCHIP_TA100
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPublicEncrypt(in, inLen, out, outSz, key, rng));
@@ -41812,7 +41812,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_pkcs1);
     }
     TEST_SLEEP();
-#else /* FIPS_VERSION3_GE(7,0,0) */
+#else /* FIPS_VERSION3_GE(7,0,0) && !FIPS_NO_WRAPPERS */
     /* SP 800-131A Rev. 2 Section 6 (Table 5): RSAES-PKCS1-v1_5 key transport
      * is disallowed after December 31, 2023; the v7 module refuses the fixed
      * PKCS#1 v1.5 services with FIPS_WRONG_API_E. */
@@ -41830,7 +41830,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
     if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
     ret = 0;
-#endif /* FIPS_VERSION3_LT(7,0,0) */
+#endif /* FIPS_VERSION3_LT(7,0,0) || FIPS_NO_WRAPPERS */
 
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng));
@@ -48146,7 +48146,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
     ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd),
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* 8-byte salt: computed, but the module must deliver the
      * WC_FIPS_NOT_APPROVED indicator to the caller per SP 800-132
      * Section 5.1 ("shall be at least 128 bits") and FIPS 140-3 IG 2.4.C;
@@ -48581,7 +48581,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* SP 800-56C Rev. 2 Section 4 approves the HKDF auxiliary function only
      * with an approved hash and the module's key-derivation coverage is
      * SHA-256/384/512, so the generic wrappers refuse SHA-1 (see
@@ -48617,7 +48617,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS_VERSION3_GE(7,0,0) && !FIPS_NO_WRAPPERS */
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
@@ -52532,7 +52532,7 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
 #endif
 
     ret = wc_ecc_sign_set_k(k, sizeof(k), key);
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* FIPS 186-5 Section 6.3: a caller-supplied per-message secret is a
      * non-approved use, so the module must deliver the WC_FIPS_NOT_APPROVED
      * indicator to the caller (FIPS 140-3 IG 2.4.C); the test fails if the
@@ -52552,7 +52552,7 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* The signature consuming the staged k must deliver the
      * WC_FIPS_NOT_APPROVED indicator to the caller (FIPS 186-5
      * Section 6.3, FIPS 140-3 IG 2.4.C); the test fails if the indicator

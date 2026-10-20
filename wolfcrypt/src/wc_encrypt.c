@@ -480,7 +480,7 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                 ret = wc_PBKDF2(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 PRIVATE_KEY_LOCK();
-            #if FIPS_VERSION3_GE(7,0,0)
+            #if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
                 /* The module derives the key and then returns the
                  * WC_FIPS_NOT_APPROVED indicator for a salt shorter than
                  * 128 bits (SP 800-132 Section 5.1).  The key is valid, so

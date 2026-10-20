@@ -200,7 +200,7 @@ int test_wc_PBKDF2DecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* valid derivation */
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     /* The 8-byte salt is below the SP 800-132 Section 5.1 minimum of 128
      * bits, so the v7 module derives the key and flags it not approved. */
     ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
