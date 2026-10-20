@@ -98,6 +98,7 @@ static int wb_fail = 0;
 static void wb_hash_gen_outsz(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[48];
     byte nonce[16];
     byte out[32];
@@ -112,7 +113,7 @@ static void wb_hash_gen_outsz(void)
         nonce[i] = (byte)(i + 2);
     }
 
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash_DRBG_Instantiate setup failed; skip Hash_gen check");
@@ -180,6 +181,7 @@ static void wb_array_add(void)
 static void wb_hash512_gen_outsz(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[32];
     byte nonce[16];
     byte out[32];
@@ -194,7 +196,7 @@ static void wb_hash512_gen_outsz(void)
         nonce[i] = (byte)(i + 4);
     }
 
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash512_DRBG_Instantiate setup failed; skip Hash512_gen "
@@ -273,12 +275,13 @@ static void wb_hash_df_multiblock(void)
     }
 }
 
-/* Hash_DRBG_Generate()'s "drbg->reseedCtr >= WC_RESEED_INTERVAL" decision:
+/* Hash_DRBG_Generate()'s "*reseedCtr_ptr >= WC_RESEED_INTERVAL" decision:
  * drive the false side (a real generate) and the true side (early
  * DRBG_NEED_RESEED return) in the same binary on one instantiated DRBG. */
 static void wb_hash_drbg_generate_reseed(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[48];
     byte nonce[16];
     byte out[32];
@@ -291,7 +294,7 @@ static void wb_hash_drbg_generate_reseed(void)
     for (i = 0; i < (word32)sizeof(nonce); i++)
         nonce[i] = (byte)(i + 2);
 
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Instantiate failed; skip Hash_DRBG_Generate reseed check");
@@ -299,16 +302,16 @@ static void wb_hash_drbg_generate_reseed(void)
     }
 
     /* False side: reseedCtr below the interval -> generate proceeds. */
-    drbg.reseedCtr = 1;
-    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    drbg_ctr = 1;
+    ret = Hash_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash_DRBG_Generate (below interval) failed");
         wb_fail = 1;
     }
 
     /* True side: reseedCtr at the interval -> early DRBG_NEED_RESEED. */
-    drbg.reseedCtr = WC_RESEED_INTERVAL;
-    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    drbg_ctr = WC_RESEED_INTERVAL;
+    ret = Hash_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_NEED_RESEED) {
         WB_NOTE("Hash_DRBG_Generate did not signal DRBG_NEED_RESEED");
         wb_fail = 1;
@@ -428,6 +431,7 @@ static void wb_hash512_df_multiblock(void)
 static void wb_hash512_drbg_generate_reseed(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[32];
     byte nonce[16];
     byte out[32];
@@ -440,22 +444,22 @@ static void wb_hash512_drbg_generate_reseed(void)
     for (i = 0; i < (word32)sizeof(nonce); i++)
         nonce[i] = (byte)(i + 4);
 
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Instantiate512 failed; skip Hash512_DRBG_Generate reseed");
         return;
     }
 
-    drbg.reseedCtr = 1;                       /* false side */
-    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    drbg_ctr = 1;                       /* false side */
+    ret = Hash512_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Hash512_DRBG_Generate (below interval) failed");
         wb_fail = 1;
     }
 
-    drbg.reseedCtr = WC_RESEED_INTERVAL;      /* true side */
-    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    drbg_ctr = WC_RESEED_INTERVAL;      /* true side */
+    ret = Hash512_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
     if (ret != DRBG_NEED_RESEED) {
         WB_NOTE("Hash512_DRBG_Generate did not signal DRBG_NEED_RESEED");
         wb_fail = 1;
@@ -539,6 +543,7 @@ static void wb_rng_healthtest512_internal(void)
 static void wb_hash_gen_alloc_guard(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[48];
     byte nonce[16];
     byte out[32];
@@ -554,7 +559,7 @@ static void wb_hash_gen_alloc_guard(void)
     mcdc_fa_install();
 
     /* Setup runs DISARMED so every allocation it needs succeeds. */
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Instantiate failed; skip Hash_gen alloc guard");
@@ -592,6 +597,7 @@ static void wb_hash_gen_alloc_guard(void)
 static void wb_hash512_gen_alloc_guard(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte seed[32];
     byte nonce[16];
     byte out[32];
@@ -606,7 +612,7 @@ static void wb_hash512_gen_alloc_guard(void)
 
     mcdc_fa_install();
 
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
         nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("Instantiate512 failed; skip Hash512_gen alloc guard");

@@ -570,13 +570,34 @@
      * should not be included. Use FreeBSD <machine/atomic.h> instead.
      * definitions are in bsdkm/bsdkm_wc_port.h */
     #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
-        !defined(__cplusplus)
+        !defined(__cplusplus) && !defined(NO_STDATOMIC_H)
         /* Default C Implementation */
         #include <stdatomic.h>
         typedef atomic_int wolfSSL_Atomic_Int;
         typedef atomic_uint wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-        #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        /* atomic_load() through a const-qualified object -- a getter taking a
+         * const WC_RNG * and reading an atomic member -- is well-formed as of
+         * C17 (DR 459: the parameter became const volatile A *).  C11
+         * specified volatile A * only, and GCC's pre-C17 <stdatomic.h> can
+         * reject the const pointer; clang's expands to __c11_atomic_load(),
+         * which has always accepted it.  A read is the one atomic operation
+         * that is legitimate on a const view of an object, so for GCC in a
+         * pre-C17 dialect, call the builtin that GCC's own atomic_load()
+         * wraps: __atomic_load_n() accepts a const pointer and an _Atomic
+         * operand, with the same seq_cst semantics -- and it is guaranteed
+         * present here, since this arm is conditioned on HAVE_C___ATOMIC.
+         * No cast anywhere: the qualifier is honored, not discarded, so this
+         * is clean under -Wcast-qual in every dialect. */
+        #if (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201710L)) || \
+            defined(__clang__)
+            #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        #elif defined(__GNUC__)
+            #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
+                                                           __ATOMIC_SEQ_CST)
+        #else
+            #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        #endif
         #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
         #define WOLFSSL_ATOMIC_OPS
     #elif defined(__GNUC__) && defined(__ATOMIC_SEQ_CST)
@@ -604,10 +625,12 @@
         /* Acquire-ordered load via idempotent RMW: OR-with-0 leaves the value
          * unchanged but provides atomicity + acquire ordering. On cl.exe this
          * is a locked RMW; LLVM (clang-cl) may lower it to a plain acquire
-         * load.
+         * load.  The ternary construct is a C90-compatible trick to make the
+         * type of the expression follow the type of the operand (only the false
+         * arm of the expression is evaluated).
          */
-        #define WOLFSSL_ATOMIC_LOAD(x) \
-            InterlockedOrAcquire((volatile long *)&(x), 0)
+        #define WOLFSSL_ATOMIC_LOAD(x) ( 0 ? (x) : \
+            InterlockedOrAcquire((volatile long *)&(x), 0))
         #define WOLFSSL_ATOMIC_STORE(x, val) \
             (void)InterlockedExchange((volatile long *)&(x), (long)(val))
         #define WOLFSSL_ATOMIC_OPS

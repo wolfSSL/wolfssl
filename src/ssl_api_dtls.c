@@ -1976,7 +1976,7 @@ int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
 #if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 static int CheckCookieSide(WOLFSSL* ssl)
 {
     if (ssl == NULL)
@@ -2183,7 +2183,8 @@ int wolfSSL_enable_cookie(WOLFSSL* ssl)
 
     return CookiePolicyEnable(ssl);
 }
-#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER && */
+       /* !NO_TLS                                                            */
 
 #endif /* !WOLFCRYPT_ONLY */
 

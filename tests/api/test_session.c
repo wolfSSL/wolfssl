@@ -1754,6 +1754,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_ticket_keys_writer(void* args)
     int  done = 0;
     int  i;
     long rounds = 0;
+    word32 lcg = 1;
 
     (void)args;
 
@@ -1766,14 +1767,15 @@ static THREAD_RETURN WOLFSSL_THREAD test_ticket_keys_writer(void* args)
      * rotations run in bursts to keep the bookkeeping out of the loop. */
     while ((!done) && (rounds < TEST_TICKET_KEYS_WRITER_MAX)) {
         for (i = 0; i < TEST_TICKET_KEYS_BURST; i++) {
-            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
-                    ticket_keys_a, WOLFSSL_TICKET_KEYS_SZ)
-                    != WOLFSSL_SUCCESS) {
-                ticket_keys_set_err = 1;
-            }
-            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx,
-                    ticket_keys_b, WOLFSSL_TICKET_KEYS_SZ)
-                    != WOLFSSL_SUCCESS) {
+            /* Pick the key set pseudo-randomly rather than strictly
+             * alternating: a strictly alternating burst always ends on the
+             * same key set, so a reader that only gets to run between bursts
+             * (see below) would see that one key set only. */
+            const byte* keys;
+            lcg = lcg * 1103515245U + 12345U;
+            keys = ((lcg >> 16) & 1) ? ticket_keys_a : ticket_keys_b;
+            if (wolfSSL_CTX_set_tlsext_ticket_keys(ticket_keys_ctx, keys,
+                    WOLFSSL_TICKET_KEYS_SZ) != WOLFSSL_SUCCESS) {
                 ticket_keys_set_err = 1;
             }
         }
@@ -1782,6 +1784,14 @@ static THREAD_RETURN WOLFSSL_THREAD test_ticket_keys_writer(void* args)
         if (wc_LockMutex(&ticket_keys_lock) == 0) {
             done = ticket_keys_reader_done;
             wc_UnLockMutex(&ticket_keys_lock);
+        }
+
+        /* Block briefly between bursts.  A serializing scheduler with unfair
+         * hand-off (valgrind without --fair-sched) otherwise lets a thread
+         * that never blocks run to completion before the other thread gets a
+         * turn, so the reader would see only the final key set. */
+        if (!done) {
+            XSLEEP_MS(TEST_TICKET_KEYS_WAIT_MS);
         }
     }
 

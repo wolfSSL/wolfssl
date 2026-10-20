@@ -2119,7 +2119,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
     RsaKey *                  key = NULL;
-    WC_RNG                    rng;
+    WC_RNG *                  rng = NULL;
     byte *                    priv = NULL; /* priv der */
     int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
@@ -2145,16 +2145,21 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     struct scatterlist        src, dst;
     size_t                    i = 0;
 
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed\n");
+        goto test_rsa_end;
+    }
     key = (RsaKey*)malloc(sizeof(RsaKey));
     if (key == NULL) {
         pr_err("error: allocating key(%zu) failed\n", sizeof(RsaKey));
         goto test_rsa_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
 
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
@@ -2169,7 +2174,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         goto test_rsa_end;
@@ -2178,7 +2183,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -2237,7 +2242,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
      * */
     out_len = key_len;
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
-                           RSA_PUBLIC_ENCRYPT, &rng);
+                           RSA_PUBLIC_ENCRYPT, rng);
     if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
         ret = -1;
@@ -2246,7 +2251,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     XMEMSET(dec, 0, key_len);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
-                           RSA_PRIVATE_DECRYPT, &rng);
+                           RSA_PRIVATE_DECRYPT, rng);
     if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
         goto test_rsa_end;
@@ -2354,7 +2359,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     /* wolfcrypt private decrypt */
     XMEMSET(dec, 0, key_len + 1);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
-                           RSA_PRIVATE_DECRYPT, &rng);
+                           RSA_PRIVATE_DECRYPT, rng);
 
     if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
@@ -2369,7 +2374,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     /* wolfcrypt public encrypt */
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
-                           RSA_PUBLIC_ENCRYPT, &rng);
+                           RSA_PUBLIC_ENCRYPT, rng);
 
     if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
@@ -2437,9 +2442,10 @@ test_rsa_end:
     free(enc);
     if (init_key)
         wc_FreeRsaKey(key);
-    if (init_rng)
-        wc_FreeRng(&rng);
     free(key);
+    if (init_rng)
+        wc_FreeRng(rng);
+    free(rng);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: %s, %d, %d: self test returned: %d\n", driver,
@@ -2465,7 +2471,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
     RsaKey *                  key = NULL;
-    WC_RNG                    rng;
+    WC_RNG *                  rng = NULL;
     byte *                    priv = NULL; /* priv der */
     int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
@@ -2506,6 +2512,12 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     (void)hash_len;
     #endif
 
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed.\n");
+        test_rc = MEMORY_E;
+        goto test_pkcs1_end;
+    }
     #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
     hash = malloc(hash_len);
     if (! hash) {
@@ -2533,10 +2545,10 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -2551,7 +2563,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
@@ -2561,7 +2573,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -2697,7 +2709,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, &rng);
+    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, rng);
     if (sig_len <= 0) {
         pr_err("error: wc_RsaSSL_Sign returned: %d\n", sig_len);
         test_rc = sig_len;
@@ -2892,7 +2904,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
 
     ret = wc_RsaPublicEncrypt(dec2, sizeof(p_vector), enc2,
-                              key_len, key, &rng);
+                              key_len, key, rng);
 
     if (unlikely(ret != (int) key_len)) {
         pr_err("error: wc_RsaPublicEncrypt returned: %d\n", ret);
@@ -2976,7 +2988,8 @@ test_pkcs1_end:
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
     if (init_rng)
-        wc_FreeRng(&rng);
+        wc_FreeRng(rng);
+    free(rng);
     if (init_key)
         wc_FreeRsaKey(key);
     free(key);
@@ -3010,7 +3023,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     int                  ret = 0;
     struct crypto_sig *  tfm = NULL;
     RsaKey *             key = NULL;
-    WC_RNG               rng;
+    WC_RNG *             rng = NULL;
     byte *               priv = NULL; /* priv der */
     int                  priv_len = 0;
     byte *               pub = NULL; /* pub der */
@@ -3035,6 +3048,13 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     int                  enc_len = 0;
     int                  n_diff = 0;
     uint8_t              skipped = 0;
+
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed.\n");
+        test_rc = MEMORY_E;
+        goto test_pkcs1_end;
+    }
 
     hash = malloc(hash_len);
     if (! hash) {
@@ -3061,10 +3081,10 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -3079,7 +3099,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
@@ -3089,7 +3109,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -3206,7 +3226,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, &rng);
+    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, rng);
     if (sig_len <= 0) {
         pr_err("error: wc_RsaSSL_Sign returned: %d\n", sig_len);
         test_rc = sig_len;
@@ -3339,7 +3359,8 @@ test_pkcs1_end:
     free(hash);
 
     if (init_rng)
-        wc_FreeRng(&rng);
+        wc_FreeRng(rng);
+    free(rng);
     if (init_key)
         wc_FreeRsaKey(key);
     free(key);

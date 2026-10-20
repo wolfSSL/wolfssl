@@ -616,13 +616,11 @@ int test_wolfSSL_X509_set_pubkey(void)
             const unsigned char* dp;
             int rngRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
             int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-        #ifdef OPENSSL_ALL
             WOLFSSL_X509* parsed = NULL;
             WOLFSSL_EVP_PKEY* parsedPub = NULL;
             unsigned char* certDer = NULL;
             const unsigned char* cp;
             int certDerSz = 0;
-        #endif
 
             ExpectNotNull(draftDer = (byte*)XMALLOC(4096, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
@@ -657,7 +655,6 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
             ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
 
-        #ifdef OPENSSL_ALL
             /* A parsed draft certificate's X509_PUBKEY must keep the draft
              * OID, or it verifies with the final ML-DSA-44 parameters. */
             ExpectIntGT(certDerSz = wolfSSL_i2d_X509(x509, &certDer), 0);
@@ -674,7 +671,6 @@ int test_wolfSSL_X509_set_pubkey(void)
             wolfSSL_EVP_PKEY_free(parsedPub);
             wolfSSL_X509_free(parsed);
             XFREE(certDer, NULL, DYNAMIC_TYPE_OPENSSL);
-        #endif
 
             wolfSSL_EVP_PKEY_free(pubkey);
             pubkey = NULL;

@@ -51,12 +51,9 @@
 #endif
 
 /* The inst-op gate serializes whole-object transitions -- instance and root
- * free/reinstantiate cycles -- against lockless traversals of the same
- * objects (the entropy daemon's banking, entropy invalidation walks).
- * Present whenever either side of such a race can be compiled in: the
- * next-seed banker, or any root_rng (whose transitions the gate brackets).
+ * free/reinstantiate cycles -- when WC_RNG_HAVE_LOCK is unavailable to support it.
  */
-#if defined(WC_RNG_BANK_HAVE_ROOT_RNG) || defined(WC_RNG_HAVE_NEXT_SEED)
+#ifndef WC_RNG_HAVE_LOCK
     #define WC_RNG_BANK_HAVE_INST_OP_GATE
 #endif
 
@@ -77,18 +74,31 @@
 #define WC_RNG_BANK_FLAG_RBGC                      (1U << 13)
 #define WC_RNG_BANK_FLAG_DEFAULT_BANK              (1U << 14)
 #define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE     (1U << 15)
-#define WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE  (1U << 16)
+#define WC_RNG_BANK_FLAG_AUTO_UPGRADE_FROM_NEXT_SEED (1U << 16)
 
-#ifdef WC_RNG_HAVE_LOCK
-    wc_static_assert(WC_RNG_LOCK_EXTRA_SHIFT == 4U);
-#else /* !WC_RNG_HAVE_LOCK */
-    /* Definitions for backward-compat / WC_RNG_NO_LOCK */
+#ifndef WC_RNG_ERR_IS_TRANSIENT
+    /* mirrors random.h, for legacy boundaries that predate it */
+    #define WC_RNG_ERR_IS_TRANSIENT(e)                                  \
+        (((e) == WC_NO_ERR_TRACE(BUSY_E)) ||                             \
+         ((e) == WC_NO_ERR_TRACE(NOT_READY_E)) ||                        \
+         ((e) == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) ||                   \
+         ((e) == WC_NO_ERR_TRACE(RAN_BLOCK_E)) ||                        \
+         ((e) == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||                       \
+         ((e) == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+#endif
+
+#ifndef WC_RNG_HAVE_LOCK
+    /* Definitions for backward-compat / WC_RNG_NO_LOCK, mirroring random.h's
+     * base layout.  A fragmentary backport of the in-boundary WC_RNG.lock
+     * fails to compile against these one way or the other, which is the
+     * intended tripwire. */
     #define WC_RNG_LOCK_FREE 0
     #define WC_RNG_LOCK_HELD (1U<<0)
     #define WC_RNG_LOCK_REQUIRED (1U<<1)
     #define WC_RNG_LOCK_ENTROPY_INVALIDATED (1U<<2)
     #define WC_RNG_LOCK_ENTROPY_RECOVERING (1U<<3)
-    #define WC_RNG_LOCK_EXTRA_SHIFT 4U
+    #define WC_RNG_LOCK_ORPHANED (1U<<4)
+    #define WC_RNG_LOCK_EXTRA_SHIFT 5U
     #ifdef WOLFSSL_NO_ATOMICS
         typedef word32 WC_RNG_lock_t;
         typedef word32 WC_RNG_lock_arg_t;
@@ -117,9 +127,9 @@ typedef int (*wc_rng_bank_free_hook_cb_t)(const struct wc_rng_bank *bank,
 #define WC_RNG_BANK_INST_FLAG_ALREADY_WARNED (1U << 0)
 
 struct wc_rng_bank_inst {
+    WC_RNG rng;
     #ifdef WC_RNG_HAVE_LOCK
-        /* the exclusivity latch lives in WC_RNG.lock (wc_RNG_lock_*()) --
-         * in-FIPS-boundary, module-enforced. */
+        /* the exclusivity latch lives in rng.lock */
     #else
         #ifdef WOLFSSL_NO_ATOMICS
             word32 lock;
@@ -128,9 +138,14 @@ struct wc_rng_bank_inst {
         #endif
     #endif
     struct wc_rng_bank *bank;
-    WC_RNG rng;
     volatile word32 flags;
 };
+
+wc_static_assert(WC_OFFSETOF(struct wc_rng_bank_inst, rng) == 0);
+#define WC_RNG_BANK_INST_TO_RNG(rng_inst) ((WC_RNG *)(rng_inst))
+#define WC_RNG_BANK_OFFSET_TO_RNG(bank, n) \
+    ((((int)(n) >= 0) && ((int)(n) < (int)(bank)->n_rngs)) ? \
+     WC_RNG_BANK_INST_TO_RNG(&(bank)->rngs[n]) : NULL)
 
 #if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
     !defined(WC_RNG_BANK_STATIC)
@@ -302,6 +317,14 @@ WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
 #endif
 #endif
 
+WOLFSSL_LOCAL int wc_rng_bank_reinit_rng(
+    struct wc_rng_bank *bank,
+    WC_RNG *rng,
+    WC_RNG *seedRng,
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
+    word32 flags);
+
 WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
@@ -394,12 +417,6 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 /* note, free with wc_rng_free(). */
 #endif
 #endif /* WC_HAVE_RNG_BANKREF */
-
-#define WC_RNG_BANK_INST_TO_RNG(rng_inst) \
-    ((rng_inst) ? (&(rng_inst)->rng) : NULL)
-#define WC_RNG_BANK_OFFSET_TO_RNG(bank, n) \
-    ((((int)(n) >= 0) && ((int)(n) < (int)(bank)->n_rngs)) ? \
-     WC_RNG_BANK_INST_TO_RNG(&(bank)->rngs[n]) : NULL)
 
 #ifdef WC_RNG_HAVE_LOCK
     /* Trivial shims to native lock facility in WC_RNG */
@@ -507,9 +524,27 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
                          sizeof(((struct DRBG_internal *)NULL)->reseedCtr));
     #endif
 
+    /* no perso/persoSz in backported wc_InitRngNonceRBGC() */
+    #undef wc_InitRngNonceRBGC
+    #define wc_InitRngNonceRBGC(leaf,root,nonce,nonceSz,perso,persoSz,flags) \
+        ((void)(perso), (void)(persoSz),\
+            wc_InitRngNonceRBGC_fips(leaf, root, nonce, nonceSz, flags))
     #define wc_InitRngRBGC(leaf, root, flags) \
-        wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+        wc_InitRngNonceRBGC(leaf, root, NULL, 0, NULL, 0, flags)
+    #define wc_RNG_DRBG_Reseed_Now_Primary(rng, nonce, nonceSz) \
+        wc_RNG_DRBG_Reseed_Now(rng, nonce, nonceSz)
     WOLFSSL_TEST_VIS int wc_RNG_GetStatus(const WC_RNG* rng);
+    #if FIPS_VERSION3_EQ(5,2,4)
+    /* The 5.2.4 boundary carries the backported RNG services, and the shims
+     * below complete the API surface that consumers outside the boundary
+     * (src/ssl.c, src/ssl_crypto.c) gate on, so the capability markers are
+     * defined here for it just as random.h defines them on the current
+     * boundary.  The other legacy boundaries keep their legacy arms: the
+     * backports are pinned to 5.2.4, and a 5.2.5+ that carried them forward
+     * would widen this gate then. */
+    #define WC_RNG_HAVE_STIR
+    #define WC_RNG_HAVE_RESEED_NOW
+    #endif
     WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
     WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng);
     WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
