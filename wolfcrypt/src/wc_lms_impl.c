@@ -502,6 +502,10 @@ static WC_INLINE int wc_lms_sha256_192_hash_block(wc_Sha256* sha256,
     int ret;
     unsigned char output[WC_SHA256_DIGEST_SIZE];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_lms_sha256_192_hash_block output", output,
+        sizeof(output));
+#endif
     /* Hash the block and reset SHA-256 state. */
     ret = wc_Sha256HashBlock(sha256, data, output);
     if (ret == 0) {
@@ -509,6 +513,9 @@ static WC_INLINE int wc_lms_sha256_192_hash_block(wc_Sha256* sha256,
     }
     /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(output, sizeof(output));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(output, sizeof(output));
+#endif
 
     return ret;
 }
@@ -528,6 +535,10 @@ static WC_INLINE int wc_lms_hash_sha256_192(wc_Sha256* sha256, byte* data,
     int ret;
     unsigned char output[WC_SHA256_DIGEST_SIZE];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_lms_hash_sha256_192 output", output,
+        sizeof(output));
+#endif
 #ifndef WC_LMS_FULL_HASH
     if (len < WC_SHA256_BLOCK_SIZE) {
         /* Store data into SHA-256 object's buffer. */
@@ -574,6 +585,9 @@ static WC_INLINE int wc_lms_hash_sha256_192(wc_Sha256* sha256, byte* data,
 #endif /* !WC_LMS_FULL_HASH */
     /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(output, sizeof(output));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(output, sizeof(output));
+#endif
 
     return ret;
 }
@@ -591,6 +605,10 @@ static WC_INLINE int wc_lms_hash_sha256_192_final(wc_Sha256* sha256, byte* hash)
     byte* buffer = (byte*)sha256->buffer;
     unsigned char output[WC_SHA256_DIGEST_SIZE];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_lms_hash_sha256_192_final output", output,
+        sizeof(output));
+#endif
     buffer[sha256->buffLen++] = 0x80;
     if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
         XMEMSET(buffer + sha256->buffLen, 0,
@@ -620,18 +638,28 @@ static WC_INLINE int wc_lms_hash_sha256_192_final(wc_Sha256* sha256, byte* hash)
     }
     /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(output, sizeof(output));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(output, sizeof(output));
+#endif
 
     return ret;
 #else
     int ret;
     unsigned char output[WC_SHA256_DIGEST_SIZE];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_lms_hash_sha256_192_final output", output,
+        sizeof(output));
+#endif
     ret = wc_Sha256Final(sha256, output);
     if (ret == 0) {
         XMEMCPY(hash, output, WC_SHA256_192_DIGEST_SIZE);
     }
     /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(output, sizeof(output));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(output, sizeof(output));
+#endif
 
     return ret;
 #endif

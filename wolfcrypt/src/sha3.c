@@ -1877,12 +1877,18 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
                     return MEMORY_E);
 
     XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha3GetHash tmpSha3", tmpSha3, sizeof(*tmpSha3));
+#endif
     ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
 
     ForceZero(tmpSha3, sizeof(*tmpSha3));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha3, sizeof(*tmpSha3));
+#endif
 
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;

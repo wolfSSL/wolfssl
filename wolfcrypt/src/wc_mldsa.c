@@ -9769,6 +9769,9 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
         byte kBuf[MLDSA_K_SZ];
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mldsa make_key kBuf", kBuf, sizeof(kBuf));
+    #endif
         /* Step 9: Move k down to after public seed; rho' is done with. */
         XMEMCPY(kBuf, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
         ForceZero(k, MLDSA_PRIV_SEED_SZ + MLDSA_K_SZ);
@@ -9803,6 +9806,9 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
                 MLDSA_TR_SZ);
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(kBuf, sizeof(kBuf));
+    #endif
     }
     if (ret == 0) {
         /* Public key and private key are available. */
@@ -9941,6 +9947,9 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         const byte* s2pt = s2p;
         word32 s2Stride = (word32)params->s2EncSz / params->k;
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mldsa make_key kBuf", kBuf, sizeof(kBuf));
+    #endif
         /* Step 9: Move k down to after public seed; rho' is done with. */
         XMEMCPY(kBuf, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
         ForceZero(k, MLDSA_PRIV_SEED_SZ + MLDSA_K_SZ);
@@ -9982,6 +9991,9 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
                 MLDSA_TR_SZ);
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(kBuf, sizeof(kBuf));
+    #endif
     }
     if (ret == 0) {
         /* Public key and private key are available. */
@@ -10473,6 +10485,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     DYNAMIC_TYPE_MLDSA, ret=MEMORY_E);
                 if (WC_VAR_OK(w1e))
                 {
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Add("mldsa sign w1e", w1e, MLDSA_MAX_W1_ENC_SZ);
+                #endif
                     if (ret == 0) {
                         ret = mldsa_vec_encode_w1(w1, params->k,
                             params->gamma2, w1e);
@@ -10568,6 +10583,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
                 if (WC_VAR_OK(w1e)) {
                     ForceZero(w1e, MLDSA_MAX_W1_ENC_SZ);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(w1e, MLDSA_MAX_W1_ENC_SZ);
+                #endif
                 }
                 WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_MLDSA);
             }
@@ -14929,6 +14947,10 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         }
         else {
             XMEMSET(s1, 0, allocSz);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("mldsa check_key s1 s2 t0 t", s1,
+                (size_t)params->s1Sz + 3U * (size_t)params->s2Sz);
+        #endif
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t0 = s2 + params->s2Sz / sizeof(*s2);
             t  = t0 + params->s2Sz / sizeof(*t0);

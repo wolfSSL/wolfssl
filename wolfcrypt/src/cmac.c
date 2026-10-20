@@ -693,6 +693,9 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
 
     aSz = checkSz;
     XMEMSET(a, 0, sizeof(a));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_AesCmacVerify_ex a", a, sizeof(a));
+#endif
     ret = wc_AesCmacGenerate_ex(cmac,
                                 a, &aSz,
                                 in, inSz,
@@ -712,6 +715,9 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
     }
     /* On a mismatch this is a valid tag for the message. */
     ForceZero(a, sizeof(a));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(a, sizeof(a));
+#endif
 
     return ret;
 }

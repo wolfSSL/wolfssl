@@ -834,6 +834,10 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(LITTLE_ENDIAN_ORDER) && \
+    !defined(WOLFSSL_WIDE_BYTE)
+    wc_MemZero_Add("wc_ShaFinalRaw digest", digest, sizeof(digest));
+#endif
 
 #if defined(WOLFSSL_WIDE_BYTE)
     /* CHAR_BIT != 8: write the digest words as big-endian octets. */
@@ -855,6 +859,9 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
     }
     XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
     ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -1222,6 +1229,9 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 
     WC_CALLOC_VAR_EX(tmpSha, wc_Sha, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ShaGetHash tmpSha", tmpSha, sizeof(*tmpSha));
+#endif
 
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
@@ -1230,6 +1240,9 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     }
 
     ForceZero(tmpSha, sizeof(*tmpSha));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha, sizeof(*tmpSha));
+#endif
     WC_FREE_VAR_EX(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
