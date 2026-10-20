@@ -5262,3 +5262,93 @@ int test_wolfSSL_dtls_api_more_guards(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Accept every certificate the way an application that makes its own trust
+ * decision about the peer does. */
+static int test_chain_ca_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* s)
+{
+    (void)preverify;
+    (void)s;
+    return 1;
+}
+
+/* Test that a chain certificate which failed verification is not cached as a
+ * CA when the application's verify callback overrides the error.
+ *
+ * The client trusts the test root but not the intermediate that issued the
+ * server's chain certificate, so that certificate fails with ASN_NO_SIGNER_E.
+ * A callback returning 1 carries this handshake past the failure, which is
+ * what the application asked for. It must not also leave the certificate in
+ * the context's certificate manager: entries there are trust anchors for every
+ * later connection out of the same context, and the verify callback only runs
+ * on an error, so nothing would ask the application about it again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_chain_ca_not_cached_on_override(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+    /* The leaf and the intermediate that signed it. The issuer of that
+     * intermediate is a second intermediate the client does not hold, so the
+     * chain certificate has no signer. */
+    const char* svrChain = "./certs/intermediate/server-chain-short.pem";
+    const char* svrKey = "./certs/server-key.pem";
+    const char* leafCert = "./certs/intermediate/server-int-cert.pem";
+    const char* rootCert = "./certs/ca-cert.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Build both contexts here so that test_memio_setup() only creates the
+     * objects: the client gets the root alone and the server presents the
+     * chain rather than the default certificate. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    if ((ctx_c != NULL) && (ctx_s != NULL)) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, rootCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrChain),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    /* The leaf does not chain to anything the client holds yet, so the check
+     * after the handshake is reporting a change and not a constant. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, leafCert, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_chain_ca_override_cb);
+
+    /* The override carries the handshake past the unverifiable chain cert. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* That certificate must not have become a trust anchor: a leaf it issued
+     * still has no signer in the client context's certificate manager. */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, leafCert, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

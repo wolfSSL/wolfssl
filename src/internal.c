@@ -19259,6 +19259,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                    int preCbRet = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL)
                     int ocspNoUrl = 0;
                     int ocspStapleDeferred = 0;
@@ -19570,6 +19571,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
@@ -19585,6 +19587,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         skipAddCA = 1;
                     }
                 #endif
+
+                    /* An unsigned chain cert the verify callback waved through
+                     * stays out of the cache: cached CAs are trust anchors for
+                     * every later connection and the callback only runs on an
+                     * error. Other errors still chain to a trusted anchor, and
+                     * the rest of the chain needs the cached entry. */
+                    if (preCbRet == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+                        preCbRet == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
+                        skipAddCA = 1;
+                    }
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
                             !ssl->options.verifyNone && !skipAddCA) {
