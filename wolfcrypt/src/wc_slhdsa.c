@@ -10629,7 +10629,7 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
  * @return  BAD_LENGTH_E when sigSz is less than required signature length, or
  *          when hashSz does not equal the digest size for hashType.
  * @return  MISSING_KEY when private key not set.
- * @return  NOT_COMPILED in when hash algorithm is not supported.
+ * @return  NOT_COMPILED_IN when hash algorithm is not supported.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
@@ -10662,7 +10662,7 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
      * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
      * reach a device as a pure signature. */
     else if (hashType == WC_HASH_TYPE_NONE) {
-        ret = NOT_COMPILED_IN;
+        ret = BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -10726,7 +10726,7 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @return  BAD_LENGTH_E when hashSz does not equal the digest size for
  *          hashType.
  * @return  MISSING_KEY when private key not set.
- * @return  NOT_COMPILED in when hash algorithm is not supported.
+ * @return  NOT_COMPILED_IN when hash algorithm is not supported.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
@@ -10737,9 +10737,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     int ret = 0;
     byte addRnd[SLHDSA_MAX_N];
 
-    /* Validate parameters before generating random.  hashType is checked
-     * here; only hashSz is left to the internal worker, so a bad hashSz still
-     * costs n bytes of DRBG output before the error comes back. */
+    /* Validate parameters before generating random. */
     if ((key == NULL) || (key->params == NULL) ||
             ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) || (sig == NULL) ||
             (sigSz == NULL) || (rng == NULL)) {
@@ -10883,7 +10881,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @return  BAD_LENGTH_E when signature size does not match parameters, or
  *          when hashSz does not equal the digest size for hashType.
  * @return  MISSING_KEY when public key not set.
- * @return  NOT_COMPILED in when hash algorithm is not supported.
+ * @return  NOT_COMPILED_IN when hash algorithm is not supported.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */

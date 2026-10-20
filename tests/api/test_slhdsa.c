@@ -1219,6 +1219,10 @@ int test_wc_slhdsa_sign_hash(void)
     ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(NULL, ctx, sizeof(ctx),
         hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Same error as SignHash and VerifyHash for the no-pre-hash sentinel. */
+    ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, ctx, sizeof(ctx),
+        hash, TEST_SLHDSA_PH_SZ, WC_HASH_TYPE_NONE, sig, &sigLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, ctx, sizeof(ctx),
         hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen), 0);
     ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
@@ -1235,6 +1239,9 @@ int test_wc_slhdsa_sign_hash(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
             hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
+            hash, TEST_SLHDSA_PH_SZ, WC_HASH_TYPE_NONE, sig, &sigLen, addRnd),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
             hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd),
