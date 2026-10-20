@@ -3654,7 +3654,13 @@ int test_tls12_clear_keeps_borrowed_session(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_SESSION_CACHE) && \
+    (!defined(WOLFSSL_BLIND_PRIVATE_KEY) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_WPAS_SMALL))
+    /* Needs wolfSSL_get_session(), and a server whose key outlives the
+     * handshake: FreeHandshakeResources() unloads a key the object owns,
+     * which with blinding is its own copy, and wolfSSL_clear() then has
+     * none to re-arm the suites with. */
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION* borrowed = NULL;
