@@ -689,7 +689,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
                        int hashType, int id, void* heap)
 {
-    word32 u, v, pLen, iLen, sLen, totalLen;
+    word32 u, v, pLen, sLen;
+    word32 iLen = 0;
+    word32 totalLen = 0;
     /* nwc:     v / sizeof(PKCS12_WORD) - words per v-byte block
      *          (v is always a multiple of sizeof(PKCS12_WORD))
      * nBlocks: iLen / v - number of v-byte blocks in I */
