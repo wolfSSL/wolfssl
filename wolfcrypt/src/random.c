@@ -5608,7 +5608,26 @@ int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n)
      * no provenance. */
     if (rng_src->RBGCStratum > rng_dest->RBGCStratum)
         return BAD_FUNC_ARG;
-#endif
+
+  #ifdef HAVE_FIPS
+    /* When FIPS and rng_src != rng_dest, use a narrowed subset of the
+     * SP-800-90C RBGC seed source criteria to determine eligibility of
+     * rng_src */
+    if ((rng_src != rng_dest) && (rng_src != rng_dest->RBGC_parent)) {
+        return WRONG_TYPE_OBJECT_E;
+    }
+  #endif /* HAVE_FIPS */
+
+#else /* !WC_RNG_HAVE_RBGC */
+
+  #ifdef HAVE_FIPS
+    /* No RBGC tree, hence no seed-source relation to validate: only self-pool
+     * allowed. */
+    if (rng_src != rng_dest)
+        return WRONG_TYPE_OBJECT_E;
+  #endif /* HAVE_FIPS */
+
+#endif /* !WC_RNG_HAVE_RBGC */
 
     {
         WC_ATOMIC_UINT_ARG snap, cur, want;

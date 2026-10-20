@@ -2602,12 +2602,21 @@ int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n);
     not serviced -- source upkeep belongs to the source's owner.  On a
     lock-required rng_src the caller must hold its lease.  Under
     WC_RNG_HAVE_RBGC, rng_src may not sit deeper in the RBG chain than
-    rng_dest (SP 800-90C sect. 7.3.1 item 16).
+    rng_dest (SP 800-90C sect. 7.3.1 item 16).  In FIPS builds the
+    eligibility rule is narrower still: rng_src must be rng_dest itself,
+    or (under WC_RNG_HAVE_RBGC) rng_dest's direct RBGC parent -- the two
+    relationships under which rng_src's output is already sanctioned to
+    reach rng_dest.  Any other source is refused with
+    WRONG_TYPE_OBJECT_E before any other processing, the n = 0 no-op
+    included.
 
     \return 0 Success, including the no-op cases: n is 0, or the pool is
     already full.
     \return BAD_FUNC_ARG rng_dest or rng_src is null, or rng_src's RBGC
     stratum is deeper than rng_dest's.
+    \return WRONG_TYPE_OBJECT_E In FIPS builds, rng_src is neither
+    rng_dest nor rng_dest's direct RBGC parent (a source-eligibility
+    refusal, as distinct from the stratum gate's BAD_FUNC_ARG).
     \return BAD_STATE_E rng_dest has no pool attached.
     \return OBJECT_NOT_LOCKED_E rng_src requires a lease and the caller
     holds none.

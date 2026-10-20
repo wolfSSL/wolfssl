@@ -35307,7 +35307,8 @@ out:
 #ifdef WC_RNG_HAVE_POOL
 /* Coverage for the asynchronous DRBG output pool: allocation contracts
  * (incl. the word16 size bound and double-alloc rejection), self- and
- * cross-instance collection, published-count tracking, destructive
+ * cross-instance collection (incl. the FIPS source-eligibility gate),
+ * published-count tracking, destructive
  * extraction with partial delivery and the empty-pool NOT_READY_E, and ring
  * wraparound on both the collect and extract sides.  Single-threaded, so
  * reader/writer interleavings are exercised elsewhere; this pins the
@@ -35425,8 +35426,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
 
-    /* partial extract, then cross-instance top-off wrapping the ring,
-     * then full drain crossing the wrap on the read side */
+    /* partial extract, then top-off wrapping the ring (cross-instance
+     * where eligible; in FIPS builds the unrelated source is refused and
+     * the top-off self-collects), then full drain crossing the wrap on
+     * the read side */
     n = 32;
     RNG_STATS_SNAP(rng);
     api_ret = wc_RNG_Pool_Extract(rng, out, &n);
@@ -35446,6 +35449,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
                      ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
     RNG_STATS_SNAP2(src);
     api_ret = wc_RNG_Pool_Collect2(rng, src, 32);
+#ifdef HAVE_FIPS
+    /* src is neither rng nor rng's direct RBGC parent: refused outright,
+     * nothing mutated.  Self-collect instead, preserving the ring-wrap
+     * coverage below. */
+    if (api_ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect(rng, 32);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+#else
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     if (wc_RNG_DRBG_Present(src)) {
@@ -35456,6 +35469,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
         RNG_STATS_EXPECT2(src, _stats_total_bytes_produced, 32,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
     }
+#endif /* !HAVE_FIPS */
     api_ret = wc_RNG_Pool_Current(rng, &n);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
@@ -35486,7 +35500,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     api_ret = wc_RNG_Pool_Collect2(NULL, src, 8);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    /* n == 0: a no-op where the source is eligible; in FIPS builds the
+     * source-eligibility gate fires before the n == 0 short-circuit */
     api_ret = wc_RNG_Pool_Collect2(rng, src, 0);
+#ifdef HAVE_FIPS
+    if (api_ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+#else
+    if (api_ret != 0)
+#endif /* !HAVE_FIPS */
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    /* identity source: the n == 0 no-op holds in every configuration */
+    api_ret = wc_RNG_Pool_Collect2(rng, rng, 0);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
 
