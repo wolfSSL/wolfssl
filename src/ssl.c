@@ -5794,14 +5794,25 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
 
         /* A client keeps the session it may resume. A server's is per
-         * connection, and the application may still hold it. */
+         * connection: take a new one when the application holds a reference,
+         * else reset ours, as wolfSSL_get_session() hands out a pointer
+         * without taking one. */
         if (!ssl->options.handShakeDone ||
-                (ssl->options.side == WOLFSSL_SERVER_END)) {
+                ((ssl->options.side == WOLFSSL_SERVER_END) &&
+                 (wolfSSL_RefCur(ssl->session->ref) > 1))) {
             wolfSSL_FreeSession(ssl->ctx, ssl->session);
             ssl->session = wolfSSL_NewSession(ssl->heap);
             if (ssl->session == NULL) {
                 return WOLFSSL_FAILURE;
             }
+        }
+        else if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ssl->session->haveAltSessionID = 0;
+            ForceZero(ssl->session->altSessionID, ID_LEN);
+            ssl->session->peerAuthOk = 0;
+        #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+            ssl->session->ticketNonce.len = 0;
+        #endif
         }
 
         /* reset error */
@@ -5848,6 +5859,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.peerAuthGood = 0;
         ssl->options.usingPSK_cipher = 0;
         ssl->options.usingAnon_cipher = 0;
+        /* Left set, the next client here is never asked for a certificate. */
+        ssl->options.isPSK = 0;
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
         ssl->options.pskNegotiated = 0;
 #endif
