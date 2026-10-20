@@ -1586,7 +1586,7 @@ impl GCM {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesGcmEncrypt(&mut self.ws_aes, dout.as_mut_ptr(), din.as_ptr(), in_size,
+            gcm_encrypt_ext_iv(&mut self.ws_aes, dout.as_mut_ptr(), din.as_ptr(), in_size,
                 iv.as_ptr(), iv_size, auth_tag.as_mut_ptr(), auth_tag_size,
                 auth.as_ptr(), auth_size)
         };
@@ -1634,6 +1634,68 @@ impl GCM {
         Ok(())
     }
 }
+/// One-shot AES-GCM encryption with a caller-supplied IV.
+///
+/// FIPS builds don't export `wc_AesGcmEncrypt()`, since it isn't approved
+/// there. They do the same with approved calls instead, as wolfSSL's
+/// `wc_compat.h` does for C callers.
+///
+/// # Safety
+///
+/// The pointers and sizes must be valid as for `wc_AesGcmEncrypt()`, and the
+/// key must already be set on `aes`.
+#[cfg(aes_gcm)]
+#[allow(clippy::too_many_arguments)]
+unsafe fn gcm_encrypt_ext_iv(aes: *mut sys::Aes, out: *mut u8, inp: *const u8,
+        sz: u32, iv: *const u8, iv_sz: u32, auth_tag: *mut u8,
+        auth_tag_sz: u32, auth_in: *const u8, auth_in_sz: u32) -> i32 {
+    #[cfg(not(fips))]
+    {
+        unsafe {
+            sys::wc_AesGcmEncrypt(aes, out, inp, sz, iv, iv_sz, auth_tag,
+                auth_tag_sz, auth_in, auth_in_sz)
+        }
+    }
+    #[cfg(all(fips, aes_gcm_stream))]
+    {
+        // A null key keeps the key already set on aes.
+        let rc = unsafe {
+            sys::wc_AesGcmInit(aes, core::ptr::null(), 0, iv, iv_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        let rc = unsafe {
+            sys::wc_AesGcmEncryptUpdate(aes, out, inp, sz, auth_in, auth_in_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        unsafe { sys::wc_AesGcmEncryptFinal(aes, auth_tag, auth_tag_sz) }
+    }
+    #[cfg(all(fips, not(aes_gcm_stream)))]
+    {
+        // wc_AesGcmEncrypt_ex() writes the IV it used and then advances the
+        // one held in aes, so set it back afterwards, as wc_compat.h does.
+        let mut iv_out = [0u8; 16];
+        if iv_sz as usize > iv_out.len() {
+            return sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E;
+        }
+        let rc = unsafe { sys::wc_AesGcmSetExtIV(aes, iv, iv_sz) };
+        if rc != 0 {
+            return rc;
+        }
+        let rc = unsafe {
+            sys::wc_AesGcmEncrypt_ex(aes, out, inp, sz, iv_out.as_mut_ptr(),
+                iv_sz, auth_tag, auth_tag_sz, auth_in, auth_in_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        unsafe { sys::wc_AesGcmSetExtIV(aes, iv, iv_sz) }
+    }
+}
+
 #[cfg(aes_gcm)]
 impl GCM {
     fn zeroize(&mut self) {
@@ -1673,7 +1735,7 @@ fn gcm_encrypt_in_place(
     let buf_ptr = buffer.as_mut_ptr();
     let in_ptr = buf_ptr as *const u8;
     let rc = unsafe {
-        sys::wc_AesGcmEncrypt(
+        gcm_encrypt_ext_iv(
             &mut gcm.ws_aes,
             buf_ptr, in_ptr, buffer.len() as u32,
             nonce.as_ptr(), nonce.len() as u32,
