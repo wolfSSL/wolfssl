@@ -230,7 +230,6 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../;../IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -250,7 +249,6 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../;../IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;WOLFSSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
