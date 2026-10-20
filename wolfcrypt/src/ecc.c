@@ -6473,7 +6473,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         }
     }
     else if (keysize < WC_ECC_FIPS_GEN_MIN) {
-        return ECC_CURVE_OID_E;
+        /* Same code the fips.c keygen wrappers return for this case. */
+        return BAD_FUNC_ARG;
     }
 #endif
 
