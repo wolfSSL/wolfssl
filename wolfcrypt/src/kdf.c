@@ -167,7 +167,15 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
 
     ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* The PRF secret is a (pre-)master secret, e.g. 256 bytes for a
+         * 2048-bit DHE group, so it is covered by the TLS KDF validation
+         * (SP 800-135) rather than the standalone HMAC key-length range. */
+        ret = wc_HmacSetKey_ex(hmac, hash_type, secret, secLen,
+                               FIPS_ALLOW_SHORT);
+    #else
         ret = wc_HmacSetKey(hmac, hash_type, secret, secLen);
+    #endif
         if (ret == 0)
             ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
         if (ret == 0)

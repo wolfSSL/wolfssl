@@ -129,6 +129,13 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
 
     /* long key */
     HMAC_CTX_init(&ctx1);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* 160 bytes is above the v7 HMAC_FIPS_MAX_KEY (1024 bits). */
+    ExpectIntNE(HMAC_Init(&ctx1, (const void*)long_key, long_keySz, type),
+        SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+    (void)long_keySz;
+#else
     ExpectIntEQ(HMAC_Init(&ctx1, (const void*)long_key, long_keySz, type),
         SSL_SUCCESS);
     ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
@@ -148,6 +155,7 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
 
     ExpectIntEQ(digestSz, digestSz2);
     ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     /* init before copy */
     HMAC_CTX_init(&ctx1);
