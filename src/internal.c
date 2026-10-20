@@ -5936,10 +5936,11 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 /* Free the contents of an X509, leaving the ref untouched */
 static void FreeX509Contents(WOLFSSL_X509* x509)
 {
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL) \
-    &&  defined( WOLFSSL_CUSTOM_OID)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        defined(WOLFSSL_CUSTOM_OID)
     int idx;
-    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL && WOLFSSL_CUSTOM_OID */
+    #endif /* (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) &&
+            * WOLFSSL_CUSTOM_OID */
     if (x509 == NULL)
         return;
 
@@ -5971,22 +5972,40 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         x509->rawCRLInfo = NULL;
         XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->CRLInfo = NULL;
+        #ifdef WOLFSSL_ASN_CA_ISSUER
+        XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authInfoCaIssuer = NULL;
+        x509->authInfoCaIssuerSz = 0;
+        #endif /* WOLFSSL_ASN_CA_ISSUER */
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
             defined(WOLFSSL_QT)
-        XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk, NULL);
+            x509->ext_sk = NULL;
         }
         if (x509->ext_sk_full != NULL) {
             wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk_full, NULL);
+            x509->ext_sk_full = NULL;
         }
-        #endif /* OPENSSL_ALL || WOLFSSL_QT */
-        #ifdef OPENSSL_EXTRA
+        #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_QT */
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
         /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
         if (x509->serialNumber != NULL) {
             wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
+            x509->serialNumber = NULL;
         }
-        #endif
+        #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+        #ifdef WOLFSSL_CUSTOM_OID
+        for (idx = 0; idx < x509->customExtCount; idx++) {
+            XFREE(x509->custom_exts[idx].oid, x509->heap,
+                  DYNAMIC_TYPE_X509_EXT);
+            x509->custom_exts[idx].oid = NULL;
+            XFREE(x509->custom_exts[idx].val, x509->heap,
+                  DYNAMIC_TYPE_X509_EXT);
+            x509->custom_exts[idx].val = NULL;
+        }
+        x509->customExtCount = 0;
+        #endif /* WOLFSSL_CUSTOM_OID */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
@@ -6018,19 +6037,14 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
+    #if (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)) && \
+        (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
+            x509->reqAttributes = NULL;
         }
-    #ifdef WOLFSSL_CUSTOM_OID
-        for (idx = 0; idx < x509->customExtCount; idx++) {
-            XFREE(x509->custom_exts[idx].oid, x509->heap,
-                  DYNAMIC_TYPE_X509_EXT);
-            XFREE(x509->custom_exts[idx].val, x509->heap,
-                  DYNAMIC_TYPE_X509_EXT);
-        }
-    #endif /* WOLFSSL_CUSTOM_OID */
-    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL */
+    #endif /* (WOLFSSL_CERT_REQ || WOLFSSL_CERT_GEN) &&
+            * (OPENSSL_ALL || OPENSSL_EXTRA) */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
