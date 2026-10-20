@@ -38180,7 +38180,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     word32 extSz = 0;
     word32 sz = 0;
     int ret = 0;
-    word32 keyIdSz;
+    word32 keyIdSz = 0;
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
