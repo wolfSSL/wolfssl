@@ -14,7 +14,8 @@
 #   -d, --subdir <dir>     App subdir under zephyr/ (samples or tests; default samples)
 #   -m, --modules <list>   West modules to fetch besides wolfSSL (default: all)
 #   -l, --list <file>      Build each "<board> <app> [overlay]" line of <file>
-#                          in one workspace, instead of -t/-s/-d/--extra-conf
+#                          in one workspace, instead of -t/-s/-d/--extra-conf;
+#                          an overlay not beside <file> is read from the app
 #   -v, --verbose          Verbose compile output (show full compiler commands)
 #   -W, --werror           Build with -Werror (treat warnings as errors)
 #   --commit <sha>         Checkout specific commit after fetching branch
@@ -120,6 +121,7 @@ DOCKER_IMAGE=$(select_docker_image "$ZEPHYR_VERSION")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # One "<board> <app> [overlay]" line per build; overlays are read from CONF_DIR
+# or, failing that, from the app directory
 CONF_DIR="${SCRIPT_DIR}"
 if [[ -n "$BUILD_LIST" ]]; then
     BUILDS=$(grep -Ev '^[[:space:]]*(#|$)' "$BUILD_LIST")
@@ -287,8 +289,11 @@ build_app() {
     local args="${CMAKE_ARGS}"
     local f
 
+    if [[ -f "/conf/${conf}" ]]; then
+        conf="/conf/${conf}"
+    fi
     if [[ -n "$conf" ]]; then
-        args="${args} -DOVERLAY_CONFIG=/conf/${conf}"
+        args="${args} -DOVERLAY_CONFIG=${conf}"
     fi
 
     echo "==> [container] Building ${app} for ${board}..."
