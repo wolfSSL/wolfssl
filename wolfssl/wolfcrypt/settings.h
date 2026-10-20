@@ -3978,14 +3978,12 @@
         #undef  HAVE_AES_CBC
         #define HAVE_AES_CBC
     #endif
-    #ifdef WOLFSSL_AES_XTS
-        /* AES-XTS makes calls to AES direct functions */
-        #ifndef WOLFSSL_AES_DIRECT
-        #define WOLFSSL_AES_DIRECT
-        #endif
-    #endif
-    #ifdef WOLFSSL_AES_CFB
-        /* AES-CFB makes calls to AES direct functions */
+    /* These modes make calls to the AES direct functions. configure pairs
+     * CTR, OFB and XTS with WOLFSSL_AES_DIRECT itself and leaves CFB to this
+     * block, so all four are handled here: a user_settings.h build enabling
+     * one of them without it fails on an implicit wc_AesEncrypt(). */
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB)     || defined(WOLFSSL_AES_XTS)
         #ifndef WOLFSSL_AES_DIRECT
         #define WOLFSSL_AES_DIRECT
         #endif
