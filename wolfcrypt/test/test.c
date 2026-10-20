@@ -18328,8 +18328,7 @@ static wc_test_ret_t aes_direct_test(Aes* enc, Aes* dec, byte* cipher, byte* pla
 #endif /* HAVE_AES_DECRYPT */
 
 #if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
-    !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
         /* AES keys are 16, 24 or 32 bytes only (FIPS 197 section 5). */
         ret = wc_AesSetKeyDirect(enc, niKey, 0, NULL, AES_ENCRYPTION);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
