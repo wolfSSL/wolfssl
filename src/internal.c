@@ -30382,7 +30382,9 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         /* We can send data without waiting on peer finished msg */
         WOLFSSL_MSG("server sending data before receiving client finished");
     }
-    else if (ssl_in_handshake(ssl, 1)) {
+    /* No handshake records after our close_notify or a fatal alert */
+    else if (!ssl->options.sentNotify && !ssl->options.fatalAlert &&
+            ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -30408,7 +30410,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     }
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_TLS13
-    if (ssl->options.sendKeyUpdate) {
+    if (ssl->options.sendKeyUpdate && !ssl->options.sentNotify &&
+            !ssl->options.fatalAlert) {
         ssl->options.sendKeyUpdate = 0;
         ret = SendTls13KeyUpdate(ssl);
         if (ret != 0) {
