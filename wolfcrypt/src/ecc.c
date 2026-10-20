@@ -11571,31 +11571,36 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #ifndef WOLFSSL_SP_NO_256
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
         return sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y,
-            key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+            (priv && (key->type == ECC_PRIVATEKEY)) ? ecc_get_k(key) : NULL,
+            key->heap);
     }
 #endif
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SM2P256V1) {
         return sp_ecc_check_key_sm2_256(key->pubkey.x, key->pubkey.y,
-            key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+            (priv && (key->type == ECC_PRIVATEKEY)) ? ecc_get_k(key) : NULL,
+            key->heap);
     }
 #endif
 #ifdef WOLFSSL_SP_384
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP384R1) {
         return sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y,
-            key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+            (priv && (key->type == ECC_PRIVATEKEY)) ? ecc_get_k(key) : NULL,
+            key->heap);
     }
 #endif
 #ifdef WOLFSSL_SP_521
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP521R1) {
         return sp_ecc_check_key_521(key->pubkey.x, key->pubkey.y,
-            key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+            (priv && (key->type == ECC_PRIVATEKEY)) ? ecc_get_k(key) : NULL,
+            key->heap);
     }
 #endif
 #if defined(WOLFSSL_SP_1024) && defined(WOLFCRYPT_HAVE_SAKKE)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SAKKE_1) {
         return sp_ecc_check_key_1024(key->pubkey.x, key->pubkey.y,
-            key->type == ECC_PRIVATEKEY ? ecc_get_k(key) : NULL, key->heap);
+            (priv && (key->type == ECC_PRIVATEKEY)) ? ecc_get_k(key) : NULL,
+            key->heap);
     }
 #endif
 #endif
