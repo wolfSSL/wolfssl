@@ -161,6 +161,8 @@ int test_tls13_cert_failure_sets_fatal_alert(void);
 int test_tls13_write_after_transport_close(void);
 int test_tls13_no_write_after_close_notify(void);
 int test_tls13_shutdown_after_refused_write(void);
+int test_tls13_no_handshake_after_user_canceled(void);
+int test_tls13_no_key_update_after_close_notify(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
@@ -330,6 +332,8 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_write_after_transport_close), \
     TEST_DECL_GROUP("tls13", test_tls13_no_write_after_close_notify), \
     TEST_DECL_GROUP("tls13", test_tls13_shutdown_after_refused_write), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_handshake_after_user_canceled), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_key_update_after_close_notify), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
