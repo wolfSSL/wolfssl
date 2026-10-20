@@ -2741,6 +2741,9 @@ int test_wolfSSL_EVP_PKEY_decrypt_outLen(void)
 
     ExpectNotNull(enc = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
+    if (enc != NULL) {
+        XMEMSET(enc, 0, rsaKeySz);
+    }
     /* Only the first bufSz bytes are the caller's, the rest is a guard. */
     ExpectNotNull(dec = (byte*)XMALLOC(rsaKeySz, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
