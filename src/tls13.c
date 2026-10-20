@@ -6904,11 +6904,6 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
         psk->resumption = 0;
         /* Default to ciphersuite if cb doesn't specify. */
         ssl->options.resuming = 0;
-        /* Don't send certificate request when using PSK. */
-#ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
-        if (!ssl->options.certWithExternPsk)
-#endif
-            ssl->options.verifyPeer = 0;
 
         /* obfuscated_ticket_age is not checked: RFC 8446 Section 4.2.11
          * requires servers to ignore it for an external identity. */
@@ -6922,13 +6917,17 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
         }
         if (ret == 0) {
             /* PSK negotiation has succeeded */
-            ssl->options.isPSK = 1;
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+            /* RFC 9973 pairs the PSK with a certificate, so the PSK is not
+             * the client's authentication. Read before the extension is
+             * resolved for the connection. */
             if (!ssl->options.certWithExternPsk)
 #endif
             {
-                /* SERVER: using PSK for peer authentication. */
+                /* SERVER: using PSK for peer authentication, so no
+                 * certificate is requested below. */
                 ssl->options.peerAuthGood = 1;
+                ssl->options.isPSK = 1;
             }
         }
     }
@@ -7096,18 +7095,20 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             #endif
             }
         #endif
-            if (ret == 0)
-                DoClientTicketFinalize(ssl, current->it, current->sess);
-            /* This is the PSK path, so failNoCertxPSK excuses it. */
+            /* This is the PSK path, so failNoCertxPSK excuses it. Ahead of
+             * DoClientTicketFinalize(), like the checks above, so a ticket
+             * this connection will not use leaves nothing on the session. */
             if (ret == 0 && ClientAuthRequired(ssl, 1) &&
             #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                     /* Deferred, so this handshake asks for nothing. */
                     !ssl->options.verifyPostHandshake &&
             #endif
-                    !ssl->session->peerAuthOk) {
+                    !current->it->peerAuthOk) {
                 WOLFSSL_MSG("Ticket session lacks client auth, skipping PSK");
                 ret = WOLFSSL_FATAL_ERROR;
             }
+            if (ret == 0)
+                DoClientTicketFinalize(ssl, current->it, current->sess);
             if (current->sess_free_cb != NULL) {
                 current->sess_free_cb(ssl, current->sess,
                         &current->sess_free_cb_ctx);
@@ -18270,7 +18271,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
-                if (ssl->options.verifyPeer
+                if (ssl->options.verifyPeer && !ssl->options.isPSK
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                     && !ssl->options.verifyPostHandshake
     #endif
@@ -18339,7 +18340,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
-            if (!ssl->options.verifyPeer && !ssl->options.noTicketTls13 &&
+            if ((!ssl->options.verifyPeer || ssl->options.isPSK) &&
+                    !ssl->options.noTicketTls13 &&
                     ssl->ctx->ticketEncCb != NULL &&
                     ssl->options.maxTicketTls13 > 0) {
                 if ((ssl->error = SendTls13NewSessionTicket(ssl)) != 0) {
