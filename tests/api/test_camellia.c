@@ -95,9 +95,9 @@ int test_wc_CamelliaSetKey_FailedRekey(void)
 {
     EXPECT_DECLS;
 #ifdef HAVE_CAMELLIA
-    wc_Camellia camellia;
-    static const byte in[CAMELLIA_BLOCK_SIZE] = { 0 };
-    byte out[CAMELLIA_BLOCK_SIZE];
+    wc_Camellia         camellia;
+    static const byte   in[CAMELLIA_BLOCK_SIZE] = { 0 };
+    byte                out[CAMELLIA_BLOCK_SIZE];
 
     static const byte key16[] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -111,6 +111,8 @@ int test_wc_CamelliaSetKey_FailedRekey(void)
 
     ExpectIntEQ(wc_CamelliaSetKey(&camellia, key16, (word32)sizeof(key16), iv),
                 0);
+    /* Precondition: the context is keyed and usable. */
+    ExpectIntEQ(wc_CamelliaEncryptDirect(&camellia, out, in), 0);
      /* Re-key with an invalid length: must fail with BAD_FUNC_ARG */
     ExpectIntEQ(wc_CamelliaSetKey(&camellia, key16, 20, iv),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
