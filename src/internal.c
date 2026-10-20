@@ -30428,17 +30428,6 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 #endif /* WOLFSSL_DTLS13 */
-#ifdef WOLFSSL_TLS13
-    if (ssl->options.sendKeyUpdate) {
-        ssl->options.sendKeyUpdate = 0;
-        ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
-        /* WANT_WRITE: sent by the retry below */
-        if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
-            ssl->error = BUILD_MSG_ERROR;
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-#endif
 #endif
 
     /* last time system socket output buffer was full, try again to send */
@@ -30472,6 +30461,21 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             }
         }
     }
+
+#if defined(WOLFSSL_RW_THREADED) && defined(WOLFSSL_TLS13)
+    /* Output is flushed, so a WANT_WRITE here means the message is queued. */
+    if (ssl->options.sendKeyUpdate) {
+        ssl->options.sendKeyUpdate = 0;
+        ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+            return (ssl->error = ret);
+        }
+        if (ret != 0) {
+            ssl->error = BUILD_MSG_ERROR;
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
     ret = RetrySendAlert(ssl);
     if (ret != 0) {
@@ -30550,6 +30554,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
                 WOLFSSL_ERROR_VERBOSE(ret);
             }
         #endif
+            if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                /* KeyUpdate queued: done, or resume here after the retry */
+                if (sent == (word32)sz) {
+                    break;
+                }
+                ssl->buffers.prevSent = sent;
+                ssl->buffers.plainSz = 0;
+            }
             if (ret != 0) {
                 ssl->error = ret;
                 return WOLFSSL_FATAL_ERROR;
