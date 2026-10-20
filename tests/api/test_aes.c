@@ -106,6 +106,12 @@ static int test_wc_AesSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesSetKey(aes , NULL , 48    , iv, AES_ENCRYPTION),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NRF51_AES)
+    /* NULL key with a valid length. */
+    ExpectIntEQ(wc_AesSetKey(aes , NULL , keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     return EXPECT_RESULT();
 }
@@ -197,6 +203,18 @@ int test_wc_AesSetKey(void)
     ExpectIntEQ(wc_AesSetKey(&aes, badKey16,
         (word32)sizeof(badKey16) / sizeof(byte), iv, AES_ENCRYPTION),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NRF51_AES)
+    /* NULL key after a good key is set. */
+    ExpectIntEQ(wc_AesSetKey(&aes, key, keyLen, iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#endif
 
     wc_AesFree(&aes);
 #endif
@@ -2387,6 +2405,12 @@ static int test_wc_AesCtrSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCtrSetKey(aes , key , 48    , iv, AES_ENCRYPTION),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NRF51_AES)
+    /* NULL key with a valid length. */
+    ExpectIntEQ(wc_AesCtrSetKey(aes , NULL , keyLen, iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     return EXPECT_RESULT();
 }
@@ -5570,6 +5594,12 @@ int test_wc_AesCcmSetKey(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
    ExpectIntEQ(wc_AesCcmSetKey(&aes, key32, sizeof(key32) - 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(WOLFSSL_AES_128) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NRF51_AES)
+    /* NULL key with a valid length. */
+    ExpectIntEQ(wc_AesCcmSetKey(&aes, NULL, sizeof(key16)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     wc_AesFree(&aes);
 #endif
@@ -14539,3 +14569,607 @@ int test_wc_AesEcb_RetCodeChecked(void)
 
 #endif /* WOLF_CRYPTO_CB && !NO_AES && HAVE_AES_ECB && WOLFSSL_AES_128 &&
         * !WOLF_CRYPTO_CB_ONLY_AES && (WOLFSSL_AES_COUNTER || HAVE_AESGCM) */
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB generic SetKey with a NULL key
+ *----------------------------------------------------------------------------*/
+
+/* PPC asm has no generic SetKey callback; its wc_AesSetKey() rejects a NULL
+ * key up front. The hardware ports do not ask a SetKey device either. */
+#if !defined(STM32_CRYPTO) && !defined(HAVE_COLDFIRE_SEC) && \
+    !defined(WOLFSSL_TI_CRYPT) && \
+    !defined(FREESCALE_LTC) && !defined(WOLFSSL_NRF51_AES) && \
+    !defined(WOLFSSL_ESP32_CRYPT) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
+    !defined(FREESCALE_MMCAU) && !defined(WOLFSSL_PSOC6_CRYPTO)
+#define TEST_AES_SW_KEY
+#endif
+#if defined(TEST_AES_SW_KEY) && !defined(WOLFSSL_PPC64_ASM) && \
+    !defined(WOLFSSL_PPC32_ASM)
+#define TEST_AES_SW_SETKEY
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(TEST_AES_SW_SETKEY)
+#define TEST_AES_SETKEY_CB_PATH
+#endif
+
+#ifdef TEST_AES_SETKEY_CB_PATH
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_SETKEY_NULL_DEVID 0x4e554c4c /* "NULL" */
+
+static int cbSetKeyNullCalled = 0;
+static int cbSetKeyNullRet = 0;
+static word32 cbSetKeyNullAuxSz = 0;
+
+/* Generic SetKey device: counts NULL AES keys and returns cbSetKeyNullRet
+ * (0 takes the key, CRYPTOCB_UNAVAILABLE hands it back to software). */
+static int test_CryptoCb_SetKeyNull_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+
+    if (devId != TEST_CRYPTOCB_SETKEY_NULL_DEVID)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES && info->setkey.key == NULL) {
+        cbSetKeyNullCalled++;
+        cbSetKeyNullAuxSz = info->setkey.auxSz;
+        return cbSetKeyNullRet;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int test_wc_CryptoCb_SetKey_NullKey(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    byte iv[WC_AES_BLOCK_SIZE];
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    byte key[AES_128_KEY_SIZE];
+#endif
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    /* wc_CryptoCb_AesSetKey() runs first and turns down a NULL key. */
+    int expTake = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int expErr = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int expCalls = 0;
+#else
+    int expTake = 0;
+    int expErr = WC_NO_ERR_TRACE(WC_HW_E);
+    int expCalls = 1;
+#endif
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(iv, 0, sizeof(iv));
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    XMEMSET(key, 0x11, sizeof(key));
+#endif
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SETKEY_NULL_DEVID,
+        test_CryptoCb_SetKeyNull_Cb, NULL), 0);
+
+    /* Device takes the NULL key. */
+    cbSetKeyNullRet = 0;
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_SETKEY_NULL_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#ifndef WOLF_CRYPTO_CB_AES_SETKEY
+    ExpectIntEQ(aes.keyInstalled, 1);
+    ExpectIntEQ(aes.rounds, 0);
+#endif
+    /* No IV either: the device gets no IV. */
+    cbSetKeyNullCalled = 0;
+    cbSetKeyNullAuxSz = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, AES_128_KEY_SIZE, NULL,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#ifndef WOLF_CRYPTO_CB_AES_SETKEY
+    ExpectIntEQ(cbSetKeyNullAuxSz, 0);
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+    /* CtrSetKey must give the same answer as SetKey. */
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesCtrSetKey(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#endif
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    /* SetKeyDirect must give the same answer as SetKey. */
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#ifndef WOLF_CRYPTO_CB_AES_SETKEY
+    ExpectIntEQ(aes.keyInstalled, 1);
+    ExpectIntEQ(aes.rounds, 0);
+#endif
+    cbSetKeyNullCalled = 0;
+    cbSetKeyNullAuxSz = 1;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE, NULL,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#ifndef WOLF_CRYPTO_CB_AES_SETKEY
+    ExpectIntEQ(cbSetKeyNullAuxSz, 0);
+#endif
+    /* The other AES key sizes reach the device too. */
+#ifdef WOLFSSL_AES_192
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_192_KEY_SIZE, iv,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#endif
+#ifdef WOLFSSL_AES_256
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_256_KEY_SIZE, iv,
+        AES_ENCRYPTION), expTake);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#endif
+    /* A key size AES does not have is turned down before the device. */
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE + 4, iv,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(cbSetKeyNullCalled, 0);
+#endif
+    wc_AesFree(&aes);
+
+    /* Device fails: its error comes back unchanged. */
+    /* With AES_SETKEY the NULL key is turned down before the device. */
+    cbSetKeyNullRet = WC_NO_ERR_TRACE(WC_HW_E);
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_SETKEY_NULL_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), expErr);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), expErr);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#endif
+    wc_AesFree(&aes);
+
+    /* Device hands it back: software turns down the NULL key. */
+    /* With AES_SETKEY the NULL key is turned down before the device. */
+    cbSetKeyNullRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_SETKEY_NULL_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#ifdef WOLFSSL_AES_COUNTER
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesCtrSetKey(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+#endif
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    cbSetKeyNullCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+    /* A real key the device hands back gets a software key schedule. */
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, AES_128_KEY_SIZE, iv,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(cbSetKeyNullCalled, expCalls);
+    ExpectIntEQ(aes.keyInstalled, 1);
+    ExpectIntEQ(aes.rounds, 10);
+#endif
+    wc_AesFree(&aes);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SETKEY_NULL_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wc_CryptoCb_SetKey_NullKey(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif /* TEST_AES_SETKEY_CB_PATH */
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB generic SetKey: the device sets up the IV from setkey.aux
+ *----------------------------------------------------------------------------*/
+
+/* These ports do CBC and CTR their own way and never ask the device. */
+#if defined(TEST_AES_SETKEY_CB_PATH) && \
+    (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)) && \
+    !defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_TI_CRYPT) && \
+    !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_NXP_HASHCRYPT_AES) && \
+    !defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
+    !defined(WOLFSSL_IMXRT_DCP)
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_SETKEY_IV_DEVID 0x4956534b /* "IVSK" */
+
+static byte cbSetKeyIvSeen[WC_AES_BLOCK_SIZE];
+static int cbSetKeyIvCalls = 0;
+static const void* cbSetKeyIvAux = NULL;
+static word32 cbSetKeyIvAuxSz = 0;
+static int cbSetKeyIvFlags = 0;
+
+/* Device takes AES keys through the generic SetKey callback and loads the IV
+ * from setkey.aux, then does CBC and CTR itself. It records aes->reg. */
+static int test_CryptoCb_SetKeyIv_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    Aes* aes = NULL;
+
+    (void)ctx;
+
+    if (devId != TEST_CRYPTOCB_SETKEY_IV_DEVID)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES) {
+        /* The IV comes to the device in aux; wolfCrypt does not set it. */
+        aes = (Aes*)info->setkey.obj;
+        cbSetKeyIvAux = info->setkey.aux;
+        cbSetKeyIvAuxSz = info->setkey.auxSz;
+        cbSetKeyIvFlags = info->setkey.flags;
+        if (info->setkey.aux != NULL &&
+                info->setkey.auxSz == WC_AES_BLOCK_SIZE)
+            XMEMCPY(aes->reg, info->setkey.aux, WC_AES_BLOCK_SIZE);
+        else
+            XMEMSET(aes->reg, 0, WC_AES_BLOCK_SIZE);
+        return 0;
+    }
+    if (info->algo_type != WC_ALGO_TYPE_CIPHER)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#ifdef HAVE_AES_CBC
+    if (info->cipher.type == WC_CIPHER_AES_CBC)
+        aes = info->cipher.aescbc.aes;
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+    if (info->cipher.type == WC_CIPHER_AES_CTR)
+        aes = info->cipher.aesctr.aes;
+#endif
+    if (aes == NULL)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    XMEMCPY(cbSetKeyIvSeen, aes->reg, WC_AES_BLOCK_SIZE);
+    cbSetKeyIvCalls++;
+    return 0;
+}
+
+int test_wc_CryptoCb_SetKey_Iv(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    byte key[AES_128_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte in[WC_AES_BLOCK_SIZE];
+    byte out[WC_AES_BLOCK_SIZE];
+    byte zero[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(key, 0x11, sizeof(key));
+    XMEMSET(iv, 0xA5, sizeof(iv));
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(zero, 0, sizeof(zero));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SETKEY_IV_DEVID,
+        test_CryptoCb_SetKeyIv_Cb, NULL), 0);
+
+#ifdef HAVE_AES_CBC
+    /* SetKey: the device's CBC must start from iv. */
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_SETKEY_IV_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION), 0);
+    XMEMSET(cbSetKeyIvSeen, 0, sizeof(cbSetKeyIvSeen));
+    cbSetKeyIvCalls = 0;
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)), 0);
+    ExpectIntEQ(cbSetKeyIvCalls, 1);
+    ExpectBufEQ(cbSetKeyIvSeen, iv, sizeof(iv));
+
+    /* No IV: the device gets no aux and starts from zeros. */
+    cbSetKeyIvAux = key;
+    cbSetKeyIvAuxSz = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION),
+        0);
+    ExpectTrue(cbSetKeyIvAux == NULL);
+    ExpectIntEQ(cbSetKeyIvAuxSz, 0);
+    cbSetKeyIvCalls = 0;
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, out, in, sizeof(in)), 0);
+    ExpectIntEQ(cbSetKeyIvCalls, 1);
+    ExpectBufEQ(cbSetKeyIvSeen, zero, sizeof(zero));
+
+    /* The device is told the key is for decrypt. */
+    cbSetKeyIvFlags = AES_ENCRYPTION;
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(cbSetKeyIvFlags, AES_DECRYPTION);
+    wc_AesFree(&aes);
+#endif
+
+#ifdef WOLFSSL_AES_COUNTER
+    /* SetKeyDirect: the device's CTR must start from iv. */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_SETKEY_IV_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), iv,
+        AES_ENCRYPTION), 0);
+    XMEMSET(cbSetKeyIvSeen, 0, sizeof(cbSetKeyIvSeen));
+    cbSetKeyIvCalls = 0;
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, sizeof(in)), 0);
+    ExpectIntEQ(cbSetKeyIvCalls, 1);
+    ExpectBufEQ(cbSetKeyIvSeen, iv, sizeof(iv));
+
+    /* No IV: the device gets no aux and starts from zeros. */
+    cbSetKeyIvAux = key;
+    cbSetKeyIvAuxSz = 1;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectTrue(cbSetKeyIvAux == NULL);
+    ExpectIntEQ(cbSetKeyIvAuxSz, 0);
+    cbSetKeyIvCalls = 0;
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, sizeof(in)), 0);
+    ExpectIntEQ(cbSetKeyIvCalls, 1);
+    ExpectBufEQ(cbSetKeyIvSeen, zero, sizeof(zero));
+
+    /* The device is told the key is for decrypt. */
+    cbSetKeyIvFlags = AES_ENCRYPTION;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), iv,
+        AES_DECRYPTION), 0);
+    ExpectIntEQ(cbSetKeyIvFlags, AES_DECRYPTION);
+    wc_AesFree(&aes);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SETKEY_IV_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wc_CryptoCb_SetKey_Iv(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif /* TEST_AES_SETKEY_CB_PATH && (HAVE_AES_CBC || WOLFSSL_AES_COUNTER)
+        * && !own CBC/CTR ports */
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB AES_SETKEY through wc_AesSetKeyDirect
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(TEST_AES_SW_SETKEY) && \
+    (defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER))
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_AES_SETKEY_DIRECT_DEVID 0x4153444b /* "ASDK" */
+
+static int cbAesSetKeyDirectCalled = 0;
+static int cbAesSetKeyDirectRet = 0;
+
+/* AES_SETKEY device: returns cbAesSetKeyDirectRet for every AES key. */
+static int test_CryptoCb_AesSetKeyDirect_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+
+    if (devId != TEST_CRYPTOCB_AES_SETKEY_DIRECT_DEVID)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER &&
+            info->cipher.type == WC_CIPHER_AES &&
+            info->cipher.aessetkey.aes != NULL) {
+        cbAesSetKeyDirectCalled++;
+        return cbAesSetKeyDirectRet;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+int test_wc_CryptoCb_AesSetKeyDirect(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    byte key[AES_128_KEY_SIZE];
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte zero[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(key, 0x11, sizeof(key));
+    XMEMSET(iv, 0xA5, sizeof(iv));
+    XMEMSET(zero, 0, sizeof(zero));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(
+        TEST_CRYPTOCB_AES_SETKEY_DIRECT_DEVID,
+        test_CryptoCb_AesSetKeyDirect_Cb, NULL), 0);
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_SETKEY_DIRECT_DEVID),
+        0);
+
+    /* Device takes the key: it is marked set and the IV is loaded. */
+    cbAesSetKeyDirectRet = 0;
+    cbAesSetKeyDirectCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), iv,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(cbAesSetKeyDirectCalled, 1);
+    ExpectIntEQ(aes.keyInstalled, 1);
+    ExpectIntEQ(aes.keylen, AES_128_KEY_SIZE);
+    ExpectBufEQ((byte*)aes.reg, iv, WC_AES_BLOCK_SIZE);
+
+    /* No IV: the IV is zeroed. */
+    cbAesSetKeyDirectCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(cbAesSetKeyDirectCalled, 1);
+    ExpectBufEQ((byte*)aes.reg, zero, WC_AES_BLOCK_SIZE);
+
+    /* Device fails: its error comes back and its handle is dropped. */
+    cbAesSetKeyDirectRet = WC_NO_ERR_TRACE(WC_HW_E);
+    cbAesSetKeyDirectCalled = 0;
+    aes.devCtx = &aes;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), iv,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(cbAesSetKeyDirectCalled, 1);
+    ExpectNull(aes.devCtx);
+
+    /* Device hands it back: software builds the key schedule. */
+    cbAesSetKeyDirectRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    cbAesSetKeyDirectCalled = 0;
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key, sizeof(key), iv,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(cbAesSetKeyDirectCalled, 1);
+    ExpectIntEQ(aes.keyInstalled, 1);
+    ExpectIntEQ(aes.rounds, 10);
+
+    wc_AesFree(&aes);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_SETKEY_DIRECT_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wc_CryptoCb_AesSetKeyDirect(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB: wc_AesSetKeyDirect keeps the raw key for the device
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(TEST_AES_SW_KEY) && \
+    (defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER))
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_AES_DEVKEY_DEVID 0x44564b59 /* "DVKY" */
+
+/* wc_CryptoCb_AesSetKey() skips the finder, so only the generic SetKey
+ * device is counted. PPC asm has no generic SetKey step. */
+#if defined(WOLF_CRYPTO_CB_FIND) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    defined(TEST_AES_SW_SETKEY)
+#define TEST_AES_DEVKEY_COUNT
+static int cbAesDevKeySetKeyCalled = 0;
+#endif
+
+/* Device that hands every request back to software. */
+static int test_CryptoCb_AesDevKey_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    (void)info;
+#ifdef TEST_AES_DEVKEY_COUNT
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_AES) {
+        cbAesDevKeySetKeyCalled++;
+    }
+#endif
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+/* Finder that sends an Aes with no device to the test device. */
+static int test_CryptoCb_AesDevKey_FindCb(int devId, int algoType)
+{
+    (void)algoType;
+    return (devId == INVALID_DEVID) ? TEST_CRYPTOCB_AES_DEVKEY_DEVID : devId;
+}
+#endif
+
+int test_wc_CryptoCb_AesSetKeyDirect_DevKey(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    byte keyA[AES_128_KEY_SIZE];
+    byte keyB[AES_128_KEY_SIZE];
+    byte keyLong[AES_256_KEY_SIZE + 1];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(keyA, 0x11, sizeof(keyA));
+    XMEMSET(keyB, 0x22, sizeof(keyB));
+    XMEMSET(keyLong, 0x33, sizeof(keyLong));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AES_DEVKEY_DEVID,
+        test_CryptoCb_AesDevKey_Cb, NULL), 0);
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AES_DEVKEY_DEVID), 0);
+
+    /* Software takes each key; devKey must follow so a device can use it. */
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyA, sizeof(keyA), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectBufEQ((byte*)aes.devKey, keyA, sizeof(keyA));
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyB, sizeof(keyB), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectBufEQ((byte*)aes.devKey, keyB, sizeof(keyB));
+
+    /* Not an AES key size: turned down, and devKey keeps the last key. */
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyLong, AES_128_KEY_SIZE + 4, NULL,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectBufEQ((byte*)aes.devKey, keyB, sizeof(keyB));
+    /* Too long for devKey: turned down, and devKey keeps the last key. */
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyLong, sizeof(keyLong), NULL,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectBufEQ((byte*)aes.devKey, keyB, sizeof(keyB));
+    wc_AesFree(&aes);
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    /* Find mode: an Aes with no device still keeps devKey, and the finder
+     * sends its key to the device. */
+    wc_CryptoCb_SetDeviceFindCb(test_CryptoCb_AesDevKey_FindCb);
+#ifdef TEST_AES_DEVKEY_COUNT
+    cbAesDevKeySetKeyCalled = 0;
+#endif
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, keyA, sizeof(keyA), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectBufEQ((byte*)aes.devKey, keyA, sizeof(keyA));
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, keyB, sizeof(keyB), NULL,
+        AES_ENCRYPTION), 0);
+    ExpectBufEQ((byte*)aes.devKey, keyB, sizeof(keyB));
+#ifdef TEST_AES_DEVKEY_COUNT
+    ExpectIntEQ(cbAesDevKeySetKeyCalled, 2);
+    /* A NULL key goes through the finder too, unless AES_SETKEY turns it
+     * down first. The device hands it back, so software turns it down. */
+    cbAesDevKeySetKeyCalled = 0;
+    ExpectIntEQ(wc_AesSetKey(&aes, NULL, AES_128_KEY_SIZE, NULL,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, NULL, AES_128_KEY_SIZE, NULL,
+        AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+    ExpectIntEQ(cbAesDevKeySetKeyCalled, 0);
+#else
+    ExpectIntEQ(cbAesDevKeySetKeyCalled, 2);
+#endif
+#endif
+    wc_AesFree(&aes);
+    /* Put back the finder the test harness uses */
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif /* WOLF_CRYPTO_CB_FIND */
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEVKEY_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wc_CryptoCb_AesSetKeyDirect_DevKey(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif

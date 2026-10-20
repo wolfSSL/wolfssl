@@ -5,6 +5,8 @@
 
     \return 0 On successfully setting key and initialization vector.
     \return BAD_FUNC_ARG Returned if key length is invalid.
+    \return BAD_FUNC_ARG Returned if aes is NULL.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes pointer to the AES structure to modify
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -313,6 +315,8 @@ int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
+    \return BAD_FUNC_ARG Returned if aes is NULL.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes pointer to the AES object used to encrypt data
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -639,7 +643,9 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     (Counter with CBC-MAC). It takes a pointer to an AES structure and
     initializes it with supplied key.
 
-    \return none
+    \return 0 On successfully setting the key.
+    \return BAD_FUNC_ARG Returned if aes is NULL or key length is invalid.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes aes structure in which to store the supplied key
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -2383,8 +2389,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
     decryption.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes, key, or iv is NULL, or if key length
-    is invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or if key length is invalid.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer (16, 24, or 32 bytes)
