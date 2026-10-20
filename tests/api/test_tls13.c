@@ -17051,9 +17051,15 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     defined(WOLFSSL_PEM_TO_DER) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_X509* x509 = NULL;
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_ASN_TIME)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EC_KEY* ecKey = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+#endif
     struct test_memio_ctx test_ctx;
     const char* p521Cert = "./certs/p521/server-p521.pem";
     const char* p521Key  = "./certs/p521/server-p521-priv.pem";
@@ -17127,6 +17133,96 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     wolfSSL_free(ssl_s);     ssl_s = NULL;
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Sanity: a server that switches the connection to another context on
+     * SNI, as nginx and haproxy do, takes that context's curve along with its
+     * key. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2, eccCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, eccKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIORecv(ctx_s2, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s2, test_memio_write_cb);
+    }
+    ExpectNotNull(wolfSSL_set_SSL_CTX(ssl_s, ctx_s2));
+    ExpectIntEQ(ssl_s->pkCurveOID, ECC_SECP256R1_OID);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
+    ExpectIntEQ(ssl_c->options.peerHashAlgo, sha256_mac);
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
+
+    wolfSSL_free(ssl_c);      ssl_c = NULL;
+    wolfSSL_free(ssl_s);      ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);  ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);  ctx_s = NULL;
+    wolfSSL_CTX_free(ctx_s2); ctx_s2 = NULL;
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_ASN_TIME)
+    /* Sanity: a certificate built and self-signed through the X509 API, as
+     * bind9 makes its TLS server certificate, keeps its curve too. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectNotNull(ecKey = wolfSSL_EC_KEY_new_by_curve_name(
+        WC_NID_X9_62_prime256v1));
+    ExpectIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS())
+        ecKey = NULL;
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectIntEQ(wolfSSL_X509_set_version(x509, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(wolfSSL_X509_get_serialNumber(x509),
+        1), WOLFSSL_SUCCESS);
+    ExpectNotNull(wolfSSL_X509_gmtime_adj(wolfSSL_X509_get_notBefore(x509),
+        -300));
+    ExpectNotNull(wolfSSL_X509_gmtime_adj(wolfSSL_X509_get_notAfter(x509),
+        3600));
+    ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
+    ExpectIntEQ(x509->pkCurveOID, ECC_SECP256R1_OID);
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(x509));
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+        WOLFSSL_MBSTRING_ASC, (const byte*)"localhost", -1, -1, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, pkey, wolfSSL_EVP_sha256()), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate(ctx_s, x509), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx_s, pkey), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx_s->pkCurveOID, ECC_SECP256R1_OID);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    }
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, ecc_dsa_sa_algo);
+    ExpectIntEQ(ssl_c->options.peerHashAlgo, sha256_mac);
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_KEY_GEN && !NO_ASN_TIME */
 
     /* Sanity: a P-521 certificate authenticates under ecdsa_secp521r1_sha512,
      * the only scheme this client offers. */
