@@ -8910,15 +8910,6 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
     #define GCM_RESTRICT
 #endif
 
-/* Keep the 4-bit multiply in its block loop after adding a scratch pointer.
- * Some compilers otherwise outline it despite WC_INLINE, adding a call for
- * every block. Honor NO_INLINE builds. */
-#if defined(__GNUC__) && !defined(NO_INLINE)
-    #define GCM_4BIT_INLINE WC_INLINE __attribute__((always_inline))
-#else
-    #define GCM_4BIT_INLINE WC_INLINE
-#endif
-
 typedef union GcmScratch {
     byte b[2 * WC_AES_BLOCK_SIZE];
     word32 w32[2 * WC_AES_BLOCK_SIZE / sizeof(word32)];
@@ -10186,12 +10177,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__aarch64__)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
-#define GMULT(x, m, ws)                                                     \
+#define GMULT(x, m)                                                      \
     GCM_gmult_NEON(x, (const byte**)m)
 #else
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#define GMULT(x, m, ws)                                                     \
+#define GMULT(x, m)                                                      \
     GCM_gmult(x, (const byte**)m)
 #endif
 
@@ -10199,11 +10190,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #define GCM_GMULT_LEN(gcm, x, a, len)                                    \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
-#define GMULT(x, m, ws)                                                     \
+#define GMULT(x, m)                                                      \
     GCM_gmult(x, (const byte**)m)
 
 #else
-#define GCM_C_GMULT
 /* remainder = x^7 + x^2 + x^1 + 1 => 0xe1
  *  R shifts right a reverse bit pair of bytes such that:
  *     R(b0, b1) => b1 = (b1 >> 1) | (b0 << 7); b0 >>= 1
@@ -10261,14 +10251,13 @@ static const word16 R[32] = {
  *    [0..15] * H
  */
 #if defined(WC_16BIT_CPU)
-static void GMULT(byte *x, byte m[16][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+static void GMULT(byte *x, byte m[16][WC_AES_BLOCK_SIZE])
 {
     int i, j, n;
-    byte* Z = ws->b;
+    byte Z[WC_AES_BLOCK_SIZE];
     byte a;
 
-    XMEMSET(Z, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(Z, 0, sizeof(Z));
 
     for (i = 15; i >= 0; i--) {
         for (n = 0; n < 2; n++) {
@@ -10293,17 +10282,14 @@ static void GMULT(byte *x, byte m[16][WC_AES_BLOCK_SIZE],
     XMEMCPY(x, Z, WC_AES_BLOCK_SIZE);
 }
 #elif defined(WC_32BIT_CPU) && defined(BIG_ENDIAN_ORDER)
-static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 {
     int i;
-    word32* z8 = ws->w32;
+    word32 z8[4] = {0, 0, 0, 0};
     byte a;
     word32* x8 = (word32*)x;
     word32* m8;
     byte xi;
-
-    XMEMSET(z8, 0, WC_AES_BLOCK_SIZE);
 
     for (i = 15; i > 0; i--) {
         xi = x[i];
@@ -10361,17 +10347,15 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
     x8[0] = z8[0]; x8[1] = z8[1]; x8[2] = z8[2]; x8[3] = z8[3];
 }
 #elif defined(WC_32BIT_CPU)
-static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 {
     int i;
-    word32* z8 = ws->w32;
+    word32 z8[4] = {0, 0, 0, 0};
     byte a;
     word32* x8 = (word32*)x;
     word32* m8;
     byte xi;
-
-    XMEMSET(z8, 0, WC_AES_BLOCK_SIZE);
+    word32 n7, n6, n5, n4, n3, n2, n1, n0;
 
     for (i = 15; i > 0; i--) {
         xi = x[i];
@@ -10414,17 +10398,18 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
     a = (z8[3] >> 24) & 0xf;
 
     /* Rotate z by 4-bits */
-    z8[3] = ((z8[3] & 0xf0f0f0f0U) >> 4) |
-            ((z8[3] & 0x0f0f0f0fU) << 12) |
-            ((z8[2] & 0x0f0f0f0fU) >> 20);
-    z8[2] = ((z8[2] & 0xf0f0f0f0U) >> 4) |
-            ((z8[2] & 0x0f0f0f0fU) << 12) |
-            ((z8[1] & 0x0f0f0f0fU) >> 20);
-    z8[1] = ((z8[1] & 0xf0f0f0f0U) >> 4) |
-            ((z8[1] & 0x0f0f0f0fU) << 12) |
-            ((z8[0] & 0x0f0f0f0fU) >> 20);
-    z8[0] = ((z8[0] & 0xf0f0f0f0U) >> 4) |
-            ((z8[0] & 0x0f0f0f0fU) << 12);
+    n7 = z8[3] & 0xf0f0f0f0ULL;
+    n6 = z8[3] & 0x0f0f0f0fULL;
+    n5 = z8[2] & 0xf0f0f0f0ULL;
+    n4 = z8[2] & 0x0f0f0f0fULL;
+    n3 = z8[1] & 0xf0f0f0f0ULL;
+    n2 = z8[1] & 0x0f0f0f0fULL;
+    n1 = z8[0] & 0xf0f0f0f0ULL;
+    n0 = z8[0] & 0x0f0f0f0fULL;
+    z8[3] = (n7 >> 4) | (n6 << 12) | (n4 >> 20);
+    z8[2] = (n5 >> 4) | (n4 << 12) | (n2 >> 20);
+    z8[1] = (n3 >> 4) | (n2 << 12) | (n0 >> 20);
+    z8[0] = (n1 >> 4) | (n0 << 12);
 
     /* XOR in most significant nibble * remainder */
     z8[0] ^= (word32)R[a];
@@ -10436,17 +10421,14 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
     x8[0] = z8[0]; x8[1] = z8[1]; x8[2] = z8[2]; x8[3] = z8[3];
 }
 #elif defined(WC_64BIT_CPU) && defined(BIG_ENDIAN_ORDER)
-static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 {
     int i;
-    word64* z8 = ws->w64;
+    word64 z8[2] = {0, 0};
     byte a;
     word64* x8 = (word64*)x;
     word64* m8;
     byte xi;
-
-    XMEMSET(z8, 0, WC_AES_BLOCK_SIZE);
 
     for (i = 15; i > 0; i--) {
         xi = x[i];
@@ -10503,17 +10485,15 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
     x8[1] = z8[1];
 }
 #else
-static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
-    GcmScratch* GCM_RESTRICT ws)
+static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 {
     int i;
-    word64* z8 = ws->w64;
+    word64 z8[2] = {0, 0};
     byte a;
     word64* x8 = (word64*)x;
     word64* m8;
+    word64 n0, n1, n2, n3;
     byte xi;
-
-    XMEMSET(z8, 0, WC_AES_BLOCK_SIZE);
 
     for (i = 15; i > 0; i--) {
         xi = x[i];
@@ -10554,11 +10534,12 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
     a = (z8[1] >> 56) & 0xf;
 
     /* Rotate z by 4-bits */
-    z8[1] = ((z8[1] & W64LIT(0xf0f0f0f0f0f0f0f0)) >> 4) |
-            ((z8[1] & W64LIT(0x0f0f0f0f0f0f0f0f)) << 12) |
-            ((z8[0] & W64LIT(0x0f0f0f0f0f0f0f0f)) >> 52);
-    z8[0] = ((z8[0] & W64LIT(0xf0f0f0f0f0f0f0f0)) >> 4) |
-            ((z8[0] & W64LIT(0x0f0f0f0f0f0f0f0f)) << 12);
+    n3 = z8[1] & W64LIT(0xf0f0f0f0f0f0f0f0);
+    n2 = z8[1] & W64LIT(0x0f0f0f0f0f0f0f0f);
+    n1 = z8[0] & W64LIT(0xf0f0f0f0f0f0f0f0);
+    n0 = z8[0] & W64LIT(0x0f0f0f0f0f0f0f0f);
+    z8[1] = (n3 >> 4) | (n2 << 12) | (n0 >> 52);
+    z8[0] = (n1 >> 4) | (n0 << 12);
 
     /* XOR in next significant nibble * H */
     m8 = (word64*)m[xi >> 4];
@@ -10577,9 +10558,6 @@ static GCM_4BIT_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE],
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-#ifdef GCM_C_GMULT
-    GcmScratch gmultScratch;
-#endif
     ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
@@ -10603,14 +10581,14 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #else
         while (blocks--) {
             xorbuf(x, a, WC_AES_BLOCK_SIZE);
-            GMULT(x, gcm->M0, &gmultScratch);
+            GMULT(x, gcm->M0);
             a += WC_AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
             XMEMCPY(scratch, a, partial);
             xorbuf(x, scratch, WC_AES_BLOCK_SIZE);
-            GMULT(x, gcm->M0, &gmultScratch);
+            GMULT(x, gcm->M0);
         }
     #endif
     }
@@ -10632,14 +10610,14 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #else
         while (blocks--) {
             xorbuf(x, c, WC_AES_BLOCK_SIZE);
-            GMULT(x, gcm->M0, &gmultScratch);
+            GMULT(x, gcm->M0);
             c += WC_AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
             XMEMCPY(scratch, c, partial);
             xorbuf(x, scratch, WC_AES_BLOCK_SIZE);
-            GMULT(x, gcm->M0, &gmultScratch);
+            GMULT(x, gcm->M0);
         }
     #endif
     }
@@ -10651,15 +10629,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     GCM_GMULT_LEN(gcm, x, scratch, WC_AES_BLOCK_SIZE);
 #else
     xorbuf(x, scratch, WC_AES_BLOCK_SIZE);
-    GMULT(x, gcm->M0, &gmultScratch);
+    GMULT(x, gcm->M0);
 #endif
 
     /* Copy the result into s. */
     XMEMCPY(s, x, sSz);
     ForceZero(x, sizeof(x));
-#ifdef GCM_C_GMULT
-    ForceZero(&gmultScratch, sizeof(gmultScratch));
-#endif
 }
 
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -10688,11 +10663,11 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
  */
-#define GHASH_ONE_BLOCK_SW(aes, block)                     \
-    do {                                                   \
-        xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE);    \
-        GMULT(AES_TAG(aes), (aes)->gcm.M0, &gmultScratch); \
-    }                                                      \
+#define GHASH_ONE_BLOCK_SW(aes, block)                  \
+    do {                                                \
+        xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE); \
+        GMULT(AES_TAG(aes), (aes)->gcm.M0);             \
+    }                                                   \
     while (0)
 #endif
 #endif /* WOLFSSL_AESGCM_STREAM */
