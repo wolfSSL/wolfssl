@@ -3230,7 +3230,6 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     case WC_EVP_PKEY_RSA:
     {
         int rsaSz;
-        unsigned char* plain;
 
         if (ctx->pkey->rsa == NULL) {
             WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
@@ -3252,34 +3251,14 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         }
 
         /* wolfSSL_RSA_private_decrypt() writes into a buffer of RSA_size()
-         * bytes, so anything shorter gets one of ours to work in. */
-        plain = out;
+         * bytes. */
         if (*outLen < (size_t)rsaSz) {
-            plain = (unsigned char*)XMALLOC((size_t)rsaSz, ctx->pkey->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (plain == NULL) {
-                WOLFSSL_MSG("Memory allocation failure.");
-                return WOLFSSL_FAILURE;
-            }
+            WOLFSSL_MSG("Output buffer too small.");
+            return WOLFSSL_FAILURE;
         }
 
-        len = wolfSSL_RSA_private_decrypt((int)inLen, (unsigned char*)in,
-              plain, ctx->pkey->rsa, ctx->padding);
-
-        /* A failure keeps the error the decrypt returned and copies nothing. */
-        if ((len >= 0) && (plain != out)) {
-            if ((size_t)len <= *outLen)
-                XMEMCPY(out, plain, (size_t)len);
-            else {
-                WOLFSSL_MSG("Output buffer too small.");
-                len = WOLFSSL_FATAL_ERROR;
-            }
-        }
-        if (plain != out) {
-            ForceZero(plain, (word32)rsaSz);
-            XFREE(plain, ctx->pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-
+        len = wolfSSL_RSA_private_decrypt((int)inLen, (unsigned char*)in, out,
+              ctx->pkey->rsa, ctx->padding);
         if (len < 0) break;
         else {
             *outLen = (size_t)len;

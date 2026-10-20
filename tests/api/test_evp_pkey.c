@@ -2789,23 +2789,13 @@ int test_wolfSSL_EVP_PKEY_decrypt_outLen(void)
     ExpectIntEQ(decLen, sizeof(in));
     ExpectIntEQ(XMEMCMP(dec, in, sizeof(in)), 0);
 
-    /* A decrypt that fails while working in a buffer of ours leaves the
-     * caller's alone too. */
+    /* A ciphertext that does not decrypt fails rather than reporting a
+     * length. */
     if (enc != NULL)
         enc[rsaKeySz / 2] = (byte)~enc[rsaKeySz / 2];
-    if (dec != NULL)
-        XMEMSET(dec, 0xa5, rsaKeySz);
-    decLen = bufSz;
+    decLen = rsaKeySz;
     ExpectIntEQ(EVP_PKEY_decrypt(ctx, dec, &decLen, enc, encLen),
         WOLFSSL_FAILURE);
-    i = 0;
-    if (dec != NULL) {
-        for (i = 0; i < rsaKeySz; i++) {
-            if (dec[i] != 0xa5)
-                break;
-        }
-    }
-    ExpectIntEQ(i, rsaKeySz);
 
     EVP_PKEY_CTX_free(ctx);
     XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
