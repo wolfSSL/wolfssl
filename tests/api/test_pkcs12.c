@@ -162,6 +162,58 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
     return EXPECT_RESULT();
 }
 
+/* Test a larger AuthenticatedSafe which makes the ASN1 syntax lengths use more
+ * bytes. */
+int test_wc_i2d_PKCS12_large_safe(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && !defined(NO_HMAC) && \
+    !defined(NO_CERTS) && !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048)
+    /* Enough CA certificates to push the safe past 64 KiB. */
+    #define P12_CA_CNT  50
+    WC_PKCS12* pkcs12 = NULL;
+    WC_PKCS12* decoded = NULL;
+    WC_DerCertList* caList = NULL;
+    byte* out = NULL;
+    byte* pt;
+    char pass[] = "test_wc_i2d_PKCS12_large_safe";
+    int sz = 0;
+    int i;
+
+    ExpectNotNull(caList = (WC_DerCertList*)XMALLOC(
+        sizeof(WC_DerCertList) * P12_CA_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; (caList != NULL) && (i < P12_CA_CNT); i++) {
+        caList[i].buffer = (byte*)ca_cert_der_2048;
+        caList[i].bufferSz = sizeof_ca_cert_der_2048;
+        caList[i].next = (i + 1 < P12_CA_CNT) ? &caList[i + 1] : NULL;
+    }
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_create(pass, (word32)(sizeof(pass) - 1),
+        (char*)"friendlyName", (byte*)server_key_der_2048,
+        sizeof_server_key_der_2048, (byte*)server_cert_der_2048,
+        sizeof_server_cert_der_2048, caList, -1, -1, 2048, 2048, 0, NULL));
+
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &sz),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(sz, 65536);
+
+    ExpectNotNull(out = (byte*)XMALLOC((word32)sz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    pt = out;
+    ExpectIntEQ(wc_i2d_PKCS12(pkcs12, &pt, &sz), sz);
+    ExpectNotNull(decoded = wc_PKCS12_new());
+    ExpectIntEQ(wc_d2i_PKCS12(out, (word32)sz, decoded), 0);
+
+    wc_PKCS12_free(decoded);
+    wc_PKCS12_free(pkcs12);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(caList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef P12_CA_CNT
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;

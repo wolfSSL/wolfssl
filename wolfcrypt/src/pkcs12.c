@@ -909,7 +909,8 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
 int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 {
     int ret = 0;
-    word32 seqSz = 0, verSz = 0, totalSz = 0, idx = 0, sdBufSz = 0;
+    word32 seqSz = 0, verSz = 0, totalSz = 0, idx = 0, sdBufSz = 0,
+           contentSz = 0, octSz = 0;
     byte *buf = NULL;
     byte ver[MAX_VERSION_SZ];
     byte seq[MAX_SEQ_SZ];
@@ -1016,15 +1017,19 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 
     /* Calculate size of der */
     if (ret == 0) {
-        totalSz += pkcs12->safe->dataSz;
+        word32 elemSz = 0;
 
-        totalSz += 4; /* Octet string */
+        /* Octet string holding the AuthenticatedSafe */
+        octSz = pkcs12->safe->dataSz +
+            SetOctetString(pkcs12->safe->dataSz, NULL);
 
-        totalSz += 4; /* Element */
+        /* Element size */
+        elemSz = octSz + ASN_TAG_SZ + SetLength(octSz, NULL);
 
-        totalSz += 2U + (word32)sizeof(WC_PKCS12_DATA_OID);
-
-        totalSz += 4; /* Seq */
+        /* Seq holding OID and element */
+        contentSz = (word32)SetObjectId(sizeof(WC_PKCS12_DATA_OID), NULL) +
+            (word32)sizeof(WC_PKCS12_DATA_OID) + elemSz;
+        totalSz  += contentSz + SetSequence(contentSz, NULL);
 
         ret = SetMyVersion(WC_PKCS12_VERSION_DEFAULT, ver, FALSE);
         if (ret > 0) {
@@ -1076,7 +1081,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
         XMEMCPY(&buf[idx], ver, verSz);
         idx += verSz;
 
-        seqSz = SetSequence(totalSz - sdBufSz - idx - 4, seq);
+        seqSz = SetSequence(contentSz, seq);
         XMEMCPY(&buf[idx], seq, seqSz);
         idx += seqSz;
 
@@ -1087,10 +1092,10 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 
         /* Element */
         buf[idx++] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC;
-        idx += SetLength(totalSz - sdBufSz - idx - 3, &buf[idx]);
+        idx += SetLength(octSz, &buf[idx]);
 
         /* Octet string */
-        idx += SetOctetString(totalSz - sdBufSz - idx - 4, &buf[idx]);
+        idx += SetOctetString(pkcs12->safe->dataSz, &buf[idx]);
 
         XMEMCPY(&buf[idx], pkcs12->safe->data, pkcs12->safe->dataSz);
         idx += pkcs12->safe->dataSz;
