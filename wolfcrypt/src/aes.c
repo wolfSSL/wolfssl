@@ -5532,18 +5532,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
-        /* This function allows key sizes that are not 128/192/256 bits */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
-        if (aes == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        if (keylen > sizeof(aes->key)) {
-            return BAD_FUNC_ARG;
-        }
-
-        return AesSetKey(aes, userKey, keylen, iv, dir);
+        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #elif defined(FREESCALE_MMCAU)
