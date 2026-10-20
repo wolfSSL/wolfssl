@@ -703,6 +703,43 @@ static void mlkemkey_hash_wipe(wc_Sha3* h)
     (void)wc_Sha3_256_Reset(h);
 #endif
 }
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+/* Register the hash and PRF state that mlkemkey_hash_wipe() must clear. */
+static void mlkemkey_hash_memzero_add(MlKemKey* key)
+{
+#ifndef PSOC6_HASH_SHA3
+    wc_MemZero_Add("mlkem key hash s", key->hash.s, sizeof(key->hash.s));
+    wc_MemZero_Add("mlkem key hash t", key->hash.t, sizeof(key->hash.t));
+    wc_MemZero_Add("mlkem key prf s", key->prf.s, sizeof(key->prf.s));
+    wc_MemZero_Add("mlkem key prf t", key->prf.t, sizeof(key->prf.t));
+#ifdef WC_SHA3_SCRATCH_W
+    wc_MemZero_Add("mlkem key hash scratch", key->hash.scratch,
+        sizeof(key->hash.scratch));
+    wc_MemZero_Add("mlkem key prf scratch", key->prf.scratch,
+        sizeof(key->prf.scratch));
+#endif
+#else
+    (void)key;
+#endif
+}
+
+static void mlkemkey_hash_memzero_check(MlKemKey* key)
+{
+#ifndef PSOC6_HASH_SHA3
+    wc_MemZero_Check(key->hash.s, sizeof(key->hash.s));
+    wc_MemZero_Check(key->hash.t, sizeof(key->hash.t));
+    wc_MemZero_Check(key->prf.s, sizeof(key->prf.s));
+    wc_MemZero_Check(key->prf.t, sizeof(key->prf.t));
+#ifdef WC_SHA3_SCRATCH_W
+    wc_MemZero_Check(key->hash.scratch, sizeof(key->hash.scratch));
+    wc_MemZero_Check(key->prf.scratch, sizeof(key->prf.scratch));
+#endif
+#else
+    (void)key;
+#endif
+}
+#endif
 #endif
 
 /******************************************************************************/
@@ -916,6 +953,11 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 
         /* Establish parameters based on key type. */
         k = mlkemkey_get_k(key);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        if (k != 0) {
+            mlkemkey_hash_memzero_add(key);
+        }
+#endif
         if (k == 0) {
             ret = NOT_COMPILED_IN;
         }
@@ -1212,6 +1254,9 @@ key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
     if ((key != NULL) && (k != 0)) {
         mlkemkey_hash_wipe(&key->hash);
         mlkemkey_hash_wipe(&key->prf);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mlkemkey_hash_memzero_check(key);
+    #endif
     }
 
     return ret;
@@ -1785,6 +1830,9 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     XMEMSET(kr, 0, sizeof(kr));
     wc_MemZero_Add("mlkem encapsulate kr", kr, sizeof(kr));
+    if (key != NULL) {
+        mlkemkey_hash_memzero_add(key);
+    }
 #endif
     /* Validate parameters. */
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
@@ -1932,6 +1980,9 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     if (key != NULL) {
         mlkemkey_hash_wipe(&key->hash);
         mlkemkey_hash_wipe(&key->prf);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mlkemkey_hash_memzero_check(key);
+    #endif
     }
 
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -2304,6 +2355,10 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     XMEMSET(kr, 0, sizeof(kr));
     wc_MemZero_Add("mlkem decapsulate msg", msg, sizeof(msg));
     wc_MemZero_Add("mlkem decapsulate kr", kr, sizeof(kr));
+    wc_MemZero_Add("mlkem decapsulate fail", &fail, sizeof(fail));
+    if (key != NULL) {
+        mlkemkey_hash_memzero_add(key);
+    }
 #endif
     if (ret == 0) {
         /* Decapsulate the cipher text. */
@@ -2383,10 +2438,14 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(msg, sizeof(msg));
     wc_MemZero_Check(kr, sizeof(kr));
+    wc_MemZero_Check(&fail, sizeof(fail));
 #endif
     if (key != NULL) {
         mlkemkey_hash_wipe(&key->hash);
         mlkemkey_hash_wipe(&key->prf);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mlkemkey_hash_memzero_check(key);
+    #endif
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
 

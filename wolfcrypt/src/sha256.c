@@ -2399,6 +2399,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha256 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
+    #if defined(WOLFSSL_CHECK_MEM_ZERO) && defined(LITTLE_ENDIAN_ORDER) && \
+        !defined(WOLFSSL_WIDE_BYTE)
+        wc_MemZero_Add("wc_Sha256FinalRaw digest", digest, sizeof(digest));
+    #endif
 
     #if defined(WOLFSSL_WIDE_BYTE)
         /* CHAR_BIT != 8: store digest words as big-endian octets. */
@@ -2410,6 +2414,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
         XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
         ForceZero(digest, sizeof(digest));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(digest, sizeof(digest));
+    #endif
     #else
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
     #endif
@@ -2489,6 +2496,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         {
             byte buffer[WC_SHA256_BLOCK_SIZE];
             int tret;
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_Sha256Transform buffer", buffer,
+                sizeof(buffer));
+        #endif
             ByteReverseWords((word32*)buffer, (word32*)data,
                 WC_SHA256_BLOCK_SIZE);
         #ifdef __aarch64__
@@ -2497,6 +2508,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             tret = Transform_Sha256(sha256, buffer);
         #endif
             ForceZero(buffer, sizeof(buffer));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(buffer, sizeof(buffer));
+        #endif
             return tret;
         }
     #else
@@ -3424,6 +3438,10 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
 
         WC_CALLOC_VAR_EX(tmpSha224, wc_Sha224, 1, NULL,
             DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_Sha224GetHash tmpSha224", tmpSha224,
+            sizeof(*tmpSha224));
+    #endif
 
         ret = wc_Sha224Copy(sha224, tmpSha224);
         if (ret == 0) {
@@ -3432,6 +3450,9 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         }
 
         ForceZero(tmpSha224, sizeof(*tmpSha224));
+    #if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+        wc_MemZero_Check(tmpSha224, sizeof(*tmpSha224));
+    #endif
 
         WC_FREE_VAR_EX(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -3574,6 +3595,10 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 
     WC_CALLOC_VAR_EX(tmpSha256, wc_Sha256, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha256GetHash tmpSha256", tmpSha256,
+        sizeof(*tmpSha256));
+#endif
 
     ret = wc_Sha256Copy(sha256, tmpSha256);
     if (ret == 0) {
@@ -3583,6 +3608,9 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 
 
     ForceZero(tmpSha256, sizeof(*tmpSha256));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha256, sizeof(*tmpSha256));
+#endif
 
 
     WC_FREE_VAR_EX(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -1100,6 +1100,19 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     }
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (tmpF) {
+        wc_MemZero_Add("RsaMGF1 tmp", tmp, tmpSz);
+    }
+    else {
+        wc_MemZero_Add("RsaMGF1 tmpA", tmpA, sizeof(tmpA));
+    }
+#else
+    wc_MemZero_Add("RsaMGF1 tmp", tmp, sizeof(tmp));
+#endif
+#endif
+
     do {
         int i = 0;
         XMEMCPY(tmp, seed, seedSz);
@@ -1131,6 +1144,15 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 #else
             ForceZero(tmp, sizeof(tmp));
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+            if (!tmpF) {
+                wc_MemZero_Check(tmpA, sizeof(tmpA));
+            }
+#else
+            wc_MemZero_Check(tmp, sizeof(tmp));
+#endif
+#endif
             /* check for if dynamic memory was needed, then free */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
             wc_HashFree(hash, hType);
@@ -1159,6 +1181,15 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     }
 #else
     ForceZero(tmp, sizeof(tmp));
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (!tmpF) {
+        wc_MemZero_Check(tmpA, sizeof(tmpA));
+    }
+#else
+    wc_MemZero_Check(tmp, sizeof(tmp));
+#endif
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* check for if dynamic memory was needed, then free */
@@ -1433,10 +1464,17 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     idx = idx - hLen + 1;
     XMEMCPY(pkcsBlock + idx, lHash, hLen);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Pad OAEP seed", seed, hLen);
+#endif
     /* generate random seed */
     if ((ret = wc_RNG_GenerateBlock(rng, seed, hLen)) != 0) {
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
             ForceZero(seed, hLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+            wc_MemZero_Check(seed, hLen);
+#endif
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -1454,16 +1492,30 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 #else
     if (pkcsBlockLen - hLen - 1 > sizeof(dbMask)) {
         ForceZero(seed, hLen);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(seed, hLen);
+    #endif
         return MEMORY_E;
     }
 #endif
     XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Pad OAEP dbMask", dbMask, pkcsBlockLen - hLen - 1);
+#endif
     ret = RsaMGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0) {
             ForceZero(dbMask, pkcsBlockLen - hLen - 1);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+            wc_MemZero_Check(dbMask, pkcsBlockLen - hLen - 1);
+#endif
             WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
             ForceZero(seed, hLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+            wc_MemZero_Check(seed, hLen);
+#endif
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -1472,6 +1524,10 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     /* dbMask is derived from the seed (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(dbMask, pkcsBlockLen - hLen - 1);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+    wc_MemZero_Check(dbMask, pkcsBlockLen - hLen - 1);
+#endif
     WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
 
     /* create maskedSeed from seedMask */
@@ -1481,16 +1537,16 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
                                            pkcsBlock + 1, hLen, heap)) != 0) {
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
             ForceZero(seed, hLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC))
+            wc_MemZero_Check(seed, hLen);
+#endif
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
     /* xor created seedMask with seed to make maskedSeed */
     xorbuf(pkcsBlock + 1, seed, hLen);
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    /* Seed must be zeroized now that it has been used. */
-    wc_MemZero_Add("Pad OAEP seed", seed, hLen);
-#endif
 
     /* Zeroize masking bytes so that padding can't be unmasked. */
     ForceZero(seed, hLen);
@@ -1617,6 +1673,10 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         if (msg == NULL) {
             return MEMORY_E;
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("RsaPad_PSS msg", msg,
+            RSA_PSS_PAD_SZ + inputLen + (word32)saltLen);
+    #endif
     #endif
     salt = s = m = msg;
     XMEMSET(m, 0, RSA_PSS_PAD_SZ);
@@ -1639,6 +1699,10 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         if (msg == NULL) {
             return MEMORY_E;
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("RsaPad_PSS msg", msg,
+            RSA_PSS_PAD_SZ + inputLen + (word32)saltLen);
+    #endif
     #endif
         m = msg;
     }
@@ -1651,6 +1715,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     XMEMCPY(m, input, inputLen);
     m += inputLen;
     o = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("RsaPad_PSS salt", salt, sizeof(salt));
+#endif
     if (saltLen > 0) {
         ret = wc_RNG_GenerateBlock(rng, salt, (word32)saltLen);
         if (ret == 0) {
@@ -1682,6 +1749,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
 #if !defined(WOLFSSL_PSS_LONG_SALT) && !defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
     ForceZero(salt, sizeof(salt));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(salt, sizeof(salt));
+#endif
 #endif
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
     if (msg != NULL) {

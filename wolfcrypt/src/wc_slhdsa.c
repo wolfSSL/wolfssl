@@ -1352,6 +1352,9 @@ static int slhdsakey_prf_msg_sha2(SlhDsaKey* key, const byte* sk_prf,
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("slhdsa prf_msg digest", digest, sizeof(digest));
+#endif
     if (SLHDSA_SHA2_USE_SHA256(n)) {
         hmacType = WC_SHA256;
     }
@@ -1386,6 +1389,9 @@ static int slhdsakey_prf_msg_sha2(SlhDsaKey* key, const byte* sk_prf,
         XMEMCPY(hash, digest, n);
     }
     ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 
     return ret;
 }
@@ -6647,6 +6653,10 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
     WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X4_STATE_W, heap,
         DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
     if (ret == 0) {
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa hash_f_ti_x4 state", state,
+            sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
+#endif
         o = slhdsakey_shake256_set_seed_ha_x4(state, pk_seed, addr, n);
         SHAKE256_SET_TREE_INDEX(state, o, ti);
         for (i = 0; i < n / 8; i++) {
@@ -6666,6 +6676,9 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
 
         /* state holds four FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
         ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+        wc_MemZero_Check(state, sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
+#endif
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -7087,6 +7100,9 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
     byte n = key->params->n;
     byte nodes[2 * SLHDSA_MAX_N];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("slhdsa fors_node_x4_z1 nodes", nodes, sizeof(nodes));
+#endif
     /* Step 7: Compute left node. */
     /* Step 2: Generate private key value for index. */
     ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs, 2 * i + 0, nodes);
@@ -7121,6 +7137,9 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
 
     /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
     ForceZero(nodes, sizeof(nodes));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(nodes, sizeof(nodes));
+#endif
     return ret;
 }
 
@@ -7174,6 +7193,10 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
     if (ret == 0) {
         byte sk_addr[SLHDSA_HA_SZ];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa fors_node_x4_low nodes", nodes,
+            (1 << SLHDSA_MAX_FORS_NODE_DEPTH) * SLHDSA_MAX_N);
+#endif
         HA_SetTreeHeight(adrs, 0);
         /* Copy address for FORS PRF. */
         HA_Copy(sk_adrs, adrs);
@@ -7257,6 +7280,10 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
     /* nodes may still hold FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
     if (WC_VAR_OK(nodes)) {
         ForceZero(nodes, (1 << SLHDSA_MAX_FORS_NODE_DEPTH) * SLHDSA_MAX_N);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+        wc_MemZero_Check(nodes, (1 << SLHDSA_MAX_FORS_NODE_DEPTH) *
+            SLHDSA_MAX_N);
+#endif
     }
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     return ret;
@@ -7508,6 +7535,10 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
         WC_ALLOC_VAR_EX(nodes, byte, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N,
             key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
         if (ret == 0) {
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("slhdsa fors_node_c nodes", nodes,
+                (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N);
+#endif
             /* For all leaf nodes. */
             for (j = 0; j < m; j++) {
                 word32 o = ((word32)z - 1U + (j & 1U)) * n;
@@ -7569,6 +7600,9 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
          * (ISO/IEC 19790:2012 7.9.7). */
         if (WC_VAR_OK(nodes)) {
             ForceZero(nodes, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+            wc_MemZero_Check(nodes, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N);
+#endif
         }
         WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     }
@@ -7633,6 +7667,9 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
     else {
         byte nodes[2 * SLHDSA_MAX_N];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa fors_node_c nodes", nodes, sizeof(nodes));
+#endif
         /* Step 7: Compute left node. */
         ret = slhdsakey_fors_node_c(key, sk_seed, 2 * i + 0, z - 1, pk_seed,
             adrs, nodes);
@@ -7651,6 +7688,9 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
         }
         /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
         ForceZero(nodes, sizeof(nodes));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nodes, sizeof(nodes));
+#endif
     }
 
     return ret;
@@ -9077,6 +9117,9 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
         byte seeds[3 * SLHDSA_MAX_N];
         byte n = key->params->n;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa make_key seeds", seeds, sizeof(seeds));
+#endif
         /* Steps 1-5: Generate the 3 random hashes. */
         ret = wc_RNG_GenerateBlock(rng, seeds, 3U * n);
         if (ret == 0) {
@@ -9086,6 +9129,9 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
                 seeds + 2 * n, n);
         }
         ForceZero(seeds, sizeof(seeds));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(seeds, sizeof(seeds));
+#endif
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -9119,6 +9165,42 @@ static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
     }
 }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+/* Register the hash state that slhdsakey_wipe_secret_hash must clear. */
+static void slhdsakey_memzero_add_hash(SlhDsaKey* key)
+{
+#ifdef WOLFSSL_SLHDSA_SHA2
+    if (SLHDSA_IS_SHA2(key->params->param)) {
+        wc_MemZero_Add("slhdsa key sha2Digest", key->sha2Digest,
+            sizeof(key->sha2Digest));
+    }
+    else
+#endif
+    {
+        wc_Shake* shake = &key->hash.shk.shake;
+
+        wc_MemZero_Add("slhdsa key shake s", shake->s, sizeof(shake->s));
+        wc_MemZero_Add("slhdsa key shake t", shake->t, sizeof(shake->t));
+    }
+}
+
+static void slhdsakey_memzero_check_hash(SlhDsaKey* key)
+{
+#ifdef WOLFSSL_SLHDSA_SHA2
+    if (SLHDSA_IS_SHA2(key->params->param)) {
+        wc_MemZero_Check(key->sha2Digest, sizeof(key->sha2Digest));
+    }
+    else
+#endif
+    {
+        wc_Shake* shake = &key->hash.shk.shake;
+
+        wc_MemZero_Check(shake->s, sizeof(shake->s));
+        wc_MemZero_Check(shake->t, sizeof(shake->t));
+    }
+}
+#endif
+
 /* Compute the public key root from the seeds already staged in the key.
  *
  * FIPS 205, Section 9.1, Algorithm 18, steps 1 to 3.
@@ -9149,6 +9231,9 @@ static int slhdsakey_compute_root(SlhDsaKey* key)
     }
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    slhdsakey_memzero_add_hash(key);
+#endif
     /* Step 1: Set address to all zeroes. */
     HA_Init(adrs);
     /* Step 2: Set the address layer to the top of the subtree. */
@@ -9160,6 +9245,9 @@ static int slhdsakey_compute_root(SlhDsaKey* key)
         key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
     }
     slhdsakey_wipe_secret_hash(key);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    slhdsakey_memzero_check_hash(key);
+#endif
 
     return ret;
 }
@@ -9218,6 +9306,10 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         byte n = key->params->n;
         byte seeds[3 * SLHDSA_MAX_N];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa make_key_with_random seeds", seeds,
+            sizeof(seeds));
+#endif
         /* Any of the three inputs may alias the key, in any order. Preserve
          * all of them before destroying the old SSPs (ISO 19790 7.9.7). */
         XMEMCPY(seeds, sk_seed, n);
@@ -9230,6 +9322,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         ForceZero(key->sk, sizeof(key->sk));
         XMEMCPY(key->sk, seeds, 3U * n);
         ForceZero(seeds, sizeof(seeds));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(seeds, sizeof(seeds));
+#endif
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -9285,6 +9380,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         word32      pct_pubLen = (word32)(n * 2);
         HashAddress pct_adrs;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        slhdsakey_memzero_add_hash(key);
+#endif
         /* The key identifier the IG names. */
         ret = wc_SlhDsaKey_ExportPublic(key, pct_pub, &pct_pubLen);
         if ((ret == 0) && (XMEMCMP(pct_pub, key->sk + 2 * n, n) != 0)) {
@@ -9303,6 +9401,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             ForceZero(pct_root, sizeof(pct_root));
         }
         slhdsakey_wipe_secret_hash(key);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        slhdsakey_memzero_check_hash(key);
+#endif
 
         /* Free a key that failed the test, so a caller ignoring the return
          * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
@@ -9358,6 +9459,9 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
     byte n = key->params->n;
     byte* sigFors = sig;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    slhdsakey_memzero_add_hash(key);
+#endif
     /* Steps 1, 7-13: Set address based on message digest. */
     slhdsakey_set_ha_from_md(key, md, adrs, t, &l);
 
@@ -9381,6 +9485,9 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
         ForceZero(sigFors, key->params->k * (1 + key->params->a) * n);
     }
     slhdsakey_wipe_secret_hash(key);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    slhdsakey_memzero_check_hash(key);
+#endif
 
     return ret;
 }
@@ -11266,6 +11373,10 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
     else {
         byte encoded[4 * SLHDSA_MAX_N];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa import_private encoded", encoded,
+            sizeof(encoded));
+#endif
         /* Preserve aliased input before destroying the previous key. */
         XMEMCPY(encoded, priv, privLen);
 #ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
@@ -11276,6 +11387,9 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
         /* Copy private and public key data into SLH-DSA key object. */
         XMEMCPY(key->sk, encoded, privLen);
         ForceZero(encoded, sizeof(encoded));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(encoded, sizeof(encoded));
+#endif
 /* Under crypto callback only the device performs every hash, so it derives
  * the SHA2 midstates for the imported PK.seed itself. */
 #if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
@@ -11396,6 +11510,9 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
         byte        root[SLHDSA_MAX_N];
         HashAddress adrs;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        slhdsakey_memzero_add_hash(key);
+#endif
         /* Recompute the public root from the private seed and compare.
          * Done directly rather than by regenerating the key: regeneration
          * overwrites the key being checked, and its key-pair test frees the
@@ -11409,6 +11526,9 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
         }
         ForceZero(root, sizeof(root));
         slhdsakey_wipe_secret_hash(key);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        slhdsakey_memzero_check_hash(key);
+#endif
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 

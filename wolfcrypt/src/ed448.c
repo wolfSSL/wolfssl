@@ -428,6 +428,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         ret = ECC_PRIV_KEY_E;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ed448_make_public az", az, sizeof(az));
+    wc_MemZero_Add("wc_ed448_make_public A", &A, sizeof(A));
+#endif
     if (ret == 0)
         ret = ed448_hash(key, key->k, ED448_KEY_SIZE, az, sizeof(az));
 
@@ -452,6 +456,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
     /* Projective A leaks bits of the private scalar. */
     ForceZero(&A, sizeof(A));
     ForceZero(az, sizeof(az));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&A, sizeof(A));
+    wc_MemZero_Check(az, sizeof(az));
+#endif
 
     return ret;
 }
@@ -619,6 +627,7 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     XMEMSET(nonce, 0, sizeof(nonce));
     wc_MemZero_Add("wc_ed448_sign_msg_ex az", az, sizeof(az));
     wc_MemZero_Add("wc_ed448_sign_msg_ex nonce", nonce, sizeof(nonce));
+    wc_MemZero_Add("wc_ed448_sign_msg_ex R", &R, sizeof(R));
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
     XMEMSET(orig_k, 0, sizeof(orig_k));
     wc_MemZero_Add("wc_ed448_sign_msg_ex orig_k", orig_k, sizeof(orig_k));
@@ -768,6 +777,7 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     /* Projective R leaks bits of the nonce. */
     ForceZero(&R, sizeof(R));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&R, sizeof(R));
     wc_MemZero_Check(nonce, sizeof(nonce));
     wc_MemZero_Check(az, sizeof(az));
 #endif
