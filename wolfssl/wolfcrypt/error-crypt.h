@@ -35,6 +35,11 @@ the error status.
  * wc_compat.h.
  */
 #include <wolfssl/wolfcrypt/wc_port.h>
+/* Library builds never pull in wc_compat.h, and frozen FIPS sources expect
+ * types.h from here. */
+#ifdef BUILDING_WOLFSSL
+#include <wolfssl/wolfcrypt/types.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
