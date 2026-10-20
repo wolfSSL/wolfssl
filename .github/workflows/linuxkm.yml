@@ -60,7 +60,9 @@ jobs:
           echo "running ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }}"
           ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }} || $(exit 10)
           # try to remove profiling (-pg) because it leads to "_mcleanup: gmon.out: Permission denied"
-          make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 11)
+          # PIE builds use inline retpoline thunks, which objtool on 7.0+ kernels
+          # rejects in the linked module, so turn objtool off for them.
+          make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 ${{ contains(matrix.config, '--enable-linuxkm-pie') && 'KBUILD_EXTRA_FLAGS=FORCE_GLOBAL_OBJTOOL_OFF=1' || '' }} || $(exit 11)
           ls -l linuxkm/libwolfssl.ko || $(exit 12)
           echo "Successful linuxkm build."
 
