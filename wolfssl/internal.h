@@ -3678,12 +3678,17 @@ WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
 
 typedef struct SNI {
     byte                       type;    /* SNI Type         */
-    union { char* host_name; } data;    /* SNI Data         */
     struct SNI*                next;    /* List Behavior    */
     byte                       status;  /* Matching result  */
 #ifndef NO_WOLFSSL_SERVER
     byte                       options; /* Behavior options */
 #endif
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    char host_name[WC_FLEXIBLE_ARRAY_SIZE]; /* SNI Data   */
 } SNI;
 
 WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
@@ -3713,9 +3718,14 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* clientHello,
 
 typedef struct TCA {
     byte                       type;    /* TCA Type            */
-    byte*                      id;      /* TCA identifier      */
     word16                     idSz;    /* TCA identifier size */
     struct TCA*                next;    /* List Behavior       */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte id[WC_FLEXIBLE_ARRAY_SIZE];    /* TCA identifier      */
 } TCA;
 
 WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
@@ -3726,11 +3736,16 @@ WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 /* Application-Layer Protocol Negotiation - RFC 7301 */
 #ifdef HAVE_ALPN
 typedef struct ALPN {
-    char*        protocol_name;   /* ALPN protocol name */
     struct ALPN* next;            /* List Behavior      */
     word16       protocol_nameSz; /* length of protocol_name in bytes */
     byte         options;         /* Behavior options */
     byte         negotiated;      /* ALPN protocol negotiated or not */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    char protocol_name[WC_FLEXIBLE_ARRAY_SIZE]; /* ALPN protocol name */
 } ALPN;
 
 WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
@@ -3874,10 +3889,16 @@ typedef struct SupportedCurve {
     struct SupportedCurve* next; /* List Behavior */
 } SupportedCurve;
 
-typedef struct PointFormat {
-    byte format;                /* PointFormat */
-    struct PointFormat* next;   /* List Behavior */
-} PointFormat;
+typedef struct PointFormats {
+    byte count;                            /* Formats in use */
+    byte cap;                              /* Formats allocated */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte format[WC_FLEXIBLE_ARRAY_SIZE];   /* Point formats */
+} PointFormats;
 
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap);
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
@@ -4066,8 +4087,13 @@ typedef struct SessionTicket {
     word64 seen;
     word32 ageAdd;
 #endif
-    byte*  data;
     word16 size;
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte   data[WC_FLEXIBLE_ARRAY_SIZE];
 } SessionTicket;
 
 #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)

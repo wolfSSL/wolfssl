@@ -2371,17 +2371,12 @@ int test_TLSX_SNI_GetSize_overflow(void)
 
     /* Append many SNI nodes to force overflow in the size calculation */
     for (i = 1; EXPECT_SUCCESS() && i < num_sni; i++) {
-        sni = (SNI*)XMALLOC(sizeof(SNI), NULL, DYNAMIC_TYPE_TLSX);
+        sni = (SNI*)XMALLOC(sizeof(SNI) + 2, NULL, DYNAMIC_TYPE_TLSX);
         ExpectNotNull(sni);
         if (sni != NULL) {
-            XMEMSET(sni, 0, sizeof(SNI));
+            XMEMSET(sni, 0, sizeof(SNI) + 2);
             sni->type = WOLFSSL_SNI_HOST_NAME;
-            sni->data.host_name = (char*)XMALLOC(2, NULL, DYNAMIC_TYPE_TLSX);
-            ExpectNotNull(sni->data.host_name);
-            if (sni->data.host_name != NULL) {
-                sni->data.host_name[0] = 'a';
-                sni->data.host_name[1] = '\0';
-            }
+            sni->host_name[0] = 'a';
             sni->next = head->next;
             head->next = sni;
         }
@@ -3264,6 +3259,166 @@ int test_TLSX_SignatureAlgorithmsCert_parse(void)
     }
 
     wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The formats live in a counted array that doubles when it fills. No in-tree
+ * caller reaches the growth path, so drive TLSX_UsePointFormat() directly. */
+int test_TLSX_PointFormat_list(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+     defined(HAVE_CURVE448))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX** exts = NULL;
+    TLSX* extension = NULL;
+    PointFormats* formats = NULL;
+    void* heap = NULL;
+    int ret;
+    int i;
+
+#ifndef WOLFSSL_NO_TLS12
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+#endif
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        exts = &ssl->extensions;
+        heap = ssl->heap;
+        ExpectNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
+    }
+    if (exts == NULL) {
+        /* ssl is NULL too, so there is nothing else to release. */
+        wolfSSL_CTX_free(ctx);
+        return EXPECT_RESULT();
+    }
+
+    /* The three formats RFC 8422 defines, then a repeat of the first. */
+    ExpectIntEQ(TLSX_UsePointFormat(exts, WOLFSSL_EC_PF_UNCOMPRESSED, heap),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(TLSX_UsePointFormat(exts, 1, heap), WOLFSSL_SUCCESS);
+    ExpectIntEQ(TLSX_UsePointFormat(exts, 2, heap), WOLFSSL_SUCCESS);
+    ExpectIntEQ(TLSX_UsePointFormat(exts, WOLFSSL_EC_PF_UNCOMPRESSED, heap),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(extension = TLSX_Find(*exts, TLSX_EC_POINT_FORMATS));
+    if (extension != NULL)
+        formats = (PointFormats*)extension->data;
+    ExpectNotNull(formats);
+    /* The repeat is dropped, and four is still enough. */
+    ExpectIntEQ(formats == NULL ? -1 : (int)formats->count, 3);
+    ExpectIntEQ(formats == NULL ? -1 : (int)formats->cap, 4);
+    if (formats != NULL) {
+        ExpectIntEQ(formats->format[0], WOLFSSL_EC_PF_UNCOMPRESSED);
+        ExpectIntEQ(formats->format[1], 1);
+        ExpectIntEQ(formats->format[2], 2);
+    }
+
+    /* Past the initial capacity the list grows and keeps what it held. */
+    for (i = 3; EXPECT_SUCCESS() && (i < 10); i++) {
+        ExpectIntEQ(TLSX_UsePointFormat(exts, (byte)i, heap),
+                    WOLFSSL_SUCCESS);
+    }
+    if (extension != NULL)
+        formats = (PointFormats*)extension->data;
+    ExpectNotNull(formats);
+    ExpectIntEQ(formats == NULL ? -1 : (int)formats->count, 10);
+    ExpectIntGE(formats == NULL ? -1 : (int)formats->cap, 10);
+    if (formats != NULL) {
+        ExpectIntEQ(formats->format[0], WOLFSSL_EC_PF_UNCOMPRESSED);
+        ExpectIntEQ(formats->format[9], 9);
+    }
+
+    /* The bound is internal to src/tls.c, so discover it. 256 values exceed
+     * any bound a byte capacity can hold. */
+    ret = WOLFSSL_SUCCESS;
+    for (i = 10; (ret == WOLFSSL_SUCCESS) && (i < 256); i++)
+        ret = TLSX_UsePointFormat(exts, (byte)i, heap);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (extension != NULL)
+        formats = (PointFormats*)extension->data;
+    ExpectNotNull(formats);
+    /* The refused insert leaves the list full. */
+    if (formats != NULL)
+        ExpectIntEQ((int)formats->count, (int)formats->cap);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The requested code is held in the extension and a response must match. */
+int test_TLSX_MaxFragment_value(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* extension = NULL;
+    Suites* suites = NULL;
+    /* max_fragment_length (0x0001), ext len 0x0001, code 2 (2^10 bytes) */
+    const byte match[] = { 0x00, 0x01, 0x00, 0x01, 0x02 };
+    /* Same extension carrying a code the client never asked for. */
+    const byte differs[] = { 0x00, 0x01, 0x00, 0x01, 0x03 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_10),
+                WOLFSSL_SUCCESS);
+
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_MAX_FRAGMENT_LENGTH);
+    ExpectNotNull(extension);
+    ExpectIntEQ(extension == NULL ? -1 : (int)(byte)extension->val,
+                WOLFSSL_MFL_2_10);
+    ExpectNull(extension == NULL ? (void*)1 : extension->data);
+
+    /* A server response carrying the requested code is accepted. */
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, match, (word16)sizeof(match), server_hello,
+                           suites), 0);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->max_fragment, 1024);
+        if (ssl->session != NULL)
+            ExpectIntEQ(ssl->session->mfl, WOLFSSL_MFL_2_10);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* One carrying a different code is rejected. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_10),
+                WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, differs, (word16)sizeof(differs), server_hello,
+                           suites),
+                WC_NO_ERR_TRACE(UNKNOWN_MAX_FRAG_LEN_E));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The same lookup finds a request configured on the context. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_UseMaxFragment(ctx, WOLFSSL_MFL_2_10),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, match, (word16)sizeof(match), server_hello,
+                           suites), 0);
+    wolfSSL_free(ssl);
+
     wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
