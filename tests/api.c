@@ -38123,10 +38123,10 @@ static int test_wc_CryptoCb_AesGcm_SetKey(void)
     byte       ct[sizeof(msg)];
     byte       tag[WC_AES_BLOCK_SIZE];
     byte       pt[sizeof(msg)];
-    byte       zeroH[WC_AES_BLOCK_SIZE];
+    byte       zeroBlk[WC_AES_BLOCK_SIZE];
 
     XMEMSET(&dev, 0, sizeof(dev));
-    XMEMSET(zeroH, 0, sizeof(zeroH));
+    XMEMSET(zeroBlk, 0, sizeof(zeroBlk));
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_UNREG_DEVID), 0);
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
@@ -38197,9 +38197,21 @@ static int test_wc_CryptoCb_AesGcm_SetKey(void)
     dev.declineSetKey = 1;
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key2, sizeof(key2)), 0);
     dev.declineSetKey = 0;
-    ExpectBufNE(aes.gcm.H, zeroH, sizeof(zeroH));
+    ExpectBufNE(aes.gcm.H, zeroBlk, sizeof(zeroBlk));
     ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
-    ExpectBufEQ(aes.gcm.H, zeroH, sizeof(zeroH));
+    ExpectBufEQ(aes.gcm.H, zeroBlk, sizeof(zeroBlk));
+#ifdef WOLFSSL_AES_COUNTER
+    /* ... and the old key's buffered CTR keystream. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesSetKey(&aes, key2, sizeof(key2), NULL, AES_ENCRYPTION),
+        0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, ct, msg, 5), 0);
+    dev.declineSetKey = 0;
+    ExpectIntNE(aes.left, 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(aes.left, 0);
+    ExpectBufEQ((byte*)aes.tmp, zeroBlk, sizeof(zeroBlk));
+#endif
 
     if (aesInit) {
         wc_AesFree(&aes);

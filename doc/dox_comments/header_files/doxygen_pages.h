@@ -92,9 +92,11 @@
     A callback that sets aes->rounds must also build a software key
     schedule, since wolfSSL then treats the key as a software key as well.
     It does so by calling wc_AesSetKey() on the same object with
-    aes->devId set to INVALID_DEVID. This request carries no key direction,
-    so only a WOLF_CRYPTO_CB_SETKEY callback, which is given one, can build
-    it.
+    aes->devId set to a devId no device is registered under, then restoring
+    it. INVALID_DEVID only works without WOLF_CRYPTO_CB_FIND, whose find
+    callback can map it back to the device. This request carries no key
+    direction, so only a WOLF_CRYPTO_CB_SETKEY callback, which is given one,
+    can build it.
 
     **If callback returns CRYPTOCB_UNAVAILABLE:**
     - SE doesn't support key import

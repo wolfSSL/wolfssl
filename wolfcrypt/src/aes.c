@@ -160,6 +160,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WC_AES_GCM_UNKEY(aes) WC_DO_NOTHING
 #endif
 
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_AES_CTS)
+    #define WC_AES_RESET_LEFT(aes) do { (aes)->left = 0; } while (0)
+#else
+    #define WC_AES_RESET_LEFT(aes) WC_DO_NOTHING
+#endif
+
 #if defined(HAVE_AESGCM) && (defined(GCM_TABLE) || defined(GCM_TABLE_4BIT))
     #define WC_AES_GCM_WIPE_H(aes) do { \
             ForceZero((aes)->gcm.H, sizeof((aes)->gcm.H)); \
@@ -5469,6 +5477,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
+            ForceZero(aes->tmp, sizeof(aes->tmp));
+            WC_AES_RESET_LEFT(aes);
         #endif
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
@@ -5604,6 +5614,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
+            ForceZero(aes->tmp, sizeof(aes->tmp));
+            WC_AES_RESET_LEFT(aes);
         #endif
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
@@ -6139,6 +6151,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
+            ForceZero(aes->tmp, sizeof(aes->tmp));
+            WC_AES_RESET_LEFT(aes);
         #ifdef WC_C_DYNAMIC_FALLBACK
             ForceZero(aes->key_C_fallback, sizeof(aes->key_C_fallback));
         #endif
@@ -7582,6 +7596,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if ((in == NULL) || (out == NULL) || (aes == NULL)) {
             return BAD_FUNC_ARG;
         }
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            return MISSING_KEY;
+        }
 
         /* Always enforce a length check */
         if (sz % WC_AES_BLOCK_SIZE) {
@@ -7621,6 +7638,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         if ((in == NULL) || (out == NULL) || (aes == NULL)) {
             return BAD_FUNC_ARG;
+        }
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            return MISSING_KEY;
         }
 
         /* Always enforce a length check */
@@ -17166,6 +17186,8 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes))
+        return MISSING_KEY;
 
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
@@ -17186,6 +17208,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes))
+        return MISSING_KEY;
 
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
