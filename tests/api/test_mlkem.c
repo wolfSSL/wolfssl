@@ -5666,9 +5666,6 @@ int test_wc_mlkem_operation_cleanup(void)
                     const wc_Sha3* hash = h == 0 ? &key->hash : &key->prf;
                     ExpectBufEQ(hash->s, zero, sizeof(hash->s));
                     ExpectBufEQ(hash->t, zero, sizeof(hash->t));
-#ifdef WC_SHA3_SCRATCH_W
-                    ExpectBufEQ(hash->scratch, zero, sizeof(hash->scratch));
-#endif
                     ExpectIntEQ(hash->i, 0);
                 }
             }

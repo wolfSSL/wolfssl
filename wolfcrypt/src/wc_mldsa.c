@@ -206,8 +206,6 @@
     }
 #endif
 
-/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
-#include <wolfssl/wolfcrypt/sha3.h>
 #if defined(WC_MLDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -643,7 +641,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         else
 #endif
         {
-            WC_SHA3_BLOCK(shake256, state);
+            BlockSha3(state);
         }
         if (dataLen >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
@@ -671,7 +669,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
                     xorbuf(state, data, WC_SHA3_256_COUNT * 8);
                     dataLen -= WC_SHA3_256_COUNT * 8;
                     data    += WC_SHA3_256_COUNT * 8;
-                    WC_SHA3_BLOCK(shake256, state);
+                    BlockSha3(state);
                 }
             }
         }
@@ -702,7 +700,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
     else
 #endif
     {
-        WC_SHA3_BLOCK(shake256, state);
+        BlockSha3(state);
     }
     if (hash != (byte*)shake256->s) {
         XMEMCPY(hash, shake256->s, hashLen);
@@ -775,7 +773,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         else
 #endif
         {
-            WC_SHA3_BLOCK(shake256, state);
+            BlockSha3(state);
         }
 
         if (data2Len >= WC_SHA3_256_COUNT * 8) {
@@ -804,7 +802,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
                     xorbuf(state, data2, WC_SHA3_256_COUNT * 8);
                     data2Len -= WC_SHA3_256_COUNT * 8;
                     data2    += WC_SHA3_256_COUNT * 8;
-                    WC_SHA3_BLOCK(shake256, state);
+                    BlockSha3(state);
                 }
             }
         }
@@ -839,7 +837,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
     else
 #endif
     {
-        WC_SHA3_BLOCK(shake256, state);
+        BlockSha3(state);
     }
     XMEMCPY(hash, shake256->s, hashLen);
     ret = 0;
@@ -1177,7 +1175,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
         else
 #endif
         {
-            WC_SHA3_BLOCK(shake256, state);
+            BlockSha3(state);
         }
         XMEMCPY(out, shake256->s, WC_SHA3_256_COUNT * 8);
         out += WC_SHA3_256_COUNT * 8;
@@ -5774,7 +5772,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
                     else
 #endif
                     {
-                        WC_SHA3_BLOCK(shake256, state);
+                        BlockSha3(state);
                     }
 
                     /* Restart hash block index. */
@@ -9419,9 +9417,6 @@ static void mldsa_shake_wipe(wc_Shake* shake)
 #ifndef PSOC6_HASH_SHA3
     ForceZero(shake->s, sizeof(shake->s));
     ForceZero(shake->t, sizeof(shake->t));
-#ifdef WC_SHA3_SCRATCH_W
-    ForceZero(shake->scratch, sizeof(shake->scratch));
-#endif
     shake->i = 0;
 #else
     (void)wc_Shake256_Reset(shake);
