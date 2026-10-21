@@ -407,9 +407,14 @@ for my $entry (@hbs_vectors) {
 }
 
 # ML-KEM end-entity certificates and expandedKey form private keys
-print OUT_FILE "#if defined(WOLFSSL_HAVE_MLKEM)\n\n";
+print OUT_FILE "#if defined(WOLFSSL_HAVE_MLKEM) && " .
+    "!defined(WOLFSSL_NO_ML_KEM)\n\n";
 
 for my $n (512, 768, 1024) {
+    my $noLevel = "WOLFSSL_NO_ML_KEM_${n}";
+
+    print OUT_FILE "#if !defined($noLevel)\n\n";
+
     for my $kind ("cert", "key") {
         my $fname = "./certs/mlkem/mlkem${n}-${kind}.der";
         my $sname = "mlkem${n}_${kind}_der";
@@ -420,9 +425,11 @@ for my $n (512, 768, 1024) {
         print OUT_FILE "};\n";
         print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n";
     }
+
+    print OUT_FILE "#endif /* !$noLevel */\n\n";
 }
 
-print OUT_FILE "#endif /* WOLFSSL_HAVE_MLKEM */\n\n";
+print OUT_FILE "#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM */\n\n";
 
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";

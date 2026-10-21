@@ -69344,16 +69344,12 @@ free_level:
     #define MLKEM_CERT_TEST_KEM
 #endif
 
-/* Parse the ML-KEM end-entity certificates, confirm the subject public key
- * carries the expected ML-KEM parameter set, and confirm the matching private
- * key reproduces that same public key. */
-static wc_test_ret_t mlkem_cert_test(void)
+/* Check each ML-KEM cert's parameter set, that its private key matches the
+ * public key and, when available, an encapsulate/decapsulate round trip. */
+static wc_test_ret_t mlkem_cert_test(WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
     int i;
-#ifdef MLKEM_CERT_TEST_KEM
-    WC_RNG rng;
-#endif
     static const struct {
         const byte* cert;
         word32      certSz;
@@ -69361,30 +69357,27 @@ static wc_test_ret_t mlkem_cert_test(void)
         word32      keySz;
         int         level;
     } vectors[] = {
-#if defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_NO_ML_KEM)
+#if !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_512)
         { mlkem512_cert_der, sizeof_mlkem512_cert_der,
           mlkem512_key_der, sizeof_mlkem512_key_der, WC_ML_KEM_512 },
 #endif
-#if defined(WOLFSSL_WC_ML_KEM_768) && !defined(WOLFSSL_NO_ML_KEM)
+#if !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_768)
         { mlkem768_cert_der, sizeof_mlkem768_cert_der,
           mlkem768_key_der, sizeof_mlkem768_key_der, WC_ML_KEM_768 },
 #endif
-#if defined(WOLFSSL_WC_ML_KEM_1024) && !defined(WOLFSSL_NO_ML_KEM)
+#if !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_NO_ML_KEM_1024)
         { mlkem1024_cert_der, sizeof_mlkem1024_cert_der,
           mlkem1024_key_der, sizeof_mlkem1024_key_der, WC_ML_KEM_1024 },
 #endif
         { NULL, 0, NULL, 0, 0 }
     };
 
-#ifdef MLKEM_CERT_TEST_KEM
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+#ifndef MLKEM_CERT_TEST_KEM
+    (void)rng;
 #endif
 
     for (i = 0; vectors[i].cert != NULL; i++) {
-        /* One key object at a time: a static memory pool has no room for
-         * both halves of the comparison at once. */
+        /* One key at a time: a static memory pool has no room for two. */
         MlKemKey* key = NULL;
         byte* spki = NULL;
         byte* pubA = NULL;
@@ -69443,7 +69436,7 @@ static wc_test_ret_t mlkem_cert_test(void)
                 ret = WC_TEST_RET_ENC_ERRNO;
         }
         if (ret == 0)
-            ret = wc_MlKemKey_Encapsulate(key, ct, ssA, &rng);
+            ret = wc_MlKemKey_Encapsulate(key, ct, ssA, rng);
 #endif
         if (keyInit) {
             wc_MlKemKey_Free(key);
@@ -69490,9 +69483,6 @@ free_vector:
         if (ret != 0)
             break;
     }
-#ifdef MLKEM_CERT_TEST_KEM
-    wc_FreeRng(&rng);
-#endif
     return ret;
 }
 #undef MLKEM_CERT_TEST_KEM
@@ -70148,7 +70138,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(NO_ASN) && !defined(NO_CERTS) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
-    ret = mlkem_cert_test();
+#ifndef WC_NO_RNG
+    ret = mlkem_cert_test(&rng);
+#else
+    ret = mlkem_cert_test(NULL);
+#endif
     if (ret != 0)
         goto out;
 #endif

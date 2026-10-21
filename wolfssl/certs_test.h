@@ -11928,7 +11928,9 @@ static const unsigned char bench_slhdsa_sha2_128s_msg[] =
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
 
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+
+#if !defined(WOLFSSL_NO_ML_KEM_512)
 
 /* ./certs/mlkem/mlkem512-cert.der */
 static const unsigned char mlkem512_cert_der[] =
@@ -12687,6 +12689,10 @@ static const unsigned char mlkem512_key_der[] =
 
 };
 #define sizeof_mlkem512_key_der (sizeof(mlkem512_key_der))
+
+#endif /* !WOLFSSL_NO_ML_KEM_512 */
+
+#if !defined(WOLFSSL_NO_ML_KEM_768)
 
 /* ./certs/mlkem/mlkem768-cert.der */
 static const unsigned char mlkem768_cert_der[] =
@@ -13560,6 +13566,10 @@ static const unsigned char mlkem768_key_der[] =
         0xD3, 0x78, 0x60, 0x86, 0x93, 0xF6, 0xF9, 0x15
 };
 #define sizeof_mlkem768_key_der (sizeof(mlkem768_key_der))
+
+#endif /* !WOLFSSL_NO_ML_KEM_768 */
+
+#if !defined(WOLFSSL_NO_ML_KEM_1024)
 
 /* ./certs/mlkem/mlkem1024-cert.der */
 static const unsigned char mlkem1024_cert_der[] =
@@ -14549,7 +14559,9 @@ static const unsigned char mlkem1024_key_der[] =
 };
 #define sizeof_mlkem1024_key_der (sizeof(mlkem1024_key_der))
 
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* !WOLFSSL_NO_ML_KEM_1024 */
+
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM */
 
 #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 
