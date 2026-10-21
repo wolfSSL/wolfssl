@@ -310,6 +310,7 @@ int test_wc_curve25519_shared_secret_ex(void)
 #ifndef WOLFSSL_X25519_NO_MASK_PEER
     byte           outHiBit[CURVE25519_KEYSIZE];
     word32         outHiBitLen = sizeof(out);
+    byte           pubHiBit[CURVE25519_KEYSIZE];
 #endif
     int            endian = EC25519_BIG_ENDIAN;
 
@@ -354,10 +355,13 @@ int test_wc_curve25519_shared_secret_ex(void)
     if (EXPECT_SUCCESS()) {
         public_key.p.point[CURVE25519_KEYSIZE-1] |= 0x80;
     }
+    XMEMCPY(pubHiBit, public_key.p.point, CURVE25519_KEYSIZE);
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
         outHiBit, &outHiBitLen, endian), 0);
     ExpectIntEQ(outLen, outHiBitLen);
     ExpectBufEQ(out, outHiBit, outLen);
+    /* the bit is cleared in a copy; the peer key is left as imported */
+    ExpectBufEQ(public_key.p.point, pubHiBit, CURVE25519_KEYSIZE);
 #endif
 
     outLen = outLen - 2;
@@ -1367,6 +1371,7 @@ int test_wc_curve25519_nonblock(void)
     byte           out[CURVE25519_KEYSIZE];
 #ifndef WOLFSSL_X25519_NO_MASK_PEER
     byte           outHiBit[CURVE25519_KEYSIZE];
+    byte           pubHiBit[CURVE25519_KEYSIZE];
 #endif
     word32         outLen;
     int            ret;
@@ -1429,6 +1434,7 @@ int test_wc_curve25519_nonblock(void)
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&priv_key, &pub_key, out,
         &outLen, EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 #else
+    XMEMCPY(pubHiBit, pub_key.p.point, CURVE25519_KEYSIZE);
     outLen = sizeof(outHiBit);
     iters = 0;
     do {
@@ -1439,6 +1445,8 @@ int test_wc_curve25519_nonblock(void)
     ExpectIntEQ(ret, 0);
     ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
     ExpectBufEQ(outHiBit, out, CURVE25519_KEYSIZE);
+    /* the bit is cleared in a copy; the peer key is left as imported */
+    ExpectBufEQ(pub_key.p.point, pubHiBit, CURVE25519_KEYSIZE);
 #endif
 
 #if !defined(WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK) && \
