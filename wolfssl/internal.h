@@ -3959,7 +3959,6 @@ WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
             wolfSSL_TLSX_SupportedCurve_CheckPriority
     #define TLSX_SupportedFFDHE_Set wolfSSL_TLSX_SupportedFFDHE_Set
 #endif
-/* WOLFSSL_TEST_VIS: no public API reaches these; the API tests call them. */
 WOLFSSL_TEST_VIS int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
 WOLFSSL_TEST_VIS int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
