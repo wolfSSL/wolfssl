@@ -265,6 +265,24 @@ int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng* rng)
 }
 #endif
 
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+/* Watch the ACPI VM generation counter, as the extras do: before 5.18 there is
+ * no vmgenid notifier, and a modular vmgenid may not be loaded. */
+#define RNG_VMGEN_DELAY (HZ / 10)
+static struct wc_linuxkm_vmgenid_poll_state rngVmGen;
+static struct delayed_work rngVmGenWork;
+
+static void RngVmGenWork(struct work_struct* work)
+{
+    (void)work;
+    if (wc_linuxkm_vmgenid_changed(&rngVmGen))
+        RngInvalidate();
+    /* No device (bare metal): nothing to watch. */
+    if (rngVmGen.state == 1)
+        queue_delayed_work(system_highpri_wq, &rngVmGenWork, RNG_VMGEN_DELAY);
+}
+#endif
+
 #if IS_ENABLED(CONFIG_VMGENID)
 static int RngVmForkNotify(struct notifier_block* nb, unsigned long action,
                            void* data)
@@ -272,6 +290,11 @@ static int RngVmForkNotify(struct notifier_block* nb, unsigned long action,
     (void)nb;
     (void)action;
     (void)data;
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    /* The poll may have seen this change first: one clone invalidates once. */
+    if (rngVmGen.state == 1 && !wc_linuxkm_vmgenid_changed(&rngVmGen))
+        return NOTIFY_OK;
+#endif
     RngInvalidate();
     return NOTIFY_OK;
 }
@@ -441,6 +464,10 @@ static void RngStop(void)
         unregister_random_vmfork_notifier(&rngVmForkNb);
     rngVmForkNbUp = 0;
 #endif
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    cancel_delayed_work_sync(&rngVmGenWork);
+    wc_linuxkm_vmgenid_poll_teardown(&rngVmGen);
+#endif
     rngReady = 0;
     cancel_delayed_work_sync(&rngRootWork);
     if (wc_RNG_TreeZeroize() != 0)
@@ -537,6 +564,9 @@ static int wc_linuxkm_drbg_startup(void)
         return -ECANCELED;
     }
     INIT_DELAYED_WORK(&rngRootWork, RngRootWork);
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    INIT_DELAYED_WORK(&rngVmGenWork, RngVmGenWork);
+#endif
     rngReady = 1;
 
     ret = crypto_register_rng(&wc_linuxkm_drbg);
@@ -564,6 +594,9 @@ static int wc_linuxkm_drbg_startup(void)
     }
 
     queue_delayed_work(system_highpri_wq, &rngRootWork, RNG_ROOT_DELAY);
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
+    queue_delayed_work(system_highpri_wq, &rngVmGenWork, 0);
+#endif
 #if IS_ENABLED(CONFIG_VMGENID)
     if (register_random_vmfork_notifier(&rngVmForkNb) != 0)
         pr_warn("libwolfssl: no VM-fork notifier, VM clones go undetected.\n");

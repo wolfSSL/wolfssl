@@ -2077,6 +2077,101 @@ struct wc_swallow_the_semicolon
                               WOLFKM_SHA3_512_HMAC_DRIVER, hmac_sha3_test_once);
 #endif
 
+/* The ACPI VM Generation ID counter, for both RNG glues: before 5.18, or with
+ * vmgenid modular, no vmgenid notifier can be relied on. */
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && defined(CONFIG_ACPI) && \
+    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID))
+#define WC_LINUXKM_HAVE_VMGENID_ACPI
+
+struct wc_linuxkm_vmgenid_poll_state {
+    void *map;
+    int state; /* 0 untried, 1 mapped, -1 absent */
+    u8 last[16];
+};
+
+static WC_MAYBE_UNUSED acpi_status wc_linuxkm_vmgenid_acpi_cb(
+    acpi_handle handle, u32 depth, void *context, void **ret)
+{
+    struct wc_linuxkm_vmgenid_poll_state *st =
+        (struct wc_linuxkm_vmgenid_poll_state *)context;
+    struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
+    union acpi_object *obj;
+    u64 gpa;
+
+    (void)depth;
+
+    if (ACPI_FAILURE(acpi_evaluate_object(handle, (acpi_string)"ADDR", NULL, &buf)))
+        return AE_OK; /* not it -- keep walking */
+    obj = (union acpi_object *)buf.pointer;
+    if ((obj != NULL) && (obj->type == ACPI_TYPE_PACKAGE) &&
+        (obj->package.count == 2) &&
+        (obj->package.elements[0].type == ACPI_TYPE_INTEGER) &&
+        (obj->package.elements[1].type == ACPI_TYPE_INTEGER))
+    {
+        gpa = (obj->package.elements[0].integer.value & 0xffffffffULL) |
+              (obj->package.elements[1].integer.value << 32);
+        if (gpa != 0) {
+            st->map = memremap(gpa, 16, MEMREMAP_WB);
+            if (st->map != NULL) {
+                kfree(buf.pointer);
+                *ret = st->map;
+                return AE_CTRL_TERMINATE;
+            }
+        }
+    }
+    kfree(buf.pointer);
+    return AE_OK;
+}
+
+/* Nonzero once the generation counter has changed since the last call.  The
+ * first call only finds the device. */
+static WC_MAYBE_UNUSED int wc_linuxkm_vmgenid_changed(
+    struct wc_linuxkm_vmgenid_poll_state *st)
+{
+    if (st->state == 0) {
+        /* one-time discovery, in task context.  ACPICA uppercases
+         * _HID/_CID strings when building the namespace, and
+         * acpi_get_devices() matches by strcmp, so the IDs here mirror
+         * the kernel vmgenid driver's own table verbatim: "VMGENCTR"
+         * (Microsoft spec _HID) and "VM_GEN_COUNTER" (the _CID as
+         * stored -- QEMU, Hyper-V, VMware all present it). */
+        void *found = NULL;
+        (void)acpi_get_devices("VMGENCTR", wc_linuxkm_vmgenid_acpi_cb,
+                               st, &found);
+        if (found == NULL)
+            (void)acpi_get_devices("VM_GEN_COUNTER",
+                                   wc_linuxkm_vmgenid_acpi_cb,
+                                   st, &found);
+        if (found != NULL) {
+            memcpy(st->last, st->map, 16);
+            st->state = 1;
+            pr_info("libwolfssl: vmgenid ACPI poller active (VM-fork "
+                    "RNG invalidation coverage).\n");
+        }
+        else {
+            st->state = -1; /* bare metal or no device */
+        }
+        return 0;
+    }
+    if (st->state != 1)
+        return 0;
+    if (memcmp(st->map, st->last, 16) == 0)
+        return 0;
+    memcpy(st->last, st->map, 16);
+    return 1;
+}
+
+static WC_MAYBE_UNUSED void wc_linuxkm_vmgenid_poll_teardown(
+    struct wc_linuxkm_vmgenid_poll_state *st)
+{
+    if (st->map != NULL) {
+        memunmap(st->map);
+        st->map = NULL;
+    }
+    st->state = 0;
+}
+#endif /* WC_LINUXKM_HAVE_VMGENID_ACPI */
+
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && !defined(WC_RNG_TREE)
 
 #ifdef HAVE_ENTROPY_MEMUSE
@@ -2674,8 +2769,7 @@ static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret)
 
 #if defined(WC_LINUXKM_HAVE_RNG_REGISTRY) && defined(WC_LINUXKM_HAVE_RNG_INVALIDATION)
 
-#if defined(CONFIG_ACPI) && \
-    (defined(WC_LINUXKM_VMGENID_POLL) || !IS_BUILTIN(CONFIG_VMGENID))
+#ifdef WC_LINUXKM_HAVE_VMGENID_ACPI
 /* Without CONFIG_VMGENID, or with it modularized and possibly unloaded, we can
  * only detect VM fork events by polling.  Mainline gained vmgenid and the
  * random_vmfork notifier chain together in kernel 5.18, so on older kernels and
@@ -2699,79 +2793,10 @@ static WC_INLINE int rng_invalidation_post_check(const char *caller, int genret)
     #define WC_LINUXKM_VMGENID_POLL
 #endif
 
-struct wc_linuxkm_vmgenid_poll_state {
-    void *map;
-    int state; /* 0 untried, 1 mapped, -1 absent */
-    u8 last[16];
-};
-
-static acpi_status wc_linuxkm_vmgenid_acpi_cb(acpi_handle handle, u32 depth,
-                                              void *context, void **ret)
-{
-    struct wc_linuxkm_vmgenid_poll_state *st =
-        (struct wc_linuxkm_vmgenid_poll_state *)context;
-    struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
-    union acpi_object *obj;
-    u64 gpa;
-
-    (void)depth;
-
-    if (ACPI_FAILURE(acpi_evaluate_object(handle, (acpi_string)"ADDR", NULL, &buf)))
-        return AE_OK; /* not it -- keep walking */
-    obj = (union acpi_object *)buf.pointer;
-    if ((obj != NULL) && (obj->type == ACPI_TYPE_PACKAGE) &&
-        (obj->package.count == 2) &&
-        (obj->package.elements[0].type == ACPI_TYPE_INTEGER) &&
-        (obj->package.elements[1].type == ACPI_TYPE_INTEGER))
-    {
-        gpa = (obj->package.elements[0].integer.value & 0xffffffffULL) |
-              (obj->package.elements[1].integer.value << 32);
-        if (gpa != 0) {
-            st->map = memremap(gpa, 16, MEMREMAP_WB);
-            if (st->map != NULL) {
-                kfree(buf.pointer);
-                *ret = st->map;
-                return AE_CTRL_TERMINATE;
-            }
-        }
-    }
-    kfree(buf.pointer);
-    return AE_OK;
-}
-
 static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
                                     WC_RNG *local_root)
 {
-    if (st->state == 0) {
-        /* one-time discovery, in daemon task context.  ACPICA uppercases
-         * _HID/_CID strings when building the namespace, and
-         * acpi_get_devices() matches by strcmp, so the IDs here mirror
-         * the kernel vmgenid driver's own table verbatim: "VMGENCTR"
-         * (Microsoft spec _HID) and "VM_GEN_COUNTER" (the _CID as
-         * stored -- QEMU, Hyper-V, VMware all present it). */
-        void *found = NULL;
-        (void)acpi_get_devices("VMGENCTR", wc_linuxkm_vmgenid_acpi_cb,
-                               st, &found);
-        if (found == NULL)
-            (void)acpi_get_devices("VM_GEN_COUNTER",
-                                   wc_linuxkm_vmgenid_acpi_cb,
-                                   st, &found);
-        if (found != NULL) {
-            memcpy(st->last, st->map, 16);
-            st->state = 1;
-            pr_info("libwolfssl: vmgenid ACPI poller active (VM-fork "
-                    "RNG invalidation coverage).\n");
-        }
-        else {
-            st->state = -1; /* bare metal or no device */
-        }
-        return;
-    }
-    if (st->state != 1)
-        return;
-
-    if (memcmp(st->map, st->last, 16) != 0) {
-        memcpy(st->last, st->map, 16);
+    if (wc_linuxkm_vmgenid_changed(st)) {
         pr_notice("libwolfssl: VM generation change detected by poller.\n");
         (void)wc_linuxkm_rng_state_invalidate();
         /* recover our root immediately, folding the new generation id in
@@ -2797,16 +2822,7 @@ static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
     }
 }
 
-static void wc_linuxkm_vmgenid_poll_teardown(
-    struct wc_linuxkm_vmgenid_poll_state *st)
-{
-    if (st->map != NULL) {
-        memunmap(st->map);
-        st->map = NULL;
-    }
-    st->state = 0;
-}
-#endif /* CONFIG_ACPI && !IS_BUILTIN(CONFIG_VMGENID) */
+#endif /* WC_LINUXKM_HAVE_VMGENID_ACPI */
 
 #endif /* WC_LINUXKM_HAVE_RNG_REGISTRY && WC_LINUXKM_HAVE_RNG_INVALIDATION */
 
