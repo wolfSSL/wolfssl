@@ -805,6 +805,11 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
     return ret;
 }
 
+int IsWriteClosed(const WOLFSSL* ssl)
+{
+    return ssl->options.sentNotify || ssl->options.fatalAlert;
+}
+
 int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
     if (ssl == NULL) {
@@ -20608,7 +20613,7 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
         WOLFSSL_ERROR_VERBOSE(FATAL_ERROR);
         return FATAL_ERROR;
     }
-    else if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+    else if (IsWriteClosed(ssl)) {
         WOLFSSL_MSG("Ignoring HelloRequest after close_notify");
         WOLFSSL_LEAVE("DoHelloRequest", 0);
         WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
@@ -21438,6 +21443,16 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     expectedIdx = *inOutIdx + size;
+
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->options.handShakeDone && type == client_hello &&
+            IsWriteClosed(ssl)) {
+        WOLFSSL_MSG("Ignoring ClientHello after close_notify");
+        *inOutIdx = expectedIdx;
+        return 0;
+    }
+#endif
 
 #if !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SECURE_RENEGOTIATION) && \
@@ -30388,9 +30403,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         /* We can send data without waiting on peer finished msg */
         WOLFSSL_MSG("server sending data before receiving client finished");
     }
-    /* No handshake records after our close_notify or a fatal alert */
-    else if (!ssl->options.sentNotify && !ssl->options.fatalAlert &&
-            ssl_in_handshake(ssl, 1)) {
+    else if (!IsWriteClosed(ssl) && ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -30416,8 +30429,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     }
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_TLS13
-    if (ssl->options.sendKeyUpdate && !ssl->options.sentNotify &&
-            !ssl->options.fatalAlert) {
+    if (ssl->options.sendKeyUpdate && !IsWriteClosed(ssl)) {
         ssl->options.sendKeyUpdate = 0;
         ret = SendTls13KeyUpdate(ssl);
         if (ret != 0) {
@@ -30469,7 +30481,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     /* RFC 8446 6.2 - no new data write after a fatal alert */
     if (ssl->options.fatalAlert) {
         WOLFSSL_MSG("Connection is closed, not sending new data");
-        if (ssl->error == 0)
+        if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+                ssl->error == WOLFSSL_ERROR_WANT_READ)
             ssl->error = SOCKET_PEER_CLOSED_E;
         return WOLFSSL_FATAL_ERROR;
     }
@@ -30477,7 +30490,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     /* Reads and wolfSSL_shutdown() clear this; the peer may still send data */
     if (ssl->options.sentNotify) {
         WOLFSSL_MSG("close_notify already sent, not sending new data");
-        if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ))
+        if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+                ssl->error == WOLFSSL_ERROR_WANT_READ)
             ssl->error = SSL_SHUTDOWN_ALREADY_DONE_E;
         return WOLFSSL_FATAL_ERROR;
     }
@@ -30856,9 +30870,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
     else
 #endif
     {
-        /* No handshake records after our close_notify or a fatal alert */
-        if (!ssl->options.sentNotify && !ssl->options.fatalAlert &&
-                ssl_in_handshake(ssl, 0)) {
+        if (!IsWriteClosed(ssl) && ssl_in_handshake(ssl, 0)) {
             int err;
             WOLFSSL_MSG("Handshake not complete, trying to finish");
             if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -30927,7 +30939,7 @@ startScr:
             if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
                     ssl->options.handShakeState != HANDSHAKE_DONE
                     && ssl->buffers.clearOutputBuffer.length == 0
-                    && !ssl->options.sentNotify && !ssl->options.fatalAlert) {
+                    && !IsWriteClosed(ssl)) {
                 /* ProcessReply processed a handshake packet and not any APP DATA
                  * so let's move the handshake along */
                 int err;
@@ -31084,7 +31096,9 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     input[1] = (byte)type;
     ssl->alert_history.last_tx.code = type;
     ssl->alert_history.last_tx.level = severity;
-    if (severity == alert_fatal) {
+    /* RFC 9846 Section 6.2: TLS 1.3 error alerts are fatal at any level */
+    if (severity == alert_fatal || (IsAtLeastTLSv1_3(ssl->version) &&
+            type != close_notify && type != user_canceled)) {
 #ifdef WOLFSSL_DTLS
         /* Mark as closed in dtls only once we enter stateful mode. */
         if (!ssl->options.dtls || ssl->options.dtlsStateful)

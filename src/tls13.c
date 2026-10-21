@@ -6617,6 +6617,13 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.handShakeState == HANDSHAKE_DONE && IsWriteClosed(ssl)) {
+        *inOutIdx = begin + size;
+        return 0;
+    }
+#endif
+
     XMEMSET(&peerSuites, 0, sizeof(Suites));
 #if !defined(WOLFSSL_NO_SIGALG)
     /* Post-handshake auth can deliver several requests; each one's cert
@@ -14445,7 +14452,7 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->keys.keyUpdateRespond) {
-        if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+        if (IsWriteClosed(ssl)) {
             WOLFSSL_MSG("Not answering KeyUpdate after close_notify");
             ssl->keys.keyUpdateRespond = 0;
             return 0;
@@ -16401,7 +16408,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             if (type == certificate_request &&
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
-                if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+                if (IsWriteClosed(ssl)) {
                     WOLFSSL_MSG("Ignoring CertificateRequest after "
                                 "close_notify");
                 }

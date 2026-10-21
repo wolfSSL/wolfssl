@@ -3444,9 +3444,11 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
 
     if (ssl->dtls13DoKeyUpdate) {
         ssl->dtls13DoKeyUpdate = 0;
-        ret = Tls13UpdateKeys(ssl);
-        if (ret != 0)
-            return ret;
+        if (!IsWriteClosed(ssl)) {
+            ret = Tls13UpdateKeys(ssl);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;

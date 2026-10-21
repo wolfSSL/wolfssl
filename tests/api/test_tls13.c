@@ -13768,8 +13768,10 @@ int test_tls13_no_pha_response_after_close_notify(void)
         (int)sizeof(msg));
     ExpectBufEQ(readBuf, msg, sizeof(msg));
     ExpectIntEQ(test_ctx.s_len, s_len_before);
-    if (ssl_c != NULL)
+    if (ssl_c != NULL) {
         ExpectIntEQ(ssl_c->options.handShakeState, HANDSHAKE_DONE);
+        ExpectNull(ssl_c->certReqCtx);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -13855,14 +13857,18 @@ int test_tls12_no_renegotiation_after_close_notify(void)
     int *closerOutLen;
     int lenBefore;
     int serverCloses;
+    int mode;
 
-    for (serverCloses = 0; serverCloses < 2 && EXPECT_SUCCESS();
-            serverCloses++) {
+    /* 0: client closes, 1: server closes, 2: also WOLFSSL_OP_NO_RENEGOTIATION */
+    for (mode = 0; mode < 3 && EXPECT_SUCCESS(); mode++) {
+        serverCloses = (mode > 0);
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
             &ssl_s, wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
         ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+        if (mode == 2)
+            wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_RENEGOTIATION);
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
         closer = serverCloses ? ssl_s : ssl_c;
         peer = serverCloses ? ssl_c : ssl_s;
@@ -13878,6 +13884,8 @@ int test_tls12_no_renegotiation_after_close_notify(void)
         ExpectIntEQ(wolfSSL_get_error(closer,
             WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
         ExpectIntEQ(*closerOutLen, lenBefore);
+        if (closer != NULL)
+            ExpectIntEQ(closer->options.handShakeState, HANDSHAKE_DONE);
 
         wolfSSL_free(ssl_c);
         ssl_c = NULL;
@@ -13888,6 +13896,138 @@ int test_tls12_no_renegotiation_after_close_notify(void)
         wolfSSL_CTX_free(ctx_s);
         ctx_s = NULL;
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_refused_write_after_peek(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    /* The ticket leaves the positive WOLFSSL_ERROR_WANT_READ in ssl->error */
+    ExpectIntEQ(wolfSSL_peek(ssl_c, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_write(ssl_c, buf, (int)sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_no_key_update_after_close_notify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_RW_THREADED) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char readBuf[32];
+    char msg[] = "after close";
+    int s_len_before;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    if (ssl_c != NULL)
+        ssl_c->dtls13DoKeyUpdate = 1;
+    s_len_before = test_ctx.s_len;
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(test_ctx.s_len, s_len_before);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static int test_sni_warn_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    (void)ssl;
+    (void)arg;
+    *ad = unrecognized_name;
+    return warning_return;
+}
+#endif
+
+int test_tls13_sent_warning_error_alert_is_fatal(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "early";
+    int c_len_before;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, test_sni_warn_cb);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, "example.com",
+        (word16)XSTRLEN("example.com")), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.fatalAlert, 1);
+    c_len_before = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E));
+    ExpectIntEQ(test_ctx.c_len, c_len_before);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
