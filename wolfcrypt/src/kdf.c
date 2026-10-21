@@ -170,9 +170,17 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     #if FIPS_VERSION3_GE(7,0,0)
         /* The PRF secret is a (pre-)master secret, e.g. 256 bytes for a
          * 2048-bit DHE group, so it is covered by the TLS KDF validation
-         * (SP 800-135) rather than the standalone HMAC key-length range. */
-        ret = wc_HmacSetKey_ex(hmac, hash_type, secret, secLen,
-                               FIPS_ALLOW_SHORT);
+         * (SP 800-135) rather than the standalone HMAC key-length range.
+         * FIPS_ALLOW_SHORT lifts that cap but also the HMAC_FIPS_MIN_KEY
+         * floor, so keep the floor here. */
+        if (secLen < HMAC_FIPS_MIN_KEY) {
+            WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
+            ret = HMAC_MIN_KEYLEN_E;
+        }
+        else {
+            ret = wc_HmacSetKey_ex(hmac, hash_type, secret, secLen,
+                                   FIPS_ALLOW_SHORT);
+        }
     #else
         ret = wc_HmacSetKey(hmac, hash_type, secret, secLen);
     #endif
