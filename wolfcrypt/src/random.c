@@ -9548,6 +9548,12 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
     leaf = &tree.leaves[cpu * WC_RNG_TREE_LANES + lane];
     if (TreeTryLock(&leaf->busy) != 0)
         return BUSY_E;
+    /* Wiped after the check above (TreeWipeAll()): no state to generate from. */
+    if (!leaf->up) {
+        ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+        TreeUnlock(&leaf->busy);
+        return (ret != 0) ? ret : BAD_STATE_E;
+    }
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
     if (leaf->epoch != epoch || leaf->reseedCtr >= leaf->reseedAt) {
