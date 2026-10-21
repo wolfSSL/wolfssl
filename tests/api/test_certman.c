@@ -2648,6 +2648,34 @@ int test_wolfSSL_CRL_static_revoked_list(void)
         sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
 
     wolfSSL_CertManagerFree(cm);
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && defined(XSNPRINTF) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+    {
+        /* The compat layer walks the revoked list through next, so the static
+         * array has to be chained for every entry, not just the first. Before
+         * the fix get_REVOKED returned 1 entry and X509_CRL_print crashed. */
+        WOLFSSL_X509_CRL* crl = NULL;
+        WOLFSSL_BIO* bio = NULL;
+        char* out = NULL;
+
+        ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, crl_multi_revoked,
+            (int)sizeof(crl_multi_revoked)));
+        ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(
+            wolfSSL_X509_CRL_get_REVOKED(crl)), 3);
+
+        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_BIO_write(bio, "", 1), 1);
+        ExpectIntGT(wolfSSL_BIO_get_mem_data(bio, &out), 0);
+        ExpectNotNull(out ? XSTRSTR(out, "Serial Number: 1 (0x1)") : NULL);
+        ExpectNotNull(out ? XSTRSTR(out, "Serial Number: 2 (0x2)") : NULL);
+        ExpectNotNull(out ? XSTRSTR(out, "Serial Number: 5 (0x5)") : NULL);
+
+        wolfSSL_BIO_free(bio);
+        wolfSSL_X509_CRL_free(crl);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }
