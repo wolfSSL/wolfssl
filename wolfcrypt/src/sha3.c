@@ -3285,10 +3285,6 @@ static int KmacFinal(wc_Kmac* kmac, byte* out, word32 outLen, int xof)
             /* cSHAKE domain separation pad (0x04), then squeeze outLen. */
             ret = Sha3Final(&kmac->shake, 0x04, out, kmac->count, outLen);
         }
-        if (ret == 0) {
-            /* Keyed sponge is no longer needed (ISO/IEC 19790 7.9.7). */
-            wc_Sha3Wipe(&kmac->shake);
-        }
     }
     return ret;
 }
