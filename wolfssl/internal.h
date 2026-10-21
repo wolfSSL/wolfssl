@@ -7756,6 +7756,7 @@ WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
+WOLFSSL_LOCAL int IsWriteClosed(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
