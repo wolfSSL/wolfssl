@@ -4232,7 +4232,8 @@ int test_wolfSSL_session_chain_resume_declined(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     defined(HAVE_ECC) && !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY) && \
     !defined(WOLFSSL_ALLOW_NO_CN_IN_SAN) && \
-    ((!defined(WOLFSSL_NO_TLS12) && defined(HAVE_AESGCM)) || \
+    ((!defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)) || \
      (defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)))
 /* wolfSSL_clear() must drop the peer certificate key before the next handshake.
  *
@@ -4253,8 +4254,8 @@ static int test_clear_peer_cert_key_case(method_provider method_c,
     test_ctx.s_ciphers = cipher;
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         method_c, method_s), 0);
-    /* server-ecc.pem chains to the ECC CA. The default setup already trusts
-     * the RSA CA that signed svrCertFile. */
+    /* The ECC server certificate chains to the ECC CA. The default setup
+     * already trusts the RSA CA that signed svrCertFile. */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, 0),
         WOLFSSL_SUCCESS);
     wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
@@ -4284,9 +4285,9 @@ static int test_clear_peer_cert_key_case(method_provider method_c,
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, &ssl_s,
         method_c, method_s), 0);
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, eccCertFile,
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile,
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
@@ -4313,7 +4314,7 @@ int test_wolfSSL_clear_peer_cert_key(void)
     defined(HAVE_ECC) && !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY) && \
     !defined(WOLFSSL_ALLOW_NO_CN_IN_SAN)
 #ifndef WOLFSSL_NO_TLS12
-#ifdef HAVE_AESGCM
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
     ExpectIntEQ(test_clear_peer_cert_key_case(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method, "ECDHE-RSA-AES128-GCM-SHA256",
         NO_PEER_KEY), TEST_SUCCESS);

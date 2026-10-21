@@ -10071,23 +10071,61 @@ void FreeKeyExchange(WOLFSSL* ssl)
 #endif
 }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448))
+static void DetachPendingAsyncDev(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
+{
+    if (ssl == NULL || asyncDev == NULL)
+        return;
+
+    /* asyncDev is set when the event is queued. Init alone sets PENDING and
+     * leaves the event unlinked, so do not remove in that window. */
+    if (ssl->asyncDev == asyncDev) {
+        if (asyncDev->event.state == WOLF_EVENT_STATE_PENDING &&
+                ssl->ctx != NULL) {
+            (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
+                                        &asyncDev->event);
+        }
+        XMEMSET(&asyncDev->event, 0, sizeof(asyncDev->event));
+        ssl->asyncDev = NULL;
+    }
+}
+#endif
+
 /* Release the public key taken from the peer certificate. */
 void FreePeerCertKeys(WOLFSSL* ssl)
 {
     (void)ssl;
 #ifndef NO_RSA
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->peerRsaKey != NULL)
+        DetachPendingAsyncDev(ssl, &ssl->peerRsaKey->asyncDev);
+#endif
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
     ssl->peerRsaKeyPresent = 0;
 #endif
 #ifdef HAVE_ECC
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->peerEccDsaKey != NULL)
+        DetachPendingAsyncDev(ssl, &ssl->peerEccDsaKey->asyncDev);
+#endif
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->peerEd25519Key != NULL)
+        DetachPendingAsyncDev(ssl, &ssl->peerEd25519Key->asyncDev);
+#endif
     FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
     ssl->peerEd25519KeyPresent = 0;
 #endif /* HAVE_ED25519 */
 #ifdef HAVE_ED448
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->peerEd448Key != NULL)
+        DetachPendingAsyncDev(ssl, &ssl->peerEd448Key->asyncDev);
+#endif
     FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
     ssl->peerEd448KeyPresent = 0;
 #endif /* HAVE_ED448 */
