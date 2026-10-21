@@ -1638,7 +1638,8 @@ impl GCM {
 ///
 /// FIPS builds don't export `wc_AesGcmEncrypt()`, since it isn't approved
 /// there. They do the same with approved calls instead, as wolfSSL's
-/// `wc_compat.h` does for C callers.
+/// `wc_compat.h` does for C callers. As specified in:
+/// https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/wc_compat.h#L61-L64
 ///
 /// # Safety
 ///
