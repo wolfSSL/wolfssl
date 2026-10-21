@@ -908,15 +908,6 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
-        !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        ret = wc_DrbgState_MutexInit();
-        if (ret != 0) {
-            WOLFSSL_MSG("DRBG state mutex init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
-        }
-    #endif
     #ifdef WC_RNG_LOCK_ATFORK
         /* here, before the app has threads, so no fork can race it */
         ret = wc_ForkLockInit();
@@ -1344,12 +1335,6 @@ int wolfCrypt_Cleanup(void)
 
     #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
         wc_WinCryptHandleCleanup();
-    #endif
-
-    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
-        !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        wc_DrbgState_MutexFree();
     #endif
 
     #if defined(WOLFSSL_MEM_FAIL_COUNT) && defined(WOLFCRYPT_ONLY)

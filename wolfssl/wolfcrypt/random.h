@@ -890,6 +890,8 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 #define WC_RNG_INIT_FLAG_NO_PRIMARY_SEED (1U << 7)
 #define WC_RNG_INIT_FLAG_TEST_USER_SEED  (1U << 8)
 #define WC_RNG_INIT_FLAG_FAIL_FAST       (1U << 9)
+#define WC_RNG_INIT_FLAG_DRBG_SHA256     (1U << 10)
+#define WC_RNG_INIT_FLAG_DRBG_SHA512     (1U << 11)
 
 /* Codes from the seed source or the instance that mean "not now", not
  * "not ever": a caller that can wait may retry the instantiation, reseed or
@@ -1106,8 +1108,6 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
 
     /* Runtime DRBG disable/enable API */
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_API int wc_Sha256Drbg_Disable(void);
     WOLFSSL_API int wc_Sha256Drbg_Enable(void);
     WOLFSSL_API int wc_Sha256Drbg_IsDisabled(void);
@@ -1115,15 +1115,6 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     WOLFSSL_API int wc_Sha512Drbg_Disable(void);
     WOLFSSL_API int wc_Sha512Drbg_Enable(void);
     WOLFSSL_API int wc_Sha512Drbg_IsDisabled(void);
-#endif
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
-
-    /* DRBG state mutex init/free, called from wolfCrypt_Init/Cleanup.
-     * Only in v7+ or non-FIPS/non-selftest; older modules lack these. */
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    WOLFSSL_LOCAL int wc_DrbgState_MutexInit(void);
-    WOLFSSL_LOCAL int wc_DrbgState_MutexFree(void);
 #endif
 
 #endif /* HAVE_HASHDRBG */

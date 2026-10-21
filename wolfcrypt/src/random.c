@@ -613,100 +613,119 @@ static WARN_UNUSED_RESULT int Hash512_DRBG_Instantiate(
 static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg);
 #endif
 
-/* Runtime DRBG disable state.
- * These flags control which DRBG type is used for new WC_RNG instances and
- * may be toggled at runtime (e.g. NSA Suite 2.0 threads disable SHA-256).
- * A mutex protects the check-then-set in disable functions so concurrent
- * calls cannot bypass the mutual-exclusion guard and disable both DRBG types.
- * _InitRng also holds the mutex while reading the flags to get a consistent
- * snapshot, and returns BAD_STATE_E if both are somehow disabled. */
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+/* Runtime DRBG default flavor.  This facility provides control over which DRBG
+ * type is used for new WC_RNG instances; it may be switched at runtime
+ * (e.g. NSA Suite 2.0 threads disable SHA-256).  _InitRng's choice of DRBG is
+ * determined by getDrbgFlavorFlag() unless overridden by the flags argument,
+ */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256) && !defined(WOLFSSL_NO_SHA256_DRBG)
+    static wolfSSL_Atomic_Uint DrbgType_mask =
+        WOLFSSL_ATOMIC_INITIALIZER((1U << WC_DRBG_SHA256) |
+                                   (1U << WC_DRBG_SHA512));
+#elif defined(WOLFSSL_DRBG_SHA512)
+    static wolfSSL_Atomic_Uint DrbgType_mask =
+        WOLFSSL_ATOMIC_INITIALIZER(1U << WC_DRBG_SHA512);
+#elif defined(NO_SHA256) || defined(WOLFSSL_NO_SHA256_DRBG)
+    #error WOLFSSL_NO_SHA256_DRBG requires WOLFSSL_DRBG_SHA512.
+#else
+    static wolfSSL_Atomic_Uint DrbgType_mask =
+        WOLFSSL_ATOMIC_INITIALIZER(1U << WC_DRBG_SHA256);
+#endif
+
+static int getDrbgFlavorFlag(word32 *flags) {
+    WC_ATOMIC_UINT_ARG cur_DrbgType_mask = WOLFSSL_ATOMIC_LOAD(DrbgType_mask);
+    if (cur_DrbgType_mask & (1U << WC_DRBG_SHA512)) {
+        *flags = WC_RNG_INIT_FLAG_DRBG_SHA512;
+        return 0;
+    }
+    if (cur_DrbgType_mask & (1U << WC_DRBG_SHA256)) {
+        *flags = WC_RNG_INIT_FLAG_DRBG_SHA256;
+        return 0;
+    }
+    return BAD_STATE_E;
+}
+
 #ifndef NO_SHA256
-#ifdef WOLFSSL_NO_SHA256_DRBG
-static int sha256DrbgDisabled = 1;
-#else
-static int sha256DrbgDisabled = 0;
-#endif /* WOLFSSL_NO_SHA256_DRBG */
-#endif /* !NO_SHA256 */
+int wc_Sha256Drbg_Disable(void)
+{
 #ifdef WOLFSSL_DRBG_SHA512
-static int sha512DrbgDisabled = 0;
+    WC_ATOMIC_UINT_ARG cur_DrbgType_mask;
+    int ret;
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&DrbgType_mask, cur_DrbgType_mask, ret) {
+        if (! (cur_DrbgType_mask & (1U << WC_DRBG_SHA512)))
+            return BAD_STATE_E;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &DrbgType_mask, cur_DrbgType_mask,
+            cur_DrbgType_mask & ~(1U << WC_DRBG_SHA256), ret);
+    } WC_CAS_WITH_RETRY_END;
+    return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+int wc_Sha256Drbg_Enable(void)
+{
+    WC_ATOMIC_UINT_ARG cur_DrbgType_mask;
+    int ret;
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&DrbgType_mask, cur_DrbgType_mask, ret) {
+        if (cur_DrbgType_mask & (1U << WC_DRBG_SHA256))
+            return 0;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &DrbgType_mask, cur_DrbgType_mask,
+            cur_DrbgType_mask | (1U << WC_DRBG_SHA256), ret);
+    } WC_CAS_WITH_RETRY_END;
+    return ret;
+}
+
+int wc_Sha256Drbg_IsDisabled(void)
+{
+    return !(WOLFSSL_ATOMIC_LOAD(DrbgType_mask) & (1U << WC_DRBG_SHA256));
+}
+#else
+int wc_Sha256Drbg_Disable(void) { return NOT_COMPILED_IN; }
+int wc_Sha256Drbg_Enable(void) { return 0; }
+int wc_Sha256Drbg_IsDisabled(void) { return 1; } /* always disabled */
+#endif /* !NO_SHA256 */
+
+#ifdef WOLFSSL_DRBG_SHA512
+int wc_Sha512Drbg_Disable(void)
+{
+#ifndef NO_SHA256
+    WC_ATOMIC_UINT_ARG cur_DrbgType_mask;
+    int ret;
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&DrbgType_mask, cur_DrbgType_mask, ret) {
+        if (! (cur_DrbgType_mask & (1U << WC_DRBG_SHA256)))
+            return BAD_STATE_E;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &DrbgType_mask, cur_DrbgType_mask,
+            cur_DrbgType_mask & ~(1U << WC_DRBG_SHA512), ret);
+    } WC_CAS_WITH_RETRY_END;
+    return ret;
+#else
+    return NOT_COMPILED_IN;  /* can't disable both */
+#endif
+}
+
+int wc_Sha512Drbg_Enable(void)
+{
+    WC_ATOMIC_UINT_ARG cur_DrbgType_mask;
+    int ret;
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&DrbgType_mask, cur_DrbgType_mask, ret) {
+        if (cur_DrbgType_mask & (1U << WC_DRBG_SHA512))
+            return 0;
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &DrbgType_mask, cur_DrbgType_mask,
+            cur_DrbgType_mask | (1U << WC_DRBG_SHA512), ret);
+    } WC_CAS_WITH_RETRY_END;
+    return ret;
+}
+
+int wc_Sha512Drbg_IsDisabled(void)
+{
+    return !(WOLFSSL_ATOMIC_LOAD(DrbgType_mask) & (1U << WC_DRBG_SHA512));
+}
 #endif /* WOLFSSL_DRBG_SHA512 */
-
-
-#ifndef SINGLE_THREADED
-static wolfSSL_Mutex drbgStateMutex
-    WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-enum {
-    WC_DRBG_MUTEX_UNINITED,
-    WC_DRBG_MUTEX_INITED
-};
-/* Ports with no static mutex initializer must create drbgStateMutex at run
- * time, so its readiness is tracked here.
- *
- * wc_DrbgState_MutexInit and wc_DrbgState_MutexFree are called only from
- * wolfCrypt_Init() and wolfCrypt_Cleanup(), inside the span serialized by the
- * init-state machine, so this flag is not otherwise synchronized. */
-static int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
-#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
-#endif /* !defined(SINGLE_THREADED) */
-
-
-int wc_DrbgState_MutexInit(void)
-{
-#ifndef SINGLE_THREADED
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_UNINITED) {
-        int ret = wc_InitMutex(&drbgStateMutex);
-        if (ret != 0) {
-            /* flag left unchanged because mutex was not inited */
-            return ret;
-        }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
-    }
-
-#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
-#endif /* !defined(SINGLE_THREADED) */
-    return 0;
-}
-
-int wc_DrbgState_MutexFree(void)
-{
-#ifndef SINGLE_THREADED
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_INITED) {
-        int ret = wc_FreeMutex(&drbgStateMutex);
-        if (ret != 0) {
-            /* flag left unchanged because mutex was not freed */
-            return ret;
-        }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
-    }
-
-#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
-#endif /* !defined(SINGLE_THREADED) */
-    return 0;
-}
-
-static WARN_UNUSED_RESULT int LockDrbgState(void)
-{
-#ifndef SINGLE_THREADED
-    return wc_LockMutex(&drbgStateMutex);
-#else
-    return 0;
-#endif
-}
-
-static int UnlockDrbgState(void)
-{
-#ifndef SINGLE_THREADED
-    return wc_UnLockMutex(&drbgStateMutex);
-#else
-    return 0;
-#endif
-}
-
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #ifdef WC_RNG_LOCK_ATFORK
 /* The lock and its fork handlers live in wc_port.c, outside the FIPS module
@@ -3098,96 +3117,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
     return ret;
 }
-/* Runtime DRBG disable/enable API -- only available in non-selftest and
- * FIPS v7+ builds (older FIPS/selftest random.c doesn't have these) */
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-#ifndef NO_SHA256
-int wc_Sha256Drbg_Disable(void)
-{
-    int ret;
-#ifdef WOLFSSL_DRBG_SHA512
-    ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
-    if (sha512DrbgDisabled) {
-        UnlockDrbgState();
-        return BAD_STATE_E;  /* can't disable both */
-    }
-    sha256DrbgDisabled = 1;
-    UnlockDrbgState();
-    return 0;
-#else
-    (void)ret;
-    return NOT_COMPILED_IN;
-#endif
-}
-
-int wc_Sha256Drbg_Enable(void)
-{
-    int ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
-    sha256DrbgDisabled = 0;
-    UnlockDrbgState();
-    return 0;
-}
-
-int wc_Sha256Drbg_IsDisabled(void)
-{
-    int val;
-    if (LockDrbgState() != 0)
-        return 1; /* fail-safe: report disabled on mutex error */
-    val = sha256DrbgDisabled;
-    UnlockDrbgState();
-    return val;
-}
-#else
-/* When SHA-256 is not compiled in, these are stubs */
-int wc_Sha256Drbg_Disable(void) { return NOT_COMPILED_IN; }
-int wc_Sha256Drbg_Enable(void) { return 0; }
-int wc_Sha256Drbg_IsDisabled(void) { return 1; } /* always disabled */
-#endif /* !NO_SHA256 */
-
-#ifdef WOLFSSL_DRBG_SHA512
-int wc_Sha512Drbg_Disable(void)
-{
-    int ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
-#ifndef NO_SHA256
-    if (sha256DrbgDisabled) {
-        UnlockDrbgState();
-        return BAD_STATE_E;  /* can't disable both */
-    }
-#endif
-    sha512DrbgDisabled = 1;
-    UnlockDrbgState();
-    return 0;
-}
-
-int wc_Sha512Drbg_Enable(void)
-{
-    int ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
-    sha512DrbgDisabled = 0;
-    UnlockDrbgState();
-    return 0;
-}
-
-int wc_Sha512Drbg_IsDisabled(void)
-{
-    int val;
-    if (LockDrbgState() != 0)
-        return 1; /* fail-safe: report disabled on mutex error */
-    val = sha512DrbgDisabled;
-    UnlockDrbgState();
-    return val;
-}
-#endif /* WOLFSSL_DRBG_SHA512 */
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
-#else
+#else /* !HAVE_HASHDRBG */
     /* no Hash DRBG, so no lock for the backends to hold */
     #define RngAutoLockEnter(rng) 0
     #define RngAutoLockExit(rng)  WC_DO_NOTHING
@@ -3362,6 +3292,40 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         return BAD_FUNC_ARG;
     if ((userSeedSz > 0) && (seedRng != NULL))
         return BAD_FUNC_ARG;
+
+    if ((flags & (WC_RNG_INIT_FLAG_DRBG_SHA256 |
+                  WC_RNG_INIT_FLAG_DRBG_SHA512)) ==
+        (WC_RNG_INIT_FLAG_DRBG_SHA256 | WC_RNG_INIT_FLAG_DRBG_SHA512))
+    {
+        return BAD_FUNC_ARG;
+    }
+#ifdef NO_SHA256
+    if (flags & WC_RNG_INIT_FLAG_DRBG_SHA256)
+        return NOT_COMPILED_IN;
+#endif
+#ifndef WOLFSSL_DRBG_SHA512
+    if (flags & WC_RNG_INIT_FLAG_DRBG_SHA512)
+        return NOT_COMPILED_IN;
+#endif
+
+#ifdef HAVE_HASHDRBG
+    if (! (flags & (WC_RNG_INIT_FLAG_DRBG_SHA256 |
+                    WC_RNG_INIT_FLAG_DRBG_SHA512)))
+    {
+        word32 flavor_flag;
+        ret = getDrbgFlavorFlag(&flavor_flag);
+        if (ret < 0)
+            return ret;
+        flags |= flavor_flag;
+    }
+#else
+    if (flags & (WC_RNG_INIT_FLAG_DRBG_SHA256 |
+                 WC_RNG_INIT_FLAG_DRBG_SHA512))
+    {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
 #ifdef WC_RNG_HAVE_RBGC
   #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
     /* The global fallback RBGC seed source is forbidden as a parent, otherwise
@@ -3615,30 +3579,25 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
     rng->status = DRBG_NOT_INIT;
 
-    /* Select DRBG type: prefer SHA-512 unless disabled or not compiled.
-     * Hold the mutex for a consistent snapshot of both disable flags. */
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
+    /* Select DRBG type: prefer SHA-512 unless disabled or not compiled. */
     #ifdef WOLFSSL_DRBG_SHA512
-    if (!sha512DrbgDisabled)
-        rng->drbgType = WC_DRBG_SHA512;
-    else
-    #endif /* WOLFSSL_DRBG_SHA512 */
-    #ifndef NO_SHA256
-    if (!sha256DrbgDisabled)
-        rng->drbgType = WC_DRBG_SHA256;
-    else
-    #endif /* !NO_SHA256 */
+    if ((flags & WC_RNG_INIT_FLAG_DRBG_SHA512) ||
+        !(flags & WC_RNG_INIT_FLAG_DRBG_SHA256))
     {
-        UnlockDrbgState();
+        rng->drbgType = WC_DRBG_SHA512;
+    }
+    else
+    #endif
+    #ifndef NO_SHA256
+    {
+        rng->drbgType = WC_DRBG_SHA256;
+    }
+    #else /* NO_SHA256 */
+    {
         return BAD_STATE_E; /* no DRBG available */
     }
-    UnlockDrbgState();
-#else
-    rng->drbgType = WC_DRBG_SHA256;
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
+    #endif /* NO_SHA256 */
+
 #endif /* HAVE_HASHDRBG */
 
 #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND) || \
