@@ -108,6 +108,9 @@
     #undef WOLFSSL_PPC64_ASM
     #undef WOLFSSL_PPC32_ASM
     #undef WOLFSSL_RISCV_ASM
+    /* sp_int.h, reached through cryptocb.h, may define these for x86_64. */
+    #undef HAVE_INTEL_AVX1
+    #undef HAVE_INTEL_AVX2
 #endif
 
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */

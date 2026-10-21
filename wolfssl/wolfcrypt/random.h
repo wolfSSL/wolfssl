@@ -1167,6 +1167,10 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #ifdef WC_RNG_EXTRAS
         #error WC_RNG_TREE and WC_RNG_EXTRAS are alternatives.
     #endif
+    /* Direct RDRAND output would bypass the tree root. */
+    #ifdef HAVE_INTEL_RDRAND
+        #error WC_RNG_TREE cannot be used with HAVE_INTEL_RDRAND.
+    #endif
     #if defined(WC_RNG_HAVE_POOL) || defined(WC_RNG_HAVE_NEXT_SEED) || \
         defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_FREE_HOOK) || \
         defined(HAVE_WC_RNG_BANK)
