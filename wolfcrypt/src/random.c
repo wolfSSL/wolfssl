@@ -9033,12 +9033,6 @@ static int TreeDrbgResult(int ret)
     return TreeError(ret);
 }
 
-/* Any context, NMI included: it only sets the latch. */
-void wc_RNG_TreeCastFailed(void)
-{
-    TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
-}
-
 /* Next leaf reseed point: half the reseed interval, jittered by +/- 1/8 so
  * the schedule is not observable. */
 static void TreeSetReseedAt(TreeNode* leaf, const byte* jitter)
@@ -9142,6 +9136,17 @@ static int TreeRootStale(int epoch)
     return stale;
 }
 
+/* Uninstantiate a node (SP 800-90A 9.4); the caller holds it. */
+static int TreeWipeNode(TreeNode* node, int* up)
+{
+    int ret = 0;
+
+    if (*up && Hash512_DRBG_Uninstantiate(&node->drbg) != DRBG_SUCCESS)
+        ret = BAD_STATE_E;
+    *up = 0;
+    return ret;
+}
+
 /* Memory that did not zeroize is not handed back to the allocator. */
 static int TreeFreeLeaves(TreeNode* leaves, int count)
 {
@@ -9149,13 +9154,58 @@ static int TreeFreeLeaves(TreeNode* leaves, int count)
     int ret = 0;
 
     for (i = 0; i < count; i++) {
-        if (leaves[i].up &&
-                Hash512_DRBG_Uninstantiate(&leaves[i].drbg) != DRBG_SUCCESS)
+        if (TreeWipeNode(&leaves[i], &leaves[i].up) != 0)
             ret = BAD_STATE_E;
     }
     if (ret == 0)
         XFREE(leaves, tree.heap, DYNAMIC_TYPE_RNG);
     return ret;
+}
+
+/* Terminate every DRBG in the tree, the root first so a seeding or rebuild in
+ * flight draws nothing more from it (SP 800-90C 7.3.1 req 5). */
+static int TreeWipeAll(void)
+{
+    word32 i, count;
+    int ret;
+
+    TreeLockRoot();
+    ret = TreeWipeNode(&tree.root, &tree.rootUp);
+    TreeUnlock(&tree.root.busy);
+
+    count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
+    for (i = 0; i < count; i++) {
+        /* Leaf holders run one generate and never sleep. */
+        while (TreeTryLock(&tree.leaves[i].busy) != 0)
+            WC_RELAX_LONG_LOOP();
+        if (TreeWipeNode(&tree.leaves[i], &tree.leaves[i].up) != 0)
+            ret = BAD_STATE_E;
+        TreeUnlock(&tree.leaves[i].busy);
+    }
+    return ret;
+}
+
+/* With an error latched, no DRBG is left instantiated; a failed wipe wins. */
+static int TreeTerminateIfFailed(int ret)
+{
+    int fail = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    int wipe;
+
+    if (fail == 0)
+        return ret;
+    wipe = TreeWipeAll();
+    if (wipe != 0)
+        return wipe;
+    return (ret != 0) ? ret : fail;
+}
+
+/* The DRBG CAST runs only where waiting is allowed, never with a tree lock
+ * held, so the wipe can wait for each node's holder. */
+void wc_RNG_TreeCastFailed(void)
+{
+    TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
+    if (TreeWipeAll() != 0)
+        WOLFSSL_MSG("RNG tree: a DRBG did not zeroize");
 }
 
 /* Root: entropy and nonce from the entropy source. */
@@ -9290,10 +9340,7 @@ static int TreeDropRoot(void)
     while (TreeTryLock(&tree.seeding) != 0)
         WC_RELAX_LONG_LOOP();
     TreeLockRoot();
-    if (tree.rootUp &&
-            Hash512_DRBG_Uninstantiate(&tree.root.drbg) != DRBG_SUCCESS)
-        ret = BAD_STATE_E;
-    tree.rootUp = 0;
+    ret = TreeWipeNode(&tree.root, &tree.rootUp);
     TreeUnlock(&tree.root.busy);
     TreeUnlock(&tree.seeding);
 #ifdef WC_RNG_LOCK_ATFORK
@@ -9335,8 +9382,9 @@ void wc_RNG_TreeInvalidate(void)
     wolfSSL_Atomic_Int_FetchAdd(&tree.epoch, 1);
 }
 
-/* A latched CAST error is left by re-instantiating the root and every leaf
- * (SP 800-90A 11.4.2); the caller has seen the CAST pass.  Others stay. */
+/* A latched error leaves no DRBG instantiated.  A CAST error is left by
+ * re-instantiating the root and every leaf once the CAST passes (SP 800-90A
+ * 11.4.2); the others stay until reload. */
 int wc_RNG_TreeReseed(int force)
 {
     byte* seed = tree.seed;
@@ -9348,7 +9396,7 @@ int wc_RNG_TreeReseed(int force)
     /* Wait for another seeder; BUSY_E from here comes only from the source. */
     while (TreeTryLock(&tree.seeding) != 0)
         WC_RELAX_LONG_LOOP();
-    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    ret = TreeTerminateIfFailed(0);
 
     epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
     if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) {
@@ -9390,6 +9438,8 @@ int wc_RNG_TreeReseed(int force)
         ForceZero(seed, SEED_SZ + SEED_BLOCK_SZ);
     }
 
+    /* An error latched during this call, an RCT or APT gather included. */
+    ret = TreeTerminateIfFailed(ret);
     TreeUnlock(&tree.seeding);
     return ret;
 }
@@ -9522,6 +9572,10 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
         ret = TreeDrbgResult(Hash512_DRBG_Generate(&leaf->drbg,
                     &leaf->reseedCtr, out, sz, addl, addlSz));
     }
+    /* A leaf that fails wipes itself; the next reseed wipes the rest. */
+    if (ret == WC_NO_ERR_TRACE(RNG_FAILURE_E) &&
+            TreeWipeNode(leaf, &leaf->up) != 0)
+        ret = BAD_STATE_E;
 
     TreeUnlock(&leaf->busy);
     return ret;
