@@ -29645,6 +29645,170 @@ static wc_test_ret_t rng_init_flags_test(void)
 #define rng_init_flags_test() ((wc_test_ret_t)0)
 #endif /* WC_RNG_INIT_FLAG_USE_AUTO_LOCK */
 
+/* WC_RNG_INIT_FLAG_DRBG_SHA256 / WC_RNG_INIT_FLAG_DRBG_SHA512: per-instance
+ * Hash_DRBG flavor selection through the flags-bearing constructors, checked
+ * for the error and success codes each build owes, and -- where the instance
+ * carries DRBG state -- for the flavor actually instantiated, read straight
+ * off WC_RNG.drbgType.  The legacy process-wide selectors
+ * (wc_Sha{256,512}Drbg_{Disable,Enable}()) are covered in
+ * tests/api/test_random.c and are not exercised here; they are only read, to
+ * know what an unflagged instance should come out as.  random.[ch] are
+ * replaced wholesale in a FIPS bundle, so this is gated on the FIPS version
+ * that carries the flags. */
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_INTEL_RDRAND)
+    /* The instance has a DRBG behind it, so its flavor can be inspected. */
+    #define RNG_DRBG_FLAVOR_IS(r, t) ((r)->drbgType == (t))
+#else
+    /* No DRBG state in the instance; only the contract on the codes is
+     * checked.  The arguments are evaluated so the expectation computations
+     * above each check stay referenced. */
+    #define RNG_DRBG_FLAVOR_IS(r, t) ((void)(r), (void)(t), 1)
+#endif
+
+static wc_test_ret_t rng_drbg_flavor_flags_test(void)
+{
+    WC_RNG r;
+    byte b[16];
+    int ret;
+    const byte nonce[16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                             16 };
+
+    /* Naming both flavors contradicts itself, in every build. */
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
+                         WC_RNG_INIT_FLAG_DRBG_SHA256 |
+                         WC_RNG_INIT_FLAG_DRBG_SHA512);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+#ifdef HAVE_HASHDRBG
+
+    /* Explicit SHA-256: honored whenever SHA-256 is compiled in, including a
+     * WOLFSSL_NO_SHA256_DRBG build (which starts it disabled in the runtime
+     * setting but still builds it); refused only when the build lacks it. */
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA256);
+#ifdef NO_SHA256
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return WC_TEST_RET_ENC_EC(ret);
+#else
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!RNG_DRBG_FLAVOR_IS(&r, WC_DRBG_SHA256)) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b));
+    if (ret != 0) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* NO_SHA256 */
+
+    /* Explicit SHA-512: honored when WOLFSSL_DRBG_SHA512 is compiled in,
+     * refused otherwise. */
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA512);
+#ifdef WOLFSSL_DRBG_SHA512
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!RNG_DRBG_FLAVOR_IS(&r, WC_DRBG_SHA512)) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b));
+    if (ret != 0) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* The flag reaches the nonce constructor too. */
+    ret = wc_InitRngNonce_ex2(&r, nonce, (word32)sizeof(nonce), NULL, 0,
+                              HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA512);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!RNG_DRBG_FLAVOR_IS(&r, WC_DRBG_SHA512)) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#else
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* WOLFSSL_DRBG_SHA512 */
+
+#ifndef NO_SHA256
+    /* And the nonce constructor with the other flavor. */
+    ret = wc_InitRngNonce_ex2(&r, nonce, (word32)sizeof(nonce), NULL, 0,
+                              HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA256);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!RNG_DRBG_FLAVOR_IS(&r, WC_DRBG_SHA256)) {
+        (void)wc_FreeRng(&r);
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif
+
+    /* No flavor flag: the instance follows the process-wide runtime setting,
+     * SHA-512 where it is compiled in and currently enabled, SHA-256
+     * otherwise.  The setting is only read here, never changed. */
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_NONE);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    {
+        int expect_sha512 = 0;
+#ifdef WOLFSSL_DRBG_SHA512
+        expect_sha512 = !wc_Sha512Drbg_IsDisabled();
+#endif
+        if (!RNG_DRBG_FLAVOR_IS(&r, expect_sha512 ? WC_DRBG_SHA512
+                                                  : WC_DRBG_SHA256)) {
+            (void)wc_FreeRng(&r);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#else /* !HAVE_HASHDRBG */
+
+    /* No DRBG at all: a flavor flag names a facility the build has not got,
+     * and no flag is the unchanged pre-flags path. */
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA256);
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_DRBG_SHA512);
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_NONE);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_FreeRng(&r);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    (void)b;
+    (void)nonce;
+
+#endif /* HAVE_HASHDRBG */
+
+    return 0;
+}
+#undef RNG_DRBG_FLAVOR_IS
+#else
+#define rng_drbg_flavor_flags_test() ((wc_test_ret_t)0)
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
+
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
 
@@ -29951,6 +30115,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     if (ret != 0)
         return ret;
     ret = rng_init_flags_test();
+    if (ret != 0)
+        return ret;
+    ret = rng_drbg_flavor_flags_test();
     if (ret != 0)
         return ret;
 
@@ -30649,6 +30816,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         if (r != 0)
             return r;
         r = rng_init_flags_test();
+        if (r != 0)
+            return r;
+        r = rng_drbg_flavor_flags_test();
         if (r != 0)
             return r;
     }
