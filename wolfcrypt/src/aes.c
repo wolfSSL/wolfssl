@@ -6185,9 +6185,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
             if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 if (cbRet == 0) {
-                    /* Callback succeeded - the device owns the key. rounds is
-                     * left at 0: there is no software key schedule, and the
-                     * XTS entry points use that to reject the context. */
+                    /* Callback succeeded - the device owns the key. */
                     aes->keylen = (int)keylen;
                     *devOwned = 1;
                     if (iv != NULL)
