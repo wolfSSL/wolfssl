@@ -94,8 +94,9 @@
 
 /***** Setup for RNG extra features *****/
 
-/* FIPS v7 and ready without the RNG extras, the lock aside: service 3.45
- * (wc_RNG_DRBG_Reseed) is the only API that feeds caller bytes into a DRBG. */
+/* By design: FIPS v7 and ready without the RNG extras take no caller seed.
+ * Service 3.45 (wc_RNG_DRBG_Reseed) takes caller bytes as additional input.
+ * SP 800-90A r1 9.1, 9.2; FIPS 140-3 IG 9.3.A */
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
     !defined(WOLFSSL_FIPS_DEV) && \
     !defined(WC_RNG_EXTRAS) && \
@@ -1174,6 +1175,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_FIPS_DEV) && \
         !defined(WC_SHA512_C_ONLY)
         #error Kernel WC_RNG_TREE builds need WC_SHA512_C_ONLY.
+    #endif
+    /* Without the cache a DRBG generate can fail an allocation, and a tree
+     * DRBG failure is final. */
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        #error Small-stack WC_RNG_TREE builds need WOLFSSL_SMALL_STACK_CACHE.
     #endif
     #define WC_RNG_TREE_LANE_TASK    0
     #define WC_RNG_TREE_LANE_SOFTIRQ 1

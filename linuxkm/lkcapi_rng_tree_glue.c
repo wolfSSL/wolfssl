@@ -228,7 +228,9 @@ static int RngTfmGenerate(struct crypto_rng* tfm, const u8* src,
     return RngGetBytesAddl(src, slen, dst, dlen, 1);
 }
 
-/* Only the root's entropy source seeds the tree. */
+/* By design: seed bytes are refused, never used; only the root's entropy
+ * source seeds the tree. The kernel's default RNG reset passes 0 bytes.
+ * SP 800-90A r1 9.2; crypto/rng.c crypto_rng_reset() */
 static int RngTfmSeed(struct crypto_rng* tfm, const u8* seed,
                       unsigned int slen)
 {

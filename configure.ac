@@ -10324,6 +10324,14 @@ if test "x$ENABLED_SMALL_STACK" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
 fi
+# The tree's DRBGs must not allocate per generate (random.h).
+if test "$ENABLED_RNG_TREE" = "yes" && test "x$ENABLED_SMALL_STACK" = "xyes" &&
+   test "x$ENABLED_SMALL_STACK_CACHE" != "xyes" &&
+   test "x$enable_smallstackcache" = "x"
+then
+    ENABLED_SMALL_STACK_CACHE=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
+fi
 
 
 #valgrind

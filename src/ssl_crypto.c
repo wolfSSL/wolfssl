@@ -4259,6 +4259,18 @@ int wolfSSL_RAND_poll(void)
         ret = WOLFSSL_FAILURE;
     }
 
+  #elif defined(WC_RNG_NO_CALLER_SEED_APIS)
+
+    /* Service 3.45 reseeds from the module's own entropy source; nothing is
+     * gathered here. */
+    if (wc_RNG_DRBG_Reseed(&globalRNG, NULL, 0) == 0) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+        WOLFSSL_MSG("Error reseeding DRBG");
+        ret = WOLFSSL_FAILURE;
+    }
+
   #else /* !WC_RNG_HAVE_RESEED_NOW: random.h predates wc_RNG_DRBG_Reseed_Now() */
 
     {
