@@ -3832,6 +3832,21 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     return wc_RsaFunction_ex(in, inLen, out, outLen, type, key, rng, 1);
 }
 
+#if !defined(WOLFSSL_NO_RSA_SW_PAD) || defined(WC_RSA_PSS)
+/* Modulus bits, from the device's size in bytes for a key it holds. */
+static int RsaModulusBits(const RsaKey* key)
+{
+    int bits = mp_count_bits(&key->n);
+
+    if (bits == 0) {
+        bits = wc_RsaEncryptSize(key);
+        bits = (bits > 0) ? bits * WOLFSSL_BIT_SIZE : 0;
+    }
+
+    return bits;
+}
+#endif
+
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 /* Internal Wrappers */
 /* Gives the option of choosing padding type
@@ -4026,7 +4041,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         key->state = RSA_STATE_ENCRYPT_PAD;
         ret = wc_RsaPad_ex(in, inLen, out, (word32)sz, pad_value, rng, pad_type,
                            hash, mgf, label, labelSz, saltLen,
-                           mp_count_bits(&key->n), key->heap);
+                           RsaModulusBits(key), key->heap);
         if (ret < 0) {
             break;
         }
@@ -4306,11 +4321,11 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
     !defined(WOLFSSL_NO_MALLOC)
         ret = wc_RsaUnPad_ex(key->data,
             key->dataLen, &pad, pad_value, pad_type, hash, mgf,
-            label, labelSz, saltLen, mp_count_bits(&key->n), key->heap);
+            label, labelSz, saltLen, RsaModulusBits(key), key->heap);
 #else
         ret = wc_RsaUnPad_ex(out,
             key->dataLen, &pad, pad_value, pad_type, hash, mgf, label,
-            labelSz, saltLen, mp_count_bits(&key->n), key->heap);
+            labelSz, saltLen, RsaModulusBits(key), key->heap);
 #endif
         if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen) {
             ret = RSA_BUFFER_E;
@@ -4964,7 +4979,7 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
             return BAD_FUNC_ARG;
         }
         /* See FIPS 186-4 section 5.5 item (e). */
-        bits = mp_count_bits(&key->n);
+        bits = RsaModulusBits(key);
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
@@ -5046,7 +5061,7 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
             return BAD_FUNC_ARG;
         }
         /* See FIPS 186-4 section 5.5 item (e). */
-        bits = mp_count_bits(&key->n);
+        bits = RsaModulusBits(key);
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif

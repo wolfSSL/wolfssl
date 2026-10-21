@@ -653,6 +653,147 @@ int test_wc_RsaPSS_VerifyCheck(void)
     return EXPECT_RESULT();
 } /* END  test_wc_RsaPSS_VerifyCheck */
 
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512) && \
+    (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (defined(USE_CERT_BUFFERS_1024) || !defined(NO_FILESYSTEM))
+    #define TEST_RSA_ID_PSS
+#endif
+
+#if !defined(NO_RSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && defined(USE_CERT_BUFFERS_2048) && \
+    (defined(WC_RSA_NO_PADDING) || defined(TEST_RSA_ID_PSS)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV)) && \
+    !defined(WOLFSSL_NO_RSA_SW)
+#define TEST_RSA_ID_CB
+#define TEST_RSA_ID_DEVID 0x52534149 /* "RSAI" */
+
+typedef struct {
+    RsaKey* key;   /* the key the device holds */
+    int     calls; /* RSA operations done by the device */
+} RsaIdCbCtx;
+
+/* A device holding one RSA key: it does the raw operation and reports the
+ * key size, and declines the rest. */
+static int test_rsa_id_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    RsaIdCbCtx* dev = (RsaIdCbCtx*)ctx;
+
+    (void)devId;
+
+    if ((info == NULL) || (info->algo_type != WC_ALGO_TYPE_PK)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type == WC_PK_TYPE_RSA) {
+        dev->calls++;
+        return wc_RsaFunction(info->pk.rsa.in, info->pk.rsa.inLen,
+            info->pk.rsa.out, info->pk.rsa.outLen, info->pk.rsa.type,
+            dev->key, info->pk.rsa.rng);
+    }
+    if (info->pk.type == WC_PK_TYPE_RSA_GET_SIZE) {
+        *info->pk.rsa_get_size.keySize = wc_RsaEncryptSize(dev->key);
+        return 0;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#endif
+
+/* Padding with a key named by id takes the modulus size from the device. */
+int test_wc_RsaId_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_ID_CB
+    RsaKey     devKey;
+    RsaKey     key;
+    WC_RNG     rng;
+    RsaIdCbCtx dev;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+#ifdef WC_RSA_NO_PADDING
+    byte       in[256];
+#endif
+    byte       out[256];
+    byte       dec[256];
+    word32     idx = 0;
+#ifdef TEST_RSA_ID_PSS
+    byte       hash[WC_SHA512_DIGEST_SIZE];
+    int        sigSz = 0;
+#ifdef USE_CERT_BUFFERS_1024
+    const byte* keyDer = client_key_der_1024;
+    word32     keyDerSz = (word32)sizeof_client_key_der_1024;
+#else
+    byte       keyDer[ONEK_BUF];
+    word32     keyDerSz = 0;
+    XFILE      fp = XBADFILE;
+#endif
+#endif
+
+    XMEMSET(&devKey, 0, sizeof(devKey));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&dev, 0, sizeof(dev));
+#ifdef WC_RSA_NO_PADDING
+    XMEMSET(in, 0x11, sizeof(in));
+    in[0] = 0x00; /* keep the value below the modulus */
+#endif
+    dev.key = &devKey;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitRsaKey(&devKey, HEAP_HINT), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &devKey,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&devKey, &rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_RSA_ID_DEVID, test_rsa_id_cb,
+        &dev), 0);
+    ExpectIntEQ(wc_InitRsaKey_Id(&key, (byte*)id, (int)sizeof(id), HEAP_HINT,
+        TEST_RSA_ID_DEVID), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+
+#ifdef WC_RSA_NO_PADDING
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out), &key,
+        &rng, WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0),
+        (int)sizeof(in));
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(out, sizeof(out), dec, sizeof(dec),
+        &key, WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0),
+        (int)sizeof(in));
+    ExpectBufEQ(dec, in, sizeof(in));
+    ExpectIntEQ(wc_RsaSSL_Verify_ex(out, sizeof(out), dec, sizeof(dec), &key,
+        WC_RSA_NO_PAD), (int)sizeof(in));
+    ExpectIntEQ(dev.calls, 3);
+#endif
+
+#ifdef TEST_RSA_ID_PSS
+    /* A 1024-bit key with SHA-512 has its own default salt length. */
+#ifndef USE_CERT_BUFFERS_1024
+    ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+        XBADFILE);
+    ExpectIntGT(keyDerSz = (word32)XFREAD(keyDer, 1, sizeof(keyDer), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+    wc_FreeRsaKey(&devKey);
+    ExpectIntEQ(wc_InitRsaKey(&devKey, HEAP_HINT), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(keyDer, &idx, &devKey, keyDerSz), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&devKey, &rng), 0);
+    XMEMSET(hash, 0x5A, sizeof(hash));
+    ExpectIntGT(sigSz = wc_RsaPSS_Sign(hash, sizeof(hash), out, sizeof(out),
+        WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &key, &rng), 0);
+    ExpectIntGT(wc_RsaPSS_VerifyCheck(out, (word32)sigSz, dec, sizeof(dec),
+        hash, sizeof(hash), WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &devKey), 0);
+    ExpectIntGT(wc_RsaPSS_VerifyCheck(out, (word32)sigSz, dec, sizeof(dec),
+        hash, sizeof(hash), WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &key), 0);
+#endif
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRsaKey(&devKey), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_RSA_ID_DEVID);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaId_CryptoCb */
+
 /*
  * Testing wc_RsaPSS_VerifyCheckInline()
  */
