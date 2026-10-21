@@ -704,9 +704,24 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     #ifdef WOLF_CRYPTO_CB
         int devId = hmac->devId;
     #endif
+    #ifdef WOLF_PRIVATE_KEY_ID
+        byte id[HMAC_MAX_ID_LEN];
+        int idLen = hmac->idLen;
+        char label[HMAC_MAX_LABEL_LEN];
+        int labelLen = hmac->labelLen;
+
+        XMEMCPY(id, hmac->id, sizeof(id));
+        XMEMCPY(label, hmac->label, sizeof(label));
+    #endif
         wc_HmacFree(hmac);
     #ifdef WOLF_CRYPTO_CB
         hmac->devId = devId;
+    #endif
+    #ifdef WOLF_PRIVATE_KEY_ID
+        XMEMCPY(hmac->id, id, sizeof(id));
+        hmac->idLen = idLen;
+        XMEMCPY(hmac->label, label, sizeof(label));
+        hmac->labelLen = labelLen;
     #endif
     }
 #endif
@@ -1156,6 +1171,15 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     return wc_HmacSetKey_ex(hmac, type, key, length, allowFlag);
 }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+/* A key named by id or label has no key bytes for software to use. */
+static int HmacKeyNotInSoftware(const Hmac* hmac)
+{
+    return ((hmac->idLen > 0) || (hmac->labelLen > 0)) &&
+           (hmac->keyRaw == NULL);
+}
+#endif
+
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
@@ -1174,6 +1198,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
             return ret;
         /* fall-through when unavailable */
     }
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (HmacKeyNotInSoftware(hmac))
+        return MISSING_KEY;
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
@@ -1310,6 +1338,10 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             return ret;
         /* fall-through when unavailable */
     }
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (HmacKeyNotInSoftware(hmac))
+        return MISSING_KEY;
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {

@@ -1121,6 +1121,150 @@ int test_wc_HmacFree_CryptoCb(void)
     return EXPECT_RESULT();
 } /* END test_wc_HmacFree_CryptoCb */
 
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_KCAPI)
+typedef struct {
+    int calls;   /* HMAC callbacks seen */
+    int idLen;   /* idLen of the Hmac in the last callback */
+    int ret;     /* what the callback returns */
+} HmacIdCbCtx;
+
+static int test_hmac_id_cb(int cbDevId, wc_CryptoInfo* info, void* ctx)
+{
+    HmacIdCbCtx* seen = (HmacIdCbCtx*)ctx;
+
+    (void)cbDevId;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_HMAC)) {
+        seen->calls++;
+        seen->idLen = info->hmac.hmac->idLen;
+        if ((seen->ret == 0) && (info->hmac.digest != NULL)) {
+            XMEMSET(info->hmac.digest, 0x5A, WC_SHA256_DIGEST_SIZE);
+        }
+        return seen->ret;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/* An Hmac named by id keeps its id when keyed again, and is not computed in
+ * software with an empty key when the device declines. */
+int test_wc_HmacId_CryptoCb(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_KCAPI)
+    Hmac hmac;
+    HmacIdCbCtx seen;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte msg[] = "hmac message";
+    byte mac[WC_SHA256_DIGEST_SIZE];
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_HMAC_CRYPTOCB_DEVID,
+        test_hmac_id_cb, &seen), 0);
+
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, id, (int)sizeof(id), NULL,
+        TEST_HMAC_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), 0);
+    ExpectIntEQ(seen.calls, 2);
+    ExpectIntEQ(seen.idLen, (int)sizeof(id));
+
+    seen.idLen = 0;
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(seen.calls, 3);
+    ExpectIntEQ(seen.idLen, (int)sizeof(id));
+
+    seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(seen.calls, 5);
+    wc_HmacFree(&hmac);
+
+    ExpectIntEQ(wc_HmacInit_Label(&hmac, "hmac-key", NULL,
+        TEST_HMAC_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(hmac.labelLen, (int)XSTRLEN("hmac-key"));
+    ExpectIntEQ(XMEMCMP(hmac.label, "hmac-key", XSTRLEN("hmac-key")), 0);
+    wc_HmacFree(&hmac);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_HMAC_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacId_CryptoCb */
+
+/* An Hmac named by id uses key bytes set in software, and fails without them
+ * when no device takes it. */
+int test_wc_HmacId_NoDevice(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(WOLFSSL_KCAPI)
+    Hmac hmac;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte key[] = "hmac key";
+    byte msg[] = "hmac message";
+    byte mac[WC_SHA256_DIGEST_SIZE];
+    byte expMac[WC_SHA256_DIGEST_SIZE];
+    byte* bigKey = NULL;
+    word32 bigKeySz = 0x10000;
+
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, expMac), 0);
+    wc_HmacFree(&hmac);
+
+    /* Key bytes given in software are used even when the key has an id. */
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), 0);
+    ExpectBufEQ(mac, expMac, sizeof(mac));
+    wc_HmacFree(&hmac);
+
+    /* The stored key length keeps only 16 bits, so 64 KiB reads as 0. */
+    ExpectNotNull(bigKey = (byte*)XMALLOC(bigKeySz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (bigKey != NULL) {
+        XMEMSET(bigKey, 0x5a, bigKeySz);
+    }
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, bigKey, bigKeySz), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, expMac), 0);
+    wc_HmacFree(&hmac);
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, bigKey, bigKeySz), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), 0);
+    ExpectBufEQ(mac, expMac, sizeof(mac));
+    wc_HmacFree(&hmac);
+    XFREE(bigKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+#ifdef WOLF_CRYPTO_CB
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, 0), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), WC_NO_ERR_TRACE(MISSING_KEY));
+    wc_HmacFree(&hmac);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HmacId_NoDevice */
+
 /*
  * MC/DC: wc_HKDF_Extract_ex()/wc_HKDF_Expand_ex() share the guard shape
  * (out == NULL || (inKey == NULL && inKeySz > 0)) at two physical

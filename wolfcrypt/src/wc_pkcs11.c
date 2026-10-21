@@ -6122,10 +6122,11 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0 && !hmac->innerHashKeyed) {
         WOLFSSL_MSG("PKCS#11: HMAC Init");
 
-        /* Check device supports key length. */
-        if (mechInfo.ulMaxKeySize > 0 &&
-                                       (hmac->keyLen < mechInfo.ulMinKeySize ||
-                                        hmac->keyLen > mechInfo.ulMaxKeySize)) {
+        /* Check device supports key length. A token key has no keyLen. */
+        if (mechInfo.ulMaxKeySize > 0 && hmac->idLen == 0 &&
+                hmac->labelLen == 0 &&
+                (hmac->keyLen < mechInfo.ulMinKeySize ||
+                 hmac->keyLen > mechInfo.ulMaxKeySize)) {
             WOLFSSL_MSG("PKCS#11: Key Length not supported");
             ret = NOT_COMPILED_IN;
         }
