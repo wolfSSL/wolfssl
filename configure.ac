@@ -5250,6 +5250,18 @@ AC_ARG_ENABLE([intelasm],
     [ ENABLED_INTELASM=no ]
     )
 
+if test "$ENABLED_INTELASM" != "no" || test "$ENABLED_AESNI" != "no" ||
+   test "$ENABLED_AESNI_WITH_AVX" != "no"
+then
+    case "$host_cpu" in
+    x86_64* | amd64 | x86 | i?86)
+        ;;
+    *)
+        AC_MSG_ERROR([--enable-intelasm and --enable-aesni need an x86 or x86_64 host, not $host_cpu. Use --enable-all-asm to pick the assembly for the host.])
+        ;;
+    esac
+fi
+
 if test "$ENABLED_ASM" = "yes"
 then
     if test "$ENABLED_AESNI" = "small"
