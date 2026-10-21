@@ -854,11 +854,18 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
-        #ifndef WOLFSSL_X25519_NO_MASK_PEER
-            /* RFC 7748 section 5: clear the reserved top bit of the
-             * u-coordinate, which curve25519_nb() does not do. Masking the
-             * stored point is idempotent, so resuming this state is safe. */
-            pubKey->p.point[CURVE25519_KEYSIZE-1] &= 0x7f;
+        {
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const byte* pubVal = pubKey->p.point;
+        #else
+            /* RFC 7748 section 5: curve25519_nb() does not clear the reserved
+             * top bit, so pass a masked copy. curve25519_nb() reads the point
+             * on every resumption but never keeps the pointer, so rebuilding
+             * the copy each call is equivalent. */
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            XMEMCPY(pubVal, pubKey->p.point, CURVE25519_KEYSIZE);
+            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
         #endif
             /* Write the result directly into the caller's 'out' buffer.
              * curve25519_nb() zeroes the non-blocking context on completion,
@@ -866,13 +873,13 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
              * nb_ctx->o.point) would be clobbered to zero before we could
              * read it. The output is little-endian; case 2 handles the
              * optional byte-reversal for EC25519_BIG_ENDIAN. */
-            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
-                      privKey->nb_ctx);
+            ret = curve25519_nb(out, privKey->k, pubVal, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
             }
             break;
+        }
         case 2:
         #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
@@ -989,9 +996,20 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         XMEMSET(&o, 0, sizeof(o));
 
 #ifdef FREESCALE_LTC_ECC
-        /* input point P on Curve25519 */
-        ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
-            kLTC_Curve25519);
+        {
+            /* input point P on Curve25519 */
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const ECPoint* pub = &public_key->p;
+        #else
+            ECPoint pubMasked;
+            const ECPoint* pub = &pubMasked;
+
+            XMEMCPY(&pubMasked, &public_key->p, sizeof(pubMasked));
+            pubMasked.point[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
+            ret = nxp_ltc_curve25519(&o, private_key->k, pub,
+                kLTC_Curve25519);
+        }
 #else
     #ifdef WOLFSSL_SE050
         if (!private_key->privSet) {
@@ -1001,22 +1019,24 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         else
     #endif /* WOLFSSL_SE050 */
         {
-        #ifndef WOLFSSL_X25519_NO_MASK_PEER
-            /* RFC 7748 section 5: clear the reserved top bit of the
-             * u-coordinate; the masked value is the same point, so mask
-             * the stored key rather than a copy of it. */
-            public_key->p.point[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            byte* pubVal = public_key->p.point;
+        #else
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            XMEMCPY(pubVal, public_key->p.point, CURVE25519_KEYSIZE);
+            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
         #endif
 
 #ifndef WOLFSSL_CURVE25519_BLINDING
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-            ret = curve25519(o.point, private_key->k, public_key->p.point);
+            ret = curve25519(o.point, private_key->k, pubVal);
 
             RESTORE_VECTOR_REGISTERS();
 #else
-            ret = curve25519_smul_blind(o.point, private_key->k,
-                      public_key->p.point, private_key->rng);
+            ret = curve25519_smul_blind(o.point, private_key->k, pubVal,
+                      private_key->rng);
 #endif
         }
 #endif /* FREESCALE_LTC_ECC */
