@@ -32439,6 +32439,7 @@ static wc_test_ret_t rng_tree_fork_test(void)
     int seedRet = 0;
     int status = 0;
     int cb;
+    int i;
     pid_t pid;
 
     rng_tree_fork_parent = getpid();
@@ -32451,8 +32452,18 @@ static wc_test_ret_t rng_tree_fork_test(void)
         ret = WC_TEST_RET_ENC_NC;
         goto out;
     }
-    while (!WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering) &&
-           nanosleep(&d, NULL) == 0) {
+    /* A seeder that has not gathered within 10 s failed first. */
+    for (i = 0; i < 10000 && !WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering);
+         i++) {
+        if (nanosleep(&d, NULL) != 0)
+            break;
+    }
+    if (!WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering)) {
+        if (wolfSSL_JoinThread(seeder) != 0 || seedRet == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else
+            ret = WC_TEST_RET_ENC_EC(seedRet);
+        goto out;
     }
 
     pid = fork();
