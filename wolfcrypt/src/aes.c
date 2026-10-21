@@ -9349,7 +9349,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (aes->devId != INVALID_DEVID)
     #endif
     {
-        /* No schedule: a device claimed the key or the set-key failed. */
+        /* A claimed or failed key has no schedule to derive H from. */
         if ((ret != 0) || (aes->rounds == 0)) {
             WC_AES_GCM_WIPE_H(aes);
         #ifdef WOLFSSL_IMX6_CAAM_BLOB
@@ -15280,7 +15280,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
         }
 
         if ((iv != NULL) && (!aes->gcmKeySet)) {
-            /* No GCM key yet: keep the IV cached for a later call. */
+            /* The IV stays cached until a GCM key is set. */
             aes->nonceSet = 0;
         }
         else if (iv != NULL) {

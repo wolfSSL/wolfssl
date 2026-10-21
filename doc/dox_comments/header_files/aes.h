@@ -353,6 +353,13 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     given key. It is only enabled if the configure option
     HAVE_AESGCM is enabled at compile time.
 
+    A new key drops the streaming state, so wc_AesGcmInit() must be called
+    again before wc_AesGcmEncryptUpdate() or wc_AesGcmDecryptUpdate(),
+    which return MISSING_IV until then. A nonce cached with
+    wc_AesGcmSetIV() or wc_AesGcmSetExtIV() is kept. If a crypto callback
+    device claims the key without a software key schedule, the streaming
+    API returns MISSING_KEY.
+
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
 

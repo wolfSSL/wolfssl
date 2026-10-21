@@ -254,13 +254,16 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 
     If the callback returns success (0), the device owns the key. A callback
     that keeps the key only on the device must leave aes->rounds at 0:
-    wolfCrypt takes a non-zero aes->rounds to mean the callback also wrote a
-    software key schedule into aes->key. Without one, wolfCrypt keeps no copy
+    wolfCrypt takes a non-zero aes->rounds to mean the callback also built a
+    software key schedule, by calling wc_AesSetKey() on the same object with
+    aes->devId set to INVALID_DEVID. Without one, wolfCrypt keeps no copy
     in devKey and derives no GCM hash subkey or tables, so the callback must
     handle SetKey, Encrypt, Decrypt, and Free. The streaming GCM API then
     returns MISSING_KEY, and so does a mode the callback declines when
     WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default). The same applies
-    to a WOLF_CRYPTO_CB_SETKEY callback for WC_SETKEY_AES.
+    to a WOLF_CRYPTO_CB_SETKEY callback for WC_SETKEY_AES. Only that request
+    carries the key direction, so only such a callback can build a software
+    key schedule.
 
     A callback that returns CRYPTOCB_UNAVAILABLE for a new key must first
     release any key it holds for this object and set aes->devCtx to NULL.

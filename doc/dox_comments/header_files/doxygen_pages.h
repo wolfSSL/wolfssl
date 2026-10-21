@@ -89,9 +89,12 @@
       builds a mode the callback declines returns MISSING_KEY, as does
       streaming AES-GCM
 
-    A callback that sets aes->rounds must also write a valid key schedule
-    into aes->key, since wolfSSL then treats the key as a software key as
-    well.
+    A callback that sets aes->rounds must also build a software key
+    schedule, since wolfSSL then treats the key as a software key as well.
+    It does so by calling wc_AesSetKey() on the same object with
+    aes->devId set to INVALID_DEVID. This request carries no key direction,
+    so only a WOLF_CRYPTO_CB_SETKEY callback, which is given one, can build
+    it.
 
     **If callback returns CRYPTOCB_UNAVAILABLE:**
     - SE doesn't support key import
