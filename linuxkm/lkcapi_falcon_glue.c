@@ -100,7 +100,7 @@
  * name. */
 #define WOLFKM_FALCON_DRIVER_SUFFIX WOLFKM_DRIVER_SUFFIX_BASE
 
-#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
     /* As with ecdsa, eddsa, and mldsa, the Falcon algs are registered
      * as struct sig_alg on linux 6.13+, and as verify/sign-capable
      * struct akcipher_alg on earlier kernels.
@@ -927,8 +927,8 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
 
     tfm = crypto_alloc_sig(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating sig algorithm %s failed: %ld\n",
-               driver, PTR_ERR(tfm));
+        pr_err("error: allocating sig algorithm %s failed: %d\n",
+               driver, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_falcon_end;
     }
@@ -954,9 +954,9 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     }
     /* a short dst must be rejected with -EOVERFLOW. */
     ret = crypto_sig_sign(tfm, msg, msg_len, sig_buf, sig_len - 1);
-    if (ret != -EOVERFLOW) {
+    if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
         pr_err("error: crypto_sig_sign (short dst) returned %d, "
-               "expected %d\n", ret, -EOVERFLOW);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EOVERFLOW));
         goto test_falcon_end;
     }
     /* regenerate a good signature clobbered by the short-dst check
@@ -1018,31 +1018,31 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     /* a corrupted signature must be rejected with -EBADMSG. */
     sig_buf[sig_len / 2] ^= 1;
     ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (corrupted) returned %d, "
-               "expected %d\n", ret, -EBADMSG);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
     sig_buf[sig_len / 2] ^= 1;
     /* a short signature must be rejected with -EBADMSG. */
     ret = crypto_sig_verify(tfm, sig_buf, sig_len - 1, msg, msg_len);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_sig_verify (short sig) returned %d, "
-               "expected %d\n", ret, -EBADMSG);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
     /* a rejected set_pub_key must leave the transform keyless -- no
      * verification against the previously installed key. */
     ret = crypto_sig_set_pubkey(tfm, pub, pub_len - 1);
-    if (ret != -EINVAL) {
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
         pr_err("error: crypto_sig_set_pubkey (short) returned %d, "
-               "expected %d\n", ret, -EINVAL);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
         goto test_falcon_end;
     }
     ret = crypto_sig_verify(tfm, sig_buf, sig_len, msg, msg_len);
-    if (ret != -EINVAL) {
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
         pr_err("error: crypto_sig_verify after rejected set_pubkey "
-               "returned %d, expected %d\n", ret, -EINVAL);
+               "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
         goto test_falcon_end;
     }
     ret = crypto_sig_set_pubkey(tfm, pub, pub_len);
@@ -1120,9 +1120,9 @@ static int linuxkm_test_falcon_driver(const char * driver, byte level)
     /* a corrupted signature must be rejected with -EBADMSG. */
     sig_buf[sig_len / 2] ^= 1;
     ret = crypto_akcipher_verify(req);
-    if (ret != -EBADMSG) {
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
         pr_err("error: crypto_akcipher_verify (corrupted) returned %d, "
-               "expected %d\n", ret, -EBADMSG);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
         goto test_falcon_end;
     }
     sig_buf[sig_len / 2] ^= 1;

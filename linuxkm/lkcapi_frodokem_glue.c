@@ -1047,7 +1047,7 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating kpp algorithm %s failed: %d\n",
                driver, (int)PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
+        if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM))
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
@@ -1114,9 +1114,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     sg_init_one(&dst_sg, pk, pk_len - 1);
     kpp_request_set_output(req, &dst_sg, pk_len - 1);
     ret = crypto_kpp_generate_public_key(req);
-    if (ret != -EOVERFLOW) {
+    if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
         pr_err("error: crypto_kpp_generate_public_key (short dst) "
-               "returned %d, expected %d\n", ret, -EOVERFLOW);
+               "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EOVERFLOW));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1184,9 +1184,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len - 1);
     kpp_request_set_output(req, &dst_sg, ss_len);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -EINVAL) {
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
         pr_err("error: crypto_kpp_compute_shared_secret (short ct) "
-               "returned %d, expected %d\n", ret, -EINVAL);
+               "returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1229,9 +1229,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len);
     kpp_request_set_output(req, &dst_sg, ss_len - 1);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -EOVERFLOW) {
+    if (ret != -WC_NO_ERR_TRACE(EOVERFLOW)) {
         pr_err("error: crypto_kpp_compute_shared_secret (short ss "
-               "dst) returned %d, expected %d\n", ret, -EOVERFLOW);
+               "dst) returned %d, expected %d\n", ret, -WC_NO_ERR_TRACE(EOVERFLOW));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1260,9 +1260,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len);
     kpp_request_set_output(req, &dst_sg, ss_len);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -ENOKEY) {
+    if (ret != -WC_NO_ERR_TRACE(ENOKEY)) {
         pr_err("error: double-claim returned %d, expected %d\n", ret,
-               -ENOKEY);
+               -WC_NO_ERR_TRACE(ENOKEY));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1274,9 +1274,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len);
     kpp_request_set_output(req, &dst_sg, ss_len);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -ENOKEY) {
+    if (ret != -WC_NO_ERR_TRACE(ENOKEY)) {
         pr_err("error: unknown-ct claim returned %d, expected %d\n",
-               ret, -ENOKEY);
+               ret, -WC_NO_ERR_TRACE(ENOKEY));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1301,9 +1301,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len);
     kpp_request_set_output(req, &dst_sg, ss_len);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -ENOKEY) {
+    if (ret != -WC_NO_ERR_TRACE(ENOKEY)) {
         pr_err("error: evicted-ct claim returned %d, expected %d\n",
-               ret, -ENOKEY);
+               ret, -WC_NO_ERR_TRACE(ENOKEY));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
@@ -1349,9 +1349,9 @@ static int linuxkm_test_frodokem_driver(const char * driver, int type)
     kpp_request_set_input(req, &src_sg, ct_len);
     kpp_request_set_output(req, &dst_sg, ss_len);
     ret = crypto_kpp_compute_shared_secret(req);
-    if (ret != -ENOKEY) {
+    if (ret != -WC_NO_ERR_TRACE(ENOKEY)) {
         pr_err("error: claim after role-switch reap returned %d, "
-               "expected %d\n", ret, -ENOKEY);
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(ENOKEY));
         test_rc = BAD_FUNC_ARG;
         goto test_frodokem_end;
     }
