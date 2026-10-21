@@ -34,7 +34,35 @@ for pkg in "${PKGS[@]}"; do
   "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only "$pkg" \
     || skipped=$((skipped+1))
 done
-cp /var/cache/apt/archives/*.deb "$DEST/" 2>/dev/null || true
+# Bundle exact (=) deps even if installed, as older images may differ.
+ARCHIVES=/var/cache/apt/archives
+export LC_ALL=C  # sort and comm must agree on the order
+pinned() {
+  for deb in "$ARCHIVES"/*.deb; do
+    dpkg-deb -f "$deb" Pre-Depends Depends
+  done | sed 's/^[^ ]*: //' | tr ',' '\n' \
+    | sed -nE 's/^ *([^ :(|]+)(:[^ ]+)? *\(= *([^ )]+)\) *$/\1=\3/p' | sort -u
+}
+bundled() {
+  for deb in "$ARCHIVES"/*.deb; do
+    dpkg-deb -f "$deb" Package Version | sed 's/^[^ ]*: //' | paste -sd=
+  done | sort -u
+}
+declare -A tried=()
+while :; do
+  need=()
+  while read -r pin; do
+    [ -n "${tried[$pin]:-}" ] || need+=("$pin")
+  done < <(comm -23 <(pinned) <(bundled))
+  [ "${#need[@]}" -gt 0 ] || break
+  echo "Pinned (${#need[@]}): ${need[*]}"
+  for pin in "${need[@]}"; do
+    tried[$pin]=1
+    "$APT_INSTALL" --tries 5 --no-update --warn-only --download-only \
+      --reinstall "$pin" || skipped=$((skipped+1))
+  done
+done
+cp "$ARCHIVES"/*.deb "$DEST/" 2>/dev/null || true
 # The steps that index and package these run unprivileged, and in the
 # container we are root over a bind mount owned by the runner user.
 chown --reference="$DEST" "$DEST"/*.deb 2>/dev/null || true
