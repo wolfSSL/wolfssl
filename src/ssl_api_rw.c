@@ -333,8 +333,12 @@ static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
         ret = WRITE_DUP_WRITE_E;
     }
     /* Only enter special dupWrite logic when error is cleared. This will help
-     * with handling async data and other edge case errors. */
-    if ((ret == 0) && (ssl->dupWrite != NULL) && (ssl->error == 0)) {
+     * with handling async data and other edge case errors. Not once
+     * close_notify has been sent either: the delegated work can send a
+     * KeyUpdate, and nothing may follow the alert. SendData() refuses the
+     * write itself. */
+    if ((ret == 0) && (ssl->dupWrite != NULL) && (ssl->error == 0) &&
+            (!ssl->options.sentNotify)) {
         ret = wolfssl_write_dup_prepare(ssl);
     }
     #endif
@@ -867,6 +871,13 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
  * A previous call may have left the close_notify alert buffered when the
  * transport reported WANT_WRITE. Get it out before doing anything else.
  *
+ * Once sentNotify is set the buffered data is that alert, so it is flushed on
+ * the strength of the buffer alone. ssl->error is not a reliable sign of it:
+ * a write refused in the meantime replaced WANT_WRITE with
+ * CLOSE_NOTIFY_SENT_E, and a read replaced it with WANT_READ. Keying off
+ * WANT_WRITE alone left the alert stranded, and the next step waited on the
+ * peer for a close_notify it had never been sent.
+ *
  * @param [in, out] ssl  SSL/TLS object.
  * @param [in, out] ret  Result for wolfSSL_shutdown() to return. Set only on
  *                       the paths that reach a decision; on the others it is
@@ -885,8 +896,9 @@ static int wolfssl_shutdown_flush_alert(WOLFSSL* ssl, int* ret)
 {
     int done = 0;
 
-    if ((ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) &&
-            (ssl->buffers.outputBuffer.length > 0)) {
+    if ((ssl->buffers.outputBuffer.length > 0) &&
+            ((ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+             (ssl->options.sentNotify))) {
         int rc = SendBuffered(ssl);
 
         if (rc != 0) {
@@ -1001,6 +1013,11 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
         ret = WOLFSSL_SHUTDOWN_NOT_DONE;
     }
     else {
+        /* A write refused after close_notify went out is not a connection
+         * fault and must not block the exchange from completing. */
+        if (ssl->error == WC_NO_ERR_TRACE(CLOSE_NOTIFY_SENT_E)) {
+            ssl->error = WOLFSSL_ERROR_NONE;
+        }
         ret = ProcessReply(ssl);
         if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
