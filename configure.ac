@@ -8758,6 +8758,13 @@ then
     ENABLED_SHA3=yes
     ENABLED_SHAKE256=yes
 fi
+# The LMS SHAKE256 parameter sets (--enable-lms=shake256) hash with SHAKE256.
+case $ENABLED_LMS in
+  *shake256*)
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE256=yes
+    ;;
+esac
 
 # Set SHA-3 flags
 if test "$ENABLED_SHA3" != "no"

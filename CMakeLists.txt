@@ -1357,8 +1357,12 @@ if (WOLFSSL_LMS)
 
     if (WOLFSSL_LMSSHAKE256)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LMS_SHAKE256")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
 
         set_wolfssl_definitions("WOLFSSL_LMS_SHAKE256"      RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"              RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"          RESULT)
     endif()
 endif()
 
