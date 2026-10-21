@@ -578,5 +578,11 @@
  "run": [["./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "postauth-no-compat",
  "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
- "configure": ["--enable-postauth", "--enable-sessioncerts"]}
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]},
+{"name": "all-crl-static-revoked-list",
+ "comment": "CRL_STATIC_REVOKED_LIST swaps the revoked cert linked list for a fixed sorted array. Nothing else in this matrix defines it, so the static list tests in tests/api/test_certman.c and the compat layer CRL code on the array (print, get_REVOKED, CRL generation) are built nowhere else.",
+ "configure": ["--enable-all", "CPPFLAGS=-DCRL_STATIC_REVOKED_LIST"]},
+{"name": "all-crl-static-revoked-list-1024",
+ "comment": "The default CRL_MAX_REVOKED_CERTS of 4 stops test_wolfSSL_X509_CRL_sign_large at 4 entries. With room for 1024 it adds all of them to the array, then checks the full list is refused.",
+ "configure": ["--enable-all", "CPPFLAGS=-DCRL_STATIC_REVOKED_LIST -DCRL_MAX_REVOKED_CERTS=1024"]}
 ]
