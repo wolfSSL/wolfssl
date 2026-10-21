@@ -973,9 +973,11 @@ static word64 Load64BitLittleEndian(const byte* a)
 
 static int InitSha3(wc_Sha3* sha3)
 {
-    /* The sponge held the prior message. */
-    ForceZero(sha3->s, sizeof(sha3->s));
-    ForceZero(sha3->t, sizeof(sha3->t));
+    int i;
+
+    for (i = 0; i < 25; i++)
+        sha3->s[i] = 0;
+    XMEMSET(sha3->t, 0, sizeof(sha3->t));
     sha3->i = 0;
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
