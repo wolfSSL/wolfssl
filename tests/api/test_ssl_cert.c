@@ -5263,6 +5263,14 @@ int test_wolfSSL_dtls_api_more_guards(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    #define TEST_CHAIN_CA_OVERRIDE
+#endif
+
+#ifdef TEST_CHAIN_CA_OVERRIDE
 /* Accept every certificate the way an application that makes its own trust
  * decision about the peer does. */
 static int test_chain_ca_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* s)
@@ -5271,6 +5279,7 @@ static int test_chain_ca_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* s)
     (void)s;
     return 1;
 }
+#endif
 
 /* Test that a chain certificate which failed verification is not cached as a
  * CA when the application's verify callback overrides the error.
@@ -5288,10 +5297,7 @@ static int test_chain_ca_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* s)
 int test_wolfSSL_chain_ca_not_cached_on_override(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
-    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#ifdef TEST_CHAIN_CA_OVERRIDE
     WOLFSSL_CTX* ctx_c = NULL;
     WOLFSSL_CTX* ctx_s = NULL;
     WOLFSSL* ssl_c = NULL;
