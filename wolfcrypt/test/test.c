@@ -29830,11 +29830,30 @@ static wc_test_ret_t rng_tree_services_test(void)
     }
 
     if (ret == 0) {
-        wc_RNG_TreeInvalidate();
-        r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
-                                sizeof(a));
-        if (r != WC_NO_ERR_TRACE(NOT_READY_E))
-            ret = WC_TEST_RET_ENC_NC;
+        WC_RNG rng;
+
+        r = wc_InitRng(&rng);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        if (ret == 0) {
+            wc_RNG_TreeInvalidate();
+            r = wc_RNG_TreeGenerate(0, WC_RNG_TREE_LANE_TASK, NULL, 0, a,
+                                    sizeof(a));
+            if (r != WC_NO_ERR_TRACE(NOT_READY_E))
+                ret = WC_TEST_RET_ENC_NC;
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+            /* A WC_RNG made before the invalidate reseeds before its output. */
+            if (ret == 0 && wc_RNG_entropy_needs_recovery(&rng) !=
+                    WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+                ret = WC_TEST_RET_ENC_NC;
+#endif
+            r = wc_RNG_GenerateBlock(&rng, b, sizeof(b));
+            if (r != 0 && ret == 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            r = wc_FreeRng(&rng);
+            if (r != 0 && ret == 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
     }
     if (ret == 0) {
         r = wc_RNG_TreeReseed(0);
@@ -32382,7 +32401,8 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
 
 #if defined(WC_TEST_RNG_AUTOFORK) && defined(WC_RNG_TREE) && \
     defined(WC_RNG_SEED_CB)
-static volatile int rng_tree_fork_gathering = 0;
+static wolfSSL_Atomic_Int rng_tree_fork_gathering =
+    WOLFSSL_ATOMIC_INITIALIZER(0);
 static pid_t rng_tree_fork_parent = 0;
 
 /* The parent's root gather lasts long enough for fork() to land inside it. */
@@ -32391,7 +32411,7 @@ static int rng_tree_fork_seed(OS_Seed* os, byte* out, word32 sz)
     struct timespec d = { 0, 300000000 };
 
     if (getpid() == rng_tree_fork_parent) {
-        rng_tree_fork_gathering = 1;
+        WOLFSSL_ATOMIC_STORE(rng_tree_fork_gathering, 1);
         while (nanosleep(&d, &d) != 0 && errno == EINTR) {
         }
     }
@@ -32422,7 +32442,7 @@ static wc_test_ret_t rng_tree_fork_test(void)
     pid_t pid;
 
     rng_tree_fork_parent = getpid();
-    rng_tree_fork_gathering = 0;
+    WOLFSSL_ATOMIC_STORE(rng_tree_fork_gathering, 0);
     /* A new callback drops the root, so the seeder's wc_InitRng() gathers. */
     cb = wc_SetSeed_Cb(rng_tree_fork_seed);
     if (cb != 0)
@@ -32431,7 +32451,8 @@ static wc_test_ret_t rng_tree_fork_test(void)
         ret = WC_TEST_RET_ENC_NC;
         goto out;
     }
-    while (!rng_tree_fork_gathering && nanosleep(&d, NULL) == 0) {
+    while (!WOLFSSL_ATOMIC_LOAD(rng_tree_fork_gathering) &&
+           nanosleep(&d, NULL) == 0) {
     }
 
     pid = fork();

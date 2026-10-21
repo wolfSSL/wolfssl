@@ -325,7 +325,7 @@ static int linuxkm_lkcapi_sysfs_install(void) {
         }
 #endif
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    defined(WC_RNG_DEBUG_STATS)
+    defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_TREE)
         ret = linuxkm_sysfs_install_attr(&wc_linuxkm_rng_stats_attr.attr,
                                                 NULL);
         if (ret) {
@@ -349,7 +349,7 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     if (installed_sysfs_LKCAPI_files) {
         int ret;
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    defined(WC_RNG_DEBUG_STATS)
+    defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_TREE)
         ret = linuxkm_sysfs_deinstall_attr(&wc_linuxkm_rng_stats_attr.attr,
                                                   NULL);
         if (ret)

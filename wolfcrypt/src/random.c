@@ -9089,6 +9089,11 @@ static int TreeGetEntropy(byte* seed, word32 seedSz)
 #ifdef WOLF_CRYPTO_CB
     os.devId = INVALID_DEVID;   /* the platform source, not device 0 */
 #endif
+#if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
+    defined(HAVE_AMD_RDSEED)
+    /* A tree service can gather before any wc_InitRng() read the CPU flags. */
+    wc_InitRng_IntelRD();
+#endif
 
     ret = TreeSourceSeed(&os, seed, seedSz);
 #if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && defined(XCLOSE) && \
@@ -9381,6 +9386,10 @@ int wc_RNG_TreeZeroize(void)
 void wc_RNG_TreeInvalidate(void)
 {
     wolfSSL_Atomic_Int_FetchAdd(&tree.epoch, 1);
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+    /* Every WC_RNG child reseeds before its next output too. */
+    wc_RNG_global_invalidate_entropy();
+#endif
 }
 
 /* A latched error leaves no DRBG instantiated.  A CAST error is left by
