@@ -6296,8 +6296,9 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
         }
     }
     else {
-        ret = TLSX_PointFormat_Append((PointFormats**)&extension->data, format,
-                                      heap);
+        formats = (PointFormats*)extension->data;
+        ret = TLSX_PointFormat_Append(&formats, format, heap);
+        extension->data = formats;
         if (ret != 0)
             return ret;
     }
