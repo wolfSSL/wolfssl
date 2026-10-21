@@ -251,6 +251,7 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 #include "lkcapi_ed_glue.c"
 #include "lkcapi_mldsa_glue.c"
 #include "lkcapi_slhdsa_glue.c"
+#include "lkcapi_falcon_glue.c"
 #include "lkcapi_lms_glue.c"
 #include "lkcapi_xmss_glue.c"
 #include "lkcapi_mlkem_glue.c"
@@ -840,6 +841,29 @@ static int linuxkm_lkcapi_register(void)
     #endif /* !LINUXKM_SLHDSA_SIG_ALG */
 #endif /* LINUXKM_LKCAPI_REGISTER_SLHDSA */
 
+#ifdef LINUXKM_LKCAPI_REGISTER_FALCON
+    /* as with mldsa, the falcon* cra_names have no crypto/testmgr.c
+     * entries on any kernel version, so alg_test() takes its "notest"
+     * path and passes them, with or without fips_enabled -- no
+     * REGISTER_ALG_OPTIONAL needed.
+     */
+    #ifdef LINUXKM_FALCON_SIG_ALG
+        #ifdef LINUXKM_FALCON512
+        REGISTER_ALG(falcon512, sig, linuxkm_test_falcon512);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+        REGISTER_ALG(falcon1024, sig, linuxkm_test_falcon1024);
+        #endif /* LINUXKM_FALCON1024 */
+    #else /* !LINUXKM_FALCON_SIG_ALG */
+        #ifdef LINUXKM_FALCON512
+        REGISTER_ALG(falcon512, akcipher, linuxkm_test_falcon512);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+        REGISTER_ALG(falcon1024, akcipher, linuxkm_test_falcon1024);
+        #endif /* LINUXKM_FALCON1024 */
+    #endif /* !LINUXKM_FALCON_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_FALCON */
+
 #ifdef LINUXKM_LKCAPI_REGISTER_LMS
     #ifdef LINUXKM_LMS_SIG_ALG
         REGISTER_ALG(lms, sig, linuxkm_test_lms);
@@ -1353,6 +1377,24 @@ static int linuxkm_lkcapi_unregister(void)
         #endif /* LINUXKM_SLHDSA_SHA2_256F */
     #endif /* !LINUXKM_SLHDSA_SIG_ALG */
 #endif /* LINUXKM_LKCAPI_REGISTER_SLHDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FALCON
+    #ifdef LINUXKM_FALCON_SIG_ALG
+        #ifdef LINUXKM_FALCON512
+            UNREGISTER_ALG(falcon512, sig);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+            UNREGISTER_ALG(falcon1024, sig);
+        #endif /* LINUXKM_FALCON1024 */
+    #else /* !LINUXKM_FALCON_SIG_ALG */
+        #ifdef LINUXKM_FALCON512
+            UNREGISTER_ALG(falcon512, akcipher);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+            UNREGISTER_ALG(falcon1024, akcipher);
+        #endif /* LINUXKM_FALCON1024 */
+    #endif /* !LINUXKM_FALCON_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_FALCON */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_LMS
     #ifdef LINUXKM_LMS_SIG_ALG
