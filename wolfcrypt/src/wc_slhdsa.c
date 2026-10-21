@@ -571,7 +571,7 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
 #endif
     {
         /* Process the state using C code. */
-        WC_SHA3_BLOCK(shake, state);
+        BlockSha3(state);
     }
     /* Copy hash result, of the required length, from the state into hash. */
     XMEMCPY(hash, shake->s, hash_len);
@@ -690,7 +690,7 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
 #endif
     {
         /* Process the state using C code. */
-        WC_SHA3_BLOCK(shake, state);
+        BlockSha3(state);
     }
     /* Copy hash result, of the required length, from the state into hash. */
     XMEMCPY(hash, shake->s, hash_len);
@@ -9056,9 +9056,6 @@ static void slhdsakey_wipe_secret_hash(SlhDsaKey* key)
 
         ForceZero(shake->s, sizeof(shake->s));
         ForceZero(shake->t, sizeof(shake->t));
-#ifdef WC_SHA3_SCRATCH_W
-        ForceZero(shake->scratch, sizeof(shake->scratch));
-#endif
         shake->i = 0;
     }
 }

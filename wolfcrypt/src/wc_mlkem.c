@@ -84,8 +84,6 @@
     #endif
 #endif
 
-/* Before the asm undefs, so wc_Sha3 has the layout sha3.c built. */
-#include <wolfssl/wolfcrypt/sha3.h>
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -685,9 +683,6 @@ static void mlkemkey_hash_wipe(wc_Sha3* h)
 #ifndef PSOC6_HASH_SHA3
     ForceZero(h->s, sizeof(h->s));
     ForceZero(h->t, sizeof(h->t));
-#ifdef WC_SHA3_SCRATCH_W
-    ForceZero(h->scratch, sizeof(h->scratch));
-#endif
     h->i = 0;
 #else
     (void)wc_Sha3_256_Reset(h);
@@ -703,12 +698,6 @@ static void mlkemkey_hash_memzero_add(MlKemKey* key)
     wc_MemZero_Add("mlkem key hash t", key->hash.t, sizeof(key->hash.t));
     wc_MemZero_Add("mlkem key prf s", key->prf.s, sizeof(key->prf.s));
     wc_MemZero_Add("mlkem key prf t", key->prf.t, sizeof(key->prf.t));
-#ifdef WC_SHA3_SCRATCH_W
-    wc_MemZero_Add("mlkem key hash scratch", key->hash.scratch,
-        sizeof(key->hash.scratch));
-    wc_MemZero_Add("mlkem key prf scratch", key->prf.scratch,
-        sizeof(key->prf.scratch));
-#endif
 #else
     (void)key;
 #endif
@@ -721,10 +710,6 @@ static void mlkemkey_hash_memzero_check(MlKemKey* key)
     wc_MemZero_Check(key->hash.t, sizeof(key->hash.t));
     wc_MemZero_Check(key->prf.s, sizeof(key->prf.s));
     wc_MemZero_Check(key->prf.t, sizeof(key->prf.t));
-#ifdef WC_SHA3_SCRATCH_W
-    wc_MemZero_Check(key->hash.scratch, sizeof(key->hash.scratch));
-    wc_MemZero_Check(key->prf.scratch, sizeof(key->prf.scratch));
-#endif
 #else
     (void)key;
 #endif
