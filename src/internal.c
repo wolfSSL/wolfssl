@@ -36460,6 +36460,13 @@ static int IsTls13CipherSuite(byte first, byte second)
         }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        /* A server negotiating TLS 1.2 or older answers the outer hello. */
+        ret = TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+        if (ret != 0)
+            return ret;
+#endif
+
         /* random */
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
