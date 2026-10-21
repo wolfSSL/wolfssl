@@ -47027,6 +47027,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_QUIC_TP_non_quic),
     TEST_DECL(test_TLSX_ALPN_server_response_count),
     TEST_DECL(test_TLSX_SupportedCurve_empty_or_unsupported),
+    TEST_DECL(test_TLSX_SupportedCurve_brainpool_downgrade),
     TEST_DECL(test_TLSX_SignatureAlgorithmsCert_parse),
     TEST_DECL(test_TLSX_PointFormat_list),
     TEST_DECL(test_TLSX_MaxFragment_value),
