@@ -60,7 +60,8 @@
 /* LMS tests                                                                  */
 /*----------------------------------------------------------------------------*/
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && (!defined(WOLFSSL_LMS_VERIFY_ONLY) || \
+    (defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)))
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
@@ -73,6 +74,9 @@ static int test_lms_set_params(LmsKey* key)
     return wc_LmsKey_SetParameters(key, 1, 5, 8);
 #endif
 }
+#endif
+
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
 
 #ifdef TEST_LMS_SW_AVAILABLE
 /* Per-process temp file: parallel unit.test runs (e.g. CI shards sharing a
@@ -393,11 +397,12 @@ static int test_lms_xmss_cryptocb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
-/* Must be the exact union of the two verify test guards below. */
+/* Must be the exact union of the guards of the tests that register it. */
 #if defined(WOLF_CRYPTO_CB) && \
-    ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
-     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-      defined(TEST_XMSS_H10_AVAILABLE)))
+    ((defined(WOLFSSL_HAVE_LMS) && \
+      (!defined(WOLFSSL_LMS_VERIFY_ONLY) || defined(WOLF_PRIVATE_KEY_ID))) || \
+     (defined(WOLFSSL_HAVE_XMSS) && defined(TEST_XMSS_H10_AVAILABLE) && \
+      (!defined(WOLFSSL_XMSS_VERIFY_ONLY) || defined(WOLF_PRIVATE_KEY_ID))))
 
 /* Number of stateful signature verifications the accelerator below answered. */
 static int test_lms_xmss_verify_calls;
@@ -671,6 +676,80 @@ int test_wc_LmsKey_id_sigsleft(void)
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    wc_LmsKey_Free(&key);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test that an LMS key named by id verifies on its device with only its
+ * parameters set, as a verify-only build has no Reload to call.
+ */
+int test_wc_LmsKey_id_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID)
+    LmsKey key;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte   msg[] = "test message for LMS signing";
+    byte*  sig = NULL;
+    word32 sigSz = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    test_lms_xmss_verify_calls = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_LmsKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigSz), 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+    wc_LmsKey_Free(&key);
+
+    /* A key with no id, label or device context needs a public key. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    if (sig != NULL) {
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+    wc_LmsKey_Free(&key);
+
+    /* A device context names the key as an id does. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    key.devCtx = msg;
+    if (sig != NULL) {
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 2);
+    }
+    key.devCtx = NULL;
+    wc_LmsKey_Free(&key);
+
+    /* Without a device the same key has no public key to verify with. */
+    ExpectIntEQ(wc_LmsKey_InitId(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    if (sig != NULL) {
+    #if defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLFSSL_SWDEV)
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    #else
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+    #endif
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_LmsKey_Free(&key);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif
@@ -1219,6 +1298,79 @@ int test_wc_XmssKey_id_sigsleft(void)
     ExpectIntEQ(wc_XmssKey_Reload(&key), 0);
     ExpectIntEQ(wc_XmssKey_SigsLeft(&key), 0);
 
+    wc_XmssKey_Free(&key);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Same scenario as test_wc_LmsKey_id_verify, for XMSS.
+ */
+int test_wc_XmssKey_id_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_XMSS) && defined(WOLF_CRYPTO_CB) && \
+    defined(TEST_XMSS_H10_AVAILABLE) && defined(WOLF_PRIVATE_KEY_ID)
+    XmssKey key;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte    msg[] = "test message for XMSS signing";
+    byte*   sig = NULL;
+    word32  sigSz = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    test_lms_xmss_verify_calls = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_XmssKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_GetSigLen(&key, &sigSz), 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+    wc_XmssKey_Free(&key);
+
+    /* A key with no id, label or device context needs a public key. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    if (sig != NULL) {
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+    wc_XmssKey_Free(&key);
+
+    /* A device context names the key as an id does. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    key.devCtx = msg;
+    if (sig != NULL) {
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 2);
+    }
+    key.devCtx = NULL;
+    wc_XmssKey_Free(&key);
+
+    /* Without a device the same key has no public key to verify with. */
+    ExpectIntEQ(wc_XmssKey_InitId(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    if (sig != NULL) {
+    #if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLFSSL_SWDEV)
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    #else
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+    #endif
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_XmssKey_Free(&key);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif

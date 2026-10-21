@@ -57,6 +57,16 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* A key named by id, label or device context is held by a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    #define LMS_KEY_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        ((key)->idLen > 0) || ((key)->labelLen > 0))
+#elif defined(WOLF_CRYPTO_CB)
+    #define LMS_KEY_ON_DEVICE(key) ((key)->devCtx != NULL)
+#else
+    #define LMS_KEY_ON_DEVICE(key) 0
+#endif
+
 
 /* Calculate u. Appendix B. Works for w of 1, 2, 4, or 8.
  *
@@ -2077,11 +2087,11 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
         static const byte lms_empty_msg[] = {0};
         msg = lms_empty_msg;
     }
-    /* Check state. */
+    /* Check state. A key named by id may have only its parameters set. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK) &&
-            (key->state != WC_LMS_STATE_VERIFYONLY)) {
-        /* LMS key not ready for verification. Param str must be
-         * set first, and Reload() called. */
+            (key->state != WC_LMS_STATE_VERIFYONLY) &&
+            ((key->state != WC_LMS_STATE_PARMSET) ||
+             !LMS_KEY_ON_DEVICE(key))) {
         WOLFSSL_MSG("error: LMS key not ready for verification");
         ret = BAD_STATE_E;
     }
