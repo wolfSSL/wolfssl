@@ -794,6 +794,20 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
             ExpectIntEQ(cipher[i], 0x00);
     }
 #endif
+#if !defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && defined(WOLFSSL_AESNI)
+    /* Without length checks only whole blocks are encrypted; the partial
+     * trailing block must not be rounded up and written. */
+    XMEMSET(cipher, 0x00, WC_AES_BLOCK_SIZE * 2);
+    ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len - 1), 0);
+    ExpectBufEQ(cipher, vector_enc, vector_len - WC_AES_BLOCK_SIZE);
+    {
+        int i;
+        for (i = (int)(vector_len - WC_AES_BLOCK_SIZE); i < (int)vector_len;
+                i++)
+            ExpectIntEQ(cipher[i], 0x00);
+    }
+    ExpectIntEQ(wc_AesSetIV(aes, iv), 0);
+#endif
     ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len),
         0);
     ExpectBufEQ(cipher, vector_enc, vector_len);

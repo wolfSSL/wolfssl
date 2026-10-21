@@ -4492,9 +4492,9 @@ fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
 AC_ARG_ENABLE([aescbc-length-checks],
-    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: disabled)])],
+    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: enabled)])],
     [ ENABLED_AESCBC_LENGTH_CHECKS=$enableval ],
-    [ ENABLED_AESCBC_LENGTH_CHECKS=no ]
+    [ ENABLED_AESCBC_LENGTH_CHECKS=yes ]
     )
 
 if test "$ENABLED_AESCBC_LENGTH_CHECKS" = "yes"
