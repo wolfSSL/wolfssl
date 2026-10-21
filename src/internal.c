@@ -30429,9 +30429,9 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     }
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_TLS13
-    if (ssl->options.sendKeyUpdate && !IsWriteClosed(ssl)) {
+    if (ssl->options.sendKeyUpdate) {
         ssl->options.sendKeyUpdate = 0;
-        ret = SendTls13KeyUpdate(ssl);
+        ret = IsWriteClosed(ssl) ? 0 : SendTls13KeyUpdate(ssl);
         if (ret != 0) {
             ssl->error = BUILD_MSG_ERROR;
             return WOLFSSL_FATAL_ERROR;
@@ -30478,21 +30478,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* RFC 8446 6.2 - no new data write after a fatal alert */
-    if (ssl->options.fatalAlert) {
+    /* RFC 8446 6.1, 6.2 - no new data after close_notify or a fatal alert */
+    if (IsWriteClosed(ssl)) {
         WOLFSSL_MSG("Connection is closed, not sending new data");
         if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
-                ssl->error == WOLFSSL_ERROR_WANT_READ)
-            ssl->error = SOCKET_PEER_CLOSED_E;
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    /* Reads and wolfSSL_shutdown() clear this; the peer may still send data */
-    if (ssl->options.sentNotify) {
-        WOLFSSL_MSG("close_notify already sent, not sending new data");
-        if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
-                ssl->error == WOLFSSL_ERROR_WANT_READ)
-            ssl->error = SSL_SHUTDOWN_ALREADY_DONE_E;
+                ssl->error == WOLFSSL_ERROR_WANT_READ) {
+            ssl->error = ssl->options.fatalAlert ? SOCKET_PEER_CLOSED_E :
+                SSL_SHUTDOWN_ALREADY_DONE_E;
+        }
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -31096,9 +31089,7 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     input[1] = (byte)type;
     ssl->alert_history.last_tx.code = type;
     ssl->alert_history.last_tx.level = severity;
-    /* RFC 9846 Section 6.2: TLS 1.3 error alerts are fatal at any level */
-    if (severity == alert_fatal || (IsAtLeastTLSv1_3(ssl->version) &&
-            type != close_notify && type != user_canceled)) {
+    if (severity == alert_fatal) {
 #ifdef WOLFSSL_DTLS
         /* Mark as closed in dtls only once we enter stateful mode. */
         if (!ssl->options.dtls || ssl->options.dtlsStateful)
@@ -47416,12 +47407,18 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
             switch (sniRet) {
                 case warning_return:
+                    /* TLS 1.3 error alerts are always fatal (RFC 8446 6.2) */
+                    if (IsAtLeastTLSv1_3(ssl->version) || ad == close_notify) {
+                        WOLFSSL_MSG("Error in custom sni callback. No alert");
+                        break;
+                    }
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
                     ret = SendAlert(ssl, alert_warning, ad);
                     break;
                 case fatal_return:
                     WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
-                    SendAlert(ssl, alert_fatal, ad);
+                    SendAlert(ssl, alert_fatal,
+                        ad == close_notify ? handshake_failure : ad);
                     return FATAL_ERROR;
                 case noack_return:
                     WOLFSSL_MSG("Server quietly not acking servername.");

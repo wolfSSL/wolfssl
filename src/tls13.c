@@ -6617,13 +6617,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    if (ssl->options.handShakeState == HANDSHAKE_DONE && IsWriteClosed(ssl)) {
-        *inOutIdx = begin + size;
-        return 0;
-    }
-#endif
-
     XMEMSET(&peerSuites, 0, sizeof(Suites));
 #if !defined(WOLFSSL_NO_SIGALG)
     /* Post-handshake auth can deliver several requests; each one's cert
@@ -6725,6 +6718,14 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.handShakeState == HANDSHAKE_DONE && IsWriteClosed(ssl)) {
+        WOLFSSL_LEAVE("DoTls13CertificateRequest", 0);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
+        return 0;
+    }
+#endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     SetPeerSha1CertOk(ssl, &peerSuites);

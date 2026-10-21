@@ -13499,7 +13499,7 @@ int test_tls13_write_after_transport_close(void)
     return EXPECT_RESULT();
 }
 
-/* After our close_notify writes are refused, but the peer's data still reads. */
+/* After our close_notify writes are refused but the peer's data still reads */
 int test_tls13_no_write_after_close_notify(void)
 {
     EXPECT_DECLS;
@@ -13674,6 +13674,8 @@ int test_tls13_no_key_update_after_close_notify(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E));
     ExpectIntEQ(test_ctx.c_len, c_len_before);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.sendKeyUpdate, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -13859,7 +13861,7 @@ int test_tls12_no_renegotiation_after_close_notify(void)
     int serverCloses;
     int mode;
 
-    /* 0: client closes, 1: server closes, 2: also WOLFSSL_OP_NO_RENEGOTIATION */
+    /* 0: client closes, 1: server closes, 2: WOLFSSL_OP_NO_RENEGOTIATION too */
     for (mode = 0; mode < 3 && EXPECT_SUCCESS(); mode++) {
         serverCloses = (mode > 0);
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -13937,97 +13939,90 @@ int test_tls13_refused_write_after_peek(void)
     return EXPECT_RESULT();
 }
 
-int test_dtls13_no_key_update_after_close_notify(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_RW_THREADED) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SNI) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-    WOLFSSL_CTX *ctx_c = NULL;
-    WOLFSSL_CTX *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL;
-    WOLFSSL *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-    char readBuf[32];
-    char msg[] = "after close";
-    int s_len_before;
-
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
-    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
-        (int)sizeof(msg));
-    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
-    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf)),
-        (int)sizeof(msg));
-
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
-    if (ssl_c != NULL)
-        ssl_c->dtls13DoKeyUpdate = 1;
-    s_len_before = test_ctx.s_len;
-    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
-        (int)sizeof(msg));
-    ExpectIntEQ(test_ctx.s_len, s_len_before);
-
-    wolfSSL_free(ssl_c);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_s);
-#endif
-    return EXPECT_RESULT();
-}
-
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-static int test_sni_warn_cb(WOLFSSL* ssl, int* ad, void* arg)
+/* arg is { callback return, alert to set or -1 to leave ad unset } */
+static int test_sni_alert_cb(WOLFSSL* ssl, int* ad, void* arg)
 {
+    const int* cfg = (const int*)arg;
+
     (void)ssl;
-    (void)arg;
-    *ad = unrecognized_name;
-    return warning_return;
+    if (cfg[1] >= 0)
+        *ad = cfg[1];
+    return cfg[0];
 }
 #endif
 
-int test_tls13_sent_warning_error_alert_is_fatal(void)
+int test_tls_sni_callback_alerts(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SNI) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    char msg[] = "early";
-    int c_len_before;
+    char msg[] = "hello";
+    char readBuf[16];
+    int cfg[2];
+    int i;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_EXTRA_ALERTS)
+    const int defaultAlert = unrecognized_name;
+#else
+    const int defaultAlert = handshake_failure;
+#endif
+    /* tls13, callback return, ad (-1 unset), handshake succeeds */
+    static const int cases[][4] = {
+        { 1, warning_return, unrecognized_name, 1 },
+        { 0, warning_return, -1,                1 },
+        { 1, fatal_return,   -1,                0 },
+        { 0, fatal_return,   -1,                0 },
+    };
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    wolfSSL_CTX_set_servername_callback(ctx_s, test_sni_warn_cb);
-    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, "example.com",
-        (word16)XSTRLEN("example.com")), WOLFSSL_SUCCESS);
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])) && EXPECT_SUCCESS();
+            i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, cases[i][0] ? wolfTLSv1_3_client_method :
+            wolfTLSv1_2_client_method, cases[i][0] ?
+            wolfTLSv1_3_server_method : wolfTLSv1_2_server_method), 0);
+        cfg[0] = cases[i][1];
+        cfg[1] = cases[i][2];
+        wolfSSL_CTX_set_servername_callback(ctx_s, test_sni_alert_cb);
+        ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, cfg),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+            "example.com", (word16)XSTRLEN("example.com")), WOLFSSL_SUCCESS);
 
-    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-    if (ssl_s != NULL)
-        ExpectIntEQ(ssl_s->options.fatalAlert, 1);
-    c_len_before = test_ctx.c_len;
-    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
-        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-    if (ssl_s != NULL)
-        ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E));
-    ExpectIntEQ(test_ctx.c_len, c_len_before);
+        if (cases[i][3]) {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+                (int)sizeof(msg));
+            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+                (int)sizeof(msg));
+        }
+        else {
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_connect(ssl_c),
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+            if (ssl_c != NULL) {
+                ExpectIntEQ(ssl_c->alert_history.last_rx.level, alert_fatal);
+                ExpectIntEQ(ssl_c->alert_history.last_rx.code, defaultAlert);
+            }
+        }
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_s);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }
