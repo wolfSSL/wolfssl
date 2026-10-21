@@ -3745,16 +3745,9 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_Reseed_Now(
      * minimal generate at the forced counter performs the module's own
      * PollAndReSeed() in-boundary.  This consumes 4 bytes of output, so on
      * success the fresh reseed counter is 2 rather than 1.  scratch holds
-     * discarded output bytes. */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_RNG_DRBG_Reseed_Now scratch", scratch,
-        sizeof(scratch));
-#endif
+     * only discarded output bytes; XMEMSET suffices for it here. */
     ret = wc_RNG_GenerateBlock(rng, scratch, (word32)sizeof(scratch));
-    ForceZero(scratch, sizeof(scratch));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(scratch, sizeof(scratch));
-#endif
+    XMEMSET(scratch, 0, sizeof(scratch));
 
     if ((ret == 0) && (nonce != NULL) && (nonceSz > 0)) {
         /* On the legacy boundary, nonce incorporation is a separate
