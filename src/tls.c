@@ -162,6 +162,9 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 
 #ifdef HAVE_SUPPORTED_CURVES
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+static int TLSX_PreTls13Reachable(const WOLFSSL* ssl);
+#endif
 #endif
 
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
@@ -5264,15 +5267,15 @@ static int TLSX_DefaultGroupAllowed(const WOLFSSL* ssl, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP384R1TLS13:
         case WOLFSSL_ECC_BRAINPOOLP512R1TLS13:
             return IsAtLeastTLSv1_3(ssl->version);
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
         /* RFC 7027 codepoints, also offered by TLS 1.3 when it may fall back
          * to TLS 1.2. */
         case WOLFSSL_ECC_BRAINPOOLP256R1:
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
             return !IsAtLeastTLSv1_3(ssl->version) ||
-                   (ssl->options.downgrade &&
-                    (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
-                     ssl->options.minDowngrade <= DTLSv1_2_MINOR));
+                   TLSX_PreTls13Reachable(ssl);
+    #endif
         default:
             return 1;
     }
@@ -16661,6 +16664,58 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 }
 
 #ifdef HAVE_SUPPORTED_CURVES
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+/* Returns 1 when a client's supported_versions would also offer a version
+ * before 1.3. */
+static int TLSX_PreTls13Reachable(const WOLFSSL* ssl)
+{
+    int ret = 0;
+#if defined(WOLFSSL_TLS13) && \
+    (!defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS))
+    byte isDtls = (byte)ssl->options.dtls;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.downgrade) {
+    #ifndef WOLFSSL_NO_TLS12
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+    #endif
+    #ifndef NO_OLD_TLS
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLS_MINOR : TLSv1_1_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #ifdef WOLFSSL_ALLOW_TLSV10
+        if (!isDtls && (ssl->options.minDowngrade <= TLSv1_MINOR)
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #endif
+    #endif
+    }
+#else
+    (void)ssl;
+#endif
+
+    return ret;
+}
+#endif
 
 /* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
