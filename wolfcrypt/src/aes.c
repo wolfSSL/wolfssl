@@ -160,6 +160,18 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WC_AES_GCM_UNKEY(aes) WC_DO_NOTHING
 #endif
 
+#if defined(HAVE_AESGCM) && (defined(GCM_TABLE) || defined(GCM_TABLE_4BIT))
+    #define WC_AES_GCM_WIPE_H(aes) do { \
+            ForceZero((aes)->gcm.H, sizeof((aes)->gcm.H)); \
+            ForceZero((aes)->gcm.M0, sizeof((aes)->gcm.M0)); \
+        } while (0)
+#elif defined(HAVE_AESGCM)
+    #define WC_AES_GCM_WIPE_H(aes) \
+        ForceZero((aes)->gcm.H, sizeof((aes)->gcm.H))
+#else
+    #define WC_AES_GCM_WIPE_H(aes) WC_DO_NOTHING
+#endif
+
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
     #define WC_AES_ARM64_SVR_BEGIN() SAVE_VECTOR_REGISTERS(return _svr_ret;)
     #define WC_AES_ARM64_SVR_END()   RESTORE_VECTOR_REGISTERS()
@@ -5454,6 +5466,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             aes->rounds = 0;
             aes->keylen = 0;
             WC_AES_GCM_UNKEY(aes);
+            WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
         #endif
@@ -5588,6 +5601,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             aes->rounds = 0;
             aes->keylen = 0;
             WC_AES_GCM_UNKEY(aes);
+            WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
         #endif
@@ -6122,6 +6136,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             aes->rounds = 0;
             aes->keylen = 0;
             WC_AES_GCM_UNKEY(aes);
+            WC_AES_GCM_WIPE_H(aes);
             ForceZero(aes->key, sizeof(aes->key));
             ForceZero(aes->devKey, sizeof(aes->devKey));
         #ifdef WC_C_DYNAMIC_FALLBACK
@@ -9336,10 +9351,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     {
         /* No schedule: a device claimed the key or the set-key failed. */
         if ((ret != 0) || (aes->rounds == 0)) {
-            ForceZero(aes->gcm.H, sizeof(aes->gcm.H));
-        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-            ForceZero(aes->gcm.M0, sizeof(aes->gcm.M0));
-        #endif
+            WC_AES_GCM_WIPE_H(aes);
         #ifdef WOLFSSL_IMX6_CAAM_BLOB
             ForceZero(local, sizeof(local));
         #endif

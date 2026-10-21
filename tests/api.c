@@ -38108,12 +38108,10 @@ static int test_wc_CryptoCb_AesGcm_SetKey(void)
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
     };
-#ifdef WOLFSSL_AESGCM_STREAM
     const byte key2[AES_128_KEY_SIZE] = {
         0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
         0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
     };
-#endif
     const byte iv[GCM_NONCE_MID_SZ] = {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
@@ -38125,8 +38123,10 @@ static int test_wc_CryptoCb_AesGcm_SetKey(void)
     byte       ct[sizeof(msg)];
     byte       tag[WC_AES_BLOCK_SIZE];
     byte       pt[sizeof(msg)];
+    byte       zeroH[WC_AES_BLOCK_SIZE];
 
     XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(zeroH, 0, sizeof(zeroH));
 
     ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_UNREG_DEVID), 0);
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
@@ -38192,6 +38192,14 @@ static int test_wc_CryptoCb_AesGcm_SetKey(void)
     ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, ct, msg, sizeof(msg), aad,
         sizeof(aad)), WC_NO_ERR_TRACE(MISSING_KEY));
 #endif
+
+    /* A claim through wc_AesSetKey() wipes the old software key's H. */
+    dev.declineSetKey = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key2, sizeof(key2)), 0);
+    dev.declineSetKey = 0;
+    ExpectBufNE(aes.gcm.H, zeroH, sizeof(zeroH));
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
+    ExpectBufEQ(aes.gcm.H, zeroH, sizeof(zeroH));
 
     if (aesInit) {
         wc_AesFree(&aes);
