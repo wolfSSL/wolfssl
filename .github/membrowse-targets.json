@@ -220,7 +220,7 @@
     "board": "linux-kernel-module-standard",
     "apt_packages": "build-essential autoconf automake libtool linux-headers-$(uname -r)",
     "ghcr_tag": "ubuntu-24.04-linuxkm",
-    "build_cmd": "./autogen.sh && ./configure --with-linux-source=/lib/modules/$(uname -r)/build EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS='-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1' --with-max-rsa-bits=16384 && make -j$(nproc) KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1",
+    "build_cmd": "./autogen.sh && ./configure --with-linux-source=/lib/modules/$(uname -r)/build EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --disable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS='-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1' --with-max-rsa-bits=16384 && make -j$(nproc) KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1",
     "elf": "linuxkm/libwolfssl.ko",
     "ld": "linuxkm/wolfcrypt.lds",
     "linker_vars": ""

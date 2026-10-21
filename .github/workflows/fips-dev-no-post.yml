@@ -121,10 +121,10 @@ jobs:
            "configure": ["--enable-all", "--enable-sp", "--enable-experimental", "--enable-all-quantum-crypto",
             "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]},
           {"name": "kernel-settings", "minutes": 22.7,
-           "configure": ["--enable-kernel-settings", "--enable-dh",
+           "configure": ["--enable-kernel-settings", "--disable-cryptonly", "--enable-dh",
             "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS"]},
           {"name": "kernel-settings-all-pqc-asm", "minutes": 26.8,
-           "configure": ["--enable-kernel-settings", "--enable-all", "--enable-experimental", "--enable-all-quantum-crypto",
+           "configure": ["--enable-kernel-settings", "--enable-all", "--disable-cryptonly", "--enable-experimental", "--enable-all-quantum-crypto",
             "--enable-all-asm", "--enable-sp",
             "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
           ]}
