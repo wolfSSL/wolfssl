@@ -36,6 +36,7 @@ int test_wc_RsaPSS_Verify(void);
 int test_wc_RsaPSS_BadTerminator(void);
 int test_wc_RsaPSS_VerifyCheck(void);
 int test_wc_RsaPSS_VerifyCheckInline(void);
+int test_wc_RsaId_CryptoCb(void);
 int test_wc_RsaKeyToDer(void);
 int test_wc_RsaKeyToPublicDer(void);
 int test_wc_RsaPublicEncryptDecrypt(void);
@@ -64,6 +65,7 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_BadTerminator),       \
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_VerifyCheck),         \
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_VerifyCheckInline),   \
+    TEST_DECL_GROUP("rsa", test_wc_RsaId_CryptoCb),             \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToDer),                \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToPublicDer),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicEncryptDecrypt),    \
