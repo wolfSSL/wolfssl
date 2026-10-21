@@ -9489,6 +9489,9 @@ static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
     /* No root to draw from: report why it could not be seeded. */
     if (ret == WC_NO_ERR_TRACE(NOT_READY_E) && seedRet != 0)
         ret = seedRet;
+    /* A caller that cannot wait for the root's reseed retries later. */
+    else if (ret == WC_NO_ERR_TRACE(NOT_READY_E) && !WC_CAN_BLOCK())
+        ret = BUSY_E;
     return ret;
 }
 
