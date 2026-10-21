@@ -8868,7 +8868,7 @@ int test_dtls_cookie_flip_in_cb(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(WOLFSSL_NO_TLS12)
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx io;
