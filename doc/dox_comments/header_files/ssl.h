@@ -3200,6 +3200,15 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
 
+    A non-zero return from verify_callback overrides the error for that one
+    certificate, and applies to the handshake in progress only. A chain
+    certificate whose signature was never confirmed against a trusted anchor
+    is not cached, so a certificate it signed has no signer of its own and is
+    reported to verify_callback in its turn rather than verified against the
+    accepted key. Accepting each certificate in the chain completes the
+    handshake. Nothing accepted this way becomes a trust anchor for later
+    connections made from the same context.
+
     \return none No return.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
@@ -3251,6 +3260,15 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     act on it, does not store it, and wolfSSL_get_verify_mode() /
     wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
     mode has no effect on any of the other flags.
+
+    A non-zero return from verify_callback overrides the error for that one
+    certificate, and applies to the handshake in progress only. A chain
+    certificate whose signature was never confirmed against a trusted anchor
+    is not cached, so a certificate it signed has no signer of its own and is
+    reported to verify_callback in its turn rather than verified against the
+    accepted key. Accepting each certificate in the chain completes the
+    handshake. Nothing accepted this way becomes a trust anchor for later
+    connections made from the same session's context.
 
     \return none No return.
 
