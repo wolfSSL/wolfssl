@@ -9136,7 +9136,8 @@ static int TreeRootStale(int epoch)
     return stale;
 }
 
-/* Uninstantiate a node (SP 800-90A 9.4); the caller holds it. */
+/* Uninstantiate a node (SP 800-90A 9.4); the caller holds it.  It frees, so
+ * never from NMI: a failed leaf waits for the next reseed's wipe. */
 static int TreeWipeNode(TreeNode* node, int* up)
 {
     int ret = 0;
@@ -9572,10 +9573,6 @@ int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
         ret = TreeDrbgResult(Hash512_DRBG_Generate(&leaf->drbg,
                     &leaf->reseedCtr, out, sz, addl, addlSz));
     }
-    /* A leaf that fails wipes itself; the next reseed wipes the rest. */
-    if (ret == WC_NO_ERR_TRACE(RNG_FAILURE_E) &&
-            TreeWipeNode(leaf, &leaf->up) != 0)
-        ret = BAD_STATE_E;
 
     TreeUnlock(&leaf->busy);
     return ret;
