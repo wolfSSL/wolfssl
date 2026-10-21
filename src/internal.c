@@ -10071,6 +10071,39 @@ void FreeKeyExchange(WOLFSSL* ssl)
 #endif
 }
 
+/* Release the public key taken from the peer certificate. */
+void FreePeerCertKeys(WOLFSSL* ssl)
+{
+    (void)ssl;
+#ifndef NO_RSA
+    FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
+    ssl->peerRsaKeyPresent = 0;
+#endif
+#ifdef HAVE_ECC
+    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
+    ssl->peerEccDsaKeyPresent = 0;
+#endif /* HAVE_ECC */
+#ifdef HAVE_ED25519
+    FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
+    ssl->peerEd25519KeyPresent = 0;
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED448
+    FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
+    ssl->peerEd448KeyPresent = 0;
+#endif /* HAVE_ED448 */
+#if defined(HAVE_FALCON)
+    FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
+    ssl->peerFalconKeyPresent = 0;
+#endif /* HAVE_FALCON */
+#if defined(WOLFSSL_HAVE_MLDSA)
+    FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
+    ssl->peerMlDsaKeyPresent = 0;
+#endif /* WOLFSSL_HAVE_MLDSA */
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
+    ssl->peerSlhDsaKeyPresent = 0;
+#endif /* WOLFSSL_HAVE_SLHDSA */
+}
 
 /* Free up all memory used by Suites structure from WOLFSSL */
 void FreeSuites(WOLFSSL* ssl)
@@ -10698,35 +10731,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (!ssl->options.tls1_3 || ssl->options.side == WOLFSSL_CLIENT_END)
 #endif
     {
-#ifndef NO_RSA
-        /* peerRsaKey */
-        FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
-        ssl->peerRsaKeyPresent = 0;
-#endif
-#ifdef HAVE_ECC
-        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
-        ssl->peerEccDsaKeyPresent = 0;
-#endif /* HAVE_ECC */
-#ifdef HAVE_ED25519
-        FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
-        ssl->peerEd25519KeyPresent = 0;
-#endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
-        FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
-        ssl->peerEd448KeyPresent = 0;
-#endif /* HAVE_ED448 */
-#if defined(HAVE_FALCON)
-        FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
-        ssl->peerFalconKeyPresent = 0;
-#endif /* HAVE_FALCON */
-#if defined(WOLFSSL_HAVE_MLDSA)
-        FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
-        ssl->peerMlDsaKeyPresent = 0;
-#endif /* WOLFSSL_HAVE_MLDSA */
-#if defined(WOLFSSL_HAVE_SLHDSA)
-        FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
-        ssl->peerSlhDsaKeyPresent = 0;
-#endif /* WOLFSSL_HAVE_SLHDSA */
+        FreePeerCertKeys(ssl);
     }
 
 #ifdef HAVE_ECC
@@ -18141,6 +18146,9 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
     /* Every case below sits under an algorithm guard, so a build with no
      * peer-verifiable key type leaves this unused. */
     (void)ssl;
+
+    /* Drop a key left by an earlier certificate. */
+    FreePeerCertKeys(ssl);
 
     switch (args->dCert->keyOID) {
     #ifndef NO_RSA

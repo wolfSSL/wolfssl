@@ -4229,6 +4229,106 @@ int test_wolfSSL_session_chain_resume_declined(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY) && \
+    !defined(WOLFSSL_ALLOW_NO_CN_IN_SAN) && \
+    ((!defined(WOLFSSL_NO_TLS12) && defined(HAVE_AESGCM)) || \
+     (defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)))
+/* wolfSSL_clear() must drop the peer certificate key before the next handshake.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_clear_peer_cert_key_case(method_provider method_c,
+    method_provider method_s, const char* cipher, int secondErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = cipher;
+    test_ctx.s_ciphers = cipher;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    /* server-ecc.pem chains to the ECC CA. The default setup already trusts
+     * the RSA CA that signed svrCertFile. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    /* svrCertFile has SAN DNS:example.com. www.wolfssl.com is not in it. */
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, "www.wolfssl.com"),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH));
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectNull(ssl_c->peerRsaKey);
+        ExpectIntEQ(ssl_c->peerRsaKeyPresent, 0);
+        ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, "www.wolfssl.com"),
+            WOLFSSL_SUCCESS);
+    }
+
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* The server context still has haveRSA from svrCertFile. Present the ECC
+     * certificate and sign with the RSA key. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, eccCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(secondErr));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that wolfSSL_clear() does not leave the previous peer certificate key
+ * for the next handshake to trust.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_clear_peer_cert_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY) && \
+    !defined(WOLFSSL_ALLOW_NO_CN_IN_SAN)
+#ifndef WOLFSSL_NO_TLS12
+#ifdef HAVE_AESGCM
+    ExpectIntEQ(test_clear_peer_cert_key_case(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, "ECDHE-RSA-AES128-GCM-SHA256",
+        NO_PEER_KEY), TEST_SUCCESS);
+#endif
+#endif
+#ifdef WOLFSSL_TLS13
+#ifdef WC_RSA_PSS
+    ExpectIntEQ(test_clear_peer_cert_key_case(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, NULL, SIG_VERIFY_E), TEST_SUCCESS);
+#endif
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a session chain holding MAX_CHAIN_DEPTH certificates still names
  * its peer.
  *

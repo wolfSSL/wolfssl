@@ -74,6 +74,7 @@ int test_wolfSSL_session_chain_oversized_cert(void);
 int test_wolfSSL_session_ticket_oversized_peer_cert(void);
 int test_wolfSSL_session_chain_tls13_pha(void);
 int test_wolfSSL_session_chain_resume_declined(void);
+int test_wolfSSL_clear_peer_cert_key(void);
 int test_wolfSSL_SESSION_get0_peer_full_chain(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
@@ -130,6 +131,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_session_chain_tls13_pha),     \
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_session_chain_resume_declined),                       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_clear_peer_cert_key),         \
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_SESSION_get0_peer_full_chain),                        \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),         \

@@ -5897,6 +5897,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_CURVE448
         ssl->peerX448KeyPresent = 0;
     #endif
+        /* Drop the peer certificate public key left by an abandoned handshake. */
+        FreePeerCertKeys(ssl);
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
     #endif
