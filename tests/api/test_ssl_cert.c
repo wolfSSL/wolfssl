@@ -3306,6 +3306,125 @@ int test_wolfSSL_small_cert_verify_sig_error(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
+    #define TEST_FORGED_CHAIN_CA
+#endif
+
+/* Test that a chain CA whose signature never verified is not cached as a trust
+ * anchor when the application's verify callback overrides the error.
+ *
+ * The intermediate names the test root as its issuer and carries the root's
+ * authority key identifier, so the signer lookup finds the root, but it is
+ * signed with a key the root does not hold and fails with ASN_SIG_CONFIRM_E.
+ * Nothing about that certificate has been authenticated. Overriding the error
+ * decides this handshake and nothing else. Caching the key would hand every
+ * later connection from the same context a trust anchor the root never signed,
+ * and the verify callback only runs on an error, so nothing would ask the
+ * application about it again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_forged_chain_ca_not_cached(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_FORGED_CHAIN_CA
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* caDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    RsaKey attackerKey;
+    RsaKey leafKey;
+    WC_RNG rng;
+    int attackerInit = 0;
+    int leafInit = 0;
+    int rngInit = 0;
+    int caSz = 0;
+    int leafSz = 0;
+    int chainSz = 0;
+    word32 idx = 0;
+
+    ExpectNotNull(caDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    /* Any key the root does not hold serves as the attacker's. */
+    ExpectIntEQ(wc_InitRsaKey(&attackerKey, NULL), 0);
+    if (EXPECT_SUCCESS()) attackerInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &attackerKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* The intermediate claims the root as its issuer but is signed with the
+     * attacker's key, so the signer lookup succeeds and the signature check
+     * does not. */
+    ExpectIntGT((caSz = test_eku_gen_ca(caDer, TEST_EKU_CERT_BUF_SZ,
+        &attackerKey, ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        &attackerKey, &rng, "serverAuth,clientAuth", "Forged Intermediate", 0,
+        NULL)), 0);
+    ExpectIntGT((leafSz = test_eku_gen_leaf(leafDer, TEST_EKU_CERT_BUF_SZ,
+        &leafKey, caDer, caSz, &attackerKey, &rng)), 0);
+    ExpectIntLE(leafSz + caSz, 2 * TEST_EKU_CERT_BUF_SZ);
+
+    if (EXPECT_SUCCESS()) {
+        /* The chain buffer holds the leaf first, then its issuer. */
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, caDer, (size_t)caSz);
+        chainSz = leafSz + caSz;
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx_c));
+    /* The leaf chains to nothing the client holds yet, so the same check after
+     * the handshake reports a change and not a constant. */
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, leafDer, (long)leafSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_eku_override_cb);
+    /* The override carries the handshake past the forged intermediate. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The forged key must not have become a trust anchor. */
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, leafDer, (long)leafSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    if (rngInit)      wc_FreeRng(&rng);
+    if (attackerInit) wc_FreeRsaKey(&attackerKey);
+    if (leafInit)     wc_FreeRsaKey(&leafKey);
+    XFREE(caDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
     defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
     defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \

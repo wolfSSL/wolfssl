@@ -19588,13 +19588,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif
 
-                    /* An unsigned chain cert the verify callback waved through
-                     * stays out of the cache: cached CAs are trust anchors for
-                     * every later connection and the callback only runs on an
-                     * error. Other errors still chain to a trusted anchor, and
+                    /* A chain cert whose signature was never confirmed against
+                     * a trusted anchor stays out of the cache even when the
+                     * verify callback waved it through: cached CAs are trust
+                     * anchors for every later connection and the callback only
+                     * runs on an error. The errors left out here were raised
+                     * after the signature verified, so the key is authentic and
                      * the rest of the chain needs the cached entry. */
-                    if (preCbRet == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
-                        preCbRet == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
+                    if (preCbRet == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)   ||
+                        preCbRet == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E) ||
+                        preCbRet == WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E) ||
+                        preCbRet == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) {
                         skipAddCA = 1;
                     }
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
