@@ -142,6 +142,17 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
 {
     int ret = 0;
 
+    if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+        WOLFSSL_MSG("Dropping delegated responses after close_notify");
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        ssl->postHandshakeAuthPending = 0;
+        #endif
+        ssl->keys.keyUpdateRespond = 0;
+        #ifdef WOLFSSL_DTLS13
+        ssl->dtls13DoKeyUpdate = 0;
+        #endif
+    }
+
     if (IsAtLeastTLSv1_3(ssl->version)) {
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         /* Read side received a CertificateRequest but couldn't write;

@@ -20608,6 +20608,12 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
         WOLFSSL_ERROR_VERBOSE(FATAL_ERROR);
         return FATAL_ERROR;
     }
+    else if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+        WOLFSSL_MSG("Ignoring HelloRequest after close_notify");
+        WOLFSSL_LEAVE("DoHelloRequest", 0);
+        WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
+        return 0;
+    }
 #ifdef HAVE_SECURE_RENEGOTIATION
     else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
              !ssl->secure_renegotiation->advertiseOnly) {
@@ -30850,7 +30856,9 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
     else
 #endif
     {
-        if (ssl_in_handshake(ssl, 0)) {
+        /* No handshake records after our close_notify or a fatal alert */
+        if (!ssl->options.sentNotify && !ssl->options.fatalAlert &&
+                ssl_in_handshake(ssl, 0)) {
             int err;
             WOLFSSL_MSG("Handshake not complete, trying to finish");
             if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -30918,7 +30926,8 @@ startScr:
             }
             if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
                     ssl->options.handShakeState != HANDSHAKE_DONE
-                    && ssl->buffers.clearOutputBuffer.length == 0) {
+                    && ssl->buffers.clearOutputBuffer.length == 0
+                    && !ssl->options.sentNotify && !ssl->options.fatalAlert) {
                 /* ProcessReply processed a handshake packet and not any APP DATA
                  * so let's move the handshake along */
                 int err;
