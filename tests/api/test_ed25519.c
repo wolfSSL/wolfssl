@@ -1205,14 +1205,19 @@ int test_wc_ed25519_verify_streaming(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-    /* init: context==NULL/contextLen!=0 compound, explicit both-sides
-     * pairing within this function (type left as plain Ed25519 so the
-     * context is never actually consumed by the hash math either way,
-     * isolating the argument-check decision itself). */
+    /* init: context==NULL/contextLen!=0 compound (TRUE side), and the
+     * pure-type context rejection: RFC 8032 defines no context for pure
+     * Ed25519, so a non-empty context with type Ed25519 is rejected
+     * outright rather than silently discarded -- formerly this returned
+     * 0 and verified without binding the context. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
         NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
-        ctx, sizeof(ctx)), 0);
+        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* the rejected inits happen ahead of any hash-state work, so a fresh
+     * pure roundtrip on the same key must still verify. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+        NULL, 0), 0);
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, sizeof(msg), &key), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, &key),

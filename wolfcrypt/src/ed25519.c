@@ -507,6 +507,20 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                             const byte* context, byte contextLen)
 {
     int    ret;
+
+    /* RFC 8032 defines no context for pure Ed25519 -- only Ed25519ctx
+     * and Ed25519ph take one, bound via dom2 -- so a non-empty context
+     * with type Ed25519 cannot be honored.  Reject it rather than
+     * signing without it, which would silently void the caller's
+     * intended domain separation.  The pure path is every type other
+     * than Ed25519ctx/Ed25519ph (the type parameter is a byte, so the
+     * Ed25519 enumerator, -1, is not directly representable in it), and
+     * the check is placed ahead of the backend dispatch so the hardware
+     * and crypto-callback arms are covered too. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     (void)context;
     (void)contextLen;
@@ -1097,6 +1111,10 @@ int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
     if (key == NULL)
         return BAD_FUNC_ARG;
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
@@ -1134,6 +1152,14 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                               byte type, const byte* context, byte contextLen)
 {
     int ret;
+
+    /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
+     * pure Ed25519, so reject a non-empty one rather than silently
+     * verifying without it. */
+    if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     (void)type;
     (void)context;
