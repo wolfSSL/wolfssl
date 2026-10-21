@@ -14445,6 +14445,11 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->keys.keyUpdateRespond) {
+        if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+            WOLFSSL_MSG("Not answering KeyUpdate after close_notify");
+            ssl->keys.keyUpdateRespond = 0;
+            return 0;
+        }
 
 #ifdef WOLFSSL_DTLS13
         /* we already sent a keyUpdate (either in response to a previous
@@ -16396,6 +16401,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             if (type == certificate_request &&
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
+                if (ssl->options.sentNotify || ssl->options.fatalAlert) {
+                    WOLFSSL_MSG("Ignoring CertificateRequest after "
+                                "close_notify");
+                }
+                else
 #if defined(HAVE_WRITE_DUP)
                 /* Read side cannot write; delegate the cert response to the
                  * write side by saving auth state in the shared WriteDup. */
