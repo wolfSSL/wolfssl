@@ -205,6 +205,16 @@ void print_data(const char* name, const byte* d, int len)
     #define MLKEM_KDF               wc_Shake256Hash
 #endif
 
+/* A key named by id, label or device context is held by a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    #define MLKEM_KEY_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        ((key)->idLen > 0) || ((key)->labelLen > 0))
+#elif defined(WOLF_CRYPTO_CB)
+    #define MLKEM_KEY_ON_DEVICE(key) ((key)->devCtx != NULL)
+#else
+    #define MLKEM_KEY_ON_DEVICE(key) 0
+#endif
+
 /******************************************************************************/
 
 /* Helper function with volatile variable, to force compiler not to optimize
@@ -1584,8 +1594,8 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check the public key has been set. */
-    else if ((key->flags & MLKEM_FLAG_PUB_SET) == 0) {
+    else if (((key->flags & MLKEM_FLAG_PUB_SET) == 0) &&
+             !MLKEM_KEY_ON_DEVICE(key)) {
         ret = BAD_STATE_E;
     }
 
@@ -1608,6 +1618,10 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
         ret = 0;
     }
 #endif
+    /* Only software needs a local public key. */
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_PUB_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         /* Generate seed for use with PRFs.

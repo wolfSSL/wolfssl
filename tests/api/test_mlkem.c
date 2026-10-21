@@ -5141,12 +5141,101 @@ int test_wc_mlkem_decapsulate_id_key(void)
         WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectIntEQ(seen.calls, 2);
 
+    /* A key bound to the device only by its devId reaches it too. */
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+        keyInit = 0;
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen), 0);
+    ExpectIntEQ(seen.calls, 3);
+
     if (keyInit) {
         wc_MlKemKey_Free(key);
     }
     wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_PENDING_DEVID);
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A key named by id holds no public key in software, so encapsulating with it
+ * must reach the device. Only a declined call falls to the local key check. */
+int test_wc_mlkem_encapsulate_id_key(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_MLKEM_CB_PENDING) && defined(WOLF_PRIVATE_KEY_ID)
+    MlKemKey* key = NULL;
+    MlKemCbPendingCtx seen;
+    WC_RNG rng;
+    byte* ct = NULL;
+    byte ss[WC_ML_KEM_SS_SZ];
+    word32 ctLen = 0;
+    const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    int keyInit = 0;
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_PENDING_DEVID,
+        mlkem_cb_pending_cb, &seen), 0);
+    ExpectIntEQ(wc_MlKemKey_Init_Id(key, TEST_MLKEM_CB_PENDING_TYPE, id,
+        (int)sizeof(id), NULL, TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctLen), 0);
+    ExpectNotNull(ct = (byte*)XMALLOC(ctLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+    ExpectIntEQ(seen.calls, 1);
+
+    seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 2);
+
+    /* A key with no id, label or device context never reaches the device. */
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+        keyInit = 0;
+    }
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_PENDING_TYPE, NULL,
+        TEST_MLKEM_CB_PENDING_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        keyInit = 1;
+    }
+    seen.ret = 0;
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(seen.calls, 2);
+
+    /* A device context names the key as an id does. */
+    if (key != NULL) {
+        key->devCtx = &seen;
+    }
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+    ExpectIntEQ(seen.calls, 3);
+    if (key != NULL) {
+        key->devCtx = NULL;
+    }
+
+    if (keyInit) {
+        wc_MlKemKey_Free(key);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_PENDING_DEVID);
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
 #endif
     return EXPECT_RESULT();
 }
