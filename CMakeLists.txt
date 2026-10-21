@@ -3826,8 +3826,8 @@ if(WOLFSSL_AESEAX)
 endif()
 
 add_option("WOLFSSL_AESCBC_LENGTH_CHECKS"
-    "Enable AES-CBC length checks (default: disabled)"
-    "no" "yes;no")
+    "Enable AES-CBC length checks (default: enabled)"
+    "yes" "yes;no")
 if(WOLFSSL_AESCBC_LENGTH_CHECKS)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_AES_CBC_LENGTH_CHECKS"
