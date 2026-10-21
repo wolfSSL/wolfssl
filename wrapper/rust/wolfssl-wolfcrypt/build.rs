@@ -639,7 +639,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_ed448_verify_msg_init", "ed448_streaming_verify");
 
     /* fips */
-    check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips");
+    if check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips") {
+        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS.
+        println!("cargo::metadata=FIPS=1");
+    }
 
     /* hkdf */
     check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf");

@@ -301,7 +301,9 @@ fn test_output_len_bounds() {
         assert_eq!(err, Error::ParamInvalid { name: "l" });
     }
 
-    for len in [Output::MIN_LENGTH, Output::MAX_LENGTH] {
+    // FIPS refuses PBKDF2 output under 14 bytes, per SP 800-132.
+    let min_ok_len = if cfg!(fips) { 14 } else { Output::MIN_LENGTH };
+    for len in [min_ok_len, Output::MAX_LENGTH] {
         let ok = Params { rounds: 1000, output_len: len };
         let hash = hasher
             .hash_password_customized(b"pw", salt, None, None, ok)

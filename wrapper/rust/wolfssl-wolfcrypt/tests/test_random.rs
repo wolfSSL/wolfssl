@@ -113,7 +113,16 @@ fn test_rng_generate_block_large() {
 fn test_rng_reseed() {
     let rng = RNG::new().expect("Failed to create RNG");
     let seed = [1u8, 2, 3, 4];
-    rng.reseed(&seed).expect("Error with reseed()");
+    if cfg!(fips) {
+        // FIPS refuses a caller supplied seed on an RNG seeded from the
+        // approved entropy source.
+        assert_eq!(
+            rng.reseed(&seed),
+            Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_WRONG_TYPE_OBJECT_E)
+        );
+    } else {
+        rng.reseed(&seed).expect("Error with reseed()");
+    }
 }
 
 #[test]
