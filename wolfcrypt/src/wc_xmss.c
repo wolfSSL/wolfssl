@@ -56,6 +56,16 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* A key named by id, label or device context is held by a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    #define XMSS_KEY_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        ((key)->idLen > 0) || ((key)->labelLen > 0))
+#elif defined(WOLF_CRYPTO_CB)
+    #define XMSS_KEY_ON_DEVICE(key) ((key)->devCtx != NULL)
+#else
+    #define XMSS_KEY_ON_DEVICE(key) 0
+#endif
+
 #ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 /***************************
  * DIGEST init and free.
@@ -2105,11 +2115,11 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
         static const byte xmss_empty_msg[] = {0};
         m = xmss_empty_msg;
     }
-    /* Validate state. */
+    /* Validate state. A key named by id may have only its parameters set. */
     if ((ret == 0) && (key->state != WC_XMSS_STATE_OK) &&
-            (key->state != WC_XMSS_STATE_VERIFYONLY)) {
-        /* XMSS key not ready for verification. Param str must be
-         * set first, and Reload() called. */
+            (key->state != WC_XMSS_STATE_VERIFYONLY) &&
+            ((key->state != WC_XMSS_STATE_PARMSET) ||
+             !XMSS_KEY_ON_DEVICE(key))) {
         WOLFSSL_MSG("error: XMSS key not ready for verification");
         ret = BAD_STATE_E;
     }
