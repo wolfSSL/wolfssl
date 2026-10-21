@@ -1187,8 +1187,8 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     #else
         #define WC_RNG_TREE_API WOLFSSL_LOCAL
     #endif
-    /* Not fork safe: a fork() child calls wc_RNG_TreeInvalidate() and
-     * wc_RNG_TreeReseed() before it generates. */
+    /* Not fork safe: fork() only with no thread in a tree call; the child calls
+     * wc_RNG_TreeInvalidate() and wc_RNG_TreeReseed() before generating. */
     WC_RNG_TREE_API int wc_RNG_TreeInit(int ncpu, void* heap);
     /* Library cleanup: frees the leaves and zeroizes the root. */
     WC_RNG_TREE_API int wc_RNG_TreeZeroize(void);

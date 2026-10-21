@@ -32410,7 +32410,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_tree_fork_seeder(void* arg)
 }
 
 /* fork() while another thread seeds the tree root: the child's first WC_RNG
- * works or fails closed with BAD_MUTEX_E, and never waits for ever. */
+ * works or fails closed with RNG_FAILURE_E, and never waits for ever. */
 static wc_test_ret_t rng_tree_fork_test(void)
 {
     struct timespec d = { 0, 1000000 };
@@ -32447,7 +32447,7 @@ static wc_test_ret_t rng_tree_fork_test(void)
             if (wc_FreeRng(&rng) != 0 && r == 0)
                 r = WC_FAILURE;
         }
-        _exit((r == 0 || r == WC_NO_ERR_TRACE(BAD_MUTEX_E)) ? 0 : 1);
+        _exit((r == 0 || r == WC_NO_ERR_TRACE(RNG_FAILURE_E)) ? 0 : 1);
     }
     if (wolfSSL_JoinThread(seeder) != 0)
         ret = WC_TEST_RET_ENC_NC;
