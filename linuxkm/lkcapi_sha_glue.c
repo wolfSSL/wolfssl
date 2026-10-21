@@ -2077,7 +2077,7 @@ struct wc_swallow_the_semicolon
                               WOLFKM_SHA3_512_HMAC_DRIVER, hmac_sha3_test_once);
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG) && !defined(WC_RNG_TREE)
 
 #ifdef HAVE_ENTROPY_MEMUSE
     #include <wolfssl/wolfcrypt/wolfentropy.h>

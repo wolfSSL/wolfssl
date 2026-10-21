@@ -541,18 +541,32 @@ static WC_MAYBE_UNUSED int rng_entropy_event_propagate(WC_RNG* rng);
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 
+#ifdef WC_RNG_TREE
+static int TreeIsLive(void);
+static int TreeDropRoot(void);
+#endif
+
 #ifdef WC_RNG_SEED_CB
 
 #ifndef HAVE_FIPS
-static wc_RngSeed_Cb seedCb = wc_GenerateSeed;
+static wc_RngSeed_Cb seedCb = WC_GENERATE_SEED_DEFAULT;
 #else
 static wc_RngSeed_Cb seedCb = NULL;
 #endif
 
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
+#ifdef WC_RNG_TREE
+    /* SP 800-90C 7.3.1 item 9: a new source needs a new root instantiation. */
+    if (TreeIsLive())
+        return BAD_STATE_E;
+#endif
     seedCb = cb;
+#ifdef WC_RNG_TREE
+    return TreeDropRoot();
+#else
     return 0;
+#endif
 }
 
 #endif
@@ -722,6 +736,13 @@ int wc_Sha512Drbg_IsDisabled(void)
  * boundary.  Only the DRBG's reaction to a fork belongs in here. */
 static int RngAutoLockInit(WC_RNG* rng)
 {
+#ifdef WC_RNG_TREE
+    /* The tree's turn lock first, so fork() takes it last (wc_port.c). */
+    int ret = wc_ForkLock_Turn(NULL);
+
+    if (ret != 0)
+        return ret;
+#endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* A full mutex instance is locked by its caller for the whole call, so
      * the automatic lock leaves that instance alone, as it does without the
@@ -769,7 +790,8 @@ static int RngAutoLockInit(WC_RNG* rng)
 static void RngAutoLockFree(WC_RNG* rng)
 {
     if (rng->autoLockInited) {
-        (void)wc_FreeMutex(&rng->mutex);
+        if (wc_FreeMutex(&rng->mutex) != 0)
+            WOLFSSL_MSG("RNG auto lock: mutex not freed");
         rng->autoLockInited = 0;
     }
 }
@@ -796,7 +818,8 @@ static void RngAutoLockExit(WC_RNG* rng)
     if (!rng->autoLockInited)
         return;
     old = rng->autoLockCancel;   /* read before the unlock hands the slot on */
-    (void)wc_UnLockMutex(&rng->mutex);
+    if (wc_UnLockMutex(&rng->mutex) != 0)
+        WOLFSSL_MSG("RNG auto lock: mutex not unlocked");
     wc_CancelRestore(old);
 }
 #else
@@ -1427,6 +1450,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
     return ret;
 }
 
+#ifndef WC_RNG_NO_CALLER_SEED_APIS
 int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
                              const byte *nonce, word32 nonceSz)
 {
@@ -1535,6 +1559,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz) {
     return wc_RNG_DRBG_Reseed_Nonce(rng, seed, seedSz, NULL, 0);
 }
+#endif /* !WC_RNG_NO_CALLER_SEED_APIS */
 
 #ifdef WC_RNG_HAVE_RBGC
 
@@ -2726,12 +2751,12 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg)
 
 #endif /* WOLFSSL_DRBG_SHA512 */
 
+#ifndef WC_RNG_NO_CALLER_SEED_APIS
+
 /* Uncredited stirring, per SP 800-90A 10.1.1.4 generate with additional_input
  * (step 2: V += Hash(0x02 || V || additional_input)).  The generate is
- * zero-length: Hash_gen()'s (and Hash512_gen()'s) outSz==0 mode banks the
- * generated block for the continuous-test hook (its consumer is
- * configuration-dependent; no comparison state lives in this file), and
- * out is never dereferenced.  The reseed counter is incremented as for any
+ * zero-length: Hash_gen() and Hash512_gen() discard the block when outSz is
+ * 0, and out is never dereferenced.  The reseed counter is incremented as for any
  * generate, and quarantine/stratum are untouched, so the no-claims doctrine
  * holds as a theorem of the standard rather than a property of a custom
  * transition.  Refused with the wc_RNG_entropy_needs_recovery() verdict
@@ -2832,6 +2857,8 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
     return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
 }
+
+#endif /* !WC_RNG_NO_CALLER_SEED_APIS */
 
 /* SP800-90B 4.4 health tests run over conditioned seed material, which makes
  * them the developer-defined additional tests 4.3 Req 1c allows: 4.2 puts the
@@ -3248,6 +3275,10 @@ static void RngInitWipe(WC_RNG* rng)
  * _LOCK_INITIALLY (born held at both layers).  wc_FreeRng() releases (if the
  * latch is held) and frees the mutex.
  */
+#ifdef WC_RNG_TREE
+static int TreeChildSeed(OS_Seed* os, byte* out, word32 sz);
+#endif
+
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
@@ -3367,6 +3398,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
      * instantiate on nothing. */
     if ((userSeedSz > 0) && (userSeedSz <= SEED_BLOCK_SZ))
         return BAD_LENGTH_E;
+#ifdef WC_RNG_NO_CALLER_SEED_APIS
+    /* The self tests' fixed seed is the only seed these builds accept. */
+    if ((userSeedSz > 0) && !(flags & WC_RNG_INIT_FLAG_TEST_USER_SEED))
+        return BAD_FUNC_ARG;
+#endif
 #else
     (void)userSeed;
     (void)userSeedSz;
@@ -3843,7 +3879,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
             ret = wc_RNG_GenerateBlock(seedRng, seed, seedSz);
         }
         else {
-#ifdef WC_RNG_SEED_CB
+#ifdef WC_RNG_TREE
+            /* A child of the tree's root (SP 800-90C 7.2.3.1), drawing the
+             * module's own seed size as an RBGC spawn does. */
+            ret = TreeChildSeed(&rng->seed, seed, seedSz);
+#elif defined(WC_RNG_SEED_CB)
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
             }
@@ -3896,9 +3936,15 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
          * WC_RNG_INIT_FLAG_TEST_USER_SEED, in which case the material is
          * judged exactly as the module's own would be. */
 
+#ifdef WC_RNG_TREE
+        /* The health tests judged the root's seed, not its output. */
+        if ((ret == 0) && (userSeedSz > 0) &&
+            (flags & WC_RNG_INIT_FLAG_TEST_USER_SEED))
+#else
         if ((ret == 0) && (seedRng == NULL) &&
             ((userSeedSz == 0) ||
              (flags & WC_RNG_INIT_FLAG_TEST_USER_SEED)))
+#endif
         {
             ret = wc_RNG_TestSeed(seed, seedSz);
             #if defined(DEBUG_WOLFSSL)
@@ -4200,7 +4246,8 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && (!defined(WC_RNG_NO_CALLER_SEED_APIS) || \
+                               defined(WC_RNG_HAVE_GLOBAL_FALLBACK_RNG))
 /* The strength floor on caller-supplied seed material at the public user-seed
  * entry points.  Without WC_RNG_INIT_FLAG_TEST_USER_SEED every supplied byte
  * is DRBG input (the copy offset is the instantiate offset), so the floor is
@@ -4291,6 +4338,7 @@ int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                     heap, devId, NULL, flags);
 }
 
+#ifndef WC_RNG_NO_CALLER_SEED_APIS
 int wc_InitRngNonce_UserSeed(WC_RNG* rng,
                              const byte* seed, word32 seedSz,
                              const byte* nonce, word32 nonceSz,
@@ -4323,6 +4371,7 @@ int wc_InitRngNonce_UserSeed(WC_RNG* rng,
                     heap, devId, NULL, flags);
 #endif
 }
+#endif
 
 static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
 {
@@ -6196,6 +6245,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                 ret = DRBG_NEED_RESEED;
             }
         }
+#ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
         if ((wc_RNG_Status(&global_fallback_rng) == 0) &&
 #ifdef HAVE_FIPS
             /* SP-800-90C requires that an alternative randomness source be "a
@@ -6220,6 +6270,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                 ret = DRBG_NEED_RESEED;
             }
         }
+#endif /* WC_RNG_HAVE_GLOBAL_FALLBACK_RNG */
         if (rng->flags & WC_RNG_FLAG_NO_PRIMARY_SEED) {
             if (ret == 0)
                 return DRBG_NEED_RESEED;
@@ -6276,7 +6327,10 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
         ret = DRBG_SUCCESS;
     #endif
         if (ret == DRBG_SUCCESS) {
-        #ifdef WC_RNG_SEED_CB
+        #ifdef WC_RNG_TREE
+            /* A child reseeds from the tree's root (SP 800-90C 7.2.3.2.1). */
+            ret = TreeChildSeed(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
+        #elif defined(WC_RNG_SEED_CB)
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
             }
@@ -6320,6 +6374,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
             }
         #endif
         }
+    #ifndef WC_RNG_TREE
         if (ret == DRBG_SUCCESS) {
             ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
     #ifdef WC_RNG_DEBUG_STATS
@@ -6337,6 +6392,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
             }
     #endif
         }
+    #endif /* !WC_RNG_TREE */
         if (ret == DRBG_SUCCESS) {
             ret = Hash_DRBG_Reseed(rng, newSeed + SEED_BLOCK_SZ, SEED_SZ,
                                    additional, additionalSz,
@@ -6412,6 +6468,9 @@ out:
  *
  * The caller must hold exclusive access to rng, as for all WC_RNG operations.
  */
+#ifdef WC_RNG_NO_CALLER_SEED_APIS
+static
+#endif
 int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
     int ret;
@@ -6450,6 +6509,15 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     RngAutoLockExit(rng);
     return ret;
 }
+
+#ifdef WC_RNG_NO_CALLER_SEED_APIS
+/* Service 3.45: entropy from the module's own source (SP 800-90A r1 9.2); the
+ * caller's bytes are additional input only, with no entropy credit. */
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    return wc_RNG_DRBG_Reseed_Now(rng, seed, seedSz);
+}
+#else
 
 /* wc_RNG_DRBG_Reseed_Now_Primary() allows SP 800-90A prediction resistant
  * constructions even when the underlying RNG was RBGC-initialized.  In
@@ -6492,6 +6560,8 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
     return ret;
 #endif /* WC_RNG_HAVE_LOCK || SINGLE_THREADED */
 }
+
+#endif /* !WC_RNG_NO_CALLER_SEED_APIS */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
 
@@ -8800,6 +8870,664 @@ int wc_RNG_HealthTest_SHA512(int reseed,
 }
 
 #endif /* WOLFSSL_DRBG_SHA512 */
+
+#ifdef WC_RNG_TREE
+
+/* SP 800-90C 7.2.1.2 item 2 and 7.2.3.2.1: a Hash_DRBG leaf takes 3s/2 bits
+ * from its parent to instantiate and s bits to reseed. */
+#define TREE_INST_SZ    (RNG_SECURITY_STRENGTH * 3 / 16)
+#define TREE_RESEED_SZ  (RNG_SECURITY_STRENGTH / 8)
+#define TREE_JITTER_SZ  4
+
+typedef struct TreeNode {
+    DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t reseedCtr;
+    wc_drbg_reseed_ctr_t reseedAt;  /* leaves only: jittered half-life */
+    wolfSSL_Atomic_Int   busy;
+    int                  epoch;     /* tree epoch when last seeded */
+    int                  up;        /* leaves only: instantiated */
+} TreeNode;
+
+typedef struct Tree {
+    TreeNode           root;
+    TreeNode*          leaves;      /* NULL until the tree is ready */
+    int                ncpu;
+    void*              heap;
+    wolfSSL_Atomic_Int epoch;       /* bumped by wc_RNG_TreeInvalidate() */
+    wolfSSL_Atomic_Int seeding;     /* one root seeder at a time */
+    wolfSSL_Atomic_Int failed;      /* error state: no output */
+    int                rootUp;      /* root instantiated */
+    WC_RNG_PID_ARG     pid;         /* process that last seeded the root */
+    byte               seed[MAX_SEED_SZ]; /* root seed, used under seeding */
+#if !defined(WOLFSSL_LINUXKM) && !defined(WC_RNG_LOCK_ATFORK) && \
+    !defined(WOLFSSL_MUTEX_INITIALIZER)
+    wolfSSL_Mutex      turn;        /* userspace children */
+    wc_MutexOnceFlag   turnOnce;
+#endif
+} Tree;
+
+static Tree tree;
+
+static int TreeIsLive(void)
+{
+    return tree.leaves != NULL;
+}
+
+#ifndef WOLFSSL_LINUXKM
+/* Userspace WC_RNG children take turns on a root seeding.  The fork lock is
+ * taken by fork() itself, so a child never inherits it held (wc_port.c). */
+#if defined(WC_RNG_LOCK_ATFORK)
+static int TreeTurnTake(void)
+{
+    wc_ForkLock* turn = NULL;
+    int ret = wc_ForkLock_Turn(&turn);
+
+    return (ret != 0) ? ret : wc_ForkLock_Enter(turn);
+}
+
+static int TreeTurnGive(void)
+{
+    wc_ForkLock* turn = NULL;
+    int ret = wc_ForkLock_Turn(&turn);
+
+    if (ret == 0)
+        wc_ForkLock_Exit(turn);
+    return ret;
+}
+#else
+/* No fork lock (macOS, no autofork): a fork() without exec while another
+ * thread seeds the root leaves the child waiting on this mutex. */
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+static wolfSSL_Mutex treeTurn WOLFSSL_MUTEX_INITIALIZER_CLAUSE(treeTurn);
+#define TREE_TURN       (&treeTurn)
+#define TreeTurnReady() 0
+#else
+#define TREE_TURN       (&tree.turn)
+#define TreeTurnReady() wc_local_InitMutexOnce(&tree.turn, &tree.turnOnce)
+#endif
+static int treeTurnCancel;   /* the holder's cancel state, back on give */
+
+/* A gather reads a device, a cancellation point: keep a cancel from
+ * stranding the turn, as the WC_RNG locks do. */
+static int TreeTurnTake(void)
+{
+    int old = wc_CancelDisable();
+    int ret = TreeTurnReady();
+
+    if (ret == 0)
+        ret = wc_LockMutex(TREE_TURN);
+    if (ret != 0) {
+        wc_CancelRestore(old);
+        return ret;
+    }
+    treeTurnCancel = old;
+    return 0;
+}
+
+static int TreeTurnGive(void)
+{
+    int old = treeTurnCancel;   /* read before the unlock hands it on */
+    int ret = wc_UnLockMutex(TREE_TURN);
+
+    wc_CancelRestore(old);
+    return ret;
+}
+#endif
+#endif /* !WOLFSSL_LINUXKM */
+
+static int TreeTryLock(wolfSSL_Atomic_Int* busy)
+{
+    int expected = 0;
+
+    if (wolfSSL_Atomic_Int_CompareExchange(busy, &expected, 1))
+        return 0;
+    return BUSY_E;
+}
+
+static void TreeUnlock(wolfSSL_Atomic_Int* busy)
+{
+    WOLFSSL_ATOMIC_STORE(*busy, 0);
+}
+
+/* Holders of the root run one generate or reseed and never sleep. */
+static void TreeLockRoot(void)
+{
+    while (TreeTryLock(&tree.root.busy) != 0)
+        WC_RELAX_LONG_LOOP();
+}
+
+/* Map the internal DRBG return codes to wolfCrypt errors. */
+static int TreeError(int ret)
+{
+    if (ret == DRBG_SUCCESS)
+        return 0;
+    if (ret == WC_NO_ERR_TRACE(DRBG_NEED_RESEED))
+        return NOT_READY_E;
+    if (ret > 0)
+        return RNG_FAILURE_E;
+    return ret;
+}
+
+/* Latch an error state.  A CAST error, which a re-instantiation clears, never
+ * replaces one only a reload clears (SP 800-90A 11.4.2, SP 800-90B 4.3 item 2). */
+static void TreeSetFailed(int err)
+{
+    int kat = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
+    int cur = WOLFSSL_ATOMIC_LOAD(tree.failed);
+
+    /* Replace no error, or a CAST error with a harder one. */
+    while (cur == 0 || (cur == kat && err != kat)) {
+        if (wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &cur, err))
+            break;
+    }
+}
+
+/* SP 800-90A 11.4.2: a DRBG failure is an error state; only a new tree,
+ * instantiated from fresh entropy, clears it. */
+static int TreeDrbgResult(int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        TreeSetFailed(RNG_FAILURE_E);
+        return RNG_FAILURE_E;
+    }
+    return TreeError(ret);
+}
+
+/* Any context, NMI included: it only sets the latch. */
+void wc_RNG_TreeCastFailed(void)
+{
+    TreeSetFailed(DRBG_SHA512_KAT_FIPS_E);
+}
+
+/* Next leaf reseed point: half the reseed interval, jittered by +/- 1/8 so
+ * the schedule is not observable. */
+static void TreeSetReseedAt(TreeNode* leaf, const byte* jitter)
+{
+    wc_drbg_reseed_ctr_t half = WC_RESEED_INTERVAL / 2;
+    wc_drbg_reseed_ctr_t span = half / 4;
+    wc_drbg_reseed_ctr_t off;
+    word32 j;
+
+    j = ((word32)jitter[0] << 24) | ((word32)jitter[1] << 16) |
+        ((word32)jitter[2] << 8) | (word32)jitter[3];
+
+    /* No 64-bit division: 32-bit kernels have no helper for it.  The split
+     * shift stays defined when the counter is 32 bits. */
+    if (span < 0xFFFFFFFFU)
+        off = j % ((word32)span + 1);
+    else
+        off = ((span >> 16) >> 16) * j;
+    leaf->reseedAt = half - (span / 2) + off;
+}
+
+/* Seed material from the configured source, passed through the SP 800-90B
+ * RCT and APT.  Returns the source's error as is; TreeGetEntropy() latches. */
+static int TreeSourceSeed(OS_Seed* os, byte* seed, word32 seedSz)
+{
+    int ret;
+
+#ifdef WC_RNG_SEED_CB
+    if (seedCb == NULL)
+        ret = DRBG_NO_SEED_CB;
+    else
+        ret = seedCb(os, seed, seedSz);
+#else
+    ret = wc_GenerateSeed(os, seed, seedSz);
+#endif
+    if (ret > 0)
+        ret = WC_FAILURE;
+    if (ret == 0)
+        ret = wc_RNG_TestSeed(seed, seedSz);
+    return ret;
+}
+
+/* Entropy input for the root.  An RCT or APT failure (SP 800-90B 4.4) is
+ * latched until reload and the sample is never used. */
+static int TreeGetEntropy(byte* seed, word32 seedSz)
+{
+    OS_Seed os;
+    int ret;
+
+    XMEMSET(&os, 0, sizeof(os));
+#ifndef USE_WINDOWS_API
+    os.fd = -1;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    os.devId = INVALID_DEVID;   /* the platform source, not device 0 */
+#endif
+
+    ret = TreeSourceSeed(&os, seed, seedSz);
+#if defined(WOLFSSL_KEEP_RNG_SEED_FD_OPEN) && defined(XCLOSE) && \
+    !defined(USE_WINDOWS_API)
+    /* Nothing keeps this OS_Seed, so a descriptor it opened is closed. */
+    if (os.seedFdOpen && os.fd != XBADFD)
+        XCLOSE(os.fd);
+#endif
+    if (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E) ||
+        ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))
+        TreeSetFailed(ret);
+    return ret;
+}
+
+/* Generate seed material for a leaf from the root (SP 800-90C 7.3.3). */
+static int TreeDraw(int epoch, byte* out, word32 sz)
+{
+    int ret;
+
+    if (TreeTryLock(&tree.root.busy) != 0)
+        return BUSY_E;
+
+    /* No output from a root that is not instantiated (SP 800-90C 7.3.1
+     * item 3). */
+    if (!tree.rootUp || tree.root.epoch != epoch ||
+            tree.pid != WC_RNG_GETPID())
+        ret = NOT_READY_E;
+    else
+        ret = TreeDrbgResult(Hash512_DRBG_Generate(&tree.root.drbg,
+                                    &tree.root.reseedCtr, out, sz, NULL, 0));
+
+    TreeUnlock(&tree.root.busy);
+    return ret;
+}
+
+static int TreeRootStale(int epoch)
+{
+    int stale;
+
+    TreeLockRoot();
+    stale = (tree.root.epoch != epoch) || (tree.pid != WC_RNG_GETPID()) ||
+            (tree.root.reseedCtr >= WC_RESEED_INTERVAL);
+    TreeUnlock(&tree.root.busy);
+
+    return stale;
+}
+
+/* Memory that did not zeroize is not handed back to the allocator. */
+static int TreeFreeLeaves(TreeNode* leaves, int count)
+{
+    int i;
+    int ret = 0;
+
+    for (i = 0; i < count; i++) {
+        if (leaves[i].up &&
+                Hash512_DRBG_Uninstantiate(&leaves[i].drbg) != DRBG_SUCCESS)
+            ret = BAD_STATE_E;
+    }
+    if (ret == 0)
+        XFREE(leaves, tree.heap, DYNAMIC_TYPE_RNG);
+    return ret;
+}
+
+/* Root: entropy and nonce from the entropy source. */
+static int TreeInstantiateRoot(void)
+{
+    byte* seed = tree.seed;   /* the caller holds tree.seeding */
+    /* Read before the gather: a VM fork during it leaves the root stale. */
+    int epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    int ret;
+
+    ret = TreeGetEntropy(seed, MAX_SEED_SZ);
+    if (ret == 0) {
+        TreeLockRoot();
+        if (tree.rootUp) {
+            tree.rootUp = 0;
+            ret = TreeDrbgResult(Hash512_DRBG_Uninstantiate(&tree.root.drbg));
+        }
+        if (ret == 0)
+            ret = TreeDrbgResult(Hash512_DRBG_Instantiate(&tree.root.drbg,
+                    &tree.root.reseedCtr, seed + SEED_BLOCK_SZ,
+                    MAX_SEED_SZ - SEED_BLOCK_SZ, NULL, 0, NULL, 0, tree.heap,
+                    INVALID_DEVID));
+        if (ret == 0) {
+            tree.root.epoch = epoch;
+            tree.pid = WC_RNG_GETPID();
+            tree.rootUp = 1;
+        }
+        else {
+            /* A partly derived state is wiped too; a failed wipe is the error. */
+            int wipe = TreeDrbgResult(
+                    Hash512_DRBG_Uninstantiate(&tree.root.drbg));
+
+            if (wipe != 0)
+                ret = wipe;
+        }
+        TreeUnlock(&tree.root.busy);
+    }
+    ForceZero(seed, MAX_SEED_SZ);
+
+    return ret;
+}
+
+/* Leaf: entropy and nonce from the root, its index as perso. */
+static int TreeInstantiateLeaf(TreeNode* leaf, word32 index)
+{
+    byte seed[TREE_INST_SZ + TREE_JITTER_SZ];
+    int epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    int ret;
+
+    /* Root holders run one generate or reseed and never sleep. */
+    while ((ret = TreeDraw(epoch, seed, sizeof(seed))) ==
+            WC_NO_ERR_TRACE(BUSY_E))
+        WC_RELAX_LONG_LOOP();
+    if (ret == 0) {
+        if (leaf->up) {
+            leaf->up = 0;
+            ret = TreeDrbgResult(Hash512_DRBG_Uninstantiate(&leaf->drbg));
+        }
+        if (ret == 0)
+            ret = TreeDrbgResult(Hash512_DRBG_Instantiate(&leaf->drbg,
+                    &leaf->reseedCtr, seed, TREE_INST_SZ, NULL, 0,
+                    (const byte*)&index, sizeof(index), tree.heap,
+                    INVALID_DEVID));
+        /* A partly derived state is wiped too; a failed wipe is the error. */
+        if (ret != 0) {
+            int wipe = TreeDrbgResult(Hash512_DRBG_Uninstantiate(&leaf->drbg));
+
+            if (wipe != 0)
+                ret = wipe;
+        }
+    }
+    if (ret == 0) {
+        leaf->epoch = epoch;
+        leaf->up = 1;
+        TreeSetReseedAt(leaf, seed + TREE_INST_SZ);
+    }
+    ForceZero(seed, sizeof(seed));
+
+    return ret;
+}
+
+/* Every root seed passes the SP 800-90B RCT and APT. */
+int wc_RNG_TreeInit(int ncpu, void* heap)
+{
+    TreeNode* leaves;
+    word32 i, count;
+    int ret;
+
+    if (ncpu <= 0 || ncpu > 65536)
+        return BAD_FUNC_ARG;
+    if (TreeIsLive())
+        return BAD_STATE_E;
+    /* An RCT, APT or DRBG failure stays latched until the module reloads. */
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E))
+        return ret;
+    tree.heap = heap;
+
+    count = (word32)ncpu * WC_RNG_TREE_LANES;
+    leaves = (TreeNode*)XMALLOC(sizeof(TreeNode) * count, heap,
+                                DYNAMIC_TYPE_RNG);
+    if (leaves == NULL)
+        return MEMORY_E;
+    XMEMSET(leaves, 0, sizeof(TreeNode) * count);
+
+    /* The root may already serve WC_RNG children; it is kept unless the CAST
+     * error is latched. */
+    ret = wc_RNG_TreeReseed(0);
+    for (i = 0; ret == 0 && i < count; i++)
+        ret = TreeInstantiateLeaf(&leaves[i], i);
+
+    if (ret != 0) {
+        int wipe = TreeFreeLeaves(leaves, (int)count);
+
+        return (wipe != 0) ? wipe : ret;
+    }
+
+    tree.ncpu = ncpu;
+    tree.leaves = leaves;
+    return 0;
+}
+
+/* Wipe the root; the next seeding instantiates it again. */
+static int TreeDropRoot(void)
+{
+    int ret = 0;
+#ifdef WC_RNG_LOCK_ATFORK
+    int turn = TreeTurnTake();   /* the wipe runs whether or not it is taken */
+#endif
+
+    /* A root being seeded now would come back up after the drop. */
+    while (TreeTryLock(&tree.seeding) != 0)
+        WC_RELAX_LONG_LOOP();
+    TreeLockRoot();
+    if (tree.rootUp &&
+            Hash512_DRBG_Uninstantiate(&tree.root.drbg) != DRBG_SUCCESS)
+        ret = BAD_STATE_E;
+    tree.rootUp = 0;
+    TreeUnlock(&tree.root.busy);
+    TreeUnlock(&tree.seeding);
+#ifdef WC_RNG_LOCK_ATFORK
+    if (turn == 0)
+        turn = TreeTurnGive();
+    if (ret == 0)
+        ret = turn;
+#endif
+    return ret;
+}
+
+/* Library cleanup: the leaves, then the root.  The caller guarantees no other
+ * tree call is running or will start. */
+int wc_RNG_TreeZeroize(void)
+{
+    TreeNode* leaves = tree.leaves;
+    int ret = 0;
+    int drop;
+
+    if (leaves != NULL) {
+        tree.leaves = NULL;
+        ret = TreeFreeLeaves(leaves, tree.ncpu * WC_RNG_TREE_LANES);
+    }
+    drop = TreeDropRoot();   /* BAD_STATE_E: a wipe failed */
+
+    if (drop != 0 && ret == 0)
+        ret = drop;
+#if !defined(WOLFSSL_LINUXKM) && !defined(WC_RNG_LOCK_ATFORK) && \
+    !defined(WOLFSSL_MUTEX_INITIALIZER)
+    drop = wc_local_FreeMutexOnce(&tree.turn, &tree.turnOnce);
+    if (drop != 0 && ret == 0)
+        ret = drop;
+#endif
+    return ret;
+}
+
+void wc_RNG_TreeInvalidate(void)
+{
+    wolfSSL_Atomic_Int_FetchAdd(&tree.epoch, 1);
+}
+
+/* A latched CAST error is left by re-instantiating the root and every leaf
+ * (SP 800-90A 11.4.2); the caller has seen the CAST pass.  Others stay. */
+int wc_RNG_TreeReseed(int force)
+{
+    byte* seed = tree.seed;
+    int expected = WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E);
+    word32 i, count;
+    int epoch;
+    int ret;
+
+    /* Wait for another seeder; BUSY_E from here comes only from the source. */
+    while (TreeTryLock(&tree.seeding) != 0)
+        WC_RELAX_LONG_LOOP();
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+
+    epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    if (ret == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) {
+        ret = TreeInstantiateRoot();
+        count = TreeIsLive() ? (word32)tree.ncpu * WC_RNG_TREE_LANES : 0;
+        for (i = 0; ret == 0 && i < count; i++) {
+            /* Leaf holders run one generate and never sleep. */
+            while (TreeTryLock(&tree.leaves[i].busy) != 0)
+                WC_RELAX_LONG_LOOP();
+            ret = TreeInstantiateLeaf(&tree.leaves[i], i);
+            TreeUnlock(&tree.leaves[i].busy);
+        }
+        /* Only the CAST error is cleared; one set meanwhile stays. */
+        if (ret == 0 &&
+                !wolfSSL_Atomic_Int_CompareExchange(&tree.failed, &expected, 0))
+            ret = expected;
+    }
+    else if (ret == 0 && !tree.rootUp) {
+        ret = TreeInstantiateRoot();
+    }
+    else if (ret == 0 && (force || TreeRootStale(epoch))) {
+        /* Gathered outside the root lock: it can take milliseconds. */
+        ret = TreeGetEntropy(seed, SEED_SZ + SEED_BLOCK_SZ);
+        if (ret == 0) {
+            TreeLockRoot();
+            /* Dropped during the gather: the next call instantiates it. */
+            if (!tree.rootUp)
+                ret = NOT_READY_E;
+            else
+                ret = TreeDrbgResult(Hash512_DRBG_Reseed(&tree.root.drbg,
+                            &tree.root.reseedCtr, seed + SEED_BLOCK_SZ,
+                            SEED_SZ, NULL, 0));
+            if (ret == 0) {
+                tree.root.epoch = epoch;
+                tree.pid = WC_RNG_GETPID();
+            }
+            TreeUnlock(&tree.root.busy);
+        }
+        ForceZero(seed, SEED_SZ + SEED_BLOCK_SZ);
+    }
+
+    TreeUnlock(&tree.seeding);
+    return ret;
+}
+
+/* Seed material for a WC_RNG child of the root (SP 800-90C 7.2.3).  Where the
+ * caller can wait, an absent, stale or latched root is renewed first. */
+static int TreeChildDraw(OS_Seed* os, byte* out, word32 sz, int sha512Off)
+{
+    int seedRet = 0;
+    int renewed = 0;
+    int epoch;
+    int ret;
+
+    /* With the SHA-512 DRBG off, seed from the source as plain builds do. */
+    if (sha512Off)
+        return TreeSourceSeed(os, out, sz);
+    if (WC_CAN_BLOCK())
+        seedRet = wc_RNG_TreeReseed(0);
+    epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    if (ret == 0)
+        ret = TreeDraw(epoch, out, sz);
+    /* Wait out a busy root; renew once more if invalidated after renewal. */
+    while (WC_CAN_BLOCK() && (ret == WC_NO_ERR_TRACE(BUSY_E) ||
+            (ret == WC_NO_ERR_TRACE(NOT_READY_E) && seedRet == 0 &&
+             !renewed))) {
+        WC_RELAX_LONG_LOOP();
+        if (ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
+            renewed = 1;
+            seedRet = wc_RNG_TreeReseed(0);
+        }
+        epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+        ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+        if (ret == 0)
+            ret = TreeDraw(epoch, out, sz);
+    }
+    /* No root to draw from: report why it could not be seeded. */
+    if (ret == WC_NO_ERR_TRACE(NOT_READY_E) && seedRet != 0)
+        ret = seedRet;
+    return ret;
+}
+
+/* Userspace children take turns, the source-only path included. */
+static int TreeChildSeed(OS_Seed* os, byte* out, word32 sz)
+{
+    int sha512Off = wc_Sha512Drbg_IsDisabled();
+    int ret = 0;
+#ifndef WOLFSSL_LINUXKM
+    int give;
+#endif
+
+#ifdef HAVE_FIPS
+    /* The root's CAST before first use (IG 10.3.A): a SHA-256 WC_RNG's wrapper
+     * runs only its own.  The KAT allocates, so only where we can block. */
+    if (!sha512Off && WC_CAN_BLOCK() &&
+            wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) ==
+            FIPS_CAST_STATE_INIT) {
+        ret = wc_RunCast_fips(FIPS_CAST_DRBG_SHA512);
+        if (ret != 0)
+            return ret;
+    }
+    if (!sha512Off && wc_GetCastStatus_fips(FIPS_CAST_DRBG_SHA512) !=
+            FIPS_CAST_STATE_SUCCESS)
+        return DRBG_SHA512_KAT_FIPS_E;
+#endif
+#ifdef WOLFSSL_LINUXKM
+    ret = TreeChildDraw(os, out, sz, sha512Off);
+#else
+    ret = TreeTurnTake();
+    if (ret != 0)
+        return ret;
+    ret = TreeChildDraw(os, out, sz, sha512Off);
+    give = TreeTurnGive();
+    if (ret == 0)
+        ret = give;
+#endif
+    return ret;
+}
+
+int wc_RNG_TreeGenerate(int cpu, int lane, const byte* addl, word32 addlSz,
+                        byte* out, word32 sz)
+{
+    TreeNode* leaf;
+    byte seed[TREE_RESEED_SZ + TREE_JITTER_SZ];
+    int epoch;
+    int ret = 0;
+
+    if (!TreeIsLive())
+        return BAD_STATE_E;
+    /* No output in an error state, or while the SHA-512 DRBG is off. */
+    ret = WOLFSSL_ATOMIC_LOAD(tree.failed);
+    if (ret == 0 && wc_Sha512Drbg_IsDisabled())
+        ret = BAD_STATE_E;
+    if (ret != 0)
+        return ret;
+    if (out == NULL || (addl == NULL && addlSz > 0) ||
+            addlSz > RNG_MAX_BLOCK_LEN || sz > RNG_MAX_BLOCK_LEN)
+        return BAD_FUNC_ARG;
+    if (cpu < 0 || cpu >= tree.ncpu || lane < 0 || lane >= WC_RNG_TREE_LANES)
+        return BAD_FUNC_ARG;
+    /* Hash512_gen() treats a zero length as one discarded block. */
+    if (sz == 0)
+        return 0;
+
+    leaf = &tree.leaves[cpu * WC_RNG_TREE_LANES + lane];
+    if (TreeTryLock(&leaf->busy) != 0)
+        return BUSY_E;
+
+    epoch = WOLFSSL_ATOMIC_LOAD(tree.epoch);
+    if (leaf->epoch != epoch || leaf->reseedCtr >= leaf->reseedAt) {
+        ret = TreeDraw(epoch, seed, sizeof(seed));
+        if (ret == 0) {
+            ret = TreeDrbgResult(Hash512_DRBG_Reseed(&leaf->drbg,
+                        &leaf->reseedCtr, seed, TREE_RESEED_SZ, NULL, 0));
+        }
+        if (ret == 0) {
+            leaf->epoch = epoch;
+            TreeSetReseedAt(leaf, seed + TREE_RESEED_SZ);
+        }
+        ForceZero(seed, sizeof(seed));
+
+        /* SP 800-90C 7.3.1 req 12: serve on while the root is unavailable,
+         * but never across a VM fork (SP 800-90C A.3.2). */
+        if ((ret == WC_NO_ERR_TRACE(BUSY_E) ||
+             ret == WC_NO_ERR_TRACE(NOT_READY_E)) && leaf->epoch == epoch)
+            ret = 0;
+    }
+
+    if (ret == 0) {
+        ret = TreeDrbgResult(Hash512_DRBG_Generate(&leaf->drbg,
+                    &leaf->reseedCtr, out, sz, addl, addlSz));
+    }
+
+    TreeUnlock(&leaf->busy);
+    return ret;
+}
+
+#endif /* WC_RNG_TREE */
 
 #if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))

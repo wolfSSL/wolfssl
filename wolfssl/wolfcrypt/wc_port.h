@@ -1176,6 +1176,7 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
 /* For tests: force the lock to fail closed. */
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
 WOLFSSL_LOCAL void wc_PinImage(void* fn);          /* keeps fn's image mapped */
+WOLFSSL_LOCAL int  wc_ForkLock_Turn(wc_ForkLock** lock); /* the RNG tree's */
 /* Cancellation off while a lock is held: a reseed reads a device, which is a
  * cancellation point.  Both are no-ops where the platform has no cancel. */
 WOLFSSL_LOCAL int  wc_CancelDisable(void);         /* returns the old state */
@@ -1191,6 +1192,8 @@ WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
         typedef unsigned int wc_MutexOnceFlag;
     #endif
     WOLFSSL_LOCAL int wc_local_InitMutexOnce(wolfSSL_Mutex* m,
+        wc_MutexOnceFlag* flag);
+    WOLFSSL_LOCAL int wc_local_FreeMutexOnce(wolfSSL_Mutex* m,
         wc_MutexOnceFlag* flag);
 #endif
 #ifndef WC_RWLOCK_OPS_INLINE

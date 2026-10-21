@@ -101,6 +101,15 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
 #endif
 
+/* WC_SHA512_C_ONLY builds only the C transform; the Arm, PowerPC and RISC-V
+ * transforms need vector registers, which hardirq and NMI callers cannot use. */
+#ifdef WC_SHA512_C_ONLY
+    #undef WOLFSSL_ARMASM
+    #undef WOLFSSL_PPC64_ASM
+    #undef WOLFSSL_PPC32_ASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
     #define USE_SLOW_SHA512
@@ -145,7 +154,8 @@
     #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WC_SHA512_C_ONLY)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
         #undef  NO_AVX2_SUPPORT

@@ -456,7 +456,8 @@ static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 int aarch64_use_sb = 0;
 #endif
 
-#ifdef WC_RNG_HAVE_AUTO_LOCK
+#if defined(WC_RNG_HAVE_AUTO_LOCK) || \
+    (defined(WC_RNG_TREE) && !defined(WOLFSSL_LINUXKM))
 /* Cancellation off while a lock is held, so a cancel cannot strand it.  Where
  * the platform has no cancellation both are empty and the value is unused.
  */
@@ -479,7 +480,7 @@ WOLFSSL_LOCAL void wc_CancelRestore(int state)
     (void)state;
 #endif
 }
-#endif /* WC_RNG_HAVE_AUTO_LOCK */
+#endif /* WC_RNG_HAVE_AUTO_LOCK || userspace WC_RNG_TREE */
 
 #ifdef WC_RNG_LOCK_ATFORK
 #if !defined(RTLD_NOLOAD) || !defined(RTLD_NODELETE)
@@ -526,7 +527,7 @@ struct wc_ForkLock {
     #error "the RNG fork handlers need thread local storage"
 #endif
 /* What this thread holds.  Only this thread touches it, so no atomics.
- * The library never nests these; the spare slots cover a callback that does. */
+ * The library nests two: a WC_RNG's, then the RNG tree's turn lock. */
 #define WC_FORK_MINE_MAX 4   /* past this, taking the lock is refused */
 static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
 
@@ -566,6 +567,8 @@ static int ForkMineHeld(const wc_ForkLock* lock)
     return 0;
 }
 
+/* Newest first, the order prepare takes them in: a lock held while taking
+ * another must be newer than it (the RNG tree's turn lock is the oldest). */
 static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
 static sem_t forkListSem;
 static wolfSSL_Atomic_Int forkListDead =
@@ -775,6 +778,28 @@ WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
     if (lock != NULL)
         WOLFSSL_ATOMIC_STORE(lock->broken, broken);
 }
+
+#ifdef WC_RNG_TREE
+static wc_ForkLock* forkTurn = NULL;
+static int forkTurnRet = 0;
+static pthread_once_t forkTurnOnce = PTHREAD_ONCE_INIT;
+
+static void ForkTurnNew(void)
+{
+    forkTurnRet = wc_ForkLock_New(&forkTurn, NULL);
+}
+
+/* The RNG tree's turn lock, made once per process; a NULL lock only makes it.
+ * A failure to make it lasts for the process, as in wc_ForkLockInit(). */
+WOLFSSL_LOCAL int wc_ForkLock_Turn(wc_ForkLock** lock)
+{
+    if (pthread_once(&forkTurnOnce, ForkTurnNew) != 0)
+        return BAD_MUTEX_E;
+    if (lock != NULL)
+        *lock = forkTurn;
+    return forkTurnRet;
+}
+#endif
 #endif
 
 /* Used to initialize state for wolfcrypt
@@ -913,6 +938,13 @@ int wolfCrypt_Init(void)
         ret = wc_ForkLockInit();
         if (ret != 0) {
             WOLFSSL_MSG("RNG fork handler registration failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+    #if defined(WC_RNG_TREE) && defined(WC_RNG_LOCK_ATFORK)
+        ret = wc_ForkLock_Turn(NULL);
+        if (ret != 0) {
+            WOLFSSL_MSG("RNG tree turn lock creation failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
@@ -1242,6 +1274,9 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
         (void)wc_RNG_global_fallback_free();
+    #endif
+    #ifdef WC_RNG_TREE
+        ret = wc_RNG_TreeZeroize();
     #endif
 
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -3069,6 +3104,19 @@ int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
         }
     }
 #endif
+    return ret;
+}
+
+/* Undo wc_local_InitMutexOnce(); a mutex that is not freed stays marked ready. */
+int wc_local_FreeMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
+{
+    int ret = 0;
+
+    if (WOLFSSL_ATOMIC_LOAD(*flag) == 2) {
+        ret = wc_FreeMutex(m);
+        if (ret == 0)
+            WOLFSSL_ATOMIC_STORE(*flag, 0);
+    }
     return ret;
 }
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */

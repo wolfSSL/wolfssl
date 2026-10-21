@@ -542,6 +542,8 @@ MODULE_PARM_DESC(rodata_dump_path,
                                        const char *buf, size_t count);
     static struct module_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
     static int installed_sysfs_FIPS_files = 0;
+    /* pid running an on-demand self-test, else -1 */
+    static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -2687,7 +2689,6 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
 #ifdef HAVE_FIPS
 
-static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
 
 static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, size_t count)

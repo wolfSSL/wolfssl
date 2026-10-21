@@ -4812,13 +4812,13 @@
     #endif
 
     #ifndef WC_RESEED_INTERVAL
-        /* In kernel mode, use the maximum mandatory reseed threshold allowed by
-         * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
-         * generation.
-         */
+        /* Kernel mode uses the largest interval SP 800-90A Rev. 1 allows,
+         * except C-only SHA-512 and the RBGC tree, which keep 1,000,000. */
         #if defined(HAVE_FIPS) && \
             FIPS_VERSION_LT(6,0) && FIPS_VERSION3_NE(5,2,4)
             #define WC_RESEED_INTERVAL UINT_MAX
+        #elif defined(WC_SHA512_C_ONLY) || defined(WC_RNG_TREE)
+            #define WC_RESEED_INTERVAL 1000000
         #elif defined(WC_16BIT_CPU) || defined(WC_32BIT_CPU) || defined(NO_64BIT)
             #define WC_RESEED_INTERVAL UINT_MAX
         #elif defined(__x86_64__) || defined(__ia64__) || \
@@ -4833,7 +4833,11 @@
         #define WC_VERBOSE_RNG
     #endif
 
+    /* The stats need the RNG lock: this mirrors random.h's WC_RNG_HAVE_LOCK,
+     * which is not defined yet here. */
     #if defined(WC_VERBOSE_RNG) && defined(WOLFSSL_KERNEL_VERBOSE_DEBUG) && \
+        (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
+        !defined(WC_RNG_NO_LOCK) && !defined(WC_NO_RNG) && \
         !defined(WC_RNG_NO_DEBUG_STATS) && !defined(WC_RNG_WANT_DEBUG_STATS)
         #define WC_RNG_WANT_DEBUG_STATS
     #endif

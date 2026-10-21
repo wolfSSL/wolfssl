@@ -232,6 +232,7 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
                               * crypto_default_rng usable therein when
                               * LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT.
                               */
+#include "lkcapi_rng_tree_glue.c"
 #include "lkcapi_ecdsa_glue.c"
 #include "lkcapi_ecdh_glue.c"
 #include "lkcapi_rsa_glue.c"

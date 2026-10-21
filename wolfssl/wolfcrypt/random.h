@@ -65,13 +65,18 @@
  * semaphores exist; builds whose locks the handlers cannot cover are left out.
  * getpid() is required alongside them: it is what makes the child throw away
  * the pooled and banked bytes it inherited, which the handlers themselves do
- * not touch. */
+ * not touch.
+ * Tree builds keep wolfEntropy, not its counter thread (a fork() child has none):
+ * tree gathers take the turn lock; its two test APIs do not (a known limit). */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (!defined(HAVE_ENTROPY_MEMUSE) || (defined(WC_RNG_TREE) && \
+     (!defined(ENTROPY_MEMUSE_THREAD) || defined(CUSTOM_ENTROPY_TIMEHIRES)))) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
 #else
@@ -88,6 +93,17 @@
 #endif
 
 /***** Setup for RNG extra features *****/
+
+/* FIPS v7 and ready without the RNG extras, the lock aside: service 3.45
+ * (wc_RNG_DRBG_Reseed) is the only API that feeds caller bytes into a DRBG. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && \
+    !defined(WC_RNG_EXTRAS) && \
+    !defined(WC_RNG_WANT_RBGC) && !defined(WC_RNG_WANT_NEXT_SEED) && \
+    !defined(WC_RNG_WANT_POOL) && !defined(WC_RNG_WANT_FREE_HOOK) && \
+    !defined(WC_RNG_WANT_BANKREF_SUPPORT)
+    #define WC_RNG_NO_CALLER_SEED_APIS
+#endif
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
     !defined(WC_RNG_NO_LOCK) && !defined(WC_NO_RNG)
@@ -900,11 +916,13 @@ WOLFSSL_API int  wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonc
                                      void* heap, int devId, word32 flags);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
+#ifndef WC_RNG_NO_CALLER_SEED_APIS
 WOLFSSL_API int  wc_InitRngNonce_UserSeed(WC_RNG* rng,
                                           const byte* seed, word32 seedSz,
                                           const byte* nonce, word32 nonceSz,
                                           const byte *perso, word32 persoSz,
                                           void* heap, int devId, word32 flags);
+#endif
 #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
 WOLFSSL_API int wc_RNG_global_fallback_init(const byte* nonce, word32 nonceSz,
                                      const byte *perso, word32 persoSz,
@@ -971,6 +989,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
+#ifndef WC_RNG_NO_CALLER_SEED_APIS
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
                                              word32 seedSz, const byte *nonce,
                                              word32 nonceSz);
@@ -990,6 +1009,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                            word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
                                              const byte* nonce, word32 nonceSz);
+#endif /* !WC_RNG_NO_CALLER_SEED_APIS */
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -1132,6 +1152,60 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                          const byte* nonce,
                                          word32 nonceSz);
 #endif /* WC_RNG_HAVE_RBGC */
+
+/* WC_RNG_TREE: one root Hash_DRBG fed by the entropy source and one
+ * leaf per CPU per calling context, the alternative to the RNG extras.
+ * SP 800-90C 7.3.3 req 1: the root is the only parent of every leaf. */
+#ifdef WC_RNG_TREE
+    #if !defined(HAVE_HASHDRBG) || !defined(WOLFSSL_DRBG_SHA512)
+        #error WC_RNG_TREE needs the SHA-512 Hash_DRBG.
+    #endif
+    #if defined(WOLFSSL_NO_ATOMICS) && !defined(SINGLE_THREADED)
+        #error WC_RNG_TREE needs atomics or SINGLE_THREADED.
+    #endif
+    #ifdef WC_RNG_EXTRAS
+        #error WC_RNG_TREE and WC_RNG_EXTRAS are alternatives.
+    #endif
+    #if defined(WC_RNG_HAVE_POOL) || defined(WC_RNG_HAVE_NEXT_SEED) || \
+        defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_FREE_HOOK) || \
+        defined(HAVE_WC_RNG_BANK)
+        #error WC_RNG_TREE takes only the lock from the RNG extras.
+    #endif
+    #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_FIPS_DEV) && \
+        !defined(WC_SHA512_C_ONLY)
+        #error Kernel WC_RNG_TREE builds need WC_SHA512_C_ONLY.
+    #endif
+    #define WC_RNG_TREE_LANE_TASK    0
+    #define WC_RNG_TREE_LANE_SOFTIRQ 1
+    #define WC_RNG_TREE_LANE_HARDIRQ 2
+    #define WC_RNG_TREE_LANE_NMI     3
+    #define WC_RNG_TREE_LANES        4
+    /* Public services.  In FIPS the names are the module's wrappers (fips.h)
+     * and only the module's own sources see these, hidden. */
+    #if !defined(HAVE_FIPS) || !defined(FIPS_NO_WRAPPERS)
+        #define WC_RNG_TREE_API WOLFSSL_API
+    #else
+        #define WC_RNG_TREE_API WOLFSSL_LOCAL
+    #endif
+    /* Not fork safe: a fork() child calls wc_RNG_TreeInvalidate() and
+     * wc_RNG_TreeReseed() before it generates. */
+    WC_RNG_TREE_API int wc_RNG_TreeInit(int ncpu, void* heap);
+    /* Library cleanup: frees the leaves and zeroizes the root. */
+    WC_RNG_TREE_API int wc_RNG_TreeZeroize(void);
+    /* Never waits.  BUSY_E: try again.  NOT_READY_E: call
+     * wc_RNG_TreeReseed(), then try again. */
+    WC_RNG_TREE_API int wc_RNG_TreeGenerate(int cpu, int lane,
+                                            const byte* addl, word32 addlSz,
+                                            byte* out, word32 sz);
+    /* May spin, so never from interrupt context.  With force 0, reseeds the
+     * root only after wc_RNG_TreeInvalidate() or at its reseed interval. */
+    WC_RNG_TREE_API int wc_RNG_TreeReseed(int force);
+    /* After a VM fork or resume: nothing is output until the root reseeds. */
+    WC_RNG_TREE_API void wc_RNG_TreeInvalidate(void);
+    /* The SHA-512 DRBG CAST failed: the tree stays in an error state until
+     * it is re-instantiated (SP 800-90A 11.4.2). */
+    WOLFSSL_LOCAL void wc_RNG_TreeCastFailed(void);
+#endif /* WC_RNG_TREE */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
     #define WC_DRBG_NEXT_SEED_EMPTY 0
