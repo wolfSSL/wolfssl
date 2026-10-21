@@ -3178,6 +3178,237 @@ int test_TLSX_SupportedCurve_empty_or_unsupported(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_BRAINPOOL) && ECC_MIN_KEY_SZ <= 256 && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+static const word16 test_bp_tls13[] = {
+    WOLFSSL_ECC_BRAINPOOLP256R1TLS13,
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    WOLFSSL_ECC_BRAINPOOLP384R1TLS13,
+#endif
+#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+    WOLFSSL_ECC_BRAINPOOLP512R1TLS13,
+#endif
+};
+static const word16 test_bp_tls12[] = {
+    WOLFSSL_ECC_BRAINPOOLP256R1,
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    WOLFSSL_ECC_BRAINPOOLP384R1,
+#endif
+#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+    WOLFSSL_ECC_BRAINPOOLP512R1,
+#endif
+};
+#define TEST_BP_CNT \
+    ((int)(sizeof(test_bp_tls13) / sizeof(test_bp_tls13[0])))
+
+static void test_brainpool_count(TLSX* ext, int* tls13Cnt, int* tls12Cnt)
+{
+    SupportedCurve* curve = NULL;
+    int i;
+
+    *tls13Cnt = 0;
+    *tls12Cnt = 0;
+    if (ext != NULL)
+        curve = (SupportedCurve*)ext->data;
+    for (; curve != NULL; curve = curve->next) {
+        for (i = 0; i < TEST_BP_CNT; i++) {
+            if (curve->name == test_bp_tls13[i])
+                (*tls13Cnt)++;
+            else if (curve->name == test_bp_tls12[i])
+                (*tls12Cnt)++;
+        }
+    }
+}
+
+/* Counts the brainpool codepoints of each kind in a client's supported_groups
+ * list. */
+static int test_brainpool_offer(method_provider method, int ctxMinVersion,
+    int minVersion, long opts, int* tls13Cnt, int* tls12Cnt)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL* ssl_c = NULL;
+    TLSX* ext = NULL;
+
+    *tls13Cnt = 0;
+    *tls12Cnt = 0;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, NULL, NULL,
+                method, NULL), 0);
+    if (ctxMinVersion != 0) {
+        ExpectIntEQ(wolfSSL_CTX_SetMinVersion(ctx_c, ctxMinVersion),
+                    WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+                method, NULL), 0);
+    if (minVersion != 0) {
+        ExpectIntEQ(wolfSSL_SetMinVersion(ssl_c, minVersion),
+                    WOLFSSL_SUCCESS);
+    }
+    if ((opts != 0) && (ssl_c != NULL))
+        (void)wolfSSL_set_options(ssl_c, opts);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    if (ssl_c != NULL)
+        ext = TLSX_Find(ssl_c->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(ext);
+    test_brainpool_count(ext, tls13Cnt, tls12Cnt);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
+/* Counts the brainpool codepoints of each kind in the supported_groups list a
+ * TLS 1.3 server sends when the client lacks the server's first group. */
+static int test_brainpool_server_offer(int* tls13Cnt, int* tls12Cnt)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    TLSX* ext = NULL;
+
+    *tls13Cnt = 0;
+    *tls12Cnt = 0;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c,
+                WOLFSSL_ECC_BRAINPOOLP256R1TLS13), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_BRAINPOOLP256R1TLS13),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_version(ssl_s), TLS1_3_VERSION);
+
+    if (ssl_s != NULL)
+        ext = TLSX_Find(ssl_s->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(ext);
+    if (ext != NULL)
+        ExpectIntEQ(ext->resp, 1);
+    test_brainpool_count(ext, tls13Cnt, tls12Cnt);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+/* The RFC 7027 brainpool codepoints are offered only when TLS 1.2 or older can
+ * still be negotiated; TLS 1.3 uses the RFC 8734 ones. */
+int test_TLSX_SupportedCurve_brainpool_downgrade(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_BRAINPOOL) && ECC_MIN_KEY_SZ <= 256 && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    int tls13Cnt = 0;
+    int tls12Cnt = 0;
+
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0, 0, 0,
+                &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0,
+                WOLFSSL_TLSV1_2, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0,
+                WOLFSSL_TLSV1_3, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method,
+                WOLFSSL_TLSV1_3, 0, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+
+    ExpectIntEQ(test_brainpool_offer(wolfTLSv1_3_client_method, 0, 0, 0,
+                &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+
+    ExpectIntEQ(test_brainpool_offer(wolfTLSv1_2_client_method, 0, 0, 0,
+                &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, 0);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0, 0,
+                WOLFSSL_OP_NO_TLSv1 | WOLFSSL_OP_NO_TLSv1_1 |
+                WOLFSSL_OP_NO_TLSv1_2, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+#ifndef NO_OLD_TLS
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0,
+                WOLFSSL_TLSV1_1, WOLFSSL_OP_NO_TLSv1_2, &tls13Cnt, &tls12Cnt),
+                TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+#ifdef WOLFSSL_ALLOW_TLSV10
+    ExpectIntEQ(test_brainpool_offer(wolfSSLv23_client_method, 0,
+                WOLFSSL_TLSV1, WOLFSSL_OP_NO_TLSv1_1 | WOLFSSL_OP_NO_TLSv1_2,
+                &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_brainpool_offer(wolfDTLS_client_method, 0,
+                WOLFSSL_DTLSV1, WOLFSSL_OP_NO_TLSv1_2, &tls13Cnt, &tls12Cnt),
+                TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+#endif
+#endif
+#endif
+
+#ifdef WOLFSSL_DTLS
+    ExpectIntEQ(test_brainpool_offer(wolfDTLS_client_method, 0,
+                WOLFSSL_DTLSV1_2, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+#else
+    ExpectIntEQ(tls13Cnt, 0);
+#endif
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+#endif
+
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_brainpool_offer(wolfDTLS_client_method, 0,
+                WOLFSSL_DTLSV1_3, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+#endif
+
+#if !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
+    ExpectIntEQ(test_brainpool_server_offer(&tls13Cnt, &tls12Cnt),
+                TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
+    ExpectIntEQ(tls12Cnt, 0);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* The signature_algorithms_cert list is allocated only when a peer sends the
  * extension: first list, replacement, truncation, and release. */
 int test_TLSX_SignatureAlgorithmsCert_parse(void)

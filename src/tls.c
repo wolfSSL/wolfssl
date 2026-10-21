@@ -16338,10 +16338,65 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
 #ifdef HAVE_SUPPORTED_CURVES
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+/* Returns 1 when a client's supported_versions would also offer a version
+ * before 1.3. */
+static int TLSX_PreTls13Reachable(const WOLFSSL* ssl)
+{
+    int ret = 0;
+#if defined(WOLFSSL_TLS13) && \
+    (!defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS))
+    byte isDtls = (byte)ssl->options.dtls;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.downgrade) {
+    #ifndef WOLFSSL_NO_TLS12
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+    #endif
+    #ifndef NO_OLD_TLS
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade,
+                (byte)(isDtls ? DTLS_MINOR : TLSv1_1_MINOR))
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #ifdef WOLFSSL_ALLOW_TLSV10
+        if (!isDtls && (ssl->options.minDowngrade <= TLSv1_MINOR)
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == 0
+        #endif
+        ) {
+            ret = 1;
+        }
+        #endif
+    #endif
+    }
+#else
+    (void)ssl;
+#endif
+
+    return ret;
+}
+#endif
+
 /* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
     int ret = WOLFSSL_SUCCESS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+    int preTls13;
+#endif
 #ifdef WOLFSSL_TLS13
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     if (ssl->options.resuming && ssl->session->namedGroup != 0) {
@@ -16361,6 +16416,12 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         return WOLFSSL_SUCCESS;
     }
 #endif /* WOLFSSL_TLS13 */
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_BRAINPOOL)
+    preTls13 = !IsAtLeastTLSv1_3(ssl->version) ||
+        TLSX_PreTls13Reachable(ssl);
+    (void)preTls13;
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT) && \
     !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS)
@@ -16417,18 +16478,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP512R1TLS13, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
-
-            /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
-            if (ssl->options.downgrade &&
-                (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
-                    ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
-                ret = TLSX_UseSupportedCurve(extensions,
-                    WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap, ssl->options.side);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            }
         }
-        else {
-            /* TLS 1.2 only */
+        if (preTls13) {
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16461,18 +16512,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP384R1TLS13, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
-
-            /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
-            if (ssl->options.downgrade &&
-                (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
-                    ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
-                ret = TLSX_UseSupportedCurve(extensions,
-                    WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap, ssl->options.side);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            }
         }
-        else {
-            /* TLS 1.2 only */
+        if (preTls13) {
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
@@ -16518,18 +16559,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP256R1TLS13, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
-
-            /* If TLS 1.2 is allowed, also add the TLS 1.2 curve */
-            if (ssl->options.downgrade &&
-                (ssl->options.minDowngrade <= TLSv1_2_MINOR ||
-                    ssl->options.minDowngrade <= DTLSv1_2_MINOR)) {
-                ret = TLSX_UseSupportedCurve(extensions,
-                    WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap, ssl->options.side);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            }
         }
-        else {
-            /* TLS 1.2 only */
+        if (preTls13) {
             ret = TLSX_UseSupportedCurve(extensions,
                 WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap, ssl->options.side);
             if (ret != WOLFSSL_SUCCESS) return ret;
