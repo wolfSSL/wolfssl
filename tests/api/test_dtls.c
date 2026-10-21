@@ -4114,7 +4114,7 @@ static int test_wolfSSL_dtls_export_peers_set_peer(WOLFSSL* ssl, char* ip,
         int ipSz, unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
@@ -9138,7 +9138,7 @@ static int test_dtls_export_etm_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
         unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
@@ -9241,7 +9241,7 @@ static int test_dtls_export_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
         unsigned short port, int fam)
 {
     (void)ssl;
-    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+    if (ip[0] != (char)-1 || ipSz != 1 || port != 1 || fam != 2)
         return 0;
     return 1;
 }
