@@ -3397,6 +3397,13 @@ int test_TLSX_SupportedCurve_brainpool_downgrade(void)
                 WOLFSSL_DTLSV1_3, 0, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
     ExpectIntEQ(tls13Cnt, TEST_BP_CNT);
     ExpectIntEQ(tls12Cnt, 0);
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    ExpectIntEQ(test_brainpool_offer(wolfDTLS_client_method, 0, 0,
+                WOLFSSL_OP_NO_TLSv1_3, &tls13Cnt, &tls12Cnt), TEST_SUCCESS);
+    ExpectIntEQ(tls13Cnt, 0);
+    ExpectIntEQ(tls12Cnt, TEST_BP_CNT);
+#endif
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)

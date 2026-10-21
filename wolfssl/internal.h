@@ -8282,6 +8282,8 @@ WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS13
+WOLFSSL_LOCAL byte Dtls13DowngradeMinor(const WOLFSSL* ssl,
+    byte minDowngrade);
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
         #define Dtls13NewEpoch wolfSSL_Dtls13NewEpoch

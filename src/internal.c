@@ -8085,6 +8085,29 @@ int InitSSL_Suites(WOLFSSL* ssl)
    writeDup flag indicating this is a write dup only
 
    WOLFSSL_SUCCESS return value on success */
+#ifdef WOLFSSL_DTLS13
+/* Returns the newest DTLS minor before 1.3 that the version mask and
+ * minDowngrade allow, or 0. DTLS minors count down. */
+byte Dtls13DowngradeMinor(const WOLFSSL* ssl, byte minDowngrade)
+{
+#ifndef WOLFSSL_NO_TLS12
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == 0 &&
+            minDowngrade >= DTLSv1_2_MINOR) {
+        return DTLSv1_2_MINOR;
+    }
+#endif
+#ifndef NO_OLD_TLS
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == 0 &&
+            minDowngrade >= DTLS_MINOR) {
+        return DTLS_MINOR;
+    }
+#endif
+    (void)ssl;
+    (void)minDowngrade;
+    return 0;
+}
+#endif
+
 #ifdef OPENSSL_EXTRA
 /* Apply the protocol version mask and downgrade rules. Returns VERSION_ERROR
  * when the requested options are inconsistent, 0 otherwise. */
@@ -8101,6 +8124,25 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
         WOLFSSL_MSG("\tOption set to not allow TLSv1.3, Downgrading");
         ssl->version.minor = TLSv1_2_MINOR;
+    }
+    #endif
+    #ifdef WOLFSSL_DTLS13
+    if (ssl->version.major == DTLS_MAJOR &&
+            ssl->version.minor == DTLSv1_3_MINOR &&
+            (ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) ==
+                WOLFSSL_OP_NO_TLSv1_3) {
+        byte minor = 0;
+
+        if (ctx->method->downgrade)
+            minor = Dtls13DowngradeMinor(ssl, ctx->minDowngrade);
+        if (minor == 0) {
+            WOLFSSL_MSG("\tInconsistent protocol options. DTLS 1.3 set but "
+                        "not allowed and no lower DTLS version allowed.");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow DTLSv1.3, Downgrading");
+        ssl->version.minor = minor;
     }
     #endif
     if (ssl->version.minor == TLSv1_2_MINOR &&
