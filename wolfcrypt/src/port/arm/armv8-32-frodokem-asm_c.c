@@ -51,7 +51,7 @@
 
 #include <wolfssl/wolfcrypt/wc_frodokem_mat.h>
 
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifndef WOLFSSL_ARMASM_NO_NEON
 void frodokem_add_neon(word16* a_p, const word16* b_p, int qmask_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -560,8 +560,8 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_neon(word16* out,
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef __ARM_FEATURE_SIMD32
 #if (!defined(__ARM_NEON) && !defined(__ARM_NEON__)) || \
         defined(WOLFSSL_ARMASM_NO_NEON)
@@ -872,7 +872,7 @@ WC_OMIT_FRAME_POINTER void frodokem_mul_add_sb_plus_e_simd32(word16* out,
 #endif /* (!defined(__ARM_NEON) && !defined(__ARM_NEON__)) ||
         * defined(WOLFSSL_ARMASM_NO_NEON) */
 #endif /* __ARM_FEATURE_SIMD32 */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */

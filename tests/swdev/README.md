@@ -22,6 +22,7 @@ The switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_MLKEM`    | software ML-KEM | ML-KEM via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_LMS`      | software LMS/HSS | LMS via CryptoCb   |
 | `WOLF_CRYPTO_CB_ONLY_XMSS`     | software XMSS/XMSS^MT | XMSS via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_FRODOKEM` | software FrodoKEM | FrodoKEM via CryptoCb |
 
 LMS and XMSS keys are stateful, so swdev keeps each generated key on the
 device and signs with it there. The key is released when the caller frees

@@ -6227,6 +6227,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(WOLF_CRYPTO_CB_ONLY_XMSS) && defined(HAVE_FIPS)
     #error "WOLF_CRYPTO_CB_ONLY_XMSS is incompatible with FIPS builds"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_FRODOKEM requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && !defined(WOLFSSL_HAVE_FRODOKEM)
+    #error "WOLF_CRYPTO_CB_ONLY_FRODOKEM requires WOLFSSL_HAVE_FRODOKEM"
+#endif
 
 /*
  * WOLFSSL_NO_RSA_SW omits the wolfCrypt software RSA implementation: the

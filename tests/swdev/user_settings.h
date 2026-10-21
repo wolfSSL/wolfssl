@@ -34,6 +34,7 @@
 #undef WOLF_CRYPTO_CB_ONLY_MLKEM
 #undef WOLF_CRYPTO_CB_ONLY_LMS
 #undef WOLF_CRYPTO_CB_ONLY_XMSS
+#undef WOLF_CRYPTO_CB_ONLY_FRODOKEM
 /* swdev is the software provider, so it needs the software implementations
  * that these leave out of the library. */
 #undef WOLFSSL_NO_RSA_SW
