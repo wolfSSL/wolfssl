@@ -1136,6 +1136,9 @@ static void wb_fp_cache_internals(void)
     ecc_point *g0, *g1;
     int idx0, ret;
     unsigned x;
+    /* the parameters an entry is keyed on; stand-ins, no curve math runs */
+    mp_int a, modulus;
+    int inited = 0;
 
     wc_ecc_fp_free(); /* deterministic empty-cache start */
 
@@ -1145,21 +1148,28 @@ static void wb_fp_cache_internals(void)
         wb_fail = 1;
         goto out;
     }
+    if (mp_init_multi(&a, &modulus, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        goto out;
+    }
+    inited = 1;
+    (void)mp_set(&a, 2);
+    (void)mp_set(&modulus, 97);
     (void)mp_set(g0->x, 3); (void)mp_set(g0->y, 5); (void)mp_set(g0->z, 1);
     (void)mp_set(g1->x, 11); (void)mp_set(g1->y, 13); (void)mp_set(g1->z, 1);
 
     /* find_base on an empty cache: every fp_cache[x].g == NULL -> -1. */
-    if (find_base(g0) != -1) { wb_fail = 1; }
+    if (find_base(g0, &a, &modulus) != -1) { wb_fail = 1; }
 
-    ret = add_entry(0, g0);
+    ret = add_entry(0, g0, &a, &modulus);
     if (ret != MP_OKAY) { wb_fail = 1; }
     (void)mp_init(&fp_cache[0].mu); /* stand-in for build_lut()'s own init */
 
     /* find_base: entry 0 occupied and matches (all 3 mp_cmp true) -> 0. */
-    if (find_base(g0) != 0) { wb_fail = 1; }
+    if (find_base(g0, &a, &modulus) != 0) { wb_fail = 1; }
     /* find_base: entry 0 occupied but a DIFFERENT point -> falls through
      * to -1 (isolates the mp_cmp x/y/z operands' FALSE side). */
-    if (find_base(g1) != -1) { wb_fail = 1; }
+    if (find_base(g1, &a, &modulus) != -1) { wb_fail = 1; }
 
     /* find_hole: lock entry 0 so it is excluded (lock==0 FALSE) even
      * though it has the lowest lru_count; some other (empty, g==NULL)
@@ -1185,6 +1195,10 @@ static void wb_fp_cache_internals(void)
     WB_NOTE("fp_cache find_base/find_hole/add_entry internals exercised");
 
 out:
+    if (inited) {
+        mp_clear(&a);
+        mp_clear(&modulus);
+    }
     wc_ecc_del_point(g0);
     wc_ecc_del_point(g1);
     for (x = 0; x < FP_ENTRIES; x++) {
