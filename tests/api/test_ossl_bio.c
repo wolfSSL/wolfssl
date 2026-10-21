@@ -28,6 +28,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/internal.h>
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -879,6 +880,151 @@ int test_wolfSSL_BIO_accept(void)
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
+#endif
+#if defined(OPENSSL_EXTRA)
+    {
+        BIO* bio = NULL;
+
+        /* port parsing: plain, host:port and [ipv6]:port forms */
+        ExpectNotNull(bio = BIO_new_accept("65535"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 65535);
+        ExpectNull(bio == NULL ? NULL : bio->ip);
+        BIO_free(bio);
+        bio = NULL;
+        /* "*" and an empty host both mean any address, as in OpenSSL */
+        ExpectNotNull(bio = BIO_new_accept("*:4433"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 4433);
+        ExpectNull(bio == NULL ? NULL : bio->ip);
+        BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(bio = BIO_new_accept(":4433"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 4433);
+        ExpectNull(bio == NULL ? NULL : bio->ip);
+        BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(bio = BIO_new_accept("[]:4433"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 4433);
+        ExpectNull(bio == NULL ? NULL : bio->ip);
+        BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(bio = BIO_new_accept("127.0.0.1:4433"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 4433);
+        ExpectStrEQ(bio == NULL ? NULL : bio->ip, "127.0.0.1");
+        BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(bio = BIO_new_accept("[::1]:11111"));
+        ExpectIntEQ(bio == NULL ? 0 : bio->port, 11111);
+        ExpectStrEQ(bio == NULL ? NULL : bio->ip, "::1");
+        BIO_free(bio);
+        bio = NULL;
+
+        /* empty, zero, non-numeric and out-of-range ports are rejected */
+        ExpectNull(BIO_new_accept(NULL));
+        ExpectNull(BIO_new_accept(""));
+        ExpectNull(BIO_new_accept("0"));
+        ExpectNull(BIO_new_accept("abc"));
+        ExpectNull(BIO_new_accept("-1"));
+        ExpectNull(BIO_new_accept("4433abc"));
+        ExpectNull(BIO_new_accept("70000"));
+        ExpectNull(BIO_new_accept("99999999999"));
+        ExpectNull(BIO_new_accept("localhost:"));
+        ExpectNull(BIO_new_accept("[::1]"));
+        ExpectNull(BIO_new_accept("[::1:4433"));
+        /* unbracketed IPv6 address is ambiguous */
+        ExpectNull(BIO_new_accept("::1"));
+        ExpectNull(BIO_new_accept("::1:4433"));
+        ExpectNull(BIO_new_accept("2001:db8::1:5"));
+    }
+#endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_HTTP_CLIENT) && \
+    defined(HAVE_SOCKADDR) && !defined(USE_WINDOWS_API)
+    {
+        /* The listener must bind the requested address, not any address. */
+        BIO* bio = NULL;
+        char str[32];
+        word16 bindPort = GetRandomPort();
+        SOCKADDR_S sa;
+        XSOCKLENT len = (XSOCKLENT)sizeof(sa);
+
+        XMEMSET(&sa, 0, sizeof(sa));
+        (void)XSNPRINTF(str, sizeof(str), "127.0.0.1:%u", bindPort);
+        ExpectNotNull(bio = BIO_new_accept(str));
+        ExpectIntEQ(BIO_do_accept(bio), 1);
+        ExpectIntEQ(getsockname(BIO_get_fd(bio, NULL), (SOCKADDR*)&sa, &len),
+            0);
+        ExpectIntEQ(sa.ss_family, AF_INET);
+        ExpectIntEQ(((SOCKADDR_IN*)&sa)->sin_addr.s_addr,
+            htonl(INADDR_LOOPBACK));
+        BIO_free(bio);
+        bio = NULL;
+
+    #ifdef WOLFSSL_IPV6
+        {
+            /* CI containers often have no ::1, so probe it with a raw socket
+             * and only skip the check when that fails too. */
+            SOCKADDR_IN6 in6;
+            SOCKET_T fd;
+            int haveV6Loopback = 0;
+
+            fd = socket(AF_INET6, SOCK_STREAM, 0);
+            if (fd != SOCKET_INVALID) {
+                XMEMSET(&in6, 0, sizeof(in6));
+                in6.sin6_family = AF_INET6;
+                in6.sin6_addr = in6addr_loopback;
+                haveV6Loopback = (bind(fd, (SOCKADDR*)&in6, sizeof(in6)) == 0);
+                CloseSocket(fd);
+            }
+
+            if (haveV6Loopback) {
+                XMEMSET(&sa, 0, sizeof(sa));
+                len = (XSOCKLENT)sizeof(sa);
+                (void)XSNPRINTF(str, sizeof(str), "[::1]:%u", bindPort);
+                ExpectNotNull(bio = BIO_new_accept(str));
+                ExpectIntEQ(BIO_do_accept(bio), 1);
+                ExpectIntEQ(getsockname(BIO_get_fd(bio, NULL), (SOCKADDR*)&sa,
+                    &len), 0);
+                ExpectIntEQ(sa.ss_family, AF_INET6);
+                ExpectTrue(IN6_IS_ADDR_LOOPBACK(
+                    &((SOCKADDR_IN6*)&sa)->sin6_addr));
+                BIO_free(bio);
+                bio = NULL;
+            }
+        }
+    #else
+        /* IPv6 address in an IPv4-only build: bind fails. */
+        (void)XSNPRINTF(str, sizeof(str), "[::1]:%u", bindPort);
+        ExpectNotNull(bio = BIO_new_accept(str));
+        ExpectIntEQ(BIO_do_accept(bio), 0);
+        BIO_free(bio);
+        bio = NULL;
+    #endif
+
+        /* "*" still binds any address */
+        XMEMSET(&sa, 0, sizeof(sa));
+        len = (XSOCKLENT)sizeof(sa);
+        (void)XSNPRINTF(str, sizeof(str), "*:%u", bindPort);
+        ExpectNotNull(bio = BIO_new_accept(str));
+        ExpectIntEQ(BIO_do_accept(bio), 1);
+        ExpectIntEQ(getsockname(BIO_get_fd(bio, NULL), (SOCKADDR*)&sa, &len),
+            0);
+    #ifdef WOLFSSL_IPV6
+        ExpectIntEQ(sa.ss_family, AF_INET6);
+        ExpectTrue(IN6_IS_ADDR_UNSPECIFIED(
+            &((SOCKADDR_IN6*)&sa)->sin6_addr));
+    #else
+        ExpectIntEQ(sa.ss_family, AF_INET);
+        ExpectIntEQ(((SOCKADDR_IN*)&sa)->sin_addr.s_addr, htonl(INADDR_ANY));
+    #endif
+        BIO_free(bio);
+        bio = NULL;
+
+        /* address not on this host (TEST-NET-1): bind fails */
+        (void)XSNPRINTF(str, sizeof(str), "192.0.2.1:%u", bindPort);
+        ExpectNotNull(bio = BIO_new_accept(str));
+        ExpectIntEQ(BIO_do_accept(bio), 0);
+        ExpectIntLT(BIO_get_fd(bio, NULL), 0);
+        BIO_free(bio);
+    }
 #endif
     return EXPECT_RESULT();
 }

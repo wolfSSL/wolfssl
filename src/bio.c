@@ -2614,12 +2614,15 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     /**
      * Create new socket BIO object. This is a pure TCP connection with
      * no SSL or TLS protection.
-     * @param port port  to connect to
-     * @return New BIO object or NULL on failure
+     * @param port "port", "host:port" or "[ipv6]:port" to listen on. An empty
+     *             host or "*" means any address.
+     * @return New BIO object or NULL on failure, including an empty, zero,
+     *         non-numeric or out-of-range port
      */
     WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port)
     {
         WOLFSSL_BIO *bio;
+        int parsedPort = 0;
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
 
         if (port == NULL) {
@@ -2628,15 +2631,70 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
+            /* The port is the text after the last ':', which covers "port",
+             * "host:port" and "[ipv6]:port". */
             const char* portStr = port;
-#ifdef WOLFSSL_IPV6
-            const char* ipv6End = XSTRSTR(port, "]");
-            if (ipv6End) {
-                portStr = XSTRSTR(ipv6End, ":");
+            const char* cur;
+            for (cur = port; *cur != '\0'; cur++) {
+                if (*cur == ':')
+                    portStr = cur + 1;
             }
-#endif
-            bio->port = (word16)XATOI(portStr);
+            /* Parse digits only, rejecting empty, non-numeric and out-of-range
+             * values instead of truncating to word16. */
+            for (cur = portStr; *cur != '\0'; cur++) {
+                if ((*cur < '0') || (*cur > '9')) {
+                    parsedPort = 0;
+                    break;
+                }
+                parsedPort = parsedPort * 10 + (*cur - '0');
+                if (parsedPort > 65535) {
+                    parsedPort = 0;
+                    break;
+                }
+            }
+            bio->port = (word16)parsedPort;
             bio->type  = WOLFSSL_BIO_SOCKET;
+
+            /* Keep the host (brackets stripped) so BIO_do_accept binds only
+             * that address. An empty host or "*" means any address, as in
+             * OpenSSL. */
+            if ((bio->port != 0) && (portStr != port)) {
+                const char* host = port;
+                size_t hostLen = (size_t)(portStr - port) - 1;
+                int bracketed = 0;
+                if ((hostLen >= 2) && (host[0] == '[') &&
+                        (host[hostLen - 1] == ']')) {
+                    host++;
+                    hostLen -= 2;
+                    bracketed = 1;
+                }
+                if ((hostLen > 0) && (host[0] == '[')) {
+                    bio->port = 0; /* unclosed bracket */
+                }
+                else if (!bracketed && (hostLen > 0) &&
+                        (XSTRNSTR(host, ":", hostLen) != NULL)) {
+                    /* unbracketed IPv6 address: ambiguous, as in OpenSSL */
+                    bio->port = 0;
+                }
+                else if ((hostLen > 1) ||
+                        ((hostLen == 1) && (host[0] != '*'))) {
+                    bio->ip = (char*)XMALLOC(hostLen + 1, bio->heap,
+                        DYNAMIC_TYPE_OPENSSL);
+                    if (bio->ip == NULL) {
+                        bio->port = 0;
+                    }
+                    else {
+                        XMEMCPY(bio->ip, host, hostLen);
+                        bio->ip[hostLen] = '\0';
+                    }
+                }
+            }
+
+            /* Port 0 is not supported, wolfIO_TcpBind rejects it. */
+            if (bio->port == 0) {
+                wolfSSL_BIO_free(bio);
+                bio = NULL;
+            }
         }
         return bio;
     }
@@ -2730,8 +2788,8 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
 
         if (b->num.fd == SOCKET_INVALID) {
-            if (wolfIO_TcpBind(&sfd, b->port) < 0) {
-                WOLFSSL_MSG("wolfIO_TcpBind error");
+            if (wolfIO_TcpBindAddr(&sfd, b->ip, b->port) < 0) {
+                WOLFSSL_MSG("wolfIO_TcpBindAddr error");
                 return WOLFSSL_FAILURE;
             }
             b->num.fd = sfd;

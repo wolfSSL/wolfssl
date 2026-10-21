@@ -1604,34 +1604,17 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 
 int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 {
+    return wolfIO_TcpBindAddr(sockfd, NULL, port);
+}
+
 #ifdef HAVE_SOCKADDR
+/* Create a socket for addr's family, bind it to addr and listen. */
+static int wolfIO_TcpListenAddr(SOCKET_T* sockfd, const SOCKADDR_S* addr,
+    socklen_t sockaddr_len)
+{
     int ret = 0;
-    SOCKADDR_S addr;
-#ifdef WOLFSSL_IPV6
-    socklen_t sockaddr_len = sizeof(SOCKADDR_IN6);
-    SOCKADDR_IN6 *sin = (SOCKADDR_IN6 *)&addr;
-#else
-    socklen_t sockaddr_len = sizeof(SOCKADDR_IN);
-    SOCKADDR_IN *sin = (SOCKADDR_IN *)&addr;
-#endif
 
-    if (sockfd == NULL || port < 1) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    XMEMSET(&addr, 0, sizeof(addr));
-
-#ifdef WOLFSSL_IPV6
-    sin->sin6_family = AF_INET6;
-    sin->sin6_addr = in6addr_any;
-    sin->sin6_port = XHTONS(port);
-    *sockfd = (SOCKET_T)wc_socket_cloexec(AF_INET6, SOCK_STREAM, 0);
-#else
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = INADDR_ANY;
-    sin->sin_port = XHTONS(port);
-    *sockfd = (SOCKET_T)wc_socket_cloexec(AF_INET, SOCK_STREAM, 0);
-#endif
+    *sockfd = (SOCKET_T)wc_socket_cloexec(addr->ss_family, SOCK_STREAM, 0);
 
 #ifdef USE_WINDOWS_API
     if (*sockfd == SOCKET_INVALID)
@@ -1655,7 +1638,7 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 #endif
 
     if (ret == 0)
-        ret = XSOCKET_BIND(*sockfd, (SOCKADDR *)sin, sockaddr_len);
+        ret = XSOCKET_BIND(*sockfd, (const SOCKADDR *)addr, sockaddr_len);
     if (ret == 0)
         ret = XSOCKET_LISTEN(*sockfd, SOMAXCONN);
 
@@ -1667,8 +1650,109 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     }
 
     return ret;
+}
+#endif /* HAVE_SOCKADDR */
+
+/* Bind and listen on port. ip is the local address to bind to, or NULL for any
+ * address. Host names are resolved when getaddrinfo is available, and each
+ * resolved address is tried until one binds; otherwise ip must be a numeric IP
+ * address. */
+int wolfIO_TcpBindAddr(SOCKET_T* sockfd, const char* ip, word16 port)
+{
+#ifdef HAVE_SOCKADDR
+    SOCKADDR_S addr;
+#ifdef WOLFSSL_IPV6
+    socklen_t sockaddr_len = sizeof(SOCKADDR_IN6);
+    SOCKADDR_IN6 *sin = (SOCKADDR_IN6 *)&addr;
+#else
+    socklen_t sockaddr_len = sizeof(SOCKADDR_IN);
+    SOCKADDR_IN *sin = (SOCKADDR_IN *)&addr;
+#endif
+
+    if (sockfd == NULL || port < 1) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    XMEMSET(&addr, 0, sizeof(addr));
+
+#ifdef WOLFSSL_IPV6
+    sin->sin6_family = AF_INET6;
+    sin->sin6_addr = in6addr_any;
+    sin->sin6_port = XHTONS(port);
+#else
+    sin->sin_family = AF_INET;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sin->sin_port = XHTONS(port);
+#endif
+
+    if (ip != NULL) {
+#if defined(HAVE_GETADDRINFO)
+        ADDRINFO hints;
+        ADDRINFO* answer = NULL;
+        ADDRINFO* cur;
+        char strPort[6];
+        int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+
+        XMEMSET(&hints, 0, sizeof(hints));
+    #ifdef WOLFSSL_IPV6
+        hints.ai_family = AF_UNSPEC; /* detect IPv4 or IPv6 */
+    #else
+        hints.ai_family = AF_INET;   /* detect only IPv4 */
+    #endif
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        if (wolfIO_Word16ToString(strPort, port) == 0) {
+            WOLFSSL_MSG("invalid port number for bind");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        if (getaddrinfo(ip, strPort, &hints, &answer) != 0 ||
+                answer == NULL) {
+            WOLFSSL_MSG("no addr info for bind address");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        for (cur = answer; cur != NULL; cur = cur->ai_next) {
+            if ((size_t)cur->ai_addrlen > sizeof(addr))
+                continue;
+            XMEMSET(&addr, 0, sizeof(addr));
+            XMEMCPY(&addr, cur->ai_addr, (size_t)cur->ai_addrlen);
+            ret = wolfIO_TcpListenAddr(sockfd, &addr,
+                (socklen_t)cur->ai_addrlen);
+            if (ret == 0)
+                break;
+        }
+        freeaddrinfo(answer);
+        return ret;
+#else
+    #ifdef FREESCALE_MQX
+        #define WOLFIO_BIND_PTON(af, src, dst) \
+            (XINET_PTON((af), (src), (dst), sizeof(*(dst))) == RTCS_OK)
+    #else
+        #define WOLFIO_BIND_PTON(af, src, dst) \
+            (XINET_PTON((af), (src), (dst)) == 1)
+    #endif
+        SOCKADDR_IN *sin4 = (SOCKADDR_IN *)&addr;
+    #ifdef WOLFSSL_IPV6
+        if (!WOLFIO_BIND_PTON(AF_INET6, ip, &sin->sin6_addr))
+    #endif
+        {
+            XMEMSET(&addr, 0, sizeof(addr));
+            sockaddr_len = sizeof(SOCKADDR_IN);
+            sin4->sin_family = AF_INET;
+            sin4->sin_port = XHTONS(port);
+            if (!WOLFIO_BIND_PTON(AF_INET, ip, &sin4->sin_addr)) {
+                WOLFSSL_MSG("Bind address is not a numeric IP address");
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+        #undef WOLFIO_BIND_PTON
+#endif /* HAVE_GETADDRINFO */
+    }
+
+    return wolfIO_TcpListenAddr(sockfd, &addr, sockaddr_len);
 #else
     (void)sockfd;
+    (void)ip;
     (void)port;
     return WOLFSSL_FATAL_ERROR;
 #endif /* HAVE_SOCKADDR */
